@@ -49,17 +49,21 @@ public static class ExcelPowerQueryTool
         [Description("Target worksheet name (when loadDestination is 'worksheet' or 'both')")]
         string? targetSheet = null,
 
-        [RegularExpression(@"^\$?[A-Za-z]{1,3}\$?[0-9]{1,7}$")]
+        [RegularExpression(@"\$?[A-Za-z]{1,3}\$?[0-9]{1,7}$")]
         [Description("Top-left cell for create/load-to actions when placing data on an existing worksheet (e.g., 'B5'). Only used when load destination is 'worksheet' or 'both'.")]
         string? targetCellAddress = null,
 
         [RegularExpression("^(worksheet|data-model|both|connection-only)$")]
         [Description(@"Load destination for query (for create action). Options:
-  - 'worksheet': Load to worksheet as table (DEFAULT - users can see/validate data)
-  - 'data-model': Load to Power Pivot Data Model (for DAX measures/relationships)
-  - 'both': Load to both worksheet AND Data Model
-  - 'connection-only': Don't load data (M code imported but not executed)")]
-        string? loadDestination = null)
+      - 'worksheet': Load to worksheet as table (DEFAULT - users can see/validate data)
+      - 'data-model': Load to Power Pivot Data Model (for DAX measures/relationships)
+      - 'both': Load to both worksheet AND Data Model
+      - 'connection-only': Don't load data (M code imported but not executed)")]
+        string? loadDestination = null,
+
+        [Range(60, 600)]
+        [Description("Timeout in seconds for refresh action (60-600 seconds / 1-10 minutes). Required when action is 'refresh'.")]
+        int? refreshTimeoutSeconds = null)
     {
         try
         {
@@ -72,7 +76,7 @@ public static class ExcelPowerQueryTool
             {
                 PowerQueryAction.List => ListPowerQueriesAsync(powerQueryCommands, sessionId),
                 PowerQueryAction.View => ViewPowerQueryAsync(powerQueryCommands, sessionId, queryName),
-                PowerQueryAction.Refresh => RefreshPowerQueryAsync(powerQueryCommands, sessionId, queryName),
+                PowerQueryAction.Refresh => RefreshPowerQueryAsync(powerQueryCommands, sessionId, queryName, refreshTimeoutSeconds),
                 PowerQueryAction.Delete => DeletePowerQueryAsync(powerQueryCommands, sessionId, queryName),
                 PowerQueryAction.GetLoadConfig => GetLoadConfigAsync(powerQueryCommands, sessionId, queryName),
 
@@ -125,13 +129,27 @@ public static class ExcelPowerQueryTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string RefreshPowerQueryAsync(PowerQueryCommands commands, string sessionId, string? queryName)
+    private static string RefreshPowerQueryAsync(PowerQueryCommands commands, string sessionId, string? queryName, int? refreshTimeoutSeconds)
     {
         if (string.IsNullOrEmpty(queryName))
             throw new ArgumentException("queryName is required for refresh action", nameof(queryName));
 
+        if (refreshTimeoutSeconds is null)
+            throw new ArgumentException("refreshTimeoutSeconds is required for refresh action", nameof(refreshTimeoutSeconds));
+
+        const int minSeconds = 60;
+        const int maxSeconds = 600;
+        if (refreshTimeoutSeconds < minSeconds || refreshTimeoutSeconds > maxSeconds)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(refreshTimeoutSeconds),
+                $"refreshTimeoutSeconds must be between {minSeconds} seconds (1 minute) and {maxSeconds} seconds (10 minutes). For longer operations, ask the user to run the refresh manually in Excel.");
+        }
+
+        var timeout = TimeSpan.FromSeconds(refreshTimeoutSeconds.Value);
+
         var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.Refresh(batch, queryName, null));
+            batch => commands.Refresh(batch, queryName, timeout));
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
@@ -273,14 +291,6 @@ public static class ExcelPowerQueryTool
         // Detect sheet conflict error and provide specific guidance
         var isSheetConflict = !result.Success &&
                              result.ErrorMessage?.Contains("worksheet already exists", StringComparison.OrdinalIgnoreCase) == true;
-
-        var destinationName = loadMode switch
-        {
-            PowerQueryLoadMode.LoadToTable => "worksheet",
-            PowerQueryLoadMode.LoadToDataModel => "Data Model",
-            PowerQueryLoadMode.LoadToBoth => "worksheet and Data Model",
-            _ => "connection-only"
-        };
 
         return JsonSerializer.Serialize(new
         {

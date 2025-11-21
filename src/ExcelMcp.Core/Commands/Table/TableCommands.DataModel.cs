@@ -26,9 +26,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 // Data Model is always available in Excel 2013+ (no need to check)
@@ -45,9 +43,7 @@ public partial class TableCommands
                         string sourceTableName = modelTable.SourceName;
                         if (sourceTableName == tableName || sourceTableName.EndsWith($"[{tableName}]", StringComparison.Ordinal))
                         {
-                            result.Success = false;
-                            result.ErrorMessage = $"Table '{tableName}' is already in the Data Model";
-                            return result;
+                            throw new InvalidOperationException($"Table '{tableName}' is already in the Data Model");
                         }
                     }
                     finally
@@ -79,9 +75,7 @@ public partial class TableCommands
                             conn = workbookConnections.Item(i);
                             if (conn.Name == connectionName)
                             {
-                                result.Success = false;
-                                result.ErrorMessage = $"Table '{tableName}' is already in the Data Model";
-                                return result;
+                                throw new InvalidOperationException($"Table '{tableName}' is already in the Data Model");
                             }
                         }
                         finally
@@ -110,9 +104,7 @@ public partial class TableCommands
                         diagnostics.Add($"Inner exception: {ex.InnerException.Message}");
                     }
 
-                    result.Success = false;
-                    result.ErrorMessage = $"Failed to add table to Data Model. {string.Join(" -- ", diagnostics)}";
-                    return result;
+                    throw new InvalidOperationException($"Failed to add table to Data Model. {string.Join(" -- ", diagnostics)}", ex);
                 }
                 finally
                 {
@@ -124,12 +116,6 @@ public partial class TableCommands
                 // Connections.Add2() makes the table accessible for relationships/measures instantly
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally

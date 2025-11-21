@@ -26,9 +26,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 // Check if column already exists
@@ -41,9 +39,7 @@ public partial class TableCommands
                         column = listColumns.Item(i);
                         if (column.Name == columnName)
                         {
-                            result.Success = false;
-                            result.ErrorMessage = $"Column '{columnName}' already exists in table '{tableName}'";
-                            return result;
+                            throw new InvalidOperationException($"Column '{columnName}' already exists in table '{tableName}'");
                         }
                     }
                     finally
@@ -65,12 +61,6 @@ public partial class TableCommands
                 newColumn.Name = columnName;
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -99,9 +89,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 // Find column
@@ -129,21 +117,13 @@ public partial class TableCommands
 
                 if (column == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Column '{columnName}' not found in table '{tableName}'";
-                    return result;
+                    throw new InvalidOperationException($"Column '{columnName}' not found in table '{tableName}'");
                 }
 
                 // Delete column
                 column.Delete();
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -172,9 +152,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 // Find column
@@ -202,9 +180,7 @@ public partial class TableCommands
 
                 if (column == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Column '{oldName}' not found in table '{tableName}'";
-                    return result;
+                    throw new InvalidOperationException($"Column '{oldName}' not found in table '{tableName}'");
                 }
 
                 // Check if new name already exists
@@ -216,9 +192,7 @@ public partial class TableCommands
                         col = listColumns.Item(i);
                         if (col.Name == newName)
                         {
-                            result.Success = false;
-                            result.ErrorMessage = $"Column '{newName}' already exists in table '{tableName}'";
-                            return result;
+                            throw new InvalidOperationException($"Column '{newName}' already exists in table '{tableName}'");
                         }
                     }
                     finally
@@ -231,12 +205,6 @@ public partial class TableCommands
                 column.Name = newName;
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally

@@ -132,8 +132,6 @@ POSITIONING (move, copy-to-workbook, move-to-workbook):
         var result = ExcelToolsBase.WithSession(
             sessionId,
             batch => sheetCommands.List(batch));
-        var count = result.Worksheets?.Count ?? 0;
-        var inSession = !string.IsNullOrEmpty(sessionId);
 
         return JsonSerializer.Serialize(new
         {
@@ -247,7 +245,6 @@ POSITIONING (move, copy-to-workbook, move-to-workbook):
         var result = ExcelToolsBase.WithSession(
             sessionId,
             batch => sheetCommands.SetTabColor(batch, sheetName, redValue, greenValue, blueValue));
-        string hexColor = $"#{redValue:X2}{greenValue:X2}{blueValue:X2}";
 
         return JsonSerializer.Serialize(new
         {

@@ -73,12 +73,6 @@ public partial class NamedRangeCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref namesCollection);
@@ -100,9 +94,7 @@ public partial class NamedRangeCommands
                 nameObj = ComUtilities.FindName(ctx.Book, paramName);
                 if (nameObj == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Parameter '{paramName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Parameter '{paramName}' not found");
                 }
 
                 refersToRange = nameObj.RefersToRange;
@@ -122,12 +114,6 @@ public partial class NamedRangeCommands
                 }
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -152,9 +138,7 @@ public partial class NamedRangeCommands
                 nameObj = ComUtilities.FindName(ctx.Book, paramName);
                 if (nameObj == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Parameter '{paramName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Parameter '{paramName}' not found");
                 }
 
                 result.RefersTo = nameObj.RefersTo ?? "";
@@ -162,12 +146,6 @@ public partial class NamedRangeCommands
                 result.Value = refersToRange?.Value2;
                 result.ValueType = result.Value?.GetType().Name ?? "null";
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -186,16 +164,12 @@ public partial class NamedRangeCommands
         // Validate parameter name length (Excel limit: 255 characters)
         if (string.IsNullOrWhiteSpace(paramName))
         {
-            result.Success = false;
-            result.ErrorMessage = "Parameter name cannot be empty or whitespace";
-            return result;
+            throw new ArgumentException("Parameter name cannot be empty or whitespace", nameof(paramName));
         }
 
         if (paramName.Length > 255)
         {
-            result.Success = false;
-            result.ErrorMessage = $"Parameter name exceeds Excel's 255-character limit (current length: {paramName.Length})";
-            return result;
+            throw new ArgumentException($"Parameter name exceeds Excel's 255-character limit (current length: {paramName.Length})", nameof(paramName));
         }
 
         return batch.Execute((ctx, ct) =>
@@ -208,9 +182,7 @@ public partial class NamedRangeCommands
                 existing = ComUtilities.FindName(ctx.Book, paramName);
                 if (existing != null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Parameter '{paramName}' already exists";
-                    return result;
+                    throw new InvalidOperationException($"Parameter '{paramName}' already exists");
                 }
 
                 // Create new named range
@@ -222,12 +194,6 @@ public partial class NamedRangeCommands
                 namesCollection.Add(paramName, formattedReference);
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -246,16 +212,12 @@ public partial class NamedRangeCommands
         // Validate parameter name length (Excel limit: 255 characters)
         if (string.IsNullOrWhiteSpace(paramName))
         {
-            result.Success = false;
-            result.ErrorMessage = "Parameter name cannot be empty or whitespace";
-            return result;
+            throw new ArgumentException("Parameter name cannot be empty or whitespace", nameof(paramName));
         }
 
         if (paramName.Length > 255)
         {
-            result.Success = false;
-            result.ErrorMessage = $"Parameter name exceeds Excel's 255-character limit (current length: {paramName.Length})";
-            return result;
+            throw new ArgumentException($"Parameter name exceeds Excel's 255-character limit (current length: {paramName.Length})", nameof(paramName));
         }
 
         return batch.Execute((ctx, ct) =>
@@ -266,9 +228,7 @@ public partial class NamedRangeCommands
                 nameObj = ComUtilities.FindName(ctx.Book, paramName);
                 if (nameObj == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Parameter '{paramName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Parameter '{paramName}' not found");
                 }
 
                 // Remove any existing = prefix to avoid double ==
@@ -280,12 +240,6 @@ public partial class NamedRangeCommands
                 nameObj.RefersTo = formattedReference;
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error updating parameter: {ex.Message}";
                 return result;
             }
             finally
@@ -308,19 +262,11 @@ public partial class NamedRangeCommands
                 nameObj = ComUtilities.FindName(ctx.Book, paramName);
                 if (nameObj == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Parameter '{paramName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Parameter '{paramName}' not found");
                 }
 
                 nameObj.Delete();
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally

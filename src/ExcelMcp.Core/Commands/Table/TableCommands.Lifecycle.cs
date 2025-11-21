@@ -119,12 +119,6 @@ public partial class TableCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref sheets);
@@ -151,17 +145,13 @@ public partial class TableCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
                 }
 
                 // Check if table name already exists
                 if (TableExists(ctx.Book, tableName))
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' already exists";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' already exists");
                 }
 
                 // Get the range to convert to table
@@ -186,12 +176,6 @@ public partial class TableCommands
                 }
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -220,27 +204,17 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 // Check if new name already exists
                 if (TableExists(ctx.Book, newName))
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{newName}' already exists";
-                    return result;
+                    throw new InvalidOperationException($"Table '{newName}' already exists");
                 }
 
                 table.Name = newName;
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -266,9 +240,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 // SECURITY FIX: Store range info before Unlist() for proper cleanup
@@ -289,12 +261,6 @@ public partial class TableCommands
                 ComUtilities.Release(ref table);
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -323,9 +289,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 sheet = table.Parent;
@@ -395,12 +359,6 @@ public partial class TableCommands
                 };
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally

@@ -29,9 +29,7 @@ public partial class RangeCommands
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
-                    return result;
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
                 // Get actual address from Excel
@@ -115,12 +113,6 @@ public partial class RangeCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Failed to get number formats: {ex.Message}";
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref range);
@@ -145,21 +137,13 @@ public partial class RangeCommands
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
-                    return result;
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
                 // Set uniform number format for entire range
                 range.NumberFormat = formatCode;
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Failed to set number format: {ex.Message}";
                 return result;
             }
             finally
@@ -186,9 +170,7 @@ public partial class RangeCommands
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
-                    return result;
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
                 int rowCount = Convert.ToInt32(range.Rows.Count);
@@ -197,18 +179,14 @@ public partial class RangeCommands
                 // Validate dimensions match
                 if (formats.Count != rowCount)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Format array row count ({formats.Count}) doesn't match range row count ({rowCount})";
-                    return result;
+                    throw new ArgumentException($"Format array row count ({formats.Count}) doesn't match range row count ({rowCount})", nameof(formats));
                 }
 
                 for (int i = 0; i < formats.Count; i++)
                 {
                     if (formats[i].Count != columnCount)
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Format array row {i + 1} column count ({formats[i].Count}) doesn't match range column count ({columnCount})";
-                        return result;
+                        throw new ArgumentException($"Format array row {i + 1} column count ({formats[i].Count}) doesn't match range column count ({columnCount})", nameof(formats));
                     }
                 }
 
@@ -249,12 +227,6 @@ public partial class RangeCommands
                 }
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Failed to set number formats: {ex.Message}";
                 return result;
             }
             finally

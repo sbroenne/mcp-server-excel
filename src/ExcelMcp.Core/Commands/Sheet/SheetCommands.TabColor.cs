@@ -17,9 +17,7 @@ public partial class SheetCommands
         // Validate RGB values
         if (red < 0 || red > 255 || green < 0 || green > 255 || blue < 0 || blue > 255)
         {
-            result.Success = false;
-            result.ErrorMessage = "RGB values must be between 0 and 255";
-            return result;
+            throw new ArgumentException("RGB values must be between 0 and 255");
         }
 
         return batch.Execute((ctx, ct) =>
@@ -31,9 +29,7 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
                 }
 
                 // Convert RGB to BGR format (Excel's color format)
@@ -44,12 +40,6 @@ public partial class SheetCommands
                 tab.Color = bgrColor;
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -75,9 +65,7 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
                 }
 
                 tab = sheet.Tab;
@@ -120,12 +108,6 @@ public partial class SheetCommands
 
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref tab);
@@ -149,9 +131,7 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
                 }
 
                 tab = sheet.Tab;
@@ -159,12 +139,6 @@ public partial class SheetCommands
                 tab.ColorIndex = -4142; // xlColorIndexNone
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally

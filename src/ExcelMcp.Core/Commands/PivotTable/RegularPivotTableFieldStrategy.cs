@@ -1,6 +1,6 @@
+using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
-using Microsoft.Extensions.Logging;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
@@ -103,15 +103,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FilePath = workbookPath
             };
         }
-        catch (Exception ex)
-        {
-            return new PivotFieldListResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to list fields: {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref pivotFields);
@@ -160,15 +151,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FilePath = workbookPath
             };
         }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to add row field: {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref field);
@@ -211,15 +193,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 Position = Convert.ToInt32(field.Position),
                 DataType = DetectFieldDataType(field),
                 AvailableValues = GetFieldUniqueValues(field),
-                FilePath = workbookPath
-            };
-        }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to add column field: {ex.Message}",
                 FilePath = workbookPath
             };
         }
@@ -273,15 +246,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FilePath = workbookPath
             };
         }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to add value field: {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref field);
@@ -322,15 +286,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FilePath = workbookPath
             };
         }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to add filter field: {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref field);
@@ -362,15 +317,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FilePath = workbookPath
             };
         }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to remove field: {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref field);
@@ -393,15 +339,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FieldName = fieldName,
                 CustomName = customName,
                 Area = (PivotFieldArea)field.Orientation,
-                FilePath = workbookPath
-            };
-        }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to set field name: {ex.Message}",
                 FilePath = workbookPath
             };
         }
@@ -476,15 +413,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FilePath = workbookPath
             };
         }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to set field function: {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref field);
@@ -555,15 +483,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FilePath = workbookPath
             };
         }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to set field format: {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref field);
@@ -614,15 +533,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FilePath = workbookPath
             };
         }
-        catch (Exception ex)
-        {
-            return new PivotFieldFilterResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to set field filter: {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref pivotItems);
@@ -651,15 +561,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FieldName = fieldName,
                 CustomName = field.Caption?.ToString() ?? fieldName,
                 Area = (PivotFieldArea)field.Orientation,
-                FilePath = workbookPath
-            };
-        }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to sort field: {ex.Message}",
                 FilePath = workbookPath
             };
         }
@@ -1135,17 +1036,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                     : "Subtotals disabled for field. Only detail rows visible."
             };
         }
-        catch (Exception ex)
-        {
-            logger?.LogError(ex, "SetSubtotals failed for field {FieldName}", fieldName);
-            return new PivotFieldResult
-            {
-                Success = false,
-                FieldName = fieldName,
-                ErrorMessage = $"Failed to set subtotals: {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref field);
@@ -1174,15 +1064,9 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FilePath = workbookPath
             };
         }
-        catch (Exception ex)
+        finally
         {
-            logger?.LogError(ex, "SetGrandTotals failed");
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to set grand totals: {ex.Message}",
-                FilePath = workbookPath
-            };
+            // No COM objects to release in this method
         }
     }
 #pragma warning restore CA1848

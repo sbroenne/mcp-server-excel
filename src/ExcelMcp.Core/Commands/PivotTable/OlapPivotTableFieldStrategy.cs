@@ -1,6 +1,6 @@
+using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
-using Microsoft.Extensions.Logging;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
@@ -144,15 +144,6 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             {
                 Success = true,
                 Fields = fields,
-                FilePath = workbookPath
-            };
-        }
-        catch (Exception ex)
-        {
-            return new PivotFieldListResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to list OLAP fields: {ex.Message}",
                 FilePath = workbookPath
             };
         }
@@ -915,7 +906,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// OLAP CubeFields automatically create date hierarchies from Data Model columns.
     /// Manual grouping via Group() is NOT supported for OLAP PivotTables.
     /// </summary>
-    public PivotFieldResult GroupByDate(dynamic pivot, string fieldName, DateGroupingInterval interval, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null)
+    public PivotFieldResult GroupByDate(dynamic pivot, string fieldName, DateGroupingInterval interval, string workbookPath, ILogger? logger = null)
     {
         dynamic? cubeField = null;
         try
@@ -952,7 +943,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <inheritdoc/>
-    public PivotFieldResult GroupByNumeric(dynamic pivot, string fieldName, double? start, double? endValue, double intervalSize, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null)
+    public PivotFieldResult GroupByNumeric(dynamic pivot, string fieldName, double? start, double? endValue, double intervalSize, string workbookPath, ILogger? logger = null)
     {
         dynamic? cubeField = null;
         try
@@ -989,7 +980,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <inheritdoc/>
-    public PivotFieldResult CreateCalculatedField(dynamic pivot, string fieldName, string formula, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null)
+    public PivotFieldResult CreateCalculatedField(dynamic pivot, string fieldName, string formula, string workbookPath, ILogger? logger = null)
     {
         // CRITICAL: OLAP PivotTables do NOT support CalculatedFields collection
         // The CalculatedFields collection returns Nothing for OLAP PivotTables
@@ -1643,3 +1634,4 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
     #endregion
 }
+

@@ -25,9 +25,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 // Find column index
@@ -61,9 +59,7 @@ public partial class TableCommands
 
                 if (columnIndex == -1)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Column '{columnName}' not found in table '{tableName}'";
-                    return result;
+                    throw new InvalidOperationException($"Column '{columnName}' not found in table '{tableName}'");
                 }
 
                 // Apply filter
@@ -96,12 +92,6 @@ public partial class TableCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref autoFilter);
@@ -126,9 +116,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 // Find column index
@@ -162,9 +150,7 @@ public partial class TableCommands
 
                 if (columnIndex == -1)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Column '{columnName}' not found in table '{tableName}'";
-                    return result;
+                    throw new InvalidOperationException($"Column '{columnName}' not found in table '{tableName}'");
                 }
 
                 // Apply filter
@@ -197,12 +183,6 @@ public partial class TableCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref autoFilter);
@@ -227,9 +207,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 autoFilter = table.AutoFilter;
@@ -239,12 +217,6 @@ public partial class TableCommands
                 }
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally
@@ -271,9 +243,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Table '{tableName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Table '{tableName}' not found");
                 }
 
                 autoFilter = table.AutoFilter;
@@ -345,12 +315,6 @@ public partial class TableCommands
                 }
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
                 return result;
             }
             finally

@@ -28,9 +28,7 @@ public partial class VbaCommands
         if (!IsVbaTrustEnabled())
         {
             var trustGuidance = CreateVbaTrustGuidance();
-            result.Success = false;
-            result.ErrorMessage = trustGuidance.ErrorMessage;
-            return result;
+            throw new InvalidOperationException(trustGuidance.ErrorMessage);
         }
 
         return batch.Execute((ctx, ct) =>
@@ -62,33 +60,28 @@ public partial class VbaCommands
                         };
 
                         var procedures = new List<string>();
-                        int moduleLineCount = 0;
-                        try
-                        {
-                            codeModule = component.CodeModule;
-                            moduleLineCount = codeModule.CountOfLines;
+                        codeModule = component.CodeModule;
+                        int moduleLineCount = codeModule.CountOfLines;
 
-                            // Parse procedures from code
-                            for (int line = 1; line <= moduleLineCount; line++)
+                        // Parse procedures from code
+                        for (int line = 1; line <= moduleLineCount; line++)
+                        {
+                            string codeLine = codeModule.Lines[line, 1];
+                            string trimmedLine = codeLine.TrimStart();
+                            if (trimmedLine.StartsWith("Sub ", StringComparison.Ordinal) ||
+                                trimmedLine.StartsWith("Function ", StringComparison.Ordinal) ||
+                                trimmedLine.StartsWith("Public Sub ", StringComparison.Ordinal) ||
+                                trimmedLine.StartsWith("Public Function ", StringComparison.Ordinal) ||
+                                trimmedLine.StartsWith("Private Sub ", StringComparison.Ordinal) ||
+                                trimmedLine.StartsWith("Private Function ", StringComparison.Ordinal))
                             {
-                                string codeLine = codeModule.Lines[line, 1];
-                                string trimmedLine = codeLine.TrimStart();
-                                if (trimmedLine.StartsWith("Sub ", StringComparison.Ordinal) ||
-                                    trimmedLine.StartsWith("Function ", StringComparison.Ordinal) ||
-                                    trimmedLine.StartsWith("Public Sub ", StringComparison.Ordinal) ||
-                                    trimmedLine.StartsWith("Public Function ", StringComparison.Ordinal) ||
-                                    trimmedLine.StartsWith("Private Sub ", StringComparison.Ordinal) ||
-                                    trimmedLine.StartsWith("Private Function ", StringComparison.Ordinal))
+                                string procName = ExtractProcedureName(codeLine);
+                                if (!string.IsNullOrEmpty(procName))
                                 {
-                                    string procName = ExtractProcedureName(codeLine);
-                                    if (!string.IsNullOrEmpty(procName))
-                                    {
-                                        procedures.Add(procName);
-                                    }
+                                    procedures.Add(procName);
                                 }
                             }
                         }
-                        catch { }
 
                         result.Scripts.Add(new ScriptInfo
                         {
@@ -116,12 +109,6 @@ public partial class VbaCommands
                 result.ErrorMessage = "VBA trust access is not enabled";
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error listing scripts: {ex.Message}";
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref vbComponents);
@@ -138,25 +125,19 @@ public partial class VbaCommands
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new InvalidOperationException(validationError);
         }
 
         if (string.IsNullOrWhiteSpace(moduleName))
         {
-            result.Success = false;
-            result.ErrorMessage = "Module name cannot be empty";
-            return result;
+            throw new ArgumentException("Module name cannot be empty", nameof(moduleName));
         }
 
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
             var trustGuidance = CreateVbaTrustGuidance();
-            result.Success = false;
-            result.ErrorMessage = trustGuidance.ErrorMessage;
-            return result;
+            throw new InvalidOperationException(trustGuidance.ErrorMessage);
         }
 
         return batch.Execute((ctx, ct) =>
@@ -228,9 +209,7 @@ public partial class VbaCommands
 
                 if (!found)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Module '{moduleName}' not found in workbook";
-                    return result;
+                    throw new InvalidOperationException($"Module '{moduleName}' not found in workbook");
                 }
 
                 result.Success = true;
@@ -241,12 +220,6 @@ public partial class VbaCommands
             {
                 result.Success = false;
                 result.ErrorMessage = "VBA trust access is not enabled";
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error viewing script: {ex.Message}";
                 return result;
             }
             finally
@@ -271,15 +244,14 @@ public partial class VbaCommands
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new InvalidOperationException(validationError);
         }
 
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
-            return CreateVbaTrustGuidance();
+            var trustGuidance = CreateVbaTrustGuidance();
+            throw new InvalidOperationException(trustGuidance.ErrorMessage);
         }
 
         return batch.Execute((ctx, ct) =>
@@ -302,9 +274,7 @@ public partial class VbaCommands
                         component = vbComponents.Item(i);
                         if (component.Name == moduleName)
                         {
-                            result.Success = false;
-                            result.ErrorMessage = $"Module '{moduleName}' already exists. Use script-update to modify it.";
-                            return result;
+                            throw new InvalidOperationException($"Module '{moduleName}' already exists. Use script-update to modify it.");
                         }
                     }
                     finally
@@ -331,12 +301,6 @@ public partial class VbaCommands
                 result.FilePath = batch.WorkbookPath;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error importing script: {ex.Message}";
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref codeModule);
@@ -359,15 +323,14 @@ public partial class VbaCommands
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new InvalidOperationException(validationError);
         }
 
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
-            return CreateVbaTrustGuidance();
+            var trustGuidance = CreateVbaTrustGuidance();
+            throw new InvalidOperationException(trustGuidance.ErrorMessage);
         }
 
         return batch.Execute((ctx, ct) =>
@@ -405,9 +368,7 @@ public partial class VbaCommands
 
                 if (targetComponent == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Module '{moduleName}' not found. Use script-import to create it.";
-                    return result;
+                    throw new InvalidOperationException($"Module '{moduleName}' not found. Use script-import to create it.");
                 }
 
                 codeModule = targetComponent.CodeModule;
@@ -429,12 +390,6 @@ public partial class VbaCommands
                 // Trust was disabled during operation
                 result = CreateVbaTrustGuidance();
                 result.FilePath = batch.WorkbookPath;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error updating script: {ex.Message}";
                 return result;
             }
             finally

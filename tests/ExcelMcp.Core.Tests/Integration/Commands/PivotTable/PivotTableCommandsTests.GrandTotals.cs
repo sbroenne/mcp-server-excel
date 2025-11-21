@@ -19,7 +19,7 @@ public partial class PivotTableCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create PivotTable
-        var createResult = batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item[1];
             dynamic pivotCache = ctx.Book.PivotCaches().Create(1, sheet.Range["A1:D10"]);

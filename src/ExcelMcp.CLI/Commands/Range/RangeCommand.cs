@@ -52,10 +52,38 @@ internal sealed class RangeCommand : Command<RangeCommand.Settings>
             "copy" => ExecuteCopy(batch, settings, CopyType.All),
             "copy-values" => ExecuteCopy(batch, settings, CopyType.Values),
             "copy-formulas" => ExecuteCopy(batch, settings, CopyType.Formulas),
+            "insert-cells" => ExecuteInsertCells(batch, settings),
+            "delete-cells" => ExecuteDeleteCells(batch, settings),
+            "insert-rows" => ExecuteInsertRows(batch, settings),
+            "delete-rows" => ExecuteDeleteRows(batch, settings),
+            "insert-columns" => ExecuteInsertColumns(batch, settings),
+            "delete-columns" => ExecuteDeleteColumns(batch, settings),
+            "find" => ExecuteFind(batch, settings),
+            "replace" => ExecuteReplace(batch, settings),
+            "sort" => ExecuteSort(batch, settings),
+            "get-used-range" => ExecuteGetUsedRange(batch, settings),
+            "get-current-region" => ExecuteGetCurrentRegion(batch, settings),
+            "get-info" => ExecuteGetInfo(batch, settings),
             "add-hyperlink" => ExecuteAddHyperlink(batch, settings),
             "remove-hyperlink" => ExecuteRemoveHyperlink(batch, settings),
             "list-hyperlinks" => ExecuteListHyperlinks(batch, settings),
             "get-hyperlink" => ExecuteGetHyperlink(batch, settings),
+            "get-number-formats" => ExecuteGetNumberFormats(batch, settings),
+            "set-number-format" => ExecuteSetNumberFormat(batch, settings),
+            "set-number-formats" => ExecuteSetNumberFormats(batch, settings),
+            "get-style" => ExecuteGetStyle(batch, settings),
+            "set-style" => ExecuteSetStyle(batch, settings),
+            "format-range" => ExecuteFormatRange(batch, settings),
+            "validate-range" => ExecuteValidateRange(batch, settings),
+            "get-validation" => ExecuteGetValidation(batch, settings),
+            "remove-validation" => ExecuteRemoveValidation(batch, settings),
+            "autofit-columns" => ExecuteAutoFitColumns(batch, settings),
+            "autofit-rows" => ExecuteAutoFitRows(batch, settings),
+            "merge-cells" => ExecuteMergeCells(batch, settings),
+            "unmerge-cells" => ExecuteUnmergeCells(batch, settings),
+            "get-merge-info" => ExecuteGetMergeInfo(batch, settings),
+            "set-cell-lock" => ExecuteSetCellLock(batch, settings),
+            "get-cell-lock" => ExecuteGetCellLock(batch, settings),
             _ => ReportUnknown(action)
         };
     }
@@ -206,6 +234,584 @@ internal sealed class RangeCommand : Command<RangeCommand.Settings>
 
         var result = _rangeCommands.GetHyperlink(batch, settings.SheetName, settings.CellAddress);
         return WriteResult(result);
+    }
+
+    // === INSERT/DELETE OPERATIONS ===
+
+    private int ExecuteInsertCells(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for insert-cells.");
+            return -1;
+        }
+
+        if (!TryParseInsertShiftDirection(settings.Shift, out var shift))
+        {
+            _console.WriteError($"Invalid shift direction '{settings.Shift}'. Use 'down' or 'right'.");
+            return -1;
+        }
+
+        var result = _rangeCommands.InsertCells(batch, settings.SheetName ?? string.Empty, settings.RangeAddress, shift);
+        return WriteResult(result);
+    }
+
+    private int ExecuteDeleteCells(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for delete-cells.");
+            return -1;
+        }
+
+        if (!TryParseDeleteShiftDirection(settings.Shift, out var shift))
+        {
+            _console.WriteError($"Invalid shift direction '{settings.Shift}'. Use 'up' or 'left'.");
+            return -1;
+        }
+
+        var result = _rangeCommands.DeleteCells(batch, settings.SheetName ?? string.Empty, settings.RangeAddress, shift);
+        return WriteResult(result);
+    }
+
+    private int ExecuteInsertRows(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for insert-rows.");
+            return -1;
+        }
+
+        var result = _rangeCommands.InsertRows(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        return WriteResult(result);
+    }
+
+    private int ExecuteDeleteRows(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for delete-rows.");
+            return -1;
+        }
+
+        var result = _rangeCommands.DeleteRows(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        return WriteResult(result);
+    }
+
+    private int ExecuteInsertColumns(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for insert-columns.");
+            return -1;
+        }
+
+        var result = _rangeCommands.InsertColumns(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        return WriteResult(result);
+    }
+
+    private int ExecuteDeleteColumns(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for delete-columns.");
+            return -1;
+        }
+
+        var result = _rangeCommands.DeleteColumns(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        return WriteResult(result);
+    }
+
+    // === FIND/REPLACE OPERATIONS ===
+
+    private int ExecuteFind(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for find.");
+            return -1;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.SearchValue))
+        {
+            _console.WriteError("Search value is required for find.");
+            return -1;
+        }
+
+        var options = new FindOptions
+        {
+            MatchCase = settings.MatchCase ?? false,
+            MatchEntireCell = settings.MatchEntireCell ?? false,
+            SearchFormulas = settings.SearchFormulas ?? true,
+            SearchValues = settings.SearchValues ?? true,
+            SearchComments = settings.SearchComments ?? false
+        };
+
+        var result = _rangeCommands.Find(batch, settings.SheetName ?? string.Empty, settings.RangeAddress, settings.SearchValue, options);
+        return WriteResult(result);
+    }
+
+    private int ExecuteReplace(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for replace.");
+            return -1;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.FindValue))
+        {
+            _console.WriteError("Find value is required for replace.");
+            return -1;
+        }
+
+        if (settings.ReplaceValue == null)
+        {
+            _console.WriteError("Replace value is required for replace.");
+            return -1;
+        }
+
+        var options = new ReplaceOptions
+        {
+            ReplaceAll = settings.ReplaceAll ?? true,
+            MatchCase = settings.MatchCase ?? false,
+            MatchEntireCell = settings.MatchEntireCell ?? false,
+            SearchFormulas = settings.SearchFormulas ?? true,
+            SearchValues = settings.SearchValues ?? true,
+            SearchComments = settings.SearchComments ?? false
+        };
+
+        var result = _rangeCommands.Replace(batch, settings.SheetName ?? string.Empty, settings.RangeAddress, settings.FindValue, settings.ReplaceValue, options);
+        return WriteResult(result);
+    }
+
+    // === SORT OPERATION ===
+
+    private int ExecuteSort(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for sort.");
+            return -1;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.SortColumnsJson))
+        {
+            _console.WriteError("Sort columns JSON is required for sort. Example: [{\"columnIndex\":1,\"ascending\":true}]");
+            return -1;
+        }
+
+        List<SortColumn>? sortColumns;
+        try
+        {
+            sortColumns = JsonSerializer.Deserialize<List<SortColumn>>(settings.SortColumnsJson);
+            if (sortColumns == null || sortColumns.Count == 0)
+            {
+                _console.WriteError("Sort columns JSON must contain at least one column.");
+                return -1;
+            }
+        }
+        catch (JsonException ex)
+        {
+            _console.WriteError($"Invalid sort columns JSON: {ex.Message}");
+            return -1;
+        }
+
+        var result = _rangeCommands.Sort(batch, settings.SheetName ?? string.Empty, settings.RangeAddress, sortColumns, settings.HasHeaders ?? true);
+        return WriteResult(result);
+    }
+
+    // === RANGE QUERIES ===
+
+    private int ExecuteGetUsedRange(IExcelBatch batch, Settings settings)
+    {
+        var result = _rangeCommands.GetUsedRange(batch, settings.SheetName ?? string.Empty);
+        return WriteResult(result);
+    }
+
+    private int ExecuteGetCurrentRegion(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.CellAddress))
+        {
+            _console.WriteError("Cell address is required for get-current-region.");
+            return -1;
+        }
+
+        var result = _rangeCommands.GetCurrentRegion(batch, settings.SheetName ?? string.Empty, settings.CellAddress);
+        return WriteResult(result);
+    }
+
+    private int ExecuteGetInfo(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for get-info.");
+            return -1;
+        }
+
+        var result = _rangeCommands.GetInfo(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        return WriteResult(result);
+    }
+
+    // === NUMBER FORMAT OPERATIONS ===
+
+    private int ExecuteGetNumberFormats(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for get-number-formats.");
+            return -1;
+        }
+
+        var result = _rangeCommands.GetNumberFormats(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        return WriteResult(result);
+    }
+
+    private int ExecuteSetNumberFormat(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for set-number-format.");
+            return -1;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.FormatCode))
+        {
+            _console.WriteError("Format code is required for set-number-format.");
+            return -1;
+        }
+
+        var result = _rangeCommands.SetNumberFormat(batch, settings.SheetName ?? string.Empty, settings.RangeAddress, settings.FormatCode);
+        return WriteResult(result);
+    }
+
+    private int ExecuteSetNumberFormats(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for set-number-formats.");
+            return -1;
+        }
+
+        var formats = LoadFormats(settings, _console);
+        if (formats == null)
+        {
+            return -1;
+        }
+
+        var result = _rangeCommands.SetNumberFormats(batch, settings.SheetName ?? string.Empty, settings.RangeAddress, formats);
+        return WriteResult(result);
+    }
+
+    // === STYLE OPERATIONS ===
+
+    private int ExecuteGetStyle(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for get-style.");
+            return -1;
+        }
+
+        var result = _rangeCommands.GetStyle(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        return WriteResult(result);
+    }
+
+    private int ExecuteSetStyle(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for set-style.");
+            return -1;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.StyleName))
+        {
+            _console.WriteError("Style name is required for set-style.");
+            return -1;
+        }
+
+        var result = _rangeCommands.SetStyle(batch, settings.SheetName ?? string.Empty, settings.RangeAddress, settings.StyleName);
+        return WriteResult(result);
+    }
+
+    // === FORMATTING OPERATION ===
+
+    private int ExecuteFormatRange(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for format-range.");
+            return -1;
+        }
+
+        var result = _rangeCommands.FormatRange(
+            batch,
+            settings.SheetName ?? string.Empty,
+            settings.RangeAddress,
+            settings.FontName,
+            settings.FontSize,
+            settings.Bold,
+            settings.Italic,
+            settings.Underline,
+            settings.FontColor,
+            settings.FillColor,
+            settings.BorderStyle,
+            settings.BorderColor,
+            settings.BorderWeight,
+            settings.HorizontalAlignment,
+            settings.VerticalAlignment,
+            settings.WrapText,
+            settings.Orientation);
+        return WriteResult(result);
+    }
+
+    // === VALIDATION OPERATIONS ===
+
+    private int ExecuteValidateRange(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for validate-range.");
+            return -1;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.ValidationType))
+        {
+            _console.WriteError("Validation type is required for validate-range.");
+            return -1;
+        }
+
+        var result = _rangeCommands.ValidateRange(
+            batch,
+            settings.SheetName ?? string.Empty,
+            settings.RangeAddress,
+            settings.ValidationType,
+            settings.ValidationOperator,
+            settings.ValidationFormula1,
+            settings.ValidationFormula2,
+            settings.ShowInputMessage,
+            settings.InputTitle,
+            settings.InputMessage,
+            settings.ShowErrorAlert,
+            settings.ErrorStyle,
+            settings.ErrorTitle,
+            settings.ErrorMessage,
+            settings.IgnoreBlank,
+            settings.ShowDropdown);
+        return WriteResult(result);
+    }
+
+    private int ExecuteGetValidation(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for get-validation.");
+            return -1;
+        }
+
+        var result = _rangeCommands.GetValidation(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        return WriteResult(result);
+    }
+
+    private int ExecuteRemoveValidation(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for remove-validation.");
+            return -1;
+        }
+
+        var result = _rangeCommands.RemoveValidation(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        return WriteResult(result);
+    }
+
+    // === AUTO-FIT OPERATIONS ===
+
+    private int ExecuteAutoFitColumns(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for autofit-columns.");
+            return -1;
+        }
+
+        var result = _rangeCommands.AutoFitColumns(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        return WriteResult(result);
+    }
+
+    private int ExecuteAutoFitRows(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for autofit-rows.");
+            return -1;
+        }
+
+        var result = _rangeCommands.AutoFitRows(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        return WriteResult(result);
+    }
+
+    // === MERGE OPERATIONS ===
+
+    private int ExecuteMergeCells(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for merge-cells.");
+            return -1;
+        }
+
+        var result = _rangeCommands.MergeCells(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        return WriteResult(result);
+    }
+
+    private int ExecuteUnmergeCells(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for unmerge-cells.");
+            return -1;
+        }
+
+        var result = _rangeCommands.UnmergeCells(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        return WriteResult(result);
+    }
+
+    private int ExecuteGetMergeInfo(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for get-merge-info.");
+            return -1;
+        }
+
+        var result = _rangeCommands.GetMergeInfo(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        return WriteResult(result);
+    }
+
+    // === CELL LOCK OPERATIONS ===
+
+    private int ExecuteSetCellLock(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for set-cell-lock.");
+            return -1;
+        }
+
+        if (!settings.Locked.HasValue)
+        {
+            _console.WriteError("Locked flag is required for set-cell-lock.");
+            return -1;
+        }
+
+        var result = _rangeCommands.SetCellLock(batch, settings.SheetName ?? string.Empty, settings.RangeAddress, settings.Locked.Value);
+        return WriteResult(result);
+    }
+
+    private int ExecuteGetCellLock(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.RangeAddress))
+        {
+            _console.WriteError("Range address is required for get-cell-lock.");
+            return -1;
+        }
+
+        var result = _rangeCommands.GetCellLock(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        return WriteResult(result);
+    }
+
+    // === HELPER METHODS ===
+
+    private static bool TryParseInsertShiftDirection(string? direction, out InsertShiftDirection result)
+    {
+        result = InsertShiftDirection.Down;
+        if (string.IsNullOrWhiteSpace(direction))
+        {
+            return true; // Default to Down
+        }
+
+        return direction.ToLowerInvariant() switch
+        {
+            "down" => SetResult(out result, InsertShiftDirection.Down),
+            "right" => SetResult(out result, InsertShiftDirection.Right),
+            _ => false
+        };
+    }
+
+    private static bool TryParseDeleteShiftDirection(string? direction, out DeleteShiftDirection result)
+    {
+        result = DeleteShiftDirection.Up;
+        if (string.IsNullOrWhiteSpace(direction))
+        {
+            return true; // Default to Up
+        }
+
+        return direction.ToLowerInvariant() switch
+        {
+            "up" => SetResult(out result, DeleteShiftDirection.Up),
+            "left" => SetResult(out result, DeleteShiftDirection.Left),
+            _ => false
+        };
+    }
+
+    private static bool SetResult<T>(out T result, T value)
+    {
+        result = value;
+        return true;
+    }
+
+    private static List<List<string>>? LoadFormats(Settings settings, ICliConsole console)
+    {
+        if (!string.IsNullOrWhiteSpace(settings.FormatsJson))
+        {
+            var formats = ParseFormatsJson(settings.FormatsJson!);
+            if (formats == null)
+            {
+                console.WriteError("Unable to parse --formats-json content.");
+            }
+
+            return formats;
+        }
+
+        console.WriteError("Provide --formats-json for set-number-formats.");
+        return null;
+    }
+
+    private static List<List<string>>? ParseFormatsJson(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            if (document.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+
+            var result = new List<List<string>>();
+            foreach (var row in document.RootElement.EnumerateArray())
+            {
+                if (row.ValueKind != JsonValueKind.Array)
+                {
+                    return null;
+                }
+
+                var rowList = new List<string>();
+                foreach (var cell in row.EnumerateArray())
+                {
+                    rowList.Add(cell.ValueKind == JsonValueKind.String ? cell.GetString() ?? string.Empty : string.Empty);
+                }
+
+                result.Add(rowList);
+            }
+
+            return result;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static List<List<object?>>? LoadValues(Settings settings, ICliConsole console)
@@ -525,5 +1131,142 @@ internal sealed class RangeCommand : Command<RangeCommand.Settings>
 
         [CommandOption("--formulas-csv <PATH>")]
         public string? FormulasCsv { get; init; }
+
+        // Insert/Delete operations
+        [CommandOption("--shift <DIRECTION>")]
+        public string? Shift { get; init; }
+
+        // Find/Replace operations
+        [CommandOption("--search-value <VALUE>")]
+        public string? SearchValue { get; init; }
+
+        [CommandOption("--find-value <VALUE>")]
+        public string? FindValue { get; init; }
+
+        [CommandOption("--replace-value <VALUE>")]
+        public string? ReplaceValue { get; init; }
+
+        [CommandOption("--match-case")]
+        public bool? MatchCase { get; init; }
+
+        [CommandOption("--match-entire-cell")]
+        public bool? MatchEntireCell { get; init; }
+
+        [CommandOption("--search-formulas")]
+        public bool? SearchFormulas { get; init; }
+
+        [CommandOption("--search-values")]
+        public bool? SearchValues { get; init; }
+
+        [CommandOption("--search-comments")]
+        public bool? SearchComments { get; init; }
+
+        [CommandOption("--replace-all")]
+        public bool? ReplaceAll { get; init; }
+
+        // Sort operation
+        [CommandOption("--sort-columns-json <JSON>")]
+        public string? SortColumnsJson { get; init; }
+
+        [CommandOption("--has-headers")]
+        public bool? HasHeaders { get; init; }
+
+        // Number format operations
+        [CommandOption("--format-code <CODE>")]
+        public string? FormatCode { get; init; }
+
+        [CommandOption("--formats-json <JSON>")]
+        public string? FormatsJson { get; init; }
+
+        // Style operations
+        [CommandOption("--style-name <NAME>")]
+        public string? StyleName { get; init; }
+
+        // Format-range operation
+        [CommandOption("--font-name <NAME>")]
+        public string? FontName { get; init; }
+
+        [CommandOption("--font-size <SIZE>")]
+        public double? FontSize { get; init; }
+
+        [CommandOption("--bold")]
+        public bool? Bold { get; init; }
+
+        [CommandOption("--italic")]
+        public bool? Italic { get; init; }
+
+        [CommandOption("--underline")]
+        public bool? Underline { get; init; }
+
+        [CommandOption("--font-color <COLOR>")]
+        public string? FontColor { get; init; }
+
+        [CommandOption("--fill-color <COLOR>")]
+        public string? FillColor { get; init; }
+
+        [CommandOption("--border-style <STYLE>")]
+        public string? BorderStyle { get; init; }
+
+        [CommandOption("--border-color <COLOR>")]
+        public string? BorderColor { get; init; }
+
+        [CommandOption("--border-weight <WEIGHT>")]
+        public string? BorderWeight { get; init; }
+
+        [CommandOption("--horizontal-alignment <ALIGNMENT>")]
+        public string? HorizontalAlignment { get; init; }
+
+        [CommandOption("--vertical-alignment <ALIGNMENT>")]
+        public string? VerticalAlignment { get; init; }
+
+        [CommandOption("--wrap-text")]
+        public bool? WrapText { get; init; }
+
+        [CommandOption("--orientation <DEGREES>")]
+        public int? Orientation { get; init; }
+
+        // Validation operations
+        [CommandOption("--validation-type <TYPE>")]
+        public string? ValidationType { get; init; }
+
+        [CommandOption("--validation-operator <OPERATOR>")]
+        public string? ValidationOperator { get; init; }
+
+        [CommandOption("--validation-formula1 <FORMULA>")]
+        public string? ValidationFormula1 { get; init; }
+
+        [CommandOption("--validation-formula2 <FORMULA>")]
+        public string? ValidationFormula2 { get; init; }
+
+        [CommandOption("--show-input-message")]
+        public bool? ShowInputMessage { get; init; }
+
+        [CommandOption("--input-title <TITLE>")]
+        public string? InputTitle { get; init; }
+
+        [CommandOption("--input-message <MESSAGE>")]
+        public string? InputMessage { get; init; }
+
+        [CommandOption("--show-error-alert")]
+        public bool? ShowErrorAlert { get; init; }
+
+        [CommandOption("--error-style <STYLE>")]
+        public string? ErrorStyle { get; init; }
+
+        [CommandOption("--error-title <TITLE>")]
+        public string? ErrorTitle { get; init; }
+
+        [CommandOption("--error-message <MESSAGE>")]
+        public string? ErrorMessage { get; init; }
+
+        [CommandOption("--ignore-blank")]
+        public bool? IgnoreBlank { get; init; }
+
+        [CommandOption("--show-dropdown")]
+        public bool? ShowDropdown { get; init; }
+
+        // Cell lock operations
+        [CommandOption("--locked")]
+        public bool? Locked { get; init; }
     }
 }

@@ -232,7 +232,7 @@ public partial class ConnectionCommands : IConnectionCommands
                 dynamic textConn = conn.TextConnection;
                 if (textConn != null)
                 {
-                    try { connectionString = textConn.Connection?.ToString(); } catch { }
+                    connectionString = textConn.Connection?.ToString();
                 }
             }
             else if (connType == 5) // WEB (xlConnectionTypeWEB)
@@ -241,7 +241,7 @@ public partial class ConnectionCommands : IConnectionCommands
                 dynamic webConn = conn.WebConnection;
                 if (webConn != null)
                 {
-                    try { connectionString = webConn.Connection?.ToString(); } catch { }
+                    connectionString = webConn.Connection?.ToString();
                 }
             }
 

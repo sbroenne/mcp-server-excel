@@ -58,6 +58,12 @@ internal sealed class PivotTableCommand : Command<PivotTableCommand.Settings>
             "set-field-format" => ExecuteSetFieldFormat(batch, settings),
             "set-field-filter" => ExecuteSetFieldFilter(batch, settings),
             "sort-field" => ExecuteSortField(batch, settings),
+            "group-by-date" => ExecuteGroupByDate(batch, settings),
+            "group-by-numeric" => ExecuteGroupByNumeric(batch, settings),
+            "create-calculated-field" => ExecuteCreateCalculatedField(batch, settings),
+            "set-layout" => ExecuteSetLayout(batch, settings),
+            "set-subtotals" => ExecuteSetSubtotals(batch, settings),
+            "set-grand-totals" => ExecuteSetGrandTotals(batch, settings),
             "get-data" => ExecuteGetData(batch, settings),
             _ => ReportUnknown(action)
         };
@@ -321,6 +327,112 @@ internal sealed class PivotTableCommand : Command<PivotTableCommand.Settings>
         return WriteResult(_pivotTableCommands.GetData(batch, settings.PivotTableName));
     }
 
+    private int ExecuteGroupByDate(IExcelBatch batch, Settings settings)
+    {
+        if (!ValidateFieldOperation(settings, "group-by-date"))
+        {
+            return -1;
+        }
+
+        if (!TryParseDateGroupingInterval(settings.DateGroupingInterval, out var interval))
+        {
+            return -1;
+        }
+
+        return WriteResult(_pivotTableCommands.GroupByDate(batch, settings.PivotTableName!, settings.FieldName!, interval));
+    }
+
+    private int ExecuteGroupByNumeric(IExcelBatch batch, Settings settings)
+    {
+        if (!ValidateFieldOperation(settings, "group-by-numeric"))
+        {
+            return -1;
+        }
+
+        if (!settings.NumericGroupingInterval.HasValue || settings.NumericGroupingInterval.Value <= 0)
+        {
+            _console.WriteError("--numeric-interval is required and must be > 0 for group-by-numeric.");
+            return -1;
+        }
+
+        return WriteResult(_pivotTableCommands.GroupByNumeric(
+            batch,
+            settings.PivotTableName!,
+            settings.FieldName!,
+            settings.NumericGroupingStart,
+            settings.NumericGroupingEnd,
+            settings.NumericGroupingInterval.Value));
+    }
+
+    private int ExecuteCreateCalculatedField(IExcelBatch batch, Settings settings)
+    {
+        if (!ValidateFieldOperation(settings, "create-calculated-field"))
+        {
+            return -1;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.Formula))
+        {
+            _console.WriteError("--formula is required for create-calculated-field.");
+            return -1;
+        }
+
+        return WriteResult(_pivotTableCommands.CreateCalculatedField(batch, settings.PivotTableName!, settings.FieldName!, settings.Formula));
+    }
+
+    private int ExecuteSetLayout(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.PivotTableName))
+        {
+            _console.WriteError("--pivot-name is required for set-layout.");
+            return -1;
+        }
+
+        if (!settings.LayoutType.HasValue)
+        {
+            _console.WriteError("--layout-type is required for set-layout. Valid values: 0=Compact, 1=Tabular, 2=Outline.");
+            return -1;
+        }
+
+        if (settings.LayoutType.Value < 0 || settings.LayoutType.Value > 2)
+        {
+            _console.WriteError("--layout-type must be 0 (Compact), 1 (Tabular), or 2 (Outline).");
+            return -1;
+        }
+
+        return WriteResult(_pivotTableCommands.SetLayout(batch, settings.PivotTableName!, settings.LayoutType.Value));
+    }
+
+    private int ExecuteSetSubtotals(IExcelBatch batch, Settings settings)
+    {
+        if (!ValidateFieldOperation(settings, "set-subtotals"))
+        {
+            return -1;
+        }
+
+        if (!settings.ShowSubtotals.HasValue)
+        {
+            _console.WriteError("--show-subtotals is required for set-subtotals (true/false).");
+            return -1;
+        }
+
+        return WriteResult(_pivotTableCommands.SetSubtotals(batch, settings.PivotTableName!, settings.FieldName!, settings.ShowSubtotals.Value));
+    }
+
+    private int ExecuteSetGrandTotals(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.PivotTableName))
+        {
+            _console.WriteError("--pivot-name is required for set-grand-totals.");
+            return -1;
+        }
+
+        var showRow = settings.ShowRowGrandTotals ?? true;
+        var showColumn = settings.ShowColumnGrandTotals ?? true;
+
+        return WriteResult(_pivotTableCommands.SetGrandTotals(batch, settings.PivotTableName!, showRow, showColumn));
+    }
+
     private bool ValidateFieldOperation(Settings settings, string actionName)
     {
         if (string.IsNullOrWhiteSpace(settings.PivotTableName) || string.IsNullOrWhiteSpace(settings.FieldName))
@@ -363,6 +475,24 @@ internal sealed class PivotTableCommand : Command<PivotTableCommand.Settings>
         }
 
         _console.WriteError("Invalid sort direction. Valid values: Ascending, Descending.");
+        return false;
+    }
+
+    private bool TryParseDateGroupingInterval(string? value, out DateGroupingInterval interval)
+    {
+        interval = DateGroupingInterval.Months;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            _console.WriteError("--date-interval is required for group-by-date. Valid values: Days, Months, Quarters, Years.");
+            return false;
+        }
+
+        if (Enum.TryParse(value, true, out interval))
+        {
+            return true;
+        }
+
+        _console.WriteError("Invalid date grouping interval. Valid values: Days, Months, Quarters, Years.");
         return false;
     }
 
@@ -525,5 +655,32 @@ internal sealed class PivotTableCommand : Command<PivotTableCommand.Settings>
 
         [CommandOption("--timeout-seconds <SECONDS>")]
         public int? TimeoutSeconds { get; init; }
+
+        [CommandOption("--date-interval <INTERVAL>")]
+        public string? DateGroupingInterval { get; init; }
+
+        [CommandOption("--numeric-interval <SIZE>")]
+        public double? NumericGroupingInterval { get; init; }
+
+        [CommandOption("--numeric-start <VALUE>")]
+        public double? NumericGroupingStart { get; init; }
+
+        [CommandOption("--numeric-end <VALUE>")]
+        public double? NumericGroupingEnd { get; init; }
+
+        [CommandOption("--formula <FORMULA>")]
+        public string? Formula { get; init; }
+
+        [CommandOption("--layout-type <TYPE>")]
+        public int? LayoutType { get; init; }
+
+        [CommandOption("--show-subtotals <BOOL>")]
+        public bool? ShowSubtotals { get; init; }
+
+        [CommandOption("--show-row-grand-totals <BOOL>")]
+        public bool? ShowRowGrandTotals { get; init; }
+
+        [CommandOption("--show-column-grand-totals <BOOL>")]
+        public bool? ShowColumnGrandTotals { get; init; }
     }
 }

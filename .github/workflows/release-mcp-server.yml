@@ -445,11 +445,6 @@ jobs:
         $cliReadme += "``````powershell`n"
         $cliReadme += "dotnet ExcelMcp.CLI.dll --help`n"
         $cliReadme += "``````n`n"
-        $cliReadme += "## Features`n`n"
-        $cliReadme += "- 147 Commands - Comprehensive Excel automation`n"
-        $cliReadme += "- Batch Operations - Multiple operations in single Excel session`n"
-        $cliReadme += "- Scriptable - Perfect for CI/CD and automation`n"
-        $cliReadme += "- Zero Corruption - Safe COM interop with proper cleanup`n`n"
         $cliReadme += "## Requirements`n`n"
         $cliReadme += "- Windows OS with Microsoft Excel installed`n"
         $cliReadme += "- .NET 8.0 runtime`n"
@@ -457,8 +452,7 @@ jobs:
         $cliReadme += "## License`n`n"
         $cliReadme += "MIT License - see LICENSE file for details.`n"
 
-        Set-Content "release/ExcelMcp-CLI-$version/README.md" $cliyou are  $tagName = "${{ github.ref_name }}"
-        $version = $env:PACKAGE_VERSION
+        Set-Content "release/ExcelMcp-CLI-$version/README.md" $cliReadme
 
         # Create release notes
         $releaseNotes = "## ExcelMcp v$version - MCP Server & CLI`n`n"
@@ -475,9 +469,6 @@ jobs:
         $releaseNotes += "dotnet tool install --global Sbroenne.ExcelMcp.CLI --version $version`n"
         $releaseNotes += "excelcli --help`n"
         $releaseNotes += "``````n`n"
-        $releaseNotes += "### Features`n`n"
-        $releaseNotes += "**12 Specialized MCP Tools** - 156 operations covering Power Query, Data Model, PivotTables, Tables, Ranges, VBA, Connections, and more.`n`n"
-        $releaseNotes += "**CLI Automation** - 147 commands for scriptable Excel operations in CI/CD pipelines.`n`n"
         $releaseNotes += "For complete documentation, see the [main README](https://github.com/sbroenne/mcp-server-excel#readme).`n`n"
         $releaseNotes += "### Requirements`n"
         $releaseNotes += "- Windows OS with Microsoft Excel installed`n"

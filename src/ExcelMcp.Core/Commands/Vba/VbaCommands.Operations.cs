@@ -22,9 +22,7 @@ public partial class VbaCommands
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new ArgumentException(validationError, nameof(batch));
         }
 
         // Check VBA trust BEFORE attempting operation
@@ -58,12 +56,6 @@ public partial class VbaCommands
                 result.FilePath = batch.WorkbookPath;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error running procedure '{procedureName}': {ex.Message}";
-                return result;
-            }
         });
     }
 
@@ -79,15 +71,14 @@ public partial class VbaCommands
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new InvalidOperationException(validationError);
         }
 
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
-            return CreateVbaTrustGuidance();
+            var trustGuidance = CreateVbaTrustGuidance();
+            throw new InvalidOperationException(trustGuidance.ErrorMessage);
         }
 
         return batch.Execute((ctx, ct) =>
@@ -124,9 +115,7 @@ public partial class VbaCommands
 
                 if (targetComponent == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Module '{moduleName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Module '{moduleName}' not found");
                 }
 
                 vbComponents.Remove(targetComponent);
@@ -140,12 +129,6 @@ public partial class VbaCommands
                 // Trust was disabled during operation
                 result = CreateVbaTrustGuidance();
                 result.FilePath = batch.WorkbookPath;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error deleting module: {ex.Message}";
                 return result;
             }
             finally

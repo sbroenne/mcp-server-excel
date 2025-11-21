@@ -19,14 +19,9 @@ public interface IPowerQueryCommands
     PowerQueryViewResult View(IExcelBatch batch, string queryName);
 
     /// <summary>
-    /// Refreshes a Power Query to update its data with error detection
+    /// Refreshes a Power Query to update its data with error detection using a caller-specified timeout
     /// </summary>
-    PowerQueryRefreshResult Refresh(IExcelBatch batch, string queryName);
-
-    /// <summary>
-    /// Refreshes a Power Query to update its data with error detection and timeout
-    /// </summary>
-    PowerQueryRefreshResult Refresh(IExcelBatch batch, string queryName, TimeSpan? timeout);
+    PowerQueryRefreshResult Refresh(IExcelBatch batch, string queryName, TimeSpan timeout);
 
     /// <summary>
     /// Gets the current load configuration of a Power Query

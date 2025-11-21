@@ -97,7 +97,6 @@ public partial class PowerQueryCommands
                                 if (!isConnectionOnly) break;
                             }
                         }
-                        catch { }
                         finally
                         {
                             ComUtilities.Release(ref worksheets!);
@@ -130,19 +129,6 @@ public partial class PowerQueryCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error accessing Power Queries: {ex.Message}";
-
-                string extension = Path.GetExtension(batch.WorkbookPath).ToLowerInvariant();
-                if (extension == ".xls")
-                {
-                    result.ErrorMessage += " (.xls files don't support Power Query)";
-                }
-
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref queriesCollection);
@@ -164,9 +150,7 @@ public partial class PowerQueryCommands
         // Validate query name
         if (!ValidateQueryName(queryName, out string? validationError))
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new ArgumentException(validationError, nameof(queryName));
         }
 
         return batch.Execute((ctx, ct) =>
@@ -180,9 +164,7 @@ public partial class PowerQueryCommands
                 query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Query '{queryName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Query '{queryName}' not found");
                 }
 
                 // Check for ListObjects first (Power Query loaded to table creates a ListObject)
@@ -362,12 +344,6 @@ public partial class PowerQueryCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error getting load config: {ex.Message}";
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref names);
@@ -390,9 +366,7 @@ public partial class PowerQueryCommands
         // Validate query name
         if (!ValidateQueryName(queryName, out string? validationError))
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new ArgumentException(validationError, nameof(queryName));
         }
 
         return batch.Execute((ctx, ct) =>
@@ -406,9 +380,7 @@ public partial class PowerQueryCommands
                 query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Query '{queryName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Query '{queryName}' not found");
                 }
 
                 // STEP 1: Clean up any ListObjects (tables) that reference this query
@@ -487,12 +459,6 @@ public partial class PowerQueryCommands
                 result.Success = true;
                 return result;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error deleting query: {ex.Message}";
-                return result;
-            }
             finally
             {
                 ComUtilities.Release(ref worksheets);
@@ -526,7 +492,6 @@ public partial class PowerQueryCommands
                 }
             }
         }
-        catch { }
         finally
         {
             ComUtilities.Release(ref queriesCollection);
@@ -553,9 +518,7 @@ public partial class PowerQueryCommands
         // Validate query name
         if (!ValidateQueryName(queryName, out string? validationError))
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new ArgumentException(validationError, nameof(queryName));
         }
 
         return batch.Execute((ctx, ct) =>
@@ -568,9 +531,7 @@ public partial class PowerQueryCommands
                 query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Query '{queryName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Query '{queryName}' not found");
                 }
 
                 // Remove ListObjects (tables) that reference this query
@@ -641,13 +602,6 @@ public partial class PowerQueryCommands
                 }
 
                 result.Success = true;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error removing data load: {ex.Message}";
-                result.IsRetryable = ex is System.Runtime.InteropServices.COMException comEx && comEx.HResult == -2147417851;
                 return result;
             }
             finally

@@ -25,226 +25,200 @@ public partial class PowerQueryCommands
 
         if (!ValidateQueryName(queryName, out string? validationError))
         {
-            result.Success = false;
-            result.ErrorMessage = validationError;
-            return result;
+            throw new ArgumentException(validationError, nameof(queryName));
         }
 
         if (string.IsNullOrWhiteSpace(mCode))
         {
-            result.Success = false;
-            result.ErrorMessage = "M code cannot be empty";
-            return result;
+            throw new ArgumentException("M code cannot be empty", nameof(mCode));
         }
 
-        try
+        return batch.Execute((ctx, ct) =>
         {
-            return batch.Execute((ctx, ct) =>
+            dynamic? queries = null;
+            dynamic? query = null;
+            dynamic? worksheets = null;
+            dynamic? targetWorksheet = null;
+            dynamic? existingQueryTable = null;
+
+            try
             {
-                dynamic? queries = null;
-                dynamic? query = null;
-                dynamic? worksheets = null;
-                dynamic? targetWorksheet = null;
-                dynamic? existingQueryTable = null;
-
-                try
+                // STEP 1: Find the Power Query
+                queries = ctx.Book.Queries;
+                query = null;
+                for (int i = 1; i <= queries.Count; i++)
                 {
-                    // STEP 1: Find the Power Query
-                    queries = ctx.Book.Queries;
-                    query = null;
-                    for (int i = 1; i <= queries.Count; i++)
+                    dynamic? q = null;
+                    try
                     {
-                        dynamic? q = null;
+                        q = queries.Item(i);
+                        string qName = q.Name?.ToString() ?? "";
+                        if (qName.Equals(queryName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            query = q;
+                            q = null; // Don't release - we're keeping the reference
+                            break;
+                        }
+                    }
+                    finally
+                    {
+                        if (q != null) ComUtilities.Release(ref q!);
+                    }
+                }
+
+                if (query == null)
+                {
+                    throw new InvalidOperationException($"Query '{queryName}' not found");
+                }
+
+                // STEP 2: Find existing QueryTable (preferred) or ListObject bound to this query
+                // Pattern 1: QueryTable created by LoadTo/Create (uses QueryTables.Add)
+                // Pattern 2: ListObject created by previous Update (uses ListObjects.Add)
+                bool foundQueryTable = false;
+
+                worksheets = ctx.Book.Worksheets;
+                for (int ws = 1; ws <= worksheets.Count; ws++)
+                {
+                    dynamic? worksheet = null;
+                    try
+                    {
+                        worksheet = worksheets.Item(ws);
+
+                        // FIRST: Check for QueryTable (Pattern 1 - from LoadTo/Create)
+                        dynamic? queryTables = null;
                         try
                         {
-                            q = queries.Item(i);
-                            string qName = q.Name?.ToString() ?? "";
-                            if (qName.Equals(queryName, StringComparison.OrdinalIgnoreCase))
+                            queryTables = worksheet.QueryTables;
+                            for (int qt = 1; qt <= queryTables.Count; qt++)
                             {
-                                query = q;
-                                q = null; // Don't release - we're keeping the reference
-                                break;
+                                dynamic? qTable = null;
+                                dynamic? wbConn = null;
+                                dynamic? oledbConn = null;
+                                try
+                                {
+                                    qTable = queryTables.Item(qt);
+                                    wbConn = qTable.WorkbookConnection;
+                                    if (wbConn == null) continue;
+
+                                    oledbConn = wbConn.OLEDBConnection;
+                                    if (oledbConn == null) continue;
+
+                                    string connString = oledbConn.Connection?.ToString() ?? "";
+                                    bool isMashup = connString.Contains("Provider=Microsoft.Mashup.OleDb.1", StringComparison.OrdinalIgnoreCase);
+                                    bool locationMatches = connString.Contains($"Location={queryName}", StringComparison.OrdinalIgnoreCase);
+
+                                    if (isMashup && locationMatches)
+                                    {
+                                        existingQueryTable = qTable;
+                                        qTable = null; // Don't release - keeping reference
+                                        targetWorksheet = worksheet;
+                                        worksheet = null; // Don't release
+                                        foundQueryTable = true;
+                                        break;
+                                    }
+                                }
+                                finally
+                                {
+                                    if (oledbConn != null) ComUtilities.Release(ref oledbConn!);
+                                    if (wbConn != null) ComUtilities.Release(ref wbConn!);
+                                    if (qTable != null) ComUtilities.Release(ref qTable!);
+                                }
                             }
                         }
                         finally
                         {
-                            if (q != null) ComUtilities.Release(ref q!);
+                            if (queryTables != null) ComUtilities.Release(ref queryTables!);
                         }
-                    }
 
-                    if (query == null)
-                    {
-                        result.Success = false;
-                        result.ErrorMessage = $"Query '{queryName}' not found";
-                        return result;
-                    }
+                        if (foundQueryTable) break;
 
-                    // STEP 2: Find existing QueryTable (preferred) or ListObject bound to this query
-                    // Pattern 1: QueryTable created by LoadTo/Create (uses QueryTables.Add)
-                    // Pattern 2: ListObject created by previous Update (uses ListObjects.Add)
-                    string? targetSheetName = null;
-                    bool foundQueryTable = false;
-
-                    worksheets = ctx.Book.Worksheets;
-                    for (int ws = 1; ws <= worksheets.Count; ws++)
-                    {
-                        dynamic? worksheet = null;
+                        // SECOND: Check for ListObject (Pattern 2 - from previous Update)
+                        dynamic? listObjects = null;
                         try
                         {
-                            worksheet = worksheets.Item(ws);
-
-                            // FIRST: Check for QueryTable (Pattern 1 - from LoadTo/Create)
-                            dynamic? queryTables = null;
-                            try
+                            listObjects = worksheet.ListObjects;
+                            for (int lo = 1; lo <= listObjects.Count; lo++)
                             {
-                                queryTables = worksheet.QueryTables;
-                                for (int qt = 1; qt <= queryTables.Count; qt++)
+                                dynamic? listObj = null;
+                                dynamic? queryTable = null;
+                                dynamic? wbConn = null;
+                                dynamic? oledbConn = null;
+                                try
                                 {
-                                    dynamic? qTable = null;
-                                    dynamic? wbConn = null;
-                                    dynamic? oledbConn = null;
-                                    try
+                                    listObj = listObjects.Item(lo);
+                                    queryTable = listObj.QueryTable;
+                                    if (queryTable == null) continue;
+
+                                    wbConn = queryTable.WorkbookConnection;
+                                    if (wbConn == null) continue;
+
+                                    oledbConn = wbConn.OLEDBConnection;
+                                    if (oledbConn == null) continue;
+
+                                    string connString = oledbConn.Connection?.ToString() ?? "";
+                                    bool isMashup = connString.Contains("Provider=Microsoft.Mashup.OleDb.1", StringComparison.OrdinalIgnoreCase);
+                                    bool locationMatches = connString.Contains($"Location={queryName}", StringComparison.OrdinalIgnoreCase);
+
+                                    if (isMashup && locationMatches)
                                     {
-                                        qTable = queryTables.Item(qt);
-                                        wbConn = qTable.WorkbookConnection;
-                                        if (wbConn == null) continue;
-
-                                        oledbConn = wbConn.OLEDBConnection;
-                                        if (oledbConn == null) continue;
-
-                                        string connString = oledbConn.Connection?.ToString() ?? "";
-                                        bool isMashup = connString.Contains("Provider=Microsoft.Mashup.OleDb.1", StringComparison.OrdinalIgnoreCase);
-                                        bool locationMatches = connString.Contains($"Location={queryName}", StringComparison.OrdinalIgnoreCase);
-
-                                        if (isMashup && locationMatches)
-                                        {
-                                            targetSheetName = worksheet.Name?.ToString();
-                                            existingQueryTable = qTable;
-                                            qTable = null; // Don't release - keeping reference
-                                            targetWorksheet = worksheet;
-                                            worksheet = null; // Don't release
-                                            foundQueryTable = true;
-                                            break;
-                                        }
-                                    }
-                                    finally
-                                    {
-                                        if (oledbConn != null) ComUtilities.Release(ref oledbConn!);
-                                        if (wbConn != null) ComUtilities.Release(ref wbConn!);
-                                        if (qTable != null) ComUtilities.Release(ref qTable!);
+                                        existingQueryTable = queryTable;
+                                        queryTable = null; // Don't release - keeping reference
+                                        targetWorksheet = worksheet;
+                                        worksheet = null; // Don't release
+                                        break;
                                     }
                                 }
-                            }
-                            finally
-                            {
-                                if (queryTables != null) ComUtilities.Release(ref queryTables!);
-                            }
-
-                            if (foundQueryTable) break;
-
-                            // SECOND: Check for ListObject (Pattern 2 - from previous Update)
-                            dynamic? listObjects = null;
-                            try
-                            {
-                                listObjects = worksheet.ListObjects;
-                                for (int lo = 1; lo <= listObjects.Count; lo++)
+                                finally
                                 {
-                                    dynamic? listObj = null;
-                                    dynamic? queryTable = null;
-                                    dynamic? wbConn = null;
-                                    dynamic? oledbConn = null;
-                                    try
-                                    {
-                                        listObj = listObjects.Item(lo);
-                                        queryTable = listObj.QueryTable;
-                                        if (queryTable == null) continue;
-
-                                        wbConn = queryTable.WorkbookConnection;
-                                        if (wbConn == null) continue;
-
-                                        oledbConn = wbConn.OLEDBConnection;
-                                        if (oledbConn == null) continue;
-
-                                        string connString = oledbConn.Connection?.ToString() ?? "";
-                                        bool isMashup = connString.Contains("Provider=Microsoft.Mashup.OleDb.1", StringComparison.OrdinalIgnoreCase);
-                                        bool locationMatches = connString.Contains($"Location={queryName}", StringComparison.OrdinalIgnoreCase);
-
-                                        if (isMashup && locationMatches)
-                                        {
-                                            targetSheetName = worksheet.Name?.ToString();
-                                            existingQueryTable = queryTable;
-                                            queryTable = null; // Don't release - keeping reference
-                                            targetWorksheet = worksheet;
-                                            worksheet = null; // Don't release
-                                            break;
-                                        }
-                                    }
-                                    finally
-                                    {
-                                        if (oledbConn != null) ComUtilities.Release(ref oledbConn!);
-                                        if (wbConn != null) ComUtilities.Release(ref wbConn!);
-                                        if (queryTable != null) ComUtilities.Release(ref queryTable!);
-                                        if (listObj != null) ComUtilities.Release(ref listObj!);
-                                    }
+                                    if (oledbConn != null) ComUtilities.Release(ref oledbConn!);
+                                    if (wbConn != null) ComUtilities.Release(ref wbConn!);
+                                    if (queryTable != null) ComUtilities.Release(ref queryTable!);
+                                    if (listObj != null) ComUtilities.Release(ref listObj!);
                                 }
-                            }
-                            finally
-                            {
-                                if (listObjects != null) ComUtilities.Release(ref listObjects!);
                             }
                         }
                         finally
                         {
-                            if (worksheet != null && targetWorksheet == null) ComUtilities.Release(ref worksheet!);
+                            if (listObjects != null) ComUtilities.Release(ref listObjects!);
                         }
-
-                        if (existingQueryTable != null) break;
                     }
-
-                    // STEP 3: Update the M code
-                    query.Formula = mCode;
-
-                    // STEP 4: Refresh existing QueryTable if it exists
-                    if (existingQueryTable != null)
+                    finally
                     {
-                        try
-                        {
-                            // Just refresh - PreserveColumnInfo=false allows schema changes
-                            existingQueryTable.Refresh(false);  // Synchronous
-                            result.Success = true;
-                            result.Action = "updated and refreshed";
-                        }
-                        catch (Exception ex)
-                        {
-                            result.Success = false;
-                            result.ErrorMessage = $"Failed to refresh after update: {ex.Message}";
-                        }
-                    }
-                    else
-                    {
-                        // No QueryTable or ListObject - connection-only query
-                        result.Success = true;
-                        result.Action = "updated (connection-only)";
+                        if (worksheet != null && targetWorksheet == null) ComUtilities.Release(ref worksheet!);
                     }
 
-                    return result;
+                    if (existingQueryTable != null) break;
                 }
-                finally
+
+                // STEP 3: Update the M code
+                query.Formula = mCode;
+
+                // STEP 4: Refresh existing QueryTable if it exists
+                if (existingQueryTable != null)
                 {
-                    if (existingQueryTable != null) ComUtilities.Release(ref existingQueryTable!);
-                    if (targetWorksheet != null) ComUtilities.Release(ref targetWorksheet!);
-                    if (worksheets != null) ComUtilities.Release(ref worksheets!);
-                    if (query != null) ComUtilities.Release(ref query!);
-                    if (queries != null) ComUtilities.Release(ref queries!);
+                    // Just refresh - PreserveColumnInfo=false allows schema changes
+                    existingQueryTable.Refresh(false);  // Synchronous
+                    result.Success = true;
+                    result.Action = "updated and refreshed";
                 }
-            });
-        }
-        catch (Exception ex)
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Unexpected error: {ex.Message}";
-            return result;
-        }
+                else
+                {
+                    // No QueryTable or ListObject - connection-only query
+                    result.Success = true;
+                    result.Action = "updated (connection-only)";
+                }
+
+                return result;
+            }
+            finally
+            {
+                if (existingQueryTable != null) ComUtilities.Release(ref existingQueryTable!);
+                if (targetWorksheet != null) ComUtilities.Release(ref targetWorksheet!);
+                if (worksheets != null) ComUtilities.Release(ref worksheets!);
+                if (query != null) ComUtilities.Release(ref query!);
+                if (queries != null) ComUtilities.Release(ref queries!);
+            }
+        });
     }
 
 }

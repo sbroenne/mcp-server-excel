@@ -28,9 +28,7 @@ public partial class RangeCommands
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
-                    return result;
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
                 // Get actual address from Excel
@@ -69,15 +67,7 @@ public partial class RangeCommands
             catch (System.Runtime.InteropServices.COMException comEx) when (comEx.HResult == unchecked((int)0x8007000E))
             {
                 // E_OUTOFMEMORY - Excel's misleading error for sheet/range/session issues
-                result.Success = false;
-                result.ErrorMessage = $"Cannot read range '{rangeAddress}' on sheet '{sheetName}': {comEx.Message}";
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
-                return result;
+                throw new InvalidOperationException($"Cannot read range '{rangeAddress}' on sheet '{sheetName}': {comEx.Message}", comEx);
             }
             finally
             {
@@ -99,9 +89,7 @@ public partial class RangeCommands
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress);
-                    return result;
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
                 // Convert List<List<object?>> to 2D array
@@ -133,15 +121,7 @@ public partial class RangeCommands
             catch (System.Runtime.InteropServices.COMException comEx) when (comEx.HResult == unchecked((int)0x8007000E))
             {
                 // E_OUTOFMEMORY - Excel's misleading error for sheet/range/session issues
-                result.Success = false;
-                result.ErrorMessage = $"Cannot write to range '{rangeAddress}' on sheet '{sheetName}': {comEx.Message}";
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = ex.Message;
-                return result;
+                throw new InvalidOperationException($"Cannot write to range '{rangeAddress}' on sheet '{sheetName}': {comEx.Message}", comEx);
             }
             finally
             {

@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 
 
@@ -110,14 +111,25 @@ public class FileCommands : IFileCommands
 
                 workbook = excel.Workbooks.Add();
 
-                // Save the workbook (Excel automatically creates Sheet1)
-                if (isMacroEnabled)
+                // Save the workbook with 5-minute timeout (Excel automatically creates Sheet1)
+                var saveAsTask = Task.Run(() =>
                 {
-                    workbook.SaveAs(filePath, 52); // xlOpenXMLWorkbookMacroEnabled
-                }
-                else
+                    if (isMacroEnabled)
+                    {
+                        workbook.SaveAs(filePath, 52); // xlOpenXMLWorkbookMacroEnabled
+                    }
+                    else
+                    {
+                        workbook.SaveAs(filePath, 51); // xlOpenXMLWorkbook
+                    }
+                });
+
+                using var saveCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+                if (!saveAsTask.Wait(TimeSpan.FromMinutes(5), saveCts.Token))
                 {
-                    workbook.SaveAs(filePath, 51); // xlOpenXMLWorkbook
+                    throw new TimeoutException(
+                        $"SaveAs operation for '{Path.GetFileName(filePath)}' exceeded 5 minutes. " +
+                        "Check disk performance and antivirus settings.");
                 }
 
                 completion.SetResult(new OperationResult
@@ -139,19 +151,11 @@ public class FileCommands : IFileCommands
             }
             finally
             {
-                // Clean up COM objects in reverse order
-                if (workbook != null)
+                // Use ExcelShutdownService for resilient close and quit
+                // save=false: file was already saved via SaveAs
+                if (workbook != null || excel != null)
                 {
-                    try { workbook.Close(false); }
-                    catch { }
-                    ComUtilities.Release(ref workbook);
-                }
-
-                if (excel != null)
-                {
-                    try { excel.Quit(); }
-                    catch { }
-                    ComUtilities.Release(ref excel);
+                    ExcelShutdownService.CloseAndQuit(workbook, excel, false, filePath, null);
                 }
 
                 OleMessageFilter.Revoke();

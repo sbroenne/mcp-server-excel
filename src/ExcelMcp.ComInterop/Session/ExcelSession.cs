@@ -98,6 +98,15 @@ public static class ExcelSession
         try
         {
             string fullPath = Path.GetFullPath(filePath);
+
+            // Validate path length BEFORE attempting Excel operations
+            // Excel's SaveAs has a practical limit of ~218 characters
+            if (fullPath.Length > 218)
+            {
+                throw new PathTooLongException(
+                    $"File path exceeds Excel's maximum length (~218 characters): {fullPath.Length} characters");
+            }
+
             string? directory = Path.GetDirectoryName(fullPath);
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
             {
@@ -148,13 +157,25 @@ public static class ExcelSession
 
                 workbook = excel.Workbooks.Add();
 
-                if (isMacroEnabled)
+                // SaveAs with 5-minute timeout
+                var saveAsTask = Task.Run(() =>
                 {
-                    workbook.SaveAs(fullPath, 52); // xlOpenXMLWorkbookMacroEnabled
-                }
-                else
+                    if (isMacroEnabled)
+                    {
+                        workbook.SaveAs(fullPath, 52); // xlOpenXMLWorkbookMacroEnabled
+                    }
+                    else
+                    {
+                        workbook.SaveAs(fullPath, 51); // xlOpenXMLWorkbook
+                    }
+                });
+
+                using var saveCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+                if (!saveAsTask.Wait(TimeSpan.FromMinutes(5), saveCts.Token))
                 {
-                    workbook.SaveAs(fullPath, 51); // xlOpenXMLWorkbook
+                    throw new TimeoutException(
+                        $"SaveAs operation for '{Path.GetFileName(fullPath)}' exceeded 5 minutes. " +
+                        "Check disk performance and antivirus settings.");
                 }
 
                 completion.SetResult();
@@ -165,20 +186,11 @@ public static class ExcelSession
             }
             finally
             {
-                if (workbook != null)
+                if (workbook != null || excel != null)
                 {
-                    try { workbook.Close(false); }
-                    catch { }
-
-                    workbook = null;
-                }
-
-                if (excel != null)
-                {
-                    try { excel.Quit(); }
-                    catch { }
-
-                    excel = null;
+                    // Use ExcelShutdownService for resilient close and quit
+                    // save=false: file was already saved via SaveAs
+                    ExcelShutdownService.CloseAndQuit(workbook, excel, false, fullPath, null);
                 }
 
                 OleMessageFilter.Revoke();

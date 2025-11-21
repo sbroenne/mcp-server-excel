@@ -10,6 +10,7 @@ applyTo: "src/ExcelMcp.Core/**/*.cs"
 
 1. **Use Late Binding** - `dynamic` types with `Type.GetTypeFromProgID()`
 2. **1-Based Indexing** - Excel collections start at 1, not 0
+3. **Exception Propagation** - Never wrap in try-catch, let batch.Execute() handle exceptions (see Exception Propagation section)
 4. **QueryTable Refresh REQUIRED** - `.Refresh(false)` synchronous for persistence
 5. **NEVER use RefreshAll()** - Async/unreliable; use individual `connection.Refresh()` or `queryTable.Refresh(false)`
 
@@ -22,25 +23,140 @@ applyTo: "src/ExcelMcp.Core/**/*.cs"
 - Search NetOffice repository BEFORE implementing any Excel COM automation
 - Particularly valuable for: PivotTables, OLAP CubeFields, Data Model operations, QueryTables, complex COM scenarios
 
-## Resource Management
+## Exception Propagation Pattern (CRITICAL)
 
-### ✅ ALWAYS use ExcelHelper.WithExcel()
+**Core Commands: NEVER wrap operations in try-catch blocks that return error results. Let exceptions propagate naturally.**
 
 ```csharp
-return ExcelHelper.WithExcel(filePath, save: false, (excel, workbook) =>
+// ❌ WRONG: Catching and wrapping exceptions
+public async Task<OperationResult> CreateAsync(IExcelBatch batch, string name)
 {
-    dynamic? query = null;
-    try {
-        query = workbook.Queries.Item(1);
-        // Use query...
-    } finally {
-        ExcelHelper.ReleaseComObject(ref query);
+    try
+    {
+        return await batch.Execute((ctx, ct) => {
+            var item = ctx.Create(name);
+            return ValueTask.FromResult(new OperationResult { Success = true });
+        });
     }
-    return 0;
-});
+    catch (Exception ex)
+    {
+        // ❌ WRONG: Double-wrapping suppresses the exception
+        return new OperationResult { Success = false, ErrorMessage = ex.Message };
+    }
+}
+
+// ✅ CORRECT: Let batch.Execute() handle exceptions via TaskCompletionSource
+public async Task<OperationResult> CreateAsync(IExcelBatch batch, string name)
+{
+    return await batch.Execute((ctx, ct) => {
+        var item = ctx.Create(name);
+        return ValueTask.FromResult(new OperationResult { Success = true });
+    });
+    // Exception flows to batch.Execute() → caught via TaskCompletionSource
+    // → Returns OperationResult { Success = false, ErrorMessage }
+}
+
+// ✅ CORRECT: Finally blocks are the right place for COM resource cleanup
+public async Task<OperationResult> ComplexAsync(IExcelBatch batch, string name)
+{
+    dynamic? temp = null;
+    try
+    {
+        return await batch.Execute((ctx, ct) => {
+            temp = ctx.CreateTemp(name);
+            // ... operation ...
+            return ValueTask.FromResult(new OperationResult { Success = true });
+        });
+    }
+    finally
+    {
+        // ✅ Finally for resource cleanup, NOT catch for error handling
+        if (temp != null)
+        {
+            ComUtilities.Release(ref temp!);
+        }
+    }
+}
 ```
 
-**Handles:** Excel.Application creation, Workbook open/close, Excel.Quit(), COM cleanup, GC collection
+**Why This Pattern:**
+- `batch.Execute()` ALREADY captures exceptions via `TaskCompletionSource` 
+- Inner try-catch suppresses exceptions, causing double-wrapping and lost stack context
+- Finally blocks work perfectly for COM resource cleanup (which must happen regardless of exception)
+- Exception occurs at correct layer (batch), not suppressed at method level
+
+**Safe Exception Handling (Keep these):**
+- ✅ Loop continuations: `catch { continue; }` (safe, recovers loop)
+- ✅ Optional property access: `catch { value = null; }` (safe, uses fallback)
+- ✅ Specific error routing: `catch (COMException ex) when (ex.HResult == code) { ... }` (specific, not general)
+- ✅ Finally blocks: Resource cleanup for COM objects (always needed)
+
+**Pattern to Remove:**
+- ❌ `catch (Exception ex) { return new Result { Success = false, ErrorMessage = ex.Message }; }`
+
+**Architecture:**
+```
+Core Command (NO try-catch wrapping)
+  └─> await batch.Execute()
+      └─> TaskCompletionSource captures exception
+          └─> Returns OperationResult { Success = false, ErrorMessage }
+```
+
+---
+
+## Resource Management
+
+### ✅ Unified Shutdown Pattern (Current Standard)
+
+**All workbook close and Excel quit operations use `ExcelShutdownService` with resilient retry:**
+
+```csharp
+// In ExcelBatch, ExcelSession, FileCommands:
+ExcelShutdownService.CloseAndQuit(workbook, excel, save: false, filePath, logger);
+```
+
+**Shutdown Order:**
+1. **Optional Save** - If `save=true`, calls `workbook.Save()` explicitly before close
+2. **Close Workbook** - Calls `workbook.Close(save)` (save param controls Excel's prompt behavior)
+3. **Release Workbook** - Releases COM reference via `ComUtilities.Release()`
+4. **Quit Excel** - Calls `excel.Quit()` with exponential backoff retry (6 attempts, 200ms base delay)
+5. **Release Excel** - Releases COM reference via `ComUtilities.Release()`
+6. **Automatic GC** - RCW finalizers handle final cleanup automatically (no forced GC needed per Microsoft guidance)
+
+**Resilience Features:**
+- Uses `Microsoft.Extensions.Resilience` retry pipeline
+- **Outer timeout (30s)**: Overall cancellation for Excel.Quit() - catches hung Excel (modal dialogs, deadlocks)
+- **Inner retry**: Exponential backoff (200ms base, 2x factor, 6 attempts) for transient COM busy errors
+- Retries on: `RPC_E_SERVERCALL_RETRYLATER` (-2147417851), `RPC_E_CALL_REJECTED` (-2147418111)
+- Structured logging for diagnostics (attempt number, HResult, elapsed time)
+- Continues with COM cleanup even if Quit fails/times out
+- **STA thread join (10s)**: Short verification timeout after quit succeeds/fails
+
+**Save Semantics:**
+```csharp
+// Discard changes (default for disposal paths)
+ExcelShutdownService.CloseAndQuit(workbook, excel, save: false, filePath, logger);
+
+// Save before close (for explicit save operations)
+ExcelShutdownService.CloseAndQuit(workbook, excel, save: true, filePath, logger);
+```
+
+**Why Unified Service:**
+- Eliminates duplicated try/catch blocks across `ExcelBatch`, `ExcelSession`, `FileCommands`
+- Consistent retry behavior for all Excel quit operations
+- Centralized logging and diagnostics
+- Handles edge cases: disconnected COM proxies, hung Excel, modal dialogs
+
+**Timeout Architecture (Proper Layering):**
+```
+Overall Quit Timeout: 30 seconds (outer)
+  └─> Resilient Retry: 6 attempts with exponential backoff (inner, ~6s max)
+      └─> Individual Quit() calls
+  └─> STA Thread Join: 10 seconds (verification only)
+```
+- **30s quit timeout**: Catches truly hung Excel (modal dialogs, deadlocks) via CancellationToken
+- **6-attempt retry**: Handles transient COM busy states within the 30s window
+- **10s thread join**: Quick verification that cleanup finished (not a primary timeout mechanism)
 
 ## Critical COM Issues
 

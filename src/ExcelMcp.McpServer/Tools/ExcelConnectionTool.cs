@@ -121,10 +121,6 @@ POWER QUERY AUTO-REDIRECT:
         var result = ExcelToolsBase.WithSession(sessionId, batch => commands.List(batch));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Add workflow hints
-        var count = result.Connections?.Count ?? 0;
-        var powerQueryCount = result.Connections?.Count(c => c.IsPowerQuery) ?? 0;
-
         return JsonSerializer.Serialize(new
         {
             result.Success,

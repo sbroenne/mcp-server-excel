@@ -65,7 +65,7 @@ If YES, verify all steps completed:
 - [ ] Updated help text (if adding new commands)
 - [ ] Updated README.md (if needed)
 - [ ] Follows Excel COM best practices from copilot-instructions.md
-- [ ] Uses `ExcelHelper.WithExcel()` for Excel operations
+- [ ] Uses batch API with proper disposal (`using var batch` or `await using var batch`)
 - [ ] Properly handles 1-based Excel indexing
 - [ ] Escapes user input with `.EscapeMarkup()`
 - [ ] Returns consistent exit codes (0 = success, 1+ = error)

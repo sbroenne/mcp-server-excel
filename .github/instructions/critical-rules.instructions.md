@@ -48,6 +48,7 @@ applyTo: "**"
 |------|--------|--------------|
 | 0. Test before commit | ALWAYS run tests before committing | Prevents breaking changes |
 | 1. Success flag | NEVER `Success=true` with `ErrorMessage` | Confuses LLMs, causes silent failures |
+| 1b. No exception wrapping | Never catch exceptions in Core commands, let batch.Execute() handle | Prevents double-wrapping, preserves stack context |
 | 16. Test scope | Only run tests for code you changed | Saves 10+ minutes per test run |
 | 8. TODO markers | Must resolve before commit | Pre-commit hook blocks |
 
@@ -149,6 +150,94 @@ try {
 **Examples of bugs found:**
 - 43 violations across Connection, PowerQuery, DataModel, VBA, Range, Table commands
 - All followed pattern: `Success = true` at start, `ErrorMessage` set in catch without `Success = false`
+
+---
+
+## Rule 1b: Never Suppress Exceptions with Try-Catch (CRITICAL)
+
+**Core Commands: NEVER wrap operations in try-catch blocks that return error results. Let exceptions propagate naturally.**
+
+```csharp
+// ❌ CRITICAL BUG: Suppressing exceptions with error result
+public async Task<OperationResult> CreateAsync(IExcelBatch batch, string name)
+{
+    try
+    {
+        return await batch.Execute((ctx, ct) => {
+            var sheet = ctx.Book.Worksheets.Add();
+            sheet.Name = name;
+            return ValueTask.FromResult(new OperationResult { Success = true });
+        });
+    }
+    catch (Exception ex)
+    {
+        // ❌ WRONG: Suppresses exception with error result
+        return new OperationResult 
+        { 
+            Success = false, 
+            ErrorMessage = ex.Message 
+        };
+    }
+}
+
+// ✅ CORRECT: Let exception propagate to batch.Execute()
+public async Task<OperationResult> CreateAsync(IExcelBatch batch, string name)
+{
+    return await batch.Execute((ctx, ct) => {
+        var sheet = ctx.Book.Worksheets.Add();
+        sheet.Name = name;
+        return ValueTask.FromResult(new OperationResult { Success = true });
+    });
+    // batch.Execute() catches via TaskCompletionSource → returns OperationResult { Success = false }
+}
+
+// ✅ CORRECT: Finally blocks are allowed for COM resource cleanup
+public async Task<OperationResult> ComplexAsync(IExcelBatch batch, dynamic item)
+{
+    dynamic? temp = null;
+    try
+    {
+        return await batch.Execute((ctx, ct) => {
+            temp = CreateItem(item);
+            // ... operation ...
+            return ValueTask.FromResult(new OperationResult { Success = true });
+        });
+    }
+    finally
+    {
+        if (temp != null)
+        {
+            ComUtilities.Release(ref temp!);  // ✅ Finally for cleanup, not error handling
+        }
+    }
+}
+```
+
+**Why Critical:**
+- `batch.Execute()` ALREADY catches exceptions via `TaskCompletionSource`
+- Inner try-catch (method level) causes **double-wrapping** - loses stack context
+- Exceptions become `OperationResult { Success = false, ErrorMessage }` from batch layer (correct layer)
+- Finally blocks are CORRECT for resource cleanup, NOT catch blocks for error suppression
+- Pattern removed from 200+ methods across all command layers in Nov 2025
+
+**Safe Patterns (Keep these):**
+- ✅ Loop continuations: `catch { continue; }`
+- ✅ Optional property access: `catch { propValue = null; }`
+- ✅ Specific error routing: `catch (COMException ex) when (ex.HResult == code) { handle... }`
+- ✅ Finally blocks: Resource cleanup for COM objects
+
+**Pattern to Remove:**
+- ❌ `catch (Exception ex) { return new Result { Success = false, ErrorMessage = ex.Message }; }`
+
+**Architecture Foundation:**
+```
+Core Command Method (NO try-catch wrapping)
+  └─> await batch.Execute()
+      └─> TaskCompletionSource catches exceptions
+          └─> Returns OperationResult { Success = false, ErrorMessage }
+```
+
+**See:** architecture-patterns.instructions.md for complete exception propagation pattern and examples.
 
 ---
 

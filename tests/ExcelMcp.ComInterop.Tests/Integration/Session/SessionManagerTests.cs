@@ -68,30 +68,16 @@ public class SessionManagerTests : IDisposable
         // Delete test files
         foreach (var file in _testFiles)
         {
-            try
+            if (File.Exists(file))
             {
-                if (File.Exists(file))
-                {
-                    File.Delete(file);
-                }
-            }
-            catch
-            {
-                // Best effort
+                File.Delete(file);
             }
         }
 
         // Delete temp directory
-        try
+        if (Directory.Exists(_tempDir))
         {
-            if (Directory.Exists(_tempDir))
-            {
-                Directory.Delete(_tempDir, recursive: true);
-            }
-        }
-        catch
-        {
-            // Best effort
+            Directory.Delete(_tempDir, recursive: true);
         }
 
         // Give Excel time to fully terminate
@@ -437,8 +423,8 @@ public class SessionManagerTests : IDisposable
         var testFile2 = CreateTestFile($"{nameof(Dispose_TwoSessions_ClosesAllSessions)}_2");
         var manager = new SessionManager();
 
-        var sessionId1 = manager.CreateSession(testFile1);
-        var sessionId2 = manager.CreateSession(testFile2);
+        manager.CreateSession(testFile1);
+        manager.CreateSession(testFile2);
 
         Assert.Equal(2, manager.ActiveSessionCount);
 
@@ -452,7 +438,7 @@ public class SessionManagerTests : IDisposable
     [Fact]
     public void Dispose_EmptyManager_CompletesImmediately()
     {
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
 
         manager.Dispose();
 
@@ -538,10 +524,15 @@ public class SessionManagerTests : IDisposable
             // Expected on some systems - skip test
             _output.WriteLine("Path too long - test skipped");
         }
-        catch (AggregateException ex) when (ex.InnerException is System.Runtime.InteropServices.COMException)
+        catch (AggregateException ex) when (ex.InnerException is PathTooLongException)
         {
-            // Excel COM may reject very long paths - expected behavior
-            _output.WriteLine($"Excel COM rejected long path - test skipped: {ex.InnerException.Message}");
+            // Excel COM may reject very long paths - expected behavior (converted from COMException)
+            _output.WriteLine($"Excel rejected long path - test skipped: {ex.InnerException.Message}");
+        }
+        catch (AggregateException ex) when (ex.InnerException is AggregateException inner && inner.InnerException is PathTooLongException)
+        {
+            // Nested AggregateException from async task wrapping (STA thread -> Task.Wait -> Task.Wait)
+            _output.WriteLine($"Excel rejected long path (nested) - test skipped: {((AggregateException)ex.InnerException).InnerException!.Message}");
         }
     }
 

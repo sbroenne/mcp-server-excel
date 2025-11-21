@@ -20,22 +20,22 @@ public partial class PivotTableCommands
             dynamic? pivotFields = null;
             dynamic? cubeFields = null;
 
+            pivot = FindPivotTable(ctx.Book, pivotTableName);
+
+            // Check if this is an OLAP/Data Model PivotTable
+            bool isOlap = false;
             try
             {
-                pivot = FindPivotTable(ctx.Book, pivotTableName);
+                cubeFields = pivot.CubeFields;
+                isOlap = cubeFields != null && cubeFields.Count > 0;
+            }
+            catch
+            {
+                isOlap = false;
+            }
 
-                // Check if this is an OLAP/Data Model PivotTable
-                bool isOlap = false;
-                try
-                {
-                    cubeFields = pivot.CubeFields;
-                    isOlap = cubeFields != null && cubeFields.Count > 0;
-                }
-                catch
-                {
-                    isOlap = false;
-                }
-
+            try
+            {
                 // For OLAP PivotTables, use CubeFields instead of PivotFields
                 if (isOlap)
                 {
@@ -47,15 +47,6 @@ public partial class PivotTableCommands
                     pivotFields = pivot.PivotFields;
                     return ListRegularFieldsAsync(pivotFields, batch.WorkbookPath);
                 }
-            }
-            catch (Exception ex)
-            {
-                return new PivotFieldListResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to list fields: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
             }
             finally
             {
@@ -308,22 +299,13 @@ public partial class PivotTableCommands
         {
             dynamic? pivot = null;
 
+            pivot = FindPivotTable(ctx.Book, pivotTableName);
+
             try
             {
-                pivot = FindPivotTable(ctx.Book, pivotTableName);
-
                 // Use Strategy Pattern to delegate to appropriate implementation
                 var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
                 return strategy.AddRowField(pivot, fieldName, position, batch.WorkbookPath);
-            }
-            catch (Exception ex)
-            {
-                return new PivotFieldResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to add row field: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
             }
             finally
             {
@@ -342,22 +324,13 @@ public partial class PivotTableCommands
         {
             dynamic? pivot = null;
 
+            pivot = FindPivotTable(ctx.Book, pivotTableName);
+
             try
             {
-                pivot = FindPivotTable(ctx.Book, pivotTableName);
-
                 // Use Strategy Pattern to delegate to appropriate implementation
                 var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
                 return strategy.AddColumnField(pivot, fieldName, position, batch.WorkbookPath);
-            }
-            catch (Exception ex)
-            {
-                return new PivotFieldResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to add column field: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
             }
             finally
             {
@@ -377,22 +350,13 @@ public partial class PivotTableCommands
         {
             dynamic? pivot = null;
 
+            pivot = FindPivotTable(ctx.Book, pivotTableName);
+
             try
             {
-                pivot = FindPivotTable(ctx.Book, pivotTableName);
-
                 // Use Strategy Pattern to delegate to appropriate implementation
                 var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
                 return strategy.AddValueField(pivot, fieldName, aggregationFunction, customName, batch.WorkbookPath);
-            }
-            catch (Exception ex)
-            {
-                return new PivotFieldResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to add value field: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
             }
             finally
             {
@@ -411,22 +375,13 @@ public partial class PivotTableCommands
         {
             dynamic? pivot = null;
 
+            pivot = FindPivotTable(ctx.Book, pivotTableName);
+
             try
             {
-                pivot = FindPivotTable(ctx.Book, pivotTableName);
-
                 // Use Strategy Pattern to delegate to appropriate implementation
                 var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
                 return strategy.AddFilterField(pivot, fieldName, batch.WorkbookPath);
-            }
-            catch (Exception ex)
-            {
-                return new PivotFieldResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to add filter field: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
             }
             finally
             {
@@ -445,22 +400,13 @@ public partial class PivotTableCommands
         {
             dynamic? pivot = null;
 
+            pivot = FindPivotTable(ctx.Book, pivotTableName);
+
             try
             {
-                pivot = FindPivotTable(ctx.Book, pivotTableName);
-
                 // Use Strategy Pattern to delegate to appropriate implementation
                 var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
                 return strategy.RemoveField(pivot, fieldName, batch.WorkbookPath);
-            }
-            catch (Exception ex)
-            {
-                return new PivotFieldResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to remove field: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
             }
             finally
             {
@@ -479,22 +425,13 @@ public partial class PivotTableCommands
         {
             dynamic? pivot = null;
 
+            pivot = FindPivotTable(ctx.Book, pivotTableName);
+
             try
             {
-                pivot = FindPivotTable(ctx.Book, pivotTableName);
-
                 // Use Strategy Pattern to delegate to appropriate implementation
                 var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
                 return strategy.SetFieldFunction(pivot, fieldName, aggregationFunction, batch.WorkbookPath);
-            }
-            catch (Exception ex)
-            {
-                return new PivotFieldResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to set field function: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
             }
             finally
             {
@@ -513,22 +450,13 @@ public partial class PivotTableCommands
         {
             dynamic? pivot = null;
 
+            pivot = FindPivotTable(ctx.Book, pivotTableName);
+
             try
             {
-                pivot = FindPivotTable(ctx.Book, pivotTableName);
-
                 // Use Strategy Pattern to delegate to appropriate implementation
                 var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
                 return strategy.SetFieldName(pivot, fieldName, customName, batch.WorkbookPath);
-            }
-            catch (Exception ex)
-            {
-                return new PivotFieldResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to set field name: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
             }
             finally
             {
@@ -547,22 +475,13 @@ public partial class PivotTableCommands
         {
             dynamic? pivot = null;
 
+            pivot = FindPivotTable(ctx.Book, pivotTableName);
+
             try
             {
-                pivot = FindPivotTable(ctx.Book, pivotTableName);
-
                 // Use Strategy Pattern to delegate to appropriate implementation
                 var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
                 return strategy.SetFieldFormat(pivot, fieldName, numberFormat, batch.WorkbookPath);
-            }
-            catch (Exception ex)
-            {
-                return new PivotFieldResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to set field format: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
             }
             finally
             {

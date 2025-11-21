@@ -51,117 +51,100 @@ public partial class PowerQueryCommands
 
         if (!string.IsNullOrWhiteSpace(targetCellAddress) && !requiresWorksheet)
         {
-            result.Success = false;
-            result.ErrorMessage = "targetCellAddress is only supported when loadMode is 'LoadToTable' or 'LoadToBoth'.";
-            return result;
+            throw new ArgumentException("targetCellAddress is only supported when loadMode is 'LoadToTable' or 'LoadToBoth'.", nameof(targetCellAddress));
         }
 
         targetCellAddress ??= "A1"; // Default cell address
 
-        try
+        return batch.Execute((ctx, ct) =>
         {
-            return batch.Execute((ctx, ct) =>
+            dynamic? queries = null;
+            dynamic? query = null;
+
+            try
             {
-                dynamic? queries = null;
-                dynamic? query = null;
-
-                try
+                // STEP 1: Find the Power Query
+                queries = ctx.Book.Queries;
+                query = null;
+                for (int i = 1; i <= queries.Count; i++)
                 {
-                    // STEP 1: Find the Power Query
-                    queries = ctx.Book.Queries;
-                    query = null;
-                    for (int i = 1; i <= queries.Count; i++)
+                    dynamic? q = null;
+                    try
                     {
-                        dynamic? q = null;
-                        try
+                        q = queries.Item(i);
+                        string qName = q.Name?.ToString() ?? "";
+                        if (qName.Equals(queryName, StringComparison.OrdinalIgnoreCase))
                         {
-                            q = queries.Item(i);
-                            string qName = q.Name?.ToString() ?? "";
-                            if (qName.Equals(queryName, StringComparison.OrdinalIgnoreCase))
-                            {
-                                query = q;
-                                q = null; // Don't release - keeping reference
-                                break;
-                            }
-                        }
-                        finally
-                        {
-                            if (q != null) ComUtilities.Release(ref q!);
+                            query = q;
+                            q = null; // Don't release - keeping reference
+                            break;
                         }
                     }
-
-                    if (query == null)
+                    finally
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Query '{queryName}' not found";
-                        return result;
+                        if (q != null) ComUtilities.Release(ref q!);
                     }
+                }
 
-                    // STEP 2: Apply load destination based on mode
-                    switch (loadMode)
-                    {
-                        case PowerQueryLoadMode.LoadToTable:
-                            LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result);
-                            break;
+                if (query == null)
+                {
+                    throw new InvalidOperationException($"Query '{queryName}' not found");
+                }
 
-                        case PowerQueryLoadMode.LoadToDataModel:
-                            LoadQueryToDataModel(ctx.Book, queryName, result);
-                            break;
+                // STEP 2: Apply load destination based on mode
+                switch (loadMode)
+                {
+                    case PowerQueryLoadMode.LoadToTable:
+                        LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result);
+                        break;
 
-                        case PowerQueryLoadMode.LoadToBoth:
-                            // Load to worksheet first
-                            LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result);
+                    case PowerQueryLoadMode.LoadToDataModel:
+                        LoadQueryToDataModel(ctx.Book, queryName, result);
+                        break;
 
-                            if (result.Success)
+                    case PowerQueryLoadMode.LoadToBoth:
+                        // Load to worksheet first
+                        if (LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result))
+                        {
+                            // Preserve worksheet properties before loading to Data Model
+                            int worksheetRows = result.RowsLoaded;
+                            string? worksheetCell = result.TargetCellAddress;
+
+                            // Then also load to Data Model
+                            if (LoadQueryToDataModel(ctx.Book, queryName, result))
                             {
-                                // Preserve worksheet properties before loading to Data Model
-                                int worksheetRows = result.RowsLoaded;
-                                string? worksheetCell = result.TargetCellAddress;
-
-                                // Then also load to Data Model
-                                LoadQueryToDataModel(ctx.Book, queryName, result);
-
                                 // Restore worksheet properties (Data Model sets them to null/-1)
-                                if (result.Success)
-                                {
-                                    result.RowsLoaded = worksheetRows;
-                                    result.TargetCellAddress = worksheetCell;
-                                }
+                                result.RowsLoaded = worksheetRows;
+                                result.TargetCellAddress = worksheetCell;
                             }
-                            break;
+                        }
+                        break;
 
-                        case PowerQueryLoadMode.ConnectionOnly:
-                            // No loading needed - query already exists as connection-only
-                            result.ConfigurationApplied = true;
-                            result.DataRefreshed = false;
-                            result.RowsLoaded = 0;
-                            result.TargetCellAddress = null;
-                            result.Success = true;
-                            break;
-                    }
-
-                    // Set additional result properties
-                    if (result.Success)
-                    {
+                    case PowerQueryLoadMode.ConnectionOnly:
+                        // No loading needed - query already exists as connection-only
                         result.ConfigurationApplied = true;
-                        result.DataRefreshed = (loadMode != PowerQueryLoadMode.ConnectionOnly);
-                    }
+                        result.DataRefreshed = false;
+                        result.RowsLoaded = 0;
+                        result.TargetCellAddress = null;
+                        result.Success = true;
+                        break;
+                }
 
-                    return result;
-                }
-                finally
+                // Set additional result properties
+                if (result.Success)
                 {
-                    if (query != null) ComUtilities.Release(ref query!);
-                    if (queries != null) ComUtilities.Release(ref queries!);
+                    result.ConfigurationApplied = true;
+                    result.DataRefreshed = (loadMode != PowerQueryLoadMode.ConnectionOnly);
                 }
-            });
-        }
-        catch (Exception ex)
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Unexpected error: {ex.Message}";
-            return result;
-        }
+
+                return result;
+            }
+            finally
+            {
+                if (query != null) ComUtilities.Release(ref query!);
+                if (queries != null) ComUtilities.Release(ref queries!);
+            }
+        });
     }
 
     /// <summary>
@@ -173,7 +156,7 @@ public partial class PowerQueryCommands
     /// the same ListObjects.Add() pattern for consistency.
     /// Matches Excel UI behavior: Creates worksheet if it doesn't exist, or loads to existing worksheet.
     /// </remarks>
-    private static void LoadQueryToWorksheet(
+    private static bool LoadQueryToWorksheet(
         dynamic workbook,
         string queryName,
         string sheetName,
@@ -223,9 +206,7 @@ public partial class PowerQueryCommands
 
             if (sheet == null)
             {
-                result.Success = false;
-                result.ErrorMessage = $"Cannot access worksheet '{sheetName}'";
-                return;
+                throw new InvalidOperationException($"Cannot access worksheet '{sheetName}'");
             }
 
             // Get destination range
@@ -267,9 +248,7 @@ public partial class PowerQueryCommands
                                 if (destRow >= tableStartRow && destRow <= tableEndRow &&
                                     destCol >= tableStartCol && destCol <= tableEndCol)
                                 {
-                                    result.Success = false;
-                                    result.ErrorMessage = $"Cell {targetCellAddress} on sheet '{sheetName}' overlaps with existing table.";
-                                    return;
+                                    throw new InvalidOperationException($"Cell {targetCellAddress} on sheet '{sheetName}' overlaps with existing table.");
                                 }
                             }
                             finally
@@ -292,9 +271,7 @@ public partial class PowerQueryCommands
 
                 if (cellHasData)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Target cell '{targetCellAddress}' on worksheet '{sheetName}' already contains data. Choose a different targetCellAddress or clear the existing data first.";
-                    return;
+                    throw new InvalidOperationException($"Target cell '{targetCellAddress}' on worksheet '{sheetName}' already contains data. Choose a different targetCellAddress or clear the existing data first.");
                 }
             }
 
@@ -333,11 +310,7 @@ public partial class PowerQueryCommands
             result.Success = true;
 
             ComUtilities.Release(ref listObjectRange!);
-        }
-        catch (Exception ex)
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Error loading to worksheet: {ex.Message}";
+            return true;
         }
         finally
         {
@@ -354,7 +327,7 @@ public partial class PowerQueryCommands
     /// Loads query data to the Data Model using Connections.Add2.
     /// SHARED IMPLEMENTATION - Used by both Create and LoadTo.
     /// </summary>
-    private static void LoadQueryToDataModel(
+    private static bool LoadQueryToDataModel(
         dynamic workbook,
         string queryName,
         dynamic result)
@@ -384,11 +357,7 @@ public partial class PowerQueryCommands
             result.RowsLoaded = -1; // Data Model doesn't expose row count
             result.TargetCellAddress = null;
             result.Success = true;
-        }
-        catch (Exception ex)
-        {
-            result.Success = false;
-            result.ErrorMessage = $"Error loading to Data Model: {ex.Message}";
+            return true;
         }
         finally
         {
@@ -403,49 +372,37 @@ public partial class PowerQueryCommands
     /// </summary>
     private static dynamic? GetOrCreateWorksheet(dynamic worksheets, string sheetName)
     {
-        dynamic? sheet = null;
 
-        try
+        // Try to find existing worksheet
+        int count = worksheets.Count;
+        dynamic? sheet;
+        for (int i = 1; i <= count; i++)
         {
-            // Try to find existing worksheet
-            int count = worksheets.Count;
-            for (int i = 1; i <= count; i++)
+            dynamic? candidate = null;
+            try
             {
-                dynamic? candidate = null;
-                try
-                {
-                    candidate = worksheets.Item(i);
-                    string name = candidate.Name ?? "";
+                candidate = worksheets.Item(i);
+                string name = candidate.Name ?? "";
 
-                    if (name.Equals(sheetName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        sheet = candidate;
-                        candidate = null; // Prevent release in finally
-                        return sheet;
-                    }
-                }
-                finally
+                if (name.Equals(sheetName, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (candidate != null)
-                    {
-                        ComUtilities.Release(ref candidate);
-                    }
+                    sheet = candidate;
+                    candidate = null; // Prevent release in finally
+                    return sheet;
                 }
             }
-
-            // Sheet not found, create new one
-            sheet = worksheets.Add();
-            sheet.Name = sheetName;
-            return sheet;
-        }
-        catch
-        {
-            // Error accessing or creating worksheet
-            if (sheet != null)
+            finally
             {
-                ComUtilities.Release(ref sheet);
+                if (candidate != null)
+                {
+                    ComUtilities.Release(ref candidate);
+                }
             }
-            return null;
         }
+
+        // Sheet not found, create new one
+        sheet = worksheets.Add();
+        sheet.Name = sheetName;
+        return sheet;
     }
 }

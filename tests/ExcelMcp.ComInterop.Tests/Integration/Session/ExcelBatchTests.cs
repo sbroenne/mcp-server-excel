@@ -66,7 +66,7 @@ public class ExcelBatchTests : IAsyncLifetime
         // Clean up this test's copy
         if (_testFileCopy != null && File.Exists(_testFileCopy))
         {
-            try { File.Delete(_testFileCopy); } catch { }
+            File.Delete(_testFileCopy);
         }
         return Task.CompletedTask;
     }
@@ -75,7 +75,7 @@ public class ExcelBatchTests : IAsyncLifetime
     {
         if (_staticTestFile != null && File.Exists(_staticTestFile))
         {
-            try { File.Delete(_staticTestFile); } catch { }
+            File.Delete(_staticTestFile);
         }
     }
 
@@ -123,7 +123,7 @@ public class ExcelBatchTests : IAsyncLifetime
         batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item(1);
-            var value = sheet.Range["A1"].Value2;
+            _ = sheet.Range["A1"].Value2;
             return 0;
         });
 
@@ -230,8 +230,7 @@ public class ExcelBatchTests : IAsyncLifetime
             batch.Execute((ctx, ct) =>
             {
                 dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
-                dynamic names = ctx.Book.Names;
-                names.Add(namedRangeName, $"={sheetName}!$A$1:$B$2");
+                ctx.Book.Names.Add(namedRangeName, $"={sheetName}!$A$1:$B$2");
                 _output.WriteLine($"✓ Created named range: {namedRangeName}");
                 return 0;
             });
@@ -388,7 +387,7 @@ public class ExcelBatchTests : IAsyncLifetime
             // Cleanup parallel test files
             foreach (var testFile in testFileCopies.Where(File.Exists))
             {
-                try { File.Delete(testFile); } catch { }
+                try { File.Delete(testFile); } catch { /* Best effort cleanup */ }
             }
         }
     }
@@ -431,7 +430,7 @@ public class ExcelBatchTests : IAsyncLifetime
             // Cleanup
             if (File.Exists(lockedTestFile))
             {
-                try { File.Delete(lockedTestFile); } catch { }
+                try { File.Delete(lockedTestFile); } catch { /* Best effort - file may be locked */ }
             }
         }
     }

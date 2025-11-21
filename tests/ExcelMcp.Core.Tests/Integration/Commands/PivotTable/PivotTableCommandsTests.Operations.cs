@@ -82,14 +82,10 @@ public partial class PivotTableCommandsTests
         // Arrange
         var testFile = CreateTestFileWithData(nameof(GetInfo_NonExistentPivotTable_ReturnsError));
 
-        // Act
+        // Act & Assert - expects exception when pivot table not found
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _pivotCommands.Read(batch, "NonExistent");
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
-        Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        var ex = Assert.Throws<InvalidOperationException>(() => _pivotCommands.Read(batch, "NonExistent"));
+        Assert.Contains("not found", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
     /// <inheritdoc/>
 
@@ -125,13 +121,10 @@ public partial class PivotTableCommandsTests
         // Arrange
         var testFile = CreateTestFileWithData(nameof(Delete_NonExistentPivotTable_ReturnsError));
 
-        // Act
+        // Act & Assert - expects exception when pivot table not found
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _pivotCommands.Delete(batch, "NonExistent");
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
+        var ex = Assert.Throws<InvalidOperationException>(() => _pivotCommands.Delete(batch, "NonExistent"));
+        Assert.Contains("not found", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
     /// <inheritdoc/>
 

@@ -97,12 +97,7 @@ internal sealed class VbaCommand : Command<VbaCommand.Settings>
             {
                 Success = true,
                 Action = "vba-export",
-                FilePath = viewResult.FilePath,
-                OperationContext = new Dictionary<string, object>
-                {
-                    ["module"] = moduleName,
-                    ["outputPath"] = IOPath.GetFullPath(outputPath)
-                }
+                FilePath = viewResult.FilePath
             };
 
             _console.WriteJson(exportResult);

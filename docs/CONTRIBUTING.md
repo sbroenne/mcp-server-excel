@@ -80,19 +80,25 @@ public class MyCommands : IMyCommands
         if (!ValidateArgs(args, expectedCount, "usage string"))
             return 1;
             
-        // Excel automation using helper
-        return ExcelHelper.WithExcel(filePath, save, (excel, workbook) =>
+        // Excel automation using batch API
+        var task = Task.Run(async () =>
         {
-            // Your implementation
-            return 0; // Success
+            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+            return batch.Execute((ctx, ct) =>
+            {
+                // Use ctx.Book for workbook access
+                // Your implementation
+                return 0; // Success
+            });
         });
+        return task.GetAwaiter().GetResult();
     }
 }
 ```
 
 #### Critical Rules
 
-1. **Always use `ExcelHelper.WithExcel()`** - Never manage Excel lifecycle manually
+1. **Always use batch API** - Never manage Excel lifecycle manually
 2. **Excel uses 1-based indexing** - `collection.Item(1)` is the first element
 3. **Use `QueryTables.Add()` not `ListObjects.Add()`** - For loading Power Query data
 4. **Escape user input** - Always use `.EscapeMarkup()` with Spectre.Console
@@ -102,7 +108,7 @@ public class MyCommands : IMyCommands
 
 - **Late binding with dynamic types** - Use `Type.GetTypeFromProgID("Excel.Application")`
 - **Proper error handling** - Catch `COMException` and provide helpful messages
-- **Resource cleanup** - Let `ExcelHelper` handle COM object lifecycle
+- **Resource cleanup** - Batch API handles COM object lifecycle automatically
 - **Input validation** - Check file existence and argument counts early
 
 ### Testing

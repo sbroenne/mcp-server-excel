@@ -65,7 +65,7 @@ public static class ConnectionTestHelper
                 dynamic connections = ctx.Book.Connections;
 
                 // Create ODBC connection using NAMED parameters (Excel COM requires this)
-                dynamic newConnection = connections.Add(
+                connections.Add(
                     Name: connectionName,
                     Description: $"Test ODBC connection created by {nameof(CreateOdbcConnection)}",
                     ConnectionString: connectionString,
@@ -105,7 +105,7 @@ public static class ConnectionTestHelper
                 string connectionString = $"TEXT;{textFilePath}";
 
                 // Use Connections.Add() with named parameters like Import does
-                dynamic newConnection = connections.Add(
+                connections.Add(
                     Name: connectionName,
                     Description: $"Test text file connection created by {nameof(CreateTextFileConnection)}",
                     ConnectionString: connectionString,
@@ -143,7 +143,7 @@ public static class ConnectionTestHelper
                 string connectionString = $"URL;{url}";
 
                 // Use Connections.Add() with named parameters like Import does
-                dynamic newConnection = connections.Add(
+                connections.Add(
                     Name: connectionName,
                     Description: $"Test web connection created by {nameof(CreateWebConnection)}",
                     ConnectionString: connectionString,
@@ -178,7 +178,7 @@ public static class ConnectionTestHelper
                 foreach (var (name, type, connectionString) in connections)
                 {
                     // Use positional parameters
-                    dynamic newConnection = connectionsCollection.Add(
+                    connectionsCollection.Add(
                         name,
                         $"Test {type} connection",
                         connectionString,

@@ -302,9 +302,6 @@ DATA FORMAT:
             sessionId,
             batch => commands.SetValues(batch, sheetName ?? "", rangeAddress!, values!));
 
-        var rowCount = values!.Count;
-        var colCount = values.Count > 0 ? values[0].Count : 0;
-
         return JsonSerializer.Serialize(new
         {
             result.Success,

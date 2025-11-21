@@ -46,11 +46,6 @@ public partial class DataModelCommands
 
                 result.Success = true;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed("List tables", ex.Message);
-            }
             finally
             {
                 ComUtilities.Release(ref model);
@@ -73,9 +68,7 @@ public partial class DataModelCommands
                 // Check if workbook has Data Model
                 if (!HasDataModelTables(ctx.Book))
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
                 }
 
                 model = ctx.Book.Model;
@@ -119,17 +112,10 @@ public partial class DataModelCommands
                 // Check if table filter was specified but not found
                 if (tableName != null && result.Measures.Count == 0)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.TableNotFound(tableName);
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(tableName));
                 }
 
                 result.Success = true;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed("listing measures", ex.Message);
             }
             finally
             {
@@ -158,9 +144,7 @@ public partial class DataModelCommands
                 // Check if workbook has Data Model
                 if (!HasDataModelTables(ctx.Book))
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
                 }
 
                 model = ctx.Book.Model;
@@ -169,22 +153,7 @@ public partial class DataModelCommands
                 measure = FindModelMeasure(model, measureName);
                 if (measure == null)
                 {
-                    var measureNames = GetModelMeasureNames(model);
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.MeasureNotFound(measureName);
-
-                    // Suggest similar measure names
-                    var suggestions = new List<string>();
-                    foreach (var m in measureNames)
-                    {
-                        if (m.Contains(measureName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            suggestions.Add($"Try measure: {m}");
-                            if (suggestions.Count >= 3) break;
-                        }
-                    }
-
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.MeasureNotFound(measureName));
                 }
 
                 // Get measure details using safe helpers
@@ -214,11 +183,6 @@ public partial class DataModelCommands
 
                 result.Success = true;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed("viewing measure", ex.Message);
-            }
             finally
             {
                 ComUtilities.Release(ref measure);
@@ -242,9 +206,7 @@ public partial class DataModelCommands
                 // Check if workbook has Data Model
                 if (!HasDataModelTables(ctx.Book))
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
                 }
 
                 model = ctx.Book.Model;
@@ -264,11 +226,6 @@ public partial class DataModelCommands
                 }));
 
                 result.Success = true;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed("listing relationships", ex.Message);
             }
             finally
             {
@@ -297,9 +254,7 @@ public partial class DataModelCommands
                 // Check if workbook has Data Model
                 if (!HasDataModelTables(ctx.Book))
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
                 }
 
                 model = ctx.Book.Model;
@@ -308,9 +263,7 @@ public partial class DataModelCommands
                 table = FindModelTable(model, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.TableNotFound(tableName);
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(tableName));
                 }
 
                 // Iterate through columns
@@ -341,11 +294,6 @@ public partial class DataModelCommands
 
                 result.Success = true;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed($"listing columns for table '{tableName}'", ex.Message);
-            }
             finally
             {
                 ComUtilities.Release(ref table);
@@ -374,9 +322,7 @@ public partial class DataModelCommands
                 // Check if workbook has Data Model
                 if (!HasDataModelTables(ctx.Book))
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
                 }
 
                 model = ctx.Book.Model;
@@ -385,9 +331,7 @@ public partial class DataModelCommands
                 table = FindModelTable(model, tableName);
                 if (table == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.TableNotFound(tableName);
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(tableName));
                 }
 
                 // Get table properties
@@ -433,11 +377,6 @@ public partial class DataModelCommands
 
                 result.Success = true;
             }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed($"viewing table '{tableName}'", ex.Message);
-            }
             finally
             {
                 ComUtilities.Release(ref table);
@@ -461,9 +400,7 @@ public partial class DataModelCommands
                 // Check if workbook has Data Model
                 if (!HasDataModelTables(ctx.Book))
                 {
-                    result.Success = false;
-                    result.ErrorMessage = DataModelErrorMessages.NoDataModelTables();
-                    return result;
+                    throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
                 }
 
                 model = ctx.Book.Model;
@@ -491,11 +428,6 @@ public partial class DataModelCommands
                 }));
 
                 result.Success = true;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = DataModelErrorMessages.OperationFailed("getting model info", ex.Message);
             }
             finally
             {

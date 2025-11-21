@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -40,16 +39,12 @@ public partial class PowerQueryCommands
         // Validate inputs
         if (string.IsNullOrWhiteSpace(queryName))
         {
-            result.Success = false;
-            result.ErrorMessage = "Query name cannot be empty";
-            return result;
+            throw new ArgumentException("Query name cannot be empty", nameof(queryName));
         }
 
         if (string.IsNullOrWhiteSpace(mCode))
         {
-            result.Success = false;
-            result.ErrorMessage = "M code cannot be empty";
-            return result;
+            throw new ArgumentException("M code cannot be empty", nameof(mCode));
         }
 
         // Resolve target sheet name (default to query name)
@@ -76,9 +71,7 @@ public partial class PowerQueryCommands
                 if (existingQuery != null)
                 {
                     ComUtilities.Release(ref existingQuery);
-                    result.Success = false;
-                    result.ErrorMessage = $"Query '{queryName}' already exists";
-                    return result;
+                    throw new InvalidOperationException($"Query '{queryName}' already exists");
                 }
 
                 // Step 1: Create the query (always creates in ConnectionOnly mode initially)
@@ -106,9 +99,7 @@ public partial class PowerQueryCommands
 
                     case PowerQueryLoadMode.LoadToBoth:
                         // Load to worksheet first
-                        LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress!, result);
-
-                        if (result.Success)
+                        if (LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress!, result))
                         {
                             // Preserve worksheet properties before loading to Data Model
                             int worksheetRows = result.RowsLoaded;
@@ -116,11 +107,9 @@ public partial class PowerQueryCommands
                             string? worksheetName = result.WorksheetName;
 
                             // Then also load to Data Model
-                            LoadQueryToDataModel(ctx.Book, queryName, result);
-
-                            // Restore worksheet properties (Data Model sets them to null/-1)
-                            if (result.Success)
+                            if (LoadQueryToDataModel(ctx.Book, queryName, result))
                             {
+                                // Restore worksheet properties (Data Model sets them to null/-1)
                                 result.RowsLoaded = worksheetRows;
                                 result.TargetCellAddress = worksheetCell;
                                 result.WorksheetName = worksheetName;
@@ -129,20 +118,7 @@ public partial class PowerQueryCommands
                         break;
                 }
 
-                return result;
-            }
-            catch (COMException ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Excel COM error: {ex.Message}";
-                result.IsRetryable = ex.HResult == -2147417851; // RPC_E_SERVERCALL_RETRYLATER
-                return result;
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ErrorMessage = $"Error creating query: {ex.Message}";
-                result.IsRetryable = false;
+                result.Success = true;
                 return result;
             }
             finally

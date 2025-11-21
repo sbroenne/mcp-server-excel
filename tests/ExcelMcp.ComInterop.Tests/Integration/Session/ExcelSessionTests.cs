@@ -14,11 +14,9 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 /// - ✅ Test ExcelSession.CreateNew() file creation
 /// - ✅ Verify Excel.exe process termination (no leaks)
 ///
-/// NOTE: ExcelSession methods handle all GC cleanup automatically.
-/// Tests only need to wait for async disposal and process termination timing.
-///
-/// IMPORTANT: These tests spawn and terminate Excel processes (side effects).
-/// They run OnDemand only to avoid interference with normal test runs.
+/// NOTE: ExcelSession methods use ExcelShutdownService for resilient cleanup.
+/// Automatic RCW finalizers handle COM reference cleanup (no forced GC needed).
+/// Process cleanup errors are logged but don't fail tests.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Slow")]
@@ -34,21 +32,18 @@ public class ExcelSessionTests : IDisposable
         _output = output;
 
         // Kill any existing Excel processes to ensure clean state
-        try
+        var existingProcesses = Process.GetProcessesByName("EXCEL");
+        if (existingProcesses.Length > 0)
         {
-            var existingProcesses = Process.GetProcessesByName("EXCEL");
-            if (existingProcesses.Length > 0)
+            _output.WriteLine($"Cleaning up {existingProcesses.Length} existing Excel processes...");
+            foreach (var p in existingProcesses)
             {
-                _output.WriteLine($"Cleaning up {existingProcesses.Length} existing Excel processes...");
-                foreach (var p in existingProcesses)
-                {
-                    try { p.Kill(); p.WaitForExit(2000); } catch { }
-                }
-                Thread.Sleep(2000); // Wait for cleanup
-                _output.WriteLine("Excel processes cleaned up");
+                p.Kill(); p.WaitForExit(2000);
             }
+            Thread.Sleep(2000); // Wait for cleanup
+            _output.WriteLine("Excel processes cleaned up");
         }
-        catch { }
+
     }
 
     /// <summary>
@@ -91,7 +86,7 @@ public class ExcelSessionTests : IDisposable
         string nonExistentFile = Path.Join(Path.GetTempPath(), $"does-not-exist-{Guid.NewGuid():N}.xlsx");
 
         // Act & Assert
-        var exception = Assert.Throws<FileNotFoundException>(() =>
+        Assert.Throws<FileNotFoundException>(() =>
         {
             using var batch = ExcelSession.BeginBatch(nonExistentFile);
         });

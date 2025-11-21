@@ -68,18 +68,15 @@ public partial class PivotTableCommandsTests
         // Arrange - Use regular file without Data Model
         var testFile = CreateTestFileWithData(nameof(CreateFromDataModel_NoDataModel_ReturnsError));
 
-        // Act - Try to create PivotTable from Data Model when none exists
+        // Act & Assert - expects exception when Data Model is empty
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _pivotCommands.CreateFromDataModel(
+        var ex = Assert.Throws<InvalidOperationException>(() => _pivotCommands.CreateFromDataModel(
             batch,
             "AnyTable",
             "SalesData",
             "F1",
-            "FailedPivot");
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.Contains("Workbook does not contain a Power Pivot Data Model", result.ErrorMessage);
+            "FailedPivot"));
+        Assert.Contains("Data Model does not contain any tables", ex.Message);
     }
     /// <inheritdoc/>
 
