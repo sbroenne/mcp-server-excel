@@ -52,6 +52,10 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
             "view" => ExecuteView(batch, settings),
             "create" => ExecuteCreate(batch, settings),
             "update" => ExecuteUpdate(batch, settings),
+            "delete" => ExecuteDelete(batch, settings),
+            "refresh" => ExecuteRefresh(batch, settings),
+            "get-load-config" => ExecuteGetLoadConfig(batch, settings),
+            "refresh-all" => ExecuteRefreshAll(batch),
             "load-to" => ExecuteLoadTo(batch, settings),
             _ => ReportUnknown(action)
         };
@@ -104,6 +108,42 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
         return WriteResult(_powerQueryCommands.Update(batch, queryName, mCode));
     }
 
+    private int ExecuteDelete(IExcelBatch batch, Settings settings)
+    {
+        if (!TryGetQueryName(settings, out var queryName))
+        {
+            return -1;
+        }
+
+        return WriteResult(_powerQueryCommands.Delete(batch, queryName));
+    }
+
+    private int ExecuteRefresh(IExcelBatch batch, Settings settings)
+    {
+        if (!TryGetQueryName(settings, out var queryName))
+        {
+            return -1;
+        }
+
+        var timeout = TimeSpan.FromSeconds(settings.RefreshTimeoutSeconds ?? 60);
+        return WriteResult(_powerQueryCommands.Refresh(batch, queryName, timeout));
+    }
+
+    private int ExecuteGetLoadConfig(IExcelBatch batch, Settings settings)
+    {
+        if (!TryGetQueryName(settings, out var queryName))
+        {
+            return -1;
+        }
+
+        return WriteResult(_powerQueryCommands.GetLoadConfig(batch, queryName));
+    }
+
+    private int ExecuteRefreshAll(IExcelBatch batch)
+    {
+        return WriteResult(_powerQueryCommands.RefreshAll(batch));
+    }
+
     private int ExecuteLoadTo(IExcelBatch batch, Settings settings)
     {
         if (!TryGetQueryName(settings, out var queryName) ||
@@ -140,7 +180,7 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
 
     private int ReportUnknown(string action)
     {
-        _console.WriteError($"Unknown action '{action}'. Supported actions: list, view, create, update, load-to.");
+        _console.WriteError($"Unknown action '{action}'. Supported actions: list, view, create, update, delete, refresh, get-load-config, refresh-all, load-to.");
         return -1;
     }
 
@@ -232,5 +272,8 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
 
         [CommandOption("--target-cell <ADDRESS>")]
         public string? TargetCellAddress { get; init; }
+
+        [CommandOption("--refresh-timeout <SECONDS>")]
+        public int? RefreshTimeoutSeconds { get; init; }
     }
 }
