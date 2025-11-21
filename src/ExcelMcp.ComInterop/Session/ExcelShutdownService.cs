@@ -76,12 +76,7 @@ public static class ExcelShutdownService
             logger.LogError(ex, "Save failed for {FileName} (HResult: 0x{HResult:X8})", fileName, ex.HResult);
             throw new InvalidOperationException(errorMessage, ex);
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Unexpected error saving {FileName}", fileName);
-            throw new InvalidOperationException(
-                $"Unexpected error saving workbook '{fileName}': {ex.Message}", ex);
-        }
+        // All other exceptions propagate; no generic catch block.
     }
 
     /// <summary>
