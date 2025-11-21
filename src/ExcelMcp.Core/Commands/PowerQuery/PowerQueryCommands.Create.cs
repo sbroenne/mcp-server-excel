@@ -39,16 +39,12 @@ public partial class PowerQueryCommands
         // Validate inputs
         if (string.IsNullOrWhiteSpace(queryName))
         {
-            result.Success = false;
-            result.ErrorMessage = "Query name cannot be empty";
-            return result;
+            throw new ArgumentException("Query name cannot be empty", nameof(queryName));
         }
 
         if (string.IsNullOrWhiteSpace(mCode))
         {
-            result.Success = false;
-            result.ErrorMessage = "M code cannot be empty";
-            return result;
+            throw new ArgumentException("M code cannot be empty", nameof(mCode));
         }
 
         // Resolve target sheet name (default to query name)
@@ -75,9 +71,7 @@ public partial class PowerQueryCommands
                 if (existingQuery != null)
                 {
                     ComUtilities.Release(ref existingQuery);
-                    result.Success = false;
-                    result.ErrorMessage = $"Query '{queryName}' already exists";
-                    return result;
+                    throw new InvalidOperationException($"Query '{queryName}' already exists");
                 }
 
                 // Step 1: Create the query (always creates in ConnectionOnly mode initially)
