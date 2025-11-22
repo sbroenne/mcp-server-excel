@@ -311,4 +311,30 @@ public enum PivotTableAction
     GetData
 }
 
+/// <summary>
+/// Actions available for excel_chart tool
+/// </summary>
+public enum ChartAction
+{
+    // Lifecycle
+    List,
+    Read,
+    CreateFromRange,
+    CreateFromPivotTable,
+    Delete,
+    Move,
+
+    // Data Source Operations
+    SetSourceRange,
+    AddSeries,
+    RemoveSeries,
+
+    // Appearance Operations
+    SetChartType,
+    SetTitle,
+    SetAxisTitle,
+    ShowLegend,
+    SetStyle
+}
+
 

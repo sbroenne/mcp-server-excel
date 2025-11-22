@@ -18,11 +18,8 @@ public partial class ConnectionCommandsTests
             nameof(Delete_ExistingTextConnection_ReturnsSuccess),
             _tempDir);
 
-        // Create a CSV file to connect to
-        var csvPath = Path.Combine(_tempDir, "delete_test_data.csv");
-        System.IO.File.WriteAllText(csvPath, "Name,Value\nTest,123");
-
-        string connectionString = $"TEXT;{csvPath}";
+        // Use ODBC connection (doesn't need actual DSN for delete test)
+        string connectionString = "ODBC;DSN=TestDSN;DBQ=C:\\temp\\test.xlsx";
         string connectionName = "DeleteTestConnection";
 
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -80,14 +77,7 @@ public partial class ConnectionCommandsTests
             nameof(Delete_AfterCreatingMultiple_RemovesOnlySpecified),
             _tempDir);
 
-        // Create multiple CSV files
-        var csv1Path = Path.Combine(_tempDir, "multi_delete_1.csv");
-        var csv2Path = Path.Combine(_tempDir, "multi_delete_2.csv");
-        var csv3Path = Path.Combine(_tempDir, "multi_delete_3.csv");
-        System.IO.File.WriteAllText(csv1Path, "A,B\n1,2");
-        System.IO.File.WriteAllText(csv2Path, "C,D\n3,4");
-        System.IO.File.WriteAllText(csv3Path, "E,F\n5,6");
-
+        // Use ODBC connections (don't need actual DSNs for delete test)
         string conn1Name = "Connection1";
         string conn2Name = "Connection2";
         string conn3Name = "Connection3";
@@ -95,9 +85,9 @@ public partial class ConnectionCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create three connections
-        var result1 = _commands.Create(batch, conn1Name, $"TEXT;{csv1Path}");
-        var result2 = _commands.Create(batch, conn2Name, $"TEXT;{csv2Path}");
-        var result3 = _commands.Create(batch, conn3Name, $"TEXT;{csv3Path}");
+        var result1 = _commands.Create(batch, conn1Name, "ODBC;DSN=TestDSN1;DBQ=C:\\temp\\test1.xlsx");
+        var result2 = _commands.Create(batch, conn2Name, "ODBC;DSN=TestDSN2;DBQ=C:\\temp\\test2.xlsx");
+        var result3 = _commands.Create(batch, conn3Name, "ODBC;DSN=TestDSN3;DBQ=C:\\temp\\test3.xlsx");
 
         Assert.True(result1.Success);
         Assert.True(result2.Success);
@@ -126,12 +116,9 @@ public partial class ConnectionCommandsTests
             nameof(Delete_ConnectionWithDescription_RemovesSuccessfully),
             _tempDir);
 
-        var csvPath = Path.Combine(_tempDir, "described_connection.csv");
-        System.IO.File.WriteAllText(csvPath, "Name,Value\nTest,100");
-
         string connectionName = "DescribedConnection";
         string description = "Test connection with description";
-        string connectionString = $"TEXT;{csvPath}";
+        string connectionString = "ODBC;DSN=DescribedDSN;DBQ=C:\\temp\\described.xlsx";
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -158,11 +145,8 @@ public partial class ConnectionCommandsTests
             nameof(Delete_ImmediatelyAfterCreate_WorksCorrectly),
             _tempDir);
 
-        var csvPath = Path.Combine(_tempDir, "immediate_delete.csv");
-        System.IO.File.WriteAllText(csvPath, "X,Y\n10,20");
-
         string connectionName = "ImmediateDeleteTest";
-        string connectionString = $"TEXT;{csvPath}";
+        string connectionString = "ODBC;DSN=ImmediateDSN;DBQ=C:\\temp\\immediate.xlsx";
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -188,11 +172,8 @@ public partial class ConnectionCommandsTests
             nameof(Delete_ConnectionAfterViewOperation_RemovesSuccessfully),
             _tempDir);
 
-        var csvPath = Path.Combine(_tempDir, "view_then_delete.csv");
-        System.IO.File.WriteAllText(csvPath, "Col1,Col2\nVal1,Val2");
-
         string connectionName = "ViewThenDelete";
-        string connectionString = $"TEXT;{csvPath}";
+        string connectionString = "ODBC;DSN=ViewDeleteDSN;DBQ=C:\\temp\\viewdelete.xlsx";
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -243,11 +224,8 @@ public partial class ConnectionCommandsTests
             nameof(Delete_RepeatedDeleteAttempts_SecondAttemptFails),
             _tempDir);
 
-        var csvPath = Path.Combine(_tempDir, "double_delete.csv");
-        System.IO.File.WriteAllText(csvPath, "A,B\n1,2");
-
         string connectionName = "DoubleDeleteTest";
-        string connectionString = $"TEXT;{csvPath}";
+        string connectionString = "ODBC;DSN=DoubleDeleteDSN;DBQ=C:\\temp\\doubledelete.xlsx";
 
         using var batch = ExcelSession.BeginBatch(testFile);
 

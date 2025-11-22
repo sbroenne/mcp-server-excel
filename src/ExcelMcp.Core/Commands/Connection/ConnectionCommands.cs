@@ -360,6 +360,16 @@ public partial class ConnectionCommands : IConnectionCommands
             throw new InvalidOperationException("ConnectionString is required to create a connection.");
         }
 
+        // Reject TEXT/WEB connection strings (legacy, use Power Query or ODC import instead)
+        string connStr = definition.ConnectionString.Trim();
+        if (connStr.StartsWith("TEXT;", StringComparison.OrdinalIgnoreCase) ||
+            connStr.StartsWith("URL;", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new NotSupportedException(
+                "TEXT and WEB connections are no longer supported via create action. " +
+                "Use excel_powerquery tool for file/web imports, or create an ODC file and use import-odc action.");
+        }
+
         dynamic? connections = null;
         dynamic? newConnection = null;
 
@@ -379,12 +389,7 @@ public partial class ConnectionCommands : IConnectionCommands
                 ImportRelationships: false            // Don't import relationships
             );
 
-            // Connection created successfully
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException(
-                $"Failed to create connection '{connectionName}': {ex.Message}", ex);
+            // Connection created successfully - let exceptions propagate naturally
         }
         finally
         {

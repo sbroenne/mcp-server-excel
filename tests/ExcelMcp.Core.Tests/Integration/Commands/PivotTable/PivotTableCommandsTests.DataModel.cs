@@ -73,18 +73,17 @@ public class PivotTableDataModelTests : IClassFixture<DataModelTestsFixture>
         // Arrange
         Assert.True(_creationResult.Success, "Data Model fixture must be created successfully");
 
-        // Act - Try to create PivotTable from non-existent table
+        // Act & Assert - Try to create PivotTable from non-existent table (should throw)
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
-        var result = await _pivotCommands.CreateFromDataModel(
-            batch,
-            "NonExistentTable",
-            "Sales",
-            "H1",
-            "FailedPivot");
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await _pivotCommands.CreateFromDataModel(
+                batch,
+                "NonExistentTable",
+                "Sales",
+                "H1",
+                "FailedPivot"));
 
-        // Assert
-        Assert.False(result.Success);
-        Assert.Contains("not found in Data Model", result.ErrorMessage);
+        Assert.Contains("not found in Data Model", exception.Message);
     }
 
     /// <summary>

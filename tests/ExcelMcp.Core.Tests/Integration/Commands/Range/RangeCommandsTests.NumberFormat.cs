@@ -222,17 +222,16 @@ public partial class RangeCommandsTests
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        // Act - Try to apply 2x2 formats to 3x3 range
+        // Act & Assert - Try to apply 2x2 formats to 3x3 range (should throw ArgumentException)
         var formats = new List<List<string>>
         {
             new List<string> { NumberFormatPresets.Currency, NumberFormatPresets.Percentage },
             new List<string> { NumberFormatPresets.Number, NumberFormatPresets.PercentageOneDecimal }
         };
-        var result = _commands.SetNumberFormats(batch, "Sheet1", "A1:C3", formats);
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _commands.SetNumberFormats(batch, "Sheet1", "A1:C3", formats));
 
-        // Assert - Should fail with dimension mismatch
-        Assert.False(result.Success);
-        Assert.Contains("row count", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("row count", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
     /// <inheritdoc/>
 

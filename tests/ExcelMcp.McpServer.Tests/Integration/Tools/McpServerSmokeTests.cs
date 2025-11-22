@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.McpServer.Models;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
@@ -62,14 +63,14 @@ public class McpServerSmokeTests : IDisposable
     }
 
     /// <summary>
-    /// Comprehensive smoke test that exercises all 12 MCP tools in a realistic LLM workflow using the session API.
+    /// Comprehensive smoke test that exercises all 13 MCP tools in a realistic LLM workflow using the session API.
     /// This test validates the complete tool chain and demonstrates proper session usage for multiple operations.
     /// </summary>
     [Fact]
     public void SmokeTest_AllTools_LlmWorkflow()
     {
         _output.WriteLine("=== MCP SERVER SMOKE TEST (SESSION API) ===");
-        _output.WriteLine("Testing all 12 tools in optimized session workflow...\n");
+        _output.WriteLine("Testing all 13 tools in optimized session workflow...\n");
 
         // =====================================================================
         // STEP 1: FILE CREATION (before session)
@@ -249,6 +250,29 @@ in
 
         _output.WriteLine("  ✓ excel_pivottable: CREATE and LIST in batch");
 
+        // Chart operations via session API
+        var createChartResult = ExcelChartTool.ExcelChart(
+            ChartAction.CreateFromRange,
+            _testExcelFile,
+            sessionId,
+            sheetName: "Data",
+            sourceRange: "A1:C3",
+            chartType: ChartType.ColumnClustered,
+            left: 50,
+            top: 50,
+            width: 400,
+            height: 300,
+            chartName: "DataChart");
+        AssertSuccess(createChartResult, "Create Chart in batch");
+
+        var listChartsResult = ExcelChartTool.ExcelChart(
+            ChartAction.List,
+            _testExcelFile,
+            sessionId);
+        AssertSuccess(listChartsResult, "List Charts in batch");
+
+        _output.WriteLine("  ✓ excel_chart: CREATE and LIST in batch");
+
         // Data Model operations via session API
         var listDataModelResult = ExcelDataModelTool.ExcelDataModel(
             DataModelAction.ListTables,
@@ -323,7 +347,7 @@ in
         // FINAL VERIFICATION
         // =====================================================================
         _output.WriteLine("\n=== BATCH MODE SMOKE TEST COMPLETE ===");
-        _output.WriteLine("✅ All 12 MCP tools tested successfully in BATCH MODE");
+        _output.WriteLine("✅ All 13 MCP tools tested successfully in BATCH MODE");
         _output.WriteLine("✅ Batch workflow: BEGIN → 15+ operations → COMMIT");
         _output.WriteLine("✅ Performance optimized: 75-90% faster than individual operations");
         _output.WriteLine("✅ Data persistence verified after batch commit");

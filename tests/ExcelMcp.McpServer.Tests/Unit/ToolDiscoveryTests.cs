@@ -45,6 +45,7 @@ public class ToolDiscoveryTests
     }
 
     [Theory]
+    [InlineData(typeof(ExcelChartTool), "ExcelChart", "excel_chart")]
     [InlineData(typeof(ExcelConnectionTool), "ExcelConnection", "excel_connection")]
     [InlineData(typeof(ExcelDataModelTool), "ExcelDataModel", "excel_datamodel")]
     [InlineData(typeof(ExcelFileTool), "ExcelFile", "excel_file")]
@@ -70,6 +71,7 @@ public class ToolDiscoveryTests
     }
 
     [Theory]
+    [InlineData(typeof(ExcelChartTool))]
     [InlineData(typeof(ExcelConnectionTool))]
     [InlineData(typeof(ExcelDataModelTool))]
     [InlineData(typeof(ExcelFileTool))]
@@ -100,6 +102,7 @@ public class ToolDiscoveryTests
         // Arrange - Expected tool names that should be discoverable
         var expectedToolNames = new HashSet<string>
         {
+            "excel_chart",
             "excel_conditionalformat",
             "excel_connection",
             "excel_datamodel",

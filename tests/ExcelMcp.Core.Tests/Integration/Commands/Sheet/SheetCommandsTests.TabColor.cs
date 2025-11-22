@@ -178,12 +178,11 @@ public partial class SheetCommandsTests
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        // Act
-        var result = _sheetCommands.SetTabColor(batch, "NonExistent", 255, 0, 0);
+        // Act & Assert - Non-existent sheet should throw InvalidOperationException
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            _sheetCommands.SetTabColor(batch, "NonExistent", 255, 0, 0));
 
-        // Assert
-        Assert.False(result.Success);
-        Assert.Contains("not found", result.ErrorMessage);
+        Assert.Contains("not found", exception.Message);
     }
     /// <inheritdoc/>
 

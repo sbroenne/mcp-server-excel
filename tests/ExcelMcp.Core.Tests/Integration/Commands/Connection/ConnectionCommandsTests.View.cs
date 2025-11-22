@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+using System.IO;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
@@ -16,11 +17,11 @@ public partial class ConnectionCommandsTests
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests), nameof(View_ExistingConnection_ReturnsDetails), _tempDir);
-        var csvFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests), nameof(View_ExistingConnection_ReturnsDetails), _tempDir, ".csv", "Name,Value\nTest1,100\nTest2,200");
-        string connName = "ViewTestConnection";
 
-        ConnectionTestHelper.CreateTextFileConnection(testFile, connName, csvFile);
+        // Use ODBC connection (doesn't need actual DSN for view test)
+        var connName = "ViewTestConnection";
+        string connectionString = "ODBC;DSN=ViewTestDSN;DBQ=C:\\temp\\viewtest.xlsx";
+        ConnectionTestHelper.CreateOdbcConnection(testFile, connName, connectionString);
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);

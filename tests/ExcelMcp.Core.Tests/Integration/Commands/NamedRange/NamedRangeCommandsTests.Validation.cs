@@ -23,13 +23,12 @@ public partial class NamedRangeCommandsTests
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(Create_EmptyParameterName_ReturnsError), _tempDir);
 
-        // Act
+        // Act & Assert - Empty parameter name should throw ArgumentException
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _parameterCommands.Create(batch, "", "Sheet1!A1");
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _parameterCommands.Create(batch, "", "Sheet1!A1"));
 
-        // Assert
-        Assert.False(result.Success);
-        Assert.Contains("cannot be empty", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("cannot be empty", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
     /// <inheritdoc/>
 
@@ -40,13 +39,12 @@ public partial class NamedRangeCommandsTests
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(Create_WhitespaceParameterName_ReturnsError), _tempDir);
 
-        // Act
+        // Act & Assert - Whitespace parameter name should throw ArgumentException
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _parameterCommands.Create(batch, "   ", "Sheet1!A1");
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _parameterCommands.Create(batch, "   ", "Sheet1!A1"));
 
-        // Assert
-        Assert.False(result.Success);
-        Assert.Contains("cannot be empty", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("cannot be empty", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
     /// <inheritdoc/>
 
@@ -79,14 +77,13 @@ public partial class NamedRangeCommandsTests
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(Create_ParameterName256Characters_ReturnsError), _tempDir);
 
-        // Act
+        // Act & Assert - 256-character name should throw ArgumentException
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _parameterCommands.Create(batch, paramName, "Sheet1!A1");
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _parameterCommands.Create(batch, paramName, "Sheet1!A1"));
 
-        // Assert
-        Assert.False(result.Success);
-        Assert.Contains("255-character limit", result.ErrorMessage);
-        Assert.Contains("256", result.ErrorMessage); // Should show actual length
+        Assert.Contains("255-character limit", exception.Message);
+        Assert.Contains("256", exception.Message); // Should show actual length
     }
     /// <inheritdoc/>
 
@@ -98,14 +95,13 @@ public partial class NamedRangeCommandsTests
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(NamedRangeCommandsTests), nameof(Update_ParameterNameExceeds255Characters_ReturnsError), _tempDir);
 
-        // Act
+        // Act & Assert - 300-character name should throw ArgumentException
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _parameterCommands.Update(batch, longParamName, "Sheet1!B2");
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _parameterCommands.Update(batch, longParamName, "Sheet1!B2"));
 
-        // Assert
-        Assert.False(result.Success);
-        Assert.Contains("255-character limit", result.ErrorMessage);
-        Assert.Contains("300", result.ErrorMessage);
+        Assert.Contains("255-character limit", exception.Message);
+        Assert.Contains("300", exception.Message);
     }
     /// <inheritdoc/>
 
