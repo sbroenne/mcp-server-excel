@@ -12,7 +12,22 @@ public static class ConnectionTestHelper
     /// Creates a simple OLEDB connection to a test database in an Excel workbook.
     /// This creates an actual Excel connection object that can be managed by ConnectionCommands.
     /// </summary>
-    public static void CreateOleDbConnection(string filePath, string connectionName, string connectionString)
+    public static void CreateAceOleDbConnection(string excelFilePath, string connectionName, string sourceWorkbookPath)
+    {
+        var connectionString = AceOleDbTestHelper.GetExcelConnectionString(sourceWorkbookPath);
+        CreateOleDbConnection(
+            excelFilePath,
+            connectionName,
+            connectionString,
+            AceOleDbTestHelper.GetDefaultCommandText(),
+            commandType: 2);
+    }
+
+    /// <summary>
+    /// Creates a simple OLEDB connection to a test database in an Excel workbook.
+    /// This creates an actual Excel connection object that can be managed by ConnectionCommands.
+    /// </summary>
+    public static void CreateOleDbConnection(string filePath, string connectionName, string connectionString, string? commandText = null, int? commandType = null)
     {
         using var batch = ExcelSession.BeginBatch(filePath);
         batch.Execute((ctx, ct) =>
@@ -28,8 +43,8 @@ public static class ConnectionTestHelper
                     Name: connectionName,
                     Description: $"Test OLEDB connection created by {nameof(CreateOleDbConnection)}",
                     ConnectionString: connectionString,
-                    CommandText: "",
-                    lCmdtype: Type.Missing,            // Let Excel auto-detect
+                    CommandText: commandText ?? string.Empty,
+                    lCmdtype: commandType.HasValue ? commandType.Value : Type.Missing,
                     CreateModelConnection: false,       // Don't create Data Model connection
                     ImportRelationships: false          // Don't import relationships
                 );
@@ -46,6 +61,7 @@ public static class ConnectionTestHelper
                     }
                 }
 
+                ctx.Book.Save();
                 return 0; // Success
             }
             catch (Exception ex)
@@ -75,6 +91,7 @@ public static class ConnectionTestHelper
                     CommandText: ""
                 );
 
+                ctx.Book.Save();
                 return 0; // Success
             }
             catch (Exception ex)
@@ -84,87 +101,7 @@ public static class ConnectionTestHelper
         });
     }
 
-    /// <summary>
-    /// Creates a text file connection in an Excel workbook.
-    /// This is useful for testing connection refresh and data loading.
-    /// </summary>
-    public static void CreateTextFileConnection(string filePath, string connectionName, string textFilePath)
-    {
-        using var batch = ExcelSession.BeginBatch(filePath);
-        batch.Execute((ctx, ct) =>
-        {
-            try
-            {
-                // Ensure text file exists
-                if (!File.Exists(textFilePath))
-                {
-                    // Create a simple CSV file for testing
-                    File.WriteAllText(textFilePath, "Column1,Column2,Column3\nValue1,Value2,Value3\nTest1,Test2,Test3");
-                }
 
-                dynamic connections = ctx.Book.Connections;
-
-                // Create text file connection using the SAME approach as Import
-                string connectionString = $"TEXT;{textFilePath}";
-
-                // Use Connections.Add() with named parameters like Import does
-                connections.Add(
-                    Name: connectionName,
-                    Description: $"Test text file connection created by {nameof(CreateTextFileConnection)}",
-                    ConnectionString: connectionString,
-                    CommandText: ""
-                );
-
-                // Connection created - Excel should handle the rest
-                // If Import works, this should too
-
-                return 0; // Success
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Failed to create text file connection '{connectionName}': {ex.Message}", ex);
-            }
-        });
-        batch.Save();
-    }
-
-    /// <summary>
-    /// Creates a simple web connection (URL) in an Excel workbook.
-    /// Uses the same approach as ConnectionCommands.Import() for consistency.
-    /// </summary>
-    public static void CreateWebConnection(string filePath, string connectionName, string url)
-    {
-        using var batch = ExcelSession.BeginBatch(filePath);
-        batch.Execute((ctx, ct) =>
-        {
-            try
-            {
-                dynamic connections = ctx.Book.Connections;
-
-                // Create web connection using the SAME approach as Import and CreateTextFileConnection
-                // Use URL; prefix in connection string to indicate web connection type
-                string connectionString = $"URL;{url}";
-
-                // Use Connections.Add() with named parameters like Import does
-                connections.Add(
-                    Name: connectionName,
-                    Description: $"Test web connection created by {nameof(CreateWebConnection)}",
-                    ConnectionString: connectionString,
-                    CommandText: ""
-                );
-
-                // Connection created - Excel should handle the rest
-                // With the URL; prefix, Excel should recognize this as a Web connection (type 5)
-
-                return 0; // Success
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Failed to create web connection '{connectionName}': {ex.Message}", ex);
-            }
-        });
-        batch.Save();
-    }
 
     /// <summary>
     /// Creates multiple test connections of different types for multi-connection tests.

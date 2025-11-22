@@ -21,6 +21,8 @@ public partial class ConnectionCommands
             Action = "loadto"
         };
 
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? conn = null;
@@ -93,7 +95,7 @@ public partial class ConnectionCommands
                 ComUtilities.Release(ref sheets);
                 ComUtilities.Release(ref conn);
             }
-        });
+        }, timeoutCts.Token);
     }
 
     /// <summary>

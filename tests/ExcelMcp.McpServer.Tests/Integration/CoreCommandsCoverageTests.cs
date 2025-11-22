@@ -3,6 +3,7 @@
 using System.Reflection;
 #pragma warning restore IDE0005
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
@@ -130,6 +131,21 @@ public class CoreCommandsCoverageTests
     }
 
     /// <summary>
+    /// Verifies IChartCommands has matching ChartAction enum values
+    /// </summary>
+    [Fact]
+    public void IChartCommands_AllMethodsHaveEnumValues()
+    {
+        var coreMethodCount = GetAsyncMethodCount(typeof(IChartCommands));
+        var enumValueCount = Enum.GetValues<ChartAction>().Length;
+
+        Assert.True(
+            enumValueCount >= coreMethodCount,
+            $"IChartCommands has {coreMethodCount} methods but ChartAction has only {enumValueCount} enum values. " +
+            $"Add missing enum values to ToolActions.cs!");
+    }
+
+    /// <summary>
     /// Verifies all PowerQueryAction enum values have ToActionString mappings
     /// </summary>
     [Fact]
@@ -220,6 +236,20 @@ public class CoreCommandsCoverageTests
     public void PivotTableAction_AllEnumValuesHaveMappings()
     {
         foreach (var action in Enum.GetValues<PivotTableAction>())
+        {
+            var exception = Record.Exception(() => action.ToActionString());
+            Assert.Null(exception);
+            Assert.NotEmpty(action.ToActionString());
+        }
+    }
+
+    /// <summary>
+    /// Verifies all ChartAction enum values have ToActionString mappings
+    /// </summary>
+    [Fact]
+    public void ChartAction_AllEnumValuesHaveMappings()
+    {
+        foreach (var action in Enum.GetValues<ChartAction>())
         {
             var exception = Record.Exception(() => action.ToActionString());
             Assert.Null(exception);

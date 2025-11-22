@@ -1,3 +1,4 @@
+using System.IO;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -29,94 +30,84 @@ public partial class ConnectionCommandsTests
         Assert.False(result.Success);
         Assert.Contains("not found", result.ErrorMessage);
     }
-    /// <inheritdoc/>
 
+    /// <summary>
+    /// Tests refreshing an ACE OLEDB connection bound to an Excel workbook data source.
+    /// </summary>
     [Fact]
-    public void Refresh_ConnectionOnlyQuery_ReturnsSuccessWithContext()
+    public void Refresh_AceOleDbConnection_ReturnsSuccess()
     {
-        // Arrange - Create a text connection but don't load data (connection-only)
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            nameof(Refresh_ConnectionOnlyQuery_ReturnsSuccessWithContext),
-            _tempDir);
+        var (testFile, sourceWorkbook, connectionName) = SetupAceOleDbConnection(
+            nameof(Refresh_AceOleDbConnection_ReturnsSuccess));
 
-        var csvFile = Path.Combine(_tempDir, "test-data.csv");
-        var connectionName = "TestTextConnection";
+        try
+        {
+            using var batch = ExcelSession.BeginBatch(testFile);
 
-        // Create text connection without loading data to any worksheet
-        ConnectionTestHelper.CreateTextFileConnection(testFile, connectionName, csvFile);
+            var loadResult = _commands.LoadTo(batch, connectionName, "ProductsData");
+            Assert.True(loadResult.Success, $"LoadTo failed: {loadResult.ErrorMessage}");
 
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Refresh connection-only connection (should succeed but indicate no data loaded)
-        var result = _commands.Refresh(batch, connectionName);
-
-        // Assert - Pure COM passthrough, just verify success
-        Assert.True(result.Success, $"Connection-only refresh should succeed: {result.ErrorMessage}");
+            var refreshResult = _commands.Refresh(batch, connectionName);
+            Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
+        }
+        finally
+        {
+            if (System.IO.File.Exists(sourceWorkbook))
+            {
+                System.IO.File.Delete(sourceWorkbook);
+            }
+        }
     }
-    /// <inheritdoc/>
 
-    [Fact(Skip = "LoadTo requires actual data source - OLEDB is primary use case but needs real DB")]
-    public void Refresh_ConnectionWithLoadedData_ReturnsSuccess()
-    {
-        // NOTE: This test documents that LoadTo works with OLEDB connections (primary use case)
-        // TEXT connections DON'T support the QueryTables.Add() pattern used by LoadTo
-        // To enable this test, provide a working OLEDB connection string
-
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            nameof(Refresh_ConnectionWithLoadedData_ReturnsSuccess),
-            _tempDir);
-
-        var connectionName = "RefreshTestConnection";
-        var connectionString = "Provider=SQLOLEDB;Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=tempdb;Integrated Security=SSPI;";
-
-        ConnectionTestHelper.CreateOleDbConnection(testFile, connectionName, connectionString);
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-        var loadResult = _commands.LoadTo(batch, connectionName, "TestSheet");
-        Assert.True(loadResult.Success, $"LoadTo failed: {loadResult.ErrorMessage}");
-
-        batch.Save();
-
-        var result = _commands.Refresh(batch, connectionName);
-        Assert.True(result.Success, $"Refresh failed: {result.ErrorMessage}");
-    }
-    /// <inheritdoc/>
-
+    /// <summary>
+    /// Tests refreshing an ACE OLEDB connection after modifying the external workbook.
+    /// </summary>
     [Fact]
-    public void Refresh_TextConnectionMissingFile_SucceedsWithoutValidation()
+    public void Refresh_AceOleDbConnectionAfterDataUpdate_ReturnsSuccess()
     {
-        // Arrange - This test documents Excel's actual behavior: TEXT connections
-        // don't immediately validate file existence on refresh
-        const string connectionName = "TestTextConnectionMissingFile";
+        var (testFile, sourceWorkbook, connectionName) = SetupAceOleDbConnection(
+            nameof(Refresh_AceOleDbConnectionAfterDataUpdate_ReturnsSuccess));
+
+        try
+        {
+            using (var batch = ExcelSession.BeginBatch(testFile))
+            {
+                var loadResult = _commands.LoadTo(batch, connectionName, "ProductsData");
+                Assert.True(loadResult.Success, $"LoadTo failed: {loadResult.ErrorMessage}");
+                batch.Save();
+            }
+
+            AceOleDbTestHelper.UpdateExcelDataSource(sourceWorkbook, sheet =>
+            {
+                sheet.Range["B2"].Value2 = 49.99;
+            });
+
+            using var refreshBatch = ExcelSession.BeginBatch(testFile);
+            var refreshResult = _commands.Refresh(refreshBatch, connectionName);
+            Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
+        }
+        finally
+        {
+            if (System.IO.File.Exists(sourceWorkbook))
+            {
+                System.IO.File.Delete(sourceWorkbook);
+            }
+        }
+    }
+
+    private (string testFile, string sourceWorkbook, string connectionName) SetupAceOleDbConnection(string testName)
+    {
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests),
-            nameof(Refresh_TextConnectionMissingFile_SucceedsWithoutValidation),
+            testName,
             _tempDir);
-        var csvFile = Path.Combine(_tempDir, $"missing_file_{Guid.NewGuid()}.csv");
 
-        // Create CSV file temporarily, then delete it after connection creation
-        System.IO.File.WriteAllText(csvFile, "Col1,Col2\nVal1,Val2\n");
+        var sourceWorkbook = Path.Combine(_tempDir, $"{testName}_Source.xlsx");
+        AceOleDbTestHelper.CreateExcelDataSource(sourceWorkbook);
 
-        // Create TEXT connection while file exists
-        ConnectionTestHelper.CreateTextFileConnection(testFile, connectionName, csvFile);
+        var connectionName = "TestAceOleDbConnection";
+        ConnectionTestHelper.CreateAceOleDbConnection(testFile, connectionName, sourceWorkbook);
 
-        // Delete the file - this is the key difference from the other test
-        System.IO.File.Delete(csvFile);
-        Assert.False(System.IO.File.Exists(csvFile), "CSV file should be deleted");
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Act - Refresh connection to missing file
-        var result = _commands.Refresh(batch, connectionName);
-
-        // Assert - Excel COM doesn't immediately detect missing files for TEXT connections
-        // This documents the actual behavior, not the expected behavior
-        Assert.True(result.Success,
-            "Excel COM allows TEXT connection refresh even when file is missing. " +
-            "File validation may happen later during actual data access.");
-
-        // Cleanup - file already deleted
+        return (testFile, sourceWorkbook, connectionName);
     }
 }

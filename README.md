@@ -68,7 +68,7 @@ Result: A professionally optimized Power Query with documented improvements
 Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), ExcelMcp uses **Excel's official COM API**. This ensures:
 - ✅ **Zero risk of document corruption** - Excel handles all file operations safely
 - ✅ **Interactive development** - See changes in real-time, create → test → refine → iterate instantly
-- ✅ **Comprehensive automation** - Currently supports 158 operations across 11 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, conditional formatting, and more
+- ✅ **Comprehensive automation** - Currently supports 154 operations across 11 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, conditional formatting, and more
 
 **💻 For Developers:** Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), execute instantly, inspect results visually in the live workbook. No more blind editing of .xlsx files.
 
@@ -170,12 +170,11 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 - **Worksheet management** (16 actions): lifecycle (create, rename, copy, move, delete), copy/move between workbooks, tab colors (set, get, clear), visibility controls (show, hide, very-hide, get/set status)
 
 ### Data Connections (11 operations)
-- Manage OLEDB, ODBC, Text, Web connections
-- Import/export connections via .odc files
-- Update connection strings and properties
+- Create and manage OLEDB/ODBC connections when the provider is installed (e.g., Microsoft.ACE.OLEDB.16.0, SQLOLEDB)
 - Refresh connections and test connectivity
-- Load connection-only connections to worksheet tables
-- Get/set connection properties (refresh settings, background query, etc.)
+- Load connection-only sources to worksheet tables
+- Update connection strings, command text, and refresh properties
+- Redirect TEXT/WEB scenarios to `excel_powerquery` automatically (Power Query recommended)
 
 ### Named Ranges (7 operations)
 - List all named ranges with references
@@ -343,7 +342,7 @@ This means you get:
 
 ## 🔟 MCP Tools Overview
 
-**11 specialized tools for comprehensive Excel automation:**
+**11 specialized tools (154 operations) for comprehensive Excel automation:**
 
 1. **excel_powerquery** (11 actions) - Power Query M code: create, view, update, delete, refresh, load configuration, list Excel sources
 2. **excel_datamodel** (14 actions) - Power Pivot (Data Model): CRUD DAX measures/relationships, discover structure (tables, columns), refresh
@@ -352,12 +351,12 @@ This means you get:
 5. **excel_range** (43 actions) - Ranges: get/set values/formulas, number formatting, visual formatting (font, fill, border, alignment), data validation, clear, copy, insert/delete, find/replace, sort, hyperlinks, merge, cell protection
 6. **excel_conditionalformat** (2 actions) - Conditional Formatting: add rules (cell value, expression-based), clear rules
 7. **excel_vba** (6 actions) - VBA: list, view, import, update, run, delete modules
-8. **excel_connection** (9 actions) - Connections: OLEDB/ODBC/Text/Web management, properties, refresh, test
+8. **excel_connection** (9 actions) - Connections: OLEDB/ODBC management, properties, refresh, test, load-to
 9. **excel_worksheet** (13 actions) - Worksheets: lifecycle (list, create, rename, copy, delete), tab colors (set-tab-color, get-tab-color, clear-tab-color), visibility (set-visibility, get-visibility, show, hide, very-hide)
 10. **excel_namedrange** (7 actions) - Named ranges: list, get, set, create, create-bulk, delete, update
 11. **excel_file** (6 actions) - File operations: create empty, open, save, close, close-workbook, test
 
-**Total: 11 tools with 155 actions**
+**Total: 11 tools with 154 actions**
 
 > 📚 **[Complete MCP Server Guide →](src/ExcelMcp.McpServer/README.md)** - Detailed tool documentation and examples
 

@@ -220,6 +220,25 @@ public static class ActionExtensions
         PivotTableAction.GetData => "get-data",
         _ => throw new ArgumentException($"Unknown PivotTableAction: {action}")
     };
+
+    public static string ToActionString(this ChartAction action) => action switch
+    {
+        ChartAction.List => "list",
+        ChartAction.Read => "read",
+        ChartAction.CreateFromRange => "create-from-range",
+        ChartAction.CreateFromPivotTable => "create-from-pivottable",
+        ChartAction.Delete => "delete",
+        ChartAction.Move => "move",
+        ChartAction.SetSourceRange => "set-source-range",
+        ChartAction.AddSeries => "add-series",
+        ChartAction.RemoveSeries => "remove-series",
+        ChartAction.SetChartType => "set-chart-type",
+        ChartAction.SetTitle => "set-title",
+        ChartAction.SetAxisTitle => "set-axis-title",
+        ChartAction.ShowLegend => "show-legend",
+        ChartAction.SetStyle => "set-style",
+        _ => throw new ArgumentException($"Unknown ChartAction: {action}")
+    };
 }
 
 

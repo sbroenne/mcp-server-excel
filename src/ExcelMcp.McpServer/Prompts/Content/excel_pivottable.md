@@ -18,6 +18,7 @@
 - PivotTables auto-refresh when source data changes
 - Fields can be rows, columns, values, or filters
 - Value field functions: Sum, Count, Average, Max, Min, etc.
+- create-from-datamodel enforces a 5 minute timeout; if the Data Model is stuck (privacy dialogs, refresh), you'll get `SuggestedNextActions` to resolve it instead of a hung session.
 
 **Action disambiguation**:
 - create-from-range: Create PivotTable from range address (sheetName + range parameters)

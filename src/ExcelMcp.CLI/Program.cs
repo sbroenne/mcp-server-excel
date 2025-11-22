@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Sbroenne.ExcelMcp.CLI.Commands;
+using Sbroenne.ExcelMcp.CLI.Commands.Chart;
 using Sbroenne.ExcelMcp.CLI.Commands.ConditionalFormatting;
 using Sbroenne.ExcelMcp.CLI.Commands.Connection;
 using Sbroenne.ExcelMcp.CLI.Commands.DataModel;
@@ -15,6 +16,7 @@ using Sbroenne.ExcelMcp.CLI.Commands.Vba;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Infrastructure.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
@@ -88,6 +90,8 @@ internal sealed class Program
                 .WithDescription("Automate Excel Tables: create, resize, filter, sort, and manage totals.");
             config.AddCommand<PivotTableCommand>("pivottable")
                 .WithDescription("Create and configure PivotTables, fields, and refresh behavior.");
+            config.AddCommand<ChartCommand>("chart")
+                .WithDescription("Create and manage Excel charts (Regular and PivotCharts).");
             config.AddCommand<ConnectionCommand>("connection")
                 .WithDescription("Inspect, refresh, and update workbook data connections (OLEDB/ODBC/Text/Web).");
             config.AddCommand<DataModelCommand>("datamodel")
@@ -129,6 +133,7 @@ internal sealed class Program
         services.AddSingleton<INamedRangeCommands, NamedRangeCommands>();
         services.AddSingleton<ITableCommands, TableCommands>();
         services.AddSingleton<IPivotTableCommands, PivotTableCommands>();
+        services.AddSingleton<IChartCommands, ChartCommands>();
         services.AddSingleton<IConditionalFormattingCommands, ConditionalFormattingCommands>();
         services.AddSingleton<IConnectionCommands, ConnectionCommands>();
         services.AddSingleton<IVbaCommands, VbaCommands>();

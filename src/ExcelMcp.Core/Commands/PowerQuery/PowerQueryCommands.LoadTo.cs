@@ -56,6 +56,8 @@ public partial class PowerQueryCommands
 
         targetCellAddress ??= "A1"; // Default cell address
 
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
@@ -144,7 +146,7 @@ public partial class PowerQueryCommands
                 if (query != null) ComUtilities.Release(ref query!);
                 if (queries != null) ComUtilities.Release(ref queries!);
             }
-        });
+        }, timeoutCts.Token);
     }
 
     /// <summary>

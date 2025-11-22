@@ -16,6 +16,8 @@ public partial class DataModelCommands
     {
         var result = new DataModelTableListResult { FilePath = batch.WorkbookPath };
 
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+
         return batch.Execute((ctx, ct) =>
         {
             // Check if workbook has Data Model
@@ -52,13 +54,15 @@ public partial class DataModelCommands
             }
 
             return result;
-        });
+        }, timeoutCts.Token);
     }
 
     /// <inheritdoc />
     public DataModelMeasureListResult ListMeasures(IExcelBatch batch, string? tableName = null)
     {
         var result = new DataModelMeasureListResult { FilePath = batch.WorkbookPath };
+
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
 
         return batch.Execute((ctx, ct) =>
         {
@@ -123,7 +127,7 @@ public partial class DataModelCommands
             }
 
             return result;
-        });
+        }, timeoutCts.Token);
     }
 
     /// <inheritdoc />
@@ -134,6 +138,8 @@ public partial class DataModelCommands
             FilePath = batch.WorkbookPath,
             MeasureName = measureName
         };
+
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
 
         return batch.Execute((ctx, ct) =>
         {
@@ -392,6 +398,8 @@ public partial class DataModelCommands
     {
         var result = new DataModelInfoResult { FilePath = batch.WorkbookPath };
 
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
@@ -435,7 +443,7 @@ public partial class DataModelCommands
             }
 
             return result;
-        });
+        }, timeoutCts.Token);
     }
 }
 

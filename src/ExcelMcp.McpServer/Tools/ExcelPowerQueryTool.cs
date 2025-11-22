@@ -26,6 +26,10 @@ public static class ExcelPowerQueryTool
     - targetCellAddress works for BOTH create and load-to to place tables without clearing other content
     - If targetCellAddress is omitted and sheet already contains data, server returns guidance instead of deleting it
     - When re-using an existing QueryTable, LoadTo refreshes data in-place without recreating the table
+
+    ⏱️ TIMEOUT SAFEGUARD
+    - Long-running refresh/load operations auto-timeout after 5 minutes
+    - On timeout the tool returns SuggestedNextActions instead of hanging the session
 ")]
     public static string ExcelPowerQuery(
         [Required]
@@ -285,8 +289,57 @@ public static class ExcelPowerQueryTool
             ? (string.IsNullOrWhiteSpace(targetSheet) ? queryName : targetSheet)
             : targetSheet;
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.LoadTo(batch, queryName, loadMode, resolvedTargetSheet, targetCellAddress));
+        PowerQueryLoadResult result;
+        bool isTimeout = false;
+        string[]? suggestedNextActions = null;
+        Dictionary<string, object>? operationContext = null;
+        string? retryGuidance = null;
+
+        try
+        {
+            result = ExcelToolsBase.WithSession(
+                sessionId,
+                batch => commands.LoadTo(batch, queryName, loadMode, resolvedTargetSheet, targetCellAddress));
+        }
+        catch (TimeoutException ex)
+        {
+            isTimeout = true;
+
+            result = new PowerQueryLoadResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message,
+                QueryName = queryName!,
+                LoadDestination = loadMode,
+                WorksheetName = resolvedTargetSheet,
+                TargetCellAddress = targetCellAddress,
+                ConfigurationApplied = false,
+                DataRefreshed = false,
+                RowsLoaded = 0
+            };
+
+            bool usedMaxTimeout = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase);
+
+            suggestedNextActions =
+            [
+                "Check if Excel is showing a 'Privacy Level' or credential dialog and dismiss it.",
+                "Verify the data source is reachable and credentials are valid.",
+                "If the dataset is large, load to worksheet first or break the query into smaller sources.",
+                "Use begin_excel_batch to keep the Excel session open while iterating on load configuration."
+            ];
+
+            operationContext = new Dictionary<string, object>
+            {
+                ["OperationType"] = "PowerQuery.LoadTo",
+                ["QueryName"] = queryName!,
+                ["TimeoutReached"] = true,
+                ["UsedMaxTimeout"] = usedMaxTimeout
+            };
+
+            retryGuidance = usedMaxTimeout
+                ? "Maximum timeout reached. Resolve Excel dialogs or reduce the amount of data before retrying."
+                : "After verifying the data source, you can retry this operation within the 5 minute timeout limit.";
+        }
 
         // Detect sheet conflict error and provide specific guidance
         var isSheetConflict = !result.Success &&
@@ -303,9 +356,15 @@ public static class ExcelPowerQueryTool
             result.ConfigurationApplied,
             result.DataRefreshed,
             result.RowsLoaded,
+            isError = !result.Success || isTimeout,
+            suggestedNextActions,
+            retryGuidance,
+            operationContext,
             workflowHint = isSheetConflict
                 ? $"Sheet '{targetSheet ?? queryName}' already contains data. Provide targetCellAddress (e.g., \"B5\") to place the table without deleting the sheet."
-                : null
+                : isTimeout
+                    ? "Excel may be waiting on a modal dialog (privacy levels, credentials, etc.). Check Excel before retrying."
+                    : null
         }, ExcelToolsBase.JsonOptions);
     }
 

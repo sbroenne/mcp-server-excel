@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
 #pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
@@ -20,27 +21,27 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 public static class ExcelConnectionTool
 {
     /// <summary>
-    /// Manage Excel data connections - OLEDB, ODBC, Text, Web, and other connection types
+    /// Manage Excel data connections - OLEDB and ODBC
     /// </summary>
     [McpServerTool(Name = "excel_connection")]
-    [Description(@"Manage Excel data connections (OLEDB, ODBC, Text, Web).
+    [Description(@"Manage Excel data connections (OLEDB, ODBC).
 
 CONNECTION TYPES SUPPORTED:
-- OLEDB: SQL Server, Access, Oracle databases (view/manage only - cannot create via COM)
-- ODBC: ODBC data sources (view/manage only - cannot create via COM)
-- Text: CSV/text file imports (full CRUD support)
-- Web: Web queries and APIs (full CRUD support)
-- DataFeed: OData and data feeds
-- Model: Data Model connections
+- OLEDB: SQL Server, Access/Excel (ACE), Oracle, etc. Provider must already be installed on the machine. Missing providers trigger Excel error 'Value does not fall within expected range'.
+- ODBC: ODBC data sources
+- DataFeed / Model: Appear when workbook already contains Power Query or Power Pivot connections. Tool can list/view/refresh/delete them, but creation is routed to excel_powerquery/Power Pivot.
 
-**CREATE LIMITATION:**
-- OLEDB/ODBC connections CANNOT be created via COM API (Excel limitation)
-- Create these in Excel UI (Data → Get Data), then manage them with this tool
-- TEXT and WEB connections CAN be created programmatically
+TEXT/WEB FILE IMPORTS:
+- TEXT and WEB connections are NOT supported via create action
+- Use excel_powerquery tool for CSV/text file and web imports instead
 
 POWER QUERY AUTO-REDIRECT:
 - Power Query connections automatically redirect to excel_powerquery tool
 - Use excel_powerquery for M code-based connections
+
+TIMEOUT SAFEGUARD:
+- Refresh and load-to actions auto-timeout after 5 minutes
+- On timeout, the tool returns SuggestedNextActions instead of hanging the session
 ")]
     public static string ExcelConnection(
         [Required]
@@ -73,16 +74,25 @@ POWER QUERY AUTO-REDIRECT:
         [Description("Sheet name for loadto action")]
         string? sheetName = null,
 
-        [Description("Background query setting (for set-properties)")]
+        [Description("New connection string (for set-properties, optional)")]
+        string? newConnectionString = null,
+
+        [Description("New command text/SQL query (for set-properties, optional)")]
+        string? newCommandText = null,
+
+        [Description("New connection description (for set-properties, optional)")]
+        string? newDescription = null,
+
+        [Description("Background query setting (for set-properties, optional)")]
         bool? backgroundQuery = null,
 
-        [Description("Refresh on file open setting (for set-properties)")]
+        [Description("Refresh on file open setting (for set-properties, optional)")]
         bool? refreshOnFileOpen = null,
 
-        [Description("Save password setting (for set-properties)")]
+        [Description("Save password setting (for set-properties, optional)")]
         bool? savePassword = null,
 
-        [Description("Refresh period in minutes (for set-properties)")]
+        [Description("Refresh period in minutes (for set-properties, optional)")]
         int? refreshPeriod = null)
     {
         try
@@ -100,7 +110,7 @@ POWER QUERY AUTO-REDIRECT:
                 ConnectionAction.Test => TestConnectionAsync(connectionCommands, sessionId, connectionName),
                 ConnectionAction.LoadTo => LoadToWorksheetAsync(connectionCommands, sessionId, connectionName, sheetName),
                 ConnectionAction.GetProperties => GetPropertiesAsync(connectionCommands, sessionId, connectionName),
-                ConnectionAction.SetProperties => SetPropertiesAsync(connectionCommands, sessionId, connectionName, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod),
+                ConnectionAction.SetProperties => SetPropertiesAsync(connectionCommands, sessionId, connectionName, newConnectionString, newCommandText, newDescription, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod),
                 _ => throw new ArgumentException(
                     $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
@@ -156,22 +166,60 @@ POWER QUERY AUTO-REDIRECT:
 
         _ = excelPath; // retained parameter for schema compatibility
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.Refresh(batch, connectionName, null));
+        OperationResult result;
+        bool isTimeout = false;
+        string[]? suggestedNextActions = null;
+        Dictionary<string, object>? operationContext = null;
+        string? retryGuidance = null;
 
-        if (result.Success)
+        try
         {
-            return JsonSerializer.Serialize(new
+            result = ExcelToolsBase.WithSession(
+                sessionId,
+                batch => commands.Refresh(batch, connectionName, TimeSpan.FromMinutes(5)));
+        }
+        catch (TimeoutException ex)
+        {
+            isTimeout = true;
+            bool usedMaxTimeout = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase);
+
+            result = new OperationResult
             {
-                result.Success
-            }, ExcelToolsBase.JsonOptions);
+                Success = false,
+                ErrorMessage = ex.Message,
+                Action = "refresh",
+                FilePath = excelPath
+            };
+
+            suggestedNextActions =
+            [
+                "Check Excel for credential prompts or privacy dialogs that might be blocking the refresh.",
+                "Verify network connectivity and confirm the external data source is reachable.",
+                "If the query is large, consider filtering or batching the data source.",
+                "Use begin_excel_batch to keep the session alive while adjusting connection settings."
+            ];
+
+            operationContext = new Dictionary<string, object>
+            {
+                ["OperationType"] = "Connection.Refresh",
+                ["ConnectionName"] = connectionName,
+                ["TimeoutReached"] = true,
+                ["UsedMaxTimeout"] = usedMaxTimeout
+            };
+
+            retryGuidance = usedMaxTimeout
+                ? "Maximum timeout reached. Inspect Excel for modal dialogs or reduce the size of the refresh before retrying."
+                : "After resolving connectivity issues, retry the refresh (up to the 5 minute timeout).";
         }
 
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage
+            result.ErrorMessage,
+            isError = !result.Success || isTimeout,
+            suggestedNextActions,
+            retryGuidance,
+            operationContext
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -200,15 +248,61 @@ POWER QUERY AUTO-REDIRECT:
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for loadto action", nameof(sheetName));
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.LoadTo(batch, connectionName, sheetName));
+        OperationResult result;
+        bool isTimeout = false;
+        string[]? suggestedNextActions = null;
+        Dictionary<string, object>? operationContext = null;
+        string? retryGuidance = null;
+
+        try
+        {
+            result = ExcelToolsBase.WithSession(
+                sessionId,
+                batch => commands.LoadTo(batch, connectionName, sheetName));
+        }
+        catch (TimeoutException ex)
+        {
+            isTimeout = true;
+            bool usedMaxTimeout = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase);
+
+            result = new OperationResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message,
+                Action = "loadto"
+            };
+
+            suggestedNextActions =
+            [
+                "Check Excel for credential or privacy prompts blocking the load.",
+                "Ensure the destination sheet is visible and not protected.",
+                "Consider loading to a worksheet first before creating additional pivots or reports.",
+                "Run begin_excel_batch before issuing multiple load-to commands to reuse the same Excel session."
+            ];
+
+            operationContext = new Dictionary<string, object>
+            {
+                ["OperationType"] = "Connection.LoadTo",
+                ["ConnectionName"] = connectionName,
+                ["SheetName"] = sheetName,
+                ["TimeoutReached"] = true,
+                ["UsedMaxTimeout"] = usedMaxTimeout
+            };
+
+            retryGuidance = usedMaxTimeout
+                ? "Maximum timeout reached. Inspect Excel for modal dialogs or reduce the data volume before retrying."
+                : "After verifying sheet readiness and connectivity, retry the load operation.";
+        }
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
         {
             result.Success,
-            result.ErrorMessage
+            result.ErrorMessage,
+            isError = !result.Success || isTimeout,
+            suggestedNextActions,
+            retryGuidance,
+            operationContext
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -234,6 +328,7 @@ POWER QUERY AUTO-REDIRECT:
     }
 
     private static string SetPropertiesAsync(ConnectionCommands commands, string sessionId, string? connectionName,
+        string? newConnectionString, string? newCommandText, string? newDescription,
         bool? backgroundQuery, bool? refreshOnFileOpen, bool? savePassword, int? refreshPeriod)
     {
         if (string.IsNullOrEmpty(connectionName))
@@ -241,7 +336,8 @@ POWER QUERY AUTO-REDIRECT:
 
         var result = ExcelToolsBase.WithSession(
             sessionId,
-            batch => commands.SetProperties(batch, connectionName, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod));
+            batch => commands.SetProperties(batch, connectionName, newConnectionString, newCommandText, newDescription,
+                backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
@@ -295,4 +391,3 @@ POWER QUERY AUTO-REDIRECT:
         }, ExcelToolsBase.JsonOptions);
     }
 }
-

@@ -145,6 +145,9 @@ internal sealed class ConnectionCommand : Command<ConnectionCommand.Settings>
         return WriteResult(_connectionCommands.SetProperties(
             batch,
             name,
+            connectionString: null,  // CLI doesn't support updating connection string yet
+            commandText: null,       // CLI doesn't support updating command text yet
+            description: null,       // CLI doesn't support updating description yet
             settings.BackgroundQuery,
             settings.RefreshOnFileOpen,
             settings.SavePassword,

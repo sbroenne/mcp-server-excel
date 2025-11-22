@@ -11,3 +11,4 @@
 - DAX syntax (Power Pivot) not Excel worksheet syntax
 - Measures created in data model, NOT visible in worksheets until used in PivotTable
 - formatString: Must set explicitly or numbers display as general format
+- list-* actions have a 5 minute guard. If Power Pivot is waiting on a dialog, you'll get timeout guidance (SuggestedNextActions) instead of a silent hang—surface it before retrying.
