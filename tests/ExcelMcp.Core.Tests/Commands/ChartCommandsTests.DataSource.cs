@@ -51,10 +51,12 @@ public partial class ChartCommandsTests
         // Assert
         Assert.True(setRangeResult.Success, $"SetSourceRange failed: {setRangeResult.ErrorMessage}");
 
-        // Verify source range changed
+        // Verify source range changed (Excel returns SERIES formula with Sheet1 reference)
         var readResult = _commands.Read(batch, createResult.ChartName);
         Assert.True(readResult.Success);
-        Assert.Contains("D1:E5", readResult.SourceRange, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Sheet1", readResult.SourceRange, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("$D$", readResult.SourceRange, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("$E$", readResult.SourceRange, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -236,11 +238,13 @@ public partial class ChartCommandsTests
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.Line, 50, 50);
         Assert.True(createResult.Success);
 
-        // Act - Try to remove non-existent series index
-        var removeResult = _commands.RemoveSeries(batch, createResult.ChartName, 999);
+        // Act & Assert - Invalid series index should throw exception
+        var exception = Assert.Throws<System.Runtime.InteropServices.COMException>(() =>
+        {
+            _commands.RemoveSeries(batch, createResult.ChartName, 999);
+        });
 
-        // Assert - Should fail gracefully
-        Assert.False(removeResult.Success);
+        Assert.NotNull(exception);
     }
 
     [Fact]
@@ -281,9 +285,13 @@ public partial class ChartCommandsTests
         // Assert
         Assert.True(expandResult.Success, $"SetSourceRange failed: {expandResult.ErrorMessage}");
 
-        // Verify expanded range
+        // Verify expanded range (Excel returns SERIES formula with Sheet1 reference)
         var readResult = _commands.Read(batch, createResult.ChartName);
         Assert.True(readResult.Success);
-        Assert.Contains("A1:B5", readResult.SourceRange, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Sheet1", readResult.SourceRange, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("$A$", readResult.SourceRange, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("$B$", readResult.SourceRange, StringComparison.OrdinalIgnoreCase);
+        // Verify it includes row 5 (expanded from 3 to 5)
+        Assert.Contains("$5", readResult.SourceRange, StringComparison.OrdinalIgnoreCase);
     }
 }
