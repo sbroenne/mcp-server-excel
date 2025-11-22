@@ -461,17 +461,6 @@ foreach ($file in $files) {
     excelcli session close $SESSION
 ```
 
-### Batch Processing
-
-```bash
-# Process multiple files (Windows CMD)
-for %f in (*.xlsx) do (
-  set SESSION=
-  for /f "tokens=3" %%s in ('excelcli session open "%f" ^| findstr "Session ID:"') do set SESSION=%%s
-  excelcli range get-values --session-id %SESSION% --sheet Sheet1 --range A1:Z1000 >> output.csv
-  excelcli session close %SESSION%
-)
-```
 
 ## ✅ Tested Scenarios
 
@@ -489,7 +478,7 @@ These tests open actual workbooks, issue `session open/list/close`, and call `ex
 
 - **[ExcelMcp.McpServer](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)** - MCP server for AI assistant integration
 - **[Excel MCP VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)** - One-click Excel automation in VS Code
-- **[ExcelMcp.Core](https://www.nuget.org/packages/Sbroenne.ExcelMcp.Core)** - Core library for custom automation tools
+
 
 ---
 

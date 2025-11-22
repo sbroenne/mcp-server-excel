@@ -822,9 +822,12 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
         catch (Exception ex)
         {
+            if (logger is not null && logger.IsEnabled(LogLevel.Error))
+            {
 #pragma warning disable CA1848 // Keep error logging for diagnostics
-            logger?.LogError(ex, "GroupByDate failed for field '{FieldName}'", fieldName);
+                logger.LogError(ex, "GroupByDate failed for field '{FieldName}'", fieldName);
 #pragma warning restore CA1848
+            }
             return new PivotFieldResult
             {
                 Success = false,
@@ -893,9 +896,12 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
         catch (Exception ex)
         {
+            if (logger is not null && logger.IsEnabled(LogLevel.Error))
+            {
 #pragma warning disable CA1848 // Keep error logging for diagnostics
-            logger?.LogError(ex, "GroupByNumeric failed for field '{FieldName}'", fieldName);
+                logger.LogError(ex, "GroupByNumeric failed for field '{FieldName}'", fieldName);
 #pragma warning restore CA1848
+            }
             return new PivotFieldResult
             {
                 Success = false,
@@ -949,9 +955,12 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
         catch (Exception ex)
         {
+            if (logger is not null && logger.IsEnabled(LogLevel.Error))
+            {
 #pragma warning disable CA1848 // Keep error logging for diagnostics
-            logger?.LogError(ex, "CreateCalculatedField failed for field '{FieldName}' with formula '{Formula}'", fieldName, formula);
+                logger.LogError(ex, "CreateCalculatedField failed for field '{FieldName}' with formula '{Formula}'", fieldName, formula);
 #pragma warning restore CA1848
+            }
             return new PivotFieldResult
             {
                 Success = false,
@@ -978,7 +987,10 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             pivot.RowAxisLayout(layoutType);
             pivot.RefreshTable();
 
-            logger?.LogInformation("Set PivotTable layout to {LayoutType}", layoutType);
+            if (logger is not null && logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Set PivotTable layout to {LayoutType}", layoutType);
+            }
 
             return new OperationResult
             {
@@ -1024,7 +1036,10 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
 
             pivot.RefreshTable();
 
-            logger?.LogInformation("Set subtotals for field {FieldName} to {ShowSubtotals}", fieldName, showSubtotals);
+            if (logger is not null && logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Set subtotals for field {FieldName} to {ShowSubtotals}", fieldName, showSubtotals);
+            }
 
             return new PivotFieldResult
             {
@@ -1056,7 +1071,10 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             // Refresh to apply changes
             pivot.RefreshTable();
 
-            logger?.LogInformation("Set grand totals: Row={RowGrand}, Column={ColumnGrand}", showRowGrandTotals, showColumnGrandTotals);
+            if (logger is not null && logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Set grand totals: Row={RowGrand}, Column={ColumnGrand}", showRowGrandTotals, showColumnGrandTotals);
+            }
 
             return new OperationResult
             {

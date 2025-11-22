@@ -52,9 +52,12 @@ public partial class PivotTableCommands
             }
             catch (Exception ex)
             {
-#pragma warning disable CA1848
-                batch.Logger?.LogError(ex, "SetGrandTotals failed for PivotTable {PivotTableName}", pivotTableName);
+                if (batch.Logger is not null && batch.Logger.IsEnabled(LogLevel.Error))
+                {
+#pragma warning disable CA1848 // Keep error logging for diagnostics
+                    batch.Logger.LogError(ex, "SetGrandTotals failed for PivotTable {PivotTableName}", pivotTableName);
 #pragma warning restore CA1848
+                }
                 return new OperationResult
                 {
                     Success = false,

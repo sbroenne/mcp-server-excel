@@ -12,11 +12,11 @@
     <!-- Microsoft Extensions for MCP Server -->
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Resilience" Version="9.1.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Resilience" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="9.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.0" />
     <PackageVersion Include="System.Text.Json" Version="9.0.10" />
     <!-- NuGet API Client -->
     <PackageVersion Include="NuGet.Protocol" Version="6.12.1" />
@@ -33,6 +33,6 @@
     <PackageVersion Include="MartinCostello.Logging.XUnit" Version="0.5.1" />
     <!-- Code Analysis and Security -->
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.5" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.100" />
   </ItemGroup>
 </Project>

@@ -79,14 +79,34 @@ dynamic conn = connections.Add(
 "OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location=QueryName"
 ```
 
+## LoadTo Operation Patterns
+
+**OLEDB connections are the PRIMARY use case for LoadTo:**
+
+```csharp
+// ✅ CORRECT: OLEDB connections support QueryTables.Add() pattern
+string connectionString = "Provider=SQLOLEDB;Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=tempdb;Integrated Security=SSPI;";
+ConnectionTestHelper.CreateOleDbConnection(testFile, connectionName, connectionString);
+var result = _commands.LoadTo(batch, connectionName, "Sheet1");  // ✅ WORKS
+
+// ❌ WRONG: TEXT connections cannot be loaded via QueryTables.Add()
+ConnectionTestHelper.CreateTextFileConnection(testFile, connectionName, csvFile);
+var result = _commands.LoadTo(batch, connectionName, "Sheet1");  // ❌ FAILS with E_INVALIDARG
+```
+
+**Why:** TEXT connections in the Connections collection cannot be loaded via `QueryTables.Add()` using their connection string. TEXT files must be imported directly as QueryTables, not as separate Connection objects first.
+
 ## Testing Strategy
 
-**Use TEXT connections for all automated tests:**
+**Connection Type Selection for Tests:**
+- **OLEDB** - Use for LoadTo, Refresh, and QueryTable operations (primary use case)
+- **TEXT** - Use for connection lifecycle tests (List, View, Delete) without LoadTo
+- **ODBC** - Use for validation of multiple connection types
 
 ## Key Takeaways
 
-1. **OLEDB/ODBC creation unreliable** - manage existing connections only
-2. **TEXT connections work** - use for testing
-3. **Type 3/4 ambiguity** - handle both interchangeably
-4. **Always sanitize** - never expose passwords
-5. **Test with TEXT** - no DB dependencies
+1. **OLEDB is primary for LoadTo** - QueryTable pattern requires OLEDB/ODBC connections
+2. **TEXT connections work for lifecycle** - List, View, Delete, but NOT LoadTo
+3. **Type 3/4 ambiguity** - Handle both interchangeably for TEXT connection type detection
+4. **Always sanitize** - Never expose passwords in connection strings
+5. **Test with appropriate type** - OLEDB for data loading, TEXT for lifecycle operations

@@ -22,13 +22,16 @@ public static class ConnectionTestHelper
                 // Get connections collection
                 dynamic connections = ctx.Book.Connections;
 
-                // Create OLEDB connection using NAMED parameters (Excel COM requires this)
-                // Per Microsoft docs: https://learn.microsoft.com/en-us/office/vba/api/excel.connections.add
-                dynamic newConnection = connections.Add(
+                // Create OLEDB connection using Add2() (current method, Add() is deprecated)
+                // Per instructions: Must use Connections.Add2() for OLEDB/ODBC connections
+                dynamic newConnection = connections.Add2(
                     Name: connectionName,
                     Description: $"Test OLEDB connection created by {nameof(CreateOleDbConnection)}",
                     ConnectionString: connectionString,
-                    CommandText: ""
+                    CommandText: "",
+                    lCmdtype: Type.Missing,            // Let Excel auto-detect
+                    CreateModelConnection: false,       // Don't create Data Model connection
+                    ImportRelationships: false          // Don't import relationships
                 );
 
                 // Configure OLEDB connection properties

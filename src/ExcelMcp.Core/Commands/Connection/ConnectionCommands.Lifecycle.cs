@@ -180,13 +180,17 @@ public partial class ConnectionCommands
 
             if (conn == null)
             {
-                throw new InvalidOperationException($"Connection '{connectionName}' not found");
+                result.Success = false;
+                result.ErrorMessage = $"Connection '{connectionName}' not found";
+                return result;
             }
 
             // Check if this is a Power Query connection (handle separately)
             if (PowerQueryHelpers.IsPowerQueryConnection(conn))
             {
-                throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Use excel_powerquery 'refresh' instead.");
+                result.Success = false;
+                result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Use excel_powerquery 'refresh' instead.";
+                return result;
             }
 
             // Pure COM passthrough - just refresh the connection
