@@ -232,7 +232,7 @@ Same 158 operations available via CLI and MCP. Consistent behavior across interf
 
 **11 specialized tools with 158 operations:**
 
-<div class="tools-reference">
+<div class="tools-reference" markdown="1">
 
 ### 📊 Power Query & M Code (9 actions)
 
