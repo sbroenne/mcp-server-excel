@@ -40,6 +40,7 @@ public partial class ConnectionCommands
 
     /// <inheritdoc />
     public OperationResult SetProperties(IExcelBatch batch, string connectionName,
+        string? connectionString = null, string? commandText = null, string? description = null,
         bool? backgroundQuery = null, bool? refreshOnFileOpen = null,
         bool? savePassword = null, int? refreshPeriod = null)
     {
@@ -64,11 +65,32 @@ public partial class ConnectionCommands
                 throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Power Query properties cannot be modified directly.");
             }
 
-            // Update properties if specified
-            SetConnectionProperty(conn, "BackgroundQuery", backgroundQuery);
-            SetConnectionProperty(conn, "RefreshOnFileOpen", refreshOnFileOpen);
-            SetConnectionProperty(conn, "SavePassword", savePassword);
-            SetConnectionProperty(conn, "RefreshPeriod", refreshPeriod);
+            // Build connection definition with specified properties
+            var definition = new ConnectionDefinition
+            {
+                ConnectionString = connectionString,
+                CommandText = commandText,
+                Description = description,
+                BackgroundQuery = backgroundQuery,
+                RefreshOnFileOpen = refreshOnFileOpen,
+                SavePassword = savePassword,
+                RefreshPeriod = refreshPeriod
+            };
+
+            // Use UpdateConnectionProperties to apply all changes
+            try
+            {
+                UpdateConnectionProperties(conn, definition);
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("0x800A03EC") && !string.IsNullOrWhiteSpace(connectionString))
+            {
+                // Excel blocks connection string updates for ODC-imported connections (security feature)
+                throw new InvalidOperationException(
+                    $"Cannot update connection string for connection '{connectionName}'. " +
+                    "Excel blocks connection string changes for ODC-imported connections (security restriction). " +
+                    "To change the data source, delete this connection and import a new ODC file, or create a new connection with excel_connection create action.",
+                    ex);
+            }
 
             result.Success = true;
             return result;

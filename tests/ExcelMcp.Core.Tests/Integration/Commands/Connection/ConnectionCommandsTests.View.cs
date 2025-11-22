@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+using System.IO;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
@@ -16,21 +17,29 @@ public partial class ConnectionCommandsTests
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests), nameof(View_ExistingConnection_ReturnsDetails), _tempDir);
-        var csvFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests), nameof(View_ExistingConnection_ReturnsDetails), _tempDir, ".csv", "Name,Value\nTest1,100\nTest2,200");
+
+        var dbPath = Path.Combine(_tempDir, $"TestDb_{Guid.NewGuid():N}.db");
+        SQLiteDatabaseHelper.CreateTestDatabase(dbPath);
+
         string connName = "ViewTestConnection";
+        ConnectionTestHelper.CreateSQLiteOleDbConnection(testFile, connName, dbPath);
 
-        ConnectionTestHelper.CreateTextFileConnection(testFile, connName, csvFile);
+        try
+        {
+            // Act
+            using var batch = ExcelSession.BeginBatch(testFile);
+            var result = _commands.View(batch, connName);
 
-        // Act
-        using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.View(batch, connName);
-
-        // Assert
-        Assert.True(result.Success, $"View failed: {result.ErrorMessage}");
-        Assert.Equal(connName, result.ConnectionName);
-        Assert.NotNull(result.ConnectionString);
-        Assert.NotNull(result.Type);
+            // Assert
+            Assert.True(result.Success, $"View failed: {result.ErrorMessage}");
+            Assert.Equal(connName, result.ConnectionName);
+            Assert.NotNull(result.ConnectionString);
+            Assert.NotNull(result.Type);
+        }
+        finally
+        {
+            SQLiteDatabaseHelper.DeleteDatabase(dbPath);
+        }
     }
     /// <inheritdoc/>
 

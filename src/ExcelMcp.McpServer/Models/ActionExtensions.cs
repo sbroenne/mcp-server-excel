@@ -141,6 +141,7 @@ public static class ActionExtensions
         ConnectionAction.LoadTo => "load-to",
         ConnectionAction.GetProperties => "get-properties",
         ConnectionAction.SetProperties => "set-properties",
+        ConnectionAction.ImportFromOdc => "import-odc",
         _ => throw new ArgumentException($"Unknown ConnectionAction: {action}")
     };
 

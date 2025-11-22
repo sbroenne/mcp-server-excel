@@ -50,9 +50,10 @@ public interface IConnectionCommands
     ConnectionPropertiesResult GetProperties(IExcelBatch batch, string connectionName);
 
     /// <summary>
-    /// Sets connection properties
+    /// Sets connection properties (connection string, command text, description, and behavior settings)
     /// </summary>
     OperationResult SetProperties(IExcelBatch batch, string connectionName,
+        string? connectionString = null, string? commandText = null, string? description = null,
         bool? backgroundQuery = null, bool? refreshOnFileOpen = null,
         bool? savePassword = null, int? refreshPeriod = null);
 
@@ -60,5 +61,10 @@ public interface IConnectionCommands
     /// Tests connection without refreshing data
     /// </summary>
     OperationResult Test(IExcelBatch batch, string connectionName);
+
+    /// <summary>
+    /// Imports a connection from an ODC file
+    /// </summary>
+    OperationResult ImportFromOdc(IExcelBatch batch, string odcFilePath);
 }
 

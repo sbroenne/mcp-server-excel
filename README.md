@@ -352,7 +352,7 @@ This means you get:
 5. **excel_range** (43 actions) - Ranges: get/set values/formulas, number formatting, visual formatting (font, fill, border, alignment), data validation, clear, copy, insert/delete, find/replace, sort, hyperlinks, merge, cell protection
 6. **excel_conditionalformat** (2 actions) - Conditional Formatting: add rules (cell value, expression-based), clear rules
 7. **excel_vba** (6 actions) - VBA: list, view, import, update, run, delete modules
-8. **excel_connection** (9 actions) - Connections: OLEDB/ODBC/Text/Web management, properties, refresh, test
+8. **excel_connection** (10 actions) - Connections: OLEDB/ODBC management, ODC file import, properties, refresh, test
 9. **excel_worksheet** (13 actions) - Worksheets: lifecycle (list, create, rename, copy, delete), tab colors (set-tab-color, get-tab-color, clear-tab-color), visibility (set-visibility, get-visibility, show, hide, very-hide)
 10. **excel_namedrange** (7 actions) - Named ranges: list, get, set, create, create-bulk, delete, update
 11. **excel_file** (6 actions) - File operations: create empty, open, save, close, close-workbook, test

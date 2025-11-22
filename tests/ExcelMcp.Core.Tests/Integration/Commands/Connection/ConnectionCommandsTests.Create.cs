@@ -6,67 +6,57 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
 
 /// <summary>
 /// Tests for Connection Create operations.
-/// 
+///
 /// Connection Type Support:
-/// - TEXT/WEB: Create works (but LoadTo fails - use Power Query for data loading)
-/// - OLEDB/ODBC: Create currently fails with "Value does not fall within expected range"
-///               Excel COM Add2() method doesn't support OLEDB/ODBC connection creation
-///               Use Power Query for OLEDB/ODBC data import instead
+/// - TEXT/WEB: Blocked (NotSupportedException) - Use Power Query for file/web imports
+/// - OLEDB: Blocked via Create (NotSupportedException) - Use Power Query or ODC import
+/// - ODBC: Create works (even without valid DSN configured)
 /// </summary>
 public partial class ConnectionCommandsTests
 {
     [Fact]
-    public void Create_TextConnection_ReturnsSuccess()
+    public void Create_TextConnection_ThrowsNotSupportedException()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests),
-            nameof(Create_TextConnection_ReturnsSuccess),
+            nameof(Create_TextConnection_ThrowsNotSupportedException),
             _tempDir);
 
-        // Create a CSV file to connect to
         var csvPath = Path.Combine(_tempDir, "test_data.csv");
         System.IO.File.WriteAllText(csvPath, "Name,Value\nTest,123");
 
         string connectionString = $"TEXT;{csvPath}";
         string connectionName = "TestTextConnection";
 
-        // Act
+        // Act & Assert - TEXT connections are blocked, use Power Query instead
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.Create(batch, connectionName, connectionString);
+        var exception = Assert.Throws<NotSupportedException>(() =>
+            _commands.Create(batch, connectionName, connectionString));
 
-        // Assert - TEXT connections can be created successfully
-        Assert.True(result.Success, $"TEXT connection creation failed: {result.ErrorMessage}");
-
-        // Verify connection exists in workbook
-        var listResult = _commands.List(batch);
-        Assert.True(listResult.Success);
-        Assert.Contains(listResult.Connections, c => c.Name == connectionName);
+        Assert.Contains("TEXT and WEB connections are no longer supported", exception.Message);
+        Assert.Contains("excel_powerquery", exception.Message);
     }
 
     [Fact]
-    public void Create_WebConnection_ReturnsSuccess()
+    public void Create_WebConnection_ThrowsNotSupportedException()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests),
-            nameof(Create_WebConnection_ReturnsSuccess),
+            nameof(Create_WebConnection_ThrowsNotSupportedException),
             _tempDir);
 
         string connectionString = "URL;https://example.com/data.xml";
         string connectionName = "TestWebConnection";
 
-        // Act
+        // Act & Assert - WEB connections are blocked, use Power Query instead
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.Create(batch, connectionName, connectionString);
+        var exception = Assert.Throws<NotSupportedException>(() =>
+            _commands.Create(batch, connectionName, connectionString));
 
-        // Assert - WEB connections can be created successfully
-        Assert.True(result.Success, $"WEB connection creation failed: {result.ErrorMessage}");
-
-        // Verify connection exists
-        var listResult = _commands.List(batch);
-        Assert.True(listResult.Success);
-        Assert.Contains(listResult.Connections, c => c.Name == connectionName);
+        Assert.Contains("TEXT and WEB connections are no longer supported", exception.Message);
+        Assert.Contains("excel_powerquery", exception.Message);
     }
 
     [Fact]
@@ -78,11 +68,11 @@ public partial class ConnectionCommandsTests
             nameof(Create_OleDbConnection_ThrowsArgumentException),
             _tempDir);
 
-        // OLEDB connection string - known to fail with Excel COM Add2() method
+        // OLEDB connection string - Excel COM Add2() fails with ArgumentException
         string connectionString = "OLEDB;Provider=SQLOLEDB;Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=tempdb;Integrated Security=SSPI";
         string connectionName = "TestOleDbConnection";
 
-        // Act & Assert - OLEDB connections fail with ArgumentException
+        // Act & Assert - OLEDB connections fail at Excel COM level (not blocked by our validation)
         // Excel COM Add2() method doesn't support OLEDB connection creation
         // Users should use Power Query for OLEDB data import instead
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -119,28 +109,26 @@ public partial class ConnectionCommandsTests
     }
 
     [Fact]
-    public void Create_DuplicateName_PreventsOrRenamesDuplicate()
+    public void Create_DuplicateName_CreatesSecondConnection()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests),
-            nameof(Create_DuplicateName_PreventsOrRenamesDuplicate),
+            nameof(Create_DuplicateName_CreatesSecondConnection),
             _tempDir);
 
-        var csvPath = Path.Combine(_tempDir, "duplicate_test.csv");
-        System.IO.File.WriteAllText(csvPath, "A,B\n1,2");
-
-        string connectionString = $"TEXT;{csvPath}";
+        string connectionString1 = "ODBC;DSN=Source1;DBQ=C:\\temp\\test1.xlsx";
+        string connectionString2 = "ODBC;DSN=Source2;DBQ=C:\\temp\\test2.xlsx";
         string connectionName = "DuplicateTest";
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Act - Create first connection
-        var result1 = _commands.Create(batch, connectionName, connectionString);
+        var result1 = _commands.Create(batch, connectionName, connectionString1);
         Assert.True(result1.Success, $"First connection creation failed: {result1.ErrorMessage}");
 
         // Act - Create second connection with same name
-        var result2 = _commands.Create(batch, connectionName, connectionString);
+        var result2 = _commands.Create(batch, connectionName, connectionString2);
         Assert.True(result2.Success, $"Second connection creation failed: {result2.ErrorMessage}");
 
         // Assert - Excel may prevent duplicates OR auto-rename the second one
@@ -156,20 +144,17 @@ public partial class ConnectionCommandsTests
     }
 
     [Fact]
-    public void Create_WithDescription_StoresDescription()
+    public void Create_WithDescription_CreatesConnection()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests),
-            nameof(Create_WithDescription_StoresDescription),
+            nameof(Create_WithDescription_CreatesConnection),
             _tempDir);
 
-        var csvPath = Path.Combine(_tempDir, "description_test.csv");
-        System.IO.File.WriteAllText(csvPath, "X,Y\n10,20");
-
-        string connectionString = $"TEXT;{csvPath}";
+        string connectionString = "ODBC;DSN=Excel Files;DBQ=C:\\temp\\test.xlsx";
         string connectionName = "ConnectionWithDescription";
-        string description = "This is a test connection for CSV data";
+        string description = "This is a test connection for ODBC data";
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);

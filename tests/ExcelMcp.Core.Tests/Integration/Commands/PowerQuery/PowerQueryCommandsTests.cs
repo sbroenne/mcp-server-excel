@@ -361,13 +361,12 @@ in
         var firstCreate = _powerQueryCommands.Create(batch, queryName, mCode);
         Assert.True(firstCreate.Success, $"First create should succeed: {firstCreate.ErrorMessage}");
 
-        // Act 2: Try to Create same query again (should fail)
-        var secondCreate = _powerQueryCommands.Create(batch, queryName, mCode);
+        // Act 2 & Assert: Try to Create same query again (should throw InvalidOperationException)
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            _powerQueryCommands.Create(batch, queryName, mCode));
 
-        // Assert: Second create should fail with clear error message
-        Assert.False(secondCreate.Success, "Second create should fail");
-        Assert.Contains("already exists", secondCreate.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains(queryName, secondCreate.ErrorMessage);
+        Assert.Contains("already exists", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(queryName, exception.Message);
 
         // Verify query still exists and wasn't corrupted
         var viewResult = _powerQueryCommands.View(batch, queryName);

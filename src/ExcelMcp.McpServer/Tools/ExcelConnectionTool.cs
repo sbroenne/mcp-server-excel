@@ -20,23 +20,26 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 public static class ExcelConnectionTool
 {
     /// <summary>
-    /// Manage Excel data connections - OLEDB, ODBC, Text, Web, and other connection types
+    /// Manage Excel data connections - OLEDB, ODBC, and ODC file imports
     /// </summary>
     [McpServerTool(Name = "excel_connection")]
-    [Description(@"Manage Excel data connections (OLEDB, ODBC, Text, Web).
+    [Description(@"Manage Excel data connections (OLEDB, ODBC) and import ODC files.
 
 CONNECTION TYPES SUPPORTED:
-- OLEDB: SQL Server, Access, Oracle databases (view/manage only - cannot create via COM)
-- ODBC: ODBC data sources (view/manage only - cannot create via COM)
-- Text: CSV/text file imports (full CRUD support)
-- Web: Web queries and APIs (full CRUD support)
+- OLEDB: SQL Server, Access, Oracle databases
+- ODBC: ODBC data sources
 - DataFeed: OData and data feeds
 - Model: Data Model connections
 
-**CREATE LIMITATION:**
-- OLEDB/ODBC connections CANNOT be created via COM API (Excel limitation)
-- Create these in Excel UI (Data → Get Data), then manage them with this tool
-- TEXT and WEB connections CAN be created programmatically
+IMPORTING CONNECTIONS:
+- Use import-odc action to import Office Data Connection (.odc) files
+- ODC files can be created in Excel UI (Data → Get Data → Export Connection File)
+- LLMs can generate ODC files (XML format with connection details)
+
+TEXT/WEB FILE IMPORTS:
+- TEXT and WEB connections are NO LONGER supported via create action
+- Use excel_powerquery tool for CSV/text file and web imports instead
+- Or create ODC file and use import-odc action
 
 POWER QUERY AUTO-REDIRECT:
 - Power Query connections automatically redirect to excel_powerquery tool
@@ -73,17 +76,29 @@ POWER QUERY AUTO-REDIRECT:
         [Description("Sheet name for loadto action")]
         string? sheetName = null,
 
-        [Description("Background query setting (for set-properties)")]
+        [Description("New connection string (for set-properties, optional)")]
+        string? newConnectionString = null,
+
+        [Description("New command text/SQL query (for set-properties, optional)")]
+        string? newCommandText = null,
+
+        [Description("New connection description (for set-properties, optional)")]
+        string? newDescription = null,
+
+        [Description("Background query setting (for set-properties, optional)")]
         bool? backgroundQuery = null,
 
-        [Description("Refresh on file open setting (for set-properties)")]
+        [Description("Refresh on file open setting (for set-properties, optional)")]
         bool? refreshOnFileOpen = null,
 
-        [Description("Save password setting (for set-properties)")]
+        [Description("Save password setting (for set-properties, optional)")]
         bool? savePassword = null,
 
-        [Description("Refresh period in minutes (for set-properties)")]
-        int? refreshPeriod = null)
+        [Description("Refresh period in minutes (for set-properties, optional)")]
+        int? refreshPeriod = null,
+
+        [Description("ODC file path for import-odc action")]
+        string? odcFilePath = null)
     {
         try
         {
@@ -100,7 +115,8 @@ POWER QUERY AUTO-REDIRECT:
                 ConnectionAction.Test => TestConnectionAsync(connectionCommands, sessionId, connectionName),
                 ConnectionAction.LoadTo => LoadToWorksheetAsync(connectionCommands, sessionId, connectionName, sheetName),
                 ConnectionAction.GetProperties => GetPropertiesAsync(connectionCommands, sessionId, connectionName),
-                ConnectionAction.SetProperties => SetPropertiesAsync(connectionCommands, sessionId, connectionName, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod),
+                ConnectionAction.SetProperties => SetPropertiesAsync(connectionCommands, sessionId, connectionName, newConnectionString, newCommandText, newDescription, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod),
+                ConnectionAction.ImportFromOdc => ImportOdcAsync(connectionCommands, sessionId, odcFilePath),
                 _ => throw new ArgumentException(
                     $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
@@ -234,6 +250,7 @@ POWER QUERY AUTO-REDIRECT:
     }
 
     private static string SetPropertiesAsync(ConnectionCommands commands, string sessionId, string? connectionName,
+        string? newConnectionString, string? newCommandText, string? newDescription,
         bool? backgroundQuery, bool? refreshOnFileOpen, bool? savePassword, int? refreshPeriod)
     {
         if (string.IsNullOrEmpty(connectionName))
@@ -241,7 +258,8 @@ POWER QUERY AUTO-REDIRECT:
 
         var result = ExcelToolsBase.WithSession(
             sessionId,
-            batch => commands.SetProperties(batch, connectionName, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod));
+            batch => commands.SetProperties(batch, connectionName, newConnectionString, newCommandText, newDescription,
+                backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
@@ -294,5 +312,22 @@ POWER QUERY AUTO-REDIRECT:
             connectionName
         }, ExcelToolsBase.JsonOptions);
     }
-}
 
+    private static string ImportOdcAsync(ConnectionCommands commands, string sessionId, string? odcFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(odcFilePath))
+            throw new ArgumentException("odcFilePath is required for import-odc action", nameof(odcFilePath));
+
+        var result = ExcelToolsBase.WithSession(
+            sessionId,
+            batch => commands.ImportFromOdc(batch, odcFilePath));
+
+        // Always return JSON (success or failure) - MCP clients handle the success flag
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage,
+            result.Action
+        }, ExcelToolsBase.JsonOptions);
+    }
+}

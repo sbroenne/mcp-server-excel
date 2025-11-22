@@ -195,7 +195,8 @@ public enum ConnectionAction
     Delete,
     LoadTo,
     GetProperties,
-    SetProperties
+    SetProperties,
+    ImportFromOdc
 }
 
 /// <summary>

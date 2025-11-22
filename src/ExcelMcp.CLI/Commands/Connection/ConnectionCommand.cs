@@ -42,6 +42,7 @@ internal sealed class ConnectionCommand : Command<ConnectionCommand.Settings>
             "list" => WriteResult(_connectionCommands.List(batch)),
             "view" => ExecuteView(batch, settings),
             "create" => ExecuteCreate(batch, settings),
+            "import-odc" => ExecuteImportOdc(batch, settings),
             "refresh" => ExecuteRefresh(batch, settings),
             "delete" => ExecuteDelete(batch, settings),
             "load-to" => ExecuteLoadTo(batch, settings),
@@ -79,6 +80,17 @@ internal sealed class ConnectionCommand : Command<ConnectionCommand.Settings>
             settings.ConnectionString!,
             settings.CommandText,
             settings.Description));
+    }
+
+    private int ExecuteImportOdc(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.OdcFilePath))
+        {
+            _console.WriteError("--odc-file is required for import-odc.");
+            return -1;
+        }
+
+        return WriteResult(_connectionCommands.ImportFromOdc(batch, settings.OdcFilePath!));
     }
 
     private int ExecuteRefresh(IExcelBatch batch, Settings settings)
@@ -145,6 +157,9 @@ internal sealed class ConnectionCommand : Command<ConnectionCommand.Settings>
         return WriteResult(_connectionCommands.SetProperties(
             batch,
             name,
+            connectionString: null,  // CLI doesn't support updating connection string yet
+            commandText: null,       // CLI doesn't support updating command text yet
+            description: null,       // CLI doesn't support updating description yet
             settings.BackgroundQuery,
             settings.RefreshOnFileOpen,
             settings.SavePassword,
@@ -198,6 +213,9 @@ internal sealed class ConnectionCommand : Command<ConnectionCommand.Settings>
 
         [CommandOption("--connection-string <STRING>")]
         public string? ConnectionString { get; init; }
+
+        [CommandOption("--odc-file <PATH>")]
+        public string? OdcFilePath { get; init; }
 
         [CommandOption("--command-text <COMMAND>")]
         public string? CommandText { get; init; }

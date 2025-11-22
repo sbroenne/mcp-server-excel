@@ -27,30 +27,4 @@ public partial class ConnectionCommandsTests
         Assert.Empty(result.Connections);
         Assert.Equal(testFile, result.FilePath);
     }
-    /// <inheritdoc/>
-
-    [Fact]
-    public void List_WithTextConnection_ReturnsConnection()
-    {
-        // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests), nameof(List_WithTextConnection_ReturnsConnection), _tempDir);
-        var csvFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests), nameof(List_WithTextConnection_ReturnsConnection), _tempDir, ".csv", "Name,Value\nTest1,100\nTest2,200");
-        string connName = "TestText";
-
-        ConnectionTestHelper.CreateTextFileConnection(testFile, connName, csvFile);
-
-        // Act
-        using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.List(batch);
-
-        // Assert
-        Assert.True(result.Success, $"List failed: {result.ErrorMessage}");
-        Assert.NotEmpty(result.Connections);
-        var conn = Assert.Single(result.Connections);
-        Assert.Equal(connName, conn.Name);
-        // Excel reports CSV files as WEB (type 4) instead of TEXT (type 3) - this is Excel's behavior
-        Assert.Equal("WEB", conn.Type);
-    }
 }

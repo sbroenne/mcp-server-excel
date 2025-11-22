@@ -134,9 +134,9 @@ public async Task<OperationResult> ComplexAsync(IExcelBatch batch, string param)
 
 ## MCP Server Resource-Based Tools
 
-**12 Focused Tools:**
+**11 Focused Tools:**
 1. `excel_batch` - Batch session management (start, commit, discard)
-2. `excel_connection` - Data connections (OLEDB, ODBC, Text, Web)
+2. `excel_connection` - Data connections (OLEDB, ODBC, ODC import)
 3. `excel_datamodel` - Power Pivot / Data Model / DAX measures
 4. `excel_file` - File operations (create, close, test)
 5. `excel_namedrange` - Named ranges (parameters)

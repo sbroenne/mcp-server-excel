@@ -87,7 +87,7 @@ The Excel MCP Server provides **11 specialized tools** for comprehensive Excel a
 | **excel_range** | 42 actions | Ranges: get/set values/formulas, formatting, validation, clear, copy, insert/delete, find/replace, merge, cell protection |
 | **excel_conditionalformat** | 2 actions | Conditional Formatting: add rules (cell value, expression-based), clear rules |
 | **excel_vba** | 6 actions | VBA: list, view, export, import, update, run modules |
-| **excel_connection** | 9 actions | Connections: OLEDB/ODBC/Text/Web management, properties, refresh, test |
+| **excel_connection** | 10 actions | Connections: OLEDB/ODBC management, ODC import, properties, refresh |
 | **excel_worksheet** | 16 actions | Worksheets: lifecycle, tab colors, visibility, copy/move between workbooks |
 | **excel_namedrange** | 7 actions | Named ranges: list, get, set, create, delete, update, bulk create |
 | **excel_file** | 5 actions | File operations: open session, close session (with save option), create empty, test |
