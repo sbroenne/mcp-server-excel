@@ -6,35 +6,35 @@ applyTo: "src/ExcelMcp.Core/Commands/ConnectionCommands.cs,src/ExcelMcp.Core/Con
 
 > **What works, what doesn't, and what to do instead**
 
-## 🚨 Critical: LoadTo Operation Limitations
+## CRITICAL: LoadTo Operation Limitations
 
 **LoadTo action only works with OLEDB/ODBC connections:**
 
 | Connection Type | LoadTo Support | What to Use Instead |
 |----------------|----------------|---------------------|
-| **OLEDB** | ✅ Works | Primary use case |
-| **ODBC** | ✅ Works | Primary use case |
-| **TEXT** | ❌ **FAILS** | Use `excel_powerquery` create + refresh |
-| **WEB** | ❌ **FAILS** | Use `excel_powerquery` create + refresh |
-| **Power Query** | ✅ Works | Use `excel_powerquery` refresh |
+| OLEDB | Works | Primary use case |
+| ODBC | Works | Primary use case |
+| TEXT | FAILS | Use excel_powerquery create + refresh |
+| WEB | FAILS | Use excel_powerquery create + refresh |
+| Power Query | Works | Use excel_powerquery refresh |
 
-**Error pattern:** If LoadTo returns "Value does not fall within the expected range" → Connection type doesn't support QueryTable pattern → Use Power Query instead.
+**Error pattern:** If LoadTo returns "Value does not fall within the expected range" then connection type doesn't support QueryTable pattern - use Power Query instead.
 
-## 📋 Connection Action Compatibility
+## Connection Action Compatibility
 
 | Action | OLEDB/ODBC | TEXT | WEB | Power Query |
 |--------|-----------|------|-----|-------------|
-| **List** | ✅ | ✅ | ✅ | ✅ |
-| **View** | ✅ | ✅ | ✅ | ✅ |
-| **Create** | ✅ | ✅ | ✅ | ⚠️ Use `excel_powerquery` |
-| **Delete** | ✅ | ✅ | ✅ | ⚠️ Use `excel_powerquery` |
-| **LoadTo** | ✅ | ❌ | ❌ | ⚠️ Use `excel_powerquery` refresh |
-| **Refresh** | ✅ | ✅* | ✅* | ⚠️ Use `excel_powerquery` refresh |
-| **Test** | ✅ | ✅ | ✅ | ✅ |
+| List | Works | Works | Works | Works |
+| View | Works | Works | Works | Works |
+| Create | Works | Works | Works | Use excel_powerquery |
+| Delete | Works | Works | Works | Use excel_powerquery |
+| LoadTo | Works | FAILS | FAILS | Use excel_powerquery refresh |
+| Refresh | Works | Works* | Works* | Use excel_powerquery refresh |
+| Test | Works | Works | Works | Works |
 
 *TEXT/WEB Refresh succeeds but doesn't validate data source existence until actual data access
 
-## 🔄 Decision Tree: Connection vs Power Query
+## Decision Tree: Connection vs Power Query
 
 ```
 Need to import data from file/URL?
@@ -51,7 +51,7 @@ Need to import data from file/URL?
    └─ Use excel_powerquery (refresh)
 ```
 
-## 🎯 Recommended Workflows
+## Recommended Workflows
 
 **OLEDB/ODBC Data Loading:**
 ```
@@ -74,14 +74,14 @@ Need to import data from file/URL?
    (Don't use excel_connection loadto - will fail!)
 ```
 
-## ⚠️ Common Mistakes to Avoid
+## Common Mistakes to Avoid
 
-1. **Using LoadTo with TEXT connections** → Will fail with E_INVALIDARG → Use Power Query instead
-2. **Using LoadTo with WEB connections** → Will fail → Use Power Query instead
-3. **Assuming Refresh validates TEXT file existence** → Excel doesn't check until data access
-4. **Mixing connection and Power Query operations** → Power Query connections need `excel_powerquery` tool
+1. **Using LoadTo with TEXT connections** - Will fail with E_INVALIDARG - Use Power Query instead
+2. **Using LoadTo with WEB connections** - Will fail - Use Power Query instead
+3. **Assuming Refresh validates TEXT file existence** - Excel doesn't check until data access
+4. **Mixing connection and Power Query operations** - Power Query connections need excel_powerquery tool
 
-## 📝 Connection String Examples
+## Connection String Examples
 
 ```
 OLEDB:  "Provider=SQLOLEDB;Data Source=server;Initial Catalog=db;..."
@@ -90,36 +90,26 @@ TEXT:   "TEXT;C:\\path\\to\\file.csv"
 WEB:    "URL;https://example.com/data.xml"
 ```
 
-## 🔐 Security
+## Security
 
 **Always sanitize connection strings before displaying** - Never expose passwords or sensitive credentials in error messages or logs.
 
 ---
 
-## 🔧 Developer Reference (Implementation Details)
+## Developer Reference (Implementation Details)
 
 <details>
 <summary>Click to expand developer implementation notes</summary>
 
-### COM API Implementation
+### Implementation Notes
 
 **Connections.Add2() method required for OLEDB/ODBC:**
-```csharp
-dynamic connections = workbook.Connections;
-dynamic newConn = connections.Add2(
-    Name: connectionName,
-    Description: description ?? "",
-    ConnectionString: connectionString,
-    CommandText: "",
-    lCmdtype: Type.Missing,            // Let Excel auto-detect
-    CreateModelConnection: false,       // Don't create Data Model connection
-    ImportRelationships: false          // Don't import relationships
-);
-```
+
+Use the COM Add2 method with parameters: Name, Description, ConnectionString, CommandText (empty), lCmdtype (auto-detect), CreateModelConnection (false), ImportRelationships (false).
 
 ### Type 3/4 Ambiguity
 
-TEXT connections created with `"TEXT;path"` may return type 4 (WEB) instead of 3 (TEXT) - handle both types interchangeably in type detection logic.
+TEXT connections created with "TEXT;path" may return type 4 (WEB) instead of 3 (TEXT) - handle both types interchangeably in type detection logic.
 
 ### Test Strategy
 
