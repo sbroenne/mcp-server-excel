@@ -379,12 +379,7 @@ public partial class ConnectionCommands : IConnectionCommands
                 ImportRelationships: false            // Don't import relationships
             );
 
-            // Connection created successfully
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException(
-                $"Failed to create connection '{connectionName}': {ex.Message}", ex);
+            // Connection created successfully - let exceptions propagate naturally
         }
         finally
         {
