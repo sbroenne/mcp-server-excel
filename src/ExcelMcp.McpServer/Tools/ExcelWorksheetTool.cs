@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using ModelContextProtocol.Server;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
@@ -30,11 +31,17 @@ REQUIRED WORKFLOW:
 - Use excel_file(action: 'save') to persist changes
 - Use excel_file(action: 'close') to end the session (does NOT save)
 
+CROSS-WORKBOOK OPERATIONS (copy-to-workbook, move-to-workbook):
+- Copy or move sheets BETWEEN different Excel files
+- Requires TWO sessionIds: sourceSessionId + targetSessionId
+- Opens both workbooks in same Excel instance automatically
+- Example: Copy 'Sales' from Q1.xlsx to Q2.xlsx using both session IDs
+
 TAB COLORS (set-tab-color):
 - RGB values: 0-255 for red, green, blue components
 - Example: red=255, green=0, blue=0 for red tab
 
-POSITIONING (move, copy-to-workbook, move-to-workbook):
+POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
 - Use beforeSheet OR afterSheet (not both) to specify relative position
 - If neither specified, sheet is positioned at the end
 ")]
@@ -443,7 +450,7 @@ POSITIONING (move, copy-to-workbook, move-to-workbook):
         if (string.IsNullOrEmpty(targetSessionId))
             throw new ArgumentException("targetSessionId is required for copy-to-workbook action", nameof(targetSessionId));
 
-        // Resolve both sessions
+        // Resolve both sessions to get file paths
         var sessionManager = ExcelToolsBase.GetSessionManager();
         var sourceBatch = sessionManager.GetSession(sessionId);
         var targetBatch = sessionManager.GetSession(targetSessionId);
@@ -454,7 +461,13 @@ POSITIONING (move, copy-to-workbook, move-to-workbook):
         if (targetBatch == null)
             throw new InvalidOperationException($"Target session '{targetSessionId}' not found");
 
-        var result = sheetCommands.CopyToWorkbook(sourceBatch, sheetName, targetBatch, targetName, beforeSheet, afterSheet);
+        string sourceFile = sourceBatch.WorkbookPath;
+        string targetFile = targetBatch.WorkbookPath;
+
+        // Create a temporary multi-file batch containing both workbooks
+        using var multiBatch = ExcelSession.BeginBatch(sourceFile, targetFile);
+
+        var result = sheetCommands.CopyToWorkbook(multiBatch, sourceFile, sheetName, targetFile, targetName, beforeSheet, afterSheet);
 
         return JsonSerializer.Serialize(new
         {
@@ -477,7 +490,7 @@ POSITIONING (move, copy-to-workbook, move-to-workbook):
         if (string.IsNullOrEmpty(targetSessionId))
             throw new ArgumentException("targetSessionId is required for move-to-workbook action", nameof(targetSessionId));
 
-        // Resolve both sessions
+        // Resolve both sessions to get file paths
         var sessionManager = ExcelToolsBase.GetSessionManager();
         var sourceBatch = sessionManager.GetSession(sessionId);
         var targetBatch = sessionManager.GetSession(targetSessionId);
@@ -488,7 +501,13 @@ POSITIONING (move, copy-to-workbook, move-to-workbook):
         if (targetBatch == null)
             throw new InvalidOperationException($"Target session '{targetSessionId}' not found");
 
-        var result = sheetCommands.MoveToWorkbook(sourceBatch, sheetName, targetBatch, beforeSheet, afterSheet);
+        string sourceFile = sourceBatch.WorkbookPath;
+        string targetFile = targetBatch.WorkbookPath;
+
+        // Create a temporary multi-file batch containing both workbooks
+        using var multiBatch = ExcelSession.BeginBatch(sourceFile, targetFile);
+
+        var result = sheetCommands.MoveToWorkbook(multiBatch, sourceFile, sheetName, targetFile, beforeSheet, afterSheet);
 
         return JsonSerializer.Serialize(new
         {

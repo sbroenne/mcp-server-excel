@@ -22,7 +22,8 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </remarks>
 internal sealed class ExcelBatch : IExcelBatch
 {
-    private readonly string _workbookPath;
+    private readonly string _workbookPath; // Primary workbook path
+    private readonly string[] _allWorkbookPaths; // All workbook paths (includes primary)
     private readonly ILogger<ExcelBatch> _logger;
     private readonly Channel<Func<Task>> _workQueue;
     private readonly Thread _staThread;
@@ -31,17 +32,23 @@ internal sealed class ExcelBatch : IExcelBatch
 
     // COM state (STA thread only)
     private dynamic? _excel;
-    private dynamic? _workbook;
+    private dynamic? _workbook; // Primary workbook
+    private Dictionary<string, dynamic>? _workbooks; // All workbooks keyed by normalized path
     private ExcelContext? _context;
 
     /// <summary>
-    /// Creates a new ExcelBatch for the specified workbook.
+    /// Creates a new ExcelBatch for one or more workbooks.
+    /// All workbooks are opened in the same Excel.Application instance, enabling cross-workbook operations.
     /// </summary>
-    /// <param name="workbookPath">Path to the Excel workbook</param>
+    /// <param name="workbookPaths">Paths to Excel workbooks. First path is the primary workbook.</param>
     /// <param name="logger">Optional logger for diagnostic output. If null, uses NullLogger (no output).</param>
-    public ExcelBatch(string workbookPath, ILogger<ExcelBatch>? logger = null)
+    public ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger = null)
     {
-        _workbookPath = workbookPath ?? throw new ArgumentNullException(nameof(workbookPath));
+        if (workbookPaths == null || workbookPaths.Length == 0)
+            throw new ArgumentException("At least one workbook path is required", nameof(workbookPaths));
+
+        _allWorkbookPaths = workbookPaths;
+        _workbookPath = workbookPaths[0]; // Primary workbook
         _logger = logger ?? NullLogger<ExcelBatch>.Instance;
         _shutdownCts = new CancellationTokenSource();
 
@@ -78,26 +85,40 @@ internal sealed class ExcelBatch : IExcelBatch
                 // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
                 tempExcel.AutomationSecurity = 3; // msoAutomationSecurityForceDisable
 
-                // CRITICAL: Check if file is locked at OS level BEFORE attempting Excel COM open
-                // This fails fast without the overhead of Excel COM initialization
-                FileAccessValidator.ValidateFileNotLocked(_workbookPath);
+                // Open all workbooks in the same Excel instance
+                var tempWorkbooks = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase);
+                dynamic? primaryWorkbook = null;
 
-                // Open workbook with Excel COM
-                dynamic tempWorkbook;
-                try
+                foreach (var path in _allWorkbookPaths)
                 {
-                    tempWorkbook = tempExcel.Workbooks.Open(_workbookPath);
-                }
-                catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
-                {
-                    // Excel Error 1004 - File is already open or locked
-                    // This is a backup catch in case OS-level check missed something
-                    throw FileAccessValidator.CreateFileLockedError(_workbookPath, ex);
+                    // CRITICAL: Check if file is locked at OS level BEFORE attempting Excel COM open
+                    FileAccessValidator.ValidateFileNotLocked(path);
+
+                    // Open workbook with Excel COM
+                    dynamic wb;
+                    try
+                    {
+                        wb = tempExcel.Workbooks.Open(path);
+                    }
+                    catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
+                    {
+                        // Excel Error 1004 - File is already open or locked
+                        throw FileAccessValidator.CreateFileLockedError(path, ex);
+                    }
+
+                    string normalizedPath = Path.GetFullPath(path);
+                    tempWorkbooks[normalizedPath] = wb;
+
+                    if (path == _workbookPath)
+                    {
+                        primaryWorkbook = wb;
+                    }
                 }
 
                 _excel = tempExcel;
-                _workbook = tempWorkbook;
-                _context = new ExcelContext(_workbookPath, _excel, _workbook);
+                _workbook = primaryWorkbook;
+                _workbooks = tempWorkbooks;
+                _context = new ExcelContext(_workbookPath, _excel, _workbook!);
 
                 started.SetResult();
 
@@ -158,15 +179,55 @@ internal sealed class ExcelBatch : IExcelBatch
             }
             finally
             {
-                // Cleanup COM objects on STA thread exit using unified shutdown service
+                // Cleanup COM objects on STA thread exit
                 _logger.LogDebug("STA thread cleanup starting for {FileName}", Path.GetFileName(_workbookPath));
 
-                // Use ExcelShutdownService for resilient close and quit
-                // save=false: Save must be called explicitly via batch.Save()
-                ExcelShutdownService.CloseAndQuit(_workbook, _excel, false, _workbookPath, _logger);
+                // For multi-workbook batches, close all workbooks individually before quitting Excel
+                if (_workbooks != null && _workbooks.Count > 1)
+                {
+                    _logger.LogDebug("Closing {Count} workbooks", _workbooks.Count);
+                    foreach (var kvp in _workbooks.ToList())
+                    {
+                        try
+                        {
+                            dynamic? wb = kvp.Value;
+                            wb.Close(false); // Don't save - explicit save must be called
+                            ComUtilities.Release(ref wb!);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to close workbook {Path}", kvp.Key);
+                        }
+                    }
+                    _workbooks.Clear();
+
+                    // Quit Excel after all workbooks closed
+                    if (_excel != null)
+                    {
+                        try
+                        {
+                            _logger.LogDebug("Quitting Excel application");
+                            _excel.Quit();
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to quit Excel");
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref _excel!);
+                        }
+                    }
+                }
+                else
+                {
+                    // Single workbook: use ExcelShutdownService for resilient shutdown
+                    ExcelShutdownService.CloseAndQuit(_workbook, _excel, false, _workbookPath, _logger);
+                }
 
                 _workbook = null;
                 _excel = null;
+                _workbooks = null;
                 _context = null;
 
                 OleMessageFilter.Revoke();
@@ -189,6 +250,32 @@ internal sealed class ExcelBatch : IExcelBatch
     public string WorkbookPath => _workbookPath;
 
     public ILogger Logger => _logger;
+
+    public IReadOnlyDictionary<string, dynamic> Workbooks
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
+            return _workbooks ?? throw new InvalidOperationException("Workbooks not initialized");
+        }
+    }
+
+    public dynamic GetWorkbook(string filePath)
+    {
+        ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
+
+        if (_workbooks == null)
+            throw new InvalidOperationException("Workbooks not initialized");
+
+        string normalizedPath = Path.GetFullPath(filePath);
+        if (_workbooks.TryGetValue(normalizedPath, out var workbook))
+        {
+            return workbook;
+        }
+
+        throw new KeyNotFoundException($"Workbook '{filePath}' is not open in this batch. " +
+            $"Available workbooks: {string.Join(", ", _workbooks.Keys)}");
+    }
 
     /// <summary>
     /// Executes a COM operation on the STA thread.

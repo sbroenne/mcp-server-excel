@@ -159,227 +159,247 @@ public partial class SheetCommandsTests
 
     // ========================================
     // COPY-TO-WORKBOOK (cross-workbook) Tests
-    // NOTE: Cross-workbook operations not currently supported due to COM RCW limitations
-    // These tests verify graceful error handling
+    // Tests for copying sheets between different workbooks using multi-file batch
     // ========================================
 
     /// <inheritdoc/>
     [Fact]
-    public void CopyToWorkbook_WithTargetName_ReturnsNotSupportedError()
+    public void CopyToWorkbook_WithTargetName_CopiesAndRenames()
     {
         // Arrange
         var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithTargetName_ReturnsNotSupportedError)}_Source", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithTargetName_CopiesAndRenames)}_Source", _tempDir);
         var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithTargetName_ReturnsNotSupportedError)}_Target", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithTargetName_CopiesAndRenames)}_Target", _tempDir);
 
-        using var sourceBatch = ExcelSession.BeginBatch(sourceFile);
-        using var targetBatch = ExcelSession.BeginBatch(targetFile);
+        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
-        _sheetCommands.Create(sourceBatch, "SourceSheet");
+        _sheetCommands.Create(batch, "SourceSheet", sourceFile);
 
-        // Act - Attempt cross-workbook copy
-        var result = _sheetCommands.CopyToWorkbook(sourceBatch, "SourceSheet", targetBatch, "CopiedSheet");
+        // Act - Copy sheet to target workbook with new name
+        var result = _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile, "CopiedSheet");
 
-        // Assert - Should return clear error about limitation
-        Assert.False(result.Success, "Expected failure for unsupported cross-workbook operation");
-        Assert.Contains("not currently supported", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("COM interop", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        // Assert
+        Assert.True(result.Success, $"CopyToWorkbook failed: {result.ErrorMessage}");
+
+        // Verify sheet exists in target workbook with new name
+        var targetList = _sheetCommands.List(batch, targetFile);
+        Assert.Contains(targetList.Worksheets, s => s.Name == "CopiedSheet");
+
+        // Verify source sheet still exists in source workbook
+        var sourceList = _sheetCommands.List(batch, sourceFile);
+        Assert.Contains(sourceList.Worksheets, s => s.Name == "SourceSheet");
     }
 
     /// <inheritdoc/>
     [Fact]
-    public void CopyToWorkbook_NoTargetName_ReturnsNotSupportedError()
+    public void CopyToWorkbook_NoTargetName_CopiesWithOriginalName()
     {
         // Arrange
         var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_NoTargetName_ReturnsNotSupportedError)}_Source", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_NoTargetName_CopiesWithOriginalName)}_Source", _tempDir);
         var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_NoTargetName_ReturnsNotSupportedError)}_Target", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_NoTargetName_CopiesWithOriginalName)}_Target", _tempDir);
 
-        using var sourceBatch = ExcelSession.BeginBatch(sourceFile);
-        using var targetBatch = ExcelSession.BeginBatch(targetFile);
+        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
-        _sheetCommands.Create(sourceBatch, "SourceSheet");
+        _sheetCommands.Create(batch, "SourceSheet", sourceFile);
 
-        // Act - Attempt cross-workbook copy
-        var result = _sheetCommands.CopyToWorkbook(sourceBatch, "SourceSheet", targetBatch);
+        // Act - Copy without specifying target name
+        var result = _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile);
 
-        // Assert - Should return clear error about limitation
-        Assert.False(result.Success);
-        Assert.Contains("not currently supported", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        // Assert
+        Assert.True(result.Success, $"CopyToWorkbook failed: {result.ErrorMessage}");
+
+        // Verify sheet was copied (Excel keeps original name)
+        var targetList = _sheetCommands.List(batch, targetFile);
+        Assert.Contains(targetList.Worksheets, s => s.Name == "SourceSheet");
     }
 
     /// <inheritdoc/>
     [Fact]
-    public void CopyToWorkbook_WithBeforeSheet_ReturnsNotSupportedError()
+    public void CopyToWorkbook_WithBeforeSheet_PositionsCorrectly()
     {
         // Arrange
         var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithBeforeSheet_ReturnsNotSupportedError)}_Source", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithBeforeSheet_PositionsCorrectly)}_Source", _tempDir);
         var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithBeforeSheet_ReturnsNotSupportedError)}_Target", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithBeforeSheet_PositionsCorrectly)}_Target", _tempDir);
 
-        using var sourceBatch = ExcelSession.BeginBatch(sourceFile);
-        using var targetBatch = ExcelSession.BeginBatch(targetFile);
+        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
-        _sheetCommands.Create(sourceBatch, "SourceSheet");
-        _sheetCommands.Create(targetBatch, "Target2");
+        _sheetCommands.Create(batch, "SourceSheet", sourceFile);
 
-        // Act - Attempt cross-workbook copy
-        var result = _sheetCommands.CopyToWorkbook(sourceBatch, "SourceSheet", targetBatch, "Copied", beforeSheet: "Sheet1");
+        // Act - Copy before Sheet1 in target workbook
+        var result = _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile, "Copied", beforeSheet: "Sheet1");
 
-        // Assert - Should return clear error
-        Assert.False(result.Success);
-        Assert.Contains("not currently supported", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        // Assert
+        Assert.True(result.Success, $"CopyToWorkbook failed: {result.ErrorMessage}");
+
+        // Verify sheet was copied to target workbook
+        var targetList = _sheetCommands.List(batch, targetFile);
+        Assert.Contains(targetList.Worksheets, s => s.Name == "Copied");
     }
 
     /// <inheritdoc/>
     [Fact]
-    public void CopyToWorkbook_WithAfterSheet_ReturnsNotSupportedError()
+    public void CopyToWorkbook_WithAfterSheet_PositionsCorrectly()
     {
         // Arrange
         var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithAfterSheet_ReturnsNotSupportedError)}_Source", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithAfterSheet_PositionsCorrectly)}_Source", _tempDir);
         var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithAfterSheet_ReturnsNotSupportedError)}_Target", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithAfterSheet_PositionsCorrectly)}_Target", _tempDir);
 
-        using var sourceBatch = ExcelSession.BeginBatch(sourceFile);
-        using var targetBatch = ExcelSession.BeginBatch(targetFile);
+        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
-        _sheetCommands.Create(sourceBatch, "SourceSheet");
-        _sheetCommands.Create(targetBatch, "Target2");
+        _sheetCommands.Create(batch, "SourceSheet", sourceFile);
 
-        // Act - Attempt cross-workbook copy
-        var result = _sheetCommands.CopyToWorkbook(sourceBatch, "SourceSheet", targetBatch, "Copied", afterSheet: "Target2");
+        // Act - Copy after Sheet1 in target workbook
+        var result = _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile, "Copied", afterSheet: "Sheet1");
 
-        // Assert - Should return clear error
-        Assert.False(result.Success);
-        Assert.Contains("not currently supported", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        // Assert
+        Assert.True(result.Success, $"CopyToWorkbook failed: {result.ErrorMessage}");
+
+        // Verify sheet was copied to target workbook
+        var targetList = _sheetCommands.List(batch, targetFile);
+        Assert.Contains(targetList.Worksheets, s => s.Name == "Copied");
     }
 
     /// <inheritdoc/>
     [Fact]
-    public void CopyToWorkbook_BothBeforeAndAfter_ReturnsNotSupportedError()
+    public void CopyToWorkbook_BothBeforeAndAfter_ReturnsError()
     {
         // Arrange
         var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_BothBeforeAndAfter_ReturnsNotSupportedError)}_Source", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_BothBeforeAndAfter_ReturnsError)}_Source", _tempDir);
         var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_BothBeforeAndAfter_ReturnsNotSupportedError)}_Target", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_BothBeforeAndAfter_ReturnsError)}_Target", _tempDir);
 
-        using var sourceBatch = ExcelSession.BeginBatch(sourceFile);
-        using var targetBatch = ExcelSession.BeginBatch(targetFile);
+        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
-        _sheetCommands.Create(sourceBatch, "SourceSheet");
+        _sheetCommands.Create(batch, "SourceSheet", sourceFile);
 
-        // Act - Cross-workbook operation (parameter validation happens after "not supported" check)
-        var result = _sheetCommands.CopyToWorkbook(sourceBatch, "SourceSheet", targetBatch, "Copied", beforeSheet: "Sheet1", afterSheet: "Sheet1");
+        // Act - Try to specify both beforeSheet and afterSheet
+        var result = _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile, "Copied", beforeSheet: "Sheet1", afterSheet: "Sheet1");
 
-        // Assert - Should return "not supported" error (not parameter validation error)
+        // Assert - Should return parameter validation error
         Assert.False(result.Success);
-        Assert.Contains("not currently supported", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("both beforeSheet and afterSheet", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
 
     // ========================================
     // MOVE-TO-WORKBOOK (cross-workbook) Tests
-    // NOTE: Cross-workbook operations not currently supported due to COM RCW limitations
-    // These tests verify graceful error handling
+    // Tests for moving sheets between different workbooks using multi-file batch
     // ========================================
 
     /// <inheritdoc/>
     [Fact]
-    public void MoveToWorkbook_Default_ReturnsNotSupportedError()
+    public void MoveToWorkbook_Default_MovesSheetSuccessfully()
     {
         // Arrange
         var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_Default_ReturnsNotSupportedError)}_Source", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_Default_MovesSheetSuccessfully)}_Source", _tempDir);
         var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_Default_ReturnsNotSupportedError)}_Target", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_Default_MovesSheetSuccessfully)}_Target", _tempDir);
 
-        using var sourceBatch = ExcelSession.BeginBatch(sourceFile);
-        using var targetBatch = ExcelSession.BeginBatch(targetFile);
+        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
-        _sheetCommands.Create(sourceBatch, "MoveMe");
+        _sheetCommands.Create(batch, "MoveMe", sourceFile);
 
-        // Act - Attempt cross-workbook move
-        var result = _sheetCommands.MoveToWorkbook(sourceBatch, "MoveMe", targetBatch);
+        // Act - Move sheet to target workbook
+        var result = _sheetCommands.MoveToWorkbook(batch, sourceFile, "MoveMe", targetFile);
 
-        // Assert - Should return clear error about limitation
-        Assert.False(result.Success);
-        Assert.Contains("not currently supported", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("COM interop", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        // Assert
+        Assert.True(result.Success, $"MoveToWorkbook failed: {result.ErrorMessage}");
+
+        // Verify sheet exists in target workbook
+        var targetList = _sheetCommands.List(batch, targetFile);
+        Assert.Contains(targetList.Worksheets, s => s.Name == "MoveMe");
+
+        // Verify sheet no longer exists in source workbook
+        var sourceList = _sheetCommands.List(batch, sourceFile);
+        Assert.DoesNotContain(sourceList.Worksheets, s => s.Name == "MoveMe");
     }
 
     /// <inheritdoc/>
     [Fact]
-    public void MoveToWorkbook_WithBeforeSheet_ReturnsNotSupportedError()
+    public void MoveToWorkbook_WithBeforeSheet_PositionsCorrectly()
     {
         // Arrange
         var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_WithBeforeSheet_ReturnsNotSupportedError)}_Source", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_WithBeforeSheet_PositionsCorrectly)}_Source", _tempDir);
         var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_WithBeforeSheet_ReturnsNotSupportedError)}_Target", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_WithBeforeSheet_PositionsCorrectly)}_Target", _tempDir);
 
-        using var sourceBatch = ExcelSession.BeginBatch(sourceFile);
-        using var targetBatch = ExcelSession.BeginBatch(targetFile);
+        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
-        _sheetCommands.Create(sourceBatch, "MoveMe");
-        _sheetCommands.Create(targetBatch, "Target2");
+        _sheetCommands.Create(batch, "MoveMe", sourceFile);
 
-        // Act - Attempt cross-workbook move
-        var result = _sheetCommands.MoveToWorkbook(sourceBatch, "MoveMe", targetBatch, beforeSheet: "Sheet1");
+        // Act - Move before Sheet1 in target workbook
+        var result = _sheetCommands.MoveToWorkbook(batch, sourceFile, "MoveMe", targetFile, beforeSheet: "Sheet1");
 
-        // Assert - Should return clear error
-        Assert.False(result.Success);
-        Assert.Contains("not currently supported", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        // Assert
+        Assert.True(result.Success, $"MoveToWorkbook failed: {result.ErrorMessage}");
+
+        // Verify sheet was moved to target workbook
+        var targetList = _sheetCommands.List(batch, targetFile);
+        Assert.Contains(targetList.Worksheets, s => s.Name == "MoveMe");
+
+        // Verify removal from source
+        var sourceList = _sheetCommands.List(batch, sourceFile);
+        Assert.DoesNotContain(sourceList.Worksheets, s => s.Name == "MoveMe");
     }
 
     /// <inheritdoc/>
     [Fact]
-    public void MoveToWorkbook_WithAfterSheet_ReturnsNotSupportedError()
+    public void MoveToWorkbook_WithAfterSheet_PositionsCorrectly()
     {
         // Arrange
         var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_WithAfterSheet_ReturnsNotSupportedError)}_Source", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_WithAfterSheet_PositionsCorrectly)}_Source", _tempDir);
         var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_WithAfterSheet_ReturnsNotSupportedError)}_Target", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_WithAfterSheet_PositionsCorrectly)}_Target", _tempDir);
 
-        using var sourceBatch = ExcelSession.BeginBatch(sourceFile);
-        using var targetBatch = ExcelSession.BeginBatch(targetFile);
+        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
-        _sheetCommands.Create(sourceBatch, "MoveMe");
-        _sheetCommands.Create(targetBatch, "Target2");
+        _sheetCommands.Create(batch, "MoveMe", sourceFile);
 
-        // Act - Attempt cross-workbook move
-        var result = _sheetCommands.MoveToWorkbook(sourceBatch, "MoveMe", targetBatch, afterSheet: "Target2");
+        // Act - Move after Sheet1 in target workbook
+        var result = _sheetCommands.MoveToWorkbook(batch, sourceFile, "MoveMe", targetFile, afterSheet: "Sheet1");
 
-        // Assert - Should return clear error
-        Assert.False(result.Success);
-        Assert.Contains("not currently supported", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        // Assert
+        Assert.True(result.Success, $"MoveToWorkbook failed: {result.ErrorMessage}");
+
+        // Verify sheet was moved to target workbook
+        var targetList = _sheetCommands.List(batch, targetFile);
+        Assert.Contains(targetList.Worksheets, s => s.Name == "MoveMe");
+
+        // Verify removal from source
+        var sourceList = _sheetCommands.List(batch, sourceFile);
+        Assert.DoesNotContain(sourceList.Worksheets, s => s.Name == "MoveMe");
     }
 
     /// <inheritdoc/>
     [Fact]
-    public void MoveToWorkbook_BothBeforeAndAfter_ReturnsNotSupportedError()
+    public void MoveToWorkbook_BothBeforeAndAfter_ReturnsError()
     {
         // Arrange
         var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_BothBeforeAndAfter_ReturnsNotSupportedError)}_Source", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_BothBeforeAndAfter_ReturnsError)}_Source", _tempDir);
         var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_BothBeforeAndAfter_ReturnsNotSupportedError)}_Target", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_BothBeforeAndAfter_ReturnsError)}_Target", _tempDir);
 
-        using var sourceBatch = ExcelSession.BeginBatch(sourceFile);
-        using var targetBatch = ExcelSession.BeginBatch(targetFile);
+        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
-        _sheetCommands.Create(sourceBatch, "MoveMe");
+        _sheetCommands.Create(batch, "MoveMe", sourceFile);
 
-        // Act - Attempt cross-workbook move
-        var result = _sheetCommands.MoveToWorkbook(sourceBatch, "MoveMe", targetBatch, beforeSheet: "Sheet1", afterSheet: "Sheet1");
+        // Act - Try to specify both beforeSheet and afterSheet
+        var result = _sheetCommands.MoveToWorkbook(batch, sourceFile, "MoveMe", targetFile, beforeSheet: "Sheet1", afterSheet: "Sheet1");
 
-        // Assert - Should return "not supported" error (not parameter validation error)
+        // Assert - Should return parameter validation error
         Assert.False(result.Success);
-        Assert.Contains("not currently supported", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("both beforeSheet and afterSheet", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 }

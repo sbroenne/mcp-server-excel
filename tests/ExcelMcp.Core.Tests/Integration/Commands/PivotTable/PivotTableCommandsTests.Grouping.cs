@@ -20,7 +20,7 @@ public partial class PivotTableCommandsTests
         var testFile = CreateTestFileWithData(nameof(GroupByDate_MonthsInterval_CreatesMonthlyGroups));
 
         var logger = _loggerFactory.CreateLogger<ExcelBatch>();
-        using var batch = new ExcelBatch(testFile, logger);
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
 
         // Create PivotTable
         var createResult = _pivotCommands.CreateFromRange(
@@ -68,7 +68,7 @@ public partial class PivotTableCommandsTests
         var testFile = CreateTestFileWithData(nameof(GroupByDate_DaysInterval_CreatesDailyGroups));
 
         var logger = _loggerFactory.CreateLogger<ExcelBatch>();
-        using var batch = new ExcelBatch(testFile, logger);
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
 
         // Create PivotTable
         var createResult = _pivotCommands.CreateFromRange(
@@ -115,7 +115,7 @@ public partial class PivotTableCommandsTests
         var testFile = CreateTestFileWithData(nameof(GroupByDate_QuartersInterval_CreatesQuarterlyGroups));
 
         var logger = _loggerFactory.CreateLogger<ExcelBatch>();
-        using var batch = new ExcelBatch(testFile, logger);
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
 
         // Create PivotTable
         var createResult = _pivotCommands.CreateFromRange(
@@ -162,7 +162,7 @@ public partial class PivotTableCommandsTests
         var testFile = CreateTestFileWithData(nameof(GroupByDate_YearsInterval_CreatesYearlyGroups));
 
         var logger = _loggerFactory.CreateLogger<ExcelBatch>();
-        using var batch = new ExcelBatch(testFile, logger);
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
 
         // Create PivotTable
         var createResult = _pivotCommands.CreateFromRange(
@@ -209,7 +209,7 @@ public partial class PivotTableCommandsTests
         var testFile = CreateTestFileWithNumericData(nameof(GroupByNumeric_AutoRange_CreatesNumericGroups));
 
         var logger = _loggerFactory.CreateLogger<ExcelBatch>();
-        using var batch = new ExcelBatch(testFile, logger);
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
 
         // Create PivotTable
         var createResult = _pivotCommands.CreateFromRange(
@@ -256,7 +256,7 @@ public partial class PivotTableCommandsTests
         var testFile = CreateTestFileWithNumericData(nameof(GroupByNumeric_CustomRange_CreatesNumericGroups));
 
         var logger = _loggerFactory.CreateLogger<ExcelBatch>();
-        using var batch = new ExcelBatch(testFile, logger);
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
 
         // Create PivotTable
         var createResult = _pivotCommands.CreateFromRange(
@@ -302,7 +302,7 @@ public partial class PivotTableCommandsTests
         var testFile = CreateTestFileWithNumericData(nameof(GroupByNumeric_SmallInterval_CreatesFineGrainedGroups));
 
         var logger = _loggerFactory.CreateLogger<ExcelBatch>();
-        using var batch = new ExcelBatch(testFile, logger);
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
 
         // Create PivotTable
         var createResult = _pivotCommands.CreateFromRange(

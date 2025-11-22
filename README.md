@@ -99,7 +99,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 - 📈 **PivotTables** - 25 operations: create and configure PivotTables for interactive analysis, control grand totals
 - 📝 **VBA Macros** - 6 operations: export/import/run VBA code, integrate with version control
 - 📋 **Ranges & Data** - 42 operations: values, formulas, copy/paste, find/replace, formatting, validation, merge, conditional formatting, cell protection
-- 📄 **Worksheets** - 16 operations: lifecycle management, tab colors, visibility controls
+- 📄 **Worksheets** - 16 operations: lifecycle management, copy/move between workbooks, tab colors, visibility controls
 - 🔌 **Connections** - 9 operations: manage OLEDB, ODBC, Text, Web data sources
 - 🏷️ **Named Ranges** - 7 operations: named range management and bulk operations
 
@@ -167,7 +167,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 - **Cell Protection** (2 actions): set cell lock status, get cell lock status
 - **Formatting & Styling** (3 actions): get style, set style, format range
 - **45 range operations total** covering all common Excel range manipulation needs
-- **Worksheet management** (13 actions): lifecycle (create, rename, copy, delete), tab colors (set, get, clear), visibility controls (show, hide, very-hide, get/set status)
+- **Worksheet management** (16 actions): lifecycle (create, rename, copy, move, delete), copy/move between workbooks, tab colors (set, get, clear), visibility controls (show, hide, very-hide, get/set status)
 
 ### Data Connections (11 operations)
 - Manage OLEDB, ODBC, Text, Web connections

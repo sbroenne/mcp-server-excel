@@ -45,6 +45,7 @@ public interface IExcelBatch : IDisposable
 {
     /// <summary>
     /// Gets the path to the Excel workbook this batch operates on.
+    /// For multi-workbook batches, this is the primary (first) workbook.
     /// </summary>
     string WorkbookPath { get; }
 
@@ -53,6 +54,21 @@ public interface IExcelBatch : IDisposable
     /// Returns NullLogger if no logger was provided during construction.
     /// </summary>
     Microsoft.Extensions.Logging.ILogger Logger { get; }
+
+    /// <summary>
+    /// Gets all workbooks currently open in this batch, keyed by normalized file path.
+    /// For single-workbook batches, contains one entry.
+    /// For multi-workbook batches (cross-workbook operations), contains all open workbooks.
+    /// </summary>
+    IReadOnlyDictionary<string, dynamic> Workbooks { get; }
+
+    /// <summary>
+    /// Gets the COM Workbook object for a specific file path.
+    /// </summary>
+    /// <param name="filePath">Path to the workbook (will be normalized)</param>
+    /// <returns>Excel.Workbook COM object</returns>
+    /// <exception cref="KeyNotFoundException">Workbook not found in this batch</exception>
+    dynamic GetWorkbook(string filePath);
 
     /// <summary>
     /// Executes a COM operation within this batch.
