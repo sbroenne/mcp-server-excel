@@ -31,15 +31,9 @@ CONNECTION TYPES SUPPORTED:
 - DataFeed: OData and data feeds
 - Model: Data Model connections
 
-IMPORTING CONNECTIONS:
-- Use import-odc action to import Office Data Connection (.odc) files
-- ODC files can be created in Excel UI (Data → Get Data → Export Connection File)
-- LLMs can generate ODC files (XML format with connection details)
-
 TEXT/WEB FILE IMPORTS:
-- TEXT and WEB connections are NO LONGER supported via create action
+- TEXT and WEB connections are NOT supported via create action
 - Use excel_powerquery tool for CSV/text file and web imports instead
-- Or create ODC file and use import-odc action
 
 POWER QUERY AUTO-REDIRECT:
 - Power Query connections automatically redirect to excel_powerquery tool
@@ -95,10 +89,7 @@ POWER QUERY AUTO-REDIRECT:
         bool? savePassword = null,
 
         [Description("Refresh period in minutes (for set-properties, optional)")]
-        int? refreshPeriod = null,
-
-        [Description("ODC file path for import-odc action")]
-        string? odcFilePath = null)
+        int? refreshPeriod = null)
     {
         try
         {
@@ -116,7 +107,6 @@ POWER QUERY AUTO-REDIRECT:
                 ConnectionAction.LoadTo => LoadToWorksheetAsync(connectionCommands, sessionId, connectionName, sheetName),
                 ConnectionAction.GetProperties => GetPropertiesAsync(connectionCommands, sessionId, connectionName),
                 ConnectionAction.SetProperties => SetPropertiesAsync(connectionCommands, sessionId, connectionName, newConnectionString, newCommandText, newDescription, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod),
-                ConnectionAction.ImportFromOdc => ImportOdcAsync(connectionCommands, sessionId, odcFilePath),
                 _ => throw new ArgumentException(
                     $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
             };
@@ -310,24 +300,6 @@ POWER QUERY AUTO-REDIRECT:
             result.Success,
             result.ErrorMessage,
             connectionName
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string ImportOdcAsync(ConnectionCommands commands, string sessionId, string? odcFilePath)
-    {
-        if (string.IsNullOrWhiteSpace(odcFilePath))
-            throw new ArgumentException("odcFilePath is required for import-odc action", nameof(odcFilePath));
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.ImportFromOdc(batch, odcFilePath));
-
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ErrorMessage,
-            result.Action
         }, ExcelToolsBase.JsonOptions);
     }
 }

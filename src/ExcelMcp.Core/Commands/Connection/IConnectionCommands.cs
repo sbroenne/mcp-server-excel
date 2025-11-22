@@ -61,10 +61,5 @@ public interface IConnectionCommands
     /// Tests connection without refreshing data
     /// </summary>
     OperationResult Test(IExcelBatch batch, string connectionName);
-
-    /// <summary>
-    /// Imports a connection from an ODC file
-    /// </summary>
-    OperationResult ImportFromOdc(IExcelBatch batch, string odcFilePath);
 }
 

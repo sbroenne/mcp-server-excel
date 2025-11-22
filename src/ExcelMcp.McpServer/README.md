@@ -59,7 +59,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 4. **PivotTables** (18 actions) - Create and configure PivotTables for interactive data analysis
 5. **Ranges & Data** (43 actions) - Get/set values/formulas, number formatting, visual formatting (font, fill, border, alignment), data validation, find/replace, sort, insert/delete, hyperlinks, merge, conditional formatting, cell protection
 6. **VBA Macros** (6 actions) - Import, update, run VBA code with version control integration
-7. **Data Connections** (9 actions) - Manage OLEDB, ODBC, Text, Web connections and properties
+7. **Data Connections** (9 actions) - Manage OLEDB, ODBC connections and properties
 8. **Worksheets** (16 actions) - Lifecycle management, tab colors, visibility controls
 9. **Named Ranges** (7 actions) - Manage parameters and configuration through named ranges
 10. **File Operations** (6 actions) - Create Excel workbooks (.xlsx/.xlsm), open/close workbook, save, test

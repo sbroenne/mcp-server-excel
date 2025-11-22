@@ -18,28 +18,20 @@ public partial class ConnectionCommandsTests
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests), nameof(View_ExistingConnection_ReturnsDetails), _tempDir);
 
-        var dbPath = Path.Combine(_tempDir, $"TestDb_{Guid.NewGuid():N}.db");
-        SQLiteDatabaseHelper.CreateTestDatabase(dbPath);
+        // Use ODBC connection (doesn't need actual DSN for view test)
+        var connName = "ViewTestConnection";
+        string connectionString = "ODBC;DSN=ViewTestDSN;DBQ=C:\\temp\\viewtest.xlsx";
+        ConnectionTestHelper.CreateOdbcConnection(testFile, connName, connectionString);
 
-        string connName = "ViewTestConnection";
-        ConnectionTestHelper.CreateSQLiteOleDbConnection(testFile, connName, dbPath);
+        // Act
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var result = _commands.View(batch, connName);
 
-        try
-        {
-            // Act
-            using var batch = ExcelSession.BeginBatch(testFile);
-            var result = _commands.View(batch, connName);
-
-            // Assert
-            Assert.True(result.Success, $"View failed: {result.ErrorMessage}");
-            Assert.Equal(connName, result.ConnectionName);
-            Assert.NotNull(result.ConnectionString);
-            Assert.NotNull(result.Type);
-        }
-        finally
-        {
-            SQLiteDatabaseHelper.DeleteDatabase(dbPath);
-        }
+        // Assert
+        Assert.True(result.Success, $"View failed: {result.ErrorMessage}");
+        Assert.Equal(connName, result.ConnectionName);
+        Assert.NotNull(result.ConnectionString);
+        Assert.NotNull(result.Type);
     }
     /// <inheritdoc/>
 
