@@ -1,3 +1,4 @@
+using System.IO;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -31,67 +32,82 @@ public partial class ConnectionCommandsTests
     }
 
     /// <summary>
-    /// Tests ODBC connection refresh operations.
-    /// (Using ODBC instead of SQLite OLEDB - Add2() doesn't work properly for SQLite)
+    /// Tests refreshing an ACE OLEDB connection bound to an Excel workbook data source.
     /// </summary>
     [Fact]
-    public void Refresh_SQLiteOleDbConnection_ReturnsSuccess()
+    public void Refresh_AceOleDbConnection_ReturnsSuccess()
     {
-        var (testFile, connectionName) = SetupOdbcConnection(
-            nameof(Refresh_SQLiteOleDbConnection_ReturnsSuccess));
+        var (testFile, sourceWorkbook, connectionName) = SetupAceOleDbConnection(
+            nameof(Refresh_AceOleDbConnection_ReturnsSuccess));
 
-        using var batch = ExcelSession.BeginBatch(testFile);
+        try
+        {
+            using var batch = ExcelSession.BeginBatch(testFile);
 
-        // Verify connection was created
-        var listResult = _commands.List(batch);
-        Assert.True(listResult.Success);
-        Assert.Contains(listResult.Connections, c => c.Name == connectionName);
+            var loadResult = _commands.LoadTo(batch, connectionName, "ProductsData");
+            Assert.True(loadResult.Success, $"LoadTo failed: {loadResult.ErrorMessage}");
 
-        // Act - Refresh connection (will fail for ODBC without real DSN, but tests connection lifecycle)
-        var refreshResult = _commands.Refresh(batch, connectionName);
-
-        // Assert - Either succeeds or fails with ODBC error (both indicate connection exists)
-        // We're testing connection management, not actual data refresh
-        Assert.NotNull(refreshResult);
+            var refreshResult = _commands.Refresh(batch, connectionName);
+            Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
+        }
+        finally
+        {
+            if (System.IO.File.Exists(sourceWorkbook))
+            {
+                System.IO.File.Delete(sourceWorkbook);
+            }
+        }
     }
 
     /// <summary>
-    /// Tests ODBC connection refresh after modification.
-    /// (Using ODBC instead of SQLite OLEDB - Add2() doesn't work properly for SQLite)
+    /// Tests refreshing an ACE OLEDB connection after modifying the external workbook.
     /// </summary>
     [Fact]
-    public void Refresh_SQLiteOleDbConnectionAfterDataUpdate_ReturnsSuccess()
+    public void Refresh_AceOleDbConnectionAfterDataUpdate_ReturnsSuccess()
     {
-        var (testFile, connectionName) = SetupOdbcConnection(
-            nameof(Refresh_SQLiteOleDbConnectionAfterDataUpdate_ReturnsSuccess));
+        var (testFile, sourceWorkbook, connectionName) = SetupAceOleDbConnection(
+            nameof(Refresh_AceOleDbConnectionAfterDataUpdate_ReturnsSuccess));
 
-        using var batch = ExcelSession.BeginBatch(testFile);
+        try
+        {
+            using (var batch = ExcelSession.BeginBatch(testFile))
+            {
+                var loadResult = _commands.LoadTo(batch, connectionName, "ProductsData");
+                Assert.True(loadResult.Success, $"LoadTo failed: {loadResult.ErrorMessage}");
+                batch.Save();
+            }
 
-        // Act - Refresh connection (will fail for ODBC without real DSN, but tests connection lifecycle)
-        var refreshResult = _commands.Refresh(batch, connectionName);
+            AceOleDbTestHelper.UpdateExcelDataSource(sourceWorkbook, sheet =>
+            {
+                sheet.Range["B2"].Value2 = 49.99;
+            });
 
-        // Assert - Either succeeds or fails with ODBC error (both indicate connection exists and is refreshable)
-        Assert.NotNull(refreshResult);
+            using var refreshBatch = ExcelSession.BeginBatch(testFile);
+            var refreshResult = _commands.Refresh(refreshBatch, connectionName);
+            Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
+        }
+        finally
+        {
+            if (System.IO.File.Exists(sourceWorkbook))
+            {
+                System.IO.File.Delete(sourceWorkbook);
+            }
+        }
     }
 
-    /// <summary>
-    /// Helper method to create SQLite database and OLEDB connection for tests.
-    /// Reduces code duplication across connection tests.
-    /// (Using ODBC instead of SQLite OLEDB - Add2() doesn't work properly for SQLite)
-    /// </summary>
-    private (string testFile, string connectionName) SetupOdbcConnection(
-        string testName)
+    private (string testFile, string sourceWorkbook, string connectionName) SetupAceOleDbConnection(string testName)
     {
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests),
             testName,
             _tempDir);
 
-        // Create ODBC connection (doesn't need actual DSN for connection lifecycle tests)
-        var connectionName = "TestOdbcConnection";
-        string connectionString = "ODBC;DSN=TestDSN;DBQ=C:\\temp\\test.xlsx";
-        ConnectionTestHelper.CreateOdbcConnection(testFile, connectionName, connectionString);
+        var sourceWorkbook = Path.Combine(_tempDir, $"{testName}_Source.xlsx");
+        AceOleDbTestHelper.CreateExcelDataSource(sourceWorkbook);
 
-        return (testFile, connectionName);
+        var connectionName = "TestAceOleDbConnection";
+        ConnectionTestHelper.CreateAceOleDbConnection(testFile, connectionName, sourceWorkbook);
+
+        return (testFile, sourceWorkbook, connectionName);
     }
 }

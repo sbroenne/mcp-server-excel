@@ -144,6 +144,7 @@ public partial class ConnectionCommands
                 Description = description ?? "",
                 ConnectionString = connectionString,
                 CommandText = commandText ?? "",
+                CommandType = string.IsNullOrWhiteSpace(commandText) ? null : "SQL",
                 SavePassword = false // Default to secure setting
             };
 
@@ -174,6 +175,9 @@ public partial class ConnectionCommands
             Action = "refresh"
         };
 
+        var effectiveTimeout = timeout ?? TimeSpan.FromMinutes(5);
+        using var timeoutCts = new CancellationTokenSource(effectiveTimeout);
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
@@ -198,7 +202,7 @@ public partial class ConnectionCommands
 
             result.Success = true;
             return result;
-        });  // Default 2 minutes for connection refresh, LLM can override
+        }, timeoutCts.Token);  // Extended timeout (default 5 minutes) for slow data sources
     }
 
     /// <summary>

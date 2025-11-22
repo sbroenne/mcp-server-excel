@@ -60,7 +60,7 @@ Both share the same core functionality: automate Power Query, DAX measures, VBA 
 Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), ExcelMcp uses **Excel's official COM API**. This ensures:
 - ✅ **Zero risk of document corruption** - Excel handles all file operations safely
 - ✅ **Interactive development** - See changes in real-time, create → test → refine → iterate instantly
-- ✅ **Comprehensive automation** - Currently supports 158 operations across 11 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, conditional formatting, and more
+- ✅ **Comprehensive automation** - Currently supports 154 operations across 11 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, conditional formatting, and more
 
 **💻 For Developers:** Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), execute instantly, inspect results visually in the live workbook. No more blind editing of .xlsx files.
 
@@ -68,8 +68,8 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 
 <div class="features-grid">
 <div class="feature-card">
-<h3>158 Operations</h3>
-<p>11 specialized tools covering Power Query, DAX, VBA, PivotTables, ranges, conditional formatting, and more</p>
+<h3>154 Operations</h3>
+<p>11 specialized tools (154 operations) covering Power Query, DAX, VBA, PivotTables, ranges, conditional formatting, and more</p>
 </div>
 
 <div class="feature-card">
@@ -89,7 +89,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 
 <div class="feature-card">
 <h3>Comprehensive Automation</h3>
-<p>158 operations covering Power Query, DAX, VBA, Tables, and more</p>
+<p>154 operations covering Power Query, DAX, VBA, Tables, and more</p>
 </div>
 
 <div class="feature-card">
@@ -206,7 +206,7 @@ excel-mcp vba-export --file "macro-workbook.xlsm" --module "Module1" --output "s
 <li><strong>Natural Language Control:</strong> Describe tasks in plain English</li>
 <li><strong>Safe:</strong> Official COM API - zero corruption risk</li>
 <li><strong>Interactive:</strong> See changes in real-time in Excel</li>
-<li><strong>Comprehensive:</strong> 158 operations across 11 tools</li>
+<li><strong>Comprehensive:</strong> 154 operations across 11 tools</li>
 <li><strong>Works with:</strong> GitHub Copilot, Claude, ChatGPT, and any MCP client</li>
 </ul>
 </div>
@@ -225,12 +225,12 @@ excel-mcp vba-export --file "macro-workbook.xlsm" --module "Module1" --output "s
 
 <div class="callout">
 <strong>Both Share the Same Core</strong>
-Same 158 operations available via CLI and MCP. Consistent behavior across interfaces. Full .NET library available for custom integrations.
+Same 154 operations available via CLI and MCP. Consistent behavior across interfaces. Full .NET library available for custom integrations.
 </div>
 
 ## Complete Tool & Action Reference
 
-**11 specialized tools with 158 operations:**
+**11 specialized tools with 154 operations:**
 
 <div class="tools-reference">
 

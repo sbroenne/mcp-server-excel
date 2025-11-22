@@ -33,3 +33,4 @@
 - refresh with loadDestination: Applies load config + refreshes (2-in-1)
 - Single cell returns [[value]] not scalar
 - refresh action REQUIRES `refreshTimeoutSeconds` between 60-600 seconds (1-10 minutes). If refresh needs more than 10 minutes, ask the user to run it manually in Excel—the server refuses longer windows and will not pick a default for you.
+- load-to has a 5-minute guard. If Excel is blocked by privacy dialogs/credentials, you'll get `SuggestedNextActions` instead of a hang—surface them to the user before retrying.

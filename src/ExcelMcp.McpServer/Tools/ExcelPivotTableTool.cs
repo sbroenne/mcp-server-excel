@@ -23,7 +23,11 @@ public static class ExcelPivotTableTool
 
 ⚡ OLAP add-value-field supports TWO modes:
   1. Pre-existing measure: fieldName='Total Sales' or '[Measures].[Total Sales]' (adds existing measure)
-  2. Auto-create measure: fieldName='Sales' (column name, creates DAX measure with aggregationFunction)")]
+  2. Auto-create measure: fieldName='Sales' (column name, creates DAX measure with aggregationFunction)
+
+⏱️ TIMEOUT SAFEGUARD
+- create-from-datamodel auto-timeouts after 5 minutes to avoid hung OLAP queries
+- On timeout the tool returns SuggestedNextActions so the agent can recover without Excel hanging")]
     public static string ExcelPivotTable(
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
         PivotTableAction action,
@@ -271,9 +275,55 @@ public static class ExcelPivotTableTool
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "create-from-datamodel");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.CreateFromDataModel(batch, dataModelTableName!,
-                destinationSheet!, destinationCell!, pivotTableName!));
+        PivotTableCreateResult result;
+        bool isTimeout = false;
+        string[]? suggestedNextActions = null;
+        Dictionary<string, object>? operationContext = null;
+        string? retryGuidance = null;
+
+        try
+        {
+            result = ExcelToolsBase.WithSession(sessionId,
+                batch => commands.CreateFromDataModel(batch, dataModelTableName!,
+                    destinationSheet!, destinationCell!, pivotTableName!));
+        }
+        catch (TimeoutException ex)
+        {
+            isTimeout = true;
+            bool usedMaxTimeout = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase);
+
+            result = new PivotTableCreateResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message,
+                PivotTableName = pivotTableName!,
+                SheetName = destinationSheet!,
+                Range = string.Empty,
+                SourceData = dataModelTableName!,
+                SourceRowCount = 0,
+                AvailableFields = []
+            };
+
+            suggestedNextActions =
+            [
+                "Confirm the Data Model table can be listed via excel_datamodel(action: 'list-tables').",
+                "Check Excel for model refresh dialogs or credential prompts blocking OLAP access.",
+                "If the table is large, filter columns/rows before creating the PivotTable.",
+                "Use begin_excel_batch so the model stays warm while creating multiple pivots."
+            ];
+
+            operationContext = new Dictionary<string, object>
+            {
+                ["OperationType"] = "PivotTable.CreateFromDataModel",
+                ["TableName"] = dataModelTableName!,
+                ["TimeoutReached"] = true,
+                ["UsedMaxTimeout"] = usedMaxTimeout
+            };
+
+            retryGuidance = usedMaxTimeout
+                ? "Maximum timeout reached. Refresh the Data Model in Excel or reduce its size before retrying."
+                : "After confirming the Data Model is responsive, retry the creation (up to the 5 minute timeout).";
+        }
 
         return JsonSerializer.Serialize(new
         {
@@ -284,7 +334,11 @@ public static class ExcelPivotTableTool
             result.SourceData,
             result.SourceRowCount,
             result.AvailableFields,
-            result.ErrorMessage
+            result.ErrorMessage,
+            isError = !result.Success || isTimeout,
+            suggestedNextActions,
+            retryGuidance,
+            operationContext
         }, JsonOptions);
     }
 

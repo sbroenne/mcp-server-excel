@@ -31,8 +31,6 @@
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageVersion Include="coverlet.collector" Version="6.1.0" />
     <PackageVersion Include="MartinCostello.Logging.XUnit" Version="0.5.1" />
-    <!-- Database Testing -->
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="9.0.0" />
     <!-- Code Analysis and Security -->
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.5" />
     <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.100" />

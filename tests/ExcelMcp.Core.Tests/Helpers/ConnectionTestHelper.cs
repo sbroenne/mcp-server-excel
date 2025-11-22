@@ -9,67 +9,25 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 public static class ConnectionTestHelper
 {
     /// <summary>
-    /// Creates an OLEDB connection to a SQLite database in an Excel workbook.
+    /// Creates a simple OLEDB connection to a test database in an Excel workbook.
     /// This creates an actual Excel connection object that can be managed by ConnectionCommands.
-    /// SQLite is used as a reliable, lightweight database for testing OLEDB operations.
     /// </summary>
-    public static void CreateSQLiteOleDbConnection(string excelFilePath, string connectionName, string sqliteDbPath)
+    public static void CreateAceOleDbConnection(string excelFilePath, string connectionName, string sourceWorkbookPath)
     {
-        // Create SQLite database if it doesn't exist
-        if (!File.Exists(sqliteDbPath))
-        {
-            SQLiteDatabaseHelper.CreateTestDatabase(sqliteDbPath);
-        }
-
-        // Get OLEDB connection string for SQLite
-        var oledbConnectionString = SQLiteDatabaseHelper.GetOleDbConnectionString(sqliteDbPath);
-
-        using var batch = ExcelSession.BeginBatch(excelFilePath);
-        batch.Execute((ctx, ct) =>
-        {
-            try
-            {
-                // Get connections collection
-                dynamic connections = ctx.Book.Connections;
-
-                // Create OLEDB connection using Add2() (current method, Add() is deprecated)
-                // Per instructions: Must use Connections.Add2() for OLEDB/ODBC connections
-                dynamic newConnection = connections.Add2(
-                    Name: connectionName,
-                    Description: $"Test SQLite OLEDB connection created by {nameof(CreateSQLiteOleDbConnection)}",
-                    ConnectionString: oledbConnectionString,
-                    CommandText: "",
-                    lCmdtype: Type.Missing,            // Let Excel auto-detect
-                    CreateModelConnection: false,       // Don't create Data Model connection
-                    ImportRelationships: false          // Don't import relationships
-                );
-
-                // Configure OLEDB connection properties
-                if (newConnection.Type == 1) // OLEDB
-                {
-                    dynamic oledb = newConnection.OLEDBConnection;
-                    if (oledb != null)
-                    {
-                        oledb.BackgroundQuery = true;
-                        oledb.RefreshOnFileOpen = false;
-                        oledb.SavePassword = false;
-                    }
-                }
-
-                return 0; // Success
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Failed to create SQLite OLEDB connection '{connectionName}': {ex.Message}", ex);
-            }
-        });
+        var connectionString = AceOleDbTestHelper.GetExcelConnectionString(sourceWorkbookPath);
+        CreateOleDbConnection(
+            excelFilePath,
+            connectionName,
+            connectionString,
+            AceOleDbTestHelper.GetDefaultCommandText(),
+            commandType: 2);
     }
 
     /// <summary>
     /// Creates a simple OLEDB connection to a test database in an Excel workbook.
     /// This creates an actual Excel connection object that can be managed by ConnectionCommands.
     /// </summary>
-    public static void CreateOleDbConnection(string filePath, string connectionName, string connectionString)
+    public static void CreateOleDbConnection(string filePath, string connectionName, string connectionString, string? commandText = null, int? commandType = null)
     {
         using var batch = ExcelSession.BeginBatch(filePath);
         batch.Execute((ctx, ct) =>
@@ -85,8 +43,8 @@ public static class ConnectionTestHelper
                     Name: connectionName,
                     Description: $"Test OLEDB connection created by {nameof(CreateOleDbConnection)}",
                     ConnectionString: connectionString,
-                    CommandText: "",
-                    lCmdtype: Type.Missing,            // Let Excel auto-detect
+                    CommandText: commandText ?? string.Empty,
+                    lCmdtype: commandType.HasValue ? commandType.Value : Type.Missing,
                     CreateModelConnection: false,       // Don't create Data Model connection
                     ImportRelationships: false          // Don't import relationships
                 );
@@ -103,6 +61,7 @@ public static class ConnectionTestHelper
                     }
                 }
 
+                ctx.Book.Save();
                 return 0; // Success
             }
             catch (Exception ex)
@@ -132,6 +91,7 @@ public static class ConnectionTestHelper
                     CommandText: ""
                 );
 
+                ctx.Book.Save();
                 return 0; // Success
             }
             catch (Exception ex)

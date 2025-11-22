@@ -1,3 +1,4 @@
+using System.IO;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -9,7 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
 ///
 /// Connection Type Support:
 /// - TEXT/WEB: Blocked (NotSupportedException) - Use Power Query for file/web imports
-/// - OLEDB: Blocked via Create (NotSupportedException) - Use Power Query or ODC import
+/// - OLEDB: Supported for providers installed on the machine (ACE, SQL Server, etc.)
 /// - ODBC: Create works (even without valid DSN configured)
 /// </summary>
 public partial class ConnectionCommandsTests
@@ -60,26 +61,39 @@ public partial class ConnectionCommandsTests
     }
 
     [Fact]
-    public void Create_OleDbConnection_ThrowsArgumentException()
+    public void Create_AceOleDbConnection_ReturnsSuccess()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests),
-            nameof(Create_OleDbConnection_ThrowsArgumentException),
+            nameof(Create_AceOleDbConnection_ReturnsSuccess),
             _tempDir);
 
-        // OLEDB connection string - Excel COM Add2() fails with ArgumentException
-        string connectionString = "OLEDB;Provider=SQLOLEDB;Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=tempdb;Integrated Security=SSPI";
-        string connectionName = "TestOleDbConnection";
+        var sourceWorkbook = Path.Combine(_tempDir, "AceOleDbSource.xlsx");
+        AceOleDbTestHelper.CreateExcelDataSource(sourceWorkbook);
 
-        // Act & Assert - OLEDB connections fail at Excel COM level (not blocked by our validation)
-        // Excel COM Add2() method doesn't support OLEDB connection creation
-        // Users should use Power Query for OLEDB data import instead
+        string connectionString = AceOleDbTestHelper.GetExcelConnectionString(sourceWorkbook);
+        string commandText = AceOleDbTestHelper.GetDefaultCommandText();
+        string connectionName = "AceOleDbConnection";
+
         using var batch = ExcelSession.BeginBatch(testFile);
-        var exception = Assert.Throws<ArgumentException>(() =>
-            _commands.Create(batch, connectionName, connectionString));
 
-        Assert.Contains("Value does not fall within the expected range", exception.Message);
+        // Act
+        var result = _commands.Create(batch, connectionName, connectionString, commandText: commandText);
+
+        // Assert
+        Assert.True(result.Success, $"ACE OLEDB connection creation failed: {result.ErrorMessage}");
+
+        var listResult = _commands.List(batch);
+        Assert.True(listResult.Success);
+        Assert.Contains(listResult.Connections, c => c.Name == connectionName);
+
+        // Cleanup source workbook (connection is stored in target workbook)
+        batch.Save();
+        if (System.IO.File.Exists(sourceWorkbook))
+        {
+            System.IO.File.Delete(sourceWorkbook);
+        }
     }
 
     [Fact]

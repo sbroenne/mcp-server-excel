@@ -18,6 +18,8 @@ public partial class PivotTableCommands
         string destinationSheet, string destinationCell,
         string pivotTableName)
     {
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? sourceWorksheet = null;
@@ -117,7 +119,7 @@ public partial class PivotTableCommands
                 ComUtilities.Release(ref sourceRangeObj);
                 ComUtilities.Release(ref sourceWorksheet);
             }
-        });
+        }, timeoutCts.Token);
     }
 
     /// <summary>

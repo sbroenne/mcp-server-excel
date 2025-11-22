@@ -1,3 +1,4 @@
+using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
 
@@ -377,6 +378,8 @@ public partial class ConnectionCommands : IConnectionCommands
         {
             connections = workbook.Connections;
 
+            object commandTypeArgument = DetermineCommandType(definition);
+
             // Use Add2() method (Add() is deprecated per Microsoft docs)
             // https://learn.microsoft.com/en-us/dotnet/api/microsoft.office.interop.excel.connections.add2
             newConnection = connections.Add2(
@@ -384,7 +387,7 @@ public partial class ConnectionCommands : IConnectionCommands
                 Description: definition.Description ?? "",
                 ConnectionString: definition.ConnectionString,
                 CommandText: definition.CommandText ?? "",
-                lCmdtype: Type.Missing,              // Let Excel determine command type
+                lCmdtype: commandTypeArgument,
                 CreateModelConnection: false,         // Don't create PowerPivot model connection
                 ImportRelationships: false            // Don't import relationships
             );
@@ -552,6 +555,36 @@ public partial class ConnectionCommands : IConnectionCommands
         {
             throw new InvalidOperationException($"Failed to update connection properties: {ex.Message}", ex);
         }
+    }
+
+    private static object DetermineCommandType(ConnectionDefinition definition)
+    {
+        if (!string.IsNullOrWhiteSpace(definition.CommandType))
+        {
+            var value = definition.CommandType.Trim();
+            if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var numeric))
+            {
+                return numeric;
+            }
+
+            return value.ToLowerInvariant() switch
+            {
+                "cube" => 1,
+                "sql" => 2,
+                "table" => 3,
+                "default" => 4,
+                "list" => 5,
+                _ => Type.Missing
+            };
+        }
+
+        if (!string.IsNullOrWhiteSpace(definition.CommandText))
+        {
+            // When command text is provided we default to SQL command type (2).
+            return 2;
+        }
+
+        return Type.Missing;
     }
 
     private static void SetConnectionProperty<T>(dynamic conn, string propertyName, T? value) where T : struct

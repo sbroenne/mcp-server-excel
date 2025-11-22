@@ -26,7 +26,7 @@ Instead of clicking through Excel menus, simply ask:
 Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), Excel MCP Server uses **Excel's official COM API**. This ensures:
 - ✅ **Zero risk of document corruption** - Excel handles all file operations safely
 - ✅ **Interactive development** - See changes in real-time as you work with live Excel files
-- ✅ **Comprehensive automation** - Currently supports 158 operations across 11 specialized tools
+- ✅ **Comprehensive automation** - Currently supports 154 operations across 11 specialized tools
 
 **Quick Example:**
 
@@ -76,7 +76,7 @@ Result: Just what you requested - without touching Excel once.
 
 ## Features
 
-The Excel MCP Server provides **11 specialized tools** for comprehensive Excel automation:
+The Excel MCP Server provides **11 specialized tools (154 operations)** for comprehensive Excel automation:
 
 | Tool | Operations | Purpose |
 |------|------------|---------|
@@ -91,7 +91,7 @@ The Excel MCP Server provides **11 specialized tools** for comprehensive Excel a
 | **excel_worksheet** | 16 actions | Worksheets: lifecycle, tab colors, visibility, copy/move between workbooks |
 | **excel_namedrange** | 7 actions | Named ranges: list, get, set, create, delete, update, bulk create |
 | **excel_file** | 5 actions | File operations: open session, close session (with save option), create empty, test |
-| **Total** | **158 actions**
+| **Total** | **154 actions**
 
 **"Excel is not installed" error:**
 - Ensure Microsoft Excel 2016+ is installed on your Windows machine

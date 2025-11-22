@@ -76,7 +76,7 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **158 operations** across 11 categories:
+ExcelMcp.CLI provides **154 operations** across 11 categories:
 
 | Category | Operations | Examples |
 |----------|-----------|----------|
