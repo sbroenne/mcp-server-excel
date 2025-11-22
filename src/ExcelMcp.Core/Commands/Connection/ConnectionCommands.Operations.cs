@@ -33,7 +33,9 @@ public partial class ConnectionCommands
 
                 if (conn == null)
                 {
-                    throw new InvalidOperationException($"Connection '{connectionName}' not found");
+                    result.Success = false;
+                    result.ErrorMessage = $"Connection '{connectionName}' not found";
+                    return result;
                 }
 
                 // Check if this is a Power Query connection

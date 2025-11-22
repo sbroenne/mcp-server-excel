@@ -87,7 +87,9 @@ public partial class ConnectionCommands
 
             if (conn == null)
             {
-                throw new InvalidOperationException($"Connection '{connectionName}' not found");
+                result.Success = false;
+                result.ErrorMessage = $"Connection '{connectionName}' not found";
+                return result;
             }
 
             result.Type = ConnectionHelpers.GetConnectionTypeName(conn.Type);

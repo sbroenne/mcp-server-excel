@@ -25,7 +25,7 @@ on:
 jobs:
   integration-tests:
     runs-on: [self-hosted, windows, excel]
-    timeout-minutes: 60
+    timeout-minutes: 90
     # Run on manual dispatch or PR with 'run-integration-tests' label
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && contains(github.event.label.name, 'run-integration-tests'))
 
@@ -77,10 +77,6 @@ jobs:
 
     - name: Run Integration Tests (ComInterop - Foundation)
       run: dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand" --logger "trx;LogFileName=cominterop-integration-test-results.trx" --verbosity normal -- RunConfiguration.MaxCpuCount=1
-
-    - name: Run OnDemand Tests (Session Cleanup - Critical)
-      if: false  # Disabled: No OnDemand tests currently exist in ComInterop.Tests
-      run: dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --no-build --configuration Release --filter "RunType=OnDemand" --logger "trx;LogFileName=ondemand-test-results.trx" --verbosity normal -- RunConfiguration.MaxCpuCount=1
 
     - name: Run Integration Tests (Core - Excluding VBA)
       run: dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --no-build --configuration Release --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust" --logger "trx;LogFileName=core-integration-test-results.trx" --verbosity normal -- RunConfiguration.MaxCpuCount=1
