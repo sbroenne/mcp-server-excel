@@ -68,7 +68,7 @@ Result: A professionally optimized Power Query with documented improvements
 Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), ExcelMcp uses **Excel's official COM API**. This ensures:
 - ✅ **Zero risk of document corruption** - Excel handles all file operations safely
 - ✅ **Interactive development** - See changes in real-time, create → test → refine → iterate instantly
-- ✅ **Comprehensive automation** - Currently supports 164 operations across 12 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, conditional formatting, and more
+- ✅ **Comprehensive automation** - Currently supports 158 operations across 11 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, conditional formatting, and more
 
 **💻 For Developers:** Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), execute instantly, inspect results visually in the live workbook. No more blind editing of .xlsx files.
 
@@ -93,20 +93,20 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 ## 🎯 What You Can Do
 
 **Development & Automation:**
-- 🔄 **Power Query** - 11 operations: **atomic workflows** (create, update-and-refresh, refresh-all), manage transformations, load configurations (worksheet, data model, connection only), M code evaluation
+- 🔄 **Power Query** - 9 operations: **atomic workflows** (create, update-and-refresh, refresh-all), manage transformations, load configurations (worksheet, data model, connection only), M code evaluation
 - 📊 **Power Pivot (Data Model)** - 14 operations: build DAX measures, manage relationships, discover model structure (tables, columns)
-- 🎨 **Excel Tables** - 26 operations: automate formatting, filtering, sorting, structured references, number formats, column management
-- 📈 **PivotTables** - 21 operations: create and configure PivotTables for interactive analysis, control grand totals
-- 📝 **VBA Macros** - 7 operations: export/import/run VBA code, integrate with version control
-- 📋 **Ranges & Data** - 45 operations: values, formulas, copy/paste, find/replace, formatting, validation, merge, conditional formatting, cell protection
-- 📄 **Worksheets** - 13 operations: lifecycle management, tab colors, visibility controls
+- 🎨 **Excel Tables** - 23 operations: automate formatting, filtering, sorting, structured references, number formats, column management
+- 📈 **PivotTables** - 25 operations: create and configure PivotTables for interactive analysis, control grand totals
+- 📝 **VBA Macros** - 6 operations: export/import/run VBA code, integrate with version control
+- 📋 **Ranges & Data** - 42 operations: values, formulas, copy/paste, find/replace, formatting, validation, merge, conditional formatting, cell protection
+- 📄 **Worksheets** - 16 operations: lifecycle management, tab colors, visibility controls
 - 🔌 **Connections** - 9 operations: manage OLEDB, ODBC, Text, Web data sources
 - 🏷️ **Named Ranges** - 7 operations: named range management and bulk operations
 
 <details>
 <summary>📚 <strong>See Complete Feature List (100+ Operations)</strong></summary>
 
-### Power Query & M Code (11 operations)
+### Power Query & M Code (9 operations)
 **✨ NEW: Atomic Operations** - Single-call workflows replace multi-step patterns:
 - **Create** - Import + load in one operation (replaces import → load workflow)
 - **Update & Refresh** - Update M code + refresh data atomically
@@ -128,7 +128,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 - Refresh data model
 - **Note:** DAX calculated columns are not supported (use Excel UI for calculated columns)
 
-### Excel Tables (ListObjects) (26 operations)
+### Excel Tables (ListObjects) (23 operations)
 - Lifecycle: create, resize, rename, delete, get info
 - Styling: apply table styles, toggle totals row, set column totals
 - Column management: add, remove, rename columns
@@ -137,7 +137,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 - Number formatting: get/set column number formats
 - Advanced features: structured references, Data Model integration
 
-### PivotTables (20 operations)
+### PivotTables (25 operations)
 - Creation: create from ranges or Excel Tables
 - Field management: add/remove fields to Row, Column, Value, Filter areas
 - Aggregation functions: Sum, Average, Count, Min, Max, etc. with validation
@@ -145,7 +145,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 - Data extraction: get PivotTable data as 2D arrays for further analysis
 - Lifecycle: list, get info, delete, refresh
 
-### VBA Macros (7 operations)
+### VBA Macros (6 operations)
 - List all VBA modules and procedures
 - View module code without exporting
 - Export/import VBA modules to/from files
@@ -343,7 +343,7 @@ This means you get:
 
 ## 🔟 MCP Tools Overview
 
-**12 specialized tools for comprehensive Excel automation:**
+**11 specialized tools for comprehensive Excel automation:**
 
 1. **excel_powerquery** (11 actions) - Power Query M code: create, view, update, delete, refresh, load configuration, list Excel sources
 2. **excel_datamodel** (14 actions) - Power Pivot (Data Model): CRUD DAX measures/relationships, discover structure (tables, columns), refresh

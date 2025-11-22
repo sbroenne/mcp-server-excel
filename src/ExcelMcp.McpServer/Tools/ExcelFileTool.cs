@@ -22,12 +22,17 @@ public static class ExcelFileTool
     [McpServerTool(Name = "excel_file")]
     [Description(@"Manage Excel files and sessions.
 
-⚠️ SESSION LIFECYCLE REQUIRED:
+**SESSION LIFECYCLE REQUIRED:**
 1. OPEN - Start session, get sessionId
 2. OPERATE - Use sessionId with other tools
 3. CLOSE - End session (use save:true parameter to persist changes)
 
-⚠️ NO 'SAVE' ACTION - Use action='close' with save:true to persist changes
+**IMPORTANT:** NO 'SAVE' ACTION - Use action='close' with save:true to persist changes
+
+**CRITICAL: DO NOT CLOSE SESSION PREMATURELY**
+- Keep session open across ALL operations in a workflow
+- ONLY close when user explicitly confirms OR all operations complete
+- Closing mid-workflow loses the session and breaks subsequent operations
 
 WORKFLOWS:
 - Persist changes: open → operations(sessionId) → close(save: true)
@@ -170,7 +175,8 @@ FILE FORMATS:
                 {
                     success = true,
                     sessionId,
-                    saved = save
+                    saved = save,
+                    workflowHint = "Session closed successfully. If you need to perform more operations on this file, open a new session."
                 }, ExcelToolsBase.JsonOptions);
             }
 

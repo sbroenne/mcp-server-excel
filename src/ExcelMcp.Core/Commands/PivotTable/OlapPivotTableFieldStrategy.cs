@@ -1016,7 +1016,10 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             pivot.RowAxisLayout(layoutType);
             pivot.RefreshTable();
 
-            logger?.LogInformation("Set OLAP PivotTable layout to {LayoutType}", layoutType);
+            if (logger?.IsEnabled(LogLevel.Information) == true)
+            {
+                logger.LogInformation("Set OLAP PivotTable layout to {LayoutType}", layoutType);
+            }
 
             return new OperationResult
             {
@@ -1061,7 +1064,10 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
             pivot.RefreshTable();
 
-            logger?.LogInformation("Set OLAP subtotals for field {FieldName} to {ShowSubtotals}", fieldName, showSubtotals);
+            if (logger?.IsEnabled(LogLevel.Information) == true)
+            {
+                logger.LogInformation("Set OLAP subtotals for field {FieldName} to {ShowSubtotals}", fieldName, showSubtotals);
+            }
 
             return new PivotFieldResult
             {
@@ -1075,7 +1081,10 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
         catch (Exception ex)
         {
-            logger?.LogError(ex, "SetSubtotals failed for OLAP field {FieldName}", fieldName);
+            if (logger?.IsEnabled(LogLevel.Error) == true)
+            {
+                logger.LogError(ex, "SetSubtotals failed for OLAP field {FieldName}", fieldName);
+            }
             return new PivotFieldResult
             {
                 Success = false,
@@ -1101,7 +1110,10 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             pivot.ColumnGrand = showColumnGrandTotals;
             pivot.RefreshTable();
 
-            logger?.LogInformation("Set OLAP grand totals: Row={RowGrand}, Column={ColumnGrand}", showRowGrandTotals, showColumnGrandTotals);
+            if (logger is not null && logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("Set OLAP grand totals: Row={RowGrand}, Column={ColumnGrand}", showRowGrandTotals, showColumnGrandTotals);
+            }
 
             return new OperationResult
             {

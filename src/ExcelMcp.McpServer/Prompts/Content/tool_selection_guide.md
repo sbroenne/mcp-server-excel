@@ -4,6 +4,13 @@
 - File must be CLOSED in Excel (exclusive access required by COM)
 - Use `excel_file(open)` to start a session, `excel_file(close)` to end
 
+**CRITICAL - Session Lifetime Rules:**
+- **KEEP session open** across multiple operations
+- **ONLY close** when user explicitly requests it OR all operations are complete
+- **ASK user** "Should I close the session now?" if unclear whether more operations are needed
+- Closing mid-workflow = lost session, cannot resume
+
+
 ## Quick Reference
 
 | Need | Use | NOT |
@@ -21,20 +28,20 @@
 ## Common Mistakes
 
 **Don't use `excel_table` for external data**
-- ❌ `excel_table(create)` for CSV import
-- ✅ `excel_powerquery(create, loadDestination='worksheet')`
+- WRONG: `excel_table(create)` for CSV import
+- CORRECT: `excel_powerquery(create, loadDestination='worksheet')`
 
 **loadDestination matters**
-- ❌ `excel_powerquery` without `loadDestination` for DAX
-- ✅ `excel_powerquery(create, loadDestination='data-model')`
+- WRONG: `excel_powerquery` without `loadDestination` for DAX
+- CORRECT: `excel_powerquery(create, loadDestination='data-model')`
 
 **Use bulk operations for multiple items**
-- ❌ `excel_namedrange(create)` called 5 times
-- ✅ `excel_namedrange(create-bulk)` with JSON array
+- WRONG: `excel_namedrange(create)` called 5 times
+- CORRECT: `excel_namedrange(create-bulk)` with JSON array
 
 **DAX is not worksheet formulas**
-- ❌ Using `excel_range` for DAX syntax
-- ✅ `excel_datamodel(create-measure)` with DAX
+- WRONG: Using `excel_range` for DAX syntax
+- CORRECT: `excel_datamodel(create-measure)` with DAX
 
 **WorksheetAction vs DAX**
 - Worksheet formulas: `excel_range` with `=SUM(A1:A10)`

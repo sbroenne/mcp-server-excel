@@ -83,7 +83,9 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, oldName);
                 if (sheet == null)
                 {
-                    throw new InvalidOperationException($"Sheet '{oldName}' not found");
+                    result.Success = false;
+                    result.ErrorMessage = $"Sheet '{oldName}' not found";
+                    return result;
                 }
                 sheet.Name = newName;
                 result.Success = true;
@@ -113,7 +115,9 @@ public partial class SheetCommands
                 sourceSheet = ComUtilities.FindSheet(ctx.Book, sourceName);
                 if (sourceSheet == null)
                 {
-                    throw new InvalidOperationException($"Sheet '{sourceName}' not found");
+                    result.Success = false;
+                    result.ErrorMessage = $"Sheet '{sourceName}' not found";
+                    return result;
                 }
                 sheets = ctx.Book.Worksheets;
                 lastSheet = sheets.Item(sheets.Count);
@@ -147,7 +151,9 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
+                    result.Success = false;
+                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
+                    return result;
                 }
                 sheet.Delete();
                 result.Success = true;
@@ -168,7 +174,9 @@ public partial class SheetCommands
         // Validate parameters
         if (!string.IsNullOrWhiteSpace(beforeSheet) && !string.IsNullOrWhiteSpace(afterSheet))
         {
-            throw new ArgumentException("Cannot specify both beforeSheet and afterSheet");
+            result.Success = false;
+            result.ErrorMessage = "Cannot specify both beforeSheet and afterSheet";
+            return result;
         }
 
         return batch.Execute((ctx, ct) =>
@@ -182,7 +190,9 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
+                    result.Success = false;
+                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
+                    return result;
                 }
 
                 // If no position specified, move to end
@@ -199,7 +209,9 @@ public partial class SheetCommands
                     targetSheet = ComUtilities.FindSheet(ctx.Book, targetName);
                     if (targetSheet == null)
                     {
-                        throw new InvalidOperationException($"Target sheet '{targetName}' not found");
+                        result.Success = false;
+                        result.ErrorMessage = $"Target sheet '{targetName}' not found";
+                        return result;
                     }
 
                     // Move using Excel COM API

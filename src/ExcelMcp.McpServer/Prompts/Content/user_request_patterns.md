@@ -1,6 +1,6 @@
 # Common User Request Patterns - How to Interpret
 
-## 🚨 PRE-FLIGHT: File Access Check
+## PRE-FLIGHT: File Access Check
 
 **BEFORE processing ANY request, check if file is accessible:**
 

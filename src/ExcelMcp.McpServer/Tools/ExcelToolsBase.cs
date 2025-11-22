@@ -60,9 +60,14 @@ public static class ExcelToolsBase
             var sessionCount = activeSessionIds.Count;
             var errorMessage = sessionCount switch
             {
-                0 => $"Session '{sessionId}' not found. No active sessions exist.",
-                1 => $"Session '{sessionId}' not found. Active session: {activeSessionIds[0]}",
-                _ => $"Session '{sessionId}' not found. {sessionCount} active sessions exist."
+                0 => $"Session '{sessionId}' not found. No active sessions exist. " +
+                     "Possible causes: (1) Session was closed prematurely before completing operations, " +
+                     "(2) Session never created. " +
+                     "Recovery: Use excel_file(action='open') to create a new session.",
+                1 => $"Session '{sessionId}' not found. Active session: {activeSessionIds[0]}. " +
+                     "Did you close the session before completing all operations? Use the active sessionId shown above.",
+                _ => $"Session '{sessionId}' not found. {sessionCount} active sessions exist. " +
+                     "Verify you're using the correct sessionId from excel_file 'open' action."
             };
             throw new InvalidOperationException(errorMessage);
         }
@@ -96,9 +101,14 @@ public static class ExcelToolsBase
             var sessionCount = activeSessionIds.Count;
             var errorMessage = sessionCount switch
             {
-                0 => $"Session '{sessionId}' not found. No active sessions exist.",
-                1 => $"Session '{sessionId}' not found. Active session: {activeSessionIds[0]}",
-                _ => $"Session '{sessionId}' not found. {sessionCount} active sessions exist."
+                0 => $"Session '{sessionId}' not found. No active sessions exist. " +
+                     "Possible causes: (1) Session was closed prematurely before completing operations, " +
+                     "(2) Session never created. " +
+                     "Recovery: Use excel_file(action='open') to create a new session.",
+                1 => $"Session '{sessionId}' not found. Active session: {activeSessionIds[0]}. " +
+                     "Did you close the session before completing all operations? Use the active sessionId shown above.",
+                _ => $"Session '{sessionId}' not found. {sessionCount} active sessions exist. " +
+                     "Verify you're using the correct sessionId from excel_file 'open' action."
             };
             throw new InvalidOperationException(errorMessage);
         }

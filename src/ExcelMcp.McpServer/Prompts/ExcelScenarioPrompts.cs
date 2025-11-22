@@ -25,16 +25,19 @@ public static class ExcelScenarioPrompts
 
 Complete workflow for creating a professional financial report with formulas and formatting.
 
+**CRITICAL: Keep session open until ALL steps complete - do NOT close prematurely**
+
 ## RECOMMENDED WORKFLOW:
 
 1. excel_file(action: 'open', excelPath: 'FinancialReport.xlsx')
+   \u2192 Returns sessionId (use for ALL remaining operations)
 2. excel_worksheet(action: 'create', sheetName: 'Report', sessionId: '<sessionId>')
 3. excel_range(action: 'set-values', rangeAddress: 'A1:D1', values: [['Month', 'Revenue', 'Expenses', 'Profit']], sessionId: '<sessionId>')
 4. excel_range(action: 'format-range', rangeAddress: 'A1:D1', bold: true, fillColor: '#4472C4', sessionId: '<sessionId>')
 5. excel_range(action: 'set-formulas', rangeAddress: 'D2:D{monthCount + 1}', formulas: [['=B2-C2'], ...], sessionId: '<sessionId>')
 6. excel_range(action: 'set-number-format', rangeAddress: 'B2:D{monthCount + 1}', formatCode: '$#,##0', sessionId: '<sessionId>')
-7. excel_file(action: 'save', sessionId: '<sessionId>')
-8. excel_file(action: 'close', sessionId: '<sessionId>')
+7. excel_file(action: 'close', save: true, sessionId: '<sessionId>')
+   \u2192 ONLY close when report is complete
 
 RESULT: Professional formatted report with {monthCount} months of data
 ");
@@ -52,13 +55,16 @@ RESULT: Professional formatted report with {monthCount} months of data
 
 Complete workflow for importing multiple queries and preparing for DAX analysis.
 
+**CRITICAL: Keep session open across ALL query imports - do NOT close between operations**
+
 ## RECOMMENDED WORKFLOW:
 
 1. excel_file(action: 'open', excelPath: 'Analytics.xlsx')
+   \u2192 Returns sessionId (use for ALL remaining operations)
 2. For each query:
-   - excel_powerquery(action: 'import', queryName: '<name>', sourcePath: '<file>.pq', loadDestination: 'data-model', sessionId: '<sessionId>')
-3. excel_file(action: 'save', sessionId: '<sessionId>')
-4. excel_file(action: 'close', sessionId: '<sessionId>')
+   - excel_powerquery(action: 'create', queryName: '<name>', mCode: '<M code>', loadDestination: 'data-model', sessionId: '<sessionId>')
+3. excel_file(action: 'close', save: true, sessionId: '<sessionId>')
+   \u2192 ONLY close after ALL queries imported
 
 KEY: Use loadDestination: 'data-model' for direct Power Pivot loading
 RESULT: {count} queries loaded and ready for DAX measures
@@ -74,52 +80,24 @@ RESULT: {count} queries loaded and ready for DAX measures
 
 Create professional data entry form with dropdowns, date validation, and formatted layout.
 
+**CRITICAL: Keep session open until form is complete - do NOT close between operations**
+
 WORKFLOW:
 1. excel_file(action: 'open', excelPath: 'DataEntryForm.xlsx')
+   \u2192 Returns sessionId (use for ALL remaining operations)
 2. excel_worksheet(action: 'create', sheetName: 'Employee Form', sessionId: '<sessionId>')
 3. excel_range(action: 'set-values', values: [['Employee ID', 'Name', 'Department', 'Status', 'Hire Date']], sessionId: '<sessionId>')
 4. excel_range(action: 'format-range', rangeAddress: 'A1:E1', bold: true, fillColor: '#D9E1F2', sessionId: '<sessionId>')
 5. excel_range(action: 'validate-range', rangeAddress: 'C2:C100', validationType: 'list', validationFormula1: 'IT,HR,Finance,Operations', sessionId: '<sessionId>')
 6. excel_range(action: 'validate-range', rangeAddress: 'D2:D100', validationType: 'list', validationFormula1: 'Active,Inactive,Leave', sessionId: '<sessionId>')
 7. excel_range(action: 'validate-range', rangeAddress: 'E2:E100', validationType: 'date', sessionId: '<sessionId>')
-8. excel_file(action: 'save', sessionId: '<sessionId>')
-9. excel_file(action: 'close', sessionId: '<sessionId>')
+8. excel_file(action: 'close', save: true, sessionId: '<sessionId>')
+   \u2192 ONLY close when form is complete
 
 RESULT: Professional form with validation, dropdowns, and formatting
 ");
     }
 
-    [McpServerPrompt(Name = "excel_version_control_workflow")]
-    [Description("Workflow for exporting Excel code artifacts to Git version control")]
-    public static ChatMessage VersionControlWorkflow()
-    {
-        return new ChatMessage(ChatRole.User, @"
-# VERSION CONTROL WORKFLOW FOR EXCEL CODE
-
-Export Power Query M code, VBA modules, and DAX measures to files for Git tracking.
-
-EXPORT WORKFLOW:
-1. excel_file(action: 'open', excelPath: 'workbook.xlsx')
-2. excel_powerquery(action: 'export', queryName: '<name>', targetPath: 'queries/<name>.pq', sessionId: '<sessionId>')
-3. excel_vba(action: 'export', moduleName: '<name>', targetPath: 'vba/<name>.bas', sessionId: '<sessionId>')
-4. excel_datamodel(action: 'export-measure', targetPath: 'dax/measures.dax', sessionId: '<sessionId>')
-5. excel_file(action: 'close', sessionId: '<sessionId>')
-
-GIT WORKFLOW:
-git add queries/*.pq vba/*.bas dax/*.dax
-git commit -m 'Export Excel code artifacts'
-git push origin main
-
-IMPORT BACK:
-excel_file(action: 'open', excelPath: 'workbook.xlsx')
-excel_powerquery(action: 'import', sourcePath: 'queries/<name>.pq', loadDestination: 'data-model', sessionId: '<sessionId>')
-excel_vba(action: 'import', sourcePath: 'vba/<name>.bas', sessionId: '<sessionId>')
-excel_file(action: 'save', sessionId: '<sessionId>')
-excel_file(action: 'close', sessionId: '<sessionId>')
-
-BENEFITS: Track changes, code review, rollback, collaboration, audit trail
-");
-    }
 
     [McpServerPrompt(Name = "excel_build_analytics_workbook")]
     [Description("Complete workflow: Build analytics workbook with Power Query, Data Model, DAX measures")]
@@ -130,10 +108,13 @@ BENEFITS: Track changes, code review, rollback, collaboration, audit trail
 
 End-to-end: Import data → Build Data Model → Create DAX measures → Add PivotTable
 
+**CRITICAL: Keep session open across ALL steps - do NOT close between operations**
+
 WORKFLOW:
 1. excel_file(action: 'open', excelPath: 'Analytics.xlsx')
+   → Returns sessionId (use for ALL remaining operations)
 2. Import 4 queries with loadDestination: 'data-model' (Sales, Products, Customers, Calendar)
-   - excel_powerquery(action: 'import', queryName: 'Sales', sourcePath: 'sales.pq', loadDestination: 'data-model', sessionId: '<sessionId>')
+   - excel_powerquery(action: 'create', queryName: 'Sales', mCode: '<M code>', loadDestination: 'data-model', sessionId: '<sessionId>')
    - ... (repeat for Products, Customers, Calendar)
 3. Create 3 relationships
    - excel_datamodel(action: 'create-relationship', fromTable: 'Sales', fromColumn: 'ProductID', toTable: 'Products', toColumn: 'ProductID', sessionId: '<sessionId>')
@@ -143,8 +124,8 @@ WORKFLOW:
    - excel_datamodel(action: 'create-measure', tableName: 'Measures', measureName: 'Total Revenue', daxFormula: 'SUM(Sales[Amount])', sessionId: '<sessionId>')
    - ... (repeat for other measures)
 5. excel_pivottable(action: 'create-from-datamodel', dataModelTableName: 'Sales', destinationSheet: 'PivotTable', destinationCell: 'A1', sessionId: '<sessionId>')
-6. excel_file(action: 'save', sessionId: '<sessionId>')
-7. excel_file(action: 'close', sessionId: '<sessionId>')
+6. excel_file(action: 'close', save: true, sessionId: '<sessionId>')
+   → ONLY close when analytics workbook is complete
 
 RESULT: 4 data sources, 3 relationships, 4 DAX measures, 1 PivotTable
 ");

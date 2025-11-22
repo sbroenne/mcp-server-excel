@@ -33,7 +33,7 @@ CONNECTION TYPES SUPPORTED:
 - DataFeed: OData and data feeds
 - Model: Data Model connections
 
-⚠️ CREATE LIMITATION:
+**CREATE LIMITATION:**
 - OLEDB/ODBC connections CANNOT be created via COM API (Excel limitation)
 - Create these in Excel UI (Data → Get Data), then manage them with this tool
 - TEXT and WEB connections CAN be created programmatically

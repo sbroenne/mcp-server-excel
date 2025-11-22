@@ -27,7 +27,7 @@ excelcli --version
 excelcli --help
 ```
 
-> 🔁 **Session Workflow:** Always start with `excelcli session open <file>` (captures the session id), pass `--session <id>` to other commands, then `excelcli session save <id>` (optional) and `excelcli session close <id>` when finished. The CLI reuses the same Excel instance through that lifecycle.
+> 🔁 **Session Workflow:** Always start with `excelcli session open <file>` (captures the session id), pass `--session-id <id>` to other commands, then `excelcli session save <id>` (optional) and `excelcli session close <id>` when finished. The CLI reuses the same Excel instance through that lifecycle.
 
 ### Update to Latest Version
 
@@ -76,21 +76,21 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **163 operations** across 12 categories:
+ExcelMcp.CLI provides **158 operations** across 11 categories:
 
 | Category | Operations | Examples |
 |----------|-----------|----------|
 | **File & Session** | 5 | `create-empty`, `session open`, `session save`, `session close`, `session list` |
-| **Worksheets** | 13 | `sheet-list`, `sheet-create`, `sheet-rename`, `sheet-set-tab-color` |
-| **Power Query** | 11 | `pq-list`, `pq-create`, `pq-refresh`, `pq-update` |
-| **Ranges** | 43 | `range-get-values`, `range-set-values`, `range-copy`, `range-find`, `range-merge-cells`, `range-add-hyperlink` |
-| **Conditional Formatting** | 2 | `cf-add-rule`, `cf-clear-rules` |
-| **Excel Tables** | 23 | `table-create`, `table-filter`, `table-sort`, `table-add-column`, `table-get-column-format` |
-| **PivotTables** | 19 | `pivot-create-from-range`, `pivot-add-row-field`, `pivot-refresh`, `pivot-delete` |
-| **Data Model** | 14 | `dm-create-measure`, `dm-create-relationship`, `dm-refresh` |
-| **Connections** | 9 | `conn-list`, `conn-refresh`, `conn-test` |
-| **Named Ranges** | 7 | `namedrange-create`, `namedrange-get`, `namedrange-set`, `namedrange-create-bulk` |
-| **VBA** | 6 | `vba-list`, `vba-import`, `vba-run`, `vba-update`
+| **Worksheets** | 16 | `sheet list`, `sheet create`, `sheet rename`, `sheet set-tab-color` |
+| **Power Query** | 9 | `powerquery list`, `powerquery create`, `powerquery refresh`, `powerquery update` |
+| **Ranges** | 42 | `range get-values`, `range set-values`, `range copy`, `range find`, `range merge-cells`, `range add-hyperlink` |
+| **Conditional Formatting** | 2 | `conditionalformat add-rule`, `conditionalformat clear-rules` |
+| **Excel Tables** | 23 | `table create`, `table apply-filter`, `table sort`, `table add-column`, `table get-column-format` |
+| **PivotTables** | 25 | `pivottable create-from-range`, `pivottable add-row-field`, `pivottable refresh`, `pivottable delete` |
+| **Data Model** | 14 | `datamodel create-measure`, `datamodel create-relationship`, `datamodel refresh` |
+| **Connections** | 9 | `connection list`, `connection refresh`, `connection test` |
+| **Named Ranges** | 7 | `namedrange create`, `namedrange read`, `namedrange write`, `namedrange create-bulk` |
+| **VBA** | 6 | `vba list`, `vba import`, `vba run`, `vba update`
 
 ---
 
@@ -100,21 +100,21 @@ The CLI uses an explicit session-based workflow where you open a file, perform o
 
 ```bash
 # 1. Open a session
-excelcli open data.xlsx
+excelcli session open data.xlsx
 # Output: Session ID: 550e8400-e29b-41d4-a716-446655440000
 
 # 2. List active sessions anytime
-excelcli list
+excelcli session list
 
-# 3. Use the session ID with any commands (optional - can operate without session)
-excelcli sheet-create data.xlsx NewSheet --session-id 550e8400-e29b-41d4-a716-446655440000
-excelcli pq-list data.xlsx --session-id 550e8400-e29b-41d4-a716-446655440000
+# 3. Use the session ID with any commands
+excelcli sheet create --session-id 550e8400-e29b-41d4-a716-446655440000 --sheet "NewSheet"
+excelcli powerquery list --session-id 550e8400-e29b-41d4-a716-446655440000
 
 # 4. Save changes and keep session open
-excelcli save 550e8400-e29b-41d4-a716-446655440000
+excelcli session save 550e8400-e29b-41d4-a716-446655440000
 
 # 5. Close session and discard changes
-excelcli close 550e8400-e29b-41d4-a716-446655440000
+excelcli session close 550e8400-e29b-41d4-a716-446655440000
 ```
 
 ### Session Lifecycle Benefits
@@ -131,90 +131,123 @@ excelcli close 550e8400-e29b-41d4-a716-446655440000
 ### Power Query Development
 
 ```bash
-# Export all queries for version control
-excelcli pq-list data.xlsx
-excelcli pq-export data.xlsx "Sales Data" sales-query.pq
-excelcli pq-export data.xlsx "Customer Data" customer-query.pq
+# List all queries
+excelcli powerquery list --session-id <SESSION>
 
-# Import updated query from file
-excelcli pq-import data.xlsx "Sales Data" sales-query-optimized.pq
+# View a query
+excelcli powerquery view --session-id <SESSION> --query "Sales Data"
+
+# Create a query from M code file
+excelcli powerquery create --session-id <SESSION> --query "Sales Data" --m-file sales-query.pq
+
+# Update existing query
+excelcli powerquery update --session-id <SESSION> --query "Sales Data" --m-file sales-query-optimized.pq
+
+# Refresh a query
+excelcli powerquery refresh --session-id <SESSION> --query "Sales Data"
 
 # Refresh all queries
-excelcli pq-refresh data.xlsx "Sales Data"
+excelcli powerquery refresh-all --session-id <SESSION>
 ```
 
 ### VBA Module Management
 
 ```bash
 # List all VBA modules
-excelcli vba-list macros.xlsm
+excelcli vba list --session-id <SESSION>
+
+# View a module
+excelcli vba view --session-id <SESSION> --module "DataProcessor"
 
 # Export module for version control
-excelcli vba-export macros.xlsm "DataProcessor" processor.vba
+excelcli vba export --session-id <SESSION> --module "DataProcessor" --output processor.vba
 
 # Import updated module
-excelcli vba-import macros.xlsm "DataProcessor" processor-v2.vba
+excelcli vba import --session-id <SESSION> --module "DataProcessor" --input processor-v2.vba
 
-# Run a macro with parameters
-excelcli vba-run macros.xlsm "ProcessData" "Sheet1" "A1:D100"
+# Update existing module
+excelcli vba update --session-id <SESSION> --module "DataProcessor" --input processor-updated.vba
+
+# Run a macro
+excelcli vba run --session-id <SESSION> --procedure "Module1.ProcessData"
 ```
 
 ### Data Model & DAX
 
 ```bash
+# List all tables
+excelcli datamodel list-tables --session-id <SESSION>
+
+# List all measures in a table
+excelcli datamodel list-measures --session-id <SESSION> --table Sales
+
 # Create a DAX measure
-excelcli dm-create-measure sales.xlsx Sales "TotalRevenue" "SUM(Sales[Amount])" Currency
+excelcli datamodel create-measure --session-id <SESSION> --table Sales --name "TotalRevenue" --formula "SUM(Sales[Amount])" --format Currency
+
+# Update a measure
+excelcli datamodel update-measure --session-id <SESSION> --table Sales --name "TotalRevenue" --formula "SUM(Sales[Amount])" --format Currency
 
 # Create relationship between tables
-excelcli dm-create-relationship sales.xlsx Sales CustomerID Customers ID
-
-# List all measures
-excelcli dm-list-measures sales.xlsx
+excelcli datamodel create-relationship --session-id <SESSION> --from-table Sales --from-column CustomerID --to-table Customers --to-column ID
 
 # Refresh Data Model
-excelcli dm-refresh sales.xlsx
+excelcli datamodel refresh --session-id <SESSION>
 ```
 
 ### Excel Table Operations
 
 ```bash
-# Create table from range
-excelcli table-create data.xlsx Sheet1 SalesTable A1:E100
+# List all tables
+excelcli table list --session-id <SESSION>
 
-# Apply filters
-excelcli table-apply-filter data.xlsx SalesTable Amount ">1000"
-excelcli table-apply-filter-values data.xlsx SalesTable Region "North,South,East"
+# Create table from range
+excelcli table create --session-id <SESSION> --sheet Sheet1 --table-name SalesTable --range A1:E100
+
+# Apply filter criteria
+excelcli table apply-filter --session-id <SESSION> --table-name SalesTable --column Amount --criteria ">1000"
+
+# Apply filter by values
+excelcli table apply-filter-values --session-id <SESSION> --table-name SalesTable --column Region --values "North,South,East"
 
 # Sort by column
-excelcli table-sort data.xlsx SalesTable Amount desc
+excelcli table sort --session-id <SESSION> --table-name SalesTable --column Amount --descending
 
-# Add calculated column
-excelcli table-add-column data.xlsx SalesTable "Total" 5
+# Add column
+excelcli table add-column --session-id <SESSION> --table-name SalesTable --column-name "Total" --position 5
 ```
 
 ### PivotTable Automation
 
 ```bash
+# List all PivotTables
+excelcli pivottable list --session-id <SESSION>
+
 # Create PivotTable from range
-excelcli pivot-create-from-range sales.xlsx Data A1:D100 Analysis A1 SalesPivot
+excelcli pivottable create-from-range --session-id <SESSION> --source-sheet Data --source-range A1:D100 --dest-sheet Analysis --dest-cell A1 --name SalesPivot
+
+# Create from Excel Table
+excelcli pivottable create-from-table --session-id <SESSION> --table-name SalesData --dest-sheet Analysis --dest-cell A1 --name SalesPivot
+
+# Create from Data Model
+excelcli pivottable create-from-datamodel --session-id <SESSION> --table-name ConsumptionMilestones --dest-sheet Analysis --dest-cell A1 --name MilestonesPivot
 
 # Configure fields
-excelcli pivot-add-row-field sales.xlsx SalesPivot Region
-excelcli pivot-add-column-field sales.xlsx SalesPivot Year
-excelcli pivot-add-value-field sales.xlsx SalesPivot Amount Sum "Total Sales"
-excelcli pivot-add-filter-field sales.xlsx SalesPivot Category
+excelcli pivottable add-row-field --session-id <SESSION> --name SalesPivot --field Region
+excelcli pivottable add-column-field --session-id <SESSION> --name SalesPivot --field Year
+excelcli pivottable add-value-field --session-id <SESSION> --name SalesPivot --field Amount --function Sum --custom-name "Total Sales"
+excelcli pivottable add-filter-field --session-id <SESSION> --name SalesPivot --field Category
 
-# Manage PivotTable lifecycle
-excelcli pivot-get sales.xlsx SalesPivot
-excelcli pivot-list-fields sales.xlsx SalesPivot
-excelcli pivot-remove-field sales.xlsx SalesPivot Year
-excelcli pivot-delete sales.xlsx SalesPivot
+# List fields
+excelcli pivottable list-fields --session-id <SESSION> --name SalesPivot
 
-# Create from Data Model (for large datasets)
-excelcli pivot-create-from-datamodel sales.xlsx ConsumptionMilestones Analysis A1 MilestonesPivot
+# Remove field
+excelcli pivottable remove-field --session-id <SESSION> --name SalesPivot --field Year
 
 # Refresh PivotTable
-excelcli pivot-refresh sales.xlsx SalesPivot
+excelcli pivottable refresh --session-id <SESSION> --name SalesPivot
+
+# Delete PivotTable
+excelcli pivottable delete --session-id <SESSION> --name SalesPivot
 ```
 
 ### Session Mode for RPA Workflows
@@ -223,77 +256,98 @@ excelcli pivot-refresh sales.xlsx SalesPivot
 # Example: Automated report generation with session lifecycle
 
 # 1. Open session
-SESSION_ID=$(excelcli open report.xlsx | grep "Session ID:" | cut -d' ' -f3)
+SESSION_ID=$(excelcli session open report.xlsx | grep "Session ID:" | cut -d' ' -f3)
 
 # 2. Perform operations (all use same Excel instance)
-excelcli sheet-create report.xlsx "Sales" --session-id $SESSION_ID
-excelcli sheet-create report.xlsx "Customers" --session-id $SESSION_ID
-excelcli sheet-create report.xlsx "Summary" --session-id $SESSION_ID
+excelcli sheet create --session-id $SESSION_ID --sheet "Sales"
+excelcli sheet create --session-id $SESSION_ID --sheet "Customers"
+excelcli sheet create --session-id $SESSION_ID --sheet "Summary"
 
 # 3. Import data
-excelcli range-set-values report.xlsx Sales A1 "sales.csv" --session-id $SESSION_ID
-excelcli range-set-values report.xlsx Customers A1 "customers.csv" --session-id $SESSION_ID
+excelcli range set-values --session-id $SESSION_ID --sheet Sales --range A1 --values "[[...]]"
 
 # 4. Add Power Query for transformations
-excelcli pq-create report.xlsx "CleanSales" "clean-sales.pq" --session-id $SESSION_ID
+excelcli powerquery create --session-id $SESSION_ID --query "CleanSales" --m-file "clean-sales.pq"
 
 # 5. Create PivotTable
-excelcli pivot-create-from-range report.xlsx Sales A1:E1000 Summary A1 SalesPivot --session-id $SESSION_ID
+excelcli pivottable create-from-range --session-id $SESSION_ID --source-sheet Sales --source-range A1:E1000 --dest-sheet Summary --dest-cell A1 --name SalesPivot
 
 # 6. Save changes
-excelcli save $SESSION_ID
+excelcli session save $SESSION_ID
 
 # 7. Close session
-excelcli close $SESSION_ID
+excelcli session close $SESSION_ID
 ```
 
 ### Worksheet Management
 
 ```bash
 # List all sheets
-excelcli sheet-list workbook.xlsx
+excelcli sheet list --session-id <SESSION>
 
-# Create and configure sheets
-excelcli sheet-create workbook.xlsx "Q1 Data"
-excelcli sheet-set-tab-color workbook.xlsx "Q1 Data" 0 255 0  # Green
-excelcli sheet-hide workbook.xlsx "Calculations"
+# Create sheet
+excelcli sheet create --session-id <SESSION> --sheet "Q1 Data"
 
-# Rename sheets
-excelcli sheet-rename workbook.xlsx "Sheet1" "Sales Summary"
+# Rename sheet
+excelcli sheet rename --session-id <SESSION> --sheet "Sheet1" --new-name "Sales Summary"
+
+# Set tab color (RGB)
+excelcli sheet set-tab-color --session-id <SESSION> --sheet "Q1 Data" --red 0 --green 255 --blue 0
+
+# Hide sheet
+excelcli sheet hide --session-id <SESSION> --sheet "Calculations"
+
+# Show sheet
+excelcli sheet show --session-id <SESSION> --sheet "Calculations"
+
+# Copy sheet
+excelcli sheet copy --session-id <SESSION> --sheet "Template" --new-name "Q1 Report"
 ```
 
 ### Range Operations
 
 ```bash
-# Read range data
-excelcli range-get-values data.xlsx Sheet1 A1:D10
+# Read range values
+excelcli range get-values --session-id <SESSION> --sheet Sheet1 --range A1:D10
 
-# Write CSV data to range
-excelcli range-set-values data.xlsx Sheet1 A1:C10 data.csv
+# Set range values (JSON array)
+excelcli range set-values --session-id <SESSION> --sheet Sheet1 --range A1:C10 --values "[[1,2,3],[4,5,6]]"
+
+# Get formulas
+excelcli range get-formulas --session-id <SESSION> --sheet Sheet1 --range A1:D10
+
+# Set formulas
+excelcli range set-formulas --session-id <SESSION> --sheet Sheet1 --range A1 --formulas "[[=SUM(B1:B10)]]"
 
 # Apply formatting
-excelcli range-format data.xlsx Sheet1 A1:E1 --bold --font-size 12 --h-align Center
-excelcli range-format data.xlsx Sheet1 D2:D100 --fill-color "#FFFF00"
+excelcli range format-range --session-id <SESSION> --sheet Sheet1 --range A1:E1 --bold --font-size 12 --h-align Center
+excelcli range format-range --session-id <SESSION> --sheet Sheet1 --range D2:D100 --fill-color "#FFFF00"
 
-# Set number formats
-excelcli range-set-number-format data.xlsx Sheet1 D2:D100 "$#,##0.00"  # Currency
-excelcli range-set-number-format data.xlsx Sheet1 E2:E100 "0.00%"      # Percentage
+# Set number format
+excelcli range set-number-format --session-id <SESSION> --sheet Sheet1 --range D2:D100 --format "$#,##0.00"
+excelcli range set-number-format --session-id <SESSION> --sheet Sheet1 --range E2:E100 --format "0.00%"
 
 # Add data validation
-excelcli range-validate data.xlsx Sheet1 F2:F100 List "Active,Inactive,Pending"
+excelcli range validate-range --session-id <SESSION> --sheet Sheet1 --range F2:F100 --type list --formula1 "Active,Inactive,Pending"
+
+# Add hyperlink
+excelcli range add-hyperlink --session-id <SESSION> --cell-address Sheet1!A1 --url "https://example.com" --display-text "Click Here"
+
+# Merge cells
+excelcli range merge-cells --session-id <SESSION> --sheet Sheet1 --range A1:D1
 ```
 
 ### Conditional Formatting
 
 ```bash
 # Add conditional formatting rule (highlight cells > 100)
-excelcli cf-add-rule data.xlsx Sheet1 A1:A10 cell-value greater 100 "" "#FFFF00" solid
+excelcli conditionalformat add-rule --session-id <SESSION> --sheet Sheet1 --range A1:A10 --rule-type cell-value --operator greater --formula1 100 --interior-color "#FFFF00"
 
 # Add expression-based rule
-excelcli cf-add-rule data.xlsx Sheet1 B1:B10 expression "" "=B1>AVERAGE($B$1:$B$10)" "" "#90EE90" solid
+excelcli conditionalformat add-rule --session-id <SESSION> --sheet Sheet1 --range B1:B10 --rule-type expression --formula1 "=B1>AVERAGE($B$1:$B$10)" --interior-color "#90EE90"
 
 # Clear conditional formatting
-excelcli cf-clear-rules data.xlsx Sheet1 A1:A10
+excelcli conditionalformat clear-rules --session-id <SESSION> --sheet Sheet1 --range A1:A10
 ```
 
 ---
@@ -379,12 +433,15 @@ dotnet tool list --global
 
 ### Scripting & Automation
 
-```bash
+```powershell
 # PowerShell script example
 $files = Get-ChildItem *.xlsx
 foreach ($file in $files) {
-    excelcli pq-refresh $file.Name "Sales Data"
-    excelcli dm-refresh $file.Name
+    $session = excelcli session open $file.Name | Select-String "Session ID: (.+)" | ForEach-Object { $_.Matches.Groups[1].Value }
+    excelcli powerquery refresh --session-id $session --query "Sales Data"
+    excelcli datamodel refresh --session-id $session
+    excelcli session save $session
+    excelcli session close $session
 }
 ```
 
@@ -397,16 +454,13 @@ foreach ($file in $files) {
 
 - name: Process Excel Files
   run: |
-    excelcli pq-import data.xlsx "Query1" queries/query1.pq
-    excelcli pq-refresh data.xlsx "Query1"
+    SESSION=$(excelcli session open data.xlsx | grep "Session ID:" | cut -d' ' -f3)
+    excelcli powerquery create --session-id $SESSION --query "Query1" --m-file queries/query1.pq
+    excelcli powerquery refresh --session-id $SESSION --query "Query1"
+    excelcli session save $SESSION
+    excelcli session close $SESSION
 ```
 
-### Batch Processing
-
-```bash
-# Process multiple files
-for %f in (*.xlsx) do excelcli sheet-read "%f" "Sheet1" >> output.csv
-```
 
 ## ✅ Tested Scenarios
 
@@ -424,7 +478,7 @@ These tests open actual workbooks, issue `session open/list/close`, and call `ex
 
 - **[ExcelMcp.McpServer](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)** - MCP server for AI assistant integration
 - **[Excel MCP VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)** - One-click Excel automation in VS Code
-- **[ExcelMcp.Core](https://www.nuget.org/packages/Sbroenne.ExcelMcp.Core)** - Core library for custom automation tools
+
 
 ---
 

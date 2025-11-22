@@ -17,7 +17,9 @@ public partial class SheetCommands
         // Validate RGB values
         if (red < 0 || red > 255 || green < 0 || green > 255 || blue < 0 || blue > 255)
         {
-            throw new ArgumentException("RGB values must be between 0 and 255");
+            result.Success = false;
+            result.ErrorMessage = "RGB values must be between 0 and 255";
+            return result;
         }
 
         return batch.Execute((ctx, ct) =>
@@ -131,7 +133,9 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
+                    result.Success = false;
+                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
+                    return result;
                 }
 
                 tab = sheet.Tab;
