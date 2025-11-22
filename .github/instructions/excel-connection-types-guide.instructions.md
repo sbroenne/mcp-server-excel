@@ -2,31 +2,108 @@
 applyTo: "src/ExcelMcp.Core/Commands/ConnectionCommands.cs,src/ExcelMcp.Core/Connections/**/*.cs,tests/**/ConnectionCommands*.cs,tests/**/ConnectionTestHelper.cs"
 ---
 
-# Excel Connection Types - Essential Patterns
+# Excel Connection Types - LLM Quick Reference
 
-> **Critical patterns for working with Excel connections**
+> **What works, what doesn't, and what to do instead**
 
-## Connection Type Enum
+## 🚨 Critical: LoadTo Operation Limitations
 
-[Official docs](https://learn.microsoft.com/en-us/office/vba/api/excel.xlconnectiontype): Types 1-9 (OLEDB, ODBC, TEXT, WEB, XMLMAP, DATAFEED, MODEL, WORKSHEET, NOSOURCE)
+**LoadTo action only works with OLEDB/ODBC connections:**
 
-## COM API Behavior (CORRECTED 2025-01-30)
+| Connection Type | LoadTo Support | What to Use Instead |
+|----------------|----------------|---------------------|
+| **OLEDB** | ✅ Works | Primary use case |
+| **ODBC** | ✅ Works | Primary use case |
+| **TEXT** | ❌ **FAILS** | Use `excel_powerquery` create + refresh |
+| **WEB** | ❌ **FAILS** | Use `excel_powerquery` create + refresh |
+| **Power Query** | ✅ Works | Use `excel_powerquery` refresh |
 
-### ✅ Connections.Add2() Works for OLEDB/ODBC
+**Error pattern:** If LoadTo returns "Value does not fall within the expected range" → Connection type doesn't support QueryTable pattern → Use Power Query instead.
 
-**Previous Documentation (INCORRECT):** Claimed OLEDB/ODBC connection creation failed via COM API.
+## 📋 Connection Action Compatibility
 
-**Current Status (VERIFIED):** OLEDB and ODBC connections **can be created** using `Connections.Add2()` method.
+| Action | OLEDB/ODBC | TEXT | WEB | Power Query |
+|--------|-----------|------|-----|-------------|
+| **List** | ✅ | ✅ | ✅ | ✅ |
+| **View** | ✅ | ✅ | ✅ | ✅ |
+| **Create** | ✅ | ✅ | ✅ | ⚠️ Use `excel_powerquery` |
+| **Delete** | ✅ | ✅ | ✅ | ⚠️ Use `excel_powerquery` |
+| **LoadTo** | ✅ | ❌ | ❌ | ⚠️ Use `excel_powerquery` refresh |
+| **Refresh** | ✅ | ✅* | ✅* | ⚠️ Use `excel_powerquery` refresh |
+| **Test** | ✅ | ✅ | ✅ | ✅ |
 
-**Test Evidence:**
-- ✅ OLEDB with SQL Server LocalDB: **SUCCESS**
-- ✅ OLEDB with Microsoft Access: **SUCCESS**  
-- ✅ ODBC connections: **SUCCESS**
-- ✅ TEXT connections: **SUCCESS** (as before)
+*TEXT/WEB Refresh succeeds but doesn't validate data source existence until actual data access
 
-**Key Requirement:** Must use `Connections.Add2()` (current method), not deprecated `Connections.Add()`.
+## 🔄 Decision Tree: Connection vs Power Query
 
-**Implementation:**
+```
+Need to import data from file/URL?
+├─ OLEDB/ODBC data source?
+│  └─ Use excel_connection (LoadTo, Refresh)
+│
+├─ TEXT file (CSV, TXT)?
+│  └─ Use excel_powerquery (create with M code, refresh)
+│
+├─ Web API/URL?
+│  └─ Use excel_powerquery (create with M code, refresh)
+│
+└─ Already has Power Query?
+   └─ Use excel_powerquery (refresh)
+```
+
+## 🎯 Recommended Workflows
+
+**OLEDB/ODBC Data Loading:**
+```
+1. excel_connection create → Creates connection object
+2. excel_connection loadto → Loads data to worksheet
+3. excel_connection refresh → Updates data from source
+```
+
+**TEXT/CSV File Import:**
+```
+1. excel_powerquery create → Import CSV with M code
+2. excel_powerquery refresh → Reload data
+   (Don't use excel_connection loadto - will fail!)
+```
+
+**Web Data Import:**
+```
+1. excel_powerquery create → Import from URL with M code
+2. excel_powerquery refresh → Update data
+   (Don't use excel_connection loadto - will fail!)
+```
+
+## ⚠️ Common Mistakes to Avoid
+
+1. **Using LoadTo with TEXT connections** → Will fail with E_INVALIDARG → Use Power Query instead
+2. **Using LoadTo with WEB connections** → Will fail → Use Power Query instead
+3. **Assuming Refresh validates TEXT file existence** → Excel doesn't check until data access
+4. **Mixing connection and Power Query operations** → Power Query connections need `excel_powerquery` tool
+
+## 📝 Connection String Examples
+
+```
+OLEDB:  "Provider=SQLOLEDB;Data Source=server;Initial Catalog=db;..."
+ODBC:   "DSN=MyDataSource;UID=username;PWD=password;..."
+TEXT:   "TEXT;C:\\path\\to\\file.csv"
+WEB:    "URL;https://example.com/data.xml"
+```
+
+## 🔐 Security
+
+**Always sanitize connection strings before displaying** - Never expose passwords or sensitive credentials in error messages or logs.
+
+---
+
+## 🔧 Developer Reference (Implementation Details)
+
+<details>
+<summary>Click to expand developer implementation notes</summary>
+
+### COM API Implementation
+
+**Connections.Add2() method required for OLEDB/ODBC:**
 ```csharp
 dynamic connections = workbook.Connections;
 dynamic newConn = connections.Add2(
@@ -40,73 +117,24 @@ dynamic newConn = connections.Add2(
 );
 ```
 
-### ✅ Use TEXT Connections for Testing
+### Type 3/4 Ambiguity
 
-```csharp
-// TEXT connections work reliably
-string connectionString = $"TEXT;{csvFilePath}";
-dynamic conn = connections.Add(
-    Name: "TestText",
-    Description: "Test",
-    ConnectionString: connectionString,
-    CommandText: ""
-);  // ✅ WORKS
-```
+TEXT connections created with `"TEXT;path"` may return type 4 (WEB) instead of 3 (TEXT) - handle both types interchangeably in type detection logic.
 
-## Type 3/4 Handling Pattern
+### Test Strategy
 
-**Issue:** TEXT connections created with `"TEXT;path"` return type 4 (WEB) instead of 3 (TEXT).
-
-**Solution:** Handle both types interchangeably:
-
-
-## Connection String Formats
-
-```csharp
-// OLEDB
-"Provider=SQLOLEDB;Data Source=server;Initial Catalog=db;"
-
-// ODBC
-"DSN=MyDataSource;UID=username;PWD=password;"
-
-// TEXT
-"TEXT;C:\\path\\to\\file.csv"
-
-// WEB
-"URL;https://example.com/data.xml"
-
-// Power Query
-"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location=QueryName"
-```
-
-## LoadTo Operation Patterns
-
-**OLEDB connections are the PRIMARY use case for LoadTo:**
-
-```csharp
-// ✅ CORRECT: OLEDB connections support QueryTables.Add() pattern
-string connectionString = "Provider=SQLOLEDB;Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=tempdb;Integrated Security=SSPI;";
-ConnectionTestHelper.CreateOleDbConnection(testFile, connectionName, connectionString);
-var result = _commands.LoadTo(batch, connectionName, "Sheet1");  // ✅ WORKS
-
-// ❌ WRONG: TEXT connections cannot be loaded via QueryTables.Add()
-ConnectionTestHelper.CreateTextFileConnection(testFile, connectionName, csvFile);
-var result = _commands.LoadTo(batch, connectionName, "Sheet1");  // ❌ FAILS with E_INVALIDARG
-```
-
-**Why:** TEXT connections in the Connections collection cannot be loaded via `QueryTables.Add()` using their connection string. TEXT files must be imported directly as QueryTables, not as separate Connection objects first.
-
-## Testing Strategy
-
-**Connection Type Selection for Tests:**
-- **OLEDB** - Use for LoadTo, Refresh, and QueryTable operations (primary use case)
+- **OLEDB** - Use for LoadTo, Refresh, and QueryTable operation tests
 - **TEXT** - Use for connection lifecycle tests (List, View, Delete) without LoadTo
 - **ODBC** - Use for validation of multiple connection types
 
-## Key Takeaways
+### Connection String Internal Formats
 
-1. **OLEDB is primary for LoadTo** - QueryTable pattern requires OLEDB/ODBC connections
-2. **TEXT connections work for lifecycle** - List, View, Delete, but NOT LoadTo
-3. **Type 3/4 ambiguity** - Handle both interchangeably for TEXT connection type detection
-4. **Always sanitize** - Never expose passwords in connection strings
-5. **Test with appropriate type** - OLEDB for data loading, TEXT for lifecycle operations
+```
+OLEDB:        "Provider=SQLOLEDB;Data Source=server;Initial Catalog=db;..."
+ODBC:         "DSN=MyDataSource;UID=username;PWD=password;..."
+TEXT:         "TEXT;C:\\path\\to\\file.csv"
+WEB:          "URL;https://example.com/data.xml"
+Power Query:  "OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location=QueryName"
+```
+
+</details>
