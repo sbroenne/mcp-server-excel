@@ -19,7 +19,7 @@ public partial class PivotTableCommandsTests
         var testFile = CreateTestFileWithData(nameof(SetLayout_Compact_UpdatesLayoutForm));
 
         var logger = _loggerFactory.CreateLogger<ExcelBatch>();
-        using var batch = new ExcelBatch(testFile, logger);
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
 
         var createResult = _pivotCommands.CreateFromRange(batch, "SalesData", "A1:D6", "SalesData", "F2", "SalesPivot");
         Assert.True(createResult.Success, $"CreateFromRange failed: {createResult.ErrorMessage}");
@@ -48,7 +48,7 @@ public partial class PivotTableCommandsTests
         var testFile = CreateTestFileWithData(nameof(SetLayout_Tabular_UpdatesLayoutForm));
 
         var logger = _loggerFactory.CreateLogger<ExcelBatch>();
-        using var batch = new ExcelBatch(testFile, logger);
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
 
         var createResult = _pivotCommands.CreateFromRange(batch, "SalesData", "A1:D6", "SalesData", "F2", "SalesPivot");
         Assert.True(createResult.Success, $"CreateFromRange failed: {createResult.ErrorMessage}");
@@ -77,7 +77,7 @@ public partial class PivotTableCommandsTests
         var testFile = CreateTestFileWithData(nameof(SetLayout_Outline_UpdatesLayoutForm));
 
         var logger = _loggerFactory.CreateLogger<ExcelBatch>();
-        using var batch = new ExcelBatch(testFile, logger);
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
 
         var createResult = _pivotCommands.CreateFromRange(batch, "SalesData", "A1:D6", "SalesData", "F2", "SalesPivot");
         Assert.True(createResult.Success, $"CreateFromRange failed: {createResult.ErrorMessage}");
@@ -106,7 +106,7 @@ public partial class PivotTableCommandsTests
         var testFile = CreateTestFileWithData(nameof(SetSubtotals_Show_EnablesSubtotals));
 
         var logger = _loggerFactory.CreateLogger<ExcelBatch>();
-        using var batch = new ExcelBatch(testFile, logger);
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
 
         var createResult = _pivotCommands.CreateFromRange(batch, "SalesData", "A1:D6", "SalesData", "F2", "SalesPivot");
         Assert.True(createResult.Success, $"CreateFromRange failed: {createResult.ErrorMessage}");
@@ -133,7 +133,7 @@ public partial class PivotTableCommandsTests
         var testFile = CreateTestFileWithData(nameof(SetSubtotals_Hide_DisablesSubtotals));
 
         var logger = _loggerFactory.CreateLogger<ExcelBatch>();
-        using var batch = new ExcelBatch(testFile, logger);
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
 
         var createResult = _pivotCommands.CreateFromRange(batch, "SalesData", "A1:D6", "SalesData", "F2", "SalesPivot");
         Assert.True(createResult.Success, $"CreateFromRange failed: {createResult.ErrorMessage}");
@@ -163,7 +163,7 @@ public partial class PivotTableCommandsTests
         // Arrange - Create test file with data
         var testFile = CreateTestFileWithData(nameof(SetLayout_RoundTrip_PersistsLayoutChange));
 
-        using (var batch = new ExcelBatch(testFile, _loggerFactory.CreateLogger<ExcelBatch>()))
+        using (var batch = new ExcelBatch(new[] { testFile }, _loggerFactory.CreateLogger<ExcelBatch>()))
         {
             var createResult = _pivotCommands.CreateFromRange(batch, "SalesData", "A1:D6", "SalesData", "F2", "SalesPivot");
             Assert.True(createResult.Success);
@@ -185,7 +185,7 @@ public partial class PivotTableCommandsTests
         }
 
         // Assert - Reopen and verify PivotTable still exists and configured
-        using (var batch = new ExcelBatch(testFile, _loggerFactory.CreateLogger<ExcelBatch>()))
+        using (var batch = new ExcelBatch(new[] { testFile }, _loggerFactory.CreateLogger<ExcelBatch>()))
         {
             var listResult = _pivotCommands.List(batch);
             Assert.True(listResult.Success);

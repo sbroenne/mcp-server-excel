@@ -10,16 +10,19 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class SheetCommands
 {
     /// <inheritdoc />
-    public WorksheetListResult List(IExcelBatch batch)
+    public WorksheetListResult List(IExcelBatch batch, string? filePath = null)
     {
-        var result = new WorksheetListResult { FilePath = batch.WorkbookPath };
+        var result = new WorksheetListResult { FilePath = filePath ?? batch.WorkbookPath };
 
         return batch.Execute((ctx, ct) =>
         {
+            // Get the workbook to list from
+            dynamic workbook = filePath != null ? batch.GetWorkbook(filePath) : ctx.Book;
+
             dynamic? sheets = null;
             try
             {
-                sheets = ctx.Book.Worksheets;
+                sheets = workbook.Worksheets;
                 for (int i = 1; i <= sheets.Count; i++)
                 {
                     dynamic? sheet = null;
@@ -45,17 +48,20 @@ public partial class SheetCommands
 
     /// <inheritdoc />
     /// <inheritdoc />
-    public OperationResult Create(IExcelBatch batch, string sheetName)
+    public OperationResult Create(IExcelBatch batch, string sheetName, string? filePath = null)
     {
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "create-sheet" };
+        var result = new OperationResult { FilePath = filePath ?? batch.WorkbookPath, Action = "create-sheet" };
 
         return batch.Execute((ctx, ct) =>
         {
+            // Get the workbook to create sheet in
+            dynamic workbook = filePath != null ? batch.GetWorkbook(filePath) : ctx.Book;
+
             dynamic? sheets = null;
             dynamic? newSheet = null;
             try
             {
-                sheets = ctx.Book.Worksheets;
+                sheets = workbook.Worksheets;
                 newSheet = sheets.Add();
                 newSheet.Name = sheetName;
                 result.Success = true;
@@ -239,36 +245,199 @@ public partial class SheetCommands
     }
 
     /// <inheritdoc />
-    public OperationResult CopyToWorkbook(IExcelBatch sourceBatch, string sourceSheet, IExcelBatch targetBatch, string? targetSheetName = null, string? beforeSheet = null, string? afterSheet = null)
+    public OperationResult CopyToWorkbook(IExcelBatch batch, string sourceFile, string sourceSheet, string targetFile, string? targetSheetName = null, string? beforeSheet = null, string? afterSheet = null)
     {
-        // Cross-workbook operations not currently supported due to COM RCW limitations
-        // The IExcelBatch pattern isolates each batch.Execute() context, preventing COM objects
-        // from crossing batch boundaries. Supporting this requires architectural changes.
         var result = new OperationResult
         {
-            FilePath = sourceBatch.WorkbookPath,
-            Action = "copy-to-workbook",
-            Success = false,
-            ErrorMessage = "Cross-workbook sheet operations are not currently supported due to COM interop architecture limitations. " +
-                           "Workaround: Open both workbooks in Excel and use Copy Sheet manually, or export/import the sheet data."
+            FilePath = batch.WorkbookPath,
+            Action = "copy-to-workbook"
         };
-        return result;
+
+        // Validate positioning parameters
+        if (!string.IsNullOrWhiteSpace(beforeSheet) && !string.IsNullOrWhiteSpace(afterSheet))
+        {
+            result.Success = false;
+            result.ErrorMessage = "Cannot specify both beforeSheet and afterSheet. Choose one or neither.";
+            return result;
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            dynamic? sourceWb = null;
+            dynamic? targetWb = null;
+            dynamic? sourceSheetObj = null;
+            dynamic? targetSheets = null;
+            dynamic? targetPositionSheet = null;
+            dynamic? copiedSheet = null;
+
+            try
+            {
+                // Get both workbooks from the batch
+                sourceWb = batch.GetWorkbook(sourceFile);
+                targetWb = batch.GetWorkbook(targetFile);
+
+                // Find source sheet
+                sourceSheetObj = ComUtilities.FindSheet(sourceWb, sourceSheet);
+                if (sourceSheetObj == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Source sheet '{sourceSheet}' not found in '{Path.GetFileName(sourceFile)}'";
+                    return result;
+                }
+
+                // Handle positioning
+                targetSheets = targetWb.Worksheets;
+
+                if (!string.IsNullOrWhiteSpace(beforeSheet))
+                {
+                    targetPositionSheet = ComUtilities.FindSheet(targetWb, beforeSheet);
+                    if (targetPositionSheet == null)
+                    {
+                        result.Success = false;
+                        result.ErrorMessage = $"Target sheet '{beforeSheet}' not found in '{Path.GetFileName(targetFile)}'";
+                        return result;
+                    }
+                    // Copy before specified sheet
+                    sourceSheetObj.Copy(Before: targetPositionSheet);
+                }
+                else if (!string.IsNullOrWhiteSpace(afterSheet))
+                {
+                    targetPositionSheet = ComUtilities.FindSheet(targetWb, afterSheet);
+                    if (targetPositionSheet == null)
+                    {
+                        result.Success = false;
+                        result.ErrorMessage = $"Target sheet '{afterSheet}' not found in '{Path.GetFileName(targetFile)}'";
+                        return result;
+                    }
+                    // Copy after specified sheet
+                    sourceSheetObj.Copy(After: targetPositionSheet);
+                }
+                else
+                {
+                    // Copy to end of target workbook
+                    dynamic? lastSheet = targetSheets.Item(targetSheets.Count);
+                    try
+                    {
+                        sourceSheetObj.Copy(After: lastSheet);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref lastSheet!);
+                    }
+                }
+
+                // Rename if requested
+                if (!string.IsNullOrWhiteSpace(targetSheetName))
+                {
+                    copiedSheet = targetSheets.Item(targetSheets.Count); // Last sheet is the copied one
+                    copiedSheet.Name = targetSheetName;
+                }
+
+                result.Success = true;
+                return result;
+            }
+            finally
+            {
+                ComUtilities.Release(ref copiedSheet);
+                ComUtilities.Release(ref targetPositionSheet);
+                ComUtilities.Release(ref targetSheets);
+                ComUtilities.Release(ref sourceSheetObj);
+                // Note: Don't release sourceWb and targetWb - they're managed by the batch
+            }
+        });
     }
 
     /// <inheritdoc />
-    public OperationResult MoveToWorkbook(IExcelBatch sourceBatch, string sourceSheet, IExcelBatch targetBatch, string? beforeSheet = null, string? afterSheet = null)
+    public OperationResult MoveToWorkbook(IExcelBatch batch, string sourceFile, string sourceSheet, string targetFile, string? beforeSheet = null, string? afterSheet = null)
     {
-        // Cross-workbook operations not currently supported due to COM RCW limitations
-        // The IExcelBatch pattern isolates each batch.Execute() context, preventing COM objects
-        // from crossing batch boundaries. Supporting this requires architectural changes.
         var result = new OperationResult
         {
-            FilePath = sourceBatch.WorkbookPath,
-            Action = "move-to-workbook",
-            Success = false,
-            ErrorMessage = "Cross-workbook sheet operations are not currently supported due to COM interop architecture limitations. " +
-                           "Workaround: Open both workbooks in Excel and use Move/Copy Sheet manually, or copy data between workbooks."
+            FilePath = batch.WorkbookPath,
+            Action = "move-to-workbook"
         };
-        return result;
+
+        // Validate positioning parameters
+        if (!string.IsNullOrWhiteSpace(beforeSheet) && !string.IsNullOrWhiteSpace(afterSheet))
+        {
+            result.Success = false;
+            result.ErrorMessage = "Cannot specify both beforeSheet and afterSheet. Choose one or neither.";
+            return result;
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            dynamic? sourceWb = null;
+            dynamic? targetWb = null;
+            dynamic? sourceSheetObj = null;
+            dynamic? targetSheets = null;
+            dynamic? targetPositionSheet = null;
+
+            try
+            {
+                // Get both workbooks from the batch
+                sourceWb = batch.GetWorkbook(sourceFile);
+                targetWb = batch.GetWorkbook(targetFile);
+
+                // Find source sheet
+                sourceSheetObj = ComUtilities.FindSheet(sourceWb, sourceSheet);
+                if (sourceSheetObj == null)
+                {
+                    result.Success = false;
+                    result.ErrorMessage = $"Source sheet '{sourceSheet}' not found in '{Path.GetFileName(sourceFile)}'";
+                    return result;
+                }
+
+                // Handle positioning
+                targetSheets = targetWb.Worksheets;
+
+                if (!string.IsNullOrWhiteSpace(beforeSheet))
+                {
+                    targetPositionSheet = ComUtilities.FindSheet(targetWb, beforeSheet);
+                    if (targetPositionSheet == null)
+                    {
+                        result.Success = false;
+                        result.ErrorMessage = $"Target sheet '{beforeSheet}' not found in '{Path.GetFileName(targetFile)}'";
+                        return result;
+                    }
+                    // Move before specified sheet
+                    sourceSheetObj.Move(Before: targetPositionSheet);
+                }
+                else if (!string.IsNullOrWhiteSpace(afterSheet))
+                {
+                    targetPositionSheet = ComUtilities.FindSheet(targetWb, afterSheet);
+                    if (targetPositionSheet == null)
+                    {
+                        result.Success = false;
+                        result.ErrorMessage = $"Target sheet '{afterSheet}' not found in '{Path.GetFileName(targetFile)}'";
+                        return result;
+                    }
+                    // Move after specified sheet
+                    sourceSheetObj.Move(After: targetPositionSheet);
+                }
+                else
+                {
+                    // Move to end of target workbook
+                    dynamic? lastSheet = targetSheets.Item(targetSheets.Count);
+                    try
+                    {
+                        sourceSheetObj.Move(After: lastSheet);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref lastSheet!);
+                    }
+                }
+
+                result.Success = true;
+                return result;
+            }
+            finally
+            {
+                ComUtilities.Release(ref targetPositionSheet);
+                ComUtilities.Release(ref targetSheets);
+                ComUtilities.Release(ref sourceSheetObj);
+                // Note: Don't release sourceWb and targetWb - they're managed by the batch
+            }
+        });
     }
 }

@@ -16,14 +16,21 @@ public interface ISheetCommands
     // === LIFECYCLE OPERATIONS ===
 
     /// <summary>
-    /// Lists all worksheets in the workbook
+    /// Lists all worksheets in the workbook.
+    /// For multi-workbook batches, specify filePath to list sheets from a specific workbook.
     /// </summary>
-    WorksheetListResult List(IExcelBatch batch);
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="filePath">Optional file path when batch contains multiple workbooks. If omitted, uses primary workbook.</param>
+    WorksheetListResult List(IExcelBatch batch, string? filePath = null);
 
     /// <summary>
-    /// Creates a new worksheet
+    /// Creates a new worksheet.
+    /// For multi-workbook batches, specify filePath to create in a specific workbook.
     /// </summary>
-    OperationResult Create(IExcelBatch batch, string sheetName);
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name for the new worksheet</param>
+    /// <param name="filePath">Optional file path when batch contains multiple workbooks. If omitted, creates in primary workbook.</param>
+    OperationResult Create(IExcelBatch batch, string sheetName, string? filePath = null);
 
     /// <summary>
     /// Renames a worksheet
@@ -53,27 +60,29 @@ public interface ISheetCommands
 
     /// <summary>
     /// Copies a worksheet to another workbook.
-    /// Both workbooks must be open in the current MCP session.
+    /// Both workbooks must be open in the same batch (multi-workbook batch).
     /// </summary>
-    /// <param name="sourceBatch">Source workbook batch</param>
+    /// <param name="batch">Excel batch containing both workbooks</param>
+    /// <param name="sourceFile">Source workbook file path</param>
     /// <param name="sourceSheet">Name of sheet to copy</param>
-    /// <param name="targetBatch">Target workbook batch</param>
+    /// <param name="targetFile">Target workbook file path</param>
     /// <param name="targetSheetName">Optional: New name for the copied sheet in target workbook</param>
     /// <param name="beforeSheet">Optional: Name of sheet in target workbook to position before</param>
     /// <param name="afterSheet">Optional: Name of sheet in target workbook to position after</param>
-    OperationResult CopyToWorkbook(IExcelBatch sourceBatch, string sourceSheet, IExcelBatch targetBatch, string? targetSheetName = null, string? beforeSheet = null, string? afterSheet = null);
+    OperationResult CopyToWorkbook(IExcelBatch batch, string sourceFile, string sourceSheet, string targetFile, string? targetSheetName = null, string? beforeSheet = null, string? afterSheet = null);
 
     /// <summary>
     /// Moves a worksheet to another workbook.
-    /// Both workbooks must be open in the current MCP session.
+    /// Both workbooks must be open in the same batch (multi-workbook batch).
     /// The sheet will be removed from the source workbook.
     /// </summary>
-    /// <param name="sourceBatch">Source workbook batch</param>
+    /// <param name="batch">Excel batch containing both workbooks</param>
+    /// <param name="sourceFile">Source workbook file path</param>
     /// <param name="sourceSheet">Name of sheet to move</param>
-    /// <param name="targetBatch">Target workbook batch</param>
+    /// <param name="targetFile">Target workbook file path</param>
     /// <param name="beforeSheet">Optional: Name of sheet in target workbook to position before</param>
     /// <param name="afterSheet">Optional: Name of sheet in target workbook to position after</param>
-    OperationResult MoveToWorkbook(IExcelBatch sourceBatch, string sourceSheet, IExcelBatch targetBatch, string? beforeSheet = null, string? afterSheet = null);
+    OperationResult MoveToWorkbook(IExcelBatch batch, string sourceFile, string sourceSheet, string targetFile, string? beforeSheet = null, string? afterSheet = null);
 
     // === TAB COLOR OPERATIONS ===
 

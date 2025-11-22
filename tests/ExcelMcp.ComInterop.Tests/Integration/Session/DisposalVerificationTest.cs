@@ -117,7 +117,7 @@ public class DisposalVerificationTest : IAsyncLifetime
         var logger = loggerFactory.CreateLogger<ExcelBatch>();
 
         // Create batch with logger
-        var batch = new ExcelBatch(testFile, logger);
+        var batch = new ExcelBatch(new[] { testFile }, logger);
 
         // First disposal - should execute
         _output.WriteLine("=== First DisposeAsync call ===");

@@ -68,7 +68,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 
 <div class="features-grid">
 <div class="feature-card">
-<h3>156 Operations</h3>
+<h3>158 Operations</h3>
 <p>11 specialized tools covering Power Query, DAX, VBA, PivotTables, ranges, conditional formatting, and more</p>
 </div>
 
@@ -89,7 +89,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 
 <div class="feature-card">
 <h3>Comprehensive Automation</h3>
-<p>155 operations covering Power Query, DAX, VBA, Tables, and more</p>
+<p>158 operations covering Power Query, DAX, VBA, Tables, and more</p>
 </div>
 
 <div class="feature-card">
@@ -225,7 +225,229 @@ excel-mcp vba-export --file "macro-workbook.xlsm" --module "Module1" --output "s
 
 <div class="callout">
 <strong>Both Share the Same Core</strong>
-Same 155 operations available via CLI and MCP. Consistent behavior across interfaces. Full .NET library available for custom integrations.
+Same 158 operations available via CLI and MCP. Consistent behavior across interfaces. Full .NET library available for custom integrations.
+</div>
+
+## Complete Tool & Action Reference
+
+**11 specialized tools with 158 operations:**
+
+<div class="tools-reference">
+
+### 📊 Power Query & M Code (9 actions)
+
+| Action | Description |
+|--------|-------------|
+| `list` | List all Power Query queries in workbook |
+| `view` | View M code for a specific query |
+| `create` | Create new Power Query from M code |
+| `update` | Update existing query's M code |
+| `delete` | Delete a Power Query |
+| `refresh` | Refresh a specific query to reload data |
+| `refresh-all` | Refresh all queries in workbook |
+| `get-load-config` | Get load destination settings for a query |
+| `load-to` | Load query data to worksheet, data model, or both |
+
+### 🔢 Power Pivot / Data Model (14 actions)
+
+| Action | Description |
+|--------|-------------|
+| `list-tables` | List all tables in Data Model |
+| `read-table` | Read data from a Data Model table |
+| `list-columns` | List all columns in a table |
+| `list-measures` | List all DAX measures in a table |
+| `read` | Read details of a specific measure |
+| `create-measure` | Create new DAX measure |
+| `update-measure` | Update existing DAX measure formula or format |
+| `delete-measure` | Delete a DAX measure |
+| `list-relationships` | List all table relationships |
+| `create-relationship` | Create relationship between tables |
+| `update-relationship` | Update relationship properties |
+| `delete-relationship` | Delete a relationship |
+| `read-info` | Get Data Model metadata and statistics |
+| `refresh` | Refresh entire Data Model |
+
+### 📋 Excel Tables (23 actions)
+
+| Action | Description |
+|--------|-------------|
+| `list` | List all Excel Tables in workbook |
+| `read` | Read table data and properties |
+| `create` | Create new Excel Table from range |
+| `rename` | Rename an Excel Table |
+| `delete` | Delete an Excel Table |
+| `resize` | Resize table range |
+| `set-style` | Apply table style (TableStyleMedium2, etc.) |
+| `toggle-totals` | Show/hide totals row |
+| `set-column-total` | Set aggregation function for column total |
+| `append` | Append rows to table |
+| `add-to-datamodel` | Add table to Power Pivot Data Model |
+| `apply-filter` | Apply filter criteria to column |
+| `apply-filter-values` | Filter by specific values |
+| `clear-filters` | Clear all filters |
+| `get-filters` | Get current filter settings |
+| `add-column` | Add new column to table |
+| `remove-column` | Remove column from table |
+| `rename-column` | Rename table column |
+| `get-structured-reference` | Get structured reference formula |
+| `sort` | Sort table by column |
+| `sort-multi` | Sort by multiple columns |
+| `get-column-number-format` | Get number format for column |
+| `set-column-number-format` | Set number format for column |
+
+### 📈 PivotTables (25 actions)
+
+| Action | Description |
+|--------|-------------|
+| `list` | List all PivotTables in workbook |
+| `read` | Read PivotTable configuration |
+| `create-from-range` | Create PivotTable from range |
+| `create-from-table` | Create PivotTable from Excel Table |
+| `create-from-datamodel` | Create PivotTable from Data Model |
+| `delete` | Delete a PivotTable |
+| `refresh` | Refresh PivotTable data |
+| `list-fields` | List all available fields |
+| `add-row-field` | Add field to Rows area |
+| `add-column-field` | Add field to Columns area |
+| `add-value-field` | Add field to Values area with aggregation |
+| `add-filter-field` | Add field to Filters area |
+| `remove-field` | Remove field from PivotTable |
+| `set-field-function` | Set aggregation function (Sum, Count, Average, etc.) |
+| `set-field-name` | Set custom field display name |
+| `set-field-format` | Set number format for value field |
+| `set-field-filter` | Apply filter to a field |
+| `sort-field` | Sort field values |
+| `get-data` | Extract PivotTable data as values |
+| `set-grand-totals` | Configure grand totals display |
+| `set-column-grand-totals` | Show/hide column grand totals |
+| `set-row-grand-totals` | Show/hide row grand totals |
+| `get-grand-totals` | Get grand totals configuration |
+| `set-subtotals` | Configure subtotals for fields |
+| `get-subtotals` | Get subtotals configuration |
+
+### 📝 Ranges & Data (42 actions)
+
+| Action | Description |
+|--------|-------------|
+| `get-values` | Read cell values from range |
+| `set-values` | Write values to range |
+| `get-formulas` | Read formulas from range |
+| `set-formulas` | Write formulas to range |
+| `get-number-formats` | Get number formats for range |
+| `set-number-format` | Set number format (currency, percentage, date, etc.) |
+| `set-number-formats` | Set multiple number formats at once |
+| `clear-all` | Clear values, formulas, and formatting |
+| `clear-contents` | Clear values and formulas only |
+| `clear-formats` | Clear formatting only |
+| `copy` | Copy range (all attributes) |
+| `copy-values` | Copy values only |
+| `copy-formulas` | Copy formulas only |
+| `insert-cells` | Insert cells with shift direction |
+| `delete-cells` | Delete cells with shift direction |
+| `insert-rows` | Insert rows |
+| `delete-rows` | Delete rows |
+| `insert-columns` | Insert columns |
+| `delete-columns` | Delete columns |
+| `find` | Find cells matching criteria |
+| `replace` | Find and replace in range |
+| `sort` | Sort range by columns |
+| `get-used-range` | Get actual used range in worksheet |
+| `get-current-region` | Get contiguous range around cell |
+| `get-info` | Get range metadata (address, size, etc.) |
+| `add-hyperlink` | Add hyperlink to cell |
+| `remove-hyperlink` | Remove hyperlink from cell |
+| `list-hyperlinks` | List all hyperlinks in range |
+| `get-hyperlink` | Get hyperlink details |
+| `get-style` | Get cell style name |
+| `set-style` | Apply built-in Excel style |
+| `format-range` | Apply visual formatting (font, fill, border, alignment) |
+| `validate-range` | Add data validation rules (dropdowns, number/date/text rules) |
+| `get-validation` | Get validation settings |
+| `remove-validation` | Remove data validation |
+| `autofit-columns` | Auto-fit column widths |
+| `autofit-rows` | Auto-fit row heights |
+| `merge-cells` | Merge cells in range |
+| `unmerge-cells` | Unmerge cells |
+| `get-merge-info` | Get merge status and areas |
+| `set-cell-lock` | Lock/unlock cells for protection |
+| `get-cell-lock` | Get cell lock status |
+
+### 🎨 Conditional Formatting (2 actions)
+
+| Action | Description |
+|--------|-------------|
+| `add-rule` | Add conditional formatting rule (cell value or expression-based) |
+| `clear-rules` | Clear conditional formatting from range |
+
+### 🖥️ VBA Macros (6 actions)
+
+| Action | Description |
+|--------|-------------|
+| `list` | List all VBA modules in workbook |
+| `view` | View VBA module code |
+| `import` | Import VBA code from file |
+| `delete` | Delete VBA module |
+| `run` | Execute VBA macro |
+| `update` | Update existing VBA module code |
+
+### 🔌 Data Connections (9 actions)
+
+| Action | Description |
+|--------|-------------|
+| `list` | List all data connections |
+| `view` | View connection details and settings |
+| `create` | Create new data connection (OLEDB, ODBC, Text, Web) |
+| `test` | Test connection validity |
+| `refresh` | Refresh connection to reload data |
+| `delete` | Delete a connection |
+| `load-to` | Load connection data to worksheet |
+| `get-properties` | Get connection properties |
+| `set-properties` | Update connection properties |
+
+### 📄 Worksheets (16 actions)
+
+| Action | Description |
+|--------|-------------|
+| `list` | List all worksheets in workbook |
+| `create` | Create new worksheet |
+| `rename` | Rename worksheet |
+| `copy` | Copy worksheet within same workbook |
+| `delete` | Delete worksheet |
+| `move` | Move worksheet to different position |
+| `copy-to-workbook` | Copy worksheet to different workbook |
+| `move-to-workbook` | Move worksheet to different workbook |
+| `set-tab-color` | Set worksheet tab color (RGB) |
+| `get-tab-color` | Get current tab color |
+| `clear-tab-color` | Remove tab color |
+| `hide` | Hide worksheet from UI (visible in VBA) |
+| `very-hide` | Hide from UI and VBA |
+| `show` | Make worksheet visible |
+| `get-visibility` | Get current visibility state |
+| `set-visibility` | Set visibility state |
+
+### 🏷️ Named Ranges (7 actions)
+
+| Action | Description |
+|--------|-------------|
+| `list` | List all named ranges |
+| `read` | Read named range value |
+| `write` | Write value to named range |
+| `create` | Create new named range |
+| `create-bulk` | Create multiple named ranges at once |
+| `update` | Update named range reference |
+| `delete` | Delete named range |
+
+### 📁 File & Batch Operations (6 actions)
+
+| Action | Description |
+|--------|-------------|
+| `open` | Open workbook session |
+| `save` | Save changes to workbook |
+| `close` | Close workbook session |
+| `create-empty` | Create new empty workbook (.xlsx or .xlsm) |
+| `test` | Test if workbook can be opened |
+| `begin-batch` | Start batch session for multiple operations (75-90% faster) |
+
 </div>
 
 ## Related Projects

@@ -23,7 +23,7 @@ public partial class PivotTableCommandsTests
         var testFile = CreateTestFileWithData(nameof(CreateCalculatedField_MultiplicationFormula_CreatesField));
 
         var logger = _loggerFactory.CreateLogger<ExcelBatch>();
-        using var batch = new ExcelBatch(testFile, logger);
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
 
         // Create PivotTable
         var createResult = _pivotCommands.CreateFromRange(
@@ -61,7 +61,7 @@ public partial class PivotTableCommandsTests
         var testFile = CreateTestFileWithData(nameof(CreateCalculatedField_SubtractionFormula_CreatesField));
 
         var logger = _loggerFactory.CreateLogger<ExcelBatch>();
-        using var batch = new ExcelBatch(testFile, logger);
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
 
         var createResult = _pivotCommands.CreateFromRange(
             batch, "SalesData", "A1:D6", "SalesData", "F2", "SalesPivot");
@@ -94,7 +94,7 @@ public partial class PivotTableCommandsTests
         var testFile = CreateTestFileWithData(nameof(CreateCalculatedField_ComplexFormula_CreatesField));
 
         var logger = _loggerFactory.CreateLogger<ExcelBatch>();
-        using var batch = new ExcelBatch(testFile, logger);
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
 
         var createResult = _pivotCommands.CreateFromRange(
             batch, "SalesData", "A1:D6", "SalesData", "F2", "SalesPivot");
@@ -127,7 +127,7 @@ public partial class PivotTableCommandsTests
         var testFile = CreateTestFileWithData(nameof(CreateCalculatedField_AdditionFormula_CreatesField));
 
         var logger = _loggerFactory.CreateLogger<ExcelBatch>();
-        using var batch = new ExcelBatch(testFile, logger);
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
 
         var createResult = _pivotCommands.CreateFromRange(
             batch, "SalesData", "A1:D6", "SalesData", "F2", "SalesPivot");

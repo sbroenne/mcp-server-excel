@@ -15,14 +15,15 @@ public static class ExcelSession
     /// </summary>
     private static readonly SemaphoreSlim _createFileLock = new(1, 1);
     /// <summary>
-    /// Begins a batch of Excel operations against a single workbook instance.
+    /// Begins a batch of Excel operations against one or more workbook instances.
     /// The Excel instance remains open until the batch is disposed, enabling multiple operations
     /// without incurring Excel startup/shutdown overhead.
     /// </summary>
-    /// <param name="filePath">Path to the Excel file</param>
+    /// <param name="filePaths">Paths to Excel files. First file is the primary workbook.</param>
     /// <returns>IExcelBatch for executing multiple operations</returns>
     /// <remarks>
     /// All CLI and MCP operations use this batch-based approach for optimal performance.
+    /// For cross-workbook operations (copy, move), pass multiple file paths.
     ///
     /// <para><b>Example:</b></para>
     /// <code>
@@ -47,26 +48,34 @@ public static class ExcelSession
     /// </remarks>
     [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
     public static IExcelBatch BeginBatch(
-        string filePath,
-        CancellationToken _ = default)
+        params string[] filePaths)
     {
-        string fullPath = Path.GetFullPath(filePath);
+        if (filePaths == null || filePaths.Length == 0)
+            throw new ArgumentException("At least one file path is required", nameof(filePaths));
 
-        // Validate file exists
-        if (!File.Exists(fullPath))
+        string[] fullPaths = new string[filePaths.Length];
+        for (int i = 0; i < filePaths.Length; i++)
         {
-            throw new FileNotFoundException($"Excel file not found: {fullPath}", fullPath);
-        }
+            string fullPath = Path.GetFullPath(filePaths[i]);
 
-        // Security: Validate file extension
-        string extension = Path.GetExtension(fullPath).ToLowerInvariant();
-        if (extension is not (".xlsx" or ".xlsm" or ".xls"))
-        {
-            throw new ArgumentException($"Invalid file extension '{extension}'. Only Excel files (.xlsx, .xlsm, .xls) are supported.");
+            // Validate file exists
+            if (!File.Exists(fullPath))
+            {
+                throw new FileNotFoundException($"Excel file not found: {fullPath}", fullPath);
+            }
+
+            // Security: Validate file extension
+            string extension = Path.GetExtension(fullPath).ToLowerInvariant();
+            if (extension is not (".xlsx" or ".xlsm" or ".xls"))
+            {
+                throw new ArgumentException($"Invalid file extension '{extension}'. Only Excel files (.xlsx, .xlsm, .xls) are supported.");
+            }
+
+            fullPaths[i] = fullPath;
         }
 
         // Create batch - it will create Excel/workbook on its own STA thread
-        return new ExcelBatch(fullPath);
+        return new ExcelBatch(fullPaths);
     }
 
     /// <summary>
@@ -116,7 +125,7 @@ public static class ExcelSession
             CreateWorkbookOnStaThread(fullPath, isMacroEnabled, cancellationToken);
 
             // Now use batch API to execute the operation
-            using var batch = BeginBatch(fullPath, cancellationToken);
+            using var batch = BeginBatch(fullPath);
             var result = batch.Execute(operation, cancellationToken);
             // Note: Caller is responsible for saving if needed
 
