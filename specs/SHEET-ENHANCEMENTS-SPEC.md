@@ -95,48 +95,48 @@ public interface ISheetCommands
     /// Sets the tab color for a worksheet using RGB values
     /// Excel uses BGR format internally (Blue-Green-Red)
     /// </summary>
-    Task<OperationResult> SetTabColorAsync(IExcelBatch batch, string sheetName, int red, int green, int blue);
+    void SetTabColor(IExcelBatch batch, string sheetName, int red, int green, int blue);
     
     /// <summary>
     /// Gets the tab color for a worksheet
     /// Returns RGB values or null if no color is set
     /// </summary>
-    Task<TabColorResult> GetTabColorAsync(IExcelBatch batch, string sheetName);
+    (int R, int G, int B)? GetTabColor(IExcelBatch batch, string sheetName);
     
     /// <summary>
     /// Clears the tab color for a worksheet (resets to default)
     /// </summary>
-    Task<OperationResult> ClearTabColorAsync(IExcelBatch batch, string sheetName);
+    void ClearTabColor(IExcelBatch batch, string sheetName);
     
     // === NEW: VISIBILITY OPERATIONS ===
     
     /// <summary>
     /// Sets worksheet visibility level
     /// </summary>
-    Task<OperationResult> SetVisibilityAsync(IExcelBatch batch, string sheetName, SheetVisibility visibility);
+    void SetVisibility(IExcelBatch batch, string sheetName, SheetVisibility visibility);
     
     /// <summary>
     /// Gets worksheet visibility level
     /// </summary>
-    Task<SheetVisibilityResult> GetVisibilityAsync(IExcelBatch batch, string sheetName);
+    SheetVisibility GetVisibility(IExcelBatch batch, string sheetName);
     
     /// <summary>
     /// Shows a hidden or very hidden worksheet
-    /// Convenience method equivalent to SetVisibilityAsync(..., SheetVisibility.Visible)
+    /// Convenience method equivalent to SetVisibility(..., SheetVisibility.Visible)
     /// </summary>
-    Task<OperationResult> ShowAsync(IExcelBatch batch, string sheetName);
+    void Show(IExcelBatch batch, string sheetName);
     
     /// <summary>
     /// Hides a worksheet (user can unhide via UI)
-    /// Convenience method equivalent to SetVisibilityAsync(..., SheetVisibility.Hidden)
+    /// Convenience method equivalent to SetVisibility(..., SheetVisibility.Hidden)
     /// </summary>
-    Task<OperationResult> HideAsync(IExcelBatch batch, string sheetName);
+    void Hide(IExcelBatch batch, string sheetName);
     
     /// <summary>
     /// Very hides a worksheet (requires code to unhide)
-    /// Convenience method equivalent to SetVisibilityAsync(..., SheetVisibility.VeryHidden)
+    /// Convenience method equivalent to SetVisibility(..., SheetVisibility.VeryHidden)
     /// </summary>
-    Task<OperationResult> VeryHideAsync(IExcelBatch batch, string sheetName);
+    void VeryHide(IExcelBatch batch, string sheetName);
 }
 
 // === SUPPORTING TYPES ===
@@ -177,7 +177,7 @@ public class SheetVisibilityResult : OperationResult
 - Map `SheetVisibility` enum to Excel's `XlSheetVisibility` constants
 - Set via `worksheet.Visible` property
 - Get returns integer, cast to `SheetVisibility` enum
-- Convenience methods call `SetVisibilityAsync` with appropriate enum value
+- Convenience methods call `SetVisibility` with appropriate enum value
 
 ---
 
@@ -642,7 +642,7 @@ excelcli sheet-very-hide "Report.xlsx" "Calculations"
 - Test setting each visibility level (Visible, Hidden, VeryHidden)
 - Test getting visibility returns correct state
 - Test VeryHidden can be unhidden programmatically
-- Test convenience methods (Show, Hide, VeryHide) call SetVisibilityAsync correctly
+- Test convenience methods (Show, Hide, VeryHide) call SetVisibility correctly
 
 ---
 

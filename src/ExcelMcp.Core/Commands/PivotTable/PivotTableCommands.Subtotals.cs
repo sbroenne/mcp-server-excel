@@ -21,7 +21,7 @@ public partial class PivotTableCommands
     /// SUBTOTALS BEHAVIOR:
     /// - When enabled: Shows Automatic subtotals (uses appropriate function based on data)
     /// - When disabled: Hides all subtotals for the field
-    /// 
+    ///
     /// OLAP LIMITATION:
     /// - OLAP PivotTables only support Automatic subtotals
     /// - Regular PivotTables can choose Sum, Count, Average, etc. (future enhancement)

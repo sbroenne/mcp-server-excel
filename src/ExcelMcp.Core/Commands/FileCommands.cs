@@ -21,25 +21,13 @@ public class FileCommands : IFileCommands
             string extension = Path.GetExtension(filePath).ToLowerInvariant();
             if (extension is not ".xlsx" and not ".xlsm")
             {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = "File must have .xlsx or .xlsm extension",
-                    FilePath = filePath,
-                    Action = "create-empty"
-                };
+                throw new ArgumentException("File must have .xlsx or .xlsm extension", nameof(filePath));
             }
 
             // Check if file already exists
             if (File.Exists(filePath) && !overwriteIfExists)
             {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"File already exists: {filePath}",
-                    FilePath = filePath,
-                    Action = "create-empty"
-                };
+                throw new ArgumentException($"File already exists: {filePath}. Use overwriteIfExists=true to overwrite.", nameof(filePath));
             }
 
             // Ensure directory exists
@@ -52,13 +40,7 @@ public class FileCommands : IFileCommands
                 }
                 catch (Exception ex)
                 {
-                    return new OperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Failed to create directory: {ex.Message}",
-                        FilePath = filePath,
-                        Action = "create-empty"
-                    };
+                    throw new InvalidOperationException($"Failed to create directory: {ex.Message}", ex);
                 }
             }
 

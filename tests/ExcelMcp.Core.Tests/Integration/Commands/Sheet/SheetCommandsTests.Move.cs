@@ -102,59 +102,53 @@ public partial class SheetCommandsTests
 
     /// <inheritdoc/>
     [Fact]
-    public void Move_BothBeforeAndAfter_ReturnsError()
+    public void Move_BothBeforeAndAfter_ThrowsException()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), nameof(Move_BothBeforeAndAfter_ReturnsError), _tempDir);
+            nameof(SheetCommandsTests), nameof(Move_BothBeforeAndAfter_ThrowsException), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
         _sheetCommands.Create(batch, "Sheet2");
         _sheetCommands.Create(batch, "Sheet3");
 
-        // Act - Try to specify both beforeSheet and afterSheet
-        var result = _sheetCommands.Move(batch, "Sheet1", beforeSheet: "Sheet2", afterSheet: "Sheet3");
-
-        // Assert
-        Assert.False(result.Success, "Expected failure when both beforeSheet and afterSheet are specified");
-        Assert.Contains("both beforeSheet and afterSheet", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        // Act & Assert - Should throw when both beforeSheet and afterSheet are specified
+        var exception = Assert.Throws<ArgumentException>(
+            () => _sheetCommands.Move(batch, "Sheet1", beforeSheet: "Sheet2", afterSheet: "Sheet3"));
+        Assert.Contains("both beforeSheet and afterSheet", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc/>
     [Fact]
-    public void Move_NonExistentSheet_ReturnsError()
+    public void Move_NonExistentSheet_ThrowsException()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), nameof(Move_NonExistentSheet_ReturnsError), _tempDir);
+            nameof(SheetCommandsTests), nameof(Move_NonExistentSheet_ThrowsException), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        // Act - Try to move a sheet that doesn't exist
-        var result = _sheetCommands.Move(batch, "NonExistent", afterSheet: "Sheet1");
-
-        // Assert
-        Assert.False(result.Success, "Expected failure when sheet doesn't exist");
-        Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        // Act & Assert - Should throw when sheet doesn't exist
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => _sheetCommands.Move(batch, "NonExistent", afterSheet: "Sheet1"));
+        Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc/>
     [Fact]
-    public void Move_NonExistentTargetSheet_ReturnsError()
+    public void Move_NonExistentTargetSheet_ThrowsException()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), nameof(Move_NonExistentTargetSheet_ReturnsError), _tempDir);
+            nameof(SheetCommandsTests), nameof(Move_NonExistentTargetSheet_ThrowsException), _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
         _sheetCommands.Create(batch, "Sheet2");
 
-        // Act - Try to move relative to a sheet that doesn't exist
-        var result = _sheetCommands.Move(batch, "Sheet2", beforeSheet: "NonExistent");
-
-        // Assert
-        Assert.False(result.Success, "Expected failure when target sheet doesn't exist");
-        Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        // Act & Assert - Should throw when target sheet doesn't exist
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => _sheetCommands.Move(batch, "Sheet2", beforeSheet: "NonExistent"));
+        Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     // ========================================
@@ -268,24 +262,22 @@ public partial class SheetCommandsTests
 
     /// <inheritdoc/>
     [Fact]
-    public void CopyToWorkbook_BothBeforeAndAfter_ReturnsError()
+    public void CopyToWorkbook_BothBeforeAndAfter_ThrowsException()
     {
         // Arrange
         var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_BothBeforeAndAfter_ReturnsError)}_Source", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_BothBeforeAndAfter_ThrowsException)}_Source", _tempDir);
         var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_BothBeforeAndAfter_ReturnsError)}_Target", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_BothBeforeAndAfter_ThrowsException)}_Target", _tempDir);
 
         using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
         _sheetCommands.Create(batch, "SourceSheet", sourceFile);
 
-        // Act - Try to specify both beforeSheet and afterSheet
-        var result = _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile, "Copied", beforeSheet: "Sheet1", afterSheet: "Sheet1");
-
-        // Assert - Should return parameter validation error
-        Assert.False(result.Success);
-        Assert.Contains("both beforeSheet and afterSheet", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        // Act & Assert - Should throw ArgumentException when both beforeSheet and afterSheet specified
+        var exception = Assert.Throws<ArgumentException>(
+            () => _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile, "Copied", beforeSheet: "Sheet1", afterSheet: "Sheet1"));
+        Assert.Contains("both beforeSheet and afterSheet", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
 
@@ -383,23 +375,21 @@ public partial class SheetCommandsTests
 
     /// <inheritdoc/>
     [Fact]
-    public void MoveToWorkbook_BothBeforeAndAfter_ReturnsError()
+    public void MoveToWorkbook_BothBeforeAndAfter_ThrowsException()
     {
         // Arrange
         var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_BothBeforeAndAfter_ReturnsError)}_Source", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_BothBeforeAndAfter_ThrowsException)}_Source", _tempDir);
         var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_BothBeforeAndAfter_ReturnsError)}_Target", _tempDir);
+            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_BothBeforeAndAfter_ThrowsException)}_Target", _tempDir);
 
         using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
         _sheetCommands.Create(batch, "MoveMe", sourceFile);
 
-        // Act - Try to specify both beforeSheet and afterSheet
-        var result = _sheetCommands.MoveToWorkbook(batch, sourceFile, "MoveMe", targetFile, beforeSheet: "Sheet1", afterSheet: "Sheet1");
-
-        // Assert - Should return parameter validation error
-        Assert.False(result.Success);
-        Assert.Contains("both beforeSheet and afterSheet", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        // Act & Assert - Should throw ArgumentException when both beforeSheet and afterSheet specified
+        var exception = Assert.Throws<ArgumentException>(
+            () => _sheetCommands.MoveToWorkbook(batch, sourceFile, "MoveMe", targetFile, beforeSheet: "Sheet1", afterSheet: "Sheet1"));
+        Assert.Contains("both beforeSheet and afterSheet", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -200,22 +200,20 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public void SetVisibility_WithNonExistentSheet_ReturnsError()
+    public void SetVisibility_WithNonExistentSheet_ThrowsException()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
-            nameof(SetVisibility_WithNonExistentSheet_ReturnsError),
+            nameof(SetVisibility_WithNonExistentSheet_ThrowsException),
             _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        // Act
-        var result = _sheetCommands.SetVisibility(batch, "NonExistent", SheetVisibility.Hidden);
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.Contains("not found", result.ErrorMessage);
+        // Act & Assert - Should throw InvalidOperationException when sheet not found
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => _sheetCommands.SetVisibility(batch, "NonExistent", SheetVisibility.Hidden));
+        Assert.Contains("not found", exception.Message);
     }
     /// <inheritdoc/>
 

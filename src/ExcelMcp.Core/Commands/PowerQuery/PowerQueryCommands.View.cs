@@ -205,15 +205,4 @@ public partial class PowerQueryCommands
             }
         });
     }
-
-    /// <summary>
-    /// Async wrapper for View operation.
-    /// </summary>
-    public async Task<PowerQueryViewResult> ViewAsync(
-        IExcelBatch batch,
-        string queryName,
-        CancellationToken cancellationToken = default)
-    {
-        return await Task.Run(() => View(batch, queryName), cancellationToken);
-    }
 }

@@ -152,11 +152,7 @@ public partial class ChartCommands : IChartCommands
             ComUtilities.Release(ref worksheets!);
 
             // Chart not found
-            return new ChartInfoResult
-            {
-                Success = false,
-                ErrorMessage = $"Chart '{chartName}' not found in workbook."
-            };
+            throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
         });
     }
 
@@ -274,11 +270,7 @@ public partial class ChartCommands : IChartCommands
                 dynamic? pivotTable = FindPivotTable(ctx.Book, pivotTableName);
                 if (pivotTable == null)
                 {
-                    return new ChartCreateResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"PivotTable '{pivotTableName}' not found in workbook."
-                    };
+                    throw new InvalidOperationException($"PivotTable '{pivotTableName}' not found in workbook.");
                 }
 
                 try
@@ -415,11 +407,7 @@ public partial class ChartCommands : IChartCommands
             ComUtilities.Release(ref worksheets!);
 
             // Chart not found
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = $"Chart '{chartName}' not found in workbook."
-            };
+            throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
         });
     }
 
@@ -498,11 +486,7 @@ public partial class ChartCommands : IChartCommands
             ComUtilities.Release(ref worksheets!);
 
             // Chart not found
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = $"Chart '{chartName}' not found in workbook."
-            };
+            throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
         });
     }
 

@@ -37,10 +37,5 @@ public interface INamedRangeCommands
     /// Deletes a named range
     /// </summary>
     OperationResult Delete(IExcelBatch batch, string paramName);
-
-    /// <summary>
-    /// Creates multiple named ranges with optional initial values in a single operation
-    /// </summary>
-    OperationResult CreateBulk(IExcelBatch batch, IEnumerable<NamedRangeDefinition> parameters);
 }
 

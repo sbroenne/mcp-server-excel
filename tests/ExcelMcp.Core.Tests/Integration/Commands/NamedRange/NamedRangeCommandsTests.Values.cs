@@ -63,18 +63,15 @@ public partial class NamedRangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public void Get_WithNonExistentParameter_ReturnsError()
+    public void Get_WithNonExistentParameter_ThrowsException()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(NamedRangeCommandsTests), nameof(Get_WithNonExistentParameter_ReturnsError), _tempDir);
+            nameof(NamedRangeCommandsTests), nameof(Get_WithNonExistentParameter_ThrowsException), _tempDir);
 
-        // Act
+        // Act & Assert
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _parameterCommands.Read(batch, "NonExistentParam");
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
+        var exception = Assert.Throws<InvalidOperationException>(() => _parameterCommands.Read(batch, "NonExistentParam"));
+        Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 }

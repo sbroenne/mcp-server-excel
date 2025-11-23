@@ -28,11 +28,7 @@ public partial class ChartCommands
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
             {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Chart '{chartName}' not found in workbook."
-                };
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
 
             try
@@ -65,11 +61,7 @@ public partial class ChartCommands
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
             {
-                return new ChartSeriesResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Chart '{chartName}' not found in workbook."
-                };
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
 
             try
@@ -97,11 +89,7 @@ public partial class ChartCommands
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
             {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Chart '{chartName}' not found in workbook."
-                };
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
 
             try

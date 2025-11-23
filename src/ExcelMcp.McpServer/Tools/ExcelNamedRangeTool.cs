@@ -3,7 +3,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -14,9 +13,6 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 [McpServerToolType]
 public static class ExcelNamedRangeTool
 {
-    // Cache JsonSerializerOptions to satisfy CA1869
-    private static readonly JsonSerializerOptions s_jsonOptions = new() { PropertyNameCaseInsensitive = true };
-
     /// <summary>
     /// Manage Excel parameters (named ranges) - configuration values and reusable references
     /// </summary>
@@ -41,10 +37,7 @@ public static class ExcelNamedRangeTool
         string? namedRangeName = null,
 
         [Description("Named range value (for write action) or cell reference (for create/update actions, e.g., 'Sheet1!A1')")]
-        string? value = null,
-
-        [Description("JSON array of named ranges for create-bulk action: [{name: 'Name', reference: 'Sheet1!A1', value: 'text'}, ...]")]
-        string? namedRangesJson = null)
+        string? value = null)
     {
         return ExcelToolsBase.ExecuteToolAction(
             action.ToActionString(),
@@ -60,7 +53,6 @@ public static class ExcelNamedRangeTool
                     NamedRangeAction.Read => ReadNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName),
                     NamedRangeAction.Write => WriteNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
                     NamedRangeAction.Create => CreateNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
-                    NamedRangeAction.CreateBulk => CreateBulkNamedRangesAsync(namedRangeCommands, sessionId, namedRangesJson),
                     NamedRangeAction.Update => UpdateNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
                     NamedRangeAction.Delete => DeleteNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
@@ -169,38 +161,6 @@ public static class ExcelNamedRangeTool
             result.Success,
             result.ErrorMessage,
             workflowHint = result.Success ? "Formulas referencing this named range will show #NAME? error" : null
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string CreateBulkNamedRangesAsync(NamedRangeCommands commands, string sessionId, string? namedRangesJson)
-    {
-        if (string.IsNullOrWhiteSpace(namedRangesJson))
-            throw new ArgumentException("namedRangesJson is required for create-bulk action", nameof(namedRangesJson));
-
-        // Deserialize JSON array of named range definitions
-        List<NamedRangeDefinition>? parameters;
-        try
-        {
-            parameters = JsonSerializer.Deserialize<List<NamedRangeDefinition>>(
-                namedRangesJson,
-                s_jsonOptions);
-
-            if (parameters == null || parameters.Count == 0)
-                throw new ArgumentException("namedRangesJson must contain at least one named range definition", nameof(namedRangesJson));
-        }
-        catch (JsonException ex)
-        {
-            throw new ArgumentException($"Invalid namedRangesJson format: {ex.Message}", nameof(namedRangesJson));
-        }
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.CreateBulk(batch, parameters));
-
-        // Add workflow hints (CreateBulk returns OperationResult, not specialized type)
-        return JsonSerializer.Serialize(new
-        {
-            result.Success
         }, ExcelToolsBase.JsonOptions);
     }
 }

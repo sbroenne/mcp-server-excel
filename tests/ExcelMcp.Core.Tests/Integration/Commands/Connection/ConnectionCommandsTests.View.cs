@@ -36,19 +36,15 @@ public partial class ConnectionCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public void View_NonExistentConnection_ReturnsError()
+    public void View_NonExistentConnection_ThrowsException()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests), nameof(View_NonExistentConnection_ReturnsError), _tempDir);
+            nameof(ConnectionCommandsTests), nameof(View_NonExistentConnection_ThrowsException), _tempDir);
 
-        // Act
+        // Act & Assert
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.View(batch, "NonExistent");
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
-        Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        var exception = Assert.Throws<InvalidOperationException>(() => _commands.View(batch, "NonExistent"));
+        Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 }

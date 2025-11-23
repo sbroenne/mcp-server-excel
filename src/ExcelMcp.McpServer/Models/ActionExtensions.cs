@@ -106,7 +106,6 @@ public static class ActionExtensions
         NamedRangeAction.Read => "read",
         NamedRangeAction.Write => "write",
         NamedRangeAction.Create => "create",
-        NamedRangeAction.CreateBulk => "create-bulk",
         NamedRangeAction.Update => "update",
         NamedRangeAction.Delete => "delete",
         _ => throw new ArgumentException($"Unknown NamedRangeAction: {action}")

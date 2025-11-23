@@ -18,11 +18,7 @@ public partial class ChartCommands
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
             {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Chart '{chartName}' not found in workbook."
-                };
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
 
             try
@@ -49,11 +45,7 @@ public partial class ChartCommands
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
             {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Chart '{chartName}' not found in workbook."
-                };
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
 
             try
@@ -92,11 +84,7 @@ public partial class ChartCommands
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
             {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Chart '{chartName}' not found in workbook."
-                };
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
 
             dynamic? axes = null;
@@ -154,11 +142,7 @@ public partial class ChartCommands
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
             {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Chart '{chartName}' not found in workbook."
-                };
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
 
             dynamic? legend = null;
@@ -195,11 +179,7 @@ public partial class ChartCommands
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
             {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Chart '{chartName}' not found in workbook."
-                };
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
 
             try
@@ -207,11 +187,7 @@ public partial class ChartCommands
                 // Validate range (Excel supports styles 1-48)
                 if (styleId < 1 || styleId > 48)
                 {
-                    return new OperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Chart style ID must be between 1 and 48. Provided: {styleId}"
-                    };
+                    throw new ArgumentException($"Chart style ID must be between 1 and 48. Provided: {styleId}", nameof(styleId));
                 }
 
                 // Set chart style

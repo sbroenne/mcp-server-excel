@@ -57,20 +57,22 @@ dotnet test --filter "RunType=OnDemand"
 ```csharp
 // Core: NEVER wrap batch.Execute() in try-catch that returns error result
 // Let exceptions propagate naturally - batch.Execute() handles them via TaskCompletionSource
-public async Task<OperationResult> MethodAsync(IExcelBatch batch, string arg1)
+public DataType Method(IExcelBatch batch, string arg1)
 {
-    return await batch.Execute((ctx, ct) => {
+    return batch.Execute((ctx, ct) => {
         dynamic? item = null;
         try {
             // Operation code here
             item = ctx.Book.SomeObject;
-            return ValueTask.FromResult(new OperationResult { Success = true });
+            // For CRUD: return void (throws on error)
+            // For queries: return actual data
+            return someData;
         }
         finally {
             // ✅ ONLY finally blocks for COM cleanup
             ComUtilities.Release(ref item!);
         }
-        // ❌ NO catch blocks that return OperationResult { Success = false }
+        // ❌ NO catch blocks that return error results
     });
 }
 
@@ -79,12 +81,9 @@ public async Task<OperationResult> MethodAsync(IExcelBatch batch, string arg1)
 public int Method(string[] args)
 {
     try {
-        var task = Task.Run(async () => {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.MethodAsync(batch, arg1);
-        });
-        var result = task.GetAwaiter().GetResult();
-        return result.Success ? 0 : 1;
+        using var batch = ExcelSession.BeginBatch(filePath);
+        _coreCommands.Method(batch, arg1);
+        return 0;
     } catch (Exception ex) {
         AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
         return 1;
@@ -93,11 +92,11 @@ public int Method(string[] args)
 
 // Tests: Use batch API
 [Fact]
-public async Task TestMethod()
+public void TestMethod()
 {
-    await using var batch = await ExcelSession.BeginBatchAsync(_testFile);
-    var result = await _commands.MethodAsync(batch, args);
-    Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
+    using var batch = ExcelSession.BeginBatch(_testFile);
+    var result = _commands.Method(batch, args);
+    Assert.NotNull(result); // Or other appropriate assertion
 }
 ```
 

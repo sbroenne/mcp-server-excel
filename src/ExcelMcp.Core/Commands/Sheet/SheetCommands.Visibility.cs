@@ -22,9 +22,7 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
                 }
 
                 // Set visibility using the enum value (maps to XlSheetVisibility)
@@ -55,9 +53,7 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
                 }
 
                 int visibilityValue = Convert.ToInt32(sheet.Visible);

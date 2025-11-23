@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Infrastructure.Session;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -10,11 +9,6 @@ namespace Sbroenne.ExcelMcp.CLI.Commands.NamedRange;
 
 internal sealed class NamedRangeCommand : Command<NamedRangeCommand.Settings>
 {
-    private static readonly JsonSerializerOptions DefinitionJsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     private readonly ISessionService _sessionService;
     private readonly INamedRangeCommands _namedRangeCommands;
     private readonly ICliConsole _console;
@@ -51,7 +45,6 @@ internal sealed class NamedRangeCommand : Command<NamedRangeCommand.Settings>
             "create" => ExecuteCreate(batch, settings),
             "update" => ExecuteUpdate(batch, settings),
             "delete" => ExecuteDelete(batch, settings),
-            "create-bulk" => ExecuteCreateBulk(batch, settings),
             _ => ReportUnknown(action)
         };
     }
@@ -109,66 +102,6 @@ internal sealed class NamedRangeCommand : Command<NamedRangeCommand.Settings>
         }
 
         return WriteResult(_namedRangeCommands.Delete(batch, settings.Name));
-    }
-
-    private int ExecuteCreateBulk(IExcelBatch batch, Settings settings)
-    {
-        var definitions = LoadDefinitions(settings);
-        if (definitions == null)
-        {
-            return -1;
-        }
-
-        return WriteResult(_namedRangeCommands.CreateBulk(batch, definitions));
-    }
-
-    private List<NamedRangeDefinition>? LoadDefinitions(Settings settings)
-    {
-        if (!string.IsNullOrWhiteSpace(settings.DefinitionsJson))
-        {
-            var parsed = ParseDefinitions(settings.DefinitionsJson!);
-            if (parsed == null)
-            {
-                _console.WriteError("Unable to parse --definitions-json value.");
-            }
-
-            return parsed;
-        }
-
-        if (!string.IsNullOrWhiteSpace(settings.DefinitionsFile))
-        {
-            if (!System.IO.File.Exists(settings.DefinitionsFile))
-            {
-                _console.WriteError($"Definitions file '{settings.DefinitionsFile}' was not found.");
-                return null;
-            }
-
-            var contents = System.IO.File.ReadAllText(settings.DefinitionsFile);
-            var parsed = ParseDefinitions(contents);
-            if (parsed == null)
-            {
-                _console.WriteError($"Unable to parse JSON from '{settings.DefinitionsFile}'.");
-            }
-
-            return parsed;
-        }
-
-        _console.WriteError("Provide named range definitions using --definitions-json or --definitions-file.");
-        return null;
-    }
-
-    private static List<NamedRangeDefinition>? ParseDefinitions(string json)
-    {
-        try
-        {
-            var result = JsonSerializer.Deserialize<List<NamedRangeDefinition>>(json, DefinitionJsonOptions);
-
-            return result?.Count > 0 ? result : null;
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
     }
 
     private int WriteResult(ResultBase result)

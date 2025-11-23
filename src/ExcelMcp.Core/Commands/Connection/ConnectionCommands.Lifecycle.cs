@@ -87,9 +87,7 @@ public partial class ConnectionCommands
 
             if (conn == null)
             {
-                result.Success = false;
-                result.ErrorMessage = $"Connection '{connectionName}' not found";
-                return result;
+                throw new InvalidOperationException($"Connection '{connectionName}' not found");
             }
 
             result.Type = ConnectionHelpers.GetConnectionTypeName(conn.Type);
@@ -184,17 +182,13 @@ public partial class ConnectionCommands
 
             if (conn == null)
             {
-                result.Success = false;
-                result.ErrorMessage = $"Connection '{connectionName}' not found";
-                return result;
+                throw new InvalidOperationException($"Connection '{connectionName}' not found");
             }
 
             // Check if this is a Power Query connection (handle separately)
             if (PowerQueryHelpers.IsPowerQueryConnection(conn))
             {
-                result.Success = false;
-                result.ErrorMessage = $"Connection '{connectionName}' is a Power Query connection. Use excel_powerquery 'refresh' instead.";
-                return result;
+                throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Use excel_powerquery 'refresh' instead.");
             }
 
             // Pure COM passthrough - just refresh the connection

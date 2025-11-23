@@ -14,21 +14,18 @@ public partial class ConnectionCommandsTests
 {
     /// <inheritdoc/>
     [Fact]
-    public void Refresh_ConnectionNotFound_ReturnsFailure()
+    public void Refresh_ConnectionNotFound_ThrowsException()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(ConnectionCommandsTests),
-            nameof(Refresh_ConnectionNotFound_ReturnsFailure),
+            nameof(Refresh_ConnectionNotFound_ThrowsException),
             _tempDir);
 
-        // Act
+        // Act & Assert
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.Refresh(batch, "NonExistentConnection");
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.Contains("not found", result.ErrorMessage);
+        var exception = Assert.Throws<InvalidOperationException>(() => _commands.Refresh(batch, "NonExistentConnection"));
+        Assert.Contains("not found", exception.Message);
     }
 
     /// <summary>

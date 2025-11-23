@@ -105,9 +105,7 @@ public partial class VbaCommands
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
             {
                 // Trust was disabled during operation
-                result.Success = false;
-                result.ErrorMessage = "VBA trust access is not enabled";
-                return result;
+                throw new InvalidOperationException("VBA trust access is not enabled. Enable 'Trust access to the VBA project object model' in Excel Trust Center settings.", comEx);
             }
             finally
             {
@@ -218,9 +216,7 @@ public partial class VbaCommands
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
             {
-                result.Success = false;
-                result.ErrorMessage = "VBA trust access is not enabled";
-                return result;
+                throw new InvalidOperationException("VBA trust access is not enabled. Enable 'Trust access to the VBA project object model' in Excel Trust Center settings.", comEx);
             }
             finally
             {

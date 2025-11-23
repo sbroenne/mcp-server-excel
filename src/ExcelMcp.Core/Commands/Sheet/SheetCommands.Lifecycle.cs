@@ -89,9 +89,7 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, oldName);
                 if (sheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{oldName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{oldName}' not found");
                 }
                 sheet.Name = newName;
                 result.Success = true;
@@ -121,9 +119,7 @@ public partial class SheetCommands
                 sourceSheet = ComUtilities.FindSheet(ctx.Book, sourceName);
                 if (sourceSheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{sourceName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{sourceName}' not found");
                 }
                 sheets = ctx.Book.Worksheets;
                 lastSheet = sheets.Item(sheets.Count);
@@ -157,9 +153,7 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
                 }
                 sheet.Delete();
                 result.Success = true;
@@ -175,15 +169,13 @@ public partial class SheetCommands
     /// <inheritdoc />
     public OperationResult Move(IExcelBatch batch, string sheetName, string? beforeSheet = null, string? afterSheet = null)
     {
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "move-sheet" };
-
         // Validate parameters
         if (!string.IsNullOrWhiteSpace(beforeSheet) && !string.IsNullOrWhiteSpace(afterSheet))
         {
-            result.Success = false;
-            result.ErrorMessage = "Cannot specify both beforeSheet and afterSheet";
-            return result;
+            throw new ArgumentException("Cannot specify both beforeSheet and afterSheet");
         }
+
+        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "move-sheet" };
 
         return batch.Execute((ctx, ct) =>
         {
@@ -196,9 +188,7 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
                 }
 
                 // If no position specified, move to end
@@ -215,9 +205,7 @@ public partial class SheetCommands
                     targetSheet = ComUtilities.FindSheet(ctx.Book, targetName);
                     if (targetSheet == null)
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Target sheet '{targetName}' not found";
-                        return result;
+                        throw new InvalidOperationException($"Target sheet '{targetName}' not found");
                     }
 
                     // Move using Excel COM API
@@ -256,9 +244,7 @@ public partial class SheetCommands
         // Validate positioning parameters
         if (!string.IsNullOrWhiteSpace(beforeSheet) && !string.IsNullOrWhiteSpace(afterSheet))
         {
-            result.Success = false;
-            result.ErrorMessage = "Cannot specify both beforeSheet and afterSheet. Choose one or neither.";
-            return result;
+            throw new ArgumentException("Cannot specify both beforeSheet and afterSheet. Choose one or neither.");
         }
 
         return batch.Execute((ctx, ct) =>
@@ -280,9 +266,7 @@ public partial class SheetCommands
                 sourceSheetObj = ComUtilities.FindSheet(sourceWb, sourceSheet);
                 if (sourceSheetObj == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Source sheet '{sourceSheet}' not found in '{Path.GetFileName(sourceFile)}'";
-                    return result;
+                    throw new InvalidOperationException($"Source sheet '{sourceSheet}' not found in '{Path.GetFileName(sourceFile)}'");
                 }
 
                 // Handle positioning
@@ -293,9 +277,7 @@ public partial class SheetCommands
                     targetPositionSheet = ComUtilities.FindSheet(targetWb, beforeSheet);
                     if (targetPositionSheet == null)
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Target sheet '{beforeSheet}' not found in '{Path.GetFileName(targetFile)}'";
-                        return result;
+                        throw new InvalidOperationException($"Target sheet '{beforeSheet}' not found in '{Path.GetFileName(targetFile)}'");
                     }
                     // Copy before specified sheet
                     sourceSheetObj.Copy(Before: targetPositionSheet);
@@ -305,9 +287,7 @@ public partial class SheetCommands
                     targetPositionSheet = ComUtilities.FindSheet(targetWb, afterSheet);
                     if (targetPositionSheet == null)
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Target sheet '{afterSheet}' not found in '{Path.GetFileName(targetFile)}'";
-                        return result;
+                        throw new InvalidOperationException($"Target sheet '{afterSheet}' not found in '{Path.GetFileName(targetFile)}'");
                     }
                     // Copy after specified sheet
                     sourceSheetObj.Copy(After: targetPositionSheet);
@@ -359,9 +339,7 @@ public partial class SheetCommands
         // Validate positioning parameters
         if (!string.IsNullOrWhiteSpace(beforeSheet) && !string.IsNullOrWhiteSpace(afterSheet))
         {
-            result.Success = false;
-            result.ErrorMessage = "Cannot specify both beforeSheet and afterSheet. Choose one or neither.";
-            return result;
+            throw new ArgumentException("Cannot specify both beforeSheet and afterSheet. Choose one or neither.");
         }
 
         return batch.Execute((ctx, ct) =>
@@ -382,9 +360,7 @@ public partial class SheetCommands
                 sourceSheetObj = ComUtilities.FindSheet(sourceWb, sourceSheet);
                 if (sourceSheetObj == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Source sheet '{sourceSheet}' not found in '{Path.GetFileName(sourceFile)}'";
-                    return result;
+                    throw new InvalidOperationException($"Source sheet '{sourceSheet}' not found in '{Path.GetFileName(sourceFile)}'");
                 }
 
                 // Handle positioning
@@ -395,9 +371,7 @@ public partial class SheetCommands
                     targetPositionSheet = ComUtilities.FindSheet(targetWb, beforeSheet);
                     if (targetPositionSheet == null)
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Target sheet '{beforeSheet}' not found in '{Path.GetFileName(targetFile)}'";
-                        return result;
+                        throw new InvalidOperationException($"Target sheet '{beforeSheet}' not found in '{Path.GetFileName(targetFile)}'");
                     }
                     // Move before specified sheet
                     sourceSheetObj.Move(Before: targetPositionSheet);
@@ -407,9 +381,7 @@ public partial class SheetCommands
                     targetPositionSheet = ComUtilities.FindSheet(targetWb, afterSheet);
                     if (targetPositionSheet == null)
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Target sheet '{afterSheet}' not found in '{Path.GetFileName(targetFile)}'";
-                        return result;
+                        throw new InvalidOperationException($"Target sheet '{afterSheet}' not found in '{Path.GetFileName(targetFile)}'");
                     }
                     // Move after specified sheet
                     sourceSheetObj.Move(After: targetPositionSheet);

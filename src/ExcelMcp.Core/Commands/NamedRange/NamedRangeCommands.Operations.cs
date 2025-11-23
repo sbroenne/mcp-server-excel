@@ -94,9 +94,7 @@ public partial class NamedRangeCommands
                 nameObj = ComUtilities.FindName(ctx.Book, paramName);
                 if (nameObj == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Parameter '{paramName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Parameter '{paramName}' not found");
                 }
 
                 refersToRange = nameObj.RefersToRange;
@@ -140,9 +138,7 @@ public partial class NamedRangeCommands
                 nameObj = ComUtilities.FindName(ctx.Book, paramName);
                 if (nameObj == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Parameter '{paramName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Parameter '{paramName}' not found");
                 }
 
                 result.RefersTo = nameObj.RefersTo ?? "";
@@ -186,9 +182,7 @@ public partial class NamedRangeCommands
                 existing = ComUtilities.FindName(ctx.Book, paramName);
                 if (existing != null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Parameter '{paramName}' already exists";
-                    return result;
+                    throw new InvalidOperationException($"Parameter '{paramName}' already exists");
                 }
 
                 // Create new named range
