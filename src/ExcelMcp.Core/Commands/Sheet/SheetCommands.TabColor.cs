@@ -10,17 +10,15 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class SheetCommands
 {
     /// <inheritdoc />
-    public OperationResult SetTabColor(IExcelBatch batch, string sheetName, int red, int green, int blue)
+    public void SetTabColor(IExcelBatch batch, string sheetName, int red, int green, int blue)
     {
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-tab-color" };
-
         // Validate RGB values
         if (red < 0 || red > 255 || green < 0 || green > 255 || blue < 0 || blue > 255)
         {
             throw new ArgumentException("RGB values must be between 0 and 255");
         }
 
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? tab = null;
@@ -38,9 +36,7 @@ public partial class SheetCommands
 
                 tab = sheet.Tab;
                 tab.Color = bgrColor;
-
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
@@ -117,12 +113,9 @@ public partial class SheetCommands
     }
 
     /// <inheritdoc />
-    /// <inheritdoc />
-    public OperationResult ClearTabColor(IExcelBatch batch, string sheetName)
+    public void ClearTabColor(IExcelBatch batch, string sheetName)
     {
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "clear-tab-color" };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? tab = null;
@@ -137,9 +130,7 @@ public partial class SheetCommands
                 tab = sheet.Tab;
                 // Set ColorIndex to xlColorIndexNone (-4142) to clear color
                 tab.ColorIndex = -4142; // xlColorIndexNone
-
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {

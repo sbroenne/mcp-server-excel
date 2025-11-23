@@ -149,15 +149,31 @@ POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for create action", nameof(sheetName));
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => sheetCommands.Create(batch, sheetName));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    sheetCommands.Create(batch, sheetName);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Sheet '{sheetName}' created successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string RenameAsync(
@@ -169,15 +185,31 @@ POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
             throw new ArgumentException("sheetName and targetName are required for rename action", "sheetName,targetName");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => sheetCommands.Rename(batch, sheetName, targetName));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    sheetCommands.Rename(batch, sheetName, targetName);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Sheet '{sheetName}' renamed to '{targetName}' successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string CopyAsync(
@@ -189,15 +221,31 @@ POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
         if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
             throw new ArgumentException("sheetName and targetName are required for copy action", "sheetName,targetName");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => sheetCommands.Copy(batch, sheetName, targetName));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    sheetCommands.Copy(batch, sheetName, targetName);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Sheet '{sheetName}' copied to '{targetName}' successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string DeleteAsync(
@@ -208,15 +256,31 @@ POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for delete action", nameof(sheetName));
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => sheetCommands.Delete(batch, sheetName));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    sheetCommands.Delete(batch, sheetName);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Sheet '{sheetName}' deleted successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string SetTabColorAsync(
@@ -242,15 +306,31 @@ POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
         int greenValue = green.Value;
         int blueValue = blue.Value;
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => sheetCommands.SetTabColor(batch, sheetName, redValue, greenValue, blueValue));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    sheetCommands.SetTabColor(batch, sheetName, redValue, greenValue, blueValue);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Tab color for sheet '{sheetName}' set successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string GetTabColorAsync(
@@ -285,15 +365,31 @@ POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for clear-tab-color action", nameof(sheetName));
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => sheetCommands.ClearTabColor(batch, sheetName));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    sheetCommands.ClearTabColor(batch, sheetName);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Tab color for sheet '{sheetName}' cleared successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string SetVisibilityAsync(
@@ -316,15 +412,31 @@ POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
             _ => throw new ArgumentException($"Invalid visibility value '{visibility}'. Use: visible, hidden, or veryhidden", nameof(visibility))
         };
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => sheetCommands.SetVisibility(batch, sheetName, visibilityLevel));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    sheetCommands.SetVisibility(batch, sheetName, visibilityLevel);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Sheet '{sheetName}' visibility set to {visibilityLevel} successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string GetVisibilityAsync(
@@ -356,15 +468,31 @@ POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for show action", nameof(sheetName));
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => sheetCommands.Show(batch, sheetName));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    sheetCommands.Show(batch, sheetName);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Sheet '{sheetName}' shown successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string HideAsync(
@@ -375,16 +503,32 @@ POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for hide action", nameof(sheetName));
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => sheetCommands.Hide(batch, sheetName));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success ? "Sheet now hidden (users can unhide via Excel UI)" : null
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    sheetCommands.Hide(batch, sheetName);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Sheet '{sheetName}' hidden successfully.",
+                workflowHint = "Sheet now hidden (users can unhide via Excel UI)"
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string VeryHideAsync(
@@ -395,16 +539,32 @@ POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for very-hide action", nameof(sheetName));
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => sheetCommands.VeryHide(batch, sheetName));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success ? "Sheet now very-hidden (not visible even in VBA, requires code to unhide)" : null
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    sheetCommands.VeryHide(batch, sheetName);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Sheet '{sheetName}' very-hidden successfully.",
+                workflowHint = "Sheet now very-hidden (not visible even in VBA, requires code to unhide)"
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string MoveAsync(
@@ -417,15 +577,31 @@ POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for move action", nameof(sheetName));
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => sheetCommands.Move(batch, sheetName, beforeSheet, afterSheet));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    sheetCommands.Move(batch, sheetName, beforeSheet, afterSheet);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Sheet '{sheetName}' moved successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string CopyToWorkbookAsync(
@@ -443,30 +619,42 @@ POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
         if (string.IsNullOrEmpty(targetSessionId))
             throw new ArgumentException("targetSessionId is required for copy-to-workbook action", nameof(targetSessionId));
 
-        // Resolve both sessions to get file paths
-        var sessionManager = ExcelToolsBase.GetSessionManager();
-        var sourceBatch = sessionManager.GetSession(sessionId);
-        var targetBatch = sessionManager.GetSession(targetSessionId);
-
-        if (sourceBatch == null)
-            throw new InvalidOperationException($"Source session '{sessionId}' not found");
-
-        if (targetBatch == null)
-            throw new InvalidOperationException($"Target session '{targetSessionId}' not found");
-
-        string sourceFile = sourceBatch.WorkbookPath;
-        string targetFile = targetBatch.WorkbookPath;
-
-        // Create a temporary multi-file batch containing both workbooks
-        using var multiBatch = ExcelSession.BeginBatch(sourceFile, targetFile);
-
-        var result = sheetCommands.CopyToWorkbook(multiBatch, sourceFile, sheetName, targetFile, targetName, beforeSheet, afterSheet);
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            // Resolve both sessions to get file paths
+            var sessionManager = ExcelToolsBase.GetSessionManager();
+            var sourceBatch = sessionManager.GetSession(sessionId);
+            var targetBatch = sessionManager.GetSession(targetSessionId);
+
+            if (sourceBatch == null)
+                throw new InvalidOperationException($"Source session '{sessionId}' not found");
+
+            if (targetBatch == null)
+                throw new InvalidOperationException($"Target session '{targetSessionId}' not found");
+
+            string sourceFile = sourceBatch.WorkbookPath;
+            string targetFile = targetBatch.WorkbookPath;
+
+            // Create a temporary multi-file batch containing both workbooks
+            using var multiBatch = ExcelSession.BeginBatch(sourceFile, targetFile);
+
+            sheetCommands.CopyToWorkbook(multiBatch, sourceFile, sheetName, targetFile, targetName, beforeSheet, afterSheet);
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Sheet '{sheetName}' copied to target workbook successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string MoveToWorkbookAsync(
@@ -483,30 +671,42 @@ POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
         if (string.IsNullOrEmpty(targetSessionId))
             throw new ArgumentException("targetSessionId is required for move-to-workbook action", nameof(targetSessionId));
 
-        // Resolve both sessions to get file paths
-        var sessionManager = ExcelToolsBase.GetSessionManager();
-        var sourceBatch = sessionManager.GetSession(sessionId);
-        var targetBatch = sessionManager.GetSession(targetSessionId);
-
-        if (sourceBatch == null)
-            throw new InvalidOperationException($"Source session '{sessionId}' not found");
-
-        if (targetBatch == null)
-            throw new InvalidOperationException($"Target session '{targetSessionId}' not found");
-
-        string sourceFile = sourceBatch.WorkbookPath;
-        string targetFile = targetBatch.WorkbookPath;
-
-        // Create a temporary multi-file batch containing both workbooks
-        using var multiBatch = ExcelSession.BeginBatch(sourceFile, targetFile);
-
-        var result = sheetCommands.MoveToWorkbook(multiBatch, sourceFile, sheetName, targetFile, beforeSheet, afterSheet);
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            // Resolve both sessions to get file paths
+            var sessionManager = ExcelToolsBase.GetSessionManager();
+            var sourceBatch = sessionManager.GetSession(sessionId);
+            var targetBatch = sessionManager.GetSession(targetSessionId);
+
+            if (sourceBatch == null)
+                throw new InvalidOperationException($"Source session '{sessionId}' not found");
+
+            if (targetBatch == null)
+                throw new InvalidOperationException($"Target session '{targetSessionId}' not found");
+
+            string sourceFile = sourceBatch.WorkbookPath;
+            string targetFile = targetBatch.WorkbookPath;
+
+            // Create a temporary multi-file batch containing both workbooks
+            using var multiBatch = ExcelSession.BeginBatch(sourceFile, targetFile);
+
+            sheetCommands.MoveToWorkbook(multiBatch, sourceFile, sheetName, targetFile, beforeSheet, afterSheet);
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Sheet '{sheetName}' moved to target workbook successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 }
 
