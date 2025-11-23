@@ -135,31 +135,33 @@ Example: Highlight cells > 100 in red:
         if (string.IsNullOrEmpty(formula1))
             throw new ArgumentException("formula1 is required for add-rule action", nameof(formula1));
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession(
             sessionId,
-            batch => commands.AddRule(
-                batch,
-                sheetName,
-                rangeAddress,
-                ruleType,
-                operatorType,
-                formula1,
-                formula2,
-                interiorColor,
-                interiorPattern,
-                fontColor,
-                fontBold,
-                fontItalic,
-                borderStyle,
-                borderColor));
+            batch =>
+            {
+                commands.AddRule(
+                    batch,
+                    sheetName,
+                    rangeAddress,
+                    ruleType,
+                    operatorType,
+                    formula1,
+                    formula2,
+                    interiorColor,
+                    interiorPattern,
+                    fontColor,
+                    fontBold,
+                    fontItalic,
+                    borderStyle,
+                    borderColor);
+                return 0; // Dummy return value for WithSession
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? "Rule applied. Use excel_range 'get-values' to verify formatting or add more rules to same range."
-                : null
+            success = true,
+            message = "Conditional formatting rule added successfully",
+            workflowHint = "Rule applied. Use excel_range 'get-values' to verify formatting or add more rules to same range."
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -174,17 +176,19 @@ Example: Highlight cells > 100 in red:
         if (string.IsNullOrEmpty(rangeAddress))
             throw new ArgumentException("rangeAddress is required for clear-rules action", nameof(rangeAddress));
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession(
             sessionId,
-            batch => commands.ClearRules(batch, sheetName, rangeAddress));
+            batch =>
+            {
+                commands.ClearRules(batch, sheetName, rangeAddress);
+                return 0; // Dummy return value for WithSession
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? "All conditional formatting rules removed from range. Cell values unchanged, only formatting cleared."
-                : null
+            success = true,
+            message = "All conditional formatting rules removed from range",
+            workflowHint = "All conditional formatting rules removed from range. Cell values unchanged, only formatting cleared."
         }, ExcelToolsBase.JsonOptions);
     }
 }

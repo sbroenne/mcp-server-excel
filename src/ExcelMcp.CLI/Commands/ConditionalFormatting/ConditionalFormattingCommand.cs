@@ -2,7 +2,6 @@ using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Infrastructure.Session;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Models;
 using Spectre.Console.Cli;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands.ConditionalFormatting;
@@ -70,21 +69,32 @@ internal sealed class ConditionalFormattingCommand : Command<ConditionalFormatti
             return -1;
         }
 
-        return WriteResult(_formattingCommands.AddRule(
-            batch,
-            sheetName,
-            rangeAddress,
-            settings.RuleType!,
-            settings.OperatorType,
-            settings.Formula1,
-            settings.Formula2,
-            settings.InteriorColor,
-            settings.InteriorPattern,
-            settings.FontColor,
-            settings.FontBold,
-            settings.FontItalic,
-            settings.BorderStyle,
-            settings.BorderColor));
+        try
+        {
+            _formattingCommands.AddRule(
+                batch,
+                sheetName,
+                rangeAddress,
+                settings.RuleType!,
+                settings.OperatorType,
+                settings.Formula1,
+                settings.Formula2,
+                settings.InteriorColor,
+                settings.InteriorPattern,
+                settings.FontColor,
+                settings.FontBold,
+                settings.FontItalic,
+                settings.BorderStyle,
+                settings.BorderColor);
+
+            _console.WriteInfo("Conditional formatting rule added successfully");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to add conditional formatting rule: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteClearRules(IExcelBatch batch, Settings settings)
@@ -94,7 +104,17 @@ internal sealed class ConditionalFormattingCommand : Command<ConditionalFormatti
             return -1;
         }
 
-        return WriteResult(_formattingCommands.ClearRules(batch, sheetName, rangeAddress));
+        try
+        {
+            _formattingCommands.ClearRules(batch, sheetName, rangeAddress);
+            _console.WriteInfo("All conditional formatting rules removed from range");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to clear conditional formatting rules: {ex.Message}");
+            return 1;
+        }
     }
 
     private bool TryGetRangeInputs(Settings settings, out string sheetName, out string rangeAddress)
@@ -121,12 +141,6 @@ internal sealed class ConditionalFormattingCommand : Command<ConditionalFormatti
         return operatorType.Equals("between", StringComparison.OrdinalIgnoreCase) ||
                operatorType.Equals("notbetween", StringComparison.OrdinalIgnoreCase) ||
                operatorType.Equals("not-between", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private int WriteResult(ResultBase result)
-    {
-        _console.WriteJson(result);
-        return result.Success ? 0 : -1;
     }
 
     private int ReportUnknown(string action)
