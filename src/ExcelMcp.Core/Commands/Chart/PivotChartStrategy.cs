@@ -135,17 +135,23 @@ public class PivotChartStrategy : IChartStrategy
     {
         // PivotCharts can't change source - throw helpful exception
         string? pivotTableName;
+        dynamic? pivotLayout = null;
+        dynamic? pivotTable = null;
+
         try
         {
-            dynamic pivotLayout = chart.PivotLayout;
-            dynamic pivotTable = pivotLayout.PivotTable;
+            pivotLayout = chart.PivotLayout;
+            pivotTable = pivotLayout.PivotTable;
             pivotTableName = pivotTable.Name?.ToString() ?? string.Empty;
-            ComUtilities.Release(ref pivotTable!);
-            ComUtilities.Release(ref pivotLayout!);
         }
         catch
         {
             pivotTableName = "(unknown)";
+        }
+        finally
+        {
+            if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
+            if (pivotLayout != null) ComUtilities.Release(ref pivotLayout!);
         }
 
         throw new NotSupportedException(
@@ -159,17 +165,23 @@ public class PivotChartStrategy : IChartStrategy
     {
         // PivotCharts auto-sync with PivotTable fields - throw helpful exception
         string? pivotTableName;
+        dynamic? pivotLayout = null;
+        dynamic? pivotTable = null;
+
         try
         {
-            dynamic pivotLayout = chart.PivotLayout;
-            dynamic pivotTable = pivotLayout.PivotTable;
+            pivotLayout = chart.PivotLayout;
+            pivotTable = pivotLayout.PivotTable;
             pivotTableName = pivotTable.Name?.ToString() ?? string.Empty;
-            ComUtilities.Release(ref pivotTable!);
-            ComUtilities.Release(ref pivotLayout!);
         }
         catch
         {
             pivotTableName = "(unknown)";
+        }
+        finally
+        {
+            if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
+            if (pivotLayout != null) ComUtilities.Release(ref pivotLayout!);
         }
 
         throw new NotSupportedException(
@@ -184,17 +196,23 @@ public class PivotChartStrategy : IChartStrategy
     {
         // PivotCharts auto-sync with PivotTable fields - throw helpful exception
         string? pivotTableName;
+        dynamic? pivotLayout = null;
+        dynamic? pivotTable = null;
+
         try
         {
-            dynamic pivotLayout = chart.PivotLayout;
-            dynamic pivotTable = pivotLayout.PivotTable;
+            pivotLayout = chart.PivotLayout;
+            pivotTable = pivotLayout.PivotTable;
             pivotTableName = pivotTable.Name?.ToString() ?? string.Empty;
-            ComUtilities.Release(ref pivotTable!);
-            ComUtilities.Release(ref pivotLayout!);
         }
         catch
         {
             pivotTableName = "(unknown)";
+        }
+        finally
+        {
+            if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
+            if (pivotLayout != null) ComUtilities.Release(ref pivotLayout!);
         }
 
         throw new NotSupportedException(
