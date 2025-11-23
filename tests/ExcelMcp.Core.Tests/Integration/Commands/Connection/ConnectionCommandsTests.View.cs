@@ -1,6 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
-using System.IO;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
