@@ -269,7 +269,11 @@ in
             ChartAction.List,
             _testExcelFile,
             sessionId);
-        AssertSuccess(listChartsResult, "List Charts in batch");
+        // Chart List returns List<ChartInfo> directly (no success wrapper)
+        var chartsDoc = JsonDocument.Parse(listChartsResult);
+        if (chartsDoc.RootElement.ValueKind != JsonValueKind.Array)
+            Assert.Fail("List Charts should return JSON array");
+        _output.WriteLine("  ✓ List Charts in batch succeeded");
 
         _output.WriteLine("  ✓ excel_chart: CREATE and LIST in batch");
 

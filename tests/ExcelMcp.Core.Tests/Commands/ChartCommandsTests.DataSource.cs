@@ -43,17 +43,12 @@ public partial class ChartCommandsTests
         });
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
-        Assert.True(createResult.Success);
 
         // Act
-        var setRangeResult = _commands.SetSourceRange(batch, createResult.ChartName, "D1:E5");
+        _commands.SetSourceRange(batch, createResult.ChartName, "D1:E5");
 
-        // Assert
-        Assert.True(setRangeResult.Success, $"SetSourceRange failed: {setRangeResult.ErrorMessage}");
-
-        // Verify source range changed (Excel returns SERIES formula with Sheet1 reference)
+        // Assert - Verify source range changed (Excel returns SERIES formula with Sheet1 reference)
         var readResult = _commands.Read(batch, createResult.ChartName);
-        Assert.True(readResult.Success);
         Assert.Contains("Sheet1", readResult.SourceRange, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("$D$", readResult.SourceRange, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("$E$", readResult.SourceRange, StringComparison.OrdinalIgnoreCase);
@@ -85,7 +80,6 @@ public partial class ChartCommandsTests
         });
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.Line, 50, 50);
-        Assert.True(createResult.Success);
 
         var readBefore = _commands.Read(batch, createResult.ChartName);
         int initialSeriesCount = readBefore.Series.Count;
@@ -99,13 +93,10 @@ public partial class ChartCommandsTests
             "Sheet1!A2:A4");
 
         // Assert
-        Assert.True(addSeriesResult.Success, $"AddSeries failed: {addSeriesResult.ErrorMessage}");
-        Assert.Equal("NewSeries", addSeriesResult.SeriesName);
-        Assert.True(addSeriesResult.SeriesIndex > 0);
+        Assert.Equal("NewSeries", addSeriesResult.Name);
 
         // Verify series added
         var readAfter = _commands.Read(batch, createResult.ChartName);
-        Assert.True(readAfter.Success);
         Assert.Equal(initialSeriesCount + 1, readAfter.Series.Count);
         Assert.Contains(readAfter.Series, s => s.Name == "NewSeries");
     }
@@ -136,21 +127,16 @@ public partial class ChartCommandsTests
         });
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:C4", ChartType.ColumnClustered, 50, 50);
-        Assert.True(createResult.Success);
 
         var readBefore = _commands.Read(batch, createResult.ChartName);
         int initialSeriesCount = readBefore.Series.Count;
         Assert.True(initialSeriesCount >= 2, "Need at least 2 series for test");
 
         // Act - Remove first series (index 1)
-        var removeResult = _commands.RemoveSeries(batch, createResult.ChartName, 1);
+        _commands.RemoveSeries(batch, createResult.ChartName, 1);
 
-        // Assert
-        Assert.True(removeResult.Success, $"RemoveSeries failed: {removeResult.ErrorMessage}");
-
-        // Verify series removed
+        // Assert - Verify series removed
         var readAfter = _commands.Read(batch, createResult.ChartName);
-        Assert.True(readAfter.Success);
         Assert.Equal(initialSeriesCount - 1, readAfter.Series.Count);
     }
 
@@ -181,14 +167,12 @@ public partial class ChartCommandsTests
         });
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.XYScatter, 50, 50);
-        Assert.True(createResult.Success);
 
         // Act - Add series without category range
         var addResult = _commands.AddSeries(batch, createResult.ChartName, "Series3", "Sheet1!C2:C4", null);
 
         // Assert
-        Assert.True(addResult.Success, $"AddSeries failed: {addResult.ErrorMessage}");
-        Assert.Equal("Series3", addResult.SeriesName);
+        Assert.Equal("Series3", addResult.Name);
     }
 
     [Fact]
@@ -201,13 +185,11 @@ public partial class ChartCommandsTests
             _tempDir,
             ".xlsx");
 
-        // Act
+        // Act & Assert
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.SetSourceRange(batch, "NonExistent", "A1:B10");
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            _commands.SetSourceRange(batch, "NonExistent", "A1:B10"));
+        Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -236,13 +218,10 @@ public partial class ChartCommandsTests
         });
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.Line, 50, 50);
-        Assert.True(createResult.Success);
 
         // Act & Assert - Invalid series index should throw exception
         var exception = Assert.Throws<System.Runtime.InteropServices.COMException>(() =>
-        {
-            _commands.RemoveSeries(batch, createResult.ChartName, 999);
-        });
+            _commands.RemoveSeries(batch, createResult.ChartName, 999));
 
         Assert.NotNull(exception);
     }
@@ -277,17 +256,12 @@ public partial class ChartCommandsTests
         });
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B3", ChartType.BarClustered, 50, 50);
-        Assert.True(createResult.Success);
 
         // Act - Expand to include more rows
-        var expandResult = _commands.SetSourceRange(batch, createResult.ChartName, "A1:B5");
+        _commands.SetSourceRange(batch, createResult.ChartName, "A1:B5");
 
-        // Assert
-        Assert.True(expandResult.Success, $"SetSourceRange failed: {expandResult.ErrorMessage}");
-
-        // Verify expanded range (Excel returns SERIES formula with Sheet1 reference)
+        // Assert - Verify expanded range (Excel returns SERIES formula with Sheet1 reference)
         var readResult = _commands.Read(batch, createResult.ChartName);
-        Assert.True(readResult.Success);
         Assert.Contains("Sheet1", readResult.SourceRange, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("$A$", readResult.SourceRange, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("$B$", readResult.SourceRange, StringComparison.OrdinalIgnoreCase);
