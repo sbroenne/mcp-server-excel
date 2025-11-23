@@ -38,8 +38,16 @@
 
 ### Test Commands
 ```bash
-# Fast feedback (excludes VBA)
+# ⚠️ CRITICAL: Integration tests take 45+ MINUTES for full suite
+# ALWAYS use surgical testing - test only what you changed!
+
+# Fast feedback (excludes VBA) - Still takes 10-15 minutes
 dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+
+# Surgical testing - Feature-specific (2-5 minutes per feature)
+dotnet test --filter "Feature=PowerQuery&RunType!=OnDemand"
+dotnet test --filter "Feature=Ranges&RunType!=OnDemand"
+dotnet test --filter "Feature=PivotTables&RunType!=OnDemand"
 
 # Session/batch changes (MANDATORY)
 dotnet test --filter "RunType=OnDemand"
@@ -47,14 +55,25 @@ dotnet test --filter "RunType=OnDemand"
 
 ### Code Patterns
 ```csharp
-// Core: Always use batch parameter
+// Core: NEVER wrap batch.Execute() in try-catch that returns error result
+// Let exceptions propagate naturally - batch.Execute() handles them via TaskCompletionSource
 public async Task<OperationResult> MethodAsync(IExcelBatch batch, string arg1)
 {
     return await batch.Execute((ctx, ct) => {
-        // Use ctx.Book for workbook access
-        return ValueTask.FromResult(new OperationResult { Success = true });
+        dynamic? item = null;
+        try {
+            // Operation code here
+            item = ctx.Book.SomeObject;
+            return ValueTask.FromResult(new OperationResult { Success = true });
+        }
+        finally {
+            // ✅ ONLY finally blocks for COM cleanup
+            ComUtilities.Release(ref item!);
+        }
+        // ❌ NO catch blocks that return OperationResult { Success = false }
     });
 }
+
 
 // CLI: Wrap Core calls
 public int Method(string[] args)
@@ -105,6 +124,8 @@ public async Task TestMethod()
 **Pre-Commit:** Search TODO/FIXME/HACK, delete commented code, verify tests, check docs.
 
 **PR Review:** Check automated comments immediately (Copilot, GitHub Security). Fix before human review.
+
+**Surgical Testing:** Integration tests take 45+ minutes. ALWAYS test only the feature you changed using `--filter "Feature=<name>"`.
 
 ---
 
