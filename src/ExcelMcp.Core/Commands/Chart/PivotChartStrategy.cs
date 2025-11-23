@@ -130,80 +130,27 @@ public class PivotChartStrategy : IChartStrategy
     /// <inheritdoc />
     public void SetSourceRange(dynamic chart, string sourceRange)
     {
-        // PivotCharts can't change source - throw helpful exception
-        string? pivotTableName;
-        dynamic? pivotLayout = null;
-        dynamic? pivotTable = null;
-
-        try
-        {
-            pivotLayout = chart.PivotLayout;
-            pivotTable = pivotLayout.PivotTable;
-            pivotTableName = pivotTable.Name?.ToString() ?? string.Empty;
-        }
-        finally
-        {
-            if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
-            if (pivotLayout != null) ComUtilities.Release(ref pivotLayout!);
-        }
-
         throw new NotSupportedException(
-            $"Cannot set source range for PivotChart. " +
-            $"PivotCharts automatically sync with their PivotTable data source. " +
-            $"To modify data, use excel_pivottable tool to update PivotTable '{pivotTableName}'.");
+            "Cannot set source range for PivotChart. " +
+            "PivotCharts automatically sync with their PivotTable data source. " +
+            "Use excel_pivottable tool to update the linked PivotTable.");
     }
 
     /// <inheritdoc />
     public SeriesInfo AddSeries(dynamic chart, string seriesName, string valuesRange, string? categoryRange)
     {
-        // PivotCharts auto-sync with PivotTable fields - throw helpful exception
-        string? pivotTableName;
-        dynamic? pivotLayout = null;
-        dynamic? pivotTable = null;
-
-        try
-        {
-            pivotLayout = chart.PivotLayout;
-            pivotTable = pivotLayout.PivotTable;
-            pivotTableName = pivotTable.Name?.ToString() ?? string.Empty;
-        }
-        finally
-        {
-            if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
-            if (pivotLayout != null) ComUtilities.Release(ref pivotLayout!);
-        }
-
         throw new NotSupportedException(
-            $"Cannot add series directly to PivotChart. " +
-            $"PivotCharts automatically sync with PivotTable '{pivotTableName}' fields. " +
-            $"Use excel_pivottable(action: 'add-value-field', pivotTableName: '{pivotTableName}', fieldName: '<field>') " +
-            $"to add data series.");
+            "Cannot add series directly to PivotChart. " +
+            "PivotCharts automatically sync with PivotTable fields. " +
+            "Use excel_pivottable tool with 'add-value-field' action to add data series.");
     }
 
     /// <inheritdoc />
     public void RemoveSeries(dynamic chart, int seriesIndex)
     {
-        // PivotCharts auto-sync with PivotTable fields - throw helpful exception
-        string? pivotTableName;
-        dynamic? pivotLayout = null;
-        dynamic? pivotTable = null;
-
-        try
-        {
-            pivotLayout = chart.PivotLayout;
-            pivotTable = pivotLayout.PivotTable;
-            pivotTableName = pivotTable.Name?.ToString() ?? string.Empty;
-        }
-        finally
-        {
-            if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
-            if (pivotLayout != null) ComUtilities.Release(ref pivotLayout!);
-        }
-
         throw new NotSupportedException(
-            $"Cannot remove series directly from PivotChart. " +
-            $"PivotCharts automatically sync with PivotTable '{pivotTableName}' fields. " +
-            $"Use excel_pivottable(action: 'remove-field', pivotTableName: '{pivotTableName}', fieldName: '<field>') " +
-            $"to remove data series.");
+            "Cannot remove series directly from PivotChart. " +
+            "PivotCharts automatically sync with PivotTable fields. " +
+            "Use excel_pivottable tool with 'remove-field' action to remove data series.");
     }
 }
