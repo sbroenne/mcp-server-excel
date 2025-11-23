@@ -37,16 +37,6 @@ public partial class PivotTableCommands
                 var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
                 return strategy.SetSubtotals(pivot, fieldName, showSubtotals, batch.WorkbookPath, batch.Logger);
             }
-            catch (Exception ex)
-            {
-                return new PivotFieldResult
-                {
-                    Success = false,
-                    FieldName = fieldName,
-                    ErrorMessage = $"Failed to set subtotals: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
-            }
             finally
             {
                 ComUtilities.Release(ref pivot);

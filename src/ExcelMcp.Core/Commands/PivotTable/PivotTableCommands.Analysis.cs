@@ -49,15 +49,6 @@ public partial class PivotTableCommands
                     FilePath = batch.WorkbookPath
                 };
             }
-            catch (Exception ex)
-            {
-                return new PivotTableDataResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to get PivotTable data: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
-            }
             finally
             {
                 ComUtilities.Release(ref tableRange);
@@ -84,15 +75,6 @@ public partial class PivotTableCommands
                 var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
                 return strategy.SetFieldFilter(pivot, fieldName, selectedValues, batch.WorkbookPath);
             }
-            catch (Exception ex)
-            {
-                return new PivotFieldFilterResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to set field filter: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
-            }
             finally
             {
                 ComUtilities.Release(ref pivot);
@@ -117,15 +99,6 @@ public partial class PivotTableCommands
                 // Use Strategy Pattern to delegate to appropriate implementation
                 var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
                 return strategy.SortField(pivot, fieldName, direction, batch.WorkbookPath);
-            }
-            catch (Exception ex)
-            {
-                return new PivotFieldResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to sort field: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
             }
             finally
             {

@@ -29,15 +29,6 @@ public partial class PivotTableCommands
                 // Delegate to strategy with logger
                 return strategy.GroupByDate(pivot, fieldName, interval, batch.WorkbookPath, batch.Logger);
             }
-            catch (Exception ex)
-            {
-                return new PivotFieldResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to group field '{fieldName}' by date: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
-            }
             finally
             {
                 ComUtilities.Release(ref pivot);
@@ -65,15 +56,7 @@ public partial class PivotTableCommands
                 // Delegate to strategy with logger
                 return strategy.GroupByNumeric(pivot, fieldName, start, endValue, intervalSize, batch.WorkbookPath, batch.Logger);
             }
-            catch (Exception ex)
-            {
-                return new PivotFieldResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to group field '{fieldName}' numerically: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
-            }
+
             finally
             {
                 ComUtilities.Release(ref pivot);
