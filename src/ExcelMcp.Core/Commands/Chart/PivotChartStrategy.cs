@@ -1,5 +1,4 @@
 using Sbroenne.ExcelMcp.ComInterop;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
@@ -132,9 +131,9 @@ public class PivotChartStrategy : IChartStrategy
     }
 
     /// <inheritdoc />
-    public OperationResult SetSourceRange(dynamic chart, string sourceRange)
+    public void SetSourceRange(dynamic chart, string sourceRange)
     {
-        // PivotCharts can't change source - return helpful error
+        // PivotCharts can't change source - throw helpful exception
         string? pivotTableName;
         try
         {
@@ -149,19 +148,16 @@ public class PivotChartStrategy : IChartStrategy
             pivotTableName = "(unknown)";
         }
 
-        return new OperationResult
-        {
-            Success = false,
-            ErrorMessage = $"Cannot set source range for PivotChart. " +
-                          $"PivotCharts automatically sync with their PivotTable data source. " +
-                          $"To modify data, use excel_pivottable tool to update PivotTable '{pivotTableName}'."
-        };
+        throw new NotSupportedException(
+            $"Cannot set source range for PivotChart. " +
+            $"PivotCharts automatically sync with their PivotTable data source. " +
+            $"To modify data, use excel_pivottable tool to update PivotTable '{pivotTableName}'.");
     }
 
     /// <inheritdoc />
-    public ChartSeriesResult AddSeries(dynamic chart, string seriesName, string valuesRange, string? categoryRange)
+    public SeriesInfo AddSeries(dynamic chart, string seriesName, string valuesRange, string? categoryRange)
     {
-        // PivotCharts auto-sync with PivotTable fields - return helpful error
+        // PivotCharts auto-sync with PivotTable fields - throw helpful exception
         string? pivotTableName;
         try
         {
@@ -176,20 +172,17 @@ public class PivotChartStrategy : IChartStrategy
             pivotTableName = "(unknown)";
         }
 
-        return new ChartSeriesResult
-        {
-            Success = false,
-            ErrorMessage = $"Cannot add series directly to PivotChart. " +
-                          $"PivotCharts automatically sync with PivotTable '{pivotTableName}' fields. " +
-                          $"Use excel_pivottable(action: 'add-value-field', pivotTableName: '{pivotTableName}', fieldName: '<field>') " +
-                          $"to add data series."
-        };
+        throw new NotSupportedException(
+            $"Cannot add series directly to PivotChart. " +
+            $"PivotCharts automatically sync with PivotTable '{pivotTableName}' fields. " +
+            $"Use excel_pivottable(action: 'add-value-field', pivotTableName: '{pivotTableName}', fieldName: '<field>') " +
+            $"to add data series.");
     }
 
     /// <inheritdoc />
-    public OperationResult RemoveSeries(dynamic chart, int seriesIndex)
+    public void RemoveSeries(dynamic chart, int seriesIndex)
     {
-        // PivotCharts auto-sync with PivotTable fields - return helpful error
+        // PivotCharts auto-sync with PivotTable fields - throw helpful exception
         string? pivotTableName;
         try
         {
@@ -204,13 +197,10 @@ public class PivotChartStrategy : IChartStrategy
             pivotTableName = "(unknown)";
         }
 
-        return new OperationResult
-        {
-            Success = false,
-            ErrorMessage = $"Cannot remove series directly from PivotChart. " +
-                          $"PivotCharts automatically sync with PivotTable '{pivotTableName}' fields. " +
-                          $"Use excel_pivottable(action: 'remove-field', pivotTableName: '{pivotTableName}', fieldName: '<field>') " +
-                          $"to remove data series."
-        };
+        throw new NotSupportedException(
+            $"Cannot remove series directly from PivotChart. " +
+            $"PivotCharts automatically sync with PivotTable '{pivotTableName}' fields. " +
+            $"Use excel_pivottable(action: 'remove-field', pivotTableName: '{pivotTableName}', fieldName: '<field>') " +
+            $"to remove data series.");
     }
 }

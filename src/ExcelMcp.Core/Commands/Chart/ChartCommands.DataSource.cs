@@ -1,6 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
@@ -20,9 +19,9 @@ internal sealed class ChartFindResult
 public partial class ChartCommands
 {
     /// <inheritdoc />
-    public OperationResult SetSourceRange(IExcelBatch batch, string chartName, string sourceRange)
+    public void SetSourceRange(IExcelBatch batch, string chartName, string sourceRange)
     {
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
@@ -35,9 +34,9 @@ public partial class ChartCommands
             {
                 // Determine strategy and delegate
                 IChartStrategy strategy = _pivotStrategy.CanHandle(findResult.Chart) ? _pivotStrategy : _regularStrategy;
-                var result = strategy.SetSourceRange(findResult.Chart, sourceRange);
+                strategy.SetSourceRange(findResult.Chart, sourceRange);
 
-                return result;
+                return 0; // Void operation completed
             }
             finally
             {
@@ -48,7 +47,7 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public ChartSeriesResult AddSeries(
+    public SeriesInfo AddSeries(
         IExcelBatch batch,
         string chartName,
         string seriesName,
@@ -81,9 +80,9 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public OperationResult RemoveSeries(IExcelBatch batch, string chartName, int seriesIndex)
+    public void RemoveSeries(IExcelBatch batch, string chartName, int seriesIndex)
     {
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
@@ -96,9 +95,9 @@ public partial class ChartCommands
             {
                 // Determine strategy and delegate
                 IChartStrategy strategy = _pivotStrategy.CanHandle(findResult.Chart) ? _pivotStrategy : _regularStrategy;
-                var result = strategy.RemoveSeries(findResult.Chart, seriesIndex);
+                strategy.RemoveSeries(findResult.Chart, seriesIndex);
 
-                return result;
+                return 0; // Void operation completed
             }
             finally
             {

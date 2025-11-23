@@ -1,5 +1,4 @@
 using Sbroenne.ExcelMcp.ComInterop;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
@@ -144,7 +143,7 @@ public class RegularChartStrategy : IChartStrategy
     }
 
     /// <inheritdoc />
-    public OperationResult SetSourceRange(dynamic chart, string sourceRange)
+    public void SetSourceRange(dynamic chart, string sourceRange)
     {
         dynamic? sourceRangeObj = null;
         try
@@ -155,11 +154,6 @@ public class RegularChartStrategy : IChartStrategy
             // Get the range object from the address string
             sourceRangeObj = workbook.Application.Range(sourceRange);
             chart.SetSourceData(sourceRangeObj);
-
-            return new OperationResult
-            {
-                Success = true
-            };
         }
         finally
         {
@@ -171,7 +165,7 @@ public class RegularChartStrategy : IChartStrategy
     }
 
     /// <inheritdoc />
-    public ChartSeriesResult AddSeries(dynamic chart, string seriesName, string valuesRange, string? categoryRange)
+    public SeriesInfo AddSeries(dynamic chart, string seriesName, string valuesRange, string? categoryRange)
     {
         dynamic? seriesCollection = null;
         dynamic? newSeries = null;
@@ -188,15 +182,11 @@ public class RegularChartStrategy : IChartStrategy
                 newSeries.XValues = categoryRange;
             }
 
-            int seriesIndex = Convert.ToInt32(newSeries.PlotOrder);
-
-            return new ChartSeriesResult
+            return new SeriesInfo
             {
-                Success = true,
-                SeriesName = seriesName,
+                Name = seriesName,
                 ValuesRange = valuesRange,
-                CategoryRange = categoryRange,
-                SeriesIndex = seriesIndex
+                CategoryRange = categoryRange
             };
         }
         finally
@@ -213,7 +203,7 @@ public class RegularChartStrategy : IChartStrategy
     }
 
     /// <inheritdoc />
-    public OperationResult RemoveSeries(dynamic chart, int seriesIndex)
+    public void RemoveSeries(dynamic chart, int seriesIndex)
     {
         dynamic? seriesCollection = null;
         dynamic? series = null;
@@ -223,11 +213,6 @@ public class RegularChartStrategy : IChartStrategy
             seriesCollection = chart.SeriesCollection();
             series = seriesCollection.Item(seriesIndex);
             series.Delete();
-
-            return new OperationResult
-            {
-                Success = true
-            };
         }
         finally
         {
