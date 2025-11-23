@@ -1,7 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.DataModel;
-using Sbroenne.ExcelMcp.Core.Models;
 
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -12,21 +11,15 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class DataModelCommands
 {
     /// <inheritdoc />
-    public OperationResult Refresh(IExcelBatch batch, string? tableName = null)
+    public void Refresh(IExcelBatch batch, string? tableName = null)
     {
-        return Refresh(batch, tableName, TimeSpan.FromMinutes(2));  // Default 2 minutes for Data Model refresh, LLM can override
+        Refresh(batch, tableName, TimeSpan.FromMinutes(2));  // Default 2 minutes for Data Model refresh, LLM can override
     }
 
     /// <inheritdoc />
-    public OperationResult Refresh(IExcelBatch batch, string? tableName, TimeSpan? timeout)
+    public void Refresh(IExcelBatch batch, string? tableName, TimeSpan? timeout)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = tableName != null ? $"model-refresh-table:{tableName}" : "model-refresh"
-        };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             try
@@ -51,7 +44,6 @@ public partial class DataModelCommands
                     try
                     {
                         table.Refresh();
-                        result.Success = true;
                     }
                     finally
                     {
@@ -64,14 +56,12 @@ public partial class DataModelCommands
                     try
                     {
                         model.Refresh();
-                        result.Success = true;
                     }
                     catch (Exception refreshEx)
                     {
-                        result.Success = false;
                         // Model.Refresh() may not be supported in all Excel versions
                         // Fall back to refreshing tables individually
-                        result.ErrorMessage = $"Model-level refresh not supported. Try refreshing tables individually. Error: {refreshEx.Message}";
+                        throw new InvalidOperationException($"Model-level refresh not supported. Try refreshing tables individually. Error: {refreshEx.Message}", refreshEx);
                     }
                 }
             }
@@ -80,7 +70,7 @@ public partial class DataModelCommands
                 ComUtilities.Release(ref model);
             }
 
-            return result;
+            return 0;
         });  // Default 2 minutes for Data Model refresh, LLM can override
     }
 }

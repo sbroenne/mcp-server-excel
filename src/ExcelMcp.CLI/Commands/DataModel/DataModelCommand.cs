@@ -105,13 +105,24 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_dataModelCommands.CreateMeasure(
-            batch,
-            table,
-            measure,
-            settings.DaxFormula!,
-            settings.FormatType,
-            settings.Description));
+        try
+        {
+            _dataModelCommands.CreateMeasure(
+                batch,
+                table,
+                measure,
+                settings.DaxFormula!,
+                settings.FormatType,
+                settings.Description);
+
+            _console.WriteJson(new { success = true, message = $"Measure '{measure}' created successfully" });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Error creating measure: {ex.Message}");
+            return -1;
+        }
     }
 
     private int ExecuteUpdateMeasure(IExcelBatch batch, Settings settings)
@@ -127,7 +138,17 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_dataModelCommands.UpdateMeasure(batch, measure, settings.DaxFormula, settings.FormatType, settings.Description));
+        try
+        {
+            _dataModelCommands.UpdateMeasure(batch, measure, settings.DaxFormula, settings.FormatType, settings.Description);
+            _console.WriteJson(new { success = true, message = $"Measure '{measure}' updated successfully" });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Error updating measure: {ex.Message}");
+            return -1;
+        }
     }
 
     private int ExecuteDeleteMeasure(IExcelBatch batch, Settings settings)
@@ -137,7 +158,17 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_dataModelCommands.DeleteMeasure(batch, measure));
+        try
+        {
+            _dataModelCommands.DeleteMeasure(batch, measure);
+            _console.WriteJson(new { success = true, message = $"Measure '{measure}' deleted successfully" });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Error deleting measure: {ex.Message}");
+            return -1;
+        }
     }
 
     private int ExecuteCreateRelationship(IExcelBatch batch, Settings settings)
@@ -147,8 +178,18 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
             return -1;
         }
 
-        var active = settings.Active ?? true;
-        return WriteResult(_dataModelCommands.CreateRelationship(batch, fromTable, fromColumn, toTable, toColumn, active));
+        try
+        {
+            var active = settings.Active ?? true;
+            _dataModelCommands.CreateRelationship(batch, fromTable, fromColumn, toTable, toColumn, active);
+            _console.WriteJson(new { success = true, message = $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} created successfully" });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Error creating relationship: {ex.Message}");
+            return -1;
+        }
     }
 
     private int ExecuteUpdateRelationship(IExcelBatch batch, Settings settings)
@@ -164,7 +205,17 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_dataModelCommands.UpdateRelationship(batch, fromTable, fromColumn, toTable, toColumn, settings.Active.Value));
+        try
+        {
+            _dataModelCommands.UpdateRelationship(batch, fromTable, fromColumn, toTable, toColumn, settings.Active.Value);
+            _console.WriteJson(new { success = true, message = $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} updated successfully" });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Error updating relationship: {ex.Message}");
+            return -1;
+        }
     }
 
     private int ExecuteDeleteRelationship(IExcelBatch batch, Settings settings)
@@ -174,13 +225,33 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_dataModelCommands.DeleteRelationship(batch, fromTable, fromColumn, toTable, toColumn));
+        try
+        {
+            _dataModelCommands.DeleteRelationship(batch, fromTable, fromColumn, toTable, toColumn);
+            _console.WriteJson(new { success = true, message = $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} deleted successfully" });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Error deleting relationship: {ex.Message}");
+            return -1;
+        }
     }
 
     private int ExecuteRefresh(IExcelBatch batch, Settings settings)
     {
-        TimeSpan? timeout = settings.TimeoutSeconds.HasValue ? TimeSpan.FromSeconds(settings.TimeoutSeconds.Value) : null;
-        return WriteResult(_dataModelCommands.Refresh(batch, settings.TableName, timeout));
+        try
+        {
+            TimeSpan? timeout = settings.TimeoutSeconds.HasValue ? TimeSpan.FromSeconds(settings.TimeoutSeconds.Value) : null;
+            _dataModelCommands.Refresh(batch, settings.TableName, timeout);
+            _console.WriteJson(new { success = true, message = "Data Model refreshed successfully" });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Error refreshing Data Model: {ex.Message}");
+            return -1;
+        }
     }
 
     private bool TryGetTable(Settings settings, out string tableName)

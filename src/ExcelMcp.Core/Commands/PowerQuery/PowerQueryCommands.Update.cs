@@ -1,6 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -15,14 +14,10 @@ public partial class PowerQueryCommands
     /// Update Power Query M code. Preserves load configuration (worksheet/data model).
     /// UPDATED to check for BOTH QueryTable (from LoadTo) and ListObject (from previous Update) patterns.
     /// </summary>
-    public OperationResult Update(IExcelBatch batch, string queryName, string mCode)
+    /// <exception cref="ArgumentException">Thrown when queryName or mCode is invalid</exception>
+    /// <exception cref="InvalidOperationException">Thrown when query not found or update fails</exception>
+    public void Update(IExcelBatch batch, string queryName, string mCode)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "update"
-        };
-
         if (!ValidateQueryName(queryName, out string? validationError))
         {
             throw new ArgumentException(validationError, nameof(queryName));
@@ -33,7 +28,7 @@ public partial class PowerQueryCommands
             throw new ArgumentException("M code cannot be empty", nameof(mCode));
         }
 
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
             dynamic? query = null;
@@ -198,17 +193,10 @@ public partial class PowerQueryCommands
                 {
                     // Just refresh - PreserveColumnInfo=false allows schema changes
                     existingQueryTable.Refresh(false);  // Synchronous
-                    result.Success = true;
-                    result.Action = "updated and refreshed";
                 }
-                else
-                {
-                    // No QueryTable or ListObject - connection-only query
-                    result.Success = true;
-                    result.Action = "updated (connection-only)";
-                }
+                // No QueryTable or ListObject - connection-only query (no action needed)
 
-                return result;
+                return 0;
             }
             finally
             {

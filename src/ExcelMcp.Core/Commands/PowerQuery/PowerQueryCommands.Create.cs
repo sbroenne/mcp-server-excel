@@ -18,8 +18,9 @@ public partial class PowerQueryCommands
     /// <param name="loadMode">Where to load the data (default: LoadToTable)</param>
     /// <param name="targetSheet">Target worksheet name (defaults to queryName if not specified)</param>
     /// <param name="targetCellAddress">Target cell address (e.g., "A1", "B5")</param>
-    /// <returns>Result with query creation and data load status</returns>
-    public PowerQueryCreateResult Create(
+    /// <exception cref="ArgumentException">Thrown when inputs are invalid</exception>
+    /// <exception cref="InvalidOperationException">Thrown when query already exists or creation fails</exception>
+    public void Create(
         IExcelBatch batch,
         string queryName,
         string mCode,
@@ -27,15 +28,6 @@ public partial class PowerQueryCommands
         string? targetSheet = null,
         string? targetCellAddress = null)
     {
-        var result = new PowerQueryCreateResult
-        {
-            FilePath = batch.WorkbookPath,
-            QueryName = queryName,
-            LoadDestination = loadMode,
-            WorksheetName = targetSheet,
-            TargetCellAddress = targetCellAddress
-        };
-
         // Validate inputs
         if (string.IsNullOrWhiteSpace(queryName))
         {
@@ -51,13 +43,12 @@ public partial class PowerQueryCommands
         if (loadMode == PowerQueryLoadMode.LoadToTable || loadMode == PowerQueryLoadMode.LoadToBoth)
         {
             targetSheet ??= queryName;
-            result.WorksheetName = targetSheet;
         }
 
         // Resolve target cell address (default to A1)
         targetCellAddress ??= "A1";
 
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
             dynamic? query = null;
@@ -76,9 +67,18 @@ public partial class PowerQueryCommands
 
                 // Step 1: Create the query (always creates in ConnectionOnly mode initially)
                 query = queries.Add(queryName, mCode);
-                result.QueryCreated = true;
 
                 // Step 2: Apply load destination based on mode
+                var result = new PowerQueryCreateResult
+                {
+                    FilePath = batch.WorkbookPath,
+                    QueryName = queryName,
+                    LoadDestination = loadMode,
+                    WorksheetName = targetSheet,
+                    TargetCellAddress = targetCellAddress,
+                    QueryCreated = true
+                };
+
                 switch (loadMode)
                 {
                     case PowerQueryLoadMode.ConnectionOnly:
@@ -118,8 +118,7 @@ public partial class PowerQueryCommands
                         break;
                 }
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {

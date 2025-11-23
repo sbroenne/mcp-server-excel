@@ -31,7 +31,8 @@ public interface IPowerQueryCommands
     /// <summary>
     /// Deletes a Power Query from the workbook
     /// </summary>
-    OperationResult Delete(IExcelBatch batch, string queryName);
+    /// <exception cref="InvalidOperationException">Thrown when the Power Query is not found or cannot be deleted</exception>
+    void Delete(IExcelBatch batch, string queryName);
 
     /// <summary>
     /// Creates a new Power Query by importing M code and loading data atomically
@@ -43,8 +44,8 @@ public interface IPowerQueryCommands
     /// <param name="loadMode">Load destination mode</param>
     /// <param name="targetSheet">Target worksheet name (required for LoadToTable and LoadToBoth; defaults to query name when omitted)</param>
     /// <param name="targetCellAddress">Optional target cell address for worksheet loads (e.g., "B5"). Required when loading to an existing worksheet with other data.</param>
-    /// <returns>PowerQueryCreateResult with creation and load tracking</returns>
-    PowerQueryCreateResult Create(
+    /// <exception cref="InvalidOperationException">Thrown when query cannot be created, M code is invalid, or load operation fails</exception>
+    void Create(
         IExcelBatch batch,
         string queryName,
         string mCode,
@@ -59,8 +60,8 @@ public interface IPowerQueryCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query to update</param>
     /// <param name="mCode">Raw M code (inline string)</param>
-    /// <returns>OperationResult with update and refresh status</returns>
-    OperationResult Update(IExcelBatch batch, string queryName, string mCode);
+    /// <exception cref="InvalidOperationException">Thrown when the query is not found, M code is invalid, or refresh fails</exception>
+    void Update(IExcelBatch batch, string queryName, string mCode);
 
     /// <summary>
     /// Atomically sets load destination and refreshes data
@@ -71,8 +72,8 @@ public interface IPowerQueryCommands
     /// <param name="loadMode">Load destination mode</param>
     /// <param name="targetSheet">Target worksheet name (required for LoadToTable and LoadToBoth)</param>
     /// <param name="targetCellAddress">Optional target cell address (e.g., "B5"). Required when loading to an existing worksheet to avoid clearing other content.</param>
-    /// <returns>PowerQueryLoadResult with configuration and refresh tracking</returns>
-    PowerQueryLoadResult LoadTo(
+    /// <exception cref="InvalidOperationException">Thrown when the query is not found, load destination is invalid, or refresh fails</exception>
+    void LoadTo(
         IExcelBatch batch,
         string queryName,
         PowerQueryLoadMode loadMode,
@@ -87,8 +88,8 @@ public interface IPowerQueryCommands
     /// Batch refresh with error tracking
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <returns>OperationResult with batch refresh summary</returns>
-    OperationResult RefreshAll(IExcelBatch batch);
+    /// <exception cref="InvalidOperationException">Thrown when any Power Query fails to refresh</exception>
+    void RefreshAll(IExcelBatch batch);
 }
 
 

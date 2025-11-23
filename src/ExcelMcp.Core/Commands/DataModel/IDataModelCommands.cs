@@ -67,8 +67,9 @@ public interface IDataModelCommands
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="measureName">Name of the measure to delete</param>
-    /// <returns>Result indicating success or failure</returns>
-    OperationResult DeleteMeasure(IExcelBatch batch, string measureName);
+    /// <exception cref="ArgumentException">Thrown when measureName is invalid</exception>
+    /// <exception cref="InvalidOperationException">Thrown when measure not found or deletion fails</exception>
+    void DeleteMeasure(IExcelBatch batch, string measureName);
 
     /// <summary>
     /// Deletes a relationship from the Data Model
@@ -78,16 +79,17 @@ public interface IDataModelCommands
     /// <param name="fromColumn">Source column name</param>
     /// <param name="toTable">Target table name</param>
     /// <param name="toColumn">Target column name</param>
-    /// <returns>Result indicating success or failure</returns>
-    OperationResult DeleteRelationship(IExcelBatch batch, string fromTable, string fromColumn, string toTable, string toColumn);
+    /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
+    /// <exception cref="InvalidOperationException">Thrown when relationship not found or deletion fails</exception>
+    void DeleteRelationship(IExcelBatch batch, string fromTable, string fromColumn, string toTable, string toColumn);
 
     /// <summary>
     /// Refreshes entire Data Model or specific table
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Optional: Specific table to refresh (if null, refreshes entire model)</param>
-    /// <returns>Result indicating success or failure</returns>
-    OperationResult Refresh(IExcelBatch batch, string? tableName = null);
+    /// <exception cref="InvalidOperationException">Thrown when refresh operation fails</exception>
+    void Refresh(IExcelBatch batch, string? tableName = null);
 
     /// <summary>
     /// Refreshes Data Model table(s) with timeout
@@ -95,8 +97,10 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Optional: Specific table to refresh (if null, refreshes entire model)</param>
     /// <param name="timeout">Timeout for the refresh operation</param>
-    /// <returns>Result indicating success or failure</returns>
-    OperationResult Refresh(IExcelBatch batch, string? tableName, TimeSpan? timeout);
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when timeout is invalid</exception>
+    /// <exception cref="OperationCanceledException">Thrown when operation times out</exception>
+    /// <exception cref="InvalidOperationException">Thrown when refresh operation fails</exception>
+    void Refresh(IExcelBatch batch, string? tableName, TimeSpan? timeout);
 
     /// <summary>
     /// Creates a new DAX measure in the Data Model
@@ -108,10 +112,11 @@ public interface IDataModelCommands
     /// <param name="daxFormula">DAX formula for the measure</param>
     /// <param name="formatType">Optional: Format type (Currency, Decimal, Percentage, General)</param>
     /// <param name="description">Optional: Description of the measure</param>
-    /// <returns>Result indicating success or failure</returns>
-    OperationResult CreateMeasure(IExcelBatch batch, string tableName, string measureName,
-                                             string daxFormula, string? formatType = null,
-                                             string? description = null);
+    /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
+    /// <exception cref="InvalidOperationException">Thrown when table not found or creation fails</exception>
+    void CreateMeasure(IExcelBatch batch, string tableName, string measureName,
+                       string daxFormula, string? formatType = null,
+                       string? description = null);
 
     /// <summary>
     /// Updates an existing DAX measure in the Data Model
@@ -122,10 +127,11 @@ public interface IDataModelCommands
     /// <param name="daxFormula">Optional: New DAX formula (null to keep existing)</param>
     /// <param name="formatType">Optional: New format type (null to keep existing)</param>
     /// <param name="description">Optional: New description (null to keep existing)</param>
-    /// <returns>Result indicating success or failure</returns>
-    OperationResult UpdateMeasure(IExcelBatch batch, string measureName,
-                                             string? daxFormula = null, string? formatType = null,
-                                             string? description = null);
+    /// <exception cref="ArgumentException">Thrown when measureName is invalid or all parameters are null</exception>
+    /// <exception cref="InvalidOperationException">Thrown when measure not found or update fails</exception>
+    void UpdateMeasure(IExcelBatch batch, string measureName,
+                       string? daxFormula = null, string? formatType = null,
+                       string? description = null);
 
     /// <summary>
     /// Creates a new relationship between two tables in the Data Model
@@ -137,10 +143,11 @@ public interface IDataModelCommands
     /// <param name="toTable">Target table name</param>
     /// <param name="toColumn">Target column name</param>
     /// <param name="active">Whether the relationship should be active (default: true)</param>
-    /// <returns>Result indicating success or failure</returns>
-    OperationResult CreateRelationship(IExcelBatch batch, string fromTable,
-                                                   string fromColumn, string toTable,
-                                                   string toColumn, bool active = true);
+    /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
+    /// <exception cref="InvalidOperationException">Thrown when tables/columns not found or creation fails</exception>
+    void CreateRelationship(IExcelBatch batch, string fromTable,
+                            string fromColumn, string toTable,
+                            string toColumn, bool active = true);
 
     /// <summary>
     /// Updates an existing relationship's active state in the Data Model
@@ -152,9 +159,10 @@ public interface IDataModelCommands
     /// <param name="toTable">Target table name</param>
     /// <param name="toColumn">Target column name</param>
     /// <param name="active">New active state for the relationship</param>
-    /// <returns>Result indicating success or failure</returns>
-    OperationResult UpdateRelationship(IExcelBatch batch, string fromTable,
-                                                   string fromColumn, string toTable,
-                                                   string toColumn, bool active);
+    /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
+    /// <exception cref="InvalidOperationException">Thrown when relationship not found or update fails</exception>
+    void UpdateRelationship(IExcelBatch batch, string fromTable,
+                            string fromColumn, string toTable,
+                            string toColumn, bool active);
 }
 
