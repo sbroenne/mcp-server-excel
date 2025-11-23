@@ -21,17 +21,14 @@ public partial class NamedRangeCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create parameter first
-        var createResult = _parameterCommands.Create(batch, "SetTestParam", "Sheet1!A1");
-        Assert.True(createResult.Success, $"Failed to create parameter: {createResult.ErrorMessage}");
+        _parameterCommands.Create(batch, "SetTestParam", "Sheet1!A1");
 
         // Set the parameter value
-        var result = _parameterCommands.Write(batch, "SetTestParam", "TestValue");
-        Assert.True(result.Success, $"Failed to set parameter: {result.ErrorMessage}");
+        _parameterCommands.Write(batch, "SetTestParam", "TestValue");
 
-        // Verify the parameter value was actually set by reading it back
-        var getResult = _parameterCommands.Read(batch, "SetTestParam");
-        Assert.True(getResult.Success, $"Failed to get parameter: {getResult.ErrorMessage}");
-        Assert.Equal("TestValue", getResult.Value?.ToString());
+        // Assert - Verify the parameter value was actually set by reading it back
+        var namedRangeValue = _parameterCommands.Read(batch, "SetTestParam");
+        Assert.Equal("TestValue", namedRangeValue.Value?.ToString());
     }
     /// <inheritdoc/>
 
@@ -47,18 +44,14 @@ public partial class NamedRangeCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create and set parameter value
-        var createResult = _parameterCommands.Create(batch, "GetTestParam", "Sheet1!A1");
-        Assert.True(createResult.Success, $"Failed to create parameter: {createResult.ErrorMessage}");
-
-        var setResult = _parameterCommands.Write(batch, "GetTestParam", testValue);
-        Assert.True(setResult.Success, $"Failed to set parameter: {setResult.ErrorMessage}");
+        _parameterCommands.Create(batch, "GetTestParam", "Sheet1!A1");
+        _parameterCommands.Write(batch, "GetTestParam", testValue);
 
         // Get the parameter value
-        var getResult = _parameterCommands.Read(batch, "GetTestParam");
+        var namedRangeValue = _parameterCommands.Read(batch, "GetTestParam");
 
         // Assert
-        Assert.True(getResult.Success, $"Failed to get parameter: {getResult.ErrorMessage}");
-        Assert.Equal(testValue, getResult.Value?.ToString());
+        Assert.Equal(testValue, namedRangeValue.Value?.ToString());
     }
     /// <inheritdoc/>
 

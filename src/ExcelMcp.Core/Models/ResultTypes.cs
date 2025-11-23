@@ -560,6 +560,32 @@ public class NamedRangeInfo
 }
 
 /// <summary>
+/// Named range value information (for Read operation)
+/// </summary>
+public class NamedRangeValue
+{
+    /// <summary>
+    /// Name of the named range
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// What the named range refers to
+    /// </summary>
+    public string RefersTo { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Current value
+    /// </summary>
+    public object? Value { get; set; }
+
+    /// <summary>
+    /// Type of the value
+    /// </summary>
+    public string ValueType { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Result for getting parameter value
 /// </summary>
 public class NamedRangeValueResult : ResultBase

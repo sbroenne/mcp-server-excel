@@ -62,15 +62,8 @@ public static class ExcelNamedRangeTool
 
     private static string ListNamedRangesAsync(NamedRangeCommands commands, string sessionId)
     {
-        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.List(batch));
-
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.NamedRanges
-        }, ExcelToolsBase.JsonOptions);
+        var namedRanges = ExcelToolsBase.WithSession(sessionId, batch => commands.List(batch));
+        return JsonSerializer.Serialize(namedRanges, ExcelToolsBase.JsonOptions);
     }
 
     private static string ReadNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName)
@@ -78,19 +71,11 @@ public static class ExcelNamedRangeTool
         if (string.IsNullOrEmpty(namedRangeName))
             throw new ArgumentException("namedRangeName is required for read action", nameof(namedRangeName));
 
-        var result = ExcelToolsBase.WithSession(
+        var namedRangeValue = ExcelToolsBase.WithSession(
             sessionId,
             batch => commands.Read(batch, namedRangeName));
 
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Add workflow hints
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.NamedRangeName,
-            result.Value
-        }, ExcelToolsBase.JsonOptions);
+        return JsonSerializer.Serialize(namedRangeValue, ExcelToolsBase.JsonOptions);
     }
 
     private static string WriteNamedRangeAsync(NamedRangeCommands commands, string sessionId, string? namedRangeName, string? value)
@@ -98,16 +83,16 @@ public static class ExcelNamedRangeTool
         if (string.IsNullOrEmpty(namedRangeName) || value == null)
             throw new ArgumentException("namedRangeName and value are required for write action", "namedRangeName,value");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.Write(batch, namedRangeName, value));
+        ExcelToolsBase.WithSession(sessionId, batch =>
+        {
+            commands.Write(batch, namedRangeName, value);
+            return 0; // Dummy return for WithSession
+        });
 
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Add workflow hints
         return JsonSerializer.Serialize(new
         {
-            result.Success
+            success = true,
+            message = $"Named range '{namedRangeName}' value updated successfully"
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -116,15 +101,16 @@ public static class ExcelNamedRangeTool
         if (string.IsNullOrEmpty(namedRangeName) || string.IsNullOrEmpty(value))
             throw new ArgumentException("namedRangeName and value (cell reference) are required for update action", "namedRangeName,value");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.Update(batch, namedRangeName, value));
+        ExcelToolsBase.WithSession(sessionId, batch =>
+        {
+            commands.Update(batch, namedRangeName, value);
+            return 0; // Dummy return for WithSession
+        });
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            success = true,
+            message = $"Named range '{namedRangeName}' reference updated successfully"
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -133,16 +119,16 @@ public static class ExcelNamedRangeTool
         if (string.IsNullOrEmpty(namedRangeName) || string.IsNullOrEmpty(value))
             throw new ArgumentException("namedRangeName and value (cell reference) are required for create action", "namedRangeName,value");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.Create(batch, namedRangeName, value));
+        ExcelToolsBase.WithSession(sessionId, batch =>
+        {
+            commands.Create(batch, namedRangeName, value);
+            return 0; // Dummy return for WithSession
+        });
 
-        // If operation failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Add workflow hints
         return JsonSerializer.Serialize(new
         {
-            result.Success
+            success = true,
+            message = $"Named range '{namedRangeName}' created successfully"
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -151,16 +137,17 @@ public static class ExcelNamedRangeTool
         if (string.IsNullOrEmpty(namedRangeName))
             throw new ArgumentException("namedRangeName is required for delete action", nameof(namedRangeName));
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.Delete(batch, namedRangeName));
+        ExcelToolsBase.WithSession(sessionId, batch =>
+        {
+            commands.Delete(batch, namedRangeName);
+            return 0; // Dummy return for WithSession
+        });
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success ? "Formulas referencing this named range will show #NAME? error" : null
+            success = true,
+            message = $"Named range '{namedRangeName}' deleted successfully",
+            workflowHint = "Formulas referencing this named range will show #NAME? error"
         }, ExcelToolsBase.JsonOptions);
     }
 }

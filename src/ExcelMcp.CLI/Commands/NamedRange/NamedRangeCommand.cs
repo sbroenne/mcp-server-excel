@@ -2,7 +2,6 @@ using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Infrastructure.Session;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Models;
 using Spectre.Console.Cli;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands.NamedRange;
@@ -39,7 +38,7 @@ internal sealed class NamedRangeCommand : Command<NamedRangeCommand.Settings>
 
         return action switch
         {
-            "list" => WriteResult(_namedRangeCommands.List(batch)),
+            "list" => ExecuteList(batch),
             "get" => ExecuteGet(batch, settings),
             "set" => ExecuteSet(batch, settings),
             "create" => ExecuteCreate(batch, settings),
@@ -47,6 +46,21 @@ internal sealed class NamedRangeCommand : Command<NamedRangeCommand.Settings>
             "delete" => ExecuteDelete(batch, settings),
             _ => ReportUnknown(action)
         };
+    }
+
+    private int ExecuteList(IExcelBatch batch)
+    {
+        try
+        {
+            var namedRanges = _namedRangeCommands.List(batch);
+            _console.WriteJson(namedRanges);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to list named ranges: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteGet(IExcelBatch batch, Settings settings)
@@ -57,7 +71,17 @@ internal sealed class NamedRangeCommand : Command<NamedRangeCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_namedRangeCommands.Read(batch, settings.Name));
+        try
+        {
+            var value = _namedRangeCommands.Read(batch, settings.Name);
+            _console.WriteJson(value);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to get named range '{settings.Name}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteSet(IExcelBatch batch, Settings settings)
@@ -68,7 +92,17 @@ internal sealed class NamedRangeCommand : Command<NamedRangeCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_namedRangeCommands.Write(batch, settings.Name, settings.Value));
+        try
+        {
+            _namedRangeCommands.Write(batch, settings.Name, settings.Value);
+            _console.WriteInfo($"Named range '{settings.Name}' value updated successfully.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to set named range '{settings.Name}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteCreate(IExcelBatch batch, Settings settings)
@@ -79,7 +113,17 @@ internal sealed class NamedRangeCommand : Command<NamedRangeCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_namedRangeCommands.Create(batch, settings.Name, settings.Reference));
+        try
+        {
+            _namedRangeCommands.Create(batch, settings.Name, settings.Reference);
+            _console.WriteInfo($"Named range '{settings.Name}' created successfully.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to create named range '{settings.Name}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteUpdate(IExcelBatch batch, Settings settings)
@@ -90,7 +134,17 @@ internal sealed class NamedRangeCommand : Command<NamedRangeCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_namedRangeCommands.Update(batch, settings.Name, settings.Reference));
+        try
+        {
+            _namedRangeCommands.Update(batch, settings.Name, settings.Reference);
+            _console.WriteInfo($"Named range '{settings.Name}' updated successfully.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to update named range '{settings.Name}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteDelete(IExcelBatch batch, Settings settings)
@@ -101,13 +155,17 @@ internal sealed class NamedRangeCommand : Command<NamedRangeCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_namedRangeCommands.Delete(batch, settings.Name));
-    }
-
-    private int WriteResult(ResultBase result)
-    {
-        _console.WriteJson(result);
-        return result.Success ? 0 : -1;
+        try
+        {
+            _namedRangeCommands.Delete(batch, settings.Name);
+            _console.WriteInfo($"Named range '{settings.Name}' deleted successfully.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to delete named range '{settings.Name}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ReportUnknown(string action)

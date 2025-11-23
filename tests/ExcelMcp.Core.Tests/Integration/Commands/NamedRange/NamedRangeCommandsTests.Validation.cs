@@ -58,14 +58,11 @@ public partial class NamedRangeCommandsTests
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _parameterCommands.Create(batch, paramName, "Sheet1!A1");
+        _parameterCommands.Create(batch, paramName, "Sheet1!A1");
 
-        // Assert
-        Assert.True(result.Success, $"Expected success with 255-char name but got error: {result.ErrorMessage}");
-
-        // Verify the parameter was actually created
-        var listResult = _parameterCommands.List(batch);
-        Assert.Contains(listResult.NamedRanges, p => p.Name == paramName);
+        // Assert - Verify the parameter was actually created
+        var namedRanges = _parameterCommands.List(batch);
+        Assert.Contains(namedRanges, p => p.Name == paramName);
     }
     /// <inheritdoc/>
 

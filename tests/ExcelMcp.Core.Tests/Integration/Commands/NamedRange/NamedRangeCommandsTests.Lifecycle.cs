@@ -19,11 +19,11 @@ public partial class NamedRangeCommandsTests
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _parameterCommands.List(batch);
+        var namedRanges = _parameterCommands.List(batch);
 
         // Assert
-        Assert.True(result.Success, $"List failed: {result.ErrorMessage}");
-        Assert.NotNull(result.NamedRanges);
+        Assert.NotNull(namedRanges);
+        Assert.Empty(namedRanges);
     }
     /// <inheritdoc/>
 
@@ -36,15 +36,11 @@ public partial class NamedRangeCommandsTests
 
         // Act - Use single batch for create and verify
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _parameterCommands.Create(batch, "TestParam", "Sheet1!A1");
+        _parameterCommands.Create(batch, "TestParam", "Sheet1!A1");
 
-        // Assert
-        Assert.True(result.Success, $"Create failed: {result.ErrorMessage}");
-
-        // Verify the parameter was actually created by listing parameters
-        var listResult = _parameterCommands.List(batch);
-        Assert.True(listResult.Success, $"Failed to list parameters: {listResult.ErrorMessage}");
-        Assert.Contains(listResult.NamedRanges, p => p.Name == "TestParam");
+        // Assert - Verify the parameter was actually created by listing parameters
+        var namedRanges = _parameterCommands.List(batch);
+        Assert.Contains(namedRanges, p => p.Name == "TestParam");
     }
     /// <inheritdoc/>
 
@@ -59,17 +55,14 @@ public partial class NamedRangeCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create parameter first
-        var createResult = _parameterCommands.Create(batch, "DeleteTestParam", "Sheet1!A1");
-        Assert.True(createResult.Success, $"Failed to create parameter: {createResult.ErrorMessage}");
+        _parameterCommands.Create(batch, "DeleteTestParam", "Sheet1!A1");
 
         // Delete the parameter
-        var result = _parameterCommands.Delete(batch, "DeleteTestParam");
-        Assert.True(result.Success, $"Delete failed: {result.ErrorMessage}");
+        _parameterCommands.Delete(batch, "DeleteTestParam");
 
-        // Verify the parameter was actually deleted by checking it's not in the list
-        var listResult = _parameterCommands.List(batch);
-        Assert.True(listResult.Success, $"Failed to list parameters: {listResult.ErrorMessage}");
-        Assert.DoesNotContain(listResult.NamedRanges, p => p.Name == "DeleteTestParam");
+        // Assert - Verify the parameter was actually deleted by checking it's not in the list
+        var namedRanges = _parameterCommands.List(batch);
+        Assert.DoesNotContain(namedRanges, p => p.Name == "DeleteTestParam");
     }
     /// <inheritdoc/>
 

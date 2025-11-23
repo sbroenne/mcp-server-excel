@@ -10,12 +10,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class NamedRangeCommands
 {
     /// <inheritdoc />
-    public NamedRangeListResult List(IExcelBatch batch)
+    public List<NamedRangeInfo> List(IExcelBatch batch)
     {
-        var result = new NamedRangeListResult { FilePath = batch.WorkbookPath };
-
         return batch.Execute((ctx, ct) =>
         {
+            var namedRanges = new List<NamedRangeInfo>();
             dynamic? namesCollection = null;
             try
             {
@@ -54,7 +53,7 @@ public partial class NamedRangeCommands
                         }
                         catch { }
 
-                        result.NamedRanges.Add(new NamedRangeInfo
+                        namedRanges.Add(new NamedRangeInfo
                         {
                             Name = name,
                             RefersTo = refersTo,
@@ -70,8 +69,7 @@ public partial class NamedRangeCommands
                     }
                 }
 
-                result.Success = true;
-                return result;
+                return namedRanges;
             }
             finally
             {
@@ -81,11 +79,9 @@ public partial class NamedRangeCommands
     }
 
     /// <inheritdoc />
-    public OperationResult Write(IExcelBatch batch, string paramName, string value)
+    public void Write(IExcelBatch batch, string paramName, string value)
     {
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-parameter" };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? nameObj = null;
             dynamic? refersToRange = null;
@@ -113,8 +109,7 @@ public partial class NamedRangeCommands
                     refersToRange.Value2 = value;
                 }
 
-                result.Success = true;
-                return result;
+                return 0; // Dummy return for batch.Execute
             }
             finally
             {
@@ -125,10 +120,8 @@ public partial class NamedRangeCommands
     }
 
     /// <inheritdoc />
-    public NamedRangeValueResult Read(IExcelBatch batch, string paramName)
+    public NamedRangeValue Read(IExcelBatch batch, string paramName)
     {
-        var result = new NamedRangeValueResult { FilePath = batch.WorkbookPath, NamedRangeName = paramName };
-
         return batch.Execute((ctx, ct) =>
         {
             dynamic? nameObj = null;
@@ -141,12 +134,18 @@ public partial class NamedRangeCommands
                     throw new InvalidOperationException($"Parameter '{paramName}' not found");
                 }
 
-                result.RefersTo = nameObj.RefersTo ?? "";
+                string refersTo = nameObj.RefersTo ?? "";
                 refersToRange = nameObj.RefersToRange;
-                result.Value = refersToRange?.Value2;
-                result.ValueType = result.Value?.GetType().Name ?? "null";
-                result.Success = true;
-                return result;
+                object? value = refersToRange?.Value2;
+                string valueType = value?.GetType().Name ?? "null";
+
+                return new NamedRangeValue
+                {
+                    Name = paramName,
+                    RefersTo = refersTo,
+                    Value = value,
+                    ValueType = valueType
+                };
             }
             finally
             {
@@ -157,10 +156,8 @@ public partial class NamedRangeCommands
     }
 
     /// <inheritdoc />
-    public OperationResult Create(IExcelBatch batch, string paramName, string reference)
+    public void Create(IExcelBatch batch, string paramName, string reference)
     {
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "create-parameter" };
-
         // Validate parameter name length (Excel limit: 255 characters)
         if (string.IsNullOrWhiteSpace(paramName))
         {
@@ -172,7 +169,7 @@ public partial class NamedRangeCommands
             throw new ArgumentException($"Parameter name exceeds Excel's 255-character limit (current length: {paramName.Length})", nameof(paramName));
         }
 
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? existing = null;
             dynamic? namesCollection = null;
@@ -193,8 +190,7 @@ public partial class NamedRangeCommands
                 formattedReference = $"={formattedReference}";
                 namesCollection.Add(paramName, formattedReference);
 
-                result.Success = true;
-                return result;
+                return 0; // Dummy return for batch.Execute
             }
             finally
             {
@@ -205,10 +201,8 @@ public partial class NamedRangeCommands
     }
 
     /// <inheritdoc />
-    public OperationResult Update(IExcelBatch batch, string paramName, string reference)
+    public void Update(IExcelBatch batch, string paramName, string reference)
     {
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "update-parameter" };
-
         // Validate parameter name length (Excel limit: 255 characters)
         if (string.IsNullOrWhiteSpace(paramName))
         {
@@ -220,7 +214,7 @@ public partial class NamedRangeCommands
             throw new ArgumentException($"Parameter name exceeds Excel's 255-character limit (current length: {paramName.Length})", nameof(paramName));
         }
 
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? nameObj = null;
             try
@@ -239,8 +233,7 @@ public partial class NamedRangeCommands
                 // Update the reference
                 nameObj.RefersTo = formattedReference;
 
-                result.Success = true;
-                return result;
+                return 0; // Dummy return for batch.Execute
             }
             finally
             {
@@ -250,11 +243,9 @@ public partial class NamedRangeCommands
     }
 
     /// <inheritdoc />
-    public OperationResult Delete(IExcelBatch batch, string paramName)
+    public void Delete(IExcelBatch batch, string paramName)
     {
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "delete-parameter" };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? nameObj = null;
             try
@@ -266,8 +257,7 @@ public partial class NamedRangeCommands
                 }
 
                 nameObj.Delete();
-                result.Success = true;
-                return result;
+                return 0; // Dummy return for batch.Execute
             }
             finally
             {
