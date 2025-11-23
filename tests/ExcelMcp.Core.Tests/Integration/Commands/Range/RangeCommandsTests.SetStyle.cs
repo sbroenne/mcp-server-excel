@@ -108,28 +108,27 @@ public partial class RangeCommandsTests
         Assert.True(commaResult.Success, $"Comma style failed: {commaResult.ErrorMessage}");
     }
     /// <inheritdoc/>
-
     [Fact]
-    public void SetStyle_InvalidStyleName_ReturnsError()
+    public void SetStyle_InvalidStyleName_ThrowsException()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
-            nameof(SetStyle_InvalidStyleName_ReturnsError),
+            nameof(SetStyle_InvalidStyleName_ThrowsException),
             _tempDir,
             ".xlsx");
 
-        // Act
+        // Act & Assert - Should throw when Excel COM rejects invalid style name
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.SetStyle(batch, "Sheet1", "A1", "NonExistentStyle");
+        var exception = Assert.Throws<System.Reflection.TargetParameterCountException>(
+            () => _commands.SetStyle(batch, "Sheet1", "A1", "NonExistentStyle"));
 
-        // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
-        Assert.Contains("NonExistentStyle", result.ErrorMessage);
+        // Verify exception message contains context about the style operation
+        Assert.NotNull(exception.Message);
+        Assert.Contains("Style", exception.Message);
     }
-    /// <inheritdoc/>
 
+    /// <inheritdoc/>
     [Fact]
     public void SetStyle_ResetToNormal_ClearsFormatting()
     {

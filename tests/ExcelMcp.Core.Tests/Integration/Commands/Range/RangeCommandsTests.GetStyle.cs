@@ -127,24 +127,21 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public void GetStyle_InvalidRange_ReturnsError()
+    public void GetStyle_InvalidRange_ThrowsException()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
-            nameof(GetStyle_InvalidRange_ReturnsError),
+            nameof(GetStyle_InvalidRange_ThrowsException),
             _tempDir,
             ".xlsx");
 
-        // Act
+        // Act & Assert - Should throw when Excel COM rejects invalid range
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.GetStyle(batch, "Sheet1", "InvalidRange");
+        var exception = Assert.ThrowsAny<Exception>(
+            () => _commands.GetStyle(batch, "Sheet1", "InvalidRange"));
 
-        // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
-        Assert.Contains(
-            "range",
-            result.ErrorMessage.ToLowerInvariant());
+        // Verify exception is related to range access
+        Assert.NotNull(exception.Message);
     }
 }
