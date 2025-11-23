@@ -87,31 +87,25 @@ Example: Highlight cells > 100 in red:
         [Description("Border color (#RRGGBB hex or color index, e.g., '#000000' for black)")]
         string? borderColor = null)
     {
-        try
-        {
-            var conditionalFormattingCommands = new ConditionalFormattingCommands();
+        return ExcelToolsBase.ExecuteToolAction(
+            action.ToActionString(),
+            excelPath,
+            () =>
+            {
+                var conditionalFormattingCommands = new ConditionalFormattingCommands();
 
-            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
-            return action switch
-            {
-                ConditionalFormatAction.AddRule => AddRuleAsync(
-                    conditionalFormattingCommands, sessionId, sheetName, rangeAddress, ruleType, operatorType,
-                    formula1, formula2, interiorColor, interiorPattern, fontColor, fontBold, fontItalic,
-                    borderStyle, borderColor),
-                ConditionalFormatAction.ClearRules => ClearRulesAsync(
-                    conditionalFormattingCommands, sessionId, sheetName, rangeAddress),
-                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+                return action switch
+                {
+                    ConditionalFormatAction.AddRule => AddRuleAsync(
+                        conditionalFormattingCommands, sessionId, sheetName, rangeAddress, ruleType, operatorType,
+                        formula1, formula2, interiorColor, interiorPattern, fontColor, fontBold, fontItalic,
+                        borderStyle, borderColor),
+                    ConditionalFormatAction.ClearRules => ClearRulesAsync(
+                        conditionalFormattingCommands, sessionId, sheetName, rangeAddress),
+                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            });
     }
 
     private static string AddRuleAsync(
@@ -141,31 +135,33 @@ Example: Highlight cells > 100 in red:
         if (string.IsNullOrEmpty(formula1))
             throw new ArgumentException("formula1 is required for add-rule action", nameof(formula1));
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession(
             sessionId,
-            batch => commands.AddRule(
-                batch,
-                sheetName,
-                rangeAddress,
-                ruleType,
-                operatorType,
-                formula1,
-                formula2,
-                interiorColor,
-                interiorPattern,
-                fontColor,
-                fontBold,
-                fontItalic,
-                borderStyle,
-                borderColor));
+            batch =>
+            {
+                commands.AddRule(
+                    batch,
+                    sheetName,
+                    rangeAddress,
+                    ruleType,
+                    operatorType,
+                    formula1,
+                    formula2,
+                    interiorColor,
+                    interiorPattern,
+                    fontColor,
+                    fontBold,
+                    fontItalic,
+                    borderStyle,
+                    borderColor);
+                return 0; // Dummy return value for WithSession
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? "Rule applied. Use excel_range 'get-values' to verify formatting or add more rules to same range."
-                : null
+            success = true,
+            message = "Conditional formatting rule added successfully",
+            workflowHint = "Rule applied. Use excel_range 'get-values' to verify formatting or add more rules to same range."
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -180,17 +176,19 @@ Example: Highlight cells > 100 in red:
         if (string.IsNullOrEmpty(rangeAddress))
             throw new ArgumentException("rangeAddress is required for clear-rules action", nameof(rangeAddress));
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession(
             sessionId,
-            batch => commands.ClearRules(batch, sheetName, rangeAddress));
+            batch =>
+            {
+                commands.ClearRules(batch, sheetName, rangeAddress);
+                return 0; // Dummy return value for WithSession
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? "All conditional formatting rules removed from range. Cell values unchanged, only formatting cleared."
-                : null
+            success = true,
+            message = "All conditional formatting rules removed from range",
+            workflowHint = "All conditional formatting rules removed from range. Cell values unchanged, only formatting cleared."
         }, ExcelToolsBase.JsonOptions);
     }
 }

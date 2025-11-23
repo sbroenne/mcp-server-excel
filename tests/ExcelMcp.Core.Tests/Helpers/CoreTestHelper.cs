@@ -50,13 +50,15 @@ public static class CoreTestHelper
         if (extension is ".xlsx" or ".xlsm")
         {
             var fileCommands = new FileCommands();
-            var result = fileCommands.CreateEmpty(filePath, overwriteIfExists: false);
-
-            if (!result.Success)
+            try
+            {
+                fileCommands.CreateEmpty(filePath, overwriteIfExists: false);
+            }
+            catch (Exception ex)
             {
                 throw new InvalidOperationException(
-                    $"Failed to create test Excel file '{filePath}': {result.ErrorMessage}. " +
-                    "Excel may not be installed or the path may be invalid.");
+                    $"Failed to create test Excel file '{filePath}': {ex.Message}. " +
+                    "Excel may not be installed or the path may be invalid.", ex);
             }
         }
         // Handle data files (.csv, .txt, etc.)

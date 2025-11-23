@@ -16,10 +16,9 @@ public partial class FileCommandsTests
         string testFile = Path.Join(_tempDir, $"{nameof(CreateEmpty_ThenOpenAndList_ReturnsSheet1)}_{Guid.NewGuid():N}.xlsx");
 
         // Act 1: CreateEmpty (what LLM called first)
-        var createResult = _fileCommands.CreateEmpty(testFile);
+        _fileCommands.CreateEmpty(testFile);
 
         // Assert CreateEmpty succeeded
-        Assert.True(createResult.Success, $"CreateEmpty failed: {createResult.ErrorMessage}");
         Assert.True(System.IO.File.Exists(testFile), "File should exist after CreateEmpty");
 
         // Act 2: Open the file in a new session (what LLM called second)
@@ -47,8 +46,7 @@ public partial class FileCommandsTests
         string testFile = Path.Join(_tempDir, $"{nameof(CreateEmpty_ThenOpenAndListMultipleTimes_ConsistentResults)}_{Guid.NewGuid():N}.xlsx");
 
         // Act 1: CreateEmpty
-        var createResult = _fileCommands.CreateEmpty(testFile);
-        Assert.True(createResult.Success, $"CreateEmpty failed: {createResult.ErrorMessage}");
+        _fileCommands.CreateEmpty(testFile);
 
         // Act 2: Open and List multiple times to verify consistency
         var sheetCommands = new SheetCommands();
@@ -71,8 +69,7 @@ public partial class FileCommandsTests
         string testFile = Path.Join(_tempDir, $"{nameof(CreateEmpty_ThenOpenAndCreateMoreSheets_AllSheetsVisible)}_{Guid.NewGuid():N}.xlsx");
 
         // Act 1: CreateEmpty
-        var createResult = _fileCommands.CreateEmpty(testFile);
-        Assert.True(createResult.Success, $"CreateEmpty failed: {createResult.ErrorMessage}");
+        _fileCommands.CreateEmpty(testFile);
 
         // Act 2: Open session and create multiple sheets (like the LLM tried to do)
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -82,8 +79,8 @@ public partial class FileCommandsTests
 
         foreach (var sheetName in sheetsToCreate)
         {
-            var createSheetResult = sheetCommands.Create(batch, sheetName);
-            Assert.True(createSheetResult.Success, $"Failed to create sheet '{sheetName}': {createSheetResult.ErrorMessage}");
+            sheetCommands.Create(batch, sheetName);
+            // Create throws on error, so reaching here means success
         }
 
         // Act 3: List all sheets

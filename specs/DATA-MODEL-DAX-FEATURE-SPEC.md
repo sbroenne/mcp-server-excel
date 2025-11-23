@@ -962,7 +962,7 @@ public interface IDataModelCommands
     /// <summary>
     /// Exports measure DAX formula to file
     /// </summary>
-    Task<OperationResult> ExportMeasure(string filePath, string measureName, string outputFile);
+    void ExportMeasure(string filePath, string measureName, string outputFile);
     
     /// <summary>
     /// Lists all table relationships
@@ -972,7 +972,7 @@ public interface IDataModelCommands
     /// <summary>
     /// Refreshes entire Data Model or specific table
     /// </summary>
-    OperationResult Refresh(string filePath, string? tableName = null);
+    RefreshResult Refresh(string filePath, string? tableName = null);
 }
 ```
 

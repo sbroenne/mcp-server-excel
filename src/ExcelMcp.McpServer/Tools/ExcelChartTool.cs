@@ -86,52 +86,40 @@ public static class ExcelChartTool
         [Description("Chart style ID (1-48)")]
         int? styleId = null)
     {
-        var commands = new ChartCommands();
+        return ExcelToolsBase.ExecuteToolAction(
+            action.ToActionString(),
+            excelPath,
+            () =>
+            {
+                var commands = new ChartCommands();
 
-        try
-        {
-            return action switch
-            {
-                ChartAction.List => List(commands, sessionId),
-                ChartAction.Read => Read(commands, sessionId, chartName),
-                ChartAction.CreateFromRange => CreateFromRange(commands, sessionId, sheetName, sourceRange, chartType, left, top, width, height, chartName),
-                ChartAction.CreateFromPivotTable => CreateFromPivotTable(commands, sessionId, pivotTableName, sheetName, chartType, left, top, width, height, chartName),
-                ChartAction.Delete => Delete(commands, sessionId, chartName),
-                ChartAction.Move => Move(commands, sessionId, chartName, left, top, width, height),
-                ChartAction.SetSourceRange => SetSourceRange(commands, sessionId, chartName, sourceRange),
-                ChartAction.AddSeries => AddSeries(commands, sessionId, chartName, seriesName, valuesRange, categoryRange),
-                ChartAction.RemoveSeries => RemoveSeries(commands, sessionId, chartName, seriesIndex),
-                ChartAction.SetChartType => SetChartType(commands, sessionId, chartName, chartType),
-                ChartAction.SetTitle => SetTitle(commands, sessionId, chartName, title),
-                ChartAction.SetAxisTitle => SetAxisTitle(commands, sessionId, chartName, axis, title),
-                ChartAction.ShowLegend => ShowLegend(commands, sessionId, chartName, visible, legendPosition),
-                ChartAction.SetStyle => SetStyle(commands, sessionId, chartName, styleId),
-                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                return action switch
+                {
+                    ChartAction.List => List(commands, sessionId),
+                    ChartAction.Read => Read(commands, sessionId, chartName),
+                    ChartAction.CreateFromRange => CreateFromRange(commands, sessionId, sheetName, sourceRange, chartType, left, top, width, height, chartName),
+                    ChartAction.CreateFromPivotTable => CreateFromPivotTable(commands, sessionId, pivotTableName, sheetName, chartType, left, top, width, height, chartName),
+                    ChartAction.Delete => Delete(commands, sessionId, chartName),
+                    ChartAction.Move => Move(commands, sessionId, chartName, left, top, width, height),
+                    ChartAction.SetSourceRange => SetSourceRange(commands, sessionId, chartName, sourceRange),
+                    ChartAction.AddSeries => AddSeries(commands, sessionId, chartName, seriesName, valuesRange, categoryRange),
+                    ChartAction.RemoveSeries => RemoveSeries(commands, sessionId, chartName, seriesIndex),
+                    ChartAction.SetChartType => SetChartType(commands, sessionId, chartName, chartType),
+                    ChartAction.SetTitle => SetTitle(commands, sessionId, chartName, title),
+                    ChartAction.SetAxisTitle => SetAxisTitle(commands, sessionId, chartName, axis, title),
+                    ChartAction.ShowLegend => ShowLegend(commands, sessionId, chartName, visible, legendPosition),
+                    ChartAction.SetStyle => SetStyle(commands, sessionId, chartName, styleId),
+                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            });
     }
 
     private static string List(
         ChartCommands commands,
         string sessionId)
     {
-        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.List(batch));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.Charts,
-            result.ErrorMessage
-        }, JsonOptions);
+        var charts = ExcelToolsBase.WithSession(sessionId, batch => commands.List(batch));
+        return JsonSerializer.Serialize(charts, JsonOptions);
     }
 
     private static string Read(
@@ -145,24 +133,7 @@ public static class ExcelChartTool
         var result = ExcelToolsBase.WithSession(sessionId,
             batch => commands.Read(batch, chartName!));
 
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.Name,
-            result.SheetName,
-            result.ChartType,
-            result.IsPivotChart,
-            result.LinkedPivotTable,
-            result.SourceRange,
-            result.Left,
-            result.Top,
-            result.Width,
-            result.Height,
-            result.Title,
-            result.HasLegend,
-            result.Series,
-            result.ErrorMessage
-        }, JsonOptions);
+        return JsonSerializer.Serialize(result, JsonOptions);
     }
 
     private static string CreateFromRange(
@@ -192,19 +163,7 @@ public static class ExcelChartTool
             batch => commands.CreateFromRange(batch, sheetName!, sourceRange!, chartType!.Value,
                 left!.Value, top!.Value, width ?? 400, height ?? 300, chartName));
 
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ChartName,
-            result.SheetName,
-            result.ChartType,
-            result.IsPivotChart,
-            result.Left,
-            result.Top,
-            result.Width,
-            result.Height,
-            result.ErrorMessage
-        }, JsonOptions);
+        return JsonSerializer.Serialize(result, JsonOptions);
     }
 
     private static string CreateFromPivotTable(
@@ -234,20 +193,7 @@ public static class ExcelChartTool
             batch => commands.CreateFromPivotTable(batch, pivotTableName!, sheetName!, chartType!.Value,
                 left!.Value, top!.Value, width ?? 400, height ?? 300, chartName));
 
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ChartName,
-            result.SheetName,
-            result.ChartType,
-            result.IsPivotChart,
-            result.LinkedPivotTable,
-            result.Left,
-            result.Top,
-            result.Width,
-            result.Height,
-            result.ErrorMessage
-        }, JsonOptions);
+        return JsonSerializer.Serialize(result, JsonOptions);
     }
 
     private static string Delete(
@@ -258,14 +204,13 @@ public static class ExcelChartTool
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "delete");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.Delete(batch, chartName!));
-
-        return JsonSerializer.Serialize(new
+        ExcelToolsBase.WithSession(sessionId, batch =>
         {
-            result.Success,
-            result.ErrorMessage
-        }, JsonOptions);
+            commands.Delete(batch, chartName!);
+            return 0; // Dummy return value
+        });
+
+        return JsonSerializer.Serialize(new { success = true, message = $"Chart '{chartName}' deleted successfully" }, JsonOptions);
     }
 
     private static string Move(
@@ -280,14 +225,13 @@ public static class ExcelChartTool
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "move");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.Move(batch, chartName!, left, top, width, height));
-
-        return JsonSerializer.Serialize(new
+        ExcelToolsBase.WithSession(sessionId, batch =>
         {
-            result.Success,
-            result.ErrorMessage
-        }, JsonOptions);
+            commands.Move(batch, chartName!, left, top, width, height);
+            return 0; // Dummy return value
+        });
+
+        return JsonSerializer.Serialize(new { success = true, message = $"Chart '{chartName}' moved successfully" }, JsonOptions);
     }
 
     private static string SetSourceRange(
@@ -301,14 +245,13 @@ public static class ExcelChartTool
         if (string.IsNullOrWhiteSpace(sourceRange))
             ExcelToolsBase.ThrowMissingParameter(nameof(sourceRange), "set-source-range");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.SetSourceRange(batch, chartName!, sourceRange!));
-
-        return JsonSerializer.Serialize(new
+        ExcelToolsBase.WithSession(sessionId, batch =>
         {
-            result.Success,
-            result.ErrorMessage
-        }, JsonOptions);
+            commands.SetSourceRange(batch, chartName!, sourceRange!);
+            return 0; // Dummy return value
+        });
+
+        return JsonSerializer.Serialize(new { success = true, message = $"Chart '{chartName}' source range set to '{sourceRange}'" }, JsonOptions);
     }
 
     private static string AddSeries(
@@ -329,15 +272,7 @@ public static class ExcelChartTool
         var result = ExcelToolsBase.WithSession(sessionId,
             batch => commands.AddSeries(batch, chartName!, seriesName!, valuesRange!, categoryRange));
 
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.SeriesName,
-            result.ValuesRange,
-            result.CategoryRange,
-            result.SeriesIndex,
-            result.ErrorMessage
-        }, JsonOptions);
+        return JsonSerializer.Serialize(result, JsonOptions);
     }
 
     private static string RemoveSeries(
@@ -351,14 +286,13 @@ public static class ExcelChartTool
         if (!seriesIndex.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(seriesIndex), "remove-series");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.RemoveSeries(batch, chartName!, seriesIndex!.Value));
-
-        return JsonSerializer.Serialize(new
+        ExcelToolsBase.WithSession(sessionId, batch =>
         {
-            result.Success,
-            result.ErrorMessage
-        }, JsonOptions);
+            commands.RemoveSeries(batch, chartName!, seriesIndex!.Value);
+            return 0; // Dummy return value
+        });
+
+        return JsonSerializer.Serialize(new { success = true, message = $"Series {seriesIndex!.Value} removed from chart '{chartName}'" }, JsonOptions);
     }
 
     private static string SetChartType(
@@ -372,14 +306,13 @@ public static class ExcelChartTool
         if (!chartType.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(chartType), "set-chart-type");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.SetChartType(batch, chartName!, chartType!.Value));
-
-        return JsonSerializer.Serialize(new
+        ExcelToolsBase.WithSession(sessionId, batch =>
         {
-            result.Success,
-            result.ErrorMessage
-        }, JsonOptions);
+            commands.SetChartType(batch, chartName!, chartType!.Value);
+            return 0; // Dummy return value
+        });
+
+        return JsonSerializer.Serialize(new { success = true, message = $"Chart '{chartName}' type changed to {chartType!.Value}" }, JsonOptions);
     }
 
     private static string SetTitle(
@@ -393,14 +326,13 @@ public static class ExcelChartTool
         if (title == null)
             ExcelToolsBase.ThrowMissingParameter(nameof(title), "set-title");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.SetTitle(batch, chartName!, title!));
-
-        return JsonSerializer.Serialize(new
+        ExcelToolsBase.WithSession(sessionId, batch =>
         {
-            result.Success,
-            result.ErrorMessage
-        }, JsonOptions);
+            commands.SetTitle(batch, chartName!, title!);
+            return 0; // Dummy return value
+        });
+
+        return JsonSerializer.Serialize(new { success = true, message = string.IsNullOrEmpty(title) ? $"Chart '{chartName}' title hidden" : $"Chart '{chartName}' title set" }, JsonOptions);
     }
 
     private static string SetAxisTitle(
@@ -417,14 +349,13 @@ public static class ExcelChartTool
         if (title == null)
             ExcelToolsBase.ThrowMissingParameter(nameof(title), "set-axis-title");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.SetAxisTitle(batch, chartName!, axis!.Value, title!));
-
-        return JsonSerializer.Serialize(new
+        ExcelToolsBase.WithSession(sessionId, batch =>
         {
-            result.Success,
-            result.ErrorMessage
-        }, JsonOptions);
+            commands.SetAxisTitle(batch, chartName!, axis!.Value, title!);
+            return 0; // Dummy return value
+        });
+
+        return JsonSerializer.Serialize(new { success = true, message = $"Chart '{chartName}' {axis!.Value} axis title set" }, JsonOptions);
     }
 
     private static string ShowLegend(
@@ -439,14 +370,13 @@ public static class ExcelChartTool
         if (!visible.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(visible), "show-legend");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.ShowLegend(batch, chartName!, visible!.Value, legendPosition));
-
-        return JsonSerializer.Serialize(new
+        ExcelToolsBase.WithSession(sessionId, batch =>
         {
-            result.Success,
-            result.ErrorMessage
-        }, JsonOptions);
+            commands.ShowLegend(batch, chartName!, visible!.Value, legendPosition);
+            return 0; // Dummy return value
+        });
+
+        return JsonSerializer.Serialize(new { success = true, message = visible!.Value ? $"Chart '{chartName}' legend shown" : $"Chart '{chartName}' legend hidden" }, JsonOptions);
     }
 
     private static string SetStyle(
@@ -460,13 +390,12 @@ public static class ExcelChartTool
         if (!styleId.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(styleId), "set-style");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.SetStyle(batch, chartName!, styleId!.Value));
-
-        return JsonSerializer.Serialize(new
+        ExcelToolsBase.WithSession(sessionId, batch =>
         {
-            result.Success,
-            result.ErrorMessage
-        }, JsonOptions);
+            commands.SetStyle(batch, chartName!, styleId!.Value);
+            return 0; // Dummy return value
+        });
+
+        return JsonSerializer.Serialize(new { success = true, message = $"Chart '{chartName}' style set to {styleId!.Value}" }, JsonOptions);
     }
 }

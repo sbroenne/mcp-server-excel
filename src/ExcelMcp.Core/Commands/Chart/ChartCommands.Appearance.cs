@@ -1,6 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
@@ -10,19 +9,15 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 public partial class ChartCommands
 {
     /// <inheritdoc />
-    public OperationResult SetChartType(IExcelBatch batch, string chartName, ChartType chartType)
+    public void SetChartType(IExcelBatch batch, string chartName, ChartType chartType)
     {
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
             {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Chart '{chartName}' not found in workbook."
-                };
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
 
             try
@@ -30,7 +25,7 @@ public partial class ChartCommands
                 // Set chart type (works for both Regular and PivotCharts)
                 findResult.Chart.ChartType = (int)chartType;
 
-                return new OperationResult { Success = true };
+                return 0; // Void operation completed
             }
             finally
             {
@@ -41,19 +36,15 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public OperationResult SetTitle(IExcelBatch batch, string chartName, string title)
+    public void SetTitle(IExcelBatch batch, string chartName, string title)
     {
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
             {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Chart '{chartName}' not found in workbook."
-                };
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
 
             try
@@ -69,7 +60,7 @@ public partial class ChartCommands
                     findResult.Chart.ChartTitle.Text = title;
                 }
 
-                return new OperationResult { Success = true };
+                return 0; // Void operation completed
             }
             finally
             {
@@ -80,23 +71,19 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public OperationResult SetAxisTitle(
+    public void SetAxisTitle(
         IExcelBatch batch,
         string chartName,
         ChartAxisType axis,
         string title)
     {
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
             {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Chart '{chartName}' not found in workbook."
-                };
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
 
             dynamic? axes = null;
@@ -129,7 +116,7 @@ public partial class ChartCommands
                     targetAxis.AxisTitle.Text = title;
                 }
 
-                return new OperationResult { Success = true };
+                return 0; // Void operation completed
             }
             finally
             {
@@ -142,23 +129,19 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public OperationResult ShowLegend(
+    public void ShowLegend(
         IExcelBatch batch,
         string chartName,
         bool visible,
         LegendPosition? position = null)
     {
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
             {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Chart '{chartName}' not found in workbook."
-                };
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
 
             dynamic? legend = null;
@@ -175,7 +158,7 @@ public partial class ChartCommands
                     legend.Position = (int)position.Value;
                 }
 
-                return new OperationResult { Success = true };
+                return 0; // Void operation completed
             }
             finally
             {
@@ -187,19 +170,15 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public OperationResult SetStyle(IExcelBatch batch, string chartName, int styleId)
+    public void SetStyle(IExcelBatch batch, string chartName, int styleId)
     {
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
             {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Chart '{chartName}' not found in workbook."
-                };
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
 
             try
@@ -207,17 +186,13 @@ public partial class ChartCommands
                 // Validate range (Excel supports styles 1-48)
                 if (styleId < 1 || styleId > 48)
                 {
-                    return new OperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Chart style ID must be between 1 and 48. Provided: {styleId}"
-                    };
+                    throw new ArgumentException($"Chart style ID must be between 1 and 48. Provided: {styleId}", nameof(styleId));
                 }
 
                 // Set chart style
                 findResult.Chart.ChartStyle = styleId;
 
-                return new OperationResult { Success = true };
+                return 0; // Void operation completed
             }
             finally
             {

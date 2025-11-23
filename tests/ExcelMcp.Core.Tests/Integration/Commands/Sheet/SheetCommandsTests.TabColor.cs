@@ -24,10 +24,9 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "ColorTest");
 
         // Act - Set red color
-        var setResult = _sheetCommands.SetTabColor(batch, "ColorTest", 255, 0, 0);
+        _sheetCommands.SetTabColor(batch, "ColorTest", 255, 0, 0);  // SetTabColor throws on error
 
-        // Assert - Verify set succeeded
-        Assert.True(setResult.Success, $"SetTabColor failed: {setResult.ErrorMessage}");
+        // Assert - reaching here means set succeeded
 
         // Verify color was actually set by reading it back
         var getResult = _sheetCommands.GetTabColor(batch, "ColorTest");
@@ -129,10 +128,9 @@ public partial class SheetCommandsTests
         Assert.True(beforeClear.HasColor);
 
         // Act - Clear color
-        var clearResult = _sheetCommands.ClearTabColor(batch, "ClearTest");
+        _sheetCommands.ClearTabColor(batch, "ClearTest");  // ClearTabColor throws on error
 
-        // Assert
-        Assert.True(clearResult.Success);
+        // Assert - reaching here means clear succeeded
 
         var afterClear = _sheetCommands.GetTabColor(batch, "ClearTest");
         Assert.True(afterClear.Success);
@@ -143,37 +141,35 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public void SetTabColor_WithInvalidRGB_ReturnsError()
+    public void SetTabColor_WithInvalidRGB_ThrowsException()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
-            nameof(SetTabColor_WithInvalidRGB_ReturnsError),
+            nameof(SetTabColor_WithInvalidRGB_ThrowsException),
             _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
         _sheetCommands.Create(batch, "InvalidColor");
 
-        // Act - Try to set invalid RGB values
-        var result1 = _sheetCommands.SetTabColor(batch, "InvalidColor", 256, 0, 0); // Red too high
-        var result2 = _sheetCommands.SetTabColor(batch, "InvalidColor", 0, -1, 0); // Green negative
+        // Act & Assert - Should throw ArgumentException for invalid RGB values
+        var exception1 = Assert.Throws<ArgumentException>(
+            () => _sheetCommands.SetTabColor(batch, "InvalidColor", 256, 0, 0)); // Red too high
+        Assert.Contains("must be between 0 and 255", exception1.Message);
 
-        // Assert
-        Assert.False(result1.Success);
-        Assert.Contains("must be between 0 and 255", result1.ErrorMessage);
-
-        Assert.False(result2.Success);
-        Assert.Contains("must be between 0 and 255", result2.ErrorMessage);
+        var exception2 = Assert.Throws<ArgumentException>(
+            () => _sheetCommands.SetTabColor(batch, "InvalidColor", 0, -1, 0)); // Green negative
+        Assert.Contains("must be between 0 and 255", exception2.Message);
     }
     /// <inheritdoc/>
 
     [Fact]
-    public void SetTabColor_WithNonExistentSheet_ReturnsError()
+    public void SetTabColor_WithNonExistentSheet_ThrowsException()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
-            nameof(SetTabColor_WithNonExistentSheet_ReturnsError),
+            nameof(SetTabColor_WithNonExistentSheet_ThrowsException),
             _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);

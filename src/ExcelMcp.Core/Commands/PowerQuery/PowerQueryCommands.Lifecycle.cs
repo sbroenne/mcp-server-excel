@@ -29,9 +29,25 @@ public partial class PowerQueryCommands
                     {
                         query = queriesCollection.Item(i);
                         string name = query.Name ?? $"Query{i}";
-                        string formula = query.Formula ?? "";
+
+                        // Try to read formula - some queries may not have accessible formulas
+                        string formula = "";
+                        try
+                        {
+                            formula = query.Formula?.ToString() ?? "";
+                        }
+                        catch (System.Runtime.InteropServices.COMException)
+                        {
+                            // Formula property not accessible (e.g., corrupted query, permission issue)
+                            // Don't fail the entire List operation - just mark this query
+                            formula = "";
+                        }
 
                         string preview = formula.Length > 80 ? formula[..77] + "..." : formula;
+                        if (string.IsNullOrEmpty(formula))
+                        {
+                            preview = "(formula not accessible)";
+                        }
 
                         // Check if loaded to table (ListObject) - same pattern as GetLoadConfig
                         bool isConnectionOnly = true;
@@ -355,21 +371,15 @@ public partial class PowerQueryCommands
     }
 
     /// <inheritdoc />
-    public OperationResult Delete(IExcelBatch batch, string queryName)
+    public void Delete(IExcelBatch batch, string queryName)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "pq-delete"
-        };
-
         // Validate query name
         if (!ValidateQueryName(queryName, out string? validationError))
         {
             throw new ArgumentException(validationError, nameof(queryName));
         }
 
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? query = null;
             dynamic? queriesCollection = null;
@@ -456,8 +466,7 @@ public partial class PowerQueryCommands
                 queriesCollection = ctx.Book.Queries;
                 queriesCollection.Item(queryName).Delete();
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {

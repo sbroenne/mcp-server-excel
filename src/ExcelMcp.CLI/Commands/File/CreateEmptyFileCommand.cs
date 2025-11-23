@@ -17,20 +17,24 @@ internal sealed class CreateEmptyFileCommand : Command<CreateEmptyFileCommand.Se
 
     public override int Execute(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
-        var result = _fileCommands.CreateEmpty(settings.FilePath, settings.Overwrite);
-        if (!result.Success)
+        try
         {
-            _console.WriteError(result.ErrorMessage ?? "Failed to create Excel file.");
-            return -1;
-        }
+            _fileCommands.CreateEmpty(settings.FilePath, settings.Overwrite);
 
-        _console.WriteJson(new
+            _console.WriteJson(new
+            {
+                success = true,
+                filePath = settings.FilePath,
+                settings.Overwrite
+            });
+
+            return 0;
+        }
+        catch (Exception ex)
         {
-            success = true,
-            filePath = settings.FilePath,
-            settings.Overwrite
-        });
-        return 0;
+            _console.WriteError($"Failed to create Excel file: {ex.Message}");
+            return 1;
+        }
     }
 
     internal sealed class Settings : CommandSettings

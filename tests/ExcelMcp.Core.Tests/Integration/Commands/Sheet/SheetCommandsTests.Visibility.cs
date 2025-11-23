@@ -25,10 +25,9 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "HideTest");
 
         // Act
-        var setResult = _sheetCommands.SetVisibility(batch, "HideTest", SheetVisibility.Hidden);
+        _sheetCommands.SetVisibility(batch, "HideTest", SheetVisibility.Hidden);  // SetVisibility throws on error
 
-        // Assert
-        Assert.True(setResult.Success, $"SetVisibility failed: {setResult.ErrorMessage}");
+        // Assert - reaching here means set succeeded
 
         // Verify by reading visibility
         var getResult = _sheetCommands.GetVisibility(batch, "HideTest");
@@ -53,10 +52,9 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "VeryHideTest");
 
         // Act
-        var setResult = _sheetCommands.SetVisibility(batch, "VeryHideTest", SheetVisibility.VeryHidden);
+        _sheetCommands.SetVisibility(batch, "VeryHideTest", SheetVisibility.VeryHidden);  // SetVisibility throws on error
 
-        // Assert
-        Assert.True(setResult.Success);
+        // Assert - reaching here means set succeeded
 
         var getResult = _sheetCommands.GetVisibility(batch, "VeryHideTest");
         Assert.True(getResult.Success);
@@ -85,10 +83,9 @@ public partial class SheetCommandsTests
         Assert.Equal(SheetVisibility.Hidden, hiddenCheck.Visibility);
 
         // Act - Show the sheet
-        var showResult = _sheetCommands.Show(batch, "ShowTest");
+        _sheetCommands.Show(batch, "ShowTest");  // Show throws on error
 
-        // Assert
-        Assert.True(showResult.Success);
+        // Assert - reaching here means show succeeded
 
         var visibleCheck = _sheetCommands.GetVisibility(batch, "ShowTest");
         Assert.Equal(SheetVisibility.Visible, visibleCheck.Visibility);
@@ -115,10 +112,9 @@ public partial class SheetCommandsTests
         Assert.Equal(SheetVisibility.VeryHidden, veryHiddenCheck.Visibility);
 
         // Act - Show the sheet
-        var showResult = _sheetCommands.Show(batch, "VeryHideShowTest");
+        _sheetCommands.Show(batch, "VeryHideShowTest");  // Show throws on error
 
-        // Assert
-        Assert.True(showResult.Success);
+        // Assert - reaching here means show succeeded
 
         var visibleCheck = _sheetCommands.GetVisibility(batch, "VeryHideShowTest");
         Assert.Equal(SheetVisibility.Visible, visibleCheck.Visibility);
@@ -140,10 +136,9 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "HideMe");
 
         // Act
-        var hideResult = _sheetCommands.Hide(batch, "HideMe");
+        _sheetCommands.Hide(batch, "HideMe");  // Hide throws on error
 
-        // Assert
-        Assert.True(hideResult.Success);
+        // Assert - reaching here means hide succeeded
 
         var getResult = _sheetCommands.GetVisibility(batch, "HideMe");
         Assert.Equal(SheetVisibility.Hidden, getResult.Visibility);
@@ -165,10 +160,9 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "VeryHideMe");
 
         // Act
-        var veryHideResult = _sheetCommands.VeryHide(batch, "VeryHideMe");
+        _sheetCommands.VeryHide(batch, "VeryHideMe");  // VeryHide throws on error
 
-        // Assert
-        Assert.True(veryHideResult.Success);
+        // Assert - reaching here means veryhide succeeded
 
         var getResult = _sheetCommands.GetVisibility(batch, "VeryHideMe");
         Assert.Equal(SheetVisibility.VeryHidden, getResult.Visibility);
@@ -200,22 +194,20 @@ public partial class SheetCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public void SetVisibility_WithNonExistentSheet_ReturnsError()
+    public void SetVisibility_WithNonExistentSheet_ThrowsException()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(SheetCommandsTests),
-            nameof(SetVisibility_WithNonExistentSheet_ReturnsError),
+            nameof(SetVisibility_WithNonExistentSheet_ThrowsException),
             _tempDir);
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        // Act
-        var result = _sheetCommands.SetVisibility(batch, "NonExistent", SheetVisibility.Hidden);
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.Contains("not found", result.ErrorMessage);
+        // Act & Assert - Should throw InvalidOperationException when sheet not found
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => _sheetCommands.SetVisibility(batch, "NonExistent", SheetVisibility.Hidden));
+        Assert.Contains("not found", exception.Message);
     }
     /// <inheritdoc/>
 

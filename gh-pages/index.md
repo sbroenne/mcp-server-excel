@@ -433,7 +433,6 @@ Same 154 operations available via CLI and MCP. Consistent behavior across interf
 | `read` | Read named range value |
 | `write` | Write value to named range |
 | `create` | Create new named range |
-| `create-bulk` | Create multiple named ranges at once |
 | `update` | Update named range reference |
 | `delete` | Delete named range |
 

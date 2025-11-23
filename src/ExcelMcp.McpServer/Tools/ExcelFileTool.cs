@@ -56,45 +56,42 @@ FILE FORMATS:
         [Description("Save changes before closing (for close action, default: false - use true to persist changes)")]
         bool save = false)
     {
-        try
-        {
-            var fileCommands = new FileCommands();
+        return ExcelToolsBase.ExecuteToolAction(
+            action.ToActionString(),
+            excelPath,
+            () =>
+            {
+                var fileCommands = new FileCommands();
 
-            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
-            return action switch
+                // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+                return action switch
+                {
+                    FileAction.Open => OpenSessionAsync(excelPath!),
+                    FileAction.Close => CloseSessionAsync(sessionId!, save),
+                    FileAction.CreateEmpty => CreateEmptyFileAsync(fileCommands, excelPath!,
+                        excelPath!.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase)),
+                    FileAction.CloseWorkbook => CloseWorkbook(excelPath!),
+                    FileAction.Test => TestFileAsync(fileCommands, excelPath!),
+                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            },
+            ex =>
             {
-                FileAction.Open => OpenSessionAsync(excelPath!),
-                FileAction.Close => CloseSessionAsync(sessionId!, save),
-                FileAction.CreateEmpty => CreateEmptyFileAsync(fileCommands, excelPath!,
-                    excelPath!.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase)),
-                FileAction.CloseWorkbook => CloseWorkbook(excelPath!),
-                FileAction.Test => TestFileAsync(fileCommands, excelPath!),
-                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (ArgumentException ex) when (ex.Message.Contains("action") || ex.Message.Contains("Action"))
-        {
-            // Invalid action value provided
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"Invalid action value. Valid actions: open, close, create-empty, close-workbook, test. {ex.Message}",
-                validActions = new[] { "open", "close", "create-empty", "close-workbook", "test" },
-                providedAction = action.ToString(),
-                workflowHint = "For persisting changes, use action='close' with save=true parameter (not action='save')",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
-                filePath = excelPath,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                if (ex is ArgumentException argEx && (argEx.Message.Contains("action") || argEx.Message.Contains("Action")))
+                {
+                    return JsonSerializer.Serialize(new
+                    {
+                        success = false,
+                        errorMessage = $"Invalid action value. Valid actions: open, close, create-empty, close-workbook, test. {argEx.Message}",
+                        validActions = new[] { "open", "close", "create-empty", "close-workbook", "test" },
+                        providedAction = action.ToString(),
+                        workflowHint = "For persisting changes, use action='close' with save=true parameter (not action='save')",
+                        isError = true
+                    }, ExcelToolsBase.JsonOptions);
+                }
+
+                return null;
+            });
     }
 
     /// <summary>
@@ -212,23 +209,14 @@ FILE FORMATS:
             excelPath = Path.ChangeExtension(excelPath, extension);
         }
 
-        var result = fileCommands.CreateEmpty(excelPath, overwriteIfExists: false);
-
-        if (result.Success)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                filePath = result.FilePath,
-                macroEnabled
-            }, ExcelToolsBase.JsonOptions);
-        }
+        fileCommands.CreateEmpty(excelPath, overwriteIfExists: false);
 
         return JsonSerializer.Serialize(new
         {
-            success = false,
-            errorMessage = result.ErrorMessage,
-            filePath = excelPath
+            success = true,
+            filePath = excelPath,
+            macroEnabled,
+            message = "Excel workbook created successfully"
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -257,33 +245,19 @@ FILE FORMATS:
             throw new ArgumentException("excelPath is required for 'test' action", nameof(excelPath));
         }
 
-        var result = fileCommands.Test(excelPath);
-
-        if (result.Success)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                filePath = result.FilePath,
-                exists = result.Exists,
-                isValid = result.IsValid,
-                extension = result.Extension,
-                size = result.Size,
-                lastModified = result.LastModified
-            }, ExcelToolsBase.JsonOptions);
-        }
+        var info = fileCommands.Test(excelPath);
 
         return JsonSerializer.Serialize(new
         {
-            success = false,
-            filePath = result.FilePath,
-            exists = result.Exists,
-            isValid = result.IsValid,
-            extension = result.Extension,
-            size = result.Size,
-            lastModified = result.LastModified,
-            errorMessage = result.ErrorMessage,
-            isError = true
+            success = info.IsValid,
+            filePath = info.FilePath,
+            exists = info.Exists,
+            isValid = info.IsValid,
+            extension = info.Extension,
+            size = info.Size,
+            lastModified = info.LastModified,
+            message = info.Message,
+            isError = info.IsValid ? (bool?)null : true
         }, ExcelToolsBase.JsonOptions);
     }
 }

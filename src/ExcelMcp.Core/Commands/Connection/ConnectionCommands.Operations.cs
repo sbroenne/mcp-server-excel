@@ -1,6 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -13,17 +12,11 @@ public partial class ConnectionCommands
     /// <summary>
     /// Loads connection data to a worksheet
     /// </summary>
-    public OperationResult LoadTo(IExcelBatch batch, string connectionName, string sheetName)
+    public void LoadTo(IExcelBatch batch, string connectionName, string sheetName)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "loadto"
-        };
-
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
 
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? conn = null;
             dynamic? sheets = null;
@@ -35,9 +28,7 @@ public partial class ConnectionCommands
 
                 if (conn == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Connection '{connectionName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Connection '{connectionName}' not found");
                 }
 
                 // Check if this is a Power Query connection
@@ -85,9 +76,7 @@ public partial class ConnectionCommands
                 };
 
                 CreateQueryTableForConnection(targetSheet, conn, options);
-
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
@@ -102,15 +91,9 @@ public partial class ConnectionCommands
     /// Gets connection properties
     /// </summary>
 
-    public OperationResult Test(IExcelBatch batch, string connectionName)
+    public void Test(IExcelBatch batch, string connectionName)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "test"
-        };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
@@ -126,8 +109,7 @@ public partial class ConnectionCommands
             // until a QueryTable is created. Just verify the connection object exists.
             if (connType is 4 or 5)
             {
-                result.Success = true;
-                return result;
+                return 0;
             }
 
             // For other connection types (OLEDB, ODBC), validate connection string
@@ -139,8 +121,7 @@ public partial class ConnectionCommands
             }
 
             // Connection exists and is accessible
-            result.Success = true;
-            return result;
+            return 0;
         });
     }
 }

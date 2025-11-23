@@ -53,10 +53,7 @@ public class TableTestsFixture : IAsyncLifetime
         {
             // TEST 1: File Creation
             var fileCommands = new FileCommands();
-            var createFileResult = fileCommands.CreateEmpty(TestFilePath);
-            if (!createFileResult.Success)
-                throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: File creation failed: {createFileResult.ErrorMessage}");
+            fileCommands.CreateEmpty(TestFilePath);
 
             CreationResult.FileCreated = true;
 
@@ -102,12 +99,9 @@ public class TableTestsFixture : IAsyncLifetime
 
             // Create Table using TableCommands
             var tableCommands = new TableCommands();
-            var createTableResult = tableCommands.Create(
+            // Create throws on error, so reaching here means success
+            tableCommands.Create(
                 batch, "Sales", "SalesTable", "A1:D5", hasHeaders: true, tableStyle: TableStylePresets.Medium2);
-
-            if (!createTableResult.Success)
-                throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: Table creation failed: {createTableResult.ErrorMessage}");
 
             CreationResult.TablesCreated = 1;
 

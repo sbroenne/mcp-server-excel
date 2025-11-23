@@ -1,5 +1,4 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -27,7 +26,9 @@ public interface IConditionalFormattingCommands
     /// <param name="fontItalic">Italic font</param>
     /// <param name="borderStyle">Border style: none, continuous, dash, dot, etc.</param>
     /// <param name="borderColor">Border color (#RRGGBB or color index)</param>
-    OperationResult AddRule(
+    /// <exception cref="InvalidOperationException">Sheet or range not found</exception>
+    /// <exception cref="ArgumentException">Invalid rule type, operator, color, or format value</exception>
+    void AddRule(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
@@ -47,7 +48,8 @@ public interface IConditionalFormattingCommands
     /// Removes all conditional formatting from range
     /// Excel COM: Range.FormatConditions.Delete()
     /// </summary>
-    OperationResult ClearRules(
+    /// <exception cref="InvalidOperationException">Sheet or range not found</exception>
+    void ClearRules(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress);

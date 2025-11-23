@@ -427,9 +427,10 @@ public enum LegendPosition
     Top = -4160         // xlLegendPositionTop
 }
 
-public class ChartListResult : OperationResult
+public class ChartListResult
 {
     public List<ChartInfo> Charts { get; set; } = new();
+    public string FilePath { get; set; } = string.Empty;
 }
 
 public class ChartInfo
@@ -446,7 +447,7 @@ public class ChartInfo
     public int SeriesCount { get; set; }
 }
 
-public class ChartInfoResult : OperationResult
+public class ChartInfo
 {
     public string Name { get; set; } = string.Empty;
     public string SheetName { get; set; } = string.Empty;

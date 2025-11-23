@@ -204,68 +204,62 @@ DATA FORMAT:
         [Description("Lock status for cells (for set-cell-lock: true = locked, false = unlocked)")]
         bool? locked = null)
     {
-        try
-        {
-            var rangeCommands = new RangeCommands();
+        return ExcelToolsBase.ExecuteToolAction(
+            action.ToActionString(),
+            excelPath,
+            () =>
+            {
+                var rangeCommands = new RangeCommands();
 
-            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
-            return action switch
-            {
-                RangeAction.GetValues => GetValuesAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.SetValues => SetValuesAsync(rangeCommands, sessionId, sheetName, rangeAddress, values),
-                RangeAction.GetFormulas => GetFormulasAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.SetFormulas => SetFormulasAsync(rangeCommands, sessionId, sheetName, rangeAddress, formulas),
-                RangeAction.GetNumberFormats => GetNumberFormatsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.SetNumberFormat => SetNumberFormatAsync(rangeCommands, sessionId, sheetName, rangeAddress, formatCode),
-                RangeAction.SetNumberFormats => SetNumberFormatsAsync(rangeCommands, sessionId, sheetName, rangeAddress, formats),
-                RangeAction.ClearAll => ClearAllAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.ClearContents => ClearContentsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.ClearFormats => ClearFormatsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.Copy => CopyAsync(rangeCommands, sessionId, sourceSheet, sourceRange, targetSheet, targetRange),
-                RangeAction.CopyValues => CopyValuesAsync(rangeCommands, sessionId, sourceSheet, sourceRange, targetSheet, targetRange),
-                RangeAction.CopyFormulas => CopyFormulasAsync(rangeCommands, sessionId, sourceSheet, sourceRange, targetSheet, targetRange),
-                RangeAction.InsertCells => InsertCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress, shift),
-                RangeAction.DeleteCells => DeleteCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress, shift),
-                RangeAction.InsertRows => InsertRowsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.DeleteRows => DeleteRowsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.InsertColumns => InsertColumnsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.DeleteColumns => DeleteColumnsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.Find => FindAsync(rangeCommands, sessionId, sheetName, rangeAddress, searchValue, matchCase, matchEntireCell, searchFormulas, searchValues),
-                RangeAction.Replace => ReplaceAsync(rangeCommands, sessionId, sheetName, rangeAddress, searchValue, replaceValue, matchCase, matchEntireCell, searchFormulas, searchValues, replaceAll),
-                RangeAction.Sort => SortAsync(rangeCommands, sessionId, sheetName, rangeAddress, sortColumns, hasHeaders),
-                RangeAction.GetUsedRange => GetUsedRangeAsync(rangeCommands, sessionId, sheetName),
-                RangeAction.GetCurrentRegion => GetCurrentRegionAsync(rangeCommands, sessionId, sheetName, cellAddress),
-                RangeAction.GetInfo => GetRangeInfoAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.AddHyperlink => AddHyperlinkAsync(rangeCommands, sessionId, sheetName, cellAddress, url, displayText, tooltip),
-                RangeAction.RemoveHyperlink => RemoveHyperlinkAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.ListHyperlinks => ListHyperlinksAsync(rangeCommands, sessionId, sheetName),
-                RangeAction.GetHyperlink => GetHyperlinkAsync(rangeCommands, sessionId, sheetName, cellAddress),
-                RangeAction.GetStyle => GetStyleAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.SetStyle => SetStyleAsync(rangeCommands, sessionId, sheetName, rangeAddress, styleName),
-                RangeAction.FormatRange => FormatRangeAsync(rangeCommands, sessionId, sheetName, rangeAddress, fontName, fontSize, bold, italic, underline, fontColor, fillColor, borderStyle, borderColor, borderWeight, horizontalAlignment, verticalAlignment, wrapText, orientation),
-                RangeAction.ValidateRange => ValidateRangeAsync(rangeCommands, sessionId, sheetName, rangeAddress, validationType, validationOperator, validationFormula1, validationFormula2, showInputMessage, inputTitle, inputMessage, showErrorAlert, errorStyle, errorTitle, errorMessage, ignoreBlank, showDropdown),
-                RangeAction.GetValidation => GetValidationAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.RemoveValidation => RemoveValidationAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.AutoFitColumns => AutoFitColumnsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.AutoFitRows => AutoFitRowsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.MergeCells => MergeCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.UnmergeCells => UnmergeCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.GetMergeInfo => GetMergeInfoAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                RangeAction.SetCellLock => SetCellLockAsync(rangeCommands, sessionId, sheetName, rangeAddress, locked),
-                RangeAction.GetCellLock => GetCellLockAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                _ => throw new ArgumentException(
-                    $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+                return action switch
+                {
+                    RangeAction.GetValues => GetValuesAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.SetValues => SetValuesAsync(rangeCommands, sessionId, sheetName, rangeAddress, values),
+                    RangeAction.GetFormulas => GetFormulasAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.SetFormulas => SetFormulasAsync(rangeCommands, sessionId, sheetName, rangeAddress, formulas),
+                    RangeAction.GetNumberFormats => GetNumberFormatsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.SetNumberFormat => SetNumberFormatAsync(rangeCommands, sessionId, sheetName, rangeAddress, formatCode),
+                    RangeAction.SetNumberFormats => SetNumberFormatsAsync(rangeCommands, sessionId, sheetName, rangeAddress, formats),
+                    RangeAction.ClearAll => ClearAllAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.ClearContents => ClearContentsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.ClearFormats => ClearFormatsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.Copy => CopyAsync(rangeCommands, sessionId, sourceSheet, sourceRange, targetSheet, targetRange),
+                    RangeAction.CopyValues => CopyValuesAsync(rangeCommands, sessionId, sourceSheet, sourceRange, targetSheet, targetRange),
+                    RangeAction.CopyFormulas => CopyFormulasAsync(rangeCommands, sessionId, sourceSheet, sourceRange, targetSheet, targetRange),
+                    RangeAction.InsertCells => InsertCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress, shift),
+                    RangeAction.DeleteCells => DeleteCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress, shift),
+                    RangeAction.InsertRows => InsertRowsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.DeleteRows => DeleteRowsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.InsertColumns => InsertColumnsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.DeleteColumns => DeleteColumnsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.Find => FindAsync(rangeCommands, sessionId, sheetName, rangeAddress, searchValue, matchCase, matchEntireCell, searchFormulas, searchValues),
+                    RangeAction.Replace => ReplaceAsync(rangeCommands, sessionId, sheetName, rangeAddress, searchValue, replaceValue, matchCase, matchEntireCell, searchFormulas, searchValues, replaceAll),
+                    RangeAction.Sort => SortAsync(rangeCommands, sessionId, sheetName, rangeAddress, sortColumns, hasHeaders),
+                    RangeAction.GetUsedRange => GetUsedRangeAsync(rangeCommands, sessionId, sheetName),
+                    RangeAction.GetCurrentRegion => GetCurrentRegionAsync(rangeCommands, sessionId, sheetName, cellAddress),
+                    RangeAction.GetInfo => GetRangeInfoAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.AddHyperlink => AddHyperlinkAsync(rangeCommands, sessionId, sheetName, cellAddress, url, displayText, tooltip),
+                    RangeAction.RemoveHyperlink => RemoveHyperlinkAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.ListHyperlinks => ListHyperlinksAsync(rangeCommands, sessionId, sheetName),
+                    RangeAction.GetHyperlink => GetHyperlinkAsync(rangeCommands, sessionId, sheetName, cellAddress),
+                    RangeAction.GetStyle => GetStyleAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.SetStyle => SetStyleAsync(rangeCommands, sessionId, sheetName, rangeAddress, styleName),
+                    RangeAction.FormatRange => FormatRangeAsync(rangeCommands, sessionId, sheetName, rangeAddress, fontName, fontSize, bold, italic, underline, fontColor, fillColor, borderStyle, borderColor, borderWeight, horizontalAlignment, verticalAlignment, wrapText, orientation),
+                    RangeAction.ValidateRange => ValidateRangeAsync(rangeCommands, sessionId, sheetName, rangeAddress, validationType, validationOperator, validationFormula1, validationFormula2, showInputMessage, inputTitle, inputMessage, showErrorAlert, errorStyle, errorTitle, errorMessage, ignoreBlank, showDropdown),
+                    RangeAction.GetValidation => GetValidationAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.RemoveValidation => RemoveValidationAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.AutoFitColumns => AutoFitColumnsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.AutoFitRows => AutoFitRowsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.MergeCells => MergeCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.UnmergeCells => UnmergeCellsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.GetMergeInfo => GetMergeInfoAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    RangeAction.SetCellLock => SetCellLockAsync(rangeCommands, sessionId, sheetName, rangeAddress, locked),
+                    RangeAction.GetCellLock => GetCellLockAsync(rangeCommands, sessionId, sheetName, rangeAddress),
+                    _ => throw new ArgumentException(
+                        $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            });
     }
 
     // === VALUE OPERATIONS ===
@@ -681,14 +675,17 @@ DATA FORMAT:
             ReplaceAll = replaceAll ?? true
         };
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.Replace(batch, sheetName ?? "", rangeAddress!, searchValue!, replaceValue!, options));
+            batch =>
+            {
+                commands.Replace(batch, sheetName ?? "", rangeAddress!, searchValue!, replaceValue!, options);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -701,14 +698,17 @@ DATA FORMAT:
         if (sortColumns == null || sortColumns.Count == 0)
             ExcelToolsBase.ThrowMissingParameter("sortColumns", "sort");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.Sort(batch, sheetName ?? "", rangeAddress!, sortColumns!, hasHeaders ?? true));
+            batch =>
+            {
+                commands.Sort(batch, sheetName ?? "", rangeAddress!, sortColumns!, hasHeaders ?? true);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -873,14 +873,17 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(styleName))
             ExcelToolsBase.ThrowMissingParameter("styleName", "set-style");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.SetStyle(batch, sheetName ?? "", rangeAddress!, styleName!));
+            batch =>
+            {
+                commands.SetStyle(batch, sheetName ?? "", rangeAddress!, styleName!);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -931,17 +934,34 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "format-range");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.FormatRange(batch, sheetName ?? "", rangeAddress!,
-                fontName, fontSize, bold, italic, underline, fontColor,
-                fillColor, borderStyle, borderColor, borderWeight,
-                horizontalAlignment, verticalAlignment, wrapText, orientation));
+            batch =>
+            {
+                commands.FormatRange(
+                    batch,
+                    sheetName ?? "",
+                    rangeAddress!,
+                    fontName,
+                    fontSize,
+                    bold,
+                    italic,
+                    underline,
+                    fontColor,
+                    fillColor,
+                    borderStyle,
+                    borderColor,
+                    borderWeight,
+                    horizontalAlignment,
+                    verticalAlignment,
+                    wrapText,
+                    orientation);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -971,18 +991,33 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(validationType))
             ExcelToolsBase.ThrowMissingParameter("validationType", "validate-range");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.ValidateRange(batch, sheetName ?? "", rangeAddress!,
-                validationType!, validationOperator, validationFormula1, validationFormula2,
-                showInputMessage, inputTitle, inputMessage,
-                showErrorAlert, errorStyle, errorTitle, errorMessage,
-                ignoreBlank, showDropdown));
+            batch =>
+            {
+                commands.ValidateRange(
+                    batch,
+                    sheetName ?? "",
+                    rangeAddress!,
+                    validationType!,
+                    validationOperator,
+                    validationFormula1,
+                    validationFormula2,
+                    showInputMessage,
+                    inputTitle,
+                    inputMessage,
+                    showErrorAlert,
+                    errorStyle,
+                    errorTitle,
+                    errorMessage,
+                    ignoreBlank,
+                    showDropdown);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1026,14 +1061,17 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "remove-validation");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.RemoveValidation(batch, sheetName ?? "", rangeAddress!));
+            batch =>
+            {
+                commands.RemoveValidation(batch, sheetName ?? "", rangeAddress!);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1046,14 +1084,17 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "auto-fit-columns");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.AutoFitColumns(batch, sheetName ?? "", rangeAddress!));
+            batch =>
+            {
+                commands.AutoFitColumns(batch, sheetName ?? "", rangeAddress!);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1066,14 +1107,17 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "auto-fit-rows");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.AutoFitRows(batch, sheetName ?? "", rangeAddress!));
+            batch =>
+            {
+                commands.AutoFitRows(batch, sheetName ?? "", rangeAddress!);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1086,14 +1130,17 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "merge-cells");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.MergeCells(batch, sheetName ?? "", rangeAddress!));
+            batch =>
+            {
+                commands.MergeCells(batch, sheetName ?? "", rangeAddress!);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1106,14 +1153,17 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "unmerge-cells");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.UnmergeCells(batch, sheetName ?? "", rangeAddress!));
+            batch =>
+            {
+                commands.UnmergeCells(batch, sheetName ?? "", rangeAddress!);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1152,14 +1202,17 @@ DATA FORMAT:
         if (locked == null)
             ExcelToolsBase.ThrowMissingParameter("locked", "set-cell-lock");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.SetCellLock(batch, sheetName ?? "", rangeAddress!, locked!.Value));
+            batch =>
+            {
+                commands.SetCellLock(batch, sheetName ?? "", rangeAddress!, locked!.Value);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 

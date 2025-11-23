@@ -1,6 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
@@ -10,12 +9,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public partial class RangeCommands
 {
     /// <inheritdoc />
-    public OperationResult AutoFitColumns(
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
+    public void AutoFitColumns(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -35,20 +35,7 @@ public partial class RangeCommands
                 columns = range.Columns;
                 columns.AutoFit();
 
-                return new OperationResult
-                {
-                    Success = true,
-                    FilePath = batch.WorkbookPath
-                };
-            }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to auto-fit columns for range '{rangeAddress}': {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
+                return ValueTask.CompletedTask;
             }
             finally
             {
@@ -60,12 +47,13 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public OperationResult AutoFitRows(
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
+    public void AutoFitRows(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -85,20 +73,7 @@ public partial class RangeCommands
                 rows = range.Rows;
                 rows.AutoFit();
 
-                return new OperationResult
-                {
-                    Success = true,
-                    FilePath = batch.WorkbookPath
-                };
-            }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to auto-fit rows for range '{rangeAddress}': {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
+                return ValueTask.CompletedTask;
             }
             finally
             {

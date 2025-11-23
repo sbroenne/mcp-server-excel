@@ -155,9 +155,7 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
         var daxFormula = "SUM(SalesTable[Amount])";
 
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
-        var result = await _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, daxFormula);
-
-        Assert.True(result.Success, $"CreateMeasure failed: {result.ErrorMessage}");
+        _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, daxFormula);  // CreateMeasure throws on error
 
         // Verify measure created
         var listResult = await _dataModelCommands.ListMeasures(batch);
@@ -178,12 +176,10 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
         // Create measure
-        var createResult = await _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, originalFormula);
-        Assert.True(createResult.Success);
+        _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, originalFormula);  // CreateMeasure throws on error
 
         // Update formula
-        var updateResult = await _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: updatedFormula);
-        Assert.True(updateResult.Success);
+        _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: updatedFormula);  // UpdateMeasure throws on error
 
         // Verify update
         var viewResult = await _dataModelCommands.Read(batch, measureName);
@@ -202,12 +198,10 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
         // Create measure
-        var createResult = await _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, "SUM(SalesTable[Amount])");
-        Assert.True(createResult.Success);
+        _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, "SUM(SalesTable[Amount])");  // CreateMeasure throws on error
 
         // Delete measure
-        var result = await _dataModelCommands.DeleteMeasure(batch, measureName);
-        Assert.True(result.Success);
+        _dataModelCommands.DeleteMeasure(batch, measureName);  // DeleteMeasure throws on error
 
         // Verify deletion
         var listResult = await _dataModelCommands.ListMeasures(batch);
@@ -264,14 +258,12 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
             r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
             r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID") == true)
         {
-            await _dataModelCommands.DeleteRelationship(batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");
+            _dataModelCommands.DeleteRelationship(batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");  // DeleteRelationship throws on error
         }
 
         // Create relationship
-        var createResult = await _dataModelCommands.CreateRelationship(
-            batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");
-
-        Assert.True(createResult.Success, $"CreateRelationship failed: {createResult.ErrorMessage}");
+        _dataModelCommands.CreateRelationship(
+            batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");  // CreateRelationship throws on error
 
         // Verify creation
         var verifyResult = await _dataModelCommands.ListRelationships(batch);
@@ -290,10 +282,8 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
         // Delete relationship
-        var deleteResult = await _dataModelCommands.DeleteRelationship(
-            batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");
-
-        Assert.True(deleteResult.Success, $"DeleteRelationship failed: {deleteResult.ErrorMessage}");
+        _dataModelCommands.DeleteRelationship(
+            batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");  // DeleteRelationship throws on error
 
         // Verify deletion
         var verifyResult = await _dataModelCommands.ListRelationships(batch);
@@ -302,8 +292,8 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
             r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID");
 
         // Recreate for other tests (shared file)
-        await _dataModelCommands.CreateRelationship(batch,
-            "SalesTable", "CustomerID", "CustomersTable", "CustomerID", active: true);
+        _dataModelCommands.CreateRelationship(batch,
+            "SalesTable", "CustomerID", "CustomersTable", "CustomerID", active: true);  // CreateRelationship throws on error
     }
 
     #endregion

@@ -38,8 +38,16 @@
 
 ### Test Commands
 ```bash
-# Fast feedback (excludes VBA)
+# ⚠️ CRITICAL: Integration tests take 45+ MINUTES for full suite
+# ALWAYS use surgical testing - test only what you changed!
+
+# Fast feedback (excludes VBA) - Still takes 10-15 minutes
 dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+
+# Surgical testing - Feature-specific (2-5 minutes per feature)
+dotnet test --filter "Feature=PowerQuery&RunType!=OnDemand"
+dotnet test --filter "Feature=Ranges&RunType!=OnDemand"
+dotnet test --filter "Feature=PivotTables&RunType!=OnDemand"
 
 # Session/batch changes (MANDATORY)
 dotnet test --filter "RunType=OnDemand"
@@ -47,25 +55,35 @@ dotnet test --filter "RunType=OnDemand"
 
 ### Code Patterns
 ```csharp
-// Core: Always use batch parameter
-public async Task<OperationResult> MethodAsync(IExcelBatch batch, string arg1)
+// Core: NEVER wrap batch.Execute() in try-catch that returns error result
+// Let exceptions propagate naturally - batch.Execute() handles them via TaskCompletionSource
+public DataType Method(IExcelBatch batch, string arg1)
 {
-    return await batch.Execute((ctx, ct) => {
-        // Use ctx.Book for workbook access
-        return ValueTask.FromResult(new OperationResult { Success = true });
+    return batch.Execute((ctx, ct) => {
+        dynamic? item = null;
+        try {
+            // Operation code here
+            item = ctx.Book.SomeObject;
+            // For CRUD: return void (throws on error)
+            // For queries: return actual data
+            return someData;
+        }
+        finally {
+            // ✅ ONLY finally blocks for COM cleanup
+            ComUtilities.Release(ref item!);
+        }
+        // ❌ NO catch blocks that return error results
     });
 }
+
 
 // CLI: Wrap Core calls
 public int Method(string[] args)
 {
     try {
-        var task = Task.Run(async () => {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return await _coreCommands.MethodAsync(batch, arg1);
-        });
-        var result = task.GetAwaiter().GetResult();
-        return result.Success ? 0 : 1;
+        using var batch = ExcelSession.BeginBatch(filePath);
+        _coreCommands.Method(batch, arg1);
+        return 0;
     } catch (Exception ex) {
         AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
         return 1;
@@ -74,11 +92,11 @@ public int Method(string[] args)
 
 // Tests: Use batch API
 [Fact]
-public async Task TestMethod()
+public void TestMethod()
 {
-    await using var batch = await ExcelSession.BeginBatchAsync(_testFile);
-    var result = await _commands.MethodAsync(batch, args);
-    Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
+    using var batch = ExcelSession.BeginBatch(_testFile);
+    var result = _commands.Method(batch, args);
+    Assert.NotNull(result); // Or other appropriate assertion
 }
 ```
 
@@ -105,6 +123,8 @@ public async Task TestMethod()
 **Pre-Commit:** Search TODO/FIXME/HACK, delete commented code, verify tests, check docs.
 
 **PR Review:** Check automated comments immediately (Copilot, GitHub Security). Fix before human review.
+
+**Surgical Testing:** Integration tests take 45+ minutes. ALWAYS test only the feature you changed using `--filter "Feature=<name>"`.
 
 ---
 

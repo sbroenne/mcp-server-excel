@@ -47,12 +47,9 @@ public partial class SheetCommands
     }
 
     /// <inheritdoc />
-    /// <inheritdoc />
-    public OperationResult Create(IExcelBatch batch, string sheetName, string? filePath = null)
+    public void Create(IExcelBatch batch, string sheetName, string? filePath = null)
     {
-        var result = new OperationResult { FilePath = filePath ?? batch.WorkbookPath, Action = "create-sheet" };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             // Get the workbook to create sheet in
             dynamic workbook = filePath != null ? batch.GetWorkbook(filePath) : ctx.Book;
@@ -64,8 +61,7 @@ public partial class SheetCommands
                 sheets = workbook.Worksheets;
                 newSheet = sheets.Add();
                 newSheet.Name = sheetName;
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
@@ -76,12 +72,9 @@ public partial class SheetCommands
     }
 
     /// <inheritdoc />
-    /// <inheritdoc />
-    public OperationResult Rename(IExcelBatch batch, string oldName, string newName)
+    public void Rename(IExcelBatch batch, string oldName, string newName)
     {
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "rename-sheet" };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             try
@@ -89,13 +82,10 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, oldName);
                 if (sheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{oldName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{oldName}' not found");
                 }
                 sheet.Name = newName;
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
@@ -105,12 +95,9 @@ public partial class SheetCommands
     }
 
     /// <inheritdoc />
-    /// <inheritdoc />
-    public OperationResult Copy(IExcelBatch batch, string sourceName, string targetName)
+    public void Copy(IExcelBatch batch, string sourceName, string targetName)
     {
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "copy-sheet" };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sourceSheet = null;
             dynamic? sheets = null;
@@ -121,17 +108,14 @@ public partial class SheetCommands
                 sourceSheet = ComUtilities.FindSheet(ctx.Book, sourceName);
                 if (sourceSheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{sourceName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{sourceName}' not found");
                 }
                 sheets = ctx.Book.Worksheets;
                 lastSheet = sheets.Item(sheets.Count);
                 sourceSheet.Copy(After: lastSheet);
                 copiedSheet = sheets.Item(sheets.Count);
                 copiedSheet.Name = targetName;
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
@@ -144,12 +128,9 @@ public partial class SheetCommands
     }
 
     /// <inheritdoc />
-    /// <inheritdoc />
-    public OperationResult Delete(IExcelBatch batch, string sheetName)
+    public void Delete(IExcelBatch batch, string sheetName)
     {
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "delete-sheet" };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             try
@@ -157,13 +138,10 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
                 }
                 sheet.Delete();
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
@@ -173,19 +151,15 @@ public partial class SheetCommands
     }
 
     /// <inheritdoc />
-    public OperationResult Move(IExcelBatch batch, string sheetName, string? beforeSheet = null, string? afterSheet = null)
+    public void Move(IExcelBatch batch, string sheetName, string? beforeSheet = null, string? afterSheet = null)
     {
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "move-sheet" };
-
         // Validate parameters
         if (!string.IsNullOrWhiteSpace(beforeSheet) && !string.IsNullOrWhiteSpace(afterSheet))
         {
-            result.Success = false;
-            result.ErrorMessage = "Cannot specify both beforeSheet and afterSheet";
-            return result;
+            throw new ArgumentException("Cannot specify both beforeSheet and afterSheet");
         }
 
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? targetSheet = null;
@@ -196,9 +170,7 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Sheet '{sheetName}' not found";
-                    return result;
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
                 }
 
                 // If no position specified, move to end
@@ -215,9 +187,7 @@ public partial class SheetCommands
                     targetSheet = ComUtilities.FindSheet(ctx.Book, targetName);
                     if (targetSheet == null)
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Target sheet '{targetName}' not found";
-                        return result;
+                        throw new InvalidOperationException($"Target sheet '{targetName}' not found");
                     }
 
                     // Move using Excel COM API
@@ -230,9 +200,7 @@ public partial class SheetCommands
                         sheet.Move(After: targetSheet);
                     }
                 }
-
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
@@ -245,23 +213,15 @@ public partial class SheetCommands
     }
 
     /// <inheritdoc />
-    public OperationResult CopyToWorkbook(IExcelBatch batch, string sourceFile, string sourceSheet, string targetFile, string? targetSheetName = null, string? beforeSheet = null, string? afterSheet = null)
+    public void CopyToWorkbook(IExcelBatch batch, string sourceFile, string sourceSheet, string targetFile, string? targetSheetName = null, string? beforeSheet = null, string? afterSheet = null)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "copy-to-workbook"
-        };
-
         // Validate positioning parameters
         if (!string.IsNullOrWhiteSpace(beforeSheet) && !string.IsNullOrWhiteSpace(afterSheet))
         {
-            result.Success = false;
-            result.ErrorMessage = "Cannot specify both beforeSheet and afterSheet. Choose one or neither.";
-            return result;
+            throw new ArgumentException("Cannot specify both beforeSheet and afterSheet. Choose one or neither.");
         }
 
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sourceWb = null;
             dynamic? targetWb = null;
@@ -280,9 +240,7 @@ public partial class SheetCommands
                 sourceSheetObj = ComUtilities.FindSheet(sourceWb, sourceSheet);
                 if (sourceSheetObj == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Source sheet '{sourceSheet}' not found in '{Path.GetFileName(sourceFile)}'";
-                    return result;
+                    throw new InvalidOperationException($"Source sheet '{sourceSheet}' not found in '{Path.GetFileName(sourceFile)}'");
                 }
 
                 // Handle positioning
@@ -293,9 +251,7 @@ public partial class SheetCommands
                     targetPositionSheet = ComUtilities.FindSheet(targetWb, beforeSheet);
                     if (targetPositionSheet == null)
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Target sheet '{beforeSheet}' not found in '{Path.GetFileName(targetFile)}'";
-                        return result;
+                        throw new InvalidOperationException($"Target sheet '{beforeSheet}' not found in '{Path.GetFileName(targetFile)}'");
                     }
                     // Copy before specified sheet
                     sourceSheetObj.Copy(Before: targetPositionSheet);
@@ -305,9 +261,7 @@ public partial class SheetCommands
                     targetPositionSheet = ComUtilities.FindSheet(targetWb, afterSheet);
                     if (targetPositionSheet == null)
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Target sheet '{afterSheet}' not found in '{Path.GetFileName(targetFile)}'";
-                        return result;
+                        throw new InvalidOperationException($"Target sheet '{afterSheet}' not found in '{Path.GetFileName(targetFile)}'");
                     }
                     // Copy after specified sheet
                     sourceSheetObj.Copy(After: targetPositionSheet);
@@ -332,9 +286,7 @@ public partial class SheetCommands
                     copiedSheet = targetSheets.Item(targetSheets.Count); // Last sheet is the copied one
                     copiedSheet.Name = targetSheetName;
                 }
-
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
@@ -348,23 +300,15 @@ public partial class SheetCommands
     }
 
     /// <inheritdoc />
-    public OperationResult MoveToWorkbook(IExcelBatch batch, string sourceFile, string sourceSheet, string targetFile, string? beforeSheet = null, string? afterSheet = null)
+    public void MoveToWorkbook(IExcelBatch batch, string sourceFile, string sourceSheet, string targetFile, string? beforeSheet = null, string? afterSheet = null)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "move-to-workbook"
-        };
-
         // Validate positioning parameters
         if (!string.IsNullOrWhiteSpace(beforeSheet) && !string.IsNullOrWhiteSpace(afterSheet))
         {
-            result.Success = false;
-            result.ErrorMessage = "Cannot specify both beforeSheet and afterSheet. Choose one or neither.";
-            return result;
+            throw new ArgumentException("Cannot specify both beforeSheet and afterSheet. Choose one or neither.");
         }
 
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sourceWb = null;
             dynamic? targetWb = null;
@@ -382,9 +326,7 @@ public partial class SheetCommands
                 sourceSheetObj = ComUtilities.FindSheet(sourceWb, sourceSheet);
                 if (sourceSheetObj == null)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Source sheet '{sourceSheet}' not found in '{Path.GetFileName(sourceFile)}'";
-                    return result;
+                    throw new InvalidOperationException($"Source sheet '{sourceSheet}' not found in '{Path.GetFileName(sourceFile)}'");
                 }
 
                 // Handle positioning
@@ -395,9 +337,7 @@ public partial class SheetCommands
                     targetPositionSheet = ComUtilities.FindSheet(targetWb, beforeSheet);
                     if (targetPositionSheet == null)
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Target sheet '{beforeSheet}' not found in '{Path.GetFileName(targetFile)}'";
-                        return result;
+                        throw new InvalidOperationException($"Target sheet '{beforeSheet}' not found in '{Path.GetFileName(targetFile)}'");
                     }
                     // Move before specified sheet
                     sourceSheetObj.Move(Before: targetPositionSheet);
@@ -407,9 +347,7 @@ public partial class SheetCommands
                     targetPositionSheet = ComUtilities.FindSheet(targetWb, afterSheet);
                     if (targetPositionSheet == null)
                     {
-                        result.Success = false;
-                        result.ErrorMessage = $"Target sheet '{afterSheet}' not found in '{Path.GetFileName(targetFile)}'";
-                        return result;
+                        throw new InvalidOperationException($"Target sheet '{afterSheet}' not found in '{Path.GetFileName(targetFile)}'");
                     }
                     // Move after specified sheet
                     sourceSheetObj.Move(After: targetPositionSheet);
@@ -427,9 +365,7 @@ public partial class SheetCommands
                         ComUtilities.Release(ref lastSheet!);
                     }
                 }
-
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {

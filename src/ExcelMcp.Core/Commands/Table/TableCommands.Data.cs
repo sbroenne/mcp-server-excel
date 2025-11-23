@@ -1,6 +1,7 @@
+#pragma warning disable IDE0005 // Using directive is unnecessary (all usings are needed for COM interop)
+
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
@@ -10,13 +11,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public OperationResult Append(IExcelBatch batch, string tableName, List<List<object?>> rows)
+    public void Append(IExcelBatch batch, string tableName, List<List<object?>> rows)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "append-rows" };
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? sheet = null;
@@ -97,8 +97,7 @@ public partial class TableCommands
                     ComUtilities.Release(ref resizeRange);
                 }
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {

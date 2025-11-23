@@ -17,7 +17,7 @@ public partial class TableCommands
     /// <summary>
     /// Sorts a table by a single column
     /// </summary>
-    public OperationResult Sort(
+    public void Sort(
         IExcelBatch batch,
         string tableName,
         string columnName,
@@ -26,8 +26,7 @@ public partial class TableCommands
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "sort-table" };
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? columns = null;
@@ -62,9 +61,7 @@ public partial class TableCommands
                     Header: xlYes
                 );
 
-                result.Success = true;
-
-                return result;
+                return 0;
             }
             finally
             {
@@ -80,7 +77,7 @@ public partial class TableCommands
     /// <summary>
     /// Sorts a table by multiple columns (up to 3 levels)
     /// </summary>
-    public OperationResult Sort(
+    public void Sort(
         IExcelBatch batch,
         string tableName,
         List<TableSortColumn> sortColumns)
@@ -88,8 +85,7 @@ public partial class TableCommands
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "sort-table-multi" };
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             if (sortColumns == null || sortColumns.Count == 0)
             {
@@ -180,9 +176,8 @@ public partial class TableCommands
 
                 // Build description
                 var sortDesc = string.Join(", ", sortColumns.Select(sc => $"{sc.ColumnName} ({(sc.Ascending ? "asc" : "desc")})"));
-                result.Success = true;
 
-                return result;
+                return 0;
             }
             finally
             {

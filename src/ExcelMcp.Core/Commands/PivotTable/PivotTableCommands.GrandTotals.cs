@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -49,21 +48,6 @@ public partial class PivotTableCommands
 
                 var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
                 return strategy.SetGrandTotals(pivot, showRowGrandTotals, showColumnGrandTotals, batch.WorkbookPath, batch.Logger);
-            }
-            catch (Exception ex)
-            {
-                if (batch.Logger is not null && batch.Logger.IsEnabled(LogLevel.Error))
-                {
-#pragma warning disable CA1848 // Keep error logging for diagnostics
-                    batch.Logger.LogError(ex, "SetGrandTotals failed for PivotTable {PivotTableName}", pivotTableName);
-#pragma warning restore CA1848
-                }
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to set grand totals: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
             }
             finally
             {

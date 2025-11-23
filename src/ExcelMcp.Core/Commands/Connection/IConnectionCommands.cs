@@ -21,28 +21,28 @@ public interface IConnectionCommands
     /// <summary>
     /// Creates a new connection in the workbook
     /// </summary>
-    OperationResult Create(IExcelBatch batch, string connectionName,
+    void Create(IExcelBatch batch, string connectionName,
         string connectionString, string? commandText = null, string? description = null);
 
     /// <summary>
     /// Refreshes connection data
     /// </summary>
-    OperationResult Refresh(IExcelBatch batch, string connectionName);
+    void Refresh(IExcelBatch batch, string connectionName);
 
     /// <summary>
     /// Refreshes connection data with timeout
     /// </summary>
-    OperationResult Refresh(IExcelBatch batch, string connectionName, TimeSpan? timeout);
+    void Refresh(IExcelBatch batch, string connectionName, TimeSpan? timeout);
 
     /// <summary>
     /// Deletes a connection
     /// </summary>
-    OperationResult Delete(IExcelBatch batch, string connectionName);
+    void Delete(IExcelBatch batch, string connectionName);
 
     /// <summary>
     /// Loads connection data to a worksheet
     /// </summary>
-    OperationResult LoadTo(IExcelBatch batch, string connectionName, string sheetName);
+    void LoadTo(IExcelBatch batch, string connectionName, string sheetName);
 
     /// <summary>
     /// Gets connection properties
@@ -52,7 +52,7 @@ public interface IConnectionCommands
     /// <summary>
     /// Sets connection properties (connection string, command text, description, and behavior settings)
     /// </summary>
-    OperationResult SetProperties(IExcelBatch batch, string connectionName,
+    void SetProperties(IExcelBatch batch, string connectionName,
         string? connectionString = null, string? commandText = null, string? description = null,
         bool? backgroundQuery = null, bool? refreshOnFileOpen = null,
         bool? savePassword = null, int? refreshPeriod = null);
@@ -60,6 +60,6 @@ public interface IConnectionCommands
     /// <summary>
     /// Tests connection without refreshing data
     /// </summary>
-    OperationResult Test(IExcelBatch batch, string connectionName);
+    void Test(IExcelBatch batch, string connectionName);
 }
 

@@ -93,28 +93,13 @@ internal sealed class VbaCommand : Command<VbaCommand.Settings>
 
             IOFile.WriteAllText(outputPath, viewResult.Code ?? string.Empty);
 
-            var exportResult = new OperationResult
-            {
-                Success = true,
-                Action = "vba-export",
-                FilePath = viewResult.FilePath
-            };
-
-            _console.WriteJson(exportResult);
+            _console.WriteInfo($"Module '{moduleName}' exported to '{outputPath}'.");
             return 0;
         }
         catch (Exception ex)
         {
-            var errorResult = new OperationResult
-            {
-                Success = false,
-                Action = "vba-export",
-                FilePath = viewResult.FilePath,
-                ErrorMessage = $"Failed to export module '{moduleName}': {ex.Message}"
-            };
-
-            _console.WriteJson(errorResult);
-            return -1;
+            _console.WriteError($"Failed to export module '{moduleName}': {ex.Message}");
+            return 1;
         }
     }
 
@@ -138,7 +123,18 @@ internal sealed class VbaCommand : Command<VbaCommand.Settings>
         }
 
         string vbaCode = IOFile.ReadAllText(settings.CodeFile);
-        return WriteResult(_vbaCommands.Import(batch, moduleName, vbaCode));
+
+        try
+        {
+            _vbaCommands.Import(batch, moduleName, vbaCode);
+            _console.WriteInfo($"Imported VBA module '{moduleName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to import module '{moduleName}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteUpdate(IExcelBatch batch, Settings settings)
@@ -161,7 +157,18 @@ internal sealed class VbaCommand : Command<VbaCommand.Settings>
         }
 
         string vbaCode = IOFile.ReadAllText(settings.CodeFile);
-        return WriteResult(_vbaCommands.Update(batch, moduleName, vbaCode));
+
+        try
+        {
+            _vbaCommands.Update(batch, moduleName, vbaCode);
+            _console.WriteInfo($"Updated VBA module '{moduleName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to update module '{moduleName}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteDelete(IExcelBatch batch, Settings settings)
@@ -171,7 +178,17 @@ internal sealed class VbaCommand : Command<VbaCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_vbaCommands.Delete(batch, moduleName));
+        try
+        {
+            _vbaCommands.Delete(batch, moduleName);
+            _console.WriteInfo($"Deleted VBA module '{moduleName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to delete module '{moduleName}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteRun(IExcelBatch batch, Settings settings)
@@ -188,7 +205,18 @@ internal sealed class VbaCommand : Command<VbaCommand.Settings>
             : null;
 
         var parameters = settings.Parameters ?? Array.Empty<string>();
-        return WriteResult(_vbaCommands.Run(batch, procedureName, timeout, parameters));
+
+        try
+        {
+            _vbaCommands.Run(batch, procedureName, timeout, parameters);
+            _console.WriteInfo($"Executed VBA procedure '{procedureName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to run procedure '{procedureName}': {ex.Message}");
+            return 1;
+        }
     }
 
     private bool TryGetModuleName(Settings settings, out string moduleName)

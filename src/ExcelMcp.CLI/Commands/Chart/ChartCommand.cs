@@ -2,7 +2,6 @@ using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Infrastructure.Session;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
-using Sbroenne.ExcelMcp.Core.Models;
 using Spectre.Console.Cli;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands.Chart;
@@ -39,7 +38,7 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
 
         return action switch
         {
-            "list" => WriteResult(_chartCommands.List(batch)),
+            "list" => ExecuteList(batch),
             "read" => ExecuteRead(batch, settings),
             "create-from-range" => ExecuteCreateFromRange(batch, settings),
             "create-from-pivottable" => ExecuteCreateFromPivotTable(batch, settings),
@@ -57,6 +56,21 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
         };
     }
 
+    private int ExecuteList(IExcelBatch batch)
+    {
+        try
+        {
+            var charts = _chartCommands.List(batch);
+            _console.WriteJson(charts);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to list charts: {ex.Message}");
+            return 1;
+        }
+    }
+
     private int ExecuteRead(IExcelBatch batch, Settings settings)
     {
         if (string.IsNullOrWhiteSpace(settings.ChartName))
@@ -65,7 +79,17 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_chartCommands.Read(batch, settings.ChartName));
+        try
+        {
+            var result = _chartCommands.Read(batch, settings.ChartName);
+            _console.WriteJson(result);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to read chart '{settings.ChartName}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteCreateFromRange(IExcelBatch batch, Settings settings)
@@ -80,16 +104,26 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_chartCommands.CreateFromRange(
-            batch,
-            settings.SheetName,
-            settings.SourceRange,
-            settings.ChartType.Value,
-            settings.Left.Value,
-            settings.Top.Value,
-            settings.Width ?? 400,
-            settings.Height ?? 300,
-            settings.ChartName));
+        try
+        {
+            var result = _chartCommands.CreateFromRange(
+                batch,
+                settings.SheetName,
+                settings.SourceRange,
+                settings.ChartType.Value,
+                settings.Left.Value,
+                settings.Top.Value,
+                settings.Width ?? 400,
+                settings.Height ?? 300,
+                settings.ChartName);
+            _console.WriteJson(result);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to create chart from range: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteCreateFromPivotTable(IExcelBatch batch, Settings settings)
@@ -104,16 +138,26 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_chartCommands.CreateFromPivotTable(
-            batch,
-            settings.PivotTableName,
-            settings.SheetName,
-            settings.ChartType.Value,
-            settings.Left.Value,
-            settings.Top.Value,
-            settings.Width ?? 400,
-            settings.Height ?? 300,
-            settings.ChartName));
+        try
+        {
+            var result = _chartCommands.CreateFromPivotTable(
+                batch,
+                settings.PivotTableName,
+                settings.SheetName,
+                settings.ChartType.Value,
+                settings.Left.Value,
+                settings.Top.Value,
+                settings.Width ?? 400,
+                settings.Height ?? 300,
+                settings.ChartName);
+            _console.WriteJson(result);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to create chart from PivotTable: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteDelete(IExcelBatch batch, Settings settings)
@@ -124,7 +168,17 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_chartCommands.Delete(batch, settings.ChartName));
+        try
+        {
+            _chartCommands.Delete(batch, settings.ChartName);
+            _console.WriteInfo($"Chart '{settings.ChartName}' deleted successfully.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to delete chart '{settings.ChartName}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteMove(IExcelBatch batch, Settings settings)
@@ -135,13 +189,23 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_chartCommands.Move(
-            batch,
-            settings.ChartName,
-            settings.Left,
-            settings.Top,
-            settings.Width,
-            settings.Height));
+        try
+        {
+            _chartCommands.Move(
+                batch,
+                settings.ChartName,
+                settings.Left,
+                settings.Top,
+                settings.Width,
+                settings.Height);
+            _console.WriteInfo($"Chart '{settings.ChartName}' moved successfully.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to move chart '{settings.ChartName}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteSetSourceRange(IExcelBatch batch, Settings settings)
@@ -153,7 +217,17 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_chartCommands.SetSourceRange(batch, settings.ChartName, settings.SourceRange));
+        try
+        {
+            _chartCommands.SetSourceRange(batch, settings.ChartName, settings.SourceRange);
+            _console.WriteInfo($"Chart '{settings.ChartName}' source range updated.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to set source range: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteAddSeries(IExcelBatch batch, Settings settings)
@@ -166,12 +240,22 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_chartCommands.AddSeries(
-            batch,
-            settings.ChartName,
-            settings.SeriesName,
-            settings.ValuesRange,
-            settings.CategoryRange));
+        try
+        {
+            var result = _chartCommands.AddSeries(
+                batch,
+                settings.ChartName,
+                settings.SeriesName,
+                settings.ValuesRange,
+                settings.CategoryRange);
+            _console.WriteJson(result);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to add series: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteRemoveSeries(IExcelBatch batch, Settings settings)
@@ -183,7 +267,17 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_chartCommands.RemoveSeries(batch, settings.ChartName, settings.SeriesIndex.Value));
+        try
+        {
+            _chartCommands.RemoveSeries(batch, settings.ChartName, settings.SeriesIndex.Value);
+            _console.WriteInfo($"Series removed from chart '{settings.ChartName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to remove series: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteSetChartType(IExcelBatch batch, Settings settings)
@@ -195,7 +289,17 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_chartCommands.SetChartType(batch, settings.ChartName, settings.ChartType.Value));
+        try
+        {
+            _chartCommands.SetChartType(batch, settings.ChartName, settings.ChartType.Value);
+            _console.WriteInfo($"Chart type updated for '{settings.ChartName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to set chart type: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteSetTitle(IExcelBatch batch, Settings settings)
@@ -206,9 +310,19 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
             return -1;
         }
 
-        // Title can be empty string to hide
-        var title = settings.Title ?? string.Empty;
-        return WriteResult(_chartCommands.SetTitle(batch, settings.ChartName, title));
+        try
+        {
+            // Title can be empty string to hide
+            var title = settings.Title ?? string.Empty;
+            _chartCommands.SetTitle(batch, settings.ChartName, title);
+            _console.WriteInfo($"Title updated for chart '{settings.ChartName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to set title: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteSetAxisTitle(IExcelBatch batch, Settings settings)
@@ -220,9 +334,19 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
             return -1;
         }
 
-        // Title can be empty string to hide
-        var title = settings.Title ?? string.Empty;
-        return WriteResult(_chartCommands.SetAxisTitle(batch, settings.ChartName, settings.AxisType.Value, title));
+        try
+        {
+            // Title can be empty string to hide
+            var title = settings.Title ?? string.Empty;
+            _chartCommands.SetAxisTitle(batch, settings.ChartName, settings.AxisType.Value, title);
+            _console.WriteInfo($"Axis title updated for chart '{settings.ChartName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to set axis title: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteShowLegend(IExcelBatch batch, Settings settings)
@@ -234,11 +358,21 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_chartCommands.ShowLegend(
-            batch,
-            settings.ChartName,
-            settings.Visible.Value,
-            settings.LegendPosition));
+        try
+        {
+            _chartCommands.ShowLegend(
+                batch,
+                settings.ChartName,
+                settings.Visible.Value,
+                settings.LegendPosition);
+            _console.WriteInfo($"Legend updated for chart '{settings.ChartName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to update legend: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteSetStyle(IExcelBatch batch, Settings settings)
@@ -250,13 +384,17 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_chartCommands.SetStyle(batch, settings.ChartName, settings.StyleId.Value));
-    }
-
-    private int WriteResult(ResultBase result)
-    {
-        _console.WriteJson(result);
-        return result.Success ? 0 : -1;
+        try
+        {
+            _chartCommands.SetStyle(batch, settings.ChartName, settings.StyleId.Value);
+            _console.WriteInfo($"Style applied to chart '{settings.ChartName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to set style: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ReportUnknown(string action)

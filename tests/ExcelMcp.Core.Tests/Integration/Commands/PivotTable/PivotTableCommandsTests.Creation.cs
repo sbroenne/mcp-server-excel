@@ -44,8 +44,7 @@ public partial class PivotTableCommandsTests
 
         // Create table first
         var tableCommands = new TableCommands();
-        var tableResult = tableCommands.Create(batch, "SalesData", "SalesTable", "A1:D6", true, TableStylePresets.Medium2);
-        Assert.True(tableResult.Success, $"Table creation failed: {tableResult.ErrorMessage}");
+        tableCommands.Create(batch, "SalesData", "SalesTable", "A1:D6", true, TableStylePresets.Medium2);  // Create throws on error
 
         // Create pivot from table
         var result = _pivotCommands.CreateFromTable(

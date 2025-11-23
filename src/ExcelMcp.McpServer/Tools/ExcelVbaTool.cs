@@ -56,32 +56,25 @@ public static class ExcelVbaTool
         [Description("Parameters for VBA procedure execution (comma-separated)")]
         string? parameters = null)
     {
-        try
-        {
-            var vbaCommands = new VbaCommands();
+        return ExcelToolsBase.ExecuteToolAction(
+            action.ToActionString(),
+            excelPath,
+            () =>
+            {
+                var vbaCommands = new VbaCommands();
 
-            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
-            return action switch
-            {
-                VbaAction.List => ListVbaScriptsAsync(vbaCommands, sessionId),
-                VbaAction.View => ViewVbaScriptAsync(vbaCommands, sessionId, moduleName),
-                VbaAction.Import => ImportVbaScriptAsync(vbaCommands, sessionId, moduleName, vbaCode),
-                VbaAction.Update => UpdateVbaScriptAsync(vbaCommands, sessionId, moduleName, vbaCode),
-                VbaAction.Run => RunVbaScriptAsync(vbaCommands, sessionId, moduleName, parameters),
-                VbaAction.Delete => DeleteVbaScriptAsync(vbaCommands, sessionId, moduleName),
-                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
-                filePath = excelPath,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+                return action switch
+                {
+                    VbaAction.List => ListVbaScriptsAsync(vbaCommands, sessionId),
+                    VbaAction.View => ViewVbaScriptAsync(vbaCommands, sessionId, moduleName),
+                    VbaAction.Import => ImportVbaScriptAsync(vbaCommands, sessionId, moduleName, vbaCode),
+                    VbaAction.Update => UpdateVbaScriptAsync(vbaCommands, sessionId, moduleName, vbaCode),
+                    VbaAction.Run => RunVbaScriptAsync(vbaCommands, sessionId, moduleName, parameters),
+                    VbaAction.Delete => DeleteVbaScriptAsync(vbaCommands, sessionId, moduleName),
+                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            });
     }
 
     private static string ListVbaScriptsAsync(VbaCommands commands, string sessionId)
@@ -90,8 +83,6 @@ public static class ExcelVbaTool
             sessionId,
             batch => commands.List(batch));
 
-        // If listing failed, throw exception with detailed error message
-        // Always return JSON (success or failure) - MCP clients handle the success flag
         var moduleCount = result.Scripts?.Count ?? 0;
         return JsonSerializer.Serialize(new
         {
@@ -128,15 +119,19 @@ public static class ExcelVbaTool
         if (string.IsNullOrEmpty(vbaCode))
             throw new ArgumentException("vbaCode is required for import action", nameof(vbaCode));
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession(
             sessionId,
-            batch => commands.Import(batch, moduleName, vbaCode));
+            batch =>
+            {
+                commands.Import(batch, moduleName, vbaCode);
+                return 0;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage,
-            ModuleName = moduleName
+            success = true,
+            moduleName,
+            message = $"Imported VBA module '{moduleName}'."
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -145,15 +140,19 @@ public static class ExcelVbaTool
         if (string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(vbaCode))
             throw new ArgumentException("moduleName and vbaCode are required for update action", "moduleName,vbaCode");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession(
             sessionId,
-            batch => commands.Update(batch, moduleName, vbaCode));
+            batch =>
+            {
+                commands.Update(batch, moduleName, vbaCode);
+                return 0;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage,
-            ModuleName = moduleName
+            success = true,
+            moduleName,
+            message = $"Updated VBA module '{moduleName}'."
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -175,17 +174,22 @@ public static class ExcelVbaTool
                                    .ToArray();
         }
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession(
             sessionId,
-            batch => commands.Run(batch, moduleName, null, paramArray));
+            batch =>
+            {
+                commands.Run(batch, moduleName, null, paramArray);
+                return 0;
+            });
+
         var paramCount = paramArray.Length;
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage,
-            ProcedureName = moduleName,
-            ParameterCount = paramCount
+            success = true,
+            procedureName = moduleName,
+            parameterCount = paramCount,
+            message = $"Executed VBA procedure '{moduleName}'."
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -194,15 +198,19 @@ public static class ExcelVbaTool
         if (string.IsNullOrEmpty(moduleName))
             throw new ArgumentException("moduleName is required for delete action", nameof(moduleName));
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession(
             sessionId,
-            batch => commands.Delete(batch, moduleName));
+            batch =>
+            {
+                commands.Delete(batch, moduleName);
+                return 0;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage,
-            ModuleName = moduleName
+            success = true,
+            moduleName,
+            message = $"Deleted VBA module '{moduleName}'."
         }, ExcelToolsBase.JsonOptions);
     }
 }

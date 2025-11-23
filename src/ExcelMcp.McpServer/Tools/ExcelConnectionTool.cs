@@ -95,40 +95,34 @@ TIMEOUT SAFEGUARD:
         [Description("Refresh period in minutes (for set-properties, optional)")]
         int? refreshPeriod = null)
     {
-        try
-        {
-            var connectionCommands = new ConnectionCommands();
+        return ExcelToolsBase.ExecuteToolAction(
+            action.ToActionString(),
+            excelPath,
+            () =>
+            {
+                var connectionCommands = new ConnectionCommands();
 
-            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
-            return action switch
-            {
-                ConnectionAction.List => ListConnectionsAsync(connectionCommands, sessionId),
-                ConnectionAction.View => ViewConnectionAsync(connectionCommands, sessionId, connectionName),
-                ConnectionAction.Create => CreateConnectionAsync(connectionCommands, sessionId, connectionName, connectionString, commandText, description),
-                ConnectionAction.Refresh => RefreshConnectionAsync(connectionCommands, excelPath, sessionId, connectionName),
-                ConnectionAction.Delete => DeleteConnectionAsync(connectionCommands, sessionId, connectionName),
-                ConnectionAction.Test => TestConnectionAsync(connectionCommands, sessionId, connectionName),
-                ConnectionAction.LoadTo => LoadToWorksheetAsync(connectionCommands, sessionId, connectionName, sheetName),
-                ConnectionAction.GetProperties => GetPropertiesAsync(connectionCommands, sessionId, connectionName),
-                ConnectionAction.SetProperties => SetPropertiesAsync(connectionCommands, sessionId, connectionName, newConnectionString, newCommandText, newDescription, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod),
-                _ => throw new ArgumentException(
-                    $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+                return action switch
+                {
+                    ConnectionAction.List => ListConnectionsAsync(connectionCommands, sessionId),
+                    ConnectionAction.View => ViewConnectionAsync(connectionCommands, sessionId, connectionName),
+                    ConnectionAction.Create => CreateConnectionAsync(connectionCommands, sessionId, connectionName, connectionString, commandText, description),
+                    ConnectionAction.Refresh => RefreshConnectionAsync(connectionCommands, excelPath, sessionId, connectionName),
+                    ConnectionAction.Delete => DeleteConnectionAsync(connectionCommands, sessionId, connectionName),
+                    ConnectionAction.Test => TestConnectionAsync(connectionCommands, sessionId, connectionName),
+                    ConnectionAction.LoadTo => LoadToWorksheetAsync(connectionCommands, sessionId, connectionName, sheetName),
+                    ConnectionAction.GetProperties => GetPropertiesAsync(connectionCommands, sessionId, connectionName),
+                    ConnectionAction.SetProperties => SetPropertiesAsync(connectionCommands, sessionId, connectionName, newConnectionString, newCommandText, newDescription, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod),
+                    _ => throw new ArgumentException(
+                        $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            });
     }
 
     private static string ListConnectionsAsync(ConnectionCommands commands, string sessionId)
     {
-        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.List(batch));
+        ConnectionListResult result = ExcelToolsBase.WithSession(sessionId, batch => commands.List(batch));
 
         // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
@@ -143,7 +137,7 @@ TIMEOUT SAFEGUARD:
         if (string.IsNullOrEmpty(connectionName))
             throw new ArgumentException("connectionName is required for view action", nameof(connectionName));
 
-        var result = ExcelToolsBase.WithSession(
+        ConnectionViewResult result = ExcelToolsBase.WithSession(
             sessionId,
             batch => commands.View(batch, connectionName));
 
@@ -166,32 +160,27 @@ TIMEOUT SAFEGUARD:
 
         _ = excelPath; // retained parameter for schema compatibility
 
-        OperationResult result;
-        bool isTimeout = false;
-        string[]? suggestedNextActions = null;
-        Dictionary<string, object>? operationContext = null;
-        string? retryGuidance = null;
-
         try
         {
-            result = ExcelToolsBase.WithSession(
+            ExcelToolsBase.WithSession(
                 sessionId,
-                batch => commands.Refresh(batch, connectionName, TimeSpan.FromMinutes(5)));
+                batch =>
+                {
+                    commands.Refresh(batch, connectionName, TimeSpan.FromMinutes(5));
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Connection '{connectionName}' refreshed successfully."
+            }, ExcelToolsBase.JsonOptions);
         }
         catch (TimeoutException ex)
         {
-            isTimeout = true;
             bool usedMaxTimeout = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase);
 
-            result = new OperationResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message,
-                Action = "refresh",
-                FilePath = excelPath
-            };
-
-            suggestedNextActions =
+            string[] suggestedNextActions =
             [
                 "Check Excel for credential prompts or privacy dialogs that might be blocking the refresh.",
                 "Verify network connectivity and confirm the external data source is reachable.",
@@ -199,7 +188,7 @@ TIMEOUT SAFEGUARD:
                 "Use begin_excel_batch to keep the session alive while adjusting connection settings."
             ];
 
-            operationContext = new Dictionary<string, object>
+            var operationContext = new Dictionary<string, object>
             {
                 ["OperationType"] = "Connection.Refresh",
                 ["ConnectionName"] = connectionName,
@@ -207,20 +196,20 @@ TIMEOUT SAFEGUARD:
                 ["UsedMaxTimeout"] = usedMaxTimeout
             };
 
-            retryGuidance = usedMaxTimeout
+            var retryGuidance = usedMaxTimeout
                 ? "Maximum timeout reached. Inspect Excel for modal dialogs or reduce the size of the refresh before retrying."
                 : "After resolving connectivity issues, retry the refresh (up to the 5 minute timeout).";
-        }
 
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ErrorMessage,
-            isError = !result.Success || isTimeout,
-            suggestedNextActions,
-            retryGuidance,
-            operationContext
-        }, ExcelToolsBase.JsonOptions);
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true,
+                suggestedNextActions,
+                retryGuidance,
+                operationContext
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string DeleteConnectionAsync(ConnectionCommands commands, string sessionId, string? connectionName)
@@ -228,15 +217,18 @@ TIMEOUT SAFEGUARD:
         if (string.IsNullOrEmpty(connectionName))
             throw new ArgumentException("connectionName is required for delete action", nameof(connectionName));
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession(
             sessionId,
-            batch => commands.Delete(batch, connectionName));
+            batch =>
+            {
+                commands.Delete(batch, connectionName);
+                return 0;
+            });
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            success = true,
+            message = $"Connection '{connectionName}' deleted successfully."
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -248,31 +240,27 @@ TIMEOUT SAFEGUARD:
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for loadto action", nameof(sheetName));
 
-        OperationResult result;
-        bool isTimeout = false;
-        string[]? suggestedNextActions = null;
-        Dictionary<string, object>? operationContext = null;
-        string? retryGuidance = null;
-
         try
         {
-            result = ExcelToolsBase.WithSession(
+            ExcelToolsBase.WithSession(
                 sessionId,
-                batch => commands.LoadTo(batch, connectionName, sheetName));
+                batch =>
+                {
+                    commands.LoadTo(batch, connectionName, sheetName);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Connection '{connectionName}' loaded to sheet '{sheetName}'."
+            }, ExcelToolsBase.JsonOptions);
         }
         catch (TimeoutException ex)
         {
-            isTimeout = true;
             bool usedMaxTimeout = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase);
 
-            result = new OperationResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message,
-                Action = "loadto"
-            };
-
-            suggestedNextActions =
+            string[] suggestedNextActions =
             [
                 "Check Excel for credential or privacy prompts blocking the load.",
                 "Ensure the destination sheet is visible and not protected.",
@@ -280,7 +268,7 @@ TIMEOUT SAFEGUARD:
                 "Run begin_excel_batch before issuing multiple load-to commands to reuse the same Excel session."
             ];
 
-            operationContext = new Dictionary<string, object>
+            var operationContext = new Dictionary<string, object>
             {
                 ["OperationType"] = "Connection.LoadTo",
                 ["ConnectionName"] = connectionName,
@@ -289,21 +277,20 @@ TIMEOUT SAFEGUARD:
                 ["UsedMaxTimeout"] = usedMaxTimeout
             };
 
-            retryGuidance = usedMaxTimeout
+            var retryGuidance = usedMaxTimeout
                 ? "Maximum timeout reached. Inspect Excel for modal dialogs or reduce the data volume before retrying."
                 : "After verifying sheet readiness and connectivity, retry the load operation.";
-        }
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ErrorMessage,
-            isError = !result.Success || isTimeout,
-            suggestedNextActions,
-            retryGuidance,
-            operationContext
-        }, ExcelToolsBase.JsonOptions);
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true,
+                suggestedNextActions,
+                retryGuidance,
+                operationContext
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string GetPropertiesAsync(ConnectionCommands commands, string sessionId, string? connectionName)
@@ -311,7 +298,7 @@ TIMEOUT SAFEGUARD:
         if (string.IsNullOrEmpty(connectionName))
             throw new ArgumentException("connectionName is required for properties action", nameof(connectionName));
 
-        var result = ExcelToolsBase.WithSession(
+        ConnectionPropertiesResult result = ExcelToolsBase.WithSession(
             sessionId,
             batch => commands.GetProperties(batch, connectionName));
 
@@ -334,16 +321,19 @@ TIMEOUT SAFEGUARD:
         if (string.IsNullOrEmpty(connectionName))
             throw new ArgumentException("connectionName is required for set-properties action", nameof(connectionName));
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession(
             sessionId,
-            batch => commands.SetProperties(batch, connectionName, newConnectionString, newCommandText, newDescription,
-                backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod));
+            batch =>
+            {
+                commands.SetProperties(batch, connectionName, newConnectionString, newCommandText, newDescription,
+                    backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod);
+                return 0;
+            });
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            success = true,
+            message = $"Updated properties for connection '{connectionName}'."
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -352,16 +342,18 @@ TIMEOUT SAFEGUARD:
         if (string.IsNullOrEmpty(connectionName))
             throw new ArgumentException("connectionName is required for test action", nameof(connectionName));
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession(
             sessionId,
-            batch => commands.Test(batch, connectionName));
+            batch =>
+            {
+                commands.Test(batch, connectionName);
+                return 0;
+            });
 
-        // Always return JSON (success or failure) - MCP clients handle the success flag
-        // Add workflow hints for connection testing
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            success = true,
+            message = $"Connection '{connectionName}' is accessible."
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -379,15 +371,19 @@ TIMEOUT SAFEGUARD:
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("connectionString is required for create action", nameof(connectionString));
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession(
             sessionId,
-            batch => commands.Create(batch, connectionName, connectionString, commandText, description));
+            batch =>
+            {
+                commands.Create(batch, connectionName, connectionString, commandText, description);
+                return 0;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage,
-            connectionName
+            success = true,
+            connectionName,
+            message = $"Connection '{connectionName}' created successfully."
         }, ExcelToolsBase.JsonOptions);
     }
 }

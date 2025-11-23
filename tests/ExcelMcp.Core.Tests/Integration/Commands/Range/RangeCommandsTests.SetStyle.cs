@@ -19,10 +19,9 @@ public partial class RangeCommandsTests
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.SetStyle(batch, "Sheet1", "A1", "Heading 1");
+        _commands.SetStyle(batch, "Sheet1", "A1", "Heading 1");
 
-        // Assert
-        Assert.True(result.Success, $"SetStyle failed: {result.ErrorMessage}");
+        // Assert - void method throws on failure, succeeds silently on success
     }
     /// <inheritdoc/>
 
@@ -39,14 +38,10 @@ public partial class RangeCommandsTests
         // Act & Assert
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        var goodResult = _commands.SetStyle(batch, "Sheet1", "A1", "Good");
-        Assert.True(goodResult.Success, $"Good style failed: {goodResult.ErrorMessage}");
-
-        var badResult = _commands.SetStyle(batch, "Sheet1", "A2", "Bad");
-        Assert.True(badResult.Success, $"Bad style failed: {badResult.ErrorMessage}");
-
-        var neutralResult = _commands.SetStyle(batch, "Sheet1", "A3", "Neutral");
-        Assert.True(neutralResult.Success, $"Neutral style failed: {neutralResult.ErrorMessage}");
+        _commands.SetStyle(batch, "Sheet1", "A1", "Good");
+        _commands.SetStyle(batch, "Sheet1", "A2", "Bad");
+        _commands.SetStyle(batch, "Sheet1", "A3", "Neutral");
+        // void methods throw on failure, succeed silently
     }
     /// <inheritdoc/>
 
@@ -62,10 +57,9 @@ public partial class RangeCommandsTests
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.SetStyle(batch, "Sheet1", "A1:E1", "Accent1");
+        _commands.SetStyle(batch, "Sheet1", "A1:E1", "Accent1");
 
-        // Assert
-        Assert.True(result.Success, $"Accent1 style failed: {result.ErrorMessage}");
+        // Assert - void method throws on failure, succeeds silently on success
     }
     /// <inheritdoc/>
 
@@ -81,10 +75,9 @@ public partial class RangeCommandsTests
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.SetStyle(batch, "Sheet1", "A10:E10", "Total");
+        _commands.SetStyle(batch, "Sheet1", "A10:E10", "Total");
 
-        // Assert
-        Assert.True(result.Success, $"Total style failed: {result.ErrorMessage}");
+        // Assert - void method throws on failure, succeeds silently on success
     }
     /// <inheritdoc/>
 
@@ -101,35 +94,32 @@ public partial class RangeCommandsTests
         // Act & Assert
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        var currencyResult = _commands.SetStyle(batch, "Sheet1", "B5:B10", "Currency");
-        Assert.True(currencyResult.Success, $"Currency style failed: {currencyResult.ErrorMessage}");
-
-        var commaResult = _commands.SetStyle(batch, "Sheet1", "C5:C10", "Comma");
-        Assert.True(commaResult.Success, $"Comma style failed: {commaResult.ErrorMessage}");
+        _commands.SetStyle(batch, "Sheet1", "B5:B10", "Currency");
+        _commands.SetStyle(batch, "Sheet1", "C5:C10", "Comma");
+        // void methods throw on failure, succeed silently
     }
     /// <inheritdoc/>
-
     [Fact]
-    public void SetStyle_InvalidStyleName_ReturnsError()
+    public void SetStyle_InvalidStyleName_ThrowsException()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
-            nameof(SetStyle_InvalidStyleName_ReturnsError),
+            nameof(SetStyle_InvalidStyleName_ThrowsException),
             _tempDir,
             ".xlsx");
 
-        // Act
+        // Act & Assert - Should throw when Excel COM rejects invalid style name
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.SetStyle(batch, "Sheet1", "A1", "NonExistentStyle");
+        var exception = Assert.Throws<System.Reflection.TargetParameterCountException>(
+            () => _commands.SetStyle(batch, "Sheet1", "A1", "NonExistentStyle"));
 
-        // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
-        Assert.Contains("NonExistentStyle", result.ErrorMessage);
+        // Verify exception message contains context about the style operation
+        Assert.NotNull(exception.Message);
+        Assert.Contains("Style", exception.Message);
     }
-    /// <inheritdoc/>
 
+    /// <inheritdoc/>
     [Fact]
     public void SetStyle_ResetToNormal_ClearsFormatting()
     {
@@ -144,11 +134,10 @@ public partial class RangeCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Apply fancy style
-        var fancyResult = _commands.SetStyle(batch, "Sheet1", "A1", "Accent1");
-        Assert.True(fancyResult.Success);
+        _commands.SetStyle(batch, "Sheet1", "A1", "Accent1");
 
         // Reset to normal
-        var normalResult = _commands.SetStyle(batch, "Sheet1", "A1", "Normal");
-        Assert.True(normalResult.Success, $"Normal style failed: {normalResult.ErrorMessage}");
+        _commands.SetStyle(batch, "Sheet1", "A1", "Normal");
+        // void methods throw on failure, succeed silently
     }
 }

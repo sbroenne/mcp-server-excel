@@ -273,15 +273,27 @@ public static class ExcelDataModelTool
 
     private static string RefreshAsync(DataModelCommands commands, string sessionId)
     {
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.Refresh(batch, null, null));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch => { commands.Refresh(batch, null, null); return 0; });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = "Data Model refreshed successfully"
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string DeleteMeasureAsync(DataModelCommands commands, string sessionId, string? measureName)
@@ -291,15 +303,27 @@ public static class ExcelDataModelTool
             throw new ArgumentException("Parameter 'measureName' is required for delete-measure action", nameof(measureName));
         }
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.DeleteMeasure(batch, measureName));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch => { commands.DeleteMeasure(batch, measureName); return 0; });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Measure '{measureName}' deleted successfully"
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string DeleteRelationshipAsync(DataModelCommands commands, string sessionId,
@@ -325,15 +349,27 @@ public static class ExcelDataModelTool
             throw new ArgumentException("Parameter 'toColumn' is required for delete-relationship action", nameof(toColumn));
         }
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.DeleteRelationship(batch, fromTable, fromColumn, toTable, toColumn));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch => { commands.DeleteRelationship(batch, fromTable, fromColumn, toTable, toColumn); return 0; });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} deleted successfully"
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string ReadTableAsync(DataModelCommands commands, string sessionId,
@@ -460,16 +496,27 @@ public static class ExcelDataModelTool
             throw new ArgumentException("Parameter 'daxFormula' is required for create-measure action", nameof(daxFormula));
         }
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.CreateMeasure(batch, tableName, measureName, daxFormula,
-                formatString, description));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch => { commands.CreateMeasure(batch, tableName, measureName, daxFormula, formatString, description); return 0; });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Measure '{measureName}' created successfully in table '{tableName}'"
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string UpdateMeasureComAsync(DataModelCommands commands,
@@ -480,15 +527,27 @@ public static class ExcelDataModelTool
             throw new ArgumentException("Parameter 'measureName' is required for update-measure action", nameof(measureName));
         }
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.UpdateMeasure(batch, measureName, daxFormula, formatString, description));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch => { commands.UpdateMeasure(batch, measureName, daxFormula, formatString, description); return 0; });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Measure '{measureName}' updated successfully"
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string CreateRelationshipComAsync(DataModelCommands commands,
@@ -514,16 +573,27 @@ public static class ExcelDataModelTool
             throw new ArgumentException("Parameter 'toColumn' is required for create-relationship action", nameof(toColumn));
         }
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.CreateRelationship(batch, fromTable, fromColumn, toTable, toColumn,
-                isActive ?? true));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch => { commands.CreateRelationship(batch, fromTable, fromColumn, toTable, toColumn, isActive ?? true); return 0; });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} created successfully"
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string UpdateRelationshipComAsync(DataModelCommands commands,
@@ -554,16 +624,27 @@ public static class ExcelDataModelTool
             throw new ArgumentException("Parameter 'isActive' is required for update-relationship action", nameof(isActive));
         }
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.UpdateRelationship(batch, fromTable, fromColumn, toTable, toColumn,
-                isActive.Value));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch => { commands.UpdateRelationship(batch, fromTable, fromColumn, toTable, toColumn, isActive.Value); return 0; });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} updated successfully"
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 }
 

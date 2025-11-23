@@ -1,6 +1,4 @@
 using Microsoft.Win32;
-using Sbroenne.ExcelMcp.Core.Models;
-
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -50,19 +48,7 @@ public partial class VbaCommands : IVbaCommands
         }
     }
 
-    /// <summary>
-    /// Creates VBA trust guidance result
-    /// </summary>
-    private static VbaTrustRequiredResult CreateVbaTrustGuidance()
-    {
-        return new VbaTrustRequiredResult
-        {
-            Success = false,
-            ErrorMessage = "VBA trust access is not enabled",
-            IsTrustEnabled = false,
-            Explanation = "VBA operations require 'Trust access to the VBA project object model' to be enabled in Excel settings. This is a one-time setup that allows programmatic access to VBA code."
-        };
-    }
+    private const string VbaTrustErrorMessage = "VBA trust access is not enabled. Enable 'Trust access to the VBA project object model' in Excel Trust Center settings.";
 
     /// <summary>
     /// Validate that file is macro-enabled (.xlsm) for VBA operations

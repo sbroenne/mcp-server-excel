@@ -1,7 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.DataModel;
-using Sbroenne.ExcelMcp.Core.Models;
 
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -12,15 +11,9 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class DataModelCommands
 {
     /// <inheritdoc />
-    public OperationResult DeleteMeasure(IExcelBatch batch, string measureName)
+    public void DeleteMeasure(IExcelBatch batch, string measureName)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "model-delete-measure"
-        };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? measure = null;
@@ -43,8 +36,6 @@ public partial class DataModelCommands
 
                 // Delete the measure
                 measure.Delete();
-
-                result.Success = true;
             }
             finally
             {
@@ -52,20 +43,14 @@ public partial class DataModelCommands
                 ComUtilities.Release(ref model);
             }
 
-            return result;
+            return 0;
         });
     }
 
     /// <inheritdoc />
-    public OperationResult DeleteRelationship(IExcelBatch batch, string fromTable, string fromColumn, string toTable, string toColumn)
+    public void DeleteRelationship(IExcelBatch batch, string fromTable, string fromColumn, string toTable, string toColumn)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "model-delete-relationship"
-        };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? modelRelationships = null;
@@ -135,8 +120,6 @@ public partial class DataModelCommands
                 {
                     throw new InvalidOperationException(DataModelErrorMessages.RelationshipNotFound(fromTable, fromColumn, toTable, toColumn));
                 }
-
-                result.Success = true;
             }
             finally
             {
@@ -145,22 +128,16 @@ public partial class DataModelCommands
                 ComUtilities.Release(ref model);
             }
 
-            return result;
+            return 0;
         });
     }
 
     /// <inheritdoc />
-    public OperationResult CreateMeasure(IExcelBatch batch, string tableName, string measureName,
-                                                          string daxFormula, string? formatType = null,
-                                                          string? description = null)
+    public void CreateMeasure(IExcelBatch batch, string tableName, string measureName,
+                              string daxFormula, string? formatType = null,
+                              string? description = null)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "model-create-measure"
-        };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? table = null;
@@ -211,8 +188,6 @@ public partial class DataModelCommands
                     formatObject,                                       // FormatInformation (required) - NEVER null/Type.Missing
                     string.IsNullOrEmpty(description) ? Type.Missing : description  // Description (optional)
                 );
-
-                result.Success = true;
             }
             finally
             {
@@ -224,22 +199,16 @@ public partial class DataModelCommands
                 ComUtilities.Release(ref model);
             }
 
-            return result;
+            return 0;
         });
     }
 
     /// <inheritdoc />
-    public OperationResult UpdateMeasure(IExcelBatch batch, string measureName,
-                                                          string? daxFormula = null, string? formatType = null,
-                                                          string? description = null)
+    public void UpdateMeasure(IExcelBatch batch, string measureName,
+                              string? daxFormula = null, string? formatType = null,
+                              string? description = null)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "model-update-measure"
-        };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? measure = null;
@@ -294,8 +263,6 @@ public partial class DataModelCommands
                 {
                     throw new ArgumentException("No updates provided. Specify at least one of: daxFormula, formatType, or description");
                 }
-
-                result.Success = true;
             }
             finally
             {
@@ -305,22 +272,16 @@ public partial class DataModelCommands
                 ComUtilities.Release(ref model);
             }
 
-            return result;
+            return 0;
         });
     }
 
     /// <inheritdoc />
-    public OperationResult CreateRelationship(IExcelBatch batch, string fromTable,
-                                                                string fromColumn, string toTable,
-                                                                string toColumn, bool active = true)
+    public void CreateRelationship(IExcelBatch batch, string fromTable,
+                                   string fromColumn, string toTable,
+                                   string toColumn, bool active = true)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "model-create-relationship"
-        };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? relationships = null;
@@ -384,8 +345,6 @@ public partial class DataModelCommands
                 // Set active state
                 // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.modelrelationship (Active property is Read/Write)
                 newRelationship.Active = active;
-
-                result.Success = true;
             }
             finally
             {
@@ -398,22 +357,16 @@ public partial class DataModelCommands
                 ComUtilities.Release(ref model);
             }
 
-            return result;
+            return 0;
         });
     }
 
     /// <inheritdoc />
-    public OperationResult UpdateRelationship(IExcelBatch batch, string fromTable,
-                                                                string fromColumn, string toTable,
-                                                                string toColumn, bool active)
+    public void UpdateRelationship(IExcelBatch batch, string fromTable,
+                                   string fromColumn, string toTable,
+                                   string toColumn, bool active)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "model-update-relationship"
-        };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? relationship = null;
@@ -444,8 +397,6 @@ public partial class DataModelCommands
                 string stateChange = wasActive == active
                     ? $"remains {(active ? "active" : "inactive")}"
                     : $"changed from {(wasActive ? "active" : "inactive")} to {(active ? "active" : "inactive")}";
-
-                result.Success = true;
             }
             finally
             {
@@ -453,7 +404,7 @@ public partial class DataModelCommands
                 ComUtilities.Release(ref model);
             }
 
-            return result;
+            return 0;
         });
     }
 }

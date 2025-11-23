@@ -29,15 +29,6 @@ public partial class PivotTableCommands
                 // Delegate to strategy with logger
                 return strategy.CreateCalculatedField(pivot, fieldName, formula, batch.WorkbookPath, batch.Logger);
             }
-            catch (Exception ex)
-            {
-                return new PivotFieldResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to create calculated field '{fieldName}': {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
-            }
             finally
             {
                 ComUtilities.Release(ref pivot);

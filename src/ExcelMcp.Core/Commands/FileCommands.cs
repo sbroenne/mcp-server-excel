@@ -11,81 +11,45 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public class FileCommands : IFileCommands
 {
     /// <inheritdoc />
-    public OperationResult CreateEmpty(string filePath, bool overwriteIfExists = false)
+    public void CreateEmpty(string filePath, bool overwriteIfExists = false)
     {
-        try
+        filePath = Path.GetFullPath(filePath);
+
+        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+        if (extension is not ".xlsx" and not ".xlsm")
         {
-            filePath = Path.GetFullPath(filePath);
-
-            // Validate file extension
-            string extension = Path.GetExtension(filePath).ToLowerInvariant();
-            if (extension is not ".xlsx" and not ".xlsm")
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = "File must have .xlsx or .xlsm extension",
-                    FilePath = filePath,
-                    Action = "create-empty"
-                };
-            }
-
-            // Check if file already exists
-            if (File.Exists(filePath) && !overwriteIfExists)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"File already exists: {filePath}",
-                    FilePath = filePath,
-                    Action = "create-empty"
-                };
-            }
-
-            // Ensure directory exists
-            string? directory = Path.GetDirectoryName(filePath);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            {
-                try
-                {
-                    Directory.CreateDirectory(directory);
-                }
-                catch (Exception ex)
-                {
-                    return new OperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Failed to create directory: {ex.Message}",
-                        FilePath = filePath,
-                        Action = "create-empty"
-                    };
-                }
-            }
-
-            // Create Excel workbook directly on STA thread - no batch session needed
-            bool isMacroEnabled = extension == ".xlsm";
-
-            return CreateNewWorkbookOnStaThread(filePath, isMacroEnabled);
+            throw new ArgumentException("File must have .xlsx or .xlsm extension", nameof(filePath));
         }
-        catch (Exception ex)
+
+        if (File.Exists(filePath) && !overwriteIfExists)
         {
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to create Excel file: {ex.Message}",
-                FilePath = filePath,
-                Action = "create-empty"
-            };
+            throw new InvalidOperationException($"File already exists: {filePath}. Use overwriteIfExists=true to overwrite.");
         }
+
+        string? directory = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            try
+            {
+                Directory.CreateDirectory(directory);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to create directory '{directory}': {ex.Message}", ex);
+            }
+        }
+
+        bool isMacroEnabled = extension == ".xlsm";
+        CreateNewWorkbookOnStaThread(filePath, isMacroEnabled);
     }
 
     /// <summary>
     /// Creates a new Excel workbook directly on an STA thread without using batch API.
     /// This is faster and avoids session disposal overhead for simple file creation.
     /// </summary>
-    private static OperationResult CreateNewWorkbookOnStaThread(string filePath, bool isMacroEnabled)
+    private static void CreateNewWorkbookOnStaThread(string filePath, bool isMacroEnabled)
     {
-        var completion = new TaskCompletionSource<OperationResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completion = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var thread = new Thread(() =>
         {
@@ -132,22 +96,11 @@ public class FileCommands : IFileCommands
                         "Check disk performance and antivirus settings.");
                 }
 
-                completion.SetResult(new OperationResult
-                {
-                    Success = true,
-                    FilePath = filePath,
-                    Action = "create-empty"
-                });
+                completion.TrySetResult(null);
             }
             catch (Exception ex)
             {
-                completion.SetResult(new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to create Excel file: {ex.Message}",
-                    FilePath = filePath,
-                    Action = "create-empty"
-                });
+                completion.TrySetException(new InvalidOperationException($"Failed to create Excel file: {ex.Message}", ex));
             }
             finally
             {
@@ -168,66 +121,50 @@ public class FileCommands : IFileCommands
 
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
-        thread.Join(); // Wait for thread to complete
 
-        return completion.Task.Result;
+        try
+        {
+            completion.Task.GetAwaiter().GetResult();
+        }
+        finally
+        {
+            thread.Join();
+        }
     }
 
     /// <inheritdoc />
-    public FileValidationResult Test(string filePath)
+    public FileValidationInfo Test(string filePath)
     {
-        try
+        filePath = Path.GetFullPath(filePath);
+
+        bool exists = File.Exists(filePath);
+        string extension = Path.GetExtension(filePath).ToLowerInvariant();
+        bool isValidExtension = extension is ".xlsx" or ".xlsm";
+
+        long size = 0;
+        DateTime lastModified = DateTime.MinValue;
+
+        if (exists)
         {
-            filePath = Path.GetFullPath(filePath);
-
-            // Check if file exists
-            bool exists = File.Exists(filePath);
-
-            // Get file extension
-            string extension = exists ? Path.GetExtension(filePath).ToLowerInvariant() : "";
-
-            // Validate extension
-            bool isValidExtension = extension is ".xlsx" or ".xlsm";
-
-            // Get file info if exists
-            long size = 0;
-            DateTime lastModified = DateTime.MinValue;
-
-            if (exists)
-            {
-                var fileInfo = new FileInfo(filePath);
-                size = fileInfo.Length;
-                lastModified = fileInfo.LastWriteTime;
-            }
-
-            return new FileValidationResult
-            {
-                Success = exists && isValidExtension,
-                ErrorMessage = !exists ? $"File not found: {filePath}"
-                    : !isValidExtension ? $"Invalid file extension. Expected .xlsx or .xlsm, got {extension}"
-                    : null,
-                FilePath = filePath,
-                Exists = exists,
-                Size = size,
-                Extension = extension,
-                LastModified = lastModified,
-                IsValid = exists && isValidExtension
-            };
+            var fileInfo = new FileInfo(filePath);
+            size = fileInfo.Length;
+            lastModified = fileInfo.LastWriteTime;
         }
-        catch (Exception ex)
+
+        string? message = !exists
+            ? $"File not found: {filePath}"
+            : !isValidExtension ? $"Invalid file extension. Expected .xlsx or .xlsm, got {extension}" : null;
+
+        return new FileValidationInfo
         {
-            return new FileValidationResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to validate file: {ex.Message}",
-                FilePath = filePath,
-                Exists = false,
-                Size = 0,
-                Extension = "",
-                LastModified = DateTime.MinValue,
-                IsValid = false
-            };
-        }
+            FilePath = filePath,
+            Exists = exists,
+            Size = size,
+            Extension = extension,
+            LastModified = lastModified,
+            IsValid = exists && isValidExtension,
+            Message = message
+        };
     }
 
 }

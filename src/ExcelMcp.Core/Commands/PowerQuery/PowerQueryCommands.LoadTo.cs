@@ -24,29 +24,19 @@ public partial class PowerQueryCommands
     /// IMPORTANT: Uses ListObjects.Add() (not QueryTables.Add()) for worksheet loading.
     /// This is the CORRECT approach per Microsoft docs and matches Create() behavior.
     /// </remarks>
-    public PowerQueryLoadResult LoadTo(
+    public void LoadTo(
         IExcelBatch batch,
         string queryName,
         PowerQueryLoadMode loadMode,
         string? targetSheet = null,
         string? targetCellAddress = null)
     {
-        var result = new PowerQueryLoadResult
-        {
-            FilePath = batch.WorkbookPath,
-            QueryName = queryName,
-            LoadDestination = loadMode,
-            WorksheetName = targetSheet,
-            TargetCellAddress = targetCellAddress
-        };
-
         // Validate inputs
         bool requiresWorksheet = loadMode == PowerQueryLoadMode.LoadToTable || loadMode == PowerQueryLoadMode.LoadToBoth;
 
         if (requiresWorksheet && string.IsNullOrWhiteSpace(targetSheet))
         {
             targetSheet = queryName; // Default to query name
-            result.WorksheetName = targetSheet;
         }
 
         if (!string.IsNullOrWhiteSpace(targetCellAddress) && !requiresWorksheet)
@@ -58,10 +48,18 @@ public partial class PowerQueryCommands
 
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
 
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
             dynamic? query = null;
+            var result = new PowerQueryLoadResult
+            {
+                FilePath = batch.WorkbookPath,
+                QueryName = queryName,
+                LoadDestination = loadMode,
+                WorksheetName = targetSheet,
+                TargetCellAddress = targetCellAddress
+            };
 
             try
             {
@@ -139,7 +137,7 @@ public partial class PowerQueryCommands
                     result.DataRefreshed = (loadMode != PowerQueryLoadMode.ConnectionOnly);
                 }
 
-                return result;
+                return 0;
             }
             finally
             {

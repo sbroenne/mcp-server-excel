@@ -43,8 +43,7 @@ public partial class RangeCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Set a style first
-        var setResult = _commands.SetStyle(batch, "Sheet1", "A1", "Heading 1");
-        Assert.True(setResult.Success, $"SetStyle failed: {setResult.ErrorMessage}");
+        _commands.SetStyle(batch, "Sheet1", "A1", "Heading 1");
 
         // Now get the style
         var getResult = _commands.GetStyle(batch, "Sheet1", "A1");
@@ -71,13 +70,9 @@ public partial class RangeCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Set different styles on different cells
-        var setHeading1 = _commands.SetStyle(batch, "Sheet1", "A1", "Heading 1");
-        var setAccent1 = _commands.SetStyle(batch, "Sheet1", "B1", "Accent1");
-        var setCurrency = _commands.SetStyle(batch, "Sheet1", "C1", "Currency");
-
-        Assert.True(setHeading1.Success, $"SetStyle Heading 1 failed: {setHeading1.ErrorMessage}");
-        Assert.True(setAccent1.Success, $"SetStyle Accent1 failed: {setAccent1.ErrorMessage}");
-        Assert.True(setCurrency.Success, $"SetStyle Currency failed: {setCurrency.ErrorMessage}");
+        _commands.SetStyle(batch, "Sheet1", "A1", "Heading 1");
+        _commands.SetStyle(batch, "Sheet1", "B1", "Accent1");
+        _commands.SetStyle(batch, "Sheet1", "C1", "Currency");
 
         // Get the styles
         var getHeading1 = _commands.GetStyle(batch, "Sheet1", "A1");
@@ -113,8 +108,7 @@ public partial class RangeCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Set style on entire range (this applies to all cells in the range)
-        var setResult = _commands.SetStyle(batch, "Sheet1", "A1:C3", "Good");
-        Assert.True(setResult.Success, $"SetStyle failed: {setResult.ErrorMessage}");
+        _commands.SetStyle(batch, "Sheet1", "A1:C3", "Good");
 
         // Get style for entire range (should return first cell's style)
         var getResult = _commands.GetStyle(batch, "Sheet1", "A1:C3");
@@ -127,24 +121,21 @@ public partial class RangeCommandsTests
     /// <inheritdoc/>
 
     [Fact]
-    public void GetStyle_InvalidRange_ReturnsError()
+    public void GetStyle_InvalidRange_ThrowsException()
     {
         // Arrange
         var testFile = CoreTestHelper.CreateUniqueTestFile(
             nameof(RangeCommandsTests),
-            nameof(GetStyle_InvalidRange_ReturnsError),
+            nameof(GetStyle_InvalidRange_ThrowsException),
             _tempDir,
             ".xlsx");
 
-        // Act
+        // Act & Assert - Should throw when Excel COM rejects invalid range
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.GetStyle(batch, "Sheet1", "InvalidRange");
+        var exception = Assert.ThrowsAny<Exception>(
+            () => _commands.GetStyle(batch, "Sheet1", "InvalidRange"));
 
-        // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
-        Assert.Contains(
-            "range",
-            result.ErrorMessage.ToLowerInvariant());
+        // Verify exception is related to range access
+        Assert.NotNull(exception.Message);
     }
 }

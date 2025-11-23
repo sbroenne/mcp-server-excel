@@ -1,4 +1,3 @@
-using System.IO;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -79,10 +78,7 @@ public partial class ConnectionCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Act
-        var result = _commands.Create(batch, connectionName, connectionString, commandText: commandText);
-
-        // Assert
-        Assert.True(result.Success, $"ACE OLEDB connection creation failed: {result.ErrorMessage}");
+        _commands.Create(batch, connectionName, connectionString, commandText: commandText);
 
         var listResult = _commands.List(batch);
         Assert.True(listResult.Success);
@@ -111,10 +107,7 @@ public partial class ConnectionCommandsTests
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.Create(batch, connectionName, connectionString);
-
-        // Assert - ODBC connections can be created (even without valid DSN)
-        Assert.True(result.Success, $"ODBC connection creation failed: {result.ErrorMessage}");
+        _commands.Create(batch, connectionName, connectionString);
 
         // Verify connection exists
         var listResult = _commands.List(batch);
@@ -138,12 +131,10 @@ public partial class ConnectionCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Act - Create first connection
-        var result1 = _commands.Create(batch, connectionName, connectionString1);
-        Assert.True(result1.Success, $"First connection creation failed: {result1.ErrorMessage}");
+        _commands.Create(batch, connectionName, connectionString1);
 
         // Act - Create second connection with same name
-        var result2 = _commands.Create(batch, connectionName, connectionString2);
-        Assert.True(result2.Success, $"Second connection creation failed: {result2.ErrorMessage}");
+        _commands.Create(batch, connectionName, connectionString2);
 
         // Assert - Excel may prevent duplicates OR auto-rename the second one
         var listResult = _commands.List(batch);
@@ -172,11 +163,8 @@ public partial class ConnectionCommandsTests
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.Create(batch, connectionName, connectionString,
+        _commands.Create(batch, connectionName, connectionString,
             commandText: null, description: description);
-
-        // Assert
-        Assert.True(result.Success, $"Connection creation failed: {result.ErrorMessage}");
 
         // Verify connection was created successfully
         var viewResult = _commands.View(batch, connectionName);

@@ -27,8 +27,7 @@ public partial class VbaCommands
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
-            var trustGuidance = CreateVbaTrustGuidance();
-            throw new InvalidOperationException(trustGuidance.ErrorMessage);
+            throw new InvalidOperationException(VbaTrustErrorMessage);
         }
 
         return batch.Execute((ctx, ct) =>
@@ -105,9 +104,7 @@ public partial class VbaCommands
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
             {
                 // Trust was disabled during operation
-                result.Success = false;
-                result.ErrorMessage = "VBA trust access is not enabled";
-                return result;
+                throw new InvalidOperationException(VbaTrustErrorMessage, comEx);
             }
             finally
             {
@@ -136,8 +133,7 @@ public partial class VbaCommands
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
-            var trustGuidance = CreateVbaTrustGuidance();
-            throw new InvalidOperationException(trustGuidance.ErrorMessage);
+            throw new InvalidOperationException(VbaTrustErrorMessage);
         }
 
         return batch.Execute((ctx, ct) =>
@@ -218,9 +214,7 @@ public partial class VbaCommands
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
             {
-                result.Success = false;
-                result.ErrorMessage = "VBA trust access is not enabled";
-                return result;
+                throw new InvalidOperationException(VbaTrustErrorMessage, comEx);
             }
             finally
             {
@@ -233,14 +227,8 @@ public partial class VbaCommands
     }
 
     /// <inheritdoc />
-    public OperationResult Import(IExcelBatch batch, string moduleName, string vbaCode)
+    public void Import(IExcelBatch batch, string moduleName, string vbaCode)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "vba-import"
-        };
-
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
@@ -250,11 +238,10 @@ public partial class VbaCommands
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
-            var trustGuidance = CreateVbaTrustGuidance();
-            throw new InvalidOperationException(trustGuidance.ErrorMessage);
+            throw new InvalidOperationException(VbaTrustErrorMessage);
         }
 
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -290,16 +277,12 @@ public partial class VbaCommands
                 codeModule = newModule.CodeModule;
                 codeModule.AddFromString(vbaCode);
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
             {
-                // Trust was disabled during operation
-                result = CreateVbaTrustGuidance();
-                result.FilePath = batch.WorkbookPath;
-                return result;
+                throw new InvalidOperationException(VbaTrustErrorMessage, comEx);
             }
             finally
             {
@@ -312,14 +295,8 @@ public partial class VbaCommands
     }
 
     /// <inheritdoc />
-    public OperationResult Update(IExcelBatch batch, string moduleName, string vbaCode)
+    public void Update(IExcelBatch batch, string moduleName, string vbaCode)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "vba-update"
-        };
-
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
@@ -329,11 +306,10 @@ public partial class VbaCommands
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
-            var trustGuidance = CreateVbaTrustGuidance();
-            throw new InvalidOperationException(trustGuidance.ErrorMessage);
+            throw new InvalidOperationException(VbaTrustErrorMessage);
         }
 
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -381,16 +357,12 @@ public partial class VbaCommands
 
                 codeModule.AddFromString(vbaCode);
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
             {
-                // Trust was disabled during operation
-                result = CreateVbaTrustGuidance();
-                result.FilePath = batch.WorkbookPath;
-                return result;
+                throw new InvalidOperationException(VbaTrustErrorMessage, comEx);
             }
             finally
             {

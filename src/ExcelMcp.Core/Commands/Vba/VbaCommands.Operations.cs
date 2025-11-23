@@ -1,7 +1,6 @@
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -11,14 +10,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class VbaCommands
 {
     /// <inheritdoc />
-    public OperationResult Run(IExcelBatch batch, string procedureName, TimeSpan? timeout, params string[] parameters)
+    public void Run(IExcelBatch batch, string procedureName, TimeSpan? timeout, params string[] parameters)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "vba-run"
-        };
-
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
@@ -28,10 +21,10 @@ public partial class VbaCommands
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
-            return CreateVbaTrustGuidance();
+            throw new InvalidOperationException(VbaTrustErrorMessage);
         }
 
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -45,29 +38,19 @@ public partial class VbaCommands
                     ctx.App.Run(procedureName, paramObjects);
                 }
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
             {
-                // Trust was disabled during operation
-                result = CreateVbaTrustGuidance();
-                result.FilePath = batch.WorkbookPath;
-                return result;
+                throw new InvalidOperationException(VbaTrustErrorMessage, comEx);
             }
         });
     }
 
     /// <inheritdoc />
-    public OperationResult Delete(IExcelBatch batch, string moduleName)
+    public void Delete(IExcelBatch batch, string moduleName)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath,
-            Action = "vba-delete"
-        };
-
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
@@ -77,11 +60,10 @@ public partial class VbaCommands
         // Check VBA trust BEFORE attempting operation
         if (!IsVbaTrustEnabled())
         {
-            var trustGuidance = CreateVbaTrustGuidance();
-            throw new InvalidOperationException(trustGuidance.ErrorMessage);
+            throw new InvalidOperationException(VbaTrustErrorMessage);
         }
 
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -120,16 +102,12 @@ public partial class VbaCommands
 
                 vbComponents.Remove(targetComponent);
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
             {
-                // Trust was disabled during operation
-                result = CreateVbaTrustGuidance();
-                result.FilePath = batch.WorkbookPath;
-                return result;
+                throw new InvalidOperationException(VbaTrustErrorMessage, comEx);
             }
             finally
             {

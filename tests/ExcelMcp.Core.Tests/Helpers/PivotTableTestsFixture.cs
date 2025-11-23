@@ -50,10 +50,7 @@ public class PivotTableTestsFixture : IAsyncLifetime
         try
         {
             var fileCommands = new FileCommands();
-            var createFileResult = fileCommands.CreateEmpty(TestFilePath);
-            if (!createFileResult.Success)
-                throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: File creation failed: {createFileResult.ErrorMessage}");
+            fileCommands.CreateEmpty(TestFilePath);
 
             CreationResult.FileCreated = true;
 

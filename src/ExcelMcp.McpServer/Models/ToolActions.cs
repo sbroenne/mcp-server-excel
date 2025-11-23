@@ -155,7 +155,6 @@ public enum NamedRangeAction
     Read,
     Write,
     Create,
-    CreateBulk,
     Update,
     Delete
 }

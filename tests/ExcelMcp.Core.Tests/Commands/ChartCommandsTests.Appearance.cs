@@ -36,18 +36,13 @@ public partial class ChartCommandsTests
         });
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
-        Assert.True(createResult.Success);
         Assert.Equal(ChartType.ColumnClustered, createResult.ChartType);
 
         // Act - Change to Line chart
-        var setTypeResult = _commands.SetChartType(batch, createResult.ChartName, ChartType.Line);
+        _commands.SetChartType(batch, createResult.ChartName, ChartType.Line);
 
-        // Assert
-        Assert.True(setTypeResult.Success, $"SetChartType failed: {setTypeResult.ErrorMessage}");
-
-        // Verify type changed
+        // Assert - Verify type changed
         var readResult = _commands.Read(batch, createResult.ChartName);
-        Assert.True(readResult.Success);
         Assert.Equal(ChartType.Line, readResult.ChartType);
     }
 
@@ -76,17 +71,12 @@ public partial class ChartCommandsTests
         });
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B3", ChartType.Pie, 50, 50);
-        Assert.True(createResult.Success);
 
         // Act
-        var setTitleResult = _commands.SetTitle(batch, createResult.ChartName, "Sales by Quarter");
+        _commands.SetTitle(batch, createResult.ChartName, "Sales by Quarter");
 
-        // Assert
-        Assert.True(setTitleResult.Success, $"SetTitle failed: {setTitleResult.ErrorMessage}");
-
-        // Verify title set
+        // Assert - Verify title set
         var readResult = _commands.Read(batch, createResult.ChartName);
-        Assert.True(readResult.Success);
         Assert.Equal("Sales by Quarter", readResult.Title);
     }
 
@@ -114,14 +104,10 @@ public partial class ChartCommandsTests
         _commands.SetTitle(batch, createResult.ChartName, "Initial Title");
 
         // Act - Hide title with empty string
-        var hideResult = _commands.SetTitle(batch, createResult.ChartName, "");
+        _commands.SetTitle(batch, createResult.ChartName, "");
 
-        // Assert
-        Assert.True(hideResult.Success, $"SetTitle failed: {hideResult.ErrorMessage}");
-
-        // Verify title hidden
+        // Assert - Verify title hidden
         var readResult = _commands.Read(batch, createResult.ChartName);
-        Assert.True(readResult.Success);
         Assert.Null(readResult.Title);
     }
 
@@ -151,13 +137,9 @@ public partial class ChartCommandsTests
         });
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
-        Assert.True(createResult.Success);
 
-        // Act
-        var setAxisResult = _commands.SetAxisTitle(batch, createResult.ChartName, ChartAxisType.Category, "Months");
-
-        // Assert
-        Assert.True(setAxisResult.Success, $"SetAxisTitle failed: {setAxisResult.ErrorMessage}");
+        // Act & Assert - void operation, no exception means success
+        _commands.SetAxisTitle(batch, createResult.ChartName, ChartAxisType.Category, "Months");
     }
 
     [Fact]
@@ -186,13 +168,9 @@ public partial class ChartCommandsTests
         });
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.BarClustered, 50, 50);
-        Assert.True(createResult.Success);
 
-        // Act
-        var setAxisResult = _commands.SetAxisTitle(batch, createResult.ChartName, ChartAxisType.Value, "Revenue ($)");
-
-        // Assert
-        Assert.True(setAxisResult.Success, $"SetAxisTitle failed: {setAxisResult.ErrorMessage}");
+        // Act & Assert - void operation, no exception means success
+        _commands.SetAxisTitle(batch, createResult.ChartName, ChartAxisType.Value, "Revenue ($)");
     }
 
     [Fact]
@@ -221,17 +199,12 @@ public partial class ChartCommandsTests
         });
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:C4", ChartType.Line, 50, 50);
-        Assert.True(createResult.Success);
 
         // Act - Show legend at bottom
-        var showLegendResult = _commands.ShowLegend(batch, createResult.ChartName, true, LegendPosition.Bottom);
+        _commands.ShowLegend(batch, createResult.ChartName, true, LegendPosition.Bottom);
 
-        // Assert
-        Assert.True(showLegendResult.Success, $"ShowLegend failed: {showLegendResult.ErrorMessage}");
-
-        // Verify legend visible
+        // Assert - Verify legend visible
         var readResult = _commands.Read(batch, createResult.ChartName);
-        Assert.True(readResult.Success);
         Assert.True(readResult.HasLegend);
     }
 
@@ -259,14 +232,10 @@ public partial class ChartCommandsTests
         _commands.ShowLegend(batch, createResult.ChartName, true, LegendPosition.Right); // Show first
 
         // Act - Hide legend
-        var hideResult = _commands.ShowLegend(batch, createResult.ChartName, false);
+        _commands.ShowLegend(batch, createResult.ChartName, false);
 
-        // Assert
-        Assert.True(hideResult.Success, $"ShowLegend failed: {hideResult.ErrorMessage}");
-
-        // Verify legend hidden
+        // Assert - Verify legend hidden
         var readResult = _commands.Read(batch, createResult.ChartName);
-        Assert.True(readResult.Success);
         Assert.False(readResult.HasLegend);
     }
 
@@ -296,13 +265,9 @@ public partial class ChartCommandsTests
         });
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
-        Assert.True(createResult.Success);
 
-        // Act - Apply style 10
-        var setStyleResult = _commands.SetStyle(batch, createResult.ChartName, 10);
-
-        // Assert
-        Assert.True(setStyleResult.Success, $"SetStyle failed: {setStyleResult.ErrorMessage}");
+        // Act & Assert - void operation, no exception means success
+        _commands.SetStyle(batch, createResult.ChartName, 10);
     }
 
     [Fact]
@@ -326,14 +291,11 @@ public partial class ChartCommandsTests
         });
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B3", ChartType.Pie, 50, 50);
-        Assert.True(createResult.Success);
 
-        // Act - Try invalid style ID
-        var setStyleResult = _commands.SetStyle(batch, createResult.ChartName, 999);
-
-        // Assert
-        Assert.False(setStyleResult.Success);
-        Assert.Contains("between 1 and 48", setStyleResult.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        // Act & Assert - Invalid style ID should throw exception
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _commands.SetStyle(batch, createResult.ChartName, 999));
+        Assert.Contains("between 1 and 48", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -363,16 +325,13 @@ public partial class ChartCommandsTests
         });
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B5", ChartType.ColumnClustered, 50, 50);
-        Assert.True(createResult.Success);
 
         // Act & Assert - Test multiple chart type changes
         var chartTypes = new[] { ChartType.Line, ChartType.Area, ChartType.BarClustered, ChartType.XYScatter, ChartType.Pie };
 
         foreach (var chartType in chartTypes)
         {
-            var result = _commands.SetChartType(batch, createResult.ChartName, chartType);
-            Assert.True(result.Success, $"Failed to set chart type to {chartType}: {result.ErrorMessage}");
-
+            _commands.SetChartType(batch, createResult.ChartName, chartType);
             var readResult = _commands.Read(batch, createResult.ChartName);
             Assert.Equal(chartType, readResult.ChartType);
         }
@@ -404,7 +363,6 @@ public partial class ChartCommandsTests
         });
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:C4", ChartType.ColumnClustered, 50, 50);
-        Assert.True(createResult.Success);
 
         // Act & Assert - Test all legend positions
         var positions = new[] {
@@ -416,9 +374,6 @@ public partial class ChartCommandsTests
         };
 
         foreach (var position in positions)
-        {
-            var result = _commands.ShowLegend(batch, createResult.ChartName, true, position);
-            Assert.True(result.Success, $"Failed to set legend position to {position}: {result.ErrorMessage}");
-        }
+            _commands.ShowLegend(batch, createResult.ChartName, true, position);
     }
 }

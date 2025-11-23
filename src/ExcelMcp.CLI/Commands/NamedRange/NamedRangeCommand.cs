@@ -1,20 +1,13 @@
-using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Infrastructure.Session;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Models;
 using Spectre.Console.Cli;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands.NamedRange;
 
 internal sealed class NamedRangeCommand : Command<NamedRangeCommand.Settings>
 {
-    private static readonly JsonSerializerOptions DefinitionJsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
-
     private readonly ISessionService _sessionService;
     private readonly INamedRangeCommands _namedRangeCommands;
     private readonly ICliConsole _console;
@@ -45,15 +38,29 @@ internal sealed class NamedRangeCommand : Command<NamedRangeCommand.Settings>
 
         return action switch
         {
-            "list" => WriteResult(_namedRangeCommands.List(batch)),
+            "list" => ExecuteList(batch),
             "get" => ExecuteGet(batch, settings),
             "set" => ExecuteSet(batch, settings),
             "create" => ExecuteCreate(batch, settings),
             "update" => ExecuteUpdate(batch, settings),
             "delete" => ExecuteDelete(batch, settings),
-            "create-bulk" => ExecuteCreateBulk(batch, settings),
             _ => ReportUnknown(action)
         };
+    }
+
+    private int ExecuteList(IExcelBatch batch)
+    {
+        try
+        {
+            var namedRanges = _namedRangeCommands.List(batch);
+            _console.WriteJson(namedRanges);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to list named ranges: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteGet(IExcelBatch batch, Settings settings)
@@ -64,7 +71,17 @@ internal sealed class NamedRangeCommand : Command<NamedRangeCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_namedRangeCommands.Read(batch, settings.Name));
+        try
+        {
+            var value = _namedRangeCommands.Read(batch, settings.Name);
+            _console.WriteJson(value);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to get named range '{settings.Name}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteSet(IExcelBatch batch, Settings settings)
@@ -75,7 +92,17 @@ internal sealed class NamedRangeCommand : Command<NamedRangeCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_namedRangeCommands.Write(batch, settings.Name, settings.Value));
+        try
+        {
+            _namedRangeCommands.Write(batch, settings.Name, settings.Value);
+            _console.WriteInfo($"Named range '{settings.Name}' value updated successfully.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to set named range '{settings.Name}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteCreate(IExcelBatch batch, Settings settings)
@@ -86,7 +113,17 @@ internal sealed class NamedRangeCommand : Command<NamedRangeCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_namedRangeCommands.Create(batch, settings.Name, settings.Reference));
+        try
+        {
+            _namedRangeCommands.Create(batch, settings.Name, settings.Reference);
+            _console.WriteInfo($"Named range '{settings.Name}' created successfully.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to create named range '{settings.Name}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteUpdate(IExcelBatch batch, Settings settings)
@@ -97,7 +134,17 @@ internal sealed class NamedRangeCommand : Command<NamedRangeCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_namedRangeCommands.Update(batch, settings.Name, settings.Reference));
+        try
+        {
+            _namedRangeCommands.Update(batch, settings.Name, settings.Reference);
+            _console.WriteInfo($"Named range '{settings.Name}' updated successfully.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to update named range '{settings.Name}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteDelete(IExcelBatch batch, Settings settings)
@@ -108,73 +155,17 @@ internal sealed class NamedRangeCommand : Command<NamedRangeCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_namedRangeCommands.Delete(batch, settings.Name));
-    }
-
-    private int ExecuteCreateBulk(IExcelBatch batch, Settings settings)
-    {
-        var definitions = LoadDefinitions(settings);
-        if (definitions == null)
-        {
-            return -1;
-        }
-
-        return WriteResult(_namedRangeCommands.CreateBulk(batch, definitions));
-    }
-
-    private List<NamedRangeDefinition>? LoadDefinitions(Settings settings)
-    {
-        if (!string.IsNullOrWhiteSpace(settings.DefinitionsJson))
-        {
-            var parsed = ParseDefinitions(settings.DefinitionsJson!);
-            if (parsed == null)
-            {
-                _console.WriteError("Unable to parse --definitions-json value.");
-            }
-
-            return parsed;
-        }
-
-        if (!string.IsNullOrWhiteSpace(settings.DefinitionsFile))
-        {
-            if (!System.IO.File.Exists(settings.DefinitionsFile))
-            {
-                _console.WriteError($"Definitions file '{settings.DefinitionsFile}' was not found.");
-                return null;
-            }
-
-            var contents = System.IO.File.ReadAllText(settings.DefinitionsFile);
-            var parsed = ParseDefinitions(contents);
-            if (parsed == null)
-            {
-                _console.WriteError($"Unable to parse JSON from '{settings.DefinitionsFile}'.");
-            }
-
-            return parsed;
-        }
-
-        _console.WriteError("Provide named range definitions using --definitions-json or --definitions-file.");
-        return null;
-    }
-
-    private static List<NamedRangeDefinition>? ParseDefinitions(string json)
-    {
         try
         {
-            var result = JsonSerializer.Deserialize<List<NamedRangeDefinition>>(json, DefinitionJsonOptions);
-
-            return result?.Count > 0 ? result : null;
+            _namedRangeCommands.Delete(batch, settings.Name);
+            _console.WriteInfo($"Named range '{settings.Name}' deleted successfully.");
+            return 0;
         }
-        catch (JsonException)
+        catch (Exception ex)
         {
-            return null;
+            _console.WriteError($"Failed to delete named range '{settings.Name}': {ex.Message}");
+            return 1;
         }
-    }
-
-    private int WriteResult(ResultBase result)
-    {
-        _console.WriteJson(result);
-        return result.Success ? 0 : -1;
     }
 
     private int ReportUnknown(string action)

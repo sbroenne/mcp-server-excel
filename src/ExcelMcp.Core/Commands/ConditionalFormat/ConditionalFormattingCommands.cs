@@ -1,6 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -10,7 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class ConditionalFormattingCommands : IConditionalFormattingCommands
 {
     /// <inheritdoc />
-    public OperationResult AddRule(
+    public void AddRule(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
@@ -26,7 +25,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         string? borderStyle = null,
         string? borderColor = null)
     {
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -105,11 +104,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                     }
                 }
 
-                return new OperationResult
-                {
-                    Success = true,
-                    FilePath = batch.WorkbookPath
-                };
+                return 0; // Dummy return for batch.Execute
             }
             finally
             {
@@ -125,12 +120,12 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
     }
 
     /// <inheritdoc />
-    public OperationResult ClearRules(
+    public void ClearRules(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -150,11 +145,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 formatConditions = range.FormatConditions;
                 formatConditions.Delete();
 
-                return new OperationResult
-                {
-                    Success = true,
-                    FilePath = batch.WorkbookPath
-                };
+                return 0; // Dummy return for batch.Execute
             }
             finally
             {

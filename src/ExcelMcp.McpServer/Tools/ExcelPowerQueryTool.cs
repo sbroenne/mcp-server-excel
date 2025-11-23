@@ -69,39 +69,30 @@ public static class ExcelPowerQueryTool
         [Description("Timeout in seconds for refresh action (60-600 seconds / 1-10 minutes). Required when action is 'refresh'.")]
         int? refreshTimeoutSeconds = null)
     {
-        try
-        {
-            // Create commands
-            var dataModelCommands = new DataModelCommands();
-            var powerQueryCommands = new PowerQueryCommands(dataModelCommands);
-
-            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
-            return action switch
+        return ExcelToolsBase.ExecuteToolAction(
+            action.ToActionString(),
+            () =>
             {
-                PowerQueryAction.List => ListPowerQueriesAsync(powerQueryCommands, sessionId),
-                PowerQueryAction.View => ViewPowerQueryAsync(powerQueryCommands, sessionId, queryName),
-                PowerQueryAction.Refresh => RefreshPowerQueryAsync(powerQueryCommands, sessionId, queryName, refreshTimeoutSeconds),
-                PowerQueryAction.Delete => DeletePowerQueryAsync(powerQueryCommands, sessionId, queryName),
-                PowerQueryAction.GetLoadConfig => GetLoadConfigAsync(powerQueryCommands, sessionId, queryName),
+                var dataModelCommands = new DataModelCommands();
+                var powerQueryCommands = new PowerQueryCommands(dataModelCommands);
 
-                // Atomic Operations
-                PowerQueryAction.Create => CreatePowerQueryAsync(powerQueryCommands, sessionId, queryName, mCode, loadDestination, targetSheet, targetCellAddress),
-                PowerQueryAction.Update => UpdatePowerQueryAsync(powerQueryCommands, sessionId, queryName, mCode),
-                PowerQueryAction.LoadTo => LoadToPowerQueryAsync(powerQueryCommands, sessionId, queryName, loadDestination, targetSheet, targetCellAddress),
-                PowerQueryAction.RefreshAll => RefreshAllPowerQueriesAsync(powerQueryCommands, sessionId),
+                return action switch
+                {
+                    PowerQueryAction.List => ListPowerQueriesAsync(powerQueryCommands, sessionId),
+                    PowerQueryAction.View => ViewPowerQueryAsync(powerQueryCommands, sessionId, queryName),
+                    PowerQueryAction.Refresh => RefreshPowerQueryAsync(powerQueryCommands, sessionId, queryName, refreshTimeoutSeconds),
+                    PowerQueryAction.Delete => DeletePowerQueryAsync(powerQueryCommands, sessionId, queryName),
+                    PowerQueryAction.GetLoadConfig => GetLoadConfigAsync(powerQueryCommands, sessionId, queryName),
 
-                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                    // Atomic Operations
+                    PowerQueryAction.Create => CreatePowerQueryAsync(powerQueryCommands, sessionId, queryName, mCode, loadDestination, targetSheet, targetCellAddress),
+                    PowerQueryAction.Update => UpdatePowerQueryAsync(powerQueryCommands, sessionId, queryName, mCode),
+                    PowerQueryAction.LoadTo => LoadToPowerQueryAsync(powerQueryCommands, sessionId, queryName, loadDestination, targetSheet, targetCellAddress),
+                    PowerQueryAction.RefreshAll => RefreshAllPowerQueriesAsync(powerQueryCommands, sessionId),
+
+                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            });
     }
 
     private static string ListPowerQueriesAsync(PowerQueryCommands commands, string sessionId)
@@ -163,17 +154,31 @@ public static class ExcelPowerQueryTool
         if (string.IsNullOrEmpty(queryName))
             throw new ArgumentException("queryName is required for delete action", nameof(queryName));
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.Delete(batch, queryName));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage,
-            workflowHint = result.Success
-                ? "QueryTables referencing this query may need cleanup."
-                : null
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(sessionId,
+                batch =>
+                {
+                    commands.Delete(batch, queryName);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Query '{queryName}' deleted successfully",
+                workflowHint = "QueryTables referencing this query may need cleanup."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string GetLoadConfigAsync(PowerQueryCommands commands, string sessionId, string? queryName)
@@ -232,17 +237,33 @@ public static class ExcelPowerQueryTool
             ? (string.IsNullOrWhiteSpace(targetSheet) ? queryName : targetSheet)
             : targetSheet;
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.Create(batch, queryName, mCode, loadMode, resolvedTargetSheet, targetCellAddress));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.QueryName,
-            result.LoadDestination,
-            result.WorksheetName,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(sessionId,
+                batch =>
+                {
+                    commands.Create(batch, queryName, mCode, loadMode, resolvedTargetSheet, targetCellAddress);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                queryName,
+                loadDestination = loadMode.ToString(),
+                worksheetName = resolvedTargetSheet,
+                message = $"Query '{queryName}' created successfully"
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string UpdatePowerQueryAsync(
@@ -256,14 +277,30 @@ public static class ExcelPowerQueryTool
         if (string.IsNullOrWhiteSpace(mCode))
             throw new ArgumentException("mCode is required for update action", nameof(mCode));
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.Update(batch, queryName, mCode));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(sessionId,
+                batch =>
+                {
+                    commands.Update(batch, queryName, mCode);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Query '{queryName}' updated successfully"
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string LoadToPowerQueryAsync(
@@ -289,96 +326,85 @@ public static class ExcelPowerQueryTool
             ? (string.IsNullOrWhiteSpace(targetSheet) ? queryName : targetSheet)
             : targetSheet;
 
-        PowerQueryLoadResult result;
-        bool isTimeout = false;
-        string[]? suggestedNextActions = null;
-        Dictionary<string, object>? operationContext = null;
-        string? retryGuidance = null;
-
         try
         {
-            result = ExcelToolsBase.WithSession(
+            ExcelToolsBase.WithSession(
                 sessionId,
-                batch => commands.LoadTo(batch, queryName, loadMode, resolvedTargetSheet, targetCellAddress));
+                batch =>
+                {
+                    commands.LoadTo(batch, queryName, loadMode, resolvedTargetSheet, targetCellAddress);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                queryName,
+                loadDestination = loadMode.ToString(),
+                worksheetName = resolvedTargetSheet,
+                message = $"Query '{queryName}' load configuration applied successfully"
+            }, ExcelToolsBase.JsonOptions);
         }
         catch (TimeoutException ex)
         {
-            isTimeout = true;
-
-            result = new PowerQueryLoadResult
+            var suggestedNextActions = new[]
             {
-                Success = false,
-                ErrorMessage = ex.Message,
-                QueryName = queryName!,
-                LoadDestination = loadMode,
-                WorksheetName = resolvedTargetSheet,
-                TargetCellAddress = targetCellAddress,
-                ConfigurationApplied = false,
-                DataRefreshed = false,
-                RowsLoaded = 0
-            };
-
-            bool usedMaxTimeout = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase);
-
-            suggestedNextActions =
-            [
                 "Check if Excel is showing a 'Privacy Level' or credential dialog and dismiss it.",
                 "Verify the data source is reachable and credentials are valid.",
                 "If the dataset is large, load to worksheet first or break the query into smaller sources.",
                 "Use begin_excel_batch to keep the Excel session open while iterating on load configuration."
-            ];
-
-            operationContext = new Dictionary<string, object>
-            {
-                ["OperationType"] = "PowerQuery.LoadTo",
-                ["QueryName"] = queryName!,
-                ["TimeoutReached"] = true,
-                ["UsedMaxTimeout"] = usedMaxTimeout
             };
 
-            retryGuidance = usedMaxTimeout
-                ? "Maximum timeout reached. Resolve Excel dialogs or reduce the amount of data before retrying."
-                : "After verifying the data source, you can retry this operation within the 5 minute timeout limit.";
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true,
+                suggestedNextActions,
+                retryGuidance = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase)
+                    ? "Maximum timeout reached. Resolve Excel dialogs or reduce the amount of data before retrying."
+                    : "After verifying the data source, you can retry this operation within the 5 minute timeout limit."
+            }, ExcelToolsBase.JsonOptions);
         }
-
-        // Detect sheet conflict error and provide specific guidance
-        var isSheetConflict = !result.Success &&
-                             result.ErrorMessage?.Contains("worksheet already exists", StringComparison.OrdinalIgnoreCase) == true;
-
-        return JsonSerializer.Serialize(new
+        catch (Exception ex)
         {
-            result.Success,
-            result.ErrorMessage,
-            result.QueryName,
-            result.LoadDestination,
-            result.WorksheetName,
-            result.TargetCellAddress,
-            result.ConfigurationApplied,
-            result.DataRefreshed,
-            result.RowsLoaded,
-            isError = !result.Success || isTimeout,
-            suggestedNextActions,
-            retryGuidance,
-            operationContext,
-            workflowHint = isSheetConflict
-                ? $"Sheet '{targetSheet ?? queryName}' already contains data. Provide targetCellAddress (e.g., \"B5\") to place the table without deleting the sheet."
-                : isTimeout
-                    ? "Excel may be waiting on a modal dialog (privacy levels, credentials, etc.). Check Excel before retrying."
-                    : null
-        }, ExcelToolsBase.JsonOptions);
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string RefreshAllPowerQueriesAsync(
         PowerQueryCommands commands,
         string sessionId)
     {
-        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.RefreshAll(batch));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(sessionId,
+                batch =>
+                {
+                    commands.RefreshAll(batch);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = "All queries refreshed successfully"
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static PowerQueryLoadMode ParseLoadMode(string loadDestination)

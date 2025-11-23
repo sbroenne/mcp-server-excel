@@ -36,11 +36,10 @@ public partial class ChartCommandsTests : IClassFixture<TempDirectoryFixture>
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.List(batch);
+        var charts = _commands.List(batch);
 
         // Assert
-        Assert.True(result.Success, $"List failed: {result.ErrorMessage}");
-        Assert.Empty(result.Charts);
+        Assert.Empty(charts);
     }
 
     [Fact]
@@ -83,17 +82,15 @@ public partial class ChartCommandsTests : IClassFixture<TempDirectoryFixture>
             "TestChart");
 
         // Assert
-        Assert.True(createResult.Success, $"CreateFromRange failed: {createResult.ErrorMessage}");
         Assert.Equal("TestChart", createResult.ChartName);
         Assert.Equal("Sheet1", createResult.SheetName);
         Assert.Equal(ChartType.ColumnClustered, createResult.ChartType);
         Assert.False(createResult.IsPivotChart);
 
         // Verify chart exists
-        var listResult = _commands.List(batch);
-        Assert.True(listResult.Success);
-        Assert.Single(listResult.Charts);
-        Assert.Equal("TestChart", listResult.Charts[0].Name);
+        var charts = _commands.List(batch);
+        Assert.Single(charts);
+        Assert.Equal("TestChart", charts[0].Name);
     }
 
     [Fact]
@@ -127,7 +124,6 @@ public partial class ChartCommandsTests : IClassFixture<TempDirectoryFixture>
         var readResult = _commands.Read(batch, "PieChart");
 
         // Assert
-        Assert.True(readResult.Success, $"Read failed: {readResult.ErrorMessage}");
         Assert.Equal("PieChart", readResult.Name);
         Assert.Equal("Sheet1", readResult.SheetName);
         Assert.Equal(ChartType.Pie, readResult.ChartType);
@@ -145,13 +141,10 @@ public partial class ChartCommandsTests : IClassFixture<TempDirectoryFixture>
             _tempDir,
             ".xlsx");
 
-        // Act
+        // Act & Assert
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _commands.Read(batch, "NonExistent");
-
-        // Assert
-        Assert.False(result.Success);
-        Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        var exception = Assert.Throws<InvalidOperationException>(() => _commands.Read(batch, "NonExistent"));
+        Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -176,20 +169,16 @@ public partial class ChartCommandsTests : IClassFixture<TempDirectoryFixture>
 
         _commands.CreateFromRange(batch, "Sheet1", "A1:B3", ChartType.Line, 50, 50);
 
-        var listBefore = _commands.List(batch);
-        Assert.Single(listBefore.Charts);
-        string chartName = listBefore.Charts[0].Name;
+        var chartsBefore = _commands.List(batch);
+        Assert.Single(chartsBefore);
+        string chartName = chartsBefore[0].Name;
 
         // Act
-        var deleteResult = _commands.Delete(batch, chartName);
+        _commands.Delete(batch, chartName);
 
-        // Assert
-        Assert.True(deleteResult.Success, $"Delete failed: {deleteResult.ErrorMessage}");
-
-        // Verify chart removed
-        var listAfter = _commands.List(batch);
-        Assert.True(listAfter.Success);
-        Assert.Empty(listAfter.Charts);
+        // Assert - Verify chart removed
+        var chartsAfter = _commands.List(batch);
+        Assert.Empty(chartsAfter);
     }
 
     [Fact]
@@ -213,17 +202,12 @@ public partial class ChartCommandsTests : IClassFixture<TempDirectoryFixture>
         });
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B3", ChartType.ColumnClustered, 100, 100, 300, 200);
-        Assert.True(createResult.Success);
 
         // Act
-        var moveResult = _commands.Move(batch, createResult.ChartName, left: 200, top: 150, width: 400, height: 250);
+        _commands.Move(batch, createResult.ChartName, left: 200, top: 150, width: 400, height: 250);
 
-        // Assert
-        Assert.True(moveResult.Success, $"Move failed: {moveResult.ErrorMessage}");
-
-        // Verify position updated
+        // Assert - Verify position updated
         var readResult = _commands.Read(batch, createResult.ChartName);
-        Assert.True(readResult.Success);
         Assert.Equal(200, readResult.Left);
         Assert.Equal(150, readResult.Top);
         Assert.Equal(400, readResult.Width);
@@ -261,14 +245,13 @@ public partial class ChartCommandsTests : IClassFixture<TempDirectoryFixture>
         _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.Line, 50, 300, 300, 200, "Chart3");
 
         // Act
-        var listResult = _commands.List(batch);
+        var charts = _commands.List(batch);
 
         // Assert
-        Assert.True(listResult.Success, $"List failed: {listResult.ErrorMessage}");
-        Assert.Equal(3, listResult.Charts.Count);
-        Assert.Contains(listResult.Charts, c => c.Name == "Chart1" && c.ChartType == ChartType.ColumnClustered);
-        Assert.Contains(listResult.Charts, c => c.Name == "Chart2" && c.ChartType == ChartType.Pie);
-        Assert.Contains(listResult.Charts, c => c.Name == "Chart3" && c.ChartType == ChartType.Line);
+        Assert.Equal(3, charts.Count);
+        Assert.Contains(charts, c => c.Name == "Chart1" && c.ChartType == ChartType.ColumnClustered);
+        Assert.Contains(charts, c => c.Name == "Chart2" && c.ChartType == ChartType.Pie);
+        Assert.Contains(charts, c => c.Name == "Chart3" && c.ChartType == ChartType.Line);
     }
 
     [Fact]
@@ -312,13 +295,12 @@ public partial class ChartCommandsTests : IClassFixture<TempDirectoryFixture>
         foreach (var chartType in chartTypes)
         {
             var result = _commands.CreateFromRange(batch, "Sheet1", "A1:C5", chartType, x, 50, 250, 200);
-            Assert.True(result.Success, $"Failed to create {chartType}: {result.ErrorMessage}");
             Assert.Equal(chartType, result.ChartType);
             x += 300;
         }
 
         // Verify all created
-        var listResult = _commands.List(batch);
-        Assert.Equal(chartTypes.Length, listResult.Charts.Count);
+        var charts = _commands.List(batch);
+        Assert.Equal(chartTypes.Length, charts.Count);
     }
 }

@@ -1,30 +1,14 @@
-using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Vba;
 
 /// <summary>
-/// Tests for VbaTrustRequiredResult model
+/// Placeholder for trust guidance tests. Trust checks now throw InvalidOperationException directly.
 /// </summary>
 public partial class VbaCommandsTests
 {
-    /// <inheritdoc/>
-    [Fact]
-    public void VbaTrustRequiredResult_HasAllRequiredProperties()
+    [Fact(Skip = "Trust guidance now enforced via InvalidOperationException; no Result object to verify.")]
+    public void TrustGuidance_ReplacedByExceptions()
     {
-        // Act
-        var trustResult = new VbaTrustRequiredResult
-        {
-            Success = false,
-            ErrorMessage = "VBA trust access is not enabled",
-            IsTrustEnabled = false,
-            Explanation = "VBA operations require 'Trust access to the VBA project object model' to be enabled in Excel settings."
-        };
-
-        // Assert - Verify all properties are accessible and have expected values
-        Assert.False(trustResult.Success);
-        Assert.Equal("VBA trust access is not enabled", trustResult.ErrorMessage);
-        Assert.False(trustResult.IsTrustEnabled);
-        Assert.False(string.IsNullOrEmpty(trustResult.Explanation));
     }
 }

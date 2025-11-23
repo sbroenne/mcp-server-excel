@@ -24,21 +24,21 @@ This specification reviews the **current TableCommands implementation** to deter
 ### Interface Review (ITableCommands.cs)
 
 **Lifecycle Operations:**
-- ✅ `ListAsync` - List all tables in workbook
-- ✅ `CreateAsync` - Create table from range with headers/style
-- ✅ `RenameAsync` - Rename table
-- ✅ `DeleteAsync` - Delete table (convert back to range)
-- ✅ `GetInfoAsync` - Get detailed table information
+- ✅ `List` - List all tables in workbook
+- ✅ `Create` - Create table from range with headers/style
+- ✅ `Rename` - Rename table
+- ✅ `Delete` - Delete table (convert back to range)
+- ✅ `GetInfo` - Get detailed table information
 
 **Structure Operations:**
-- ✅ `ResizeAsync` - Resize table to new range
-- ✅ `ToggleTotalsAsync` - Show/hide totals row
-- ✅ `SetColumnTotalAsync` - Set totals function for column
-- ✅ `SetStyleAsync` - Change table style
+- ✅ `Resize` - Resize table to new range
+- ✅ `ToggleTotals` - Show/hide totals row
+- ✅ `SetColumnTotal` - Set totals function for column
+- ✅ `SetStyle` - Change table style
 
 **Data Operations:** ⚠️ **POTENTIAL OVERLAP WITH RANGECOMMANDS**
-- ✅ `ReadDataAsync` - Read table data
-- ✅ `AppendRowsAsync` - Append rows to table
+- ✅ `ReadData` - Read table data
+- ✅ `AppendRows` - Append rows to table
 
 **Data Model Integration:**
 - ✅ `AddToDataModelAsync` - Add table to Power Pivot
@@ -241,14 +241,14 @@ Excel Tables are fundamentally **ranges with additional structure**:
 **TableCommands focuses on table-specific operations:**
 - ✅ Lifecycle: List, Create, Rename, Delete, GetInfo
 - ✅ Structure: Resize, ToggleTotals, SetColumnTotal, SetStyle
-- ✅ Table-specific data: `AppendRowsAsync` (auto-expansion feature)
+- ✅ Table-specific data: `AppendRows` (auto-expansion feature)
 - ✅ Filters: Apply, clear, get filter state
 - ✅ Data Model: AddToDataModel
-- ❌ **Remove**: `ReadDataAsync` - Use RangeCommands instead
+- ❌ **Remove**: `ReadData` - Use RangeCommands instead
 
 **Rationale:**
-- `AppendRowsAsync` has table-specific behavior (auto-expansion) - KEEP
-- `ReadDataAsync` is just range read with no table-specific logic - REMOVE
+- `AppendRows` has table-specific behavior (auto-expansion) - KEEP
+- `ReadData` is just range read with no table-specific logic - REMOVE
 - Filters are table-specific (AutoFilter object) - ADD
 - Data operations (format, copy, etc.) - Use RangeCommands
 

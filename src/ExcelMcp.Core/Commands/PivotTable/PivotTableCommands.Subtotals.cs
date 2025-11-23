@@ -21,7 +21,7 @@ public partial class PivotTableCommands
     /// SUBTOTALS BEHAVIOR:
     /// - When enabled: Shows Automatic subtotals (uses appropriate function based on data)
     /// - When disabled: Hides all subtotals for the field
-    /// 
+    ///
     /// OLAP LIMITATION:
     /// - OLAP PivotTables only support Automatic subtotals
     /// - Regular PivotTables can choose Sum, Count, Average, etc. (future enhancement)
@@ -36,16 +36,6 @@ public partial class PivotTableCommands
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
                 var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
                 return strategy.SetSubtotals(pivot, fieldName, showSubtotals, batch.WorkbookPath, batch.Logger);
-            }
-            catch (Exception ex)
-            {
-                return new PivotFieldResult
-                {
-                    Success = false,
-                    FieldName = fieldName,
-                    ErrorMessage = $"Failed to set subtotals: {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
             }
             finally
             {

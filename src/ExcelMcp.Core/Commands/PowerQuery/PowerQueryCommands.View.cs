@@ -75,7 +75,20 @@ public partial class PowerQueryCommands
                 }
 
                 // STEP 2: Read WorkbookQuery properties (per Microsoft docs)
-                string mCode = query.Formula?.ToString() ?? "";
+                string mCode = "";
+                try
+                {
+                    mCode = query.Formula?.ToString() ?? "";
+                }
+                catch (System.Runtime.InteropServices.COMException ex)
+                {
+                    // Formula property not accessible - provide meaningful error
+                    throw new InvalidOperationException(
+                        $"Cannot access formula for query '{queryName}'. " +
+                        $"The query may be corrupted or have permission restrictions. " +
+                        $"COM Error: 0x{ex.HResult:X8}",
+                        ex);
+                }
 
                 result.MCode = mCode;
                 result.CharacterCount = mCode.Length;
@@ -204,16 +217,5 @@ public partial class PowerQueryCommands
                 if (queries != null) ComUtilities.Release(ref queries!);
             }
         });
-    }
-
-    /// <summary>
-    /// Async wrapper for View operation.
-    /// </summary>
-    public async Task<PowerQueryViewResult> ViewAsync(
-        IExcelBatch batch,
-        string queryName,
-        CancellationToken cancellationToken = default)
-    {
-        return await Task.Run(() => View(batch, queryName), cancellationToken);
     }
 }

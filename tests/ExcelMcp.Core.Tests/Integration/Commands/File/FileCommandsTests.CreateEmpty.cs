@@ -40,13 +40,9 @@ public partial class FileCommandsTests
         string testFile = Path.Join(_tempDir, $"{nameof(CreateEmpty_ValidXlsx_ReturnsSuccess)}_{Guid.NewGuid():N}.xlsx");
 
         // Act
-        var result = _fileCommands.CreateEmpty(testFile);
+        _fileCommands.CreateEmpty(testFile);
 
         // Assert
-        Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
-        Assert.Null(result.ErrorMessage);
-        Assert.Equal("create-empty", result.Action);
-        Assert.NotNull(result.FilePath);
         Assert.True(System.IO.File.Exists(testFile));
 
         // Verify it's a valid Excel workbook
@@ -62,11 +58,9 @@ public partial class FileCommandsTests
         string testFile = Path.Join(_tempDir, $"{nameof(CreateEmpty_ValidXlsm_ReturnsSuccess)}_{Guid.NewGuid():N}.xlsm");
 
         // Act
-        var result = _fileCommands.CreateEmpty(testFile);
+        _fileCommands.CreateEmpty(testFile);
 
         // Assert
-        Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
-        Assert.Null(result.ErrorMessage);
         Assert.True(System.IO.File.Exists(testFile));
 
         // Verify it's a valid Excel workbook
@@ -85,12 +79,10 @@ public partial class FileCommandsTests
         string testFile = Path.Join(_tempDir, $"{Guid.NewGuid():N}_{fileName}");
 
         // Act
-        var result = _fileCommands.CreateEmpty(testFile);
+        var exception = Assert.Throws<ArgumentException>(() => _fileCommands.CreateEmpty(testFile));
 
         // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
-        Assert.Contains("extension", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("extension", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.False(System.IO.File.Exists(testFile));
     }
     /// <inheritdoc/>
@@ -103,12 +95,11 @@ public partial class FileCommandsTests
             nameof(FileCommandsTests), nameof(CreateEmpty_FileExists_WithoutOverwrite_ReturnsError), _tempDir);
 
         // Act - Try to create again without overwrite flag
-        var result = _fileCommands.CreateEmpty(testFile, overwriteIfExists: false);
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            _fileCommands.CreateEmpty(testFile, overwriteIfExists: false));
 
         // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
-        Assert.Contains("already exists", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("already exists", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
     /// <inheritdoc/>
 
@@ -120,11 +111,9 @@ public partial class FileCommandsTests
             nameof(FileCommandsTests), nameof(CreateEmpty_FileExists_WithOverwrite_ReturnsSuccess), _tempDir);
 
         // Act - Overwrite
-        var result = _fileCommands.CreateEmpty(testFile, overwriteIfExists: true);
+        _fileCommands.CreateEmpty(testFile, overwriteIfExists: true);
 
         // Assert
-        Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
-        Assert.Null(result.ErrorMessage);
         Assert.True(System.IO.File.Exists(testFile));
     }
 }

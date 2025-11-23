@@ -21,21 +21,21 @@ public interface IVbaCommands
     /// <summary>
     /// Imports VBA code to create a new module
     /// </summary>
-    OperationResult Import(IExcelBatch batch, string moduleName, string vbaCode);
+    void Import(IExcelBatch batch, string moduleName, string vbaCode);
 
     /// <summary>
     /// Updates an existing VBA module with new code
     /// </summary>
-    OperationResult Update(IExcelBatch batch, string moduleName, string vbaCode);
+    void Update(IExcelBatch batch, string moduleName, string vbaCode);
 
     /// <summary>
     /// Runs a VBA procedure with optional parameters
     /// </summary>
-    OperationResult Run(IExcelBatch batch, string procedureName, TimeSpan? timeout, params string[] parameters);
+    void Run(IExcelBatch batch, string procedureName, TimeSpan? timeout, params string[] parameters);
 
     /// <summary>
     /// Deletes a VBA module
     /// </summary>
-    OperationResult Delete(IExcelBatch batch, string moduleName);
+    void Delete(IExcelBatch batch, string moduleName);
 }
 

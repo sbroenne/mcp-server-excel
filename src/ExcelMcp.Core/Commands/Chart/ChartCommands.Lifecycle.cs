@@ -1,6 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
@@ -13,11 +12,11 @@ public partial class ChartCommands : IChartCommands
     private readonly PivotChartStrategy _pivotStrategy = new();
 
     /// <inheritdoc />
-    public ChartListResult List(IExcelBatch batch)
+    public List<ChartInfo> List(IExcelBatch batch)
     {
         return batch.Execute((ctx, ct) =>
         {
-            var result = new ChartListResult { Success = true };
+            var charts = new List<ChartInfo>();
 
             dynamic worksheets = ctx.Book.Worksheets;
             int wsCount = Convert.ToInt32(worksheets.Count);
@@ -54,9 +53,11 @@ public partial class ChartCommands : IChartCommands
 
                             // Determine strategy and get info
                             IChartStrategy strategy = _pivotStrategy.CanHandle(chart) ? _pivotStrategy : _regularStrategy;
+#pragma warning disable CS8604 // CodeQL false positive: Both strategies implement IChartStrategy.GetInfo with dynamic parameters
                             var chartInfo = strategy.GetInfo(chart, chartName, sheetName, shape);
+#pragma warning restore CS8604
 
-                            result.Charts.Add(chartInfo);
+                            charts.Add(chartInfo);
                         }
                         finally
                         {
@@ -74,7 +75,7 @@ public partial class ChartCommands : IChartCommands
 
             ComUtilities.Release(ref worksheets!);
 
-            return result;
+            return charts;
         });
     }
 
@@ -124,7 +125,9 @@ public partial class ChartCommands : IChartCommands
 
                             // Determine strategy and get detailed info
                             IChartStrategy strategy = _pivotStrategy.CanHandle(chart) ? _pivotStrategy : _regularStrategy;
+#pragma warning disable CS8604 // CodeQL false positive: Both strategies implement IChartStrategy.GetDetailedInfo with dynamic parameters
                             var result = strategy.GetDetailedInfo(chart, chartName, sheetName, shape);
+#pragma warning restore CS8604
 
                             ComUtilities.Release(ref chart!);
                             ComUtilities.Release(ref shape!);
@@ -152,11 +155,7 @@ public partial class ChartCommands : IChartCommands
             ComUtilities.Release(ref worksheets!);
 
             // Chart not found
-            return new ChartInfoResult
-            {
-                Success = false,
-                ErrorMessage = $"Chart '{chartName}' not found in workbook."
-            };
+            throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
         });
     }
 
@@ -274,11 +273,7 @@ public partial class ChartCommands : IChartCommands
                 dynamic? pivotTable = FindPivotTable(ctx.Book, pivotTableName);
                 if (pivotTable == null)
                 {
-                    return new ChartCreateResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"PivotTable '{pivotTableName}' not found in workbook."
-                    };
+                    throw new InvalidOperationException($"PivotTable '{pivotTableName}' not found in workbook.");
                 }
 
                 try
@@ -350,9 +345,9 @@ public partial class ChartCommands : IChartCommands
     }
 
     /// <inheritdoc />
-    public OperationResult Delete(IExcelBatch batch, string chartName)
+    public void Delete(IExcelBatch batch, string chartName)
     {
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             // Find and delete chart
             dynamic worksheets = ctx.Book.Worksheets;
@@ -397,7 +392,7 @@ public partial class ChartCommands : IChartCommands
                             ComUtilities.Release(ref worksheet!);
                             ComUtilities.Release(ref worksheets!);
 
-                            return new OperationResult { Success = true };
+                            return 0; // Success
                         }
                         finally
                         {
@@ -415,16 +410,12 @@ public partial class ChartCommands : IChartCommands
             ComUtilities.Release(ref worksheets!);
 
             // Chart not found
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = $"Chart '{chartName}' not found in workbook."
-            };
+            throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
         });
     }
 
     /// <inheritdoc />
-    public OperationResult Move(
+    public void Move(
         IExcelBatch batch,
         string chartName,
         double? left = null,
@@ -432,7 +423,7 @@ public partial class ChartCommands : IChartCommands
         double? width = null,
         double? height = null)
     {
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             // Find chart and update position/size
             dynamic worksheets = ctx.Book.Worksheets;
@@ -480,7 +471,7 @@ public partial class ChartCommands : IChartCommands
                             ComUtilities.Release(ref worksheet!);
                             ComUtilities.Release(ref worksheets!);
 
-                            return new OperationResult { Success = true };
+                            return 0; // Success
                         }
                         finally
                         {
@@ -498,11 +489,7 @@ public partial class ChartCommands : IChartCommands
             ComUtilities.Release(ref worksheets!);
 
             // Chart not found
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = $"Chart '{chartName}' not found in workbook."
-            };
+            throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
         });
     }
 

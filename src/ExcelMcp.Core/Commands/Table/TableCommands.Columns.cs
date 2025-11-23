@@ -1,6 +1,7 @@
+#pragma warning disable IDE0005 // Using directive is unnecessary (all usings are needed for COM interop)
+
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
@@ -10,13 +11,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public OperationResult AddColumn(IExcelBatch batch, string tableName, string columnName, int? position = null)
+    public void AddColumn(IExcelBatch batch, string tableName, string columnName, int? position = null)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "add-column" };
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? listColumns = null;
@@ -60,8 +60,7 @@ public partial class TableCommands
 
                 newColumn.Name = columnName;
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
@@ -73,13 +72,12 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public OperationResult RemoveColumn(IExcelBatch batch, string tableName, string columnName)
+    public void RemoveColumn(IExcelBatch batch, string tableName, string columnName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "remove-column" };
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? listColumns = null;
@@ -123,8 +121,7 @@ public partial class TableCommands
                 // Delete column
                 column.Delete();
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
@@ -136,13 +133,12 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public OperationResult RenameColumn(IExcelBatch batch, string tableName, string oldName, string newName)
+    public void RenameColumn(IExcelBatch batch, string tableName, string oldName, string newName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "rename-column" };
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? listColumns = null;
@@ -204,8 +200,7 @@ public partial class TableCommands
                 // Rename column
                 column.Name = newName;
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {

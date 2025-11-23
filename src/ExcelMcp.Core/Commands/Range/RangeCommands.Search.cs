@@ -81,11 +81,10 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public OperationResult Replace(IExcelBatch batch, string sheetName, string rangeAddress, string findValue, string replaceValue, ReplaceOptions options)
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
+    public void Replace(IExcelBatch batch, string sheetName, string rangeAddress, string findValue, string replaceValue, ReplaceOptions options)
     {
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "replace" };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try
@@ -110,8 +109,7 @@ public partial class RangeCommands
                     MatchByte: false
                 );
 
-                result.Success = true;
-                return result;
+                return ValueTask.CompletedTask;
             }
             finally
             {
@@ -123,11 +121,10 @@ public partial class RangeCommands
     // === SORT OPERATIONS ===
 
     /// <inheritdoc />
-    public OperationResult Sort(IExcelBatch batch, string sheetName, string rangeAddress, List<SortColumn> sortColumns, bool hasHeaders = true)
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
+    public void Sort(IExcelBatch batch, string sheetName, string rangeAddress, List<SortColumn> sortColumns, bool hasHeaders = true)
     {
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "sort" };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             dynamic? key1 = null;
@@ -178,8 +175,7 @@ public partial class RangeCommands
                     SortMethod: 1   // xlPinYin
                 );
 
-                result.Success = true;
-                return result;
+                return ValueTask.CompletedTask;
             }
             finally
             {

@@ -12,14 +12,15 @@ public interface IFileCommands
     /// </summary>
     /// <param name="filePath">Path to the Excel file to create</param>
     /// <param name="overwriteIfExists">Whether to overwrite if file already exists</param>
-    /// <returns>Operation result</returns>
-    OperationResult CreateEmpty(string filePath, bool overwriteIfExists = false);
+    /// <exception cref="ArgumentException">File path invalid or extension not .xlsx/.xlsm</exception>
+    /// <exception cref="InvalidOperationException">Directory creation failed</exception>
+    void CreateEmpty(string filePath, bool overwriteIfExists = false);
 
     /// <summary>
     /// Tests if a file exists and is a valid Excel file
     /// </summary>
     /// <param name="filePath">Path to the Excel file to validate</param>
-    /// <returns>File validation result with existence, size, extension, and validity information</returns>
-    FileValidationResult Test(string filePath);
+    /// <returns>File validation details including existence, size, extension, and validity information</returns>
+    FileValidationInfo Test(string filePath);
 }
 

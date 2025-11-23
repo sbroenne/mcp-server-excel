@@ -1,6 +1,7 @@
+#pragma warning disable IDE0005 // Using directive is unnecessary (all usings are needed for COM interop)
+
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
@@ -10,13 +11,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public OperationResult Resize(IExcelBatch batch, string tableName, string newRange)
+    public void Resize(IExcelBatch batch, string tableName, string newRange)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "resize" };
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? sheet = null;
@@ -35,8 +35,7 @@ public partial class TableCommands
                 // Resize the table
                 table.Resize(newRangeObj);
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
@@ -48,13 +47,12 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public OperationResult ToggleTotals(IExcelBatch batch, string tableName, bool showTotals)
+    public void ToggleTotals(IExcelBatch batch, string tableName, bool showTotals)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "toggle-totals" };
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             try
@@ -67,8 +65,7 @@ public partial class TableCommands
 
                 table.ShowTotals = showTotals;
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
@@ -78,13 +75,12 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public OperationResult SetColumnTotal(IExcelBatch batch, string tableName, string columnName, string totalFunction)
+    public void SetColumnTotal(IExcelBatch batch, string tableName, string columnName, string totalFunction)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-column-total" };
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? listColumns = null;
@@ -152,8 +148,7 @@ public partial class TableCommands
 
                 column.TotalsCalculation = xlFunction;
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
@@ -165,13 +160,12 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public OperationResult SetStyle(IExcelBatch batch, string tableName, string tableStyle)
+    public void SetStyle(IExcelBatch batch, string tableName, string tableStyle)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-style" };
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             try
@@ -184,8 +178,7 @@ public partial class TableCommands
 
                 table.TableStyle = tableStyle;
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
