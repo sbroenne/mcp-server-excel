@@ -54,12 +54,11 @@ public partial class RangeCommandsTests
         ]);
 
         // Act
-        var result = _commands.Replace(batch, "Sheet1", "A1:A3", "cat", "bird", new ReplaceOptions
+        _commands.Replace(batch, "Sheet1", "A1:A3", "cat", "bird", new ReplaceOptions
         {
             ReplaceAll = true
         });
-        // Assert
-        Assert.True(result.Success);
+        // Assert - void method throws on failure, succeeds silently
 
         var readResult = _commands.GetValues(batch, "Sheet1", "A1:A3");
         Assert.Equal("bird", readResult.Values[0][0]);
@@ -86,16 +85,11 @@ public partial class RangeCommandsTests
         ]);
 
         // Act - Sort by first column (Name) ascending
-        var result = _commands.Sort(batch, "Sheet1", "A1:B4",
+        _commands.Sort(batch, "Sheet1", "A1:B4",
         [
             new() { ColumnIndex = 1, Ascending = true }
         ], hasHeaders: true);
-        // Assert
-        if (!result.Success)
-        {
-            _output.WriteLine($"Sort failed: {result.ErrorMessage}");
-        }
-        Assert.True(result.Success);
+        // Assert - void method throws on failure, succeeds silently
 
         var readResult = _commands.GetValues(batch, "Sheet1", "A2:A4");
         Assert.Equal("Alice", readResult.Values[0][0]);

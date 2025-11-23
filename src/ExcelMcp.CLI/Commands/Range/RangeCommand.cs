@@ -381,8 +381,9 @@ internal sealed class RangeCommand : Command<RangeCommand.Settings>
             SearchComments = settings.SearchComments ?? false
         };
 
-        var result = _rangeCommands.Replace(batch, settings.SheetName ?? string.Empty, settings.RangeAddress, settings.FindValue, settings.ReplaceValue, options);
-        return WriteResult(result);
+        _rangeCommands.Replace(batch, settings.SheetName ?? string.Empty, settings.RangeAddress, settings.FindValue, settings.ReplaceValue, options);
+        _console.WriteJson(new { Success = true });
+        return 0;
     }
 
     // === SORT OPERATION ===
@@ -417,8 +418,9 @@ internal sealed class RangeCommand : Command<RangeCommand.Settings>
             return -1;
         }
 
-        var result = _rangeCommands.Sort(batch, settings.SheetName ?? string.Empty, settings.RangeAddress, sortColumns, settings.HasHeaders ?? true);
-        return WriteResult(result);
+        _rangeCommands.Sort(batch, settings.SheetName ?? string.Empty, settings.RangeAddress, sortColumns, settings.HasHeaders ?? true);
+        _console.WriteJson(new { Success = true });
+        return 0;
     }
 
     // === RANGE QUERIES ===
@@ -531,8 +533,9 @@ internal sealed class RangeCommand : Command<RangeCommand.Settings>
             return -1;
         }
 
-        var result = _rangeCommands.SetStyle(batch, settings.SheetName ?? string.Empty, settings.RangeAddress, settings.StyleName);
-        return WriteResult(result);
+        _rangeCommands.SetStyle(batch, settings.SheetName ?? string.Empty, settings.RangeAddress, settings.StyleName);
+        _console.WriteJson(new { Success = true });
+        return 0;
     }
 
     // === FORMATTING OPERATION ===
@@ -545,7 +548,7 @@ internal sealed class RangeCommand : Command<RangeCommand.Settings>
             return -1;
         }
 
-        var result = _rangeCommands.FormatRange(
+        _rangeCommands.FormatRange(
             batch,
             settings.SheetName ?? string.Empty,
             settings.RangeAddress,
@@ -563,7 +566,9 @@ internal sealed class RangeCommand : Command<RangeCommand.Settings>
             settings.VerticalAlignment,
             settings.WrapText,
             settings.Orientation);
-        return WriteResult(result);
+
+        _console.WriteJson(new { Success = true });
+        return 0;
     }
 
     // === VALIDATION OPERATIONS ===
@@ -582,7 +587,7 @@ internal sealed class RangeCommand : Command<RangeCommand.Settings>
             return -1;
         }
 
-        var result = _rangeCommands.ValidateRange(
+        _rangeCommands.ValidateRange(
             batch,
             settings.SheetName ?? string.Empty,
             settings.RangeAddress,
@@ -599,7 +604,9 @@ internal sealed class RangeCommand : Command<RangeCommand.Settings>
             settings.ErrorMessage,
             settings.IgnoreBlank,
             settings.ShowDropdown);
-        return WriteResult(result);
+
+        _console.WriteJson(new { Success = true });
+        return 0;
     }
 
     private int ExecuteGetValidation(IExcelBatch batch, Settings settings)
@@ -622,8 +629,9 @@ internal sealed class RangeCommand : Command<RangeCommand.Settings>
             return -1;
         }
 
-        var result = _rangeCommands.RemoveValidation(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
-        return WriteResult(result);
+        _rangeCommands.RemoveValidation(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        _console.WriteJson(new { Success = true });
+        return 0;
     }
 
     // === AUTO-FIT OPERATIONS ===
@@ -636,8 +644,9 @@ internal sealed class RangeCommand : Command<RangeCommand.Settings>
             return -1;
         }
 
-        var result = _rangeCommands.AutoFitColumns(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
-        return WriteResult(result);
+        _rangeCommands.AutoFitColumns(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        _console.WriteJson(new { Success = true });
+        return 0;
     }
 
     private int ExecuteAutoFitRows(IExcelBatch batch, Settings settings)
@@ -648,8 +657,9 @@ internal sealed class RangeCommand : Command<RangeCommand.Settings>
             return -1;
         }
 
-        var result = _rangeCommands.AutoFitRows(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
-        return WriteResult(result);
+        _rangeCommands.AutoFitRows(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        _console.WriteJson(new { Success = true });
+        return 0;
     }
 
     // === MERGE OPERATIONS ===
@@ -662,8 +672,9 @@ internal sealed class RangeCommand : Command<RangeCommand.Settings>
             return -1;
         }
 
-        var result = _rangeCommands.MergeCells(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
-        return WriteResult(result);
+        _rangeCommands.MergeCells(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        _console.WriteJson(new { Success = true });
+        return 0;
     }
 
     private int ExecuteUnmergeCells(IExcelBatch batch, Settings settings)
@@ -674,8 +685,9 @@ internal sealed class RangeCommand : Command<RangeCommand.Settings>
             return -1;
         }
 
-        var result = _rangeCommands.UnmergeCells(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
-        return WriteResult(result);
+        _rangeCommands.UnmergeCells(batch, settings.SheetName ?? string.Empty, settings.RangeAddress);
+        _console.WriteJson(new { Success = true });
+        return 0;
     }
 
     private int ExecuteGetMergeInfo(IExcelBatch batch, Settings settings)
@@ -706,8 +718,9 @@ internal sealed class RangeCommand : Command<RangeCommand.Settings>
             return -1;
         }
 
-        var result = _rangeCommands.SetCellLock(batch, settings.SheetName ?? string.Empty, settings.RangeAddress, settings.Locked.Value);
-        return WriteResult(result);
+        _rangeCommands.SetCellLock(batch, settings.SheetName ?? string.Empty, settings.RangeAddress, settings.Locked.Value);
+        _console.WriteJson(new { Success = true });
+        return 0;
     }
 
     private int ExecuteGetCellLock(IExcelBatch batch, Settings settings)

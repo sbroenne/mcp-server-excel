@@ -10,7 +10,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public partial class RangeCommands
 {
     /// <inheritdoc />
-    public OperationResult ValidateRange(
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
+    public void ValidateRange(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
@@ -28,7 +29,7 @@ public partial class RangeCommands
         bool? ignoreBlank,
         bool? showDropdown)
     {
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -90,11 +91,7 @@ public partial class RangeCommands
                     validation.InCellDropdown = showDropdown.Value;
                 }
 
-                return new OperationResult
-                {
-                    Success = true,
-                    FilePath = batch.WorkbookPath
-                };
+                return ValueTask.CompletedTask;
             }
             finally
             {
@@ -242,12 +239,13 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public OperationResult RemoveValidation(
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
+    public void RemoveValidation(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -267,11 +265,7 @@ public partial class RangeCommands
                 validation = range.Validation;
                 validation.Delete();
 
-                return new OperationResult
-                {
-                    Success = true,
-                    FilePath = batch.WorkbookPath
-                };
+                return ValueTask.CompletedTask;
             }
             finally
             {

@@ -32,7 +32,7 @@ public partial class RangeCommandsTests
             });
 
         // Apply validation referencing the range (creates dropdown)
-        var applyResult = _commands.ValidateRange(
+        _commands.ValidateRange(
             batch,
             "Sheet1",
             "A1",
@@ -49,9 +49,7 @@ public partial class RangeCommandsTests
             errorMessage: "My error message",
             ignoreBlank: true,
             showDropdown: true);
-
-        // Assert - Validation applied successfully
-        Assert.True(applyResult.Success, $"Apply validation failed: {applyResult.ErrorMessage}");
+        // void method throws on failure, succeeds silently
 
         // Verify validation is retrieved correctly (same batch)
         var getResult = _commands.GetValidation(batch, "Sheet1", "A1");
@@ -97,7 +95,7 @@ public partial class RangeCommandsTests
             });
 
         // Apply validation using the ValidateRangeAsync API
-        var validateResult = _commands.ValidateRange(
+        _commands.ValidateRange(
             batch,
             "Sheet1",
             "A1",
@@ -114,8 +112,7 @@ public partial class RangeCommandsTests
             errorMessage: "My error message",
             ignoreBlank: true,
             showDropdown: true);
-
-        Assert.True(validateResult.Success, $"Validate failed: {validateResult.ErrorMessage}");
+        // void method throws on failure, succeeds silently
 
         // Act - Get validation to verify InputTitle/InputMessage are returned
         var result = _commands.GetValidation(batch, "Sheet1", "A1");

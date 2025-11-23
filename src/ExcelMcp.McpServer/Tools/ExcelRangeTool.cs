@@ -675,14 +675,17 @@ DATA FORMAT:
             ReplaceAll = replaceAll ?? true
         };
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.Replace(batch, sheetName ?? "", rangeAddress!, searchValue!, replaceValue!, options));
+            batch =>
+            {
+                commands.Replace(batch, sheetName ?? "", rangeAddress!, searchValue!, replaceValue!, options);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -695,14 +698,17 @@ DATA FORMAT:
         if (sortColumns == null || sortColumns.Count == 0)
             ExcelToolsBase.ThrowMissingParameter("sortColumns", "sort");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.Sort(batch, sheetName ?? "", rangeAddress!, sortColumns!, hasHeaders ?? true));
+            batch =>
+            {
+                commands.Sort(batch, sheetName ?? "", rangeAddress!, sortColumns!, hasHeaders ?? true);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -867,14 +873,17 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(styleName))
             ExcelToolsBase.ThrowMissingParameter("styleName", "set-style");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.SetStyle(batch, sheetName ?? "", rangeAddress!, styleName!));
+            batch =>
+            {
+                commands.SetStyle(batch, sheetName ?? "", rangeAddress!, styleName!);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -925,17 +934,34 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "format-range");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.FormatRange(batch, sheetName ?? "", rangeAddress!,
-                fontName, fontSize, bold, italic, underline, fontColor,
-                fillColor, borderStyle, borderColor, borderWeight,
-                horizontalAlignment, verticalAlignment, wrapText, orientation));
+            batch =>
+            {
+                commands.FormatRange(
+                    batch,
+                    sheetName ?? "",
+                    rangeAddress!,
+                    fontName,
+                    fontSize,
+                    bold,
+                    italic,
+                    underline,
+                    fontColor,
+                    fillColor,
+                    borderStyle,
+                    borderColor,
+                    borderWeight,
+                    horizontalAlignment,
+                    verticalAlignment,
+                    wrapText,
+                    orientation);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -965,18 +991,33 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(validationType))
             ExcelToolsBase.ThrowMissingParameter("validationType", "validate-range");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.ValidateRange(batch, sheetName ?? "", rangeAddress!,
-                validationType!, validationOperator, validationFormula1, validationFormula2,
-                showInputMessage, inputTitle, inputMessage,
-                showErrorAlert, errorStyle, errorTitle, errorMessage,
-                ignoreBlank, showDropdown));
+            batch =>
+            {
+                commands.ValidateRange(
+                    batch,
+                    sheetName ?? "",
+                    rangeAddress!,
+                    validationType!,
+                    validationOperator,
+                    validationFormula1,
+                    validationFormula2,
+                    showInputMessage,
+                    inputTitle,
+                    inputMessage,
+                    showErrorAlert,
+                    errorStyle,
+                    errorTitle,
+                    errorMessage,
+                    ignoreBlank,
+                    showDropdown);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1020,14 +1061,17 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "remove-validation");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.RemoveValidation(batch, sheetName ?? "", rangeAddress!));
+            batch =>
+            {
+                commands.RemoveValidation(batch, sheetName ?? "", rangeAddress!);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1040,14 +1084,17 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "auto-fit-columns");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.AutoFitColumns(batch, sheetName ?? "", rangeAddress!));
+            batch =>
+            {
+                commands.AutoFitColumns(batch, sheetName ?? "", rangeAddress!);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1060,14 +1107,17 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "auto-fit-rows");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.AutoFitRows(batch, sheetName ?? "", rangeAddress!));
+            batch =>
+            {
+                commands.AutoFitRows(batch, sheetName ?? "", rangeAddress!);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1080,14 +1130,17 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "merge-cells");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.MergeCells(batch, sheetName ?? "", rangeAddress!));
+            batch =>
+            {
+                commands.MergeCells(batch, sheetName ?? "", rangeAddress!);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1100,14 +1153,17 @@ DATA FORMAT:
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "unmerge-cells");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.UnmergeCells(batch, sheetName ?? "", rangeAddress!));
+            batch =>
+            {
+                commands.UnmergeCells(batch, sheetName ?? "", rangeAddress!);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -1146,14 +1202,17 @@ DATA FORMAT:
         if (locked == null)
             ExcelToolsBase.ThrowMissingParameter("locked", "set-cell-lock");
 
-        var result = ExcelToolsBase.WithSession(
+        ExcelToolsBase.WithSession<object?>(
             sessionId,
-            batch => commands.SetCellLock(batch, sheetName ?? "", rangeAddress!, locked!.Value));
+            batch =>
+            {
+                commands.SetCellLock(batch, sheetName ?? "", rangeAddress!, locked!.Value);
+                return null;
+            });
 
         return JsonSerializer.Serialize(new
         {
-            result.Success,
-            result.ErrorMessage
+            Success = true
         }, ExcelToolsBase.JsonOptions);
     }
 

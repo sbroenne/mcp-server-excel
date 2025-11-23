@@ -135,7 +135,7 @@ public interface IRangeCommands
     /// Replaces text/values in range
     /// Excel COM: Range.Replace()
     /// </summary>
-    OperationResult Replace(IExcelBatch batch, string sheetName, string rangeAddress, string findValue, string replaceValue, ReplaceOptions options);
+    void Replace(IExcelBatch batch, string sheetName, string rangeAddress, string findValue, string replaceValue, ReplaceOptions options);
 
     // === SORT OPERATIONS ===
 
@@ -143,7 +143,7 @@ public interface IRangeCommands
     /// Sorts range by one or more columns
     /// Excel COM: Range.Sort()
     /// </summary>
-    OperationResult Sort(IExcelBatch batch, string sheetName, string rangeAddress, List<SortColumn> sortColumns, bool hasHeaders = true);
+    void Sort(IExcelBatch batch, string sheetName, string rangeAddress, List<SortColumn> sortColumns, bool hasHeaders = true);
 
     // === NATIVE EXCEL COM OPERATIONS (AI/LLM ESSENTIAL) ===
 
@@ -244,7 +244,7 @@ public interface IRangeCommands
     /// Common styles: Heading 1-4, Title, Total, Input, Output, Calculation,
     /// Good/Bad/Neutral, Accent1-6, Note, Warning, Currency, Percent, Comma
     /// </remarks>
-    OperationResult SetStyle(IExcelBatch batch, string sheetName, string rangeAddress, string styleName);
+    void SetStyle(IExcelBatch batch, string sheetName, string rangeAddress, string styleName);
 
     /// <summary>
     /// Gets the current built-in style name applied to a range
@@ -268,7 +268,7 @@ public interface IRangeCommands
     /// For consistent, professional formatting, prefer SetStyleAsync() with built-in styles.
     /// Use FormatRangeAsync() only when built-in styles don't meet your needs.
     /// </remarks>
-    OperationResult FormatRange(
+    void FormatRange(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
@@ -293,7 +293,7 @@ public interface IRangeCommands
     /// Adds data validation rules to range
     /// Excel COM: Range.Validation.Add()
     /// </summary>
-    OperationResult ValidateRange(
+    void ValidateRange(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
@@ -321,7 +321,7 @@ public interface IRangeCommands
     /// Removes data validation from range
     /// Excel COM: Range.Validation.Delete()
     /// </summary>
-    OperationResult RemoveValidation(IExcelBatch batch, string sheetName, string rangeAddress);
+    void RemoveValidation(IExcelBatch batch, string sheetName, string rangeAddress);
 
     // === AUTO-FIT OPERATIONS ===
 
@@ -329,13 +329,13 @@ public interface IRangeCommands
     /// Auto-fits column widths to content
     /// Excel COM: Range.Columns.AutoFit()
     /// </summary>
-    OperationResult AutoFitColumns(IExcelBatch batch, string sheetName, string rangeAddress);
+    void AutoFitColumns(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
     /// Auto-fits row heights to content
     /// Excel COM: Range.Rows.AutoFit()
     /// </summary>
-    OperationResult AutoFitRows(IExcelBatch batch, string sheetName, string rangeAddress);
+    void AutoFitRows(IExcelBatch batch, string sheetName, string rangeAddress);
 
     // === MERGE OPERATIONS ===
 
@@ -343,13 +343,13 @@ public interface IRangeCommands
     /// Merges cells in range into a single cell
     /// Excel COM: Range.Merge()
     /// </summary>
-    OperationResult MergeCells(IExcelBatch batch, string sheetName, string rangeAddress);
+    void MergeCells(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
     /// Unmerges previously merged cells
     /// Excel COM: Range.UnMerge()
     /// </summary>
-    OperationResult UnmergeCells(IExcelBatch batch, string sheetName, string rangeAddress);
+    void UnmergeCells(IExcelBatch batch, string sheetName, string rangeAddress);
 
     /// <summary>
     /// Checks if range contains merged cells
@@ -363,7 +363,7 @@ public interface IRangeCommands
     /// Locks or unlocks cells (requires worksheet protection to take effect)
     /// Excel COM: Range.Locked
     /// </summary>
-    OperationResult SetCellLock(IExcelBatch batch, string sheetName, string rangeAddress, bool locked);
+    void SetCellLock(IExcelBatch batch, string sheetName, string rangeAddress, bool locked);
 
     /// <summary>
     /// Gets lock status of first cell in range
