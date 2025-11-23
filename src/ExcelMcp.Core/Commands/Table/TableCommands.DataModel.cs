@@ -1,3 +1,5 @@
+#pragma warning disable IDE0005 // Using directive is unnecessary (all usings are needed for COM interop)
+
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -10,13 +12,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public OperationResult AddToDataModel(IExcelBatch batch, string tableName)
+    public void AddToDataModel(IExcelBatch batch, string tableName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "table-add-to-datamodel" };
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? model = null;
@@ -104,8 +105,7 @@ public partial class TableCommands
                 // Table is immediately available in Data Model - no refresh needed
                 // Connections.Add2() makes the table accessible for relationships/measures instantly
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {

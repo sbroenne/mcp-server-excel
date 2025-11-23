@@ -94,7 +94,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
         }
 
         var hasHeaders = settings.HasHeaders ?? true;
-        return WriteResult(_tableCommands.Create(batch, settings.SheetName, settings.TableName, settings.Range, hasHeaders, settings.TableStyle));
+        try
+        {
+            _tableCommands.Create(batch, settings.SheetName, settings.TableName, settings.Range, hasHeaders, settings.TableStyle);
+            _console.WriteInfo("Table created successfully.");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteRename(IExcelBatch batch, Settings settings)
@@ -105,7 +120,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_tableCommands.Rename(batch, settings.TableName, settings.NewName));
+        try
+        {
+            _tableCommands.Rename(batch, settings.TableName, settings.NewName);
+            _console.WriteInfo("Table renamed successfully.");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteDelete(IExcelBatch batch, Settings settings)
@@ -116,7 +146,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_tableCommands.Delete(batch, settings.TableName));
+        try
+        {
+            _tableCommands.Delete(batch, settings.TableName);
+            _console.WriteInfo("Table deleted successfully.");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteResize(IExcelBatch batch, Settings settings)
@@ -127,7 +172,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_tableCommands.Resize(batch, settings.TableName, settings.Range));
+        try
+        {
+            _tableCommands.Resize(batch, settings.TableName, settings.Range);
+            _console.WriteInfo("Table resized successfully.");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteToggleTotals(IExcelBatch batch, Settings settings)
@@ -138,7 +198,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_tableCommands.ToggleTotals(batch, settings.TableName, settings.ShowTotals.Value));
+        try
+        {
+            _tableCommands.ToggleTotals(batch, settings.TableName, settings.ShowTotals.Value);
+            _console.WriteInfo("Table totals toggled successfully.");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteSetColumnTotal(IExcelBatch batch, Settings settings)
@@ -151,7 +226,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_tableCommands.SetColumnTotal(batch, settings.TableName, settings.ColumnName, settings.TotalFunction));
+        try
+        {
+            _tableCommands.SetColumnTotal(batch, settings.TableName, settings.ColumnName, settings.TotalFunction);
+            _console.WriteInfo("Column total set successfully.");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteAppendRows(IExcelBatch batch, Settings settings)
@@ -168,7 +258,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_tableCommands.Append(batch, settings.TableName, rows));
+        try
+        {
+            _tableCommands.Append(batch, settings.TableName, rows);
+            _console.WriteInfo("Rows appended successfully.");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteSetStyle(IExcelBatch batch, Settings settings)
@@ -179,7 +284,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_tableCommands.SetStyle(batch, settings.TableName, settings.TableStyle));
+        try
+        {
+            _tableCommands.SetStyle(batch, settings.TableName, settings.TableStyle);
+            _console.WriteInfo("Table style set successfully.");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteAddToDataModel(IExcelBatch batch, Settings settings)
@@ -190,7 +310,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_tableCommands.AddToDataModel(batch, settings.TableName));
+        try
+        {
+            _tableCommands.AddToDataModel(batch, settings.TableName);
+            _console.WriteInfo("Table added to data model successfully.");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteApplyFilter(IExcelBatch batch, Settings settings)
@@ -203,7 +338,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_tableCommands.ApplyFilter(batch, settings.TableName, settings.ColumnName, settings.Criteria));
+        try
+        {
+            _tableCommands.ApplyFilter(batch, settings.TableName, settings.ColumnName, settings.Criteria);
+            _console.WriteInfo("Filter applied successfully");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteApplyFilterValues(IExcelBatch batch, Settings settings)
@@ -221,7 +371,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_tableCommands.ApplyFilter(batch, settings.TableName, settings.ColumnName, values));
+        try
+        {
+            _tableCommands.ApplyFilter(batch, settings.TableName, settings.ColumnName, values);
+            _console.WriteInfo("Filter applied successfully");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteClearFilters(IExcelBatch batch, Settings settings)
@@ -232,7 +397,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_tableCommands.ClearFilters(batch, settings.TableName));
+        try
+        {
+            _tableCommands.ClearFilters(batch, settings.TableName);
+            _console.WriteInfo("Filters cleared successfully");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteGetFilters(IExcelBatch batch, Settings settings)
@@ -254,7 +434,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_tableCommands.AddColumn(batch, settings.TableName, settings.ColumnName, settings.ColumnPosition));
+        try
+        {
+            _tableCommands.AddColumn(batch, settings.TableName, settings.ColumnName, settings.ColumnPosition);
+            _console.WriteInfo("Column added successfully");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteRemoveColumn(IExcelBatch batch, Settings settings)
@@ -265,7 +460,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_tableCommands.RemoveColumn(batch, settings.TableName, settings.ColumnName));
+        try
+        {
+            _tableCommands.RemoveColumn(batch, settings.TableName, settings.ColumnName);
+            _console.WriteInfo("Column removed successfully");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteRenameColumn(IExcelBatch batch, Settings settings)
@@ -278,7 +488,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_tableCommands.RenameColumn(batch, settings.TableName, settings.ColumnName, settings.NewColumnName));
+        try
+        {
+            _tableCommands.RenameColumn(batch, settings.TableName, settings.ColumnName, settings.NewColumnName);
+            _console.WriteInfo("Column renamed successfully");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteGetStructuredReference(IExcelBatch batch, Settings settings)
@@ -307,7 +532,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
         }
 
         var ascending = settings.SortAscending ?? true;
-        return WriteResult(_tableCommands.Sort(batch, settings.TableName, settings.ColumnName, ascending));
+        try
+        {
+            _tableCommands.Sort(batch, settings.TableName, settings.ColumnName, ascending);
+            _console.WriteInfo("Table sorted successfully");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteSortMulti(IExcelBatch batch, Settings settings)
@@ -325,7 +565,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_tableCommands.Sort(batch, settings.TableName, sortColumns));
+        try
+        {
+            _tableCommands.Sort(batch, settings.TableName, sortColumns);
+            _console.WriteInfo("Table sorted by multiple columns successfully");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteGetColumnFormat(IExcelBatch batch, Settings settings)
@@ -349,7 +604,22 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_tableCommands.SetColumnNumberFormat(batch, settings.TableName, settings.ColumnName, settings.FormatCode));
+        try
+        {
+            _tableCommands.SetColumnNumberFormat(batch, settings.TableName, settings.ColumnName, settings.FormatCode);
+            _console.WriteInfo("Column format set successfully.");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
     }
 
     private List<List<object?>>? LoadRows(Settings settings)

@@ -10,13 +10,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public OperationResult ApplyFilter(IExcelBatch batch, string tableName, string columnName, string criteria)
+    public void ApplyFilter(IExcelBatch batch, string tableName, string columnName, string criteria)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "apply-filter" };
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? autoFilter = null;
@@ -89,8 +88,7 @@ public partial class TableCommands
                     Operator: xlFilterValues
                 );
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
@@ -101,13 +99,12 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public OperationResult ApplyFilter(IExcelBatch batch, string tableName, string columnName, List<string> criteria)
+    public void ApplyFilter(IExcelBatch batch, string tableName, string columnName, List<string> criteria)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "apply-filter-values" };
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? autoFilter = null;
@@ -180,8 +177,7 @@ public partial class TableCommands
                     Operator: 7 // xlFilterValues
                 );
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
@@ -192,13 +188,12 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public OperationResult ClearFilters(IExcelBatch batch, string tableName)
+    public void ClearFilters(IExcelBatch batch, string tableName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "clear-filters" };
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? autoFilter = null;
@@ -216,8 +211,7 @@ public partial class TableCommands
                     autoFilter.ShowAllData();
                 }
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {

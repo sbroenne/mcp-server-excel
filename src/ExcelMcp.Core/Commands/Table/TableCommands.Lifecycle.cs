@@ -127,14 +127,12 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public OperationResult Create(IExcelBatch batch, string sheetName, string tableName, string range, bool hasHeaders = true, string? tableStyle = null)
+    public void Create(IExcelBatch batch, string sheetName, string tableName, string range, bool hasHeaders = true, string? tableStyle = null)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "create" };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? rangeObj = null;
@@ -175,8 +173,7 @@ public partial class TableCommands
                     newTable.TableStyle = tableStyle;
                 }
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
@@ -189,14 +186,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public OperationResult Rename(IExcelBatch batch, string tableName, string newName)
+    public void Rename(IExcelBatch batch, string tableName, string newName)
     {
         // Security: Validate table names
         ValidateTableName(tableName);
         ValidateTableName(newName);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "rename" };
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             try
@@ -214,8 +210,7 @@ public partial class TableCommands
                 }
 
                 table.Name = newName;
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {
@@ -225,13 +220,12 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public OperationResult Delete(IExcelBatch batch, string tableName)
+    public void Delete(IExcelBatch batch, string tableName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "delete" };
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? tableRange = null;
@@ -260,8 +254,7 @@ public partial class TableCommands
                 // The table object is no longer valid but still holds a COM reference
                 ComUtilities.Release(ref table);
 
-                result.Success = true;
-                return result;
+                return 0;
             }
             finally
             {

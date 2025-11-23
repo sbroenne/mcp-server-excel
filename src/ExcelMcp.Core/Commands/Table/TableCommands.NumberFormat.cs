@@ -36,27 +36,18 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public OperationResult SetColumnNumberFormat(IExcelBatch batch, string tableName, string columnName, string formatCode)
+    public void SetColumnNumberFormat(IExcelBatch batch, string tableName, string columnName, string formatCode)
     {
         // First, get the table's sheet name and column data range (excludes header)
         var columnRange = GetColumnDataRange(batch, tableName, columnName);
 
         if (!columnRange.Success)
         {
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = columnRange.ErrorMessage,
-                FilePath = batch.WorkbookPath,
-                Action = "set-column-number-format"
-            };
+            throw new InvalidOperationException(columnRange.ErrorMessage ?? "Failed to get column range");
         }
 
         // Delegate to RangeCommands to set number format
-        var result = _rangeCommands.SetNumberFormat(batch, columnRange.SheetName, columnRange.RangeAddress, formatCode);
-
-        result.Action = "set-column-number-format";
-        return result;
+        _rangeCommands.SetNumberFormat(batch, columnRange.SheetName, columnRange.RangeAddress, formatCode);
     }
 
     // === HELPER METHODS ===

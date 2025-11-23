@@ -125,15 +125,22 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "create");
         if (string.IsNullOrWhiteSpace(range)) ExcelToolsBase.ThrowMissingParameter(nameof(range), "create");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.Create(batch, sheetName!, tableName!, range!, hasHeaders, tableStyle));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.Create(batch, sheetName!, tableName!, range!, hasHeaders, tableStyle);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new { success = true, message = "Table created successfully." }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string ReadTable(TableCommands commands, string sessionId, string? tableName)
@@ -157,30 +164,44 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "rename");
         if (string.IsNullOrWhiteSpace(newName)) ExcelToolsBase.ThrowMissingParameter(nameof(newName), "rename");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.Rename(batch, tableName!, newName!));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.Rename(batch, tableName!, newName!);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new { success = true, message = "Table renamed successfully." }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string DeleteTable(TableCommands commands, string sessionId, string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "delete");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.Delete(batch, tableName!));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.Delete(batch, tableName!);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new { success = true, message = "Table deleted successfully." }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string ResizeTable(TableCommands commands, string sessionId, string? tableName, string? newRange)
@@ -188,30 +209,44 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "resize");
         if (string.IsNullOrWhiteSpace(newRange)) ExcelToolsBase.ThrowMissingParameter(nameof(newRange), "resize");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.Resize(batch, tableName!, newRange!));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.Resize(batch, tableName!, newRange!);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new { success = true, message = "Table resized successfully." }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string ToggleTotals(TableCommands commands, string sessionId, string? tableName, bool showTotals)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "toggle-totals");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.ToggleTotals(batch, tableName!, showTotals));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.ToggleTotals(batch, tableName!, showTotals);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new { success = true, message = "Totals toggled successfully." }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string SetColumnTotal(TableCommands commands, string sessionId, string? tableName, string? columnName, string? totalFunction)
@@ -220,15 +255,22 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "set-column-total");
         if (string.IsNullOrWhiteSpace(totalFunction)) ExcelToolsBase.ThrowMissingParameter(nameof(totalFunction), "set-column-total");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.SetColumnTotal(batch, tableName!, columnName!, totalFunction!));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.SetColumnTotal(batch, tableName!, columnName!, totalFunction!);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new { success = true, message = "Column total set successfully." }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string AppendRows(TableCommands commands, string sessionId, string? tableName, string? csvData)
@@ -236,18 +278,25 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "append");
         if (string.IsNullOrWhiteSpace(csvData)) ExcelToolsBase.ThrowMissingParameter(nameof(csvData), "append");
 
-        // Parse CSV data to List<List<object?>>
-        var rows = ParseCsvToRows(csvData!);
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.Append(batch, tableName!, rows));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            // Parse CSV data to List<List<object?>>
+            var rows = ParseCsvToRows(csvData!);
+
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.Append(batch, tableName!, rows);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new { success = true, message = "Rows appended successfully." }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     /// <summary>
@@ -276,30 +325,44 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "set-style");
         if (string.IsNullOrWhiteSpace(tableStyle)) ExcelToolsBase.ThrowMissingParameter(nameof(tableStyle), "set-style");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.SetStyle(batch, tableName!, tableStyle!));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.SetStyle(batch, tableName!, tableStyle!);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new { success = true, message = "Table style set successfully." }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string AddToDataModel(TableCommands commands, string sessionId, string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "add-to-datamodel");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.AddToDataModel(batch, tableName!));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.AddToDataModel(batch, tableName!);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new { success = true, message = "Table added to data model successfully." }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     // === FILTER OPERATIONS ===
@@ -310,15 +373,30 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "apply-filter");
         if (string.IsNullOrWhiteSpace(criteria)) ExcelToolsBase.ThrowMissingParameter(nameof(criteria), "apply-filter");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.ApplyFilter(batch, tableName!, columnName!, criteria!));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.ApplyFilter(batch, tableName!, columnName!, criteria!);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = "Filter applied successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string ApplyFilterValues(TableCommands commands, string sessionId, string? tableName, string? columnName, string? filterValuesJson)
@@ -338,30 +416,60 @@ public static class TableTool
             throw new ArgumentException($"Invalid JSON array for filterValues: {ex.Message}", nameof(filterValuesJson));
         }
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.ApplyFilter(batch, tableName!, columnName!, filterValues));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.ApplyFilter(batch, tableName!, columnName!, filterValues);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = "Filter applied successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string ClearFilters(TableCommands commands, string sessionId, string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "clear-filters");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.ClearFilters(batch, tableName!));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.ClearFilters(batch, tableName!);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = "Filters cleared successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string GetFilters(TableCommands commands, string sessionId, string? tableName)
@@ -403,15 +511,30 @@ public static class TableTool
             }
         }
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.AddColumn(batch, tableName!, columnName!, position));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.AddColumn(batch, tableName!, columnName!, position);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = "Column added successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string RemoveColumn(TableCommands commands, string sessionId, string? tableName, string? columnName)
@@ -419,15 +542,30 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "remove-column");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "remove-column");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.RemoveColumn(batch, tableName!, columnName!));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.RemoveColumn(batch, tableName!, columnName!);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = "Column removed successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string RenameColumn(TableCommands commands, string sessionId, string? tableName, string? oldColumnName, string? newColumnName)
@@ -436,15 +574,30 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(oldColumnName)) ExcelToolsBase.ThrowMissingParameter(nameof(oldColumnName), "rename-column");
         if (string.IsNullOrWhiteSpace(newColumnName)) ExcelToolsBase.ThrowMissingParameter(nameof(newColumnName), "rename-column");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.RenameColumn(batch, tableName!, oldColumnName!, newColumnName!));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.RenameColumn(batch, tableName!, oldColumnName!, newColumnName!);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = "Column renamed successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     // === PHASE 2: STRUCTURED REFERENCE & SORT OPERATIONS ===
@@ -480,15 +633,30 @@ public static class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "sort");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "sort");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.Sort(batch, tableName!, columnName!, ascending));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.Sort(batch, tableName!, columnName!, ascending);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = "Table sorted successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     private static string SortTableMulti(TableCommands commands, string sessionId, string? tableName, string? sortColumnsJson)
@@ -511,15 +679,30 @@ public static class TableTool
             throw new ArgumentException($"Invalid sortColumns JSON: {ex.Message}", nameof(sortColumnsJson));
         }
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.Sort(batch, tableName!, sortColumns));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.Sort(batch, tableName!, sortColumns);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = "Table sorted successfully."
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     // === NUMBER FORMAT OPERATIONS ===
@@ -555,15 +738,22 @@ public static class TableTool
         if (string.IsNullOrEmpty(formatCode))
             ExcelToolsBase.ThrowMissingParameter("formatCode", "set-column-number-format");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.SetColumnNumberFormat(batch, tableName!, columnName!, formatCode!));
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.SetColumnNumberFormat(batch, tableName!, columnName!, formatCode!);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new { success = true, message = "Column number format set successfully." }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
+        }
     }
 }
 
