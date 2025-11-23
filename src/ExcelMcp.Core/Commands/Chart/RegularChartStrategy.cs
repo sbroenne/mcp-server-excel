@@ -39,15 +39,15 @@ public class RegularChartStrategy : IChartStrategy
         };
 
         // Count series
+        dynamic? seriesCollection = null;
         try
         {
-            dynamic seriesCollection = chart.SeriesCollection();
+            seriesCollection = chart.SeriesCollection();
             info.SeriesCount = Convert.ToInt32(seriesCollection.Count);
-            ComUtilities.Release(ref seriesCollection!);
         }
-        catch
+        finally
         {
-            info.SeriesCount = 0;
+            if (seriesCollection != null) ComUtilities.Release(ref seriesCollection!);
         }
 
         return info;
@@ -79,7 +79,7 @@ public class RegularChartStrategy : IChartStrategy
         }
         catch
         {
-            // No title
+            // No title - optional property, safe to ignore
         }
 
         // Get legend
@@ -89,7 +89,7 @@ public class RegularChartStrategy : IChartStrategy
         }
         catch
         {
-            info.HasLegend = false;
+            info.HasLegend = false; // Safe fallback for optional property
         }
 
         // Get source range
@@ -100,13 +100,14 @@ public class RegularChartStrategy : IChartStrategy
         }
         catch
         {
-            // No source range or no series
+            // No source range or no series - optional, safe to ignore
         }
 
         // Get series
+        dynamic? seriesCollection = null;
         try
         {
-            dynamic seriesCollection = chart.SeriesCollection();
+            seriesCollection = chart.SeriesCollection();
             int seriesCount = Convert.ToInt32(seriesCollection.Count);
 
             for (int i = 1; i <= seriesCount; i++)
@@ -131,12 +132,10 @@ public class RegularChartStrategy : IChartStrategy
                     }
                 }
             }
-
-            ComUtilities.Release(ref seriesCollection!);
         }
-        catch
+        finally
         {
-            // No series or error reading
+            if (seriesCollection != null) ComUtilities.Release(ref seriesCollection!);
         }
 
         return info;

@@ -158,6 +158,80 @@ Overall Quit Timeout: 30 seconds (outer)
 - **6-attempt retry**: Handles transient COM busy states within the 30s window
 - **10s thread join**: Quick verification that cleanup finished (not a primary timeout mechanism)
 
+## COM Object Cleanup Pattern (CRITICAL)
+
+**ALWAYS use try-finally for COM object cleanup. NEVER use catch blocks to swallow exceptions.**
+
+### ❌ WRONG Patterns
+
+```csharp
+// WRONG #1: COM cleanup in try block (won't execute if exception occurs)
+try
+{
+    dynamic pivotLayout = chart.PivotLayout;
+    dynamic pivotTable = pivotLayout.PivotTable;
+    name = pivotTable.Name?.ToString() ?? string.Empty;
+    ComUtilities.Release(ref pivotTable!);  // ❌ Won't execute if exception above!
+    ComUtilities.Release(ref pivotLayout!);
+}
+catch
+{
+    name = "(unknown)";  // ❌ Swallows exception, causes COM leak
+}
+
+// WRONG #2: Empty catch block (swallows exceptions silently)
+try
+{
+    dynamic item = GetItem();
+    // ... operations ...
+    ComUtilities.Release(ref item!);
+}
+catch
+{
+    // ❌ Empty catch - swallows exception, no cleanup
+}
+```
+
+### ✅ CORRECT Pattern
+
+```csharp
+// CORRECT: Finally block ensures cleanup regardless of exceptions
+dynamic? pivotLayout = null;
+dynamic? pivotTable = null;
+try
+{
+    pivotLayout = chart.PivotLayout;
+    pivotTable = pivotLayout.PivotTable;
+    name = pivotTable.Name?.ToString() ?? string.Empty;
+}
+finally
+{
+    // ✅ ALWAYS executes - exception or no exception
+    if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
+    if (pivotLayout != null) ComUtilities.Release(ref pivotLayout!);
+}
+// ✅ Exception propagates naturally to batch.Execute()
+```
+
+**Pattern Requirements:**
+1. **Declare COM objects as `dynamic?` nullable** before try block
+2. **Initialize to `null`**
+3. **Acquire COM objects in try block**
+4. **Release in finally block** with null checks
+5. **NO catch blocks** unless specific exception handling required
+6. **NEVER catch to set fallback values** - let exceptions propagate
+
+**Why This Matters:**
+- Finally blocks execute **regardless** of exceptions (try succeeds or fails)
+- COM objects leak if Release() not reached before exception
+- Swallowing exceptions with catch blocks hides real problems from batch.Execute()
+- Empty catch blocks are code smell - remove them entirely
+- Let exceptions propagate naturally to batch.Execute() for proper error handling
+
+**See Also:**
+- CRITICAL-RULES.md Rule 22 for complete requirements
+- CRITICAL-RULES.md Rule 1b for exception propagation pattern
+
 ## Critical COM Issues
 
 ### 1. Excel Collections Are 1-Based

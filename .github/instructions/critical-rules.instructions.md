@@ -55,6 +55,7 @@ applyTo: "**"
 **When Writing Code:**
 | Rule | Action | Why Critical |
 |------|--------|--------------|
+| 22. COM cleanup | ALWAYS use try-finally, NEVER swallow exceptions | Prevents leaks and silent failures |
 | 7. COM API | Use Excel COM first, validate docs | Prevents wrong dependencies |
 | 9. GitHub search | Search OTHER repos for VBA/COM examples FIRST | Learn from working code |
 | 2. NotImplementedException | Never use, full implementation only | No placeholders allowed |
@@ -662,6 +663,63 @@ mcp_github_github_pull_request_read(method="get_review_comments", owner="sbroenn
 5. Request human review only after all automated issues resolved
 
 **Example:** PR #139 had 17 automated review comments - all fixed in one commit before human review.
+
+---
+
+## Rule 22: COM Cleanup Must Use Finally Blocks (CRITICAL)
+
+**ALWAYS use try-finally for COM object cleanup. NEVER swallow exceptions with empty catch blocks.**
+
+```csharp
+// ❌ WRONG: Swallows exception, sets fallback value
+try
+{
+    dynamic pivotLayout = chart.PivotLayout;
+    dynamic pivotTable = pivotLayout.PivotTable;
+    name = pivotTable.Name?.ToString() ?? string.Empty;
+    ComUtilities.Release(ref pivotTable!);  // Won't execute if exception occurs!
+    ComUtilities.Release(ref pivotLayout!);
+}
+catch
+{
+    name = "(unknown)";  // Swallows exception!
+}
+
+// ✅ CORRECT: Finally ensures cleanup, exceptions propagate
+dynamic? pivotLayout = null;
+dynamic? pivotTable = null;
+try
+{
+    pivotLayout = chart.PivotLayout;
+    pivotTable = pivotLayout.PivotTable;
+    name = pivotTable.Name?.ToString() ?? string.Empty;
+}
+finally
+{
+    if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
+    if (pivotLayout != null) ComUtilities.Release(ref pivotLayout!);
+}
+// Exception propagates naturally, COM objects always released
+```
+
+**Why Critical:**
+- Finally blocks execute **regardless** of exceptions
+- COM objects leak if Release() not reached before exception
+- Swallowing exceptions hides real problems
+- Empty catch blocks are code smell - remove them
+- Let exceptions propagate naturally to batch.Execute()
+
+**Pattern Requirements:**
+1. Declare COM objects as `dynamic?` nullable before try block
+2. Initialize to `null`
+3. Acquire COM objects in try block
+4. Release in finally block with null checks
+5. **NO catch blocks** unless specific exception handling needed
+6. **NEVER** catch just to set fallback values like "(unknown)"
+
+**See Also:**
+- Rule 1b: Exception propagation pattern
+- excel-com-interop.instructions.md for complete patterns
 
 ---
 ---

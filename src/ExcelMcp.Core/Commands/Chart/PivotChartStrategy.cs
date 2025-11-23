@@ -106,16 +106,9 @@ public class PivotChartStrategy : IChartStrategy
         }
 
         // Get title
-        try
+        if (chart.HasTitle)
         {
-            if (chart.HasTitle)
-            {
-                info.Title = chart.ChartTitle.Text?.ToString() ?? string.Empty;
-            }
-        }
-        catch
-        {
-            // No title
+            info.Title = chart.ChartTitle.Text?.ToString() ?? string.Empty;
         }
 
         // Get legend
@@ -148,10 +141,6 @@ public class PivotChartStrategy : IChartStrategy
             pivotTable = pivotLayout.PivotTable;
             pivotTableName = pivotTable.Name?.ToString() ?? string.Empty;
         }
-        catch
-        {
-            pivotTableName = "(unknown)";
-        }
         finally
         {
             if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
@@ -177,10 +166,6 @@ public class PivotChartStrategy : IChartStrategy
             pivotLayout = chart.PivotLayout;
             pivotTable = pivotLayout.PivotTable;
             pivotTableName = pivotTable.Name?.ToString() ?? string.Empty;
-        }
-        catch
-        {
-            pivotTableName = "(unknown)";
         }
         finally
         {
@@ -208,10 +193,6 @@ public class PivotChartStrategy : IChartStrategy
             pivotLayout = chart.PivotLayout;
             pivotTable = pivotLayout.PivotTable;
             pivotTableName = pivotTable.Name?.ToString() ?? string.Empty;
-        }
-        catch
-        {
-            pivotTableName = "(unknown)";
         }
         finally
         {
