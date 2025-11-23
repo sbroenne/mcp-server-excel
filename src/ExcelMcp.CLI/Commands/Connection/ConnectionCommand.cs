@@ -73,12 +73,23 @@ internal sealed class ConnectionCommand : Command<ConnectionCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_connectionCommands.Create(
-            batch,
-            name,
-            settings.ConnectionString!,
-            settings.CommandText,
-            settings.Description));
+        try
+        {
+            _connectionCommands.Create(
+                batch,
+                name,
+                settings.ConnectionString!,
+                settings.CommandText,
+                settings.Description);
+
+            _console.WriteInfo($"Connection '{name}' created successfully.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to create connection '{name}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteRefresh(IExcelBatch batch, Settings settings)
@@ -89,7 +100,17 @@ internal sealed class ConnectionCommand : Command<ConnectionCommand.Settings>
         }
 
         TimeSpan? timeout = settings.TimeoutSeconds.HasValue ? TimeSpan.FromSeconds(settings.TimeoutSeconds.Value) : null;
-        return WriteResult(_connectionCommands.Refresh(batch, name, timeout));
+        try
+        {
+            _connectionCommands.Refresh(batch, name, timeout);
+            _console.WriteInfo($"Connection '{name}' refreshed successfully.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to refresh connection '{name}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteDelete(IExcelBatch batch, Settings settings)
@@ -99,7 +120,17 @@ internal sealed class ConnectionCommand : Command<ConnectionCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_connectionCommands.Delete(batch, name));
+        try
+        {
+            _connectionCommands.Delete(batch, name);
+            _console.WriteInfo($"Connection '{name}' deleted successfully.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to delete connection '{name}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteLoadTo(IExcelBatch batch, Settings settings)
@@ -113,7 +144,17 @@ internal sealed class ConnectionCommand : Command<ConnectionCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_connectionCommands.LoadTo(batch, name, settings.SheetName!));
+        try
+        {
+            _connectionCommands.LoadTo(batch, name, settings.SheetName!);
+            _console.WriteInfo($"Connection '{name}' loaded to sheet '{settings.SheetName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to load connection '{name}' to sheet '{settings.SheetName}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteGetProperties(IExcelBatch batch, Settings settings)
@@ -142,16 +183,27 @@ internal sealed class ConnectionCommand : Command<ConnectionCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_connectionCommands.SetProperties(
-            batch,
-            name,
-            connectionString: null,  // CLI doesn't support updating connection string yet
-            commandText: null,       // CLI doesn't support updating command text yet
-            description: null,       // CLI doesn't support updating description yet
-            settings.BackgroundQuery,
-            settings.RefreshOnFileOpen,
-            settings.SavePassword,
-            settings.RefreshPeriodMinutes));
+        try
+        {
+            _connectionCommands.SetProperties(
+                batch,
+                name,
+                connectionString: null,
+                commandText: null,
+                description: null,
+                settings.BackgroundQuery,
+                settings.RefreshOnFileOpen,
+                settings.SavePassword,
+                settings.RefreshPeriodMinutes);
+
+            _console.WriteInfo($"Updated properties for connection '{name}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to set properties for connection '{name}': {ex.Message}");
+            return 1;
+        }
     }
 
     private int ExecuteTest(IExcelBatch batch, Settings settings)
@@ -161,7 +213,17 @@ internal sealed class ConnectionCommand : Command<ConnectionCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_connectionCommands.Test(batch, name));
+        try
+        {
+            _connectionCommands.Test(batch, name);
+            _console.WriteInfo($"Connection '{name}' passed validation.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Connection '{name}' test failed: {ex.Message}");
+            return 1;
+        }
     }
 
     private bool TryGetName(Settings settings, out string name)

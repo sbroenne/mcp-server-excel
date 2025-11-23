@@ -25,8 +25,7 @@ public partial class ConnectionCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create connection first
-        var createResult = _commands.Create(batch, connectionName, connectionString);
-        Assert.True(createResult.Success, $"Connection creation failed: {createResult.ErrorMessage}");
+        _commands.Create(batch, connectionName, connectionString);
 
         // Verify connection exists
         var listResultBefore = _commands.List(batch);
@@ -34,11 +33,8 @@ public partial class ConnectionCommandsTests
         Assert.Contains(listResultBefore.Connections, c => c.Name == connectionName);
 
         // Act - Delete the connection
-        var deleteResult = _commands.Delete(batch, connectionName);
-
         // Assert
-        Assert.True(deleteResult.Success, $"Delete operation failed: {deleteResult.ErrorMessage}");
-        Assert.Null(deleteResult.ErrorMessage);
+        _commands.Delete(batch, connectionName);
 
         // Verify connection no longer exists
         var listResultAfter = _commands.List(batch);
@@ -85,19 +81,13 @@ public partial class ConnectionCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create three connections
-        var result1 = _commands.Create(batch, conn1Name, "ODBC;DSN=TestDSN1;DBQ=C:\\temp\\test1.xlsx");
-        var result2 = _commands.Create(batch, conn2Name, "ODBC;DSN=TestDSN2;DBQ=C:\\temp\\test2.xlsx");
-        var result3 = _commands.Create(batch, conn3Name, "ODBC;DSN=TestDSN3;DBQ=C:\\temp\\test3.xlsx");
-
-        Assert.True(result1.Success);
-        Assert.True(result2.Success);
-        Assert.True(result3.Success);
+        _commands.Create(batch, conn1Name, "ODBC;DSN=TestDSN1;DBQ=C:\\temp\\test1.xlsx");
+        _commands.Create(batch, conn2Name, "ODBC;DSN=TestDSN2;DBQ=C:\\temp\\test2.xlsx");
+        _commands.Create(batch, conn3Name, "ODBC;DSN=TestDSN3;DBQ=C:\\temp\\test3.xlsx");
 
         // Act - Delete only the second connection
-        var deleteResult = _commands.Delete(batch, conn2Name);
-
         // Assert
-        Assert.True(deleteResult.Success, $"Delete failed: {deleteResult.ErrorMessage}");
+        _commands.Delete(batch, conn2Name);
 
         // Verify only conn2 is deleted
         var listResult = _commands.List(batch);
@@ -123,14 +113,11 @@ public partial class ConnectionCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create connection with description
-        var createResult = _commands.Create(batch, connectionName, connectionString, null, description);
-        Assert.True(createResult.Success);
+        _commands.Create(batch, connectionName, connectionString, null, description);
 
         // Act - Delete connection
-        var deleteResult = _commands.Delete(batch, connectionName);
-
         // Assert
-        Assert.True(deleteResult.Success, $"Delete failed: {deleteResult.ErrorMessage}");
+        _commands.Delete(batch, connectionName);
 
         var listResult = _commands.List(batch);
         Assert.DoesNotContain(listResult.Connections, c => c.Name == connectionName);
@@ -151,13 +138,10 @@ public partial class ConnectionCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Act - Create and immediately delete
-        var createResult = _commands.Create(batch, connectionName, connectionString);
-        Assert.True(createResult.Success);
-
-        var deleteResult = _commands.Delete(batch, connectionName);
+        _commands.Create(batch, connectionName, connectionString);
 
         // Assert
-        Assert.True(deleteResult.Success, $"Immediate delete failed: {deleteResult.ErrorMessage}");
+        _commands.Delete(batch, connectionName);
 
         var listResult = _commands.List(batch);
         Assert.DoesNotContain(listResult.Connections, c => c.Name == connectionName);
@@ -178,18 +162,15 @@ public partial class ConnectionCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create and view connection
-        var createResult = _commands.Create(batch, connectionName, connectionString);
-        Assert.True(createResult.Success);
+        _commands.Create(batch, connectionName, connectionString);
 
         var viewResult = _commands.View(batch, connectionName);
         Assert.True(viewResult.Success);
         Assert.Equal(connectionName, viewResult.ConnectionName);
 
         // Act - Delete after viewing
-        var deleteResult = _commands.Delete(batch, connectionName);
-
         // Assert
-        Assert.True(deleteResult.Success, $"Delete after view failed: {deleteResult.ErrorMessage}");
+        _commands.Delete(batch, connectionName);
 
         var listResult = _commands.List(batch);
         Assert.DoesNotContain(listResult.Connections, c => c.Name == connectionName);
@@ -230,12 +211,10 @@ public partial class ConnectionCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Create connection
-        var createResult = _commands.Create(batch, connectionName, connectionString);
-        Assert.True(createResult.Success);
+        _commands.Create(batch, connectionName, connectionString);
 
         // Act - First delete
-        var firstDeleteResult = _commands.Delete(batch, connectionName);
-        Assert.True(firstDeleteResult.Success);
+        _commands.Delete(batch, connectionName);
 
         // Act & Assert - Second delete should fail
         var exception = Assert.Throws<InvalidOperationException>(() =>

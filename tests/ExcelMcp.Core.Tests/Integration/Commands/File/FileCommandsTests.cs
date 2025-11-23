@@ -13,8 +13,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.File;
 /// 1. CreateEmpty creates .xlsx or .xlsm files (valid extensions)
 /// 2. CreateEmpty fails on invalid extensions (.xls, .csv, .txt, etc.)
 /// 3. CreateEmpty respects overwrite flag (default: fail if exists)
-/// 4. TestFile validates existence and extension
-/// 5. Result objects have Success, ErrorMessage, FilePath properties
+/// 4. TestFile returns metadata (Exists, IsValid, Message) without Success flag
 ///
 /// LAYER RESPONSIBILITY:
 /// - ✅ Test Excel COM file operations and Result objects

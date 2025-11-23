@@ -209,23 +209,14 @@ FILE FORMATS:
             excelPath = Path.ChangeExtension(excelPath, extension);
         }
 
-        var result = fileCommands.CreateEmpty(excelPath, overwriteIfExists: false);
-
-        if (result.Success)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                filePath = result.FilePath,
-                macroEnabled
-            }, ExcelToolsBase.JsonOptions);
-        }
+        fileCommands.CreateEmpty(excelPath, overwriteIfExists: false);
 
         return JsonSerializer.Serialize(new
         {
-            success = false,
-            errorMessage = result.ErrorMessage,
-            filePath = excelPath
+            success = true,
+            filePath = excelPath,
+            macroEnabled,
+            message = "Excel workbook created successfully"
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -254,33 +245,19 @@ FILE FORMATS:
             throw new ArgumentException("excelPath is required for 'test' action", nameof(excelPath));
         }
 
-        var result = fileCommands.Test(excelPath);
-
-        if (result.Success)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                filePath = result.FilePath,
-                exists = result.Exists,
-                isValid = result.IsValid,
-                extension = result.Extension,
-                size = result.Size,
-                lastModified = result.LastModified
-            }, ExcelToolsBase.JsonOptions);
-        }
+        var info = fileCommands.Test(excelPath);
 
         return JsonSerializer.Serialize(new
         {
-            success = false,
-            filePath = result.FilePath,
-            exists = result.Exists,
-            isValid = result.IsValid,
-            extension = result.Extension,
-            size = result.Size,
-            lastModified = result.LastModified,
-            errorMessage = result.ErrorMessage,
-            isError = true
+            success = info.IsValid,
+            filePath = info.FilePath,
+            exists = info.Exists,
+            isValid = info.IsValid,
+            extension = info.Extension,
+            size = info.Size,
+            lastModified = info.LastModified,
+            message = info.Message,
+            isError = info.IsValid ? (bool?)null : true
         }, ExcelToolsBase.JsonOptions);
     }
 }

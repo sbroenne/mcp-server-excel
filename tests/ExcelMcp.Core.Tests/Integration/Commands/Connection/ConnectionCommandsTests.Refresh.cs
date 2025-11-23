@@ -41,11 +41,9 @@ public partial class ConnectionCommandsTests
         {
             using var batch = ExcelSession.BeginBatch(testFile);
 
-            var loadResult = _commands.LoadTo(batch, connectionName, "ProductsData");
-            Assert.True(loadResult.Success, $"LoadTo failed: {loadResult.ErrorMessage}");
+            _commands.LoadTo(batch, connectionName, "ProductsData");
 
-            var refreshResult = _commands.Refresh(batch, connectionName);
-            Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
+            _commands.Refresh(batch, connectionName);
         }
         finally
         {
@@ -69,8 +67,7 @@ public partial class ConnectionCommandsTests
         {
             using (var batch = ExcelSession.BeginBatch(testFile))
             {
-                var loadResult = _commands.LoadTo(batch, connectionName, "ProductsData");
-                Assert.True(loadResult.Success, $"LoadTo failed: {loadResult.ErrorMessage}");
+                _commands.LoadTo(batch, connectionName, "ProductsData");
                 batch.Save();
             }
 
@@ -80,8 +77,7 @@ public partial class ConnectionCommandsTests
             });
 
             using var refreshBatch = ExcelSession.BeginBatch(testFile);
-            var refreshResult = _commands.Refresh(refreshBatch, connectionName);
-            Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");
+            _commands.Refresh(refreshBatch, connectionName);
         }
         finally
         {

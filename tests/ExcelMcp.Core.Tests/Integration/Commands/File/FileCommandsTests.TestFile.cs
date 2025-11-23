@@ -17,15 +17,14 @@ public partial class FileCommandsTests
             nameof(FileCommandsTests), nameof(Test_ExistingValidFile_ReturnsSuccess), _tempDir);
 
         // Act
-        var result = _fileCommands.Test(testFile);
+        var info = _fileCommands.Test(testFile);
 
         // Assert
-        Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
-        Assert.Null(result.ErrorMessage);
-        Assert.True(result.Exists);
-        Assert.True(result.IsValid);
-        Assert.Equal(".xlsx", result.Extension);
-        Assert.True(result.Size > 0);
+        Assert.True(info.Exists);
+        Assert.True(info.IsValid);
+        Assert.Equal(".xlsx", info.Extension);
+        Assert.True(info.Size > 0);
+        Assert.Null(info.Message);
     }
     /// <inheritdoc/>
 
@@ -36,14 +35,13 @@ public partial class FileCommandsTests
         string testFile = Path.Join(_tempDir, $"NonExistent_{Guid.NewGuid():N}.xlsx");
 
         // Act
-        var result = _fileCommands.Test(testFile);
+        var info = _fileCommands.Test(testFile);
 
         // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
-        Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.False(result.Exists);
-        Assert.False(result.IsValid);
+        Assert.False(info.Exists);
+        Assert.False(info.IsValid);
+        Assert.NotNull(info.Message);
+        Assert.Contains("not found", info.Message, StringComparison.OrdinalIgnoreCase);
     }
     /// <inheritdoc/>
 
@@ -60,14 +58,13 @@ public partial class FileCommandsTests
         System.IO.File.WriteAllText(testFile, "test content");
 
         // Act
-        var result = _fileCommands.Test(testFile);
+        var info = _fileCommands.Test(testFile);
 
         // Assert
-        Assert.False(result.Success);
-        Assert.NotNull(result.ErrorMessage);
-        Assert.Contains("Invalid file extension", result.ErrorMessage);
-        Assert.True(result.Exists);
-        Assert.False(result.IsValid);
-        Assert.Equal(expectedExt, result.Extension);
+        Assert.True(info.Exists);
+        Assert.False(info.IsValid);
+        Assert.Equal(expectedExt, info.Extension);
+        Assert.NotNull(info.Message);
+        Assert.Contains("Invalid file extension", info.Message, StringComparison.OrdinalIgnoreCase);
     }
 }

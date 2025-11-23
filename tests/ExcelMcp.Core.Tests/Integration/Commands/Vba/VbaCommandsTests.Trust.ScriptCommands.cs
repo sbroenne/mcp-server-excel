@@ -38,10 +38,11 @@ public partial class VbaCommandsTests
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _scriptCommands.Import(batch, "TestModule", vbaCode);
+        _scriptCommands.Import(batch, "TestModule", vbaCode);
 
-        // Assert - Should succeed when VBA trust is enabled (as in CI environment)
-        Assert.True(result.Success, $"Import should succeed with VBA trust enabled. Error: {result.ErrorMessage}");
+        // Assert - verify module exists via list
+        var listResult = _scriptCommands.List(batch);
+        Assert.Contains(listResult.Scripts, s => s.Name == "TestModule");
     }
     /// <inheritdoc/>
 
@@ -56,8 +57,7 @@ public partial class VbaCommandsTests
         string vbaCode = "Sub TestCode()\nEnd Sub";
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        var importResult = _scriptCommands.Import(batch, "TestModule", vbaCode);
-        Assert.True(importResult.Success, "Import should succeed before export test");
+        _scriptCommands.Import(batch, "TestModule", vbaCode);
 
         // Act - View (export) the module we just imported
         var result = _scriptCommands.View(batch, "TestModule");
@@ -82,14 +82,14 @@ public partial class VbaCommandsTests
 End Sub";
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        var importResult = _scriptCommands.Import(batch, "TestModule", vbaCode);
-        Assert.True(importResult.Success);
+        _scriptCommands.Import(batch, "TestModule", vbaCode);
 
         // Act - Run the macro
-        var runResult = _scriptCommands.Run(batch, "TestModule.TestProcedure", null);
+        _scriptCommands.Run(batch, "TestModule.TestProcedure", null);
 
-        // Assert - Should succeed when VBA trust is enabled
-        Assert.True(runResult.Success, $"Run should succeed with VBA trust enabled. Error: {runResult.ErrorMessage}");
+        // Assert - No exception thrown; to be thorough, ensure module still exists
+        var listResult = _scriptCommands.List(batch);
+        Assert.Contains(listResult.Scripts, s => s.Name == "TestModule");
     }
     /// <inheritdoc/>
 
@@ -104,14 +104,10 @@ End Sub";
         string vbaCode = "Sub TestCode()\nEnd Sub";
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        var importResult = _scriptCommands.Import(batch, "TestModule", vbaCode);
-        Assert.True(importResult.Success);
+        _scriptCommands.Import(batch, "TestModule", vbaCode);
 
         // Act - Delete the module
-        var result = _scriptCommands.Delete(batch, "TestModule");
-
-        // Assert - Should succeed when VBA trust is enabled
-        Assert.True(result.Success, $"Delete should succeed with VBA trust enabled. Error: {result.ErrorMessage}");
+        _scriptCommands.Delete(batch, "TestModule");
 
         // Verify module is gone
         var listResult = _scriptCommands.List(batch);
@@ -130,8 +126,7 @@ End Sub";
         string expectedCode = "Sub ViewTest()\n    MsgBox \"Hello\"\nEnd Sub";
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        var importResult = _scriptCommands.Import(batch, "ViewTestModule", expectedCode);
-        Assert.True(importResult.Success, "Import should succeed before view test");
+        _scriptCommands.Import(batch, "ViewTestModule", expectedCode);
 
         // Act - View the module code
         var result = _scriptCommands.View(batch, "ViewTestModule");
@@ -155,17 +150,13 @@ End Sub";
         string initialCode = "Sub OriginalCode()\nEnd Sub";
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        var importResult = _scriptCommands.Import(batch, "UpdateTestModule", initialCode);
-        Assert.True(importResult.Success, "Import should succeed before update test");
+        _scriptCommands.Import(batch, "UpdateTestModule", initialCode);
 
         // Prepare updated code
         string updatedCode = "Sub UpdatedCode()\n    MsgBox \"Updated\"\nEnd Sub";
 
         // Act - Update the module with new code
-        var result = _scriptCommands.Update(batch, "UpdateTestModule", updatedCode);
-
-        // Assert - Should succeed
-        Assert.True(result.Success, $"Update should succeed with VBA trust enabled. Error: {result.ErrorMessage}");
+        _scriptCommands.Update(batch, "UpdateTestModule", updatedCode);
 
         // Verify the code was updated
         var viewResult = _scriptCommands.View(batch, "UpdateTestModule");
