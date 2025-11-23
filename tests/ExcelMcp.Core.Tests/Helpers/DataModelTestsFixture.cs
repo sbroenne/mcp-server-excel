@@ -65,54 +65,31 @@ public class DataModelTestsFixture : IAsyncLifetime
             var tableCommands = new TableCommands();
             var dataModelCommands = new DataModelCommands();
 
-            var addSales = tableCommands.AddToDataModel(batch, "SalesTable");
-            if (!addSales.Success)
-                throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: AddToDataModel(SalesTable) failed: {addSales.ErrorMessage}");
-
-            var addCustomers = tableCommands.AddToDataModel(batch, "CustomersTable");
-            if (!addCustomers.Success)
-                throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: AddToDataModel(CustomersTable) failed: {addCustomers.ErrorMessage}");
-
-            var addProducts = tableCommands.AddToDataModel(batch, "ProductsTable");
-            if (!addProducts.Success)
-                throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: AddToDataModel(ProductsTable) failed: {addProducts.ErrorMessage}");
+            // AddToDataModel throws on error
+            tableCommands.AddToDataModel(batch, "SalesTable");
+            tableCommands.AddToDataModel(batch, "CustomersTable");
+            tableCommands.AddToDataModel(batch, "ProductsTable");
 
             CreationResult.TablesLoadedToModel = 3;
 
-            var rel1 = dataModelCommands.CreateRelationship(batch,
+            // CreateRelationship throws on error
+            dataModelCommands.CreateRelationship(batch,
                 "SalesTable", "CustomerID", "CustomersTable", "CustomerID", active: true);
-            if (!rel1.Success)
-                throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: CreateRelationship(Sales→Customers) failed: {rel1.ErrorMessage}");
 
-            var rel2 = dataModelCommands.CreateRelationship(batch,
+            dataModelCommands.CreateRelationship(batch,
                 "SalesTable", "ProductID", "ProductsTable", "ProductID", active: true);
-            if (!rel2.Success)
-                throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: CreateRelationship(Sales→Products) failed: {rel2.ErrorMessage}");
 
             CreationResult.RelationshipsCreated = 2;
 
-            var m1 = dataModelCommands.CreateMeasure(batch, "SalesTable", "Total Sales",
+            // CreateMeasure throws on error
+            dataModelCommands.CreateMeasure(batch, "SalesTable", "Total Sales",
                 "SUM(SalesTable[Amount])", "Currency", "Total sales revenue");
-            if (!m1.Success)
-                throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: CreateMeasure(Total Sales) failed: {m1.ErrorMessage}");
 
-            var m2 = dataModelCommands.CreateMeasure(batch, "SalesTable", "Average Sale",
+            dataModelCommands.CreateMeasure(batch, "SalesTable", "Average Sale",
                 "AVERAGE(SalesTable[Amount])", "Currency", "Average sale amount");
-            if (!m2.Success)
-                throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: CreateMeasure(Average Sale) failed: {m2.ErrorMessage}");
 
-            var m3 = dataModelCommands.CreateMeasure(batch, "SalesTable", "Total Customers",
-                "DISTINCTCOUNT(SalesTable[CustomerID])", "WholeNumber", "Unique customer count");
-            if (!m3.Success)
-                throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: CreateMeasure(Total Customers) failed: {m3.ErrorMessage}");
+            dataModelCommands.CreateMeasure(batch, "SalesTable", "Total Customers",
+                "DISTINCTCOUNT(SalesTable[CustomerID])", "WholeNumber", "Unique customer count");  // CreateMeasure throws on error
 
             CreationResult.MeasuresCreated = 3;
 

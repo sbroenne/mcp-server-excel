@@ -71,6 +71,21 @@ public interface IExcelBatch : IDisposable
     dynamic GetWorkbook(string filePath);
 
     /// <summary>
+    /// Executes a void COM operation within this batch.
+    /// The operation receives an ExcelContext with access to the Excel app and workbook.
+    /// Use this overload for void operations that don't need to return values.
+    /// All Excel COM operations are synchronous - file I/O should be handled outside the batch.
+    /// </summary>
+    /// <param name="operation">COM operation to execute</param>
+    /// <param name="cancellationToken">Optional cancellation token for caller-controlled cancellation</param>
+    /// <exception cref="ObjectDisposedException">Batch has already been disposed</exception>
+    /// <exception cref="InvalidOperationException">Excel COM error occurred</exception>
+    /// <exception cref="OperationCanceledException">Operation was cancelled via cancellationToken</exception>
+    void Execute(
+        Action<ExcelContext, CancellationToken> operation,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Executes a COM operation within this batch.
     /// The operation receives an ExcelContext with access to the Excel app and workbook.
     /// All Excel COM operations are synchronous - file I/O should be handled outside the batch.

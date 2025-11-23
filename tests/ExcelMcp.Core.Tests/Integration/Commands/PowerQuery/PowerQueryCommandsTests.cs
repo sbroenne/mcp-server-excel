@@ -85,10 +85,12 @@ in
 
         // Act
         using var batch = ExcelSession.BeginBatch(testExcelFile);
-        var result = _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.ConnectionOnly);
+        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.ConnectionOnly);
 
         // Assert
-        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        // Create throws on error, so reaching here means success
+        var verifyResult = _powerQueryCommands.List(batch);
+        Assert.Contains(verifyResult.Queries, q => q.Name == queryName);
     }
 
     /// <summary>
@@ -158,10 +160,10 @@ in
         // Act
         using var batch = ExcelSession.BeginBatch(testExcelFile);
         _powerQueryCommands.Create(batch, queryName, originalMCode);
-        var result = _powerQueryCommands.Update(batch, queryName, updatedMCode);
+        _powerQueryCommands.Update(batch, queryName, updatedMCode);
 
         // Assert
-        Assert.True(result.Success);
+        // Update throws on error, so reaching here means success
     }
 
     /// <summary>
@@ -203,12 +205,10 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Step 1: Create query with original M code
-        var createResult = _powerQueryCommands.Create(batch, queryName, originalMCode);
-        Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
+        _powerQueryCommands.Create(batch, queryName, originalMCode);  // Create throws on error
 
         // Step 2: Update with new M code
-        var updateResult = _powerQueryCommands.Update(batch, queryName, newMCode);
-        Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
+        _powerQueryCommands.Update(batch, queryName, newMCode);  // Update throws on error
 
         // Step 3: View the resulting M code
         var viewResult = _powerQueryCommands.View(batch, queryName);
@@ -269,17 +269,17 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Create with version 1
-        _powerQueryCommands.Create(batch, queryName, version1MCode);
+        _powerQueryCommands.Create(batch, queryName, version1MCode);  // Create throws on error
 
         // Update to version 2
-        _powerQueryCommands.Update(batch, queryName, version2MCode);
+        _powerQueryCommands.Update(batch, queryName, version2MCode);  // Update throws on error
 
         // Update to version 3
-        _powerQueryCommands.Update(batch, queryName, version3MCode);
+        _powerQueryCommands.Update(batch, queryName, version3MCode);  // Update throws on error
 
         // View final result
         var viewResult = _powerQueryCommands.View(batch, queryName);
-        Assert.True(viewResult.Success);
+        // View throws on error, so reaching here means success
 
         // Assert - Should only have version 3, no traces of v1 or v2
         Assert.Contains("VERSION_3", viewResult.MCode);
@@ -322,10 +322,10 @@ in
         // Act
         using var batch = ExcelSession.BeginBatch(testExcelFile);
         _powerQueryCommands.Create(batch, queryName, mCode);
-        var result = _powerQueryCommands.Delete(batch, queryName);
+        _powerQueryCommands.Delete(batch, queryName);
 
         // Assert
-        Assert.True(result.Success);
+        // Delete throws on error, so reaching here means success
     }
 
     /// <summary>
@@ -358,8 +358,7 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Act 1: Create query first time (should succeed)
-        var firstCreate = _powerQueryCommands.Create(batch, queryName, mCode);
-        Assert.True(firstCreate.Success, $"First create should succeed: {firstCreate.ErrorMessage}");
+        _powerQueryCommands.Create(batch, queryName, mCode);  // Create throws on error
 
         // Act 2 & Assert: Try to Create same query again (should throw InvalidOperationException)
         var exception = Assert.Throws<InvalidOperationException>(() =>
@@ -419,24 +418,18 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Import source query first
-        var sourceImportResult = _powerQueryCommands.Create(
+        _powerQueryCommands.Create(
             batch,
             "SourceQuery",
             sourceQueryMCode,
-            loadMode: PowerQueryLoadMode.LoadToTable);
-
-        Assert.True(sourceImportResult.Success,
-            $"Source query import failed: {sourceImportResult.ErrorMessage}");
+            loadMode: PowerQueryLoadMode.LoadToTable);  // Create throws on error
 
         // Import derived query (references SourceQuery)
-        var derivedImportResult = _powerQueryCommands.Create(
+        _powerQueryCommands.Create(
             batch,
             "DerivedQuery",
             derivedQueryMCode,
-            loadMode: PowerQueryLoadMode.LoadToTable);
-
-        Assert.True(derivedImportResult.Success,
-            $"Derived query import failed: {derivedImportResult.ErrorMessage}");
+            loadMode: PowerQueryLoadMode.LoadToTable);  // Create throws on error
 
         // Verify both queries exist in the workbook
         var listResult = _powerQueryCommands.List(batch);
@@ -513,8 +506,7 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // STEP 1: Import query and load to worksheet
-        var importResult = _powerQueryCommands.Create(batch, queryName, initialMCode, PowerQueryLoadMode.LoadToTable, sheetName);
-        Assert.True(importResult.Success, $"Import failed: {importResult.ErrorMessage}");
+        _powerQueryCommands.Create(batch, queryName, initialMCode, PowerQueryLoadMode.LoadToTable, sheetName);  // Create throws on error
 
         // Verify initial load configuration
         var loadConfigBefore = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -523,8 +515,7 @@ in
         Assert.Equal(sheetName, loadConfigBefore.TargetSheet);
 
         // STEP 2: Update the query M code (now auto-refreshes)
-        var updateResult = _powerQueryCommands.Update(batch, queryName, updatedMCode);
-        Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
+        _powerQueryCommands.Update(batch, queryName, updatedMCode);  // Update throws on error
 
         // STEP 3: Verify load configuration is PRESERVED (regression check)
         var loadConfigAfter = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -587,8 +578,7 @@ in
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // STEP 1: Create query and load to worksheet
-        var createResult = _powerQueryCommands.Create(batch, queryName, initialMCode, PowerQueryLoadMode.LoadToTable, sheetName);
-        Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
+        _powerQueryCommands.Create(batch, queryName, initialMCode, PowerQueryLoadMode.LoadToTable, sheetName);  // Create throws on error
 
         // STEP 2: Verify initial load configuration
         var loadConfigBefore = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -597,8 +587,7 @@ in
         Assert.Equal(sheetName, loadConfigBefore.TargetSheet);
 
         // STEP 3: Update M code (now auto-refreshes - this is the simplified API)
-        var updateResult = _powerQueryCommands.Update(batch, queryName, updatedMCode);
-        Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
+        _powerQueryCommands.Update(batch, queryName, updatedMCode);  // Update throws on error
 
         // STEP 4: THE CRITICAL CHECK - Does load config survive Update (which includes refresh)?
         var loadConfigAfterUpdate = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -660,8 +649,7 @@ in
 
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
-        var createResult = _powerQueryCommands.Create(batch, queryName, oneColumnMCode, PowerQueryLoadMode.LoadToTable, sheetName);
-        Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
+        _powerQueryCommands.Create(batch, queryName, oneColumnMCode, PowerQueryLoadMode.LoadToTable, sheetName);  // Create throws on error
 
         // STEP 2: Verify there is only ONE column
         var rangeCommands = new RangeCommands();
@@ -683,8 +671,7 @@ in
     Source";
 
         // STEP 3: Update query to ONE column (now auto-refreshes)
-        var updateResult1 = _powerQueryCommands.Update(batch, queryName, oneColumnUpdatedMCode);
-        Assert.True(updateResult1.Success, $"First update failed: {updateResult1.ErrorMessage}");
+        _powerQueryCommands.Update(batch, queryName, oneColumnUpdatedMCode);  // Update throws on error
 
         // STEP 4: Check that there is still only ONE column
         var usedRange2 = rangeCommands.GetUsedRange(batch, sheetName);
@@ -706,8 +693,7 @@ in
 
         // STEP 5: Update query to TWO columns (now auto-refreshes)
         // This validates the fix: PreserveColumnInfo=false allows column structure updates
-        var updateResult2 = _powerQueryCommands.Update(batch, queryName, twoColumnMCode);
-        Assert.True(updateResult2.Success, $"Second update failed: {updateResult2.ErrorMessage}");
+        _powerQueryCommands.Update(batch, queryName, twoColumnMCode);  // Update throws on error
 
         // STEP 6: Check that there are now TWO columns
         // This validates the fix: PreserveColumnInfo=false allows column structure updates
@@ -776,8 +762,7 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Import and load to worksheet
-        var createResult = _powerQueryCommands.Create(batch, queryName, oneColumnMCode, PowerQueryLoadMode.LoadToTable, sheetName);
-        Assert.True(createResult.Success, $"Create failed: {createResult.ErrorMessage}");
+        _powerQueryCommands.Create(batch, queryName, oneColumnMCode, PowerQueryLoadMode.LoadToTable, sheetName);  // Create throws on error
 
         // Verify initial state: 1 column
         var rangeCommands = new RangeCommands();
@@ -798,18 +783,14 @@ in
     Source";
 
         // STEP 2: Update query to TWO columns (now auto-refreshes)
-        var updateResult = _powerQueryCommands.Update(batch, queryName, twoColumnMCode);
-        Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
+        _powerQueryCommands.Update(batch, queryName, twoColumnMCode);  // Update throws on error
 
         // STEP 3: Apply the DELETE + RECREATE workflow (historically caused 3-column bug)
-        var deleteResult = _powerQueryCommands.Delete(batch, queryName);
-        Assert.True(deleteResult.Success, $"Delete failed: {deleteResult.ErrorMessage}");
+        _powerQueryCommands.Delete(batch, queryName);  // Delete throws on error
 
-        var recreateResult = _powerQueryCommands.Create(batch, queryName, twoColumnMCode, PowerQueryLoadMode.ConnectionOnly);
-        Assert.True(recreateResult.Success, $"Re-create failed: {recreateResult.ErrorMessage}");
+        _powerQueryCommands.Create(batch, queryName, twoColumnMCode, PowerQueryLoadMode.ConnectionOnly);  // Create throws on error
 
-        var loadResult = _powerQueryCommands.LoadTo(batch, queryName, PowerQueryLoadMode.LoadToTable, sheetName, "A1");
-        Assert.True(loadResult.Success, $"LoadTo failed: {loadResult.ErrorMessage}");
+        _powerQueryCommands.LoadTo(batch, queryName, PowerQueryLoadMode.LoadToTable, sheetName, "A1");  // LoadTo throws on error
 
         var refreshResult = _powerQueryCommands.Refresh(batch, queryName, TimeSpan.FromMinutes(5));
         Assert.True(refreshResult.Success, $"Refresh failed: {refreshResult.ErrorMessage}");

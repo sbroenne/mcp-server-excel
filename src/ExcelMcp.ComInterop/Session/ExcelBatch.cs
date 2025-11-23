@@ -278,6 +278,23 @@ internal sealed class ExcelBatch : IExcelBatch
     }
 
     /// <summary>
+    /// Executes a void COM operation on the STA thread.
+    /// Use this overload for operations that don't need to return values.
+    /// All Excel COM operations are synchronous.
+    /// </summary>
+    public void Execute(
+        Action<ExcelContext, CancellationToken> operation,
+        CancellationToken cancellationToken = default)
+    {
+        // Delegate to generic Execute<T> with dummy return
+        Execute((ctx, ct) =>
+        {
+            operation(ctx, ct);
+            return 0;
+        }, cancellationToken);
+    }
+
+    /// <summary>
     /// Executes a COM operation on the STA thread.
     /// All Excel COM operations are synchronous.
     /// </summary>

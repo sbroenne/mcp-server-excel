@@ -109,8 +109,8 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         });
 
         // Create table
-        var result = _tableCommands.Create(batch, "Sheet1", "TestTable", "A1:B2", true, "TableStyleLight1");
-        Assert.True(result.Success, $"Create failed: {result.ErrorMessage}");
+        _tableCommands.Create(batch, "Sheet1", "TestTable", "A1:B2", true, "TableStyleLight1");
+        // Create throws on error, so reaching here means success
 
         // Verify table was created
         var listResult = _tableCommands.List(batch);
@@ -127,8 +127,8 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         var testFile = CreateTestFileWithTable(nameof(Delete_WithExistingTable_RemovesTable));
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _tableCommands.Delete(batch, "SalesTable");
-        Assert.True(result.Success);
+        _tableCommands.Delete(batch, "SalesTable");
+        // Delete throws on error, so reaching here means success
 
         // Verify deletion
         var listResult = _tableCommands.List(batch);
@@ -145,8 +145,8 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         var testFile = CreateTestFileWithTable(nameof(Rename_WithExistingTable_RenamesSuccessfully));
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _tableCommands.Rename(batch, "SalesTable", "RevenueTable");
-        Assert.True(result.Success);
+        _tableCommands.Rename(batch, "SalesTable", "RevenueTable");
+        // Rename throws on error, so reaching here means success
 
         // Verify rename
         var listResult = _tableCommands.List(batch);
@@ -168,8 +168,8 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         var initialInfo = _tableCommands.Read(batch, "SalesTable");
         Assert.True(initialInfo.Success);
 
-        var result = _tableCommands.Resize(batch, "SalesTable", "A1:D10");
-        Assert.True(result.Success);
+        _tableCommands.Resize(batch, "SalesTable", "A1:D10");
+        // Resize throws on error, so reaching here means success
 
         // Verify resize
         var resizedInfo = _tableCommands.Read(batch, "SalesTable");
@@ -194,8 +194,8 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         var initialInfo = _tableCommands.Read(batch, "SalesTable");
         var initialColumnCount = initialInfo.Table!.Columns!.Count;
 
-        var result = _tableCommands.AddColumn(batch, "SalesTable", "NewColumn");
-        Assert.True(result.Success);
+        _tableCommands.AddColumn(batch, "SalesTable", "NewColumn");
+        // AddColumn throws on error, so reaching here means success
 
         // Verify column added
         var updatedInfo = _tableCommands.Read(batch, "SalesTable");
@@ -214,8 +214,8 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        var result = _tableCommands.RenameColumn(batch, "SalesTable", "Amount", "Revenue");
-        Assert.True(result.Success);
+        _tableCommands.RenameColumn(batch, "SalesTable", "Amount", "Revenue");
+        // RenameColumn throws on error, so reaching here means success
 
         // Verify rename
         var info = _tableCommands.Read(batch, "SalesTable");
@@ -244,8 +244,8 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
             new() { "East", "Gadget", 600, DateTime.Now }
         };
 
-        var result = _tableCommands.Append(batch, "SalesTable", newRows);
-        Assert.True(result.Success);
+        _tableCommands.Append(batch, "SalesTable", newRows);
+        // Append throws on error, so reaching here means success
 
         // Verify rows added
         var info = _tableCommands.Read(batch, "SalesTable");
@@ -282,9 +282,8 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         var testFile = CreateTestFileWithTable(nameof(ApplyFilter_WithColumnCriteria_FiltersTable));
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _tableCommands.ApplyFilter(batch, "SalesTable", "Region", ["North"]);
-
-        Assert.True(result.Success);
+        _tableCommands.ApplyFilter(batch, "SalesTable", "Region", ["North"]);
+        // ApplyFilter throws on error, so reaching here means success
     }
 
     /// <summary>
@@ -302,8 +301,8 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         _tableCommands.ApplyFilter(batch, "SalesTable", "Region", ["North"]);
 
         // Clear filters
-        var result = _tableCommands.ClearFilters(batch, "SalesTable");
-        Assert.True(result.Success);
+        _tableCommands.ClearFilters(batch, "SalesTable");
+        // ClearFilters throws on error, so reaching here means success
     }
 
     #endregion
@@ -320,9 +319,8 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         var testFile = CreateTestFileWithTable(nameof(ToggleTotals_EnableTotals_AddsTotalsRow));
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        var result = _tableCommands.ToggleTotals(batch, "SalesTable", true);
-
-        Assert.True(result.Success);
+        _tableCommands.ToggleTotals(batch, "SalesTable", true);
+        // ToggleTotals throws on error, so reaching here means success
 
         // Verify totals enabled
         var info = _tableCommands.Read(batch, "SalesTable");
@@ -344,8 +342,8 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         _tableCommands.ToggleTotals(batch, "SalesTable", true);
 
         // Set sum for Amount column
-        var result = _tableCommands.SetColumnTotal(batch, "SalesTable", "Amount", "Sum");
-        Assert.True(result.Success);
+        _tableCommands.SetColumnTotal(batch, "SalesTable", "Amount", "Sum");
+        // SetColumnTotal throws on error, so reaching here means success
     }
 
     #endregion
@@ -399,11 +397,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         });
 
         // Create table from range A1:D5
-        var createResult = _tableCommands.Create(batch, "Sales", "SalesTable", "A1:D5", true, TableStylePresets.Medium2);
-        if (!createResult.Success)
-        {
-            throw new InvalidOperationException($"Failed to create test table: {createResult.ErrorMessage}");
-        }
+        _tableCommands.Create(batch, "Sales", "SalesTable", "A1:D5", true, TableStylePresets.Medium2);  // Create throws on error
 
         batch.Save();
         return testFile;
@@ -429,8 +423,8 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         var initialColumnCount = initialInfo.Table!.Columns!.Count;
 
         // Add column with purely numeric name
-        var result = _tableCommands.AddColumn(batch, "SalesTable", "60");
-        Assert.True(result.Success, $"Failed to add numeric column: {result.ErrorMessage}");
+        _tableCommands.AddColumn(batch, "SalesTable", "60");
+        // AddColumn throws on error, so reaching here means success
 
         // Verify column added
         var updatedInfo = _tableCommands.Read(batch, "SalesTable");
@@ -451,8 +445,8 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Rename "Amount" column to numeric name "60"
-        var result = _tableCommands.RenameColumn(batch, "SalesTable", "Amount", "60");
-        Assert.True(result.Success, $"Failed to rename to numeric column name: {result.ErrorMessage}");
+        _tableCommands.RenameColumn(batch, "SalesTable", "Amount", "60");
+        // RenameColumn throws on error, so reaching here means success
 
         // Verify column renamed
         var updatedInfo = _tableCommands.Read(batch, "SalesTable");
@@ -476,8 +470,8 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         _tableCommands.AddColumn(batch, "SalesTable", "60");
 
         // Then rename it to another numeric name
-        var result = _tableCommands.RenameColumn(batch, "SalesTable", "60", "120");
-        Assert.True(result.Success, $"Failed to rename numeric column to numeric name: {result.ErrorMessage}");
+        _tableCommands.RenameColumn(batch, "SalesTable", "60", "120");
+        // RenameColumn throws on error, so reaching here means success
 
         // Verify column renamed
         var updatedInfo = _tableCommands.Read(batch, "SalesTable");

@@ -112,23 +112,17 @@ public class PivotTableRealisticFixture : IAsyncLifetime
 
             // 3. Create Data Model PivotTable
             // First add table to Data Model
-            var addToModel = tableCommands.AddToDataModel(batch, "RegionalSalesTable");
-            if (!addToModel.Success)
-                throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: AddToDataModel failed: {addToModel.ErrorMessage}");
+            // AddToDataModel throws on error
+            tableCommands.AddToDataModel(batch, "RegionalSalesTable");
 
-            // Create measure in Data Model
-            var measure = dataModelCommands.CreateMeasure(
+            // CreateMeasure throws on error
+            dataModelCommands.CreateMeasure(
                 batch,
                 "RegionalSalesTable",
                 "TotalRevenue",
                 "SUM([Sales])",
                 "Total Revenue from all regions",
                 "#,##0");
-
-            if (!measure.Success)
-                throw new InvalidOperationException(
-                    $"CREATION TEST FAILED: Measure creation failed: {measure.ErrorMessage}");
 
             // Create PivotTable from Data Model
             sheetCommands.Create(batch, "ModelData");

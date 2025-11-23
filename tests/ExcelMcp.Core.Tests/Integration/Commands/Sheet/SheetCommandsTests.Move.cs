@@ -29,10 +29,9 @@ public partial class SheetCommandsTests
         _sheetCommands.List(batch);
 
         // Act - Move MoveMe before Sheet1
-        var result = _sheetCommands.Move(batch, "MoveMe", beforeSheet: "Sheet1");
+        _sheetCommands.Move(batch, "MoveMe", beforeSheet: "Sheet1");  // Move throws on error
 
-        // Assert
-        Assert.True(result.Success, $"Move failed: {result.ErrorMessage}");
+        // Assert - reaching here means move succeeded
 
         // Verify MoveMe moved to a different position (should now be before Sheet1)
         var afterList = _sheetCommands.List(batch);
@@ -60,10 +59,9 @@ public partial class SheetCommandsTests
         _sheetCommands.List(batch);
 
         // Act - Move MoveMe after Target
-        var result = _sheetCommands.Move(batch, "MoveMe", afterSheet: "Target");
+        _sheetCommands.Move(batch, "MoveMe", afterSheet: "Target");  // Move throws on error
 
-        // Assert
-        Assert.True(result.Success, $"Move failed: {result.ErrorMessage}");
+        // Assert - reaching here means move succeeded
 
         // Verify MoveMe is now after Target
         var afterList = _sheetCommands.List(batch);
@@ -88,10 +86,9 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "Sheet3");
 
         // Act - Move Sheet1 without specifying position
-        var result = _sheetCommands.Move(batch, "Sheet1");
+        _sheetCommands.Move(batch, "Sheet1");  // Move throws on error
 
-        // Assert
-        Assert.True(result.Success, $"Move failed: {result.ErrorMessage}");
+        // Assert - reaching here means move succeeded
 
         // Verify Sheet1 is now at the end
         var listResult = _sheetCommands.List(batch);
@@ -171,10 +168,9 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "SourceSheet", sourceFile);
 
         // Act - Copy sheet to target workbook with new name
-        var result = _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile, "CopiedSheet");
+        _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile, "CopiedSheet");  // CopyToWorkbook throws on error
 
-        // Assert
-        Assert.True(result.Success, $"CopyToWorkbook failed: {result.ErrorMessage}");
+        // Assert - reaching here means copy succeeded
 
         // Verify sheet exists in target workbook with new name
         var targetList = _sheetCommands.List(batch, targetFile);
@@ -200,10 +196,9 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "SourceSheet", sourceFile);
 
         // Act - Copy without specifying target name
-        var result = _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile);
+        _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile);  // CopyToWorkbook throws on error
 
-        // Assert
-        Assert.True(result.Success, $"CopyToWorkbook failed: {result.ErrorMessage}");
+        // Assert - reaching here means copy succeeded
 
         // Verify sheet was copied (Excel keeps original name)
         var targetList = _sheetCommands.List(batch, targetFile);
@@ -225,10 +220,9 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "SourceSheet", sourceFile);
 
         // Act - Copy before Sheet1 in target workbook
-        var result = _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile, "Copied", beforeSheet: "Sheet1");
+        _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile, "Copied", beforeSheet: "Sheet1");  // CopyToWorkbook throws on error
 
-        // Assert
-        Assert.True(result.Success, $"CopyToWorkbook failed: {result.ErrorMessage}");
+        // Assert - reaching here means copy succeeded
 
         // Verify sheet was copied to target workbook
         var targetList = _sheetCommands.List(batch, targetFile);
@@ -250,10 +244,9 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "SourceSheet", sourceFile);
 
         // Act - Copy after Sheet1 in target workbook
-        var result = _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile, "Copied", afterSheet: "Sheet1");
+        _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile, "Copied", afterSheet: "Sheet1");  // CopyToWorkbook throws on error
 
-        // Assert
-        Assert.True(result.Success, $"CopyToWorkbook failed: {result.ErrorMessage}");
+        // Assert - reaching here means copy succeeded
 
         // Verify sheet was copied to target workbook
         var targetList = _sheetCommands.List(batch, targetFile);
@@ -301,10 +294,9 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "MoveMe", sourceFile);
 
         // Act - Move sheet to target workbook
-        var result = _sheetCommands.MoveToWorkbook(batch, sourceFile, "MoveMe", targetFile);
+        _sheetCommands.MoveToWorkbook(batch, sourceFile, "MoveMe", targetFile);  // MoveToWorkbook throws on error
 
-        // Assert
-        Assert.True(result.Success, $"MoveToWorkbook failed: {result.ErrorMessage}");
+        // Assert - reaching here means move succeeded
 
         // Verify sheet exists in target workbook
         var targetList = _sheetCommands.List(batch, targetFile);
@@ -330,10 +322,9 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "MoveMe", sourceFile);
 
         // Act - Move before Sheet1 in target workbook
-        var result = _sheetCommands.MoveToWorkbook(batch, sourceFile, "MoveMe", targetFile, beforeSheet: "Sheet1");
+        _sheetCommands.MoveToWorkbook(batch, sourceFile, "MoveMe", targetFile, beforeSheet: "Sheet1");  // MoveToWorkbook throws on error
 
-        // Assert
-        Assert.True(result.Success, $"MoveToWorkbook failed: {result.ErrorMessage}");
+        // Assert - reaching here means move succeeded
 
         // Verify sheet was moved to target workbook
         var targetList = _sheetCommands.List(batch, targetFile);
@@ -359,10 +350,9 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "MoveMe", sourceFile);
 
         // Act - Move after Sheet1 in target workbook
-        var result = _sheetCommands.MoveToWorkbook(batch, sourceFile, "MoveMe", targetFile, afterSheet: "Sheet1");
+        _sheetCommands.MoveToWorkbook(batch, sourceFile, "MoveMe", targetFile, afterSheet: "Sheet1");  // MoveToWorkbook throws on error
 
-        // Assert
-        Assert.True(result.Success, $"MoveToWorkbook failed: {result.ErrorMessage}");
+        // Assert - reaching here means move succeeded
 
         // Verify sheet was moved to target workbook
         var targetList = _sheetCommands.List(batch, targetFile);

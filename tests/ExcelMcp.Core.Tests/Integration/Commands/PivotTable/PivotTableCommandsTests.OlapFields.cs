@@ -179,13 +179,12 @@ public partial class PivotTableCommandsTests
 
         // First, create a measure in the Data Model (not in PivotTable yet)
         var dataModelCommands = new DataModelCommands();
-        var createMeasureResult = dataModelCommands.CreateMeasure(
+        dataModelCommands.CreateMeasure(
             batch,
             "RegionalSalesTable",
             "Total ACR",
             "SUM('RegionalSalesTable'[Sales])",
-            null);
-        Assert.True(createMeasureResult.Success, $"Failed to create measure: {createMeasureResult.ErrorMessage}");
+            null);  // CreateMeasure throws on error
 
         // Refresh PivotTable to pick up the new measure in CubeFields
         _pivotCommands.Refresh(batch, "DataModelPivot", null);
@@ -225,13 +224,12 @@ public partial class PivotTableCommandsTests
         using var batch = ExcelSession.BeginBatch(olapTestFile);
 
         var dataModelCommands = new DataModelCommands();
-        var createResult = dataModelCommands.CreateMeasure(
+        dataModelCommands.CreateMeasure(
             batch,
             "RegionalSalesTable",
             "Revenue Total",
             "SUM('RegionalSalesTable'[Sales])",
-            null);
-        Assert.True(createResult.Success, $"Setup failed: {createResult.ErrorMessage}");
+            null);  // CreateMeasure throws on error
 
         _pivotCommands.Refresh(batch, "DataModelPivot", null);
 

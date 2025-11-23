@@ -38,10 +38,8 @@ public partial class SheetCommandsTests
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Act
-        var result = _sheetCommands.Create(batch, "TestSheet");
-
-        // Assert
-        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        _sheetCommands.Create(batch, "TestSheet");
+        // Create throws on error, so reaching here means success
 
         // Verify sheet actually exists
         var listResult = _sheetCommands.List(batch);
@@ -63,10 +61,8 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "OldName");
 
         // Act
-        var result = _sheetCommands.Rename(batch, "OldName", "NewName");
-
-        // Assert
-        Assert.True(result.Success, $"Rename failed: {result.ErrorMessage}");
+        _sheetCommands.Rename(batch, "OldName", "NewName");
+        // Rename throws on error, so reaching here means success
 
         // Verify rename actually happened
         var listResult = _sheetCommands.List(batch);
@@ -89,10 +85,8 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "ToDelete");
 
         // Act
-        var result = _sheetCommands.Delete(batch, "ToDelete");
-
-        // Assert
-        Assert.True(result.Success, $"Delete failed: {result.ErrorMessage}");
+        _sheetCommands.Delete(batch, "ToDelete");
+        // Delete throws on error, so reaching here means success
 
         // Verify sheet is actually gone
         var listResult = _sheetCommands.List(batch);
@@ -114,10 +108,9 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "Source");
 
         // Act
-        var result = _sheetCommands.Copy(batch, "Source", "Target");
+        _sheetCommands.Copy(batch, "Source", "Target");  // Copy throws on error
 
-        // Assert
-        Assert.True(result.Success, $"Copy failed: {result.ErrorMessage}");
+        // Assert - reaching here means copy succeeded
 
         // Verify both source and target sheets exist
         var listResult = _sheetCommands.List(batch);

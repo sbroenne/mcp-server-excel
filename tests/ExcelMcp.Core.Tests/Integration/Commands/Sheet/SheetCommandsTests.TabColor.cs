@@ -24,10 +24,9 @@ public partial class SheetCommandsTests
         _sheetCommands.Create(batch, "ColorTest");
 
         // Act - Set red color
-        var setResult = _sheetCommands.SetTabColor(batch, "ColorTest", 255, 0, 0);
+        _sheetCommands.SetTabColor(batch, "ColorTest", 255, 0, 0);  // SetTabColor throws on error
 
-        // Assert - Verify set succeeded
-        Assert.True(setResult.Success, $"SetTabColor failed: {setResult.ErrorMessage}");
+        // Assert - reaching here means set succeeded
 
         // Verify color was actually set by reading it back
         var getResult = _sheetCommands.GetTabColor(batch, "ColorTest");
@@ -129,10 +128,9 @@ public partial class SheetCommandsTests
         Assert.True(beforeClear.HasColor);
 
         // Act - Clear color
-        var clearResult = _sheetCommands.ClearTabColor(batch, "ClearTest");
+        _sheetCommands.ClearTabColor(batch, "ClearTest");  // ClearTabColor throws on error
 
-        // Assert
-        Assert.True(clearResult.Success);
+        // Assert - reaching here means clear succeeded
 
         var afterClear = _sheetCommands.GetTabColor(batch, "ClearTest");
         Assert.True(afterClear.Success);

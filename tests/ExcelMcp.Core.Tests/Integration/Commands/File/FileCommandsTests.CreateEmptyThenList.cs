@@ -79,8 +79,8 @@ public partial class FileCommandsTests
 
         foreach (var sheetName in sheetsToCreate)
         {
-            var createSheetResult = sheetCommands.Create(batch, sheetName);
-            Assert.True(createSheetResult.Success, $"Failed to create sheet '{sheetName}': {createSheetResult.ErrorMessage}");
+            sheetCommands.Create(batch, sheetName);
+            // Create throws on error, so reaching here means success
         }
 
         // Act 3: List all sheets
