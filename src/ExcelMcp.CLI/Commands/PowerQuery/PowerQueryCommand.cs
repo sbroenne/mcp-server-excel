@@ -88,13 +88,23 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_powerQueryCommands.Create(
-            batch,
-            queryName,
-            mCode,
-            loadMode,
-            settings.TargetSheet,
-            settings.TargetCellAddress));
+        try
+        {
+            _powerQueryCommands.Create(
+                batch,
+                queryName,
+                mCode,
+                loadMode,
+                settings.TargetSheet,
+                settings.TargetCellAddress);
+            _console.WriteJson(new { success = true, message = $"Query '{queryName}' created successfully" });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to create query: {ex.Message}");
+            return -1;
+        }
     }
 
     private int ExecuteUpdate(IExcelBatch batch, Settings settings)
@@ -105,7 +115,17 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_powerQueryCommands.Update(batch, queryName, mCode));
+        try
+        {
+            _powerQueryCommands.Update(batch, queryName, mCode);
+            _console.WriteJson(new { success = true, message = $"Query '{queryName}' updated successfully" });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to update query: {ex.Message}");
+            return -1;
+        }
     }
 
     private int ExecuteDelete(IExcelBatch batch, Settings settings)
@@ -115,7 +135,17 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
             return -1;
         }
 
-        return WriteResult(_powerQueryCommands.Delete(batch, queryName));
+        try
+        {
+            _powerQueryCommands.Delete(batch, queryName);
+            _console.WriteJson(new { success = true, message = $"Query '{queryName}' deleted successfully" });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to delete query: {ex.Message}");
+            return -1;
+        }
     }
 
     private int ExecuteRefresh(IExcelBatch batch, Settings settings)
@@ -141,7 +171,17 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
 
     private int ExecuteRefreshAll(IExcelBatch batch)
     {
-        return WriteResult(_powerQueryCommands.RefreshAll(batch));
+        try
+        {
+            _powerQueryCommands.RefreshAll(batch);
+            _console.WriteJson(new { success = true, message = "All queries refreshed successfully" });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to refresh queries: {ex.Message}");
+            return -1;
+        }
     }
 
     private int ExecuteLoadTo(IExcelBatch batch, Settings settings)
@@ -164,12 +204,22 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
             targetSheet = queryName;
         }
 
-        return WriteResult(_powerQueryCommands.LoadTo(
-            batch,
-            queryName,
-            loadMode,
-            targetSheet,
-            settings.TargetCellAddress));
+        try
+        {
+            _powerQueryCommands.LoadTo(
+                batch,
+                queryName,
+                loadMode,
+                targetSheet,
+                settings.TargetCellAddress);
+            _console.WriteJson(new { success = true, message = $"Query '{queryName}' load configuration applied successfully" });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to apply load configuration: {ex.Message}");
+            return -1;
+        }
     }
 
     private int WriteResult(ResultBase result)

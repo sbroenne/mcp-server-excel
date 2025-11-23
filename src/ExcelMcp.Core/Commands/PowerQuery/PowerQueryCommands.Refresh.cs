@@ -105,15 +105,10 @@ public partial class PowerQueryCommands
     /// Refreshes all Power Query queries in the workbook
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <returns>Operation result with refresh summary</returns>
-    public OperationResult RefreshAll(IExcelBatch batch)
+    /// <exception cref="InvalidOperationException">Thrown when refresh fails</exception>
+    public void RefreshAll(IExcelBatch batch)
     {
-        var result = new OperationResult
-        {
-            FilePath = batch.WorkbookPath
-        };
-
-        return batch.Execute((ctx, ct) =>
+        batch.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
 
@@ -121,7 +116,6 @@ public partial class PowerQueryCommands
             {
                 queries = ctx.Book.Queries;
                 int totalQueries = queries.Count;
-                int refreshedCount = 0;
                 var errors = new List<string>();
 
                 for (int i = 1; i <= totalQueries; i++)
@@ -139,7 +133,6 @@ public partial class PowerQueryCommands
                             try
                             {
                                 connection.Refresh();
-                                refreshedCount++;
                             }
                             catch (COMException ex)
                             {
@@ -153,18 +146,13 @@ public partial class PowerQueryCommands
                     }
                 }
 
-                // ✅ Rule 0: Success = false when errors exist
+                // Throw if any errors occurred
                 if (errors.Count > 0)
                 {
-                    result.Success = false;
-                    result.ErrorMessage = $"Some queries failed to refresh: {string.Join(", ", errors)}";
-                }
-                else
-                {
-                    result.Success = true;
+                    throw new InvalidOperationException($"Some queries failed to refresh: {string.Join(", ", errors)}");
                 }
 
-                return result;
+                return 0;
             }
             finally
             {
