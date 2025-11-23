@@ -96,15 +96,6 @@ public partial class RangeCommands
                     FilePath = batch.WorkbookPath
                 };
             }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to add validation to range '{rangeAddress}': {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
-            }
             finally
             {
                 ComUtilities.Release(ref validation!);
@@ -241,15 +232,6 @@ public partial class RangeCommands
                     ValidationErrorMessage = validationErrorMessage
                 };
             }
-            catch (Exception ex)
-            {
-                return new RangeValidationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to get validation for range '{rangeAddress}': {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
-            }
             finally
             {
                 ComUtilities.Release(ref validation!);
@@ -288,15 +270,6 @@ public partial class RangeCommands
                 return new OperationResult
                 {
                     Success = true,
-                    FilePath = batch.WorkbookPath
-                };
-            }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to remove validation from range '{rangeAddress}': {ex.Message}",
                     FilePath = batch.WorkbookPath
                 };
             }

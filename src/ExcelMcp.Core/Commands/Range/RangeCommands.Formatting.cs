@@ -42,15 +42,6 @@ public partial class RangeCommands
                     FilePath = batch.WorkbookPath
                 };
             }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to apply style '{styleName}' to range '{rangeAddress}': {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
-            }
             finally
             {
                 ComUtilities.Release(ref range!);
@@ -130,17 +121,6 @@ public partial class RangeCommands
                     StyleName = styleName,
                     IsBuiltInStyle = isBuiltIn,
                     StyleDescription = styleDescription
-                };
-            }
-            catch (Exception ex)
-            {
-                return new RangeStyleResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to get style from range {rangeAddress}: {ex.Message}",
-                    FilePath = batch.WorkbookPath,
-                    SheetName = sheetName,
-                    RangeAddress = rangeAddress
                 };
             }
             finally
@@ -254,15 +234,6 @@ public partial class RangeCommands
                 return new OperationResult
                 {
                     Success = true,
-                    FilePath = batch.WorkbookPath
-                };
-            }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to format range '{rangeAddress}': {ex.Message}",
                     FilePath = batch.WorkbookPath
                 };
             }

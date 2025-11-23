@@ -39,15 +39,6 @@ public partial class RangeCommands
                     FilePath = batch.WorkbookPath
                 };
             }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to merge cells in range '{rangeAddress}': {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
-            }
             finally
             {
                 ComUtilities.Release(ref range!);
@@ -83,15 +74,6 @@ public partial class RangeCommands
                 return new OperationResult
                 {
                     Success = true,
-                    FilePath = batch.WorkbookPath
-                };
-            }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to unmerge cells in range '{rangeAddress}': {ex.Message}",
                     FilePath = batch.WorkbookPath
                 };
             }
@@ -136,15 +118,6 @@ public partial class RangeCommands
                     IsMerged = isMerged
                 };
             }
-            catch (Exception ex)
-            {
-                return new RangeMergeInfoResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to get merge info for range '{rangeAddress}': {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
-            }
             finally
             {
                 ComUtilities.Release(ref range!);
@@ -181,15 +154,6 @@ public partial class RangeCommands
                 return new OperationResult
                 {
                     Success = true,
-                    FilePath = batch.WorkbookPath
-                };
-            }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to set cell lock for range '{rangeAddress}': {ex.Message}",
                     FilePath = batch.WorkbookPath
                 };
             }
@@ -232,15 +196,6 @@ public partial class RangeCommands
                     SheetName = sheetName,
                     RangeAddress = rangeAddress,
                     IsLocked = isLocked
-                };
-            }
-            catch (Exception ex)
-            {
-                return new RangeLockInfoResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to get cell lock info for range '{rangeAddress}': {ex.Message}",
-                    FilePath = batch.WorkbookPath
                 };
             }
             finally

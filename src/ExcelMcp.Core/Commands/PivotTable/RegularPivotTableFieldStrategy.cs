@@ -981,33 +981,20 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// <inheritdoc/>
     public OperationResult SetLayout(dynamic pivot, int layoutType, string workbookPath, ILogger? logger = null)
     {
-        try
-        {
-            // xlCompactRow=0, xlTabularRow=1, xlOutlineRow=2
-            pivot.RowAxisLayout(layoutType);
-            pivot.RefreshTable();
+        // xlCompactRow=0, xlTabularRow=1, xlOutlineRow=2
+        pivot.RowAxisLayout(layoutType);
+        pivot.RefreshTable();
 
-            if (logger is not null && logger.IsEnabled(LogLevel.Information))
-            {
-                logger.LogInformation("Set PivotTable layout to {LayoutType}", layoutType);
-            }
-
-            return new OperationResult
-            {
-                Success = true,
-                FilePath = workbookPath
-            };
-        }
-        catch (Exception ex)
+        if (logger is not null && logger.IsEnabled(LogLevel.Information))
         {
-            logger?.LogError(ex, "SetLayout failed for PivotTable");
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to set layout: {ex.Message}",
-                FilePath = workbookPath
-            };
+            logger.LogInformation("Set PivotTable layout to {LayoutType}", layoutType);
         }
+
+        return new OperationResult
+        {
+            Success = true,
+            FilePath = workbookPath
+        };
     }
 #pragma warning restore CA1848
 

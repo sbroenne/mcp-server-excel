@@ -41,15 +41,6 @@ public partial class RangeCommands
                     FilePath = batch.WorkbookPath
                 };
             }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to auto-fit columns for range '{rangeAddress}': {ex.Message}",
-                    FilePath = batch.WorkbookPath
-                };
-            }
             finally
             {
                 ComUtilities.Release(ref columns!);
@@ -88,15 +79,6 @@ public partial class RangeCommands
                 return new OperationResult
                 {
                     Success = true,
-                    FilePath = batch.WorkbookPath
-                };
-            }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to auto-fit rows for range '{rangeAddress}': {ex.Message}",
                     FilePath = batch.WorkbookPath
                 };
             }

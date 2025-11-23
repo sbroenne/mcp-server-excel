@@ -1009,34 +1009,21 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// <inheritdoc/>
     public OperationResult SetLayout(dynamic pivot, int layoutType, string workbookPath, ILogger? logger = null)
     {
-        try
-        {
-            // OLAP PivotTables support all three layout forms
-            // xlCompactRow=0, xlTabularRow=1, xlOutlineRow=2
-            pivot.RowAxisLayout(layoutType);
-            pivot.RefreshTable();
+        // OLAP PivotTables support all three layout forms
+        // xlCompactRow=0, xlTabularRow=1, xlOutlineRow=2
+        pivot.RowAxisLayout(layoutType);
+        pivot.RefreshTable();
 
-            if (logger?.IsEnabled(LogLevel.Information) == true)
-            {
-                logger.LogInformation("Set OLAP PivotTable layout to {LayoutType}", layoutType);
-            }
-
-            return new OperationResult
-            {
-                Success = true,
-                FilePath = workbookPath
-            };
-        }
-        catch (Exception ex)
+        if (logger?.IsEnabled(LogLevel.Information) == true)
         {
-            logger?.LogError(ex, "SetLayout failed for OLAP PivotTable");
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to set OLAP layout: {ex.Message}",
-                FilePath = workbookPath
-            };
+            logger.LogInformation("Set OLAP PivotTable layout to {LayoutType}", layoutType);
         }
+
+        return new OperationResult
+        {
+            Success = true,
+            FilePath = workbookPath
+        };
     }
 #pragma warning restore CA1848
 
@@ -1104,33 +1091,20 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 #pragma warning disable CA1848
     public OperationResult SetGrandTotals(dynamic pivot, bool showRowGrandTotals, bool showColumnGrandTotals, string workbookPath, ILogger? logger = null)
     {
-        try
-        {
-            pivot.RowGrand = showRowGrandTotals;
-            pivot.ColumnGrand = showColumnGrandTotals;
-            pivot.RefreshTable();
+        pivot.RowGrand = showRowGrandTotals;
+        pivot.ColumnGrand = showColumnGrandTotals;
+        pivot.RefreshTable();
 
-            if (logger is not null && logger.IsEnabled(LogLevel.Information))
-            {
-                logger.LogInformation("Set OLAP grand totals: Row={RowGrand}, Column={ColumnGrand}", showRowGrandTotals, showColumnGrandTotals);
-            }
-
-            return new OperationResult
-            {
-                Success = true,
-                FilePath = workbookPath
-            };
-        }
-        catch (Exception ex)
+        if (logger is not null && logger.IsEnabled(LogLevel.Information))
         {
-            logger?.LogError(ex, "SetGrandTotals failed for OLAP PivotTable");
-            return new OperationResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to set OLAP grand totals: {ex.Message}",
-                FilePath = workbookPath
-            };
+            logger.LogInformation("Set OLAP grand totals: Row={RowGrand}, Column={ColumnGrand}", showRowGrandTotals, showColumnGrandTotals);
         }
+
+        return new OperationResult
+        {
+            Success = true,
+            FilePath = workbookPath
+        };
     }
 #pragma warning restore CA1848
 
