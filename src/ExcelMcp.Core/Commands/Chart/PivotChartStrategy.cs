@@ -39,33 +39,36 @@ public class PivotChartStrategy : IChartStrategy
         };
 
         // Get linked PivotTable name
+        dynamic? pivotLayout = null;
+        dynamic? pivotTable = null;
         try
         {
-            dynamic pivotLayout = chart.PivotLayout;
-            dynamic pivotTable = pivotLayout.PivotTable;
+            pivotLayout = chart.PivotLayout;
+            pivotTable = pivotLayout.PivotTable;
             info.LinkedPivotTable = pivotTable.Name?.ToString() ?? string.Empty;
-            ComUtilities.Release(ref pivotTable!);
-            ComUtilities.Release(ref pivotLayout!);
         }
-        catch
+        finally
         {
-            // No linked PivotTable
+            if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
+            if (pivotLayout != null) ComUtilities.Release(ref pivotLayout!);
         }
 
         // Series count = number of value fields in PivotTable
+        dynamic? pivotLayout2 = null;
+        dynamic? pivotTable2 = null;
+        dynamic? dataFields = null;
         try
         {
-            dynamic pivotLayout = chart.PivotLayout;
-            dynamic pivotTable = pivotLayout.PivotTable;
-            dynamic dataFields = pivotTable.DataFields;
+            pivotLayout2 = chart.PivotLayout;
+            pivotTable2 = pivotLayout2.PivotTable;
+            dataFields = pivotTable2.DataFields;
             info.SeriesCount = Convert.ToInt32(dataFields.Count);
-            ComUtilities.Release(ref dataFields!);
-            ComUtilities.Release(ref pivotTable!);
-            ComUtilities.Release(ref pivotLayout!);
         }
-        catch
+        finally
         {
-            info.SeriesCount = 0;
+            if (dataFields != null) ComUtilities.Release(ref dataFields!);
+            if (pivotTable2 != null) ComUtilities.Release(ref pivotTable2!);
+            if (pivotLayout2 != null) ComUtilities.Release(ref pivotLayout2!);
         }
 
         return info;
@@ -88,17 +91,18 @@ public class PivotChartStrategy : IChartStrategy
         };
 
         // Get linked PivotTable name
+        dynamic? pivotLayout = null;
+        dynamic? pivotTable = null;
         try
         {
-            dynamic pivotLayout = chart.PivotLayout;
-            dynamic pivotTable = pivotLayout.PivotTable;
+            pivotLayout = chart.PivotLayout;
+            pivotTable = pivotLayout.PivotTable;
             info.LinkedPivotTable = pivotTable.Name?.ToString() ?? string.Empty;
-            ComUtilities.Release(ref pivotTable!);
-            ComUtilities.Release(ref pivotLayout!);
         }
-        catch
+        finally
         {
-            // No linked PivotTable
+            if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
+            if (pivotLayout != null) ComUtilities.Release(ref pivotLayout!);
         }
 
         // Get title
