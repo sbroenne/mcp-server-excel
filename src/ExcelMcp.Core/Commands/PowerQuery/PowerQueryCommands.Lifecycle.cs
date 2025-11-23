@@ -29,9 +29,25 @@ public partial class PowerQueryCommands
                     {
                         query = queriesCollection.Item(i);
                         string name = query.Name ?? $"Query{i}";
-                        string formula = query.Formula ?? "";
+
+                        // Try to read formula - some queries may not have accessible formulas
+                        string formula = "";
+                        try
+                        {
+                            formula = query.Formula?.ToString() ?? "";
+                        }
+                        catch (System.Runtime.InteropServices.COMException)
+                        {
+                            // Formula property not accessible (e.g., corrupted query, permission issue)
+                            // Don't fail the entire List operation - just mark this query
+                            formula = "";
+                        }
 
                         string preview = formula.Length > 80 ? formula[..77] + "..." : formula;
+                        if (string.IsNullOrEmpty(formula))
+                        {
+                            preview = "(formula not accessible)";
+                        }
 
                         // Check if loaded to table (ListObject) - same pattern as GetLoadConfig
                         bool isConnectionOnly = true;
