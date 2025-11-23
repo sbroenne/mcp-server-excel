@@ -34,7 +34,9 @@ public partial class ChartCommands
             {
                 // Determine strategy and delegate
                 IChartStrategy strategy = _pivotStrategy.CanHandle(findResult.Chart) ? _pivotStrategy : _regularStrategy;
+#pragma warning disable CS8604 // CodeQL false positive: Both strategies implement IChartStrategy.SetSourceRange with dynamic parameter
                 strategy.SetSourceRange(findResult.Chart, sourceRange);
+#pragma warning restore CS8604
 
                 return 0; // Void operation completed
             }
@@ -67,7 +69,9 @@ public partial class ChartCommands
             {
                 // Determine strategy and delegate
                 IChartStrategy strategy = _pivotStrategy.CanHandle(findResult.Chart) ? _pivotStrategy : _regularStrategy;
+#pragma warning disable CS8604 // CodeQL false positive: Both strategies implement IChartStrategy.AddSeries with dynamic parameter
                 var result = strategy.AddSeries(findResult.Chart, seriesName, valuesRange, categoryRange);
+#pragma warning restore CS8604
 
                 return result;
             }
@@ -95,7 +99,9 @@ public partial class ChartCommands
             {
                 // Determine strategy and delegate
                 IChartStrategy strategy = _pivotStrategy.CanHandle(findResult.Chart) ? _pivotStrategy : _regularStrategy;
+#pragma warning disable CS8604 // CodeQL false positive: Both strategies implement IChartStrategy.RemoveSeries with dynamic parameter
                 strategy.RemoveSeries(findResult.Chart, seriesIndex);
+#pragma warning restore CS8604
 
                 return 0; // Void operation completed
             }

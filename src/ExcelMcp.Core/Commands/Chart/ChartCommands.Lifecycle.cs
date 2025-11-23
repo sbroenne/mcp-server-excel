@@ -53,7 +53,9 @@ public partial class ChartCommands : IChartCommands
 
                             // Determine strategy and get info
                             IChartStrategy strategy = _pivotStrategy.CanHandle(chart) ? _pivotStrategy : _regularStrategy;
+#pragma warning disable CS8604 // CodeQL false positive: Both strategies implement IChartStrategy.GetInfo with dynamic parameters
                             var chartInfo = strategy.GetInfo(chart, chartName, sheetName, shape);
+#pragma warning restore CS8604
 
                             charts.Add(chartInfo);
                         }
@@ -123,7 +125,9 @@ public partial class ChartCommands : IChartCommands
 
                             // Determine strategy and get detailed info
                             IChartStrategy strategy = _pivotStrategy.CanHandle(chart) ? _pivotStrategy : _regularStrategy;
+#pragma warning disable CS8604 // CodeQL false positive: Both strategies implement IChartStrategy.GetDetailedInfo with dynamic parameters
                             var result = strategy.GetDetailedInfo(chart, chartName, sheetName, shape);
+#pragma warning restore CS8604
 
                             ComUtilities.Release(ref chart!);
                             ComUtilities.Release(ref shape!);
