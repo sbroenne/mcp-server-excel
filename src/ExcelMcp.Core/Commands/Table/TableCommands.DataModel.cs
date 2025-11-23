@@ -95,17 +95,6 @@ public partial class TableCommands
                         false                                    // ImportRelationships: false
                     );
                 }
-                catch (Exception ex)
-                {
-                    // Build diagnostic message
-                    var diagnostics = new List<string> { $"Connections.Add2 exception: {ex.Message}" };
-                    if (ex.InnerException != null)
-                    {
-                        diagnostics.Add($"Inner exception: {ex.InnerException.Message}");
-                    }
-
-                    throw new InvalidOperationException($"Failed to add table to Data Model. {string.Join(" -- ", diagnostics)}", ex);
-                }
                 finally
                 {
                     ComUtilities.Release(ref newConnection);
