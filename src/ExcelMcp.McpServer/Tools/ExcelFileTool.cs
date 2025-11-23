@@ -56,45 +56,42 @@ FILE FORMATS:
         [Description("Save changes before closing (for close action, default: false - use true to persist changes)")]
         bool save = false)
     {
-        try
-        {
-            var fileCommands = new FileCommands();
+        return ExcelToolsBase.ExecuteToolAction(
+            action.ToActionString(),
+            excelPath,
+            () =>
+            {
+                var fileCommands = new FileCommands();
 
-            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
-            return action switch
+                // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+                return action switch
+                {
+                    FileAction.Open => OpenSessionAsync(excelPath!),
+                    FileAction.Close => CloseSessionAsync(sessionId!, save),
+                    FileAction.CreateEmpty => CreateEmptyFileAsync(fileCommands, excelPath!,
+                        excelPath!.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase)),
+                    FileAction.CloseWorkbook => CloseWorkbook(excelPath!),
+                    FileAction.Test => TestFileAsync(fileCommands, excelPath!),
+                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            },
+            ex =>
             {
-                FileAction.Open => OpenSessionAsync(excelPath!),
-                FileAction.Close => CloseSessionAsync(sessionId!, save),
-                FileAction.CreateEmpty => CreateEmptyFileAsync(fileCommands, excelPath!,
-                    excelPath!.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase)),
-                FileAction.CloseWorkbook => CloseWorkbook(excelPath!),
-                FileAction.Test => TestFileAsync(fileCommands, excelPath!),
-                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (ArgumentException ex) when (ex.Message.Contains("action") || ex.Message.Contains("Action"))
-        {
-            // Invalid action value provided
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"Invalid action value. Valid actions: open, close, create-empty, close-workbook, test. {ex.Message}",
-                validActions = new[] { "open", "close", "create-empty", "close-workbook", "test" },
-                providedAction = action.ToString(),
-                workflowHint = "For persisting changes, use action='close' with save=true parameter (not action='save')",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
-                filePath = excelPath,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                if (ex is ArgumentException argEx && (argEx.Message.Contains("action") || argEx.Message.Contains("Action")))
+                {
+                    return JsonSerializer.Serialize(new
+                    {
+                        success = false,
+                        errorMessage = $"Invalid action value. Valid actions: open, close, create-empty, close-workbook, test. {argEx.Message}",
+                        validActions = new[] { "open", "close", "create-empty", "close-workbook", "test" },
+                        providedAction = action.ToString(),
+                        workflowHint = "For persisting changes, use action='close' with save=true parameter (not action='save')",
+                        isError = true
+                    }, ExcelToolsBase.JsonOptions);
+                }
+
+                return null;
+            });
     }
 
     /// <summary>

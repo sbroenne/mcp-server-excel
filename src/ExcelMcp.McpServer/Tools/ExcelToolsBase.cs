@@ -169,25 +169,71 @@ public static class ExcelToolsBase
     }
 
     /// <summary>
-    /// Converts Pascal/camelCase text to kebab-case for consistent naming.
-    /// Used internally for action parameter normalization.
+    /// Executes a tool operation and serializes any exception using shared error formatting.
     /// </summary>
-    /// <param name="text">Text to convert</param>
-    /// <returns>kebab-case version of the text</returns>
-    public static string ToKebabCase(string text)
-    {
-        if (string.IsNullOrEmpty(text))
-            return text;
+    /// <param name="actionName">Action string (kebab-case) included in error context.</param>
+    /// <param name="operation">Synchronous operation to execute.</param>
+    /// <param name="customHandler">Optional handler that can override default error serialization. Return null/empty to fall back to default.</param>
+    /// <returns>Serialized JSON response.</returns>
+    public static string ExecuteToolAction(
+        string actionName,
+        Func<string> operation,
+        Func<Exception, string?>? customHandler = null) =>
+        ExecuteToolAction(actionName, null, operation, customHandler);
 
-        var result = new System.Text.StringBuilder();
-        for (int i = 0; i < text.Length; i++)
+    /// <summary>
+    /// Executes a tool operation and serializes any exception using shared error formatting.
+    /// </summary>
+    /// <param name="actionName">Action string (kebab-case) included in error context.</param>
+    /// <param name="excelPath">Optional Excel path for context in error messages.</param>
+    /// <param name="operation">Synchronous operation to execute.</param>
+    /// <param name="customHandler">Optional handler that can override default error serialization. Return null/empty to fall back to default.</param>
+    /// <returns>Serialized JSON response.</returns>
+    public static string ExecuteToolAction(
+        string actionName,
+        string? excelPath,
+        Func<string> operation,
+        Func<Exception, string?>? customHandler = null)
+    {
+        try
         {
-            if (i > 0 && char.IsUpper(text[i]))
-            {
-                result.Append('-');
-            }
-            result.Append(char.ToLowerInvariant(text[i]));
+            return operation();
         }
-        return result.ToString();
+        catch (Exception ex)
+        {
+            if (customHandler != null)
+            {
+                var custom = customHandler(ex);
+                if (!string.IsNullOrWhiteSpace(custom))
+                {
+                    return custom!;
+                }
+            }
+
+            return SerializeToolError(actionName, excelPath, ex);
+        }
+    }
+
+    /// <summary>
+    /// Serializes a tool error response with consistent structure.
+    /// </summary>
+    /// <param name="actionName">Action string (kebab-case) included in message.</param>
+    /// <param name="excelPath">Optional Excel path context.</param>
+    /// <param name="ex">Exception to serialize.</param>
+    /// <returns>Serialized JSON error payload.</returns>
+    public static string SerializeToolError(string actionName, string? excelPath, Exception ex)
+    {
+        var errorMessage = excelPath != null
+            ? $"{actionName} failed for '{excelPath}': {ex.Message}"
+            : $"{actionName} failed: {ex.Message}";
+
+        var payload = new
+        {
+            success = false,
+            errorMessage,
+            isError = true
+        };
+
+        return JsonSerializer.Serialize(payload, JsonOptions);
     }
 }

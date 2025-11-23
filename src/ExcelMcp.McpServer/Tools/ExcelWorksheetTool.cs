@@ -93,41 +93,34 @@ POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
         [Description("Visibility level for set-visibility action: visible (normal), hidden (user can unhide), veryhidden (requires code to unhide)")]
         string? visibility = null)
     {
-        try
-        {
-            var sheetCommands = new SheetCommands();
+        return ExcelToolsBase.ExecuteToolAction(
+            action.ToActionString(),
+            () =>
+            {
+                var sheetCommands = new SheetCommands();
 
-            // Expression switch pattern for audit compliance
-            return action switch
-            {
-                WorksheetAction.List => ListAsync(sheetCommands, sessionId),
-                WorksheetAction.Create => CreateAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.Delete => DeleteAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.Rename => RenameAsync(sheetCommands, sessionId, sheetName, targetName),
-                WorksheetAction.Copy => CopyAsync(sheetCommands, sessionId, sheetName, targetName),
-                WorksheetAction.Move => MoveAsync(sheetCommands, sessionId, sheetName, beforeSheet, afterSheet),
-                WorksheetAction.CopyToWorkbook => CopyToWorkbookAsync(sheetCommands, sessionId, sheetName, targetSessionId, targetName, beforeSheet, afterSheet),
-                WorksheetAction.MoveToWorkbook => MoveToWorkbookAsync(sheetCommands, sessionId, sheetName, targetSessionId, beforeSheet, afterSheet),
-                WorksheetAction.SetTabColor => SetTabColorAsync(sheetCommands, sessionId, sheetName, red, green, blue),
-                WorksheetAction.GetTabColor => GetTabColorAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.ClearTabColor => ClearTabColorAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.SetVisibility => SetVisibilityAsync(sheetCommands, sessionId, sheetName, visibility),
-                WorksheetAction.GetVisibility => GetVisibilityAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.Show => ShowAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.Hide => HideAsync(sheetCommands, sessionId, sheetName),
-                WorksheetAction.VeryHide => VeryHideAsync(sheetCommands, sessionId, sheetName),
-                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                // Expression switch pattern for audit compliance
+                return action switch
+                {
+                    WorksheetAction.List => ListAsync(sheetCommands, sessionId),
+                    WorksheetAction.Create => CreateAsync(sheetCommands, sessionId, sheetName),
+                    WorksheetAction.Delete => DeleteAsync(sheetCommands, sessionId, sheetName),
+                    WorksheetAction.Rename => RenameAsync(sheetCommands, sessionId, sheetName, targetName),
+                    WorksheetAction.Copy => CopyAsync(sheetCommands, sessionId, sheetName, targetName),
+                    WorksheetAction.Move => MoveAsync(sheetCommands, sessionId, sheetName, beforeSheet, afterSheet),
+                    WorksheetAction.CopyToWorkbook => CopyToWorkbookAsync(sheetCommands, sessionId, sheetName, targetSessionId, targetName, beforeSheet, afterSheet),
+                    WorksheetAction.MoveToWorkbook => MoveToWorkbookAsync(sheetCommands, sessionId, sheetName, targetSessionId, beforeSheet, afterSheet),
+                    WorksheetAction.SetTabColor => SetTabColorAsync(sheetCommands, sessionId, sheetName, red, green, blue),
+                    WorksheetAction.GetTabColor => GetTabColorAsync(sheetCommands, sessionId, sheetName),
+                    WorksheetAction.ClearTabColor => ClearTabColorAsync(sheetCommands, sessionId, sheetName),
+                    WorksheetAction.SetVisibility => SetVisibilityAsync(sheetCommands, sessionId, sheetName, visibility),
+                    WorksheetAction.GetVisibility => GetVisibilityAsync(sheetCommands, sessionId, sheetName),
+                    WorksheetAction.Show => ShowAsync(sheetCommands, sessionId, sheetName),
+                    WorksheetAction.Hide => HideAsync(sheetCommands, sessionId, sheetName),
+                    WorksheetAction.VeryHide => VeryHideAsync(sheetCommands, sessionId, sheetName),
+                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            });
     }
 
     // === PRIVATE HELPER METHODS ===

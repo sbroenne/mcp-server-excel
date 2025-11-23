@@ -56,32 +56,25 @@ public static class ExcelVbaTool
         [Description("Parameters for VBA procedure execution (comma-separated)")]
         string? parameters = null)
     {
-        try
-        {
-            var vbaCommands = new VbaCommands();
+        return ExcelToolsBase.ExecuteToolAction(
+            action.ToActionString(),
+            excelPath,
+            () =>
+            {
+                var vbaCommands = new VbaCommands();
 
-            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
-            return action switch
-            {
-                VbaAction.List => ListVbaScriptsAsync(vbaCommands, sessionId),
-                VbaAction.View => ViewVbaScriptAsync(vbaCommands, sessionId, moduleName),
-                VbaAction.Import => ImportVbaScriptAsync(vbaCommands, sessionId, moduleName, vbaCode),
-                VbaAction.Update => UpdateVbaScriptAsync(vbaCommands, sessionId, moduleName, vbaCode),
-                VbaAction.Run => RunVbaScriptAsync(vbaCommands, sessionId, moduleName, parameters),
-                VbaAction.Delete => DeleteVbaScriptAsync(vbaCommands, sessionId, moduleName),
-                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
-                filePath = excelPath,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+                return action switch
+                {
+                    VbaAction.List => ListVbaScriptsAsync(vbaCommands, sessionId),
+                    VbaAction.View => ViewVbaScriptAsync(vbaCommands, sessionId, moduleName),
+                    VbaAction.Import => ImportVbaScriptAsync(vbaCommands, sessionId, moduleName, vbaCode),
+                    VbaAction.Update => UpdateVbaScriptAsync(vbaCommands, sessionId, moduleName, vbaCode),
+                    VbaAction.Run => RunVbaScriptAsync(vbaCommands, sessionId, moduleName, parameters),
+                    VbaAction.Delete => DeleteVbaScriptAsync(vbaCommands, sessionId, moduleName),
+                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            });
     }
 
     private static string ListVbaScriptsAsync(VbaCommands commands, string sessionId)

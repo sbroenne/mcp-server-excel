@@ -68,49 +68,43 @@ public static class TableTool
         [Description("Excel format code for set-column-number-format (e.g., '$#,##0.00', '0.00%', 'm/d/yyyy')")]
         string? formatCode = null)
     {
-        try
-        {
-            var tableCommands = new TableCommands();
+        return ExcelToolsBase.ExecuteToolAction(
+            action.ToActionString(),
+            excelPath,
+            () =>
+            {
+                var tableCommands = new TableCommands();
 
-            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
-            return action switch
-            {
-                TableAction.List => ListTables(tableCommands, sessionId),
-                TableAction.Create => CreateTable(tableCommands, sessionId, sheetName, tableName, range, hasHeaders, tableStyle),
-                TableAction.Read => ReadTable(tableCommands, sessionId, tableName),
-                TableAction.Rename => RenameTable(tableCommands, sessionId, tableName, newName),
-                TableAction.Delete => DeleteTable(tableCommands, sessionId, tableName),
-                TableAction.Resize => ResizeTable(tableCommands, sessionId, tableName, range),
-                TableAction.ToggleTotals => ToggleTotals(tableCommands, sessionId, tableName, hasHeaders),
-                TableAction.SetColumnTotal => SetColumnTotal(tableCommands, sessionId, tableName, newName, tableStyle),
-                TableAction.Append => AppendRows(tableCommands, sessionId, tableName, tableStyle),
-                TableAction.SetStyle => SetTableStyle(tableCommands, sessionId, tableName, tableStyle),
-                TableAction.AddToDataModel => AddToDataModel(tableCommands, sessionId, tableName),
-                TableAction.ApplyFilter => ApplyFilter(tableCommands, sessionId, tableName, newName, filterCriteria),
-                TableAction.ApplyFilterValues => ApplyFilterValues(tableCommands, sessionId, tableName, newName, filterValues),
-                TableAction.ClearFilters => ClearFilters(tableCommands, sessionId, tableName),
-                TableAction.GetFilters => GetFilters(tableCommands, sessionId, tableName),
-                TableAction.AddColumn => AddColumn(tableCommands, sessionId, tableName, newName, filterCriteria),
-                TableAction.RemoveColumn => RemoveColumn(tableCommands, sessionId, tableName, newName),
-                TableAction.RenameColumn => RenameColumn(tableCommands, sessionId, tableName, newName, filterCriteria),
-                TableAction.GetStructuredReference => GetStructuredReference(tableCommands, sessionId, tableName, filterCriteria, newName),
-                TableAction.Sort => SortTable(tableCommands, sessionId, tableName, newName, hasHeaders),
-                TableAction.SortMulti => SortTableMulti(tableCommands, sessionId, tableName, filterValues),
-                TableAction.GetColumnNumberFormat => GetColumnNumberFormat(tableCommands, sessionId, tableName, newName),
-                TableAction.SetColumnNumberFormat => SetColumnNumberFormat(tableCommands, sessionId, tableName, newName, formatCode),
-                _ => throw new ArgumentException(
-                    $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+                return action switch
+                {
+                    TableAction.List => ListTables(tableCommands, sessionId),
+                    TableAction.Create => CreateTable(tableCommands, sessionId, sheetName, tableName, range, hasHeaders, tableStyle),
+                    TableAction.Read => ReadTable(tableCommands, sessionId, tableName),
+                    TableAction.Rename => RenameTable(tableCommands, sessionId, tableName, newName),
+                    TableAction.Delete => DeleteTable(tableCommands, sessionId, tableName),
+                    TableAction.Resize => ResizeTable(tableCommands, sessionId, tableName, range),
+                    TableAction.ToggleTotals => ToggleTotals(tableCommands, sessionId, tableName, hasHeaders),
+                    TableAction.SetColumnTotal => SetColumnTotal(tableCommands, sessionId, tableName, newName, tableStyle),
+                    TableAction.Append => AppendRows(tableCommands, sessionId, tableName, tableStyle),
+                    TableAction.SetStyle => SetTableStyle(tableCommands, sessionId, tableName, tableStyle),
+                    TableAction.AddToDataModel => AddToDataModel(tableCommands, sessionId, tableName),
+                    TableAction.ApplyFilter => ApplyFilter(tableCommands, sessionId, tableName, newName, filterCriteria),
+                    TableAction.ApplyFilterValues => ApplyFilterValues(tableCommands, sessionId, tableName, newName, filterValues),
+                    TableAction.ClearFilters => ClearFilters(tableCommands, sessionId, tableName),
+                    TableAction.GetFilters => GetFilters(tableCommands, sessionId, tableName),
+                    TableAction.AddColumn => AddColumn(tableCommands, sessionId, tableName, newName, filterCriteria),
+                    TableAction.RemoveColumn => RemoveColumn(tableCommands, sessionId, tableName, newName),
+                    TableAction.RenameColumn => RenameColumn(tableCommands, sessionId, tableName, newName, filterCriteria),
+                    TableAction.GetStructuredReference => GetStructuredReference(tableCommands, sessionId, tableName, filterCriteria, newName),
+                    TableAction.Sort => SortTable(tableCommands, sessionId, tableName, newName, hasHeaders),
+                    TableAction.SortMulti => SortTableMulti(tableCommands, sessionId, tableName, filterValues),
+                    TableAction.GetColumnNumberFormat => GetColumnNumberFormat(tableCommands, sessionId, tableName, newName),
+                    TableAction.SetColumnNumberFormat => SetColumnNumberFormat(tableCommands, sessionId, tableName, newName, formatCode),
+                    _ => throw new ArgumentException(
+                        $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            });
     }
 
     private static string ListTables(TableCommands commands, string sessionId)

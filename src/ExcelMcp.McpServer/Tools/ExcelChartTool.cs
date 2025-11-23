@@ -86,38 +86,32 @@ public static class ExcelChartTool
         [Description("Chart style ID (1-48)")]
         int? styleId = null)
     {
-        var commands = new ChartCommands();
+        return ExcelToolsBase.ExecuteToolAction(
+            action.ToActionString(),
+            excelPath,
+            () =>
+            {
+                var commands = new ChartCommands();
 
-        try
-        {
-            return action switch
-            {
-                ChartAction.List => List(commands, sessionId),
-                ChartAction.Read => Read(commands, sessionId, chartName),
-                ChartAction.CreateFromRange => CreateFromRange(commands, sessionId, sheetName, sourceRange, chartType, left, top, width, height, chartName),
-                ChartAction.CreateFromPivotTable => CreateFromPivotTable(commands, sessionId, pivotTableName, sheetName, chartType, left, top, width, height, chartName),
-                ChartAction.Delete => Delete(commands, sessionId, chartName),
-                ChartAction.Move => Move(commands, sessionId, chartName, left, top, width, height),
-                ChartAction.SetSourceRange => SetSourceRange(commands, sessionId, chartName, sourceRange),
-                ChartAction.AddSeries => AddSeries(commands, sessionId, chartName, seriesName, valuesRange, categoryRange),
-                ChartAction.RemoveSeries => RemoveSeries(commands, sessionId, chartName, seriesIndex),
-                ChartAction.SetChartType => SetChartType(commands, sessionId, chartName, chartType),
-                ChartAction.SetTitle => SetTitle(commands, sessionId, chartName, title),
-                ChartAction.SetAxisTitle => SetAxisTitle(commands, sessionId, chartName, axis, title),
-                ChartAction.ShowLegend => ShowLegend(commands, sessionId, chartName, visible, legendPosition),
-                ChartAction.SetStyle => SetStyle(commands, sessionId, chartName, styleId),
-                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                return action switch
+                {
+                    ChartAction.List => List(commands, sessionId),
+                    ChartAction.Read => Read(commands, sessionId, chartName),
+                    ChartAction.CreateFromRange => CreateFromRange(commands, sessionId, sheetName, sourceRange, chartType, left, top, width, height, chartName),
+                    ChartAction.CreateFromPivotTable => CreateFromPivotTable(commands, sessionId, pivotTableName, sheetName, chartType, left, top, width, height, chartName),
+                    ChartAction.Delete => Delete(commands, sessionId, chartName),
+                    ChartAction.Move => Move(commands, sessionId, chartName, left, top, width, height),
+                    ChartAction.SetSourceRange => SetSourceRange(commands, sessionId, chartName, sourceRange),
+                    ChartAction.AddSeries => AddSeries(commands, sessionId, chartName, seriesName, valuesRange, categoryRange),
+                    ChartAction.RemoveSeries => RemoveSeries(commands, sessionId, chartName, seriesIndex),
+                    ChartAction.SetChartType => SetChartType(commands, sessionId, chartName, chartType),
+                    ChartAction.SetTitle => SetTitle(commands, sessionId, chartName, title),
+                    ChartAction.SetAxisTitle => SetAxisTitle(commands, sessionId, chartName, axis, title),
+                    ChartAction.ShowLegend => ShowLegend(commands, sessionId, chartName, visible, legendPosition),
+                    ChartAction.SetStyle => SetStyle(commands, sessionId, chartName, styleId),
+                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            });
     }
 
     private static string List(

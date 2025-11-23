@@ -87,31 +87,25 @@ Example: Highlight cells > 100 in red:
         [Description("Border color (#RRGGBB hex or color index, e.g., '#000000' for black)")]
         string? borderColor = null)
     {
-        try
-        {
-            var conditionalFormattingCommands = new ConditionalFormattingCommands();
+        return ExcelToolsBase.ExecuteToolAction(
+            action.ToActionString(),
+            excelPath,
+            () =>
+            {
+                var conditionalFormattingCommands = new ConditionalFormattingCommands();
 
-            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
-            return action switch
-            {
-                ConditionalFormatAction.AddRule => AddRuleAsync(
-                    conditionalFormattingCommands, sessionId, sheetName, rangeAddress, ruleType, operatorType,
-                    formula1, formula2, interiorColor, interiorPattern, fontColor, fontBold, fontItalic,
-                    borderStyle, borderColor),
-                ConditionalFormatAction.ClearRules => ClearRulesAsync(
-                    conditionalFormattingCommands, sessionId, sheetName, rangeAddress),
-                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+                return action switch
+                {
+                    ConditionalFormatAction.AddRule => AddRuleAsync(
+                        conditionalFormattingCommands, sessionId, sheetName, rangeAddress, ruleType, operatorType,
+                        formula1, formula2, interiorColor, interiorPattern, fontColor, fontBold, fontItalic,
+                        borderStyle, borderColor),
+                    ConditionalFormatAction.ClearRules => ClearRulesAsync(
+                        conditionalFormattingCommands, sessionId, sheetName, rangeAddress),
+                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            });
     }
 
     private static string AddRuleAsync(

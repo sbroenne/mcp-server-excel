@@ -46,32 +46,26 @@ public static class ExcelNamedRangeTool
         [Description("JSON array of named ranges for create-bulk action: [{name: 'Name', reference: 'Sheet1!A1', value: 'text'}, ...]")]
         string? namedRangesJson = null)
     {
-        try
-        {
-            var namedRangeCommands = new NamedRangeCommands();
+        return ExcelToolsBase.ExecuteToolAction(
+            action.ToActionString(),
+            excelPath,
+            () =>
+            {
+                var namedRangeCommands = new NamedRangeCommands();
 
-            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
-            return action switch
-            {
-                NamedRangeAction.List => ListNamedRangesAsync(namedRangeCommands, sessionId),
-                NamedRangeAction.Read => ReadNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName),
-                NamedRangeAction.Write => WriteNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
-                NamedRangeAction.Create => CreateNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
-                NamedRangeAction.CreateBulk => CreateBulkNamedRangesAsync(namedRangeCommands, sessionId, namedRangesJson),
-                NamedRangeAction.Update => UpdateNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
-                NamedRangeAction.Delete => DeleteNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName),
-                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+                return action switch
+                {
+                    NamedRangeAction.List => ListNamedRangesAsync(namedRangeCommands, sessionId),
+                    NamedRangeAction.Read => ReadNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName),
+                    NamedRangeAction.Write => WriteNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
+                    NamedRangeAction.Create => CreateNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
+                    NamedRangeAction.CreateBulk => CreateBulkNamedRangesAsync(namedRangeCommands, sessionId, namedRangesJson),
+                    NamedRangeAction.Update => UpdateNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName, value),
+                    NamedRangeAction.Delete => DeleteNamedRangeAsync(namedRangeCommands, sessionId, namedRangeName),
+                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            });
     }
 
     private static string ListNamedRangesAsync(NamedRangeCommands commands, string sessionId)

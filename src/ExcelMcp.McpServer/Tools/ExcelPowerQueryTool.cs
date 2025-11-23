@@ -69,39 +69,30 @@ public static class ExcelPowerQueryTool
         [Description("Timeout in seconds for refresh action (60-600 seconds / 1-10 minutes). Required when action is 'refresh'.")]
         int? refreshTimeoutSeconds = null)
     {
-        try
-        {
-            // Create commands
-            var dataModelCommands = new DataModelCommands();
-            var powerQueryCommands = new PowerQueryCommands(dataModelCommands);
-
-            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
-            return action switch
+        return ExcelToolsBase.ExecuteToolAction(
+            action.ToActionString(),
+            () =>
             {
-                PowerQueryAction.List => ListPowerQueriesAsync(powerQueryCommands, sessionId),
-                PowerQueryAction.View => ViewPowerQueryAsync(powerQueryCommands, sessionId, queryName),
-                PowerQueryAction.Refresh => RefreshPowerQueryAsync(powerQueryCommands, sessionId, queryName, refreshTimeoutSeconds),
-                PowerQueryAction.Delete => DeletePowerQueryAsync(powerQueryCommands, sessionId, queryName),
-                PowerQueryAction.GetLoadConfig => GetLoadConfigAsync(powerQueryCommands, sessionId, queryName),
+                var dataModelCommands = new DataModelCommands();
+                var powerQueryCommands = new PowerQueryCommands(dataModelCommands);
 
-                // Atomic Operations
-                PowerQueryAction.Create => CreatePowerQueryAsync(powerQueryCommands, sessionId, queryName, mCode, loadDestination, targetSheet, targetCellAddress),
-                PowerQueryAction.Update => UpdatePowerQueryAsync(powerQueryCommands, sessionId, queryName, mCode),
-                PowerQueryAction.LoadTo => LoadToPowerQueryAsync(powerQueryCommands, sessionId, queryName, loadDestination, targetSheet, targetCellAddress),
-                PowerQueryAction.RefreshAll => RefreshAllPowerQueriesAsync(powerQueryCommands, sessionId),
+                return action switch
+                {
+                    PowerQueryAction.List => ListPowerQueriesAsync(powerQueryCommands, sessionId),
+                    PowerQueryAction.View => ViewPowerQueryAsync(powerQueryCommands, sessionId, queryName),
+                    PowerQueryAction.Refresh => RefreshPowerQueryAsync(powerQueryCommands, sessionId, queryName, refreshTimeoutSeconds),
+                    PowerQueryAction.Delete => DeletePowerQueryAsync(powerQueryCommands, sessionId, queryName),
+                    PowerQueryAction.GetLoadConfig => GetLoadConfigAsync(powerQueryCommands, sessionId, queryName),
 
-                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                    // Atomic Operations
+                    PowerQueryAction.Create => CreatePowerQueryAsync(powerQueryCommands, sessionId, queryName, mCode, loadDestination, targetSheet, targetCellAddress),
+                    PowerQueryAction.Update => UpdatePowerQueryAsync(powerQueryCommands, sessionId, queryName, mCode),
+                    PowerQueryAction.LoadTo => LoadToPowerQueryAsync(powerQueryCommands, sessionId, queryName, loadDestination, targetSheet, targetCellAddress),
+                    PowerQueryAction.RefreshAll => RefreshAllPowerQueriesAsync(powerQueryCommands, sessionId),
+
+                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            });
     }
 
     private static string ListPowerQueriesAsync(PowerQueryCommands commands, string sessionId)

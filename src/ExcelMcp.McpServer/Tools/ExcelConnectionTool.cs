@@ -95,35 +95,29 @@ TIMEOUT SAFEGUARD:
         [Description("Refresh period in minutes (for set-properties, optional)")]
         int? refreshPeriod = null)
     {
-        try
-        {
-            var connectionCommands = new ConnectionCommands();
+        return ExcelToolsBase.ExecuteToolAction(
+            action.ToActionString(),
+            excelPath,
+            () =>
+            {
+                var connectionCommands = new ConnectionCommands();
 
-            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
-            return action switch
-            {
-                ConnectionAction.List => ListConnectionsAsync(connectionCommands, sessionId),
-                ConnectionAction.View => ViewConnectionAsync(connectionCommands, sessionId, connectionName),
-                ConnectionAction.Create => CreateConnectionAsync(connectionCommands, sessionId, connectionName, connectionString, commandText, description),
-                ConnectionAction.Refresh => RefreshConnectionAsync(connectionCommands, excelPath, sessionId, connectionName),
-                ConnectionAction.Delete => DeleteConnectionAsync(connectionCommands, sessionId, connectionName),
-                ConnectionAction.Test => TestConnectionAsync(connectionCommands, sessionId, connectionName),
-                ConnectionAction.LoadTo => LoadToWorksheetAsync(connectionCommands, sessionId, connectionName, sheetName),
-                ConnectionAction.GetProperties => GetPropertiesAsync(connectionCommands, sessionId, connectionName),
-                ConnectionAction.SetProperties => SetPropertiesAsync(connectionCommands, sessionId, connectionName, newConnectionString, newCommandText, newDescription, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod),
-                _ => throw new ArgumentException(
-                    $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+                return action switch
+                {
+                    ConnectionAction.List => ListConnectionsAsync(connectionCommands, sessionId),
+                    ConnectionAction.View => ViewConnectionAsync(connectionCommands, sessionId, connectionName),
+                    ConnectionAction.Create => CreateConnectionAsync(connectionCommands, sessionId, connectionName, connectionString, commandText, description),
+                    ConnectionAction.Refresh => RefreshConnectionAsync(connectionCommands, excelPath, sessionId, connectionName),
+                    ConnectionAction.Delete => DeleteConnectionAsync(connectionCommands, sessionId, connectionName),
+                    ConnectionAction.Test => TestConnectionAsync(connectionCommands, sessionId, connectionName),
+                    ConnectionAction.LoadTo => LoadToWorksheetAsync(connectionCommands, sessionId, connectionName, sheetName),
+                    ConnectionAction.GetProperties => GetPropertiesAsync(connectionCommands, sessionId, connectionName),
+                    ConnectionAction.SetProperties => SetPropertiesAsync(connectionCommands, sessionId, connectionName, newConnectionString, newCommandText, newDescription, backgroundQuery, refreshOnFileOpen, savePassword, refreshPeriod),
+                    _ => throw new ArgumentException(
+                        $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            });
     }
 
     private static string ListConnectionsAsync(ConnectionCommands commands, string sessionId)
