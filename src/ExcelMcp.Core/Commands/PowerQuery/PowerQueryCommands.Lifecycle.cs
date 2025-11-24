@@ -73,7 +73,20 @@ public partial class PowerQueryCommands
                                         try
                                         {
                                             listObject = listObjects.Item(lo);
-                                            queryTable = listObject.QueryTable;
+
+                                            // QueryTable property may throw 0x800A03EC if ListObject doesn't have a valid QueryTable
+                                            // This is normal - not all ListObjects have QueryTables (e.g., manually created tables)
+                                            try
+                                            {
+                                                queryTable = listObject.QueryTable;
+                                            }
+                                            catch (System.Runtime.InteropServices.COMException ex)
+                                                when (ex.HResult == unchecked((int)0x800A03EC))
+                                            {
+                                                // ListObject doesn't have QueryTable - skip it
+                                                continue;
+                                            }
+
                                             if (queryTable == null) continue;
 
                                             wbConn = queryTable.WorkbookConnection;
