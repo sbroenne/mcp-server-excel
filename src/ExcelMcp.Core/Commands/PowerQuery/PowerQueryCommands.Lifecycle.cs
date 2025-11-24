@@ -139,15 +139,12 @@ public partial class PowerQueryCommands
                             IsConnectionOnly = isConnectionOnly
                         });
                     }
-                    catch (Exception queryEx)
+                    catch (Exception)
                     {
-                        result.Queries.Add(new PowerQueryInfo
-                        {
-                            Name = $"Error Query {i}",
-                            Formula = "",
-                            FormulaPreview = $"Error: {queryEx.Message}",
-                            IsConnectionOnly = false
-                        });
+                        // ✅ Skip query if any error occurs during processing
+                        // This allows listing to continue for remaining queries
+                        // Exceptions are rare - typically only corrupted queries or access issues
+                        continue;
                     }
                     finally
                     {
