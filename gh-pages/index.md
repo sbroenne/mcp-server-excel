@@ -29,47 +29,28 @@ canonical_url: "https://sbroenne.github.io/mcp-server-excel/"
 <div class="container content-section" markdown="1">
 ## 🤔 What is This?
 
-Stop manually clicking through Excel menus for repetitive tasks. Instead, describe what you want in plain English and let the coding agent and the MCP Server handle the task:
+**Automate Excel with AI - A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.**
 
-- *"Load this sales data CSV file into Excel. Only keep the columns that I need to compare sales numbers month over month. Load them to a data model and create the necessary DAX measures. Add pivot tables.*
-- *"Create a PivotTable from SalesData table showing top 10 products by region with sum and average"*
-- *"Apply conditional formatting to highlight values above $10,000 in red and below $5,000 in yellow"*
-- *"Convert this data range to an Excel Table with style TableStyleMedium2, add auto-filters, and create a totals row"*
-- *"Add data validation dropdowns to the Status column with options: Active, Pending, Completed"*
-- *"Merge the header cells, center-align them, and auto-fit all column widths to content"*
-- "Extract all PowerQueries, DAX measures and VBA code so I can use version control in GIT".
+**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations - no Excel programming knowledge required. 
 
-The AI assistant analyzes your request, generates the proper Excel automation commands, and executes them **directly in your Excel application** - no formulas or programming knowledge required.
+**🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
+
+**💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
+
+**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. Both interfaces share the same 172 operations.
 
 ## 🚀 Visual Studio Code Quick Start (1 Minute)
 
 <p>One-click setup with GitHub Copilot integration</p>
 <p><a href="https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp" class="button-link">Install from Marketplace</a></p>
 
-## What is This Project?
-
-**ExcelMcp** is a comprehensive Excel automation toolkit with two interfaces:
-
-1. **MCP Server**: Enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands
-2. **CLI Tool**: Provides direct command-line control for scripting, RPA, and CI/CD workflows
-
-Both share the same core functionality: automate Power Query, DAX measures, VBA macros, PivotTables, formatting, and data transformations. Choose MCP for AI-powered conversations or CLI for programmatic control.
-
-**🛡️ 100% Safe - Uses Excel's Native COM API**
-
-Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), ExcelMcp uses **Excel's official COM API**. This ensures:
-- ✅ **Zero risk of document corruption** - Excel handles all file operations safely
-- ✅ **Interactive development** - See changes in real-time, create → test → refine → iterate instantly
-- ✅ **Comprehensive automation** - Currently supports 154 operations across 11 specialized tools covering Power Query, Data Model/DAX, VBA, PivotTables, Excel Tables, ranges, conditional formatting, and more
-
-**💻 For Developers:** Think of Excel as an AI-powered REPL - write code (Power Query M, DAX, VBA), execute instantly, inspect results visually in the live workbook. No more blind editing of .xlsx files.
-
 ## Key Features
 
 <div class="features-grid">
 <div class="feature-card">
-<h3>154 Operations</h3>
-<p>11 specialized tools (154 operations) covering Power Query, DAX, VBA, PivotTables, ranges, conditional formatting, and more</p>
+<h3>172 Operations</h3>
+<p>12 specialized tools with 172 operations covering Power Query, DAX, Charts, VBA, PivotTables, ranges, conditional formatting, and more</p>
+<p><a href="https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md">Complete Feature Reference →</a></p>
 </div>
 
 <div class="feature-card">
@@ -89,7 +70,7 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 
 <div class="feature-card">
 <h3>Comprehensive Automation</h3>
-<p>154 operations covering Power Query, DAX, VBA, Tables, and more</p>
+<p>172 operations covering Power Query, DAX, Charts, VBA, Tables, and more</p>
 </div>
 
 <div class="feature-card">
@@ -97,30 +78,6 @@ Unlike third-party libraries that manipulate `.xlsx` files directly (risking fil
 <p>Choose MCP for AI assistants or CLI for scripts and RPA</p>
 </div>
 </div>
-
-## Use Cases
-
-### Data Transformation & Analysis
-- Optimize Power Query M code for performance
-- Create PivotTables from data with natural language
-- Build DAX measures with AI guidance
-- Transform and clean data automatically
-
-👉 [See examples](#examples) of Power Query and DAX automation
-
-### Formatting & Styling (No Programming)
-- Format columns as currency, dates, percentages
-- Apply conditional formatting with color rules
-- Create Excel Tables with auto-filters
-- Add data validation dropdowns
-
-👉 [See examples](#examples) of formatting automation
-
-### Workflow Automation
-- Find and replace across ranges
-- Sort and filter data programmatically
-- Merge cells and auto-fit columns
-- Manage Powerquery M Code, DAX statements and VBA macros with version control
 
 ## Installation
 
@@ -206,7 +163,7 @@ excel-mcp vba-export --file "macro-workbook.xlsm" --module "Module1" --output "s
 <li><strong>Natural Language Control:</strong> Describe tasks in plain English</li>
 <li><strong>Safe:</strong> Official COM API - zero corruption risk</li>
 <li><strong>Interactive:</strong> See changes in real-time in Excel</li>
-<li><strong>Comprehensive:</strong> 154 operations across 11 tools</li>
+<li><strong>Comprehensive:</strong> 172 operations across 12 tools</li>
 <li><strong>Works with:</strong> GitHub Copilot, Claude, ChatGPT, and any MCP client</li>
 </ul>
 </div>
@@ -225,12 +182,12 @@ excel-mcp vba-export --file "macro-workbook.xlsm" --module "Module1" --output "s
 
 <div class="callout">
 <strong>Both Share the Same Core</strong>
-Same 154 operations available via CLI and MCP. Consistent behavior across interfaces. Full .NET library available for custom integrations.
+Same 172 operations available via CLI and MCP. Consistent behavior across interfaces.
 </div>
 
 ## Complete Tool & Action Reference
 
-**11 specialized tools with 154 operations:**
+**12 specialized tools with 172 operations:**
 
 <div class="tools-reference" markdown="1">
 
@@ -267,7 +224,7 @@ Same 154 operations available via CLI and MCP. Consistent behavior across interf
 | `read-info` | Get Data Model metadata and statistics |
 | `refresh` | Refresh entire Data Model |
 
-### 📋 Excel Tables (23 actions)
+### 📋 Excel Tables (24 actions)
 
 | Action | Description |
 |--------|-------------|
@@ -281,6 +238,7 @@ Same 154 operations available via CLI and MCP. Consistent behavior across interf
 | `toggle-totals` | Show/hide totals row |
 | `set-column-total` | Set aggregation function for column total |
 | `append` | Append rows to table |
+| `get-data` | Return table data (optionally respecting active filters) |
 | `add-to-datamodel` | Add table to Power Pivot Data Model |
 | `apply-filter` | Apply filter criteria to column |
 | `apply-filter-values` | Filter by specific values |
@@ -324,6 +282,25 @@ Same 154 operations available via CLI and MCP. Consistent behavior across interf
 | `get-grand-totals` | Get grand totals configuration |
 | `set-subtotals` | Configure subtotals for fields |
 | `get-subtotals` | Get subtotals configuration |
+
+### 📊 Charts (14 actions)
+
+| Action | Description |
+|--------|-------------|
+| `list` | List all charts in the workbook |
+| `read` | Read chart metadata and data source information |
+| `create-from-range` | Create chart from a worksheet range |
+| `create-from-pivottable` | Create PivotChart from a PivotTable |
+| `delete` | Delete a chart |
+| `move` | Move and resize chart on the sheet |
+| `set-source-range` | Update chart source range |
+| `add-series` | Add a new data series to the chart |
+| `remove-series` | Remove a data series by index |
+| `set-chart-type` | Change chart type (Column, Line, Pie, etc.) |
+| `set-title` | Set chart title text |
+| `set-axis-title` | Set title for primary or secondary axes |
+| `show-legend` | Show/hide legend and set legend position |
+| `set-style` | Apply built-in chart style (1-48) |
 
 ### 📝 Ranges & Data (42 actions)
 
@@ -425,7 +402,7 @@ Same 154 operations available via CLI and MCP. Consistent behavior across interf
 | `get-visibility` | Get current visibility state |
 | `set-visibility` | Set visibility state |
 
-### 🏷️ Named Ranges (7 actions)
+### 🏷️ Named Ranges (6 actions)
 
 | Action | Description |
 |--------|-------------|
@@ -436,16 +413,15 @@ Same 154 operations available via CLI and MCP. Consistent behavior across interf
 | `update` | Update named range reference |
 | `delete` | Delete named range |
 
-### 📁 File & Batch Operations (6 actions)
+### 📁 File Operations (5 actions)
 
 | Action | Description |
 |--------|-------------|
 | `open` | Open workbook session |
-| `save` | Save changes to workbook |
-| `close` | Close workbook session |
+| `close` | Close workbook session without saving |
 | `create-empty` | Create new empty workbook (.xlsx or .xlsm) |
+| `close-workbook` | Close workbook and optionally save changes |
 | `test` | Test if workbook can be opened |
-| `begin-batch` | Start batch session for multiple operations (75-90% faster) |
 
 </div>
 

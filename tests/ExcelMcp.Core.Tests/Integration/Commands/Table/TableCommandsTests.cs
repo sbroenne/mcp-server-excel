@@ -253,6 +253,48 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     }
 
     /// <summary>
+    /// Tests retrieving table data without filters.
+    /// LLM use case: "read the table data for analysis"
+    /// </summary>
+    [Fact]
+    public void GetData_WithoutFilters_ReturnsAllRows()
+    {
+        var testFile = CreateTestFileWithTable(nameof(GetData_WithoutFilters_ReturnsAllRows));
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        var result = _tableCommands.GetData(batch, "SalesTable", visibleOnly: false);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal("SalesTable", result.TableName);
+        Assert.Equal(4, result.Headers.Count);
+        Assert.Equal(4, result.RowCount); // Fixture data has 4 rows
+        Assert.Equal(result.RowCount, result.Data.Count);
+    }
+
+    /// <summary>
+    /// Tests retrieving only visible table rows after applying a filter.
+    /// LLM use case: "get the filtered dataset"
+    /// </summary>
+    [Fact]
+    public void GetData_WithVisibleOnlyFilter_ReturnsFilteredRows()
+    {
+        var testFile = CreateTestFileWithTable(nameof(GetData_WithVisibleOnlyFilter_ReturnsFilteredRows));
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Apply filter so only North region remains visible
+        _tableCommands.ApplyFilter(batch, "SalesTable", "Region", ["North"]);
+
+        var result = _tableCommands.GetData(batch, "SalesTable", visibleOnly: true);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(1, result.RowCount);
+        Assert.Single(result.Data);
+        Assert.Equal("North", result.Data[0][0]?.ToString());
+    }
+
+    /// <summary>
     /// Tests getting structured reference for a table column.
     /// LLM use case: "get the structured reference formula for this table column"
     /// </summary>

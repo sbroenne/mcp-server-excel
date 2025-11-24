@@ -21,7 +21,9 @@ public static class TableTool
     /// Manage Excel Tables (ListObjects) - comprehensive table management including Power Pivot integration
     /// </summary>
     [McpServerTool(Name = "excel_table")]
-    [Description(@"Manage Excel Tables (ListObjects) - structured data with AutoFilter")]
+    [Description(@"Manage Excel Tables (ListObjects) - structured data with AutoFilter.
+
+⚡ DATA ACCESS: Use action 'get-data' to return table rows. Set visibleOnly=true to respect active filters.")]
     public static string Table(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
@@ -66,7 +68,10 @@ public static class TableTool
         string? filterValues = null,
 
         [Description("Excel format code for set-column-number-format (e.g., '$#,##0.00', '0.00%', 'm/d/yyyy')")]
-        string? formatCode = null)
+        string? formatCode = null,
+
+        [Description("When reading data, return only rows currently visible after filters (default: false)")]
+        bool visibleOnly = false)
     {
         return ExcelToolsBase.ExecuteToolAction(
             action.ToActionString(),
@@ -87,6 +92,7 @@ public static class TableTool
                     TableAction.ToggleTotals => ToggleTotals(tableCommands, sessionId, tableName, hasHeaders),
                     TableAction.SetColumnTotal => SetColumnTotal(tableCommands, sessionId, tableName, newName, tableStyle),
                     TableAction.Append => AppendRows(tableCommands, sessionId, tableName, tableStyle),
+                    TableAction.GetData => GetData(tableCommands, sessionId, tableName, visibleOnly),
                     TableAction.SetStyle => SetTableStyle(tableCommands, sessionId, tableName, tableStyle),
                     TableAction.AddToDataModel => AddToDataModel(tableCommands, sessionId, tableName),
                     TableAction.ApplyFilter => ApplyFilter(tableCommands, sessionId, tableName, newName, filterCriteria),
@@ -155,6 +161,27 @@ public static class TableTool
         {
             result.Success,
             result.Table,
+            result.ErrorMessage
+        }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string GetData(TableCommands commands, string sessionId, string? tableName, bool visibleOnly)
+    {
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "get-data");
+
+        var result = ExcelToolsBase.WithSession(
+            sessionId,
+            batch => commands.GetData(batch, tableName!, visibleOnly));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.TableName,
+            result.Headers,
+            result.Data,
+            result.RowCount,
+            result.ColumnCount,
+            VisibleOnly = visibleOnly,
             result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }

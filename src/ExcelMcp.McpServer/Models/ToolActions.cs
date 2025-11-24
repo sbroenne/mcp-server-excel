@@ -238,6 +238,7 @@ public enum TableAction
 
     // Data Operations
     Append,
+    GetData,
 
     // Data Model
     AddToDataModel,

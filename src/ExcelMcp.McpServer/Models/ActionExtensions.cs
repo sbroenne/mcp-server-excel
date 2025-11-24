@@ -174,6 +174,7 @@ public static class ActionExtensions
         TableAction.ToggleTotals => "toggle-totals",
         TableAction.SetColumnTotal => "set-column-total",
         TableAction.Append => "append",
+        TableAction.GetData => "get-data",
         TableAction.AddToDataModel => "add-to-datamodel",
         TableAction.ApplyFilter => "apply-filter",
         TableAction.ApplyFilterValues => "apply-filter-values",
