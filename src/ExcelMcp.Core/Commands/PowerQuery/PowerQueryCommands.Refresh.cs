@@ -52,45 +52,15 @@ public partial class PowerQueryCommands
                     throw new InvalidOperationException(errorMsg);
                 }
 
-                try
-                {
-                    RefreshConnectionByQueryName(ctx.Book, queryName);
+                // Refresh the query - exceptions propagate naturally
+                RefreshConnectionByQueryName(ctx.Book, queryName);
 
-                    result.HasErrors = false;
-                    result.Success = true;
-                    result.LoadedToSheet = DetermineLoadedSheet(ctx.Book, queryName);
+                result.HasErrors = false;
+                result.Success = true;
+                result.LoadedToSheet = DetermineLoadedSheet(ctx.Book, queryName);
 
-                    bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
-                    result.IsConnectionOnly = string.IsNullOrEmpty(result.LoadedToSheet) && !isLoadedToDataModel;
-                }
-                catch (COMException comEx)
-                {
-                    result.Success = false;
-                    result.HasErrors = true;
-                    result.ErrorMessages.Add(ParsePowerQueryError(comEx));
-                    result.ErrorMessage = string.Join("; ", result.ErrorMessages);
-                }
-
-                if (!result.Success && result.ErrorMessages.Count == 0)
-                {
-                    ComUtilities.Release(ref query);
-                    query = null;
-
-                    string? loadedSheet = DetermineLoadedSheet(ctx.Book, queryName);
-                    bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
-
-                    if (loadedSheet != null || isLoadedToDataModel)
-                    {
-                        result.Success = true;
-                        result.IsConnectionOnly = false;
-                        result.LoadedToSheet = loadedSheet;
-                    }
-                    else
-                    {
-                        result.Success = true;
-                        result.IsConnectionOnly = true;
-                    }
-                }
+                bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
+                result.IsConnectionOnly = string.IsNullOrEmpty(result.LoadedToSheet) && !isLoadedToDataModel;
 
                 return result;
             }
