@@ -54,6 +54,7 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             "toggle-totals" => ExecuteToggleTotals(batch, settings),
             "set-column-total" => ExecuteSetColumnTotal(batch, settings),
             "append-rows" => ExecuteAppendRows(batch, settings),
+            "get-data" => ExecuteGetData(batch, settings),
             "set-style" => ExecuteSetStyle(batch, settings),
             "add-to-data-model" => ExecuteAddToDataModel(batch, settings),
             "apply-filter" => ExecuteApplyFilter(batch, settings),
@@ -274,6 +275,18 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             _console.WriteError($"Unexpected error: {ex.Message}");
             return 1;
         }
+    }
+
+    private int ExecuteGetData(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.TableName))
+        {
+            _console.WriteError("--table-name is required for get-data.");
+            return -1;
+        }
+
+        var visibleOnly = settings.VisibleOnly ?? false;
+        return WriteResult(_tableCommands.GetData(batch, settings.TableName, visibleOnly));
     }
 
     private int ExecuteSetStyle(IExcelBatch batch, Settings settings)
@@ -847,5 +860,8 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
 
         [CommandOption("--format-code <CODE>")]
         public string? FormatCode { get; init; }
+
+        [CommandOption("--visible-only <BOOL>")]
+        public bool? VisibleOnly { get; init; }
     }
 }

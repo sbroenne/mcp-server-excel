@@ -4,9 +4,11 @@
 [![Downloads](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.CLI.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**A professional command-line tool for Excel development workflows, Power Query management, VBA automation, and data operations.**
+**Optional command-line interface for Excel automation without AI assistance.**
 
-Control Microsoft Excel from your terminal - manage worksheets, Power Query M code, DAX measures, PivotTables, Excel Tables, VBA macros, and more. Perfect for CI/CD pipelines, automated testing, and reproducible Excel workflows.
+For advanced users who prefer direct scripting control, the CLI provides the same 172 operations as the MCP Server. Perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
+
+**Note:** Most users should use the [MCP Server with AI assistants](../ExcelMcp.McpServer/README.md) for natural language automation.
 
 ➡️ **[Learn more and see examples](https://sbroenne.github.io/mcp-server-excel/)**
 
@@ -76,7 +78,11 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **154 operations** across 11 categories:
+ExcelMcp.CLI provides **172 operations** across 12 categories:
+
+📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all operations
+
+**Quick Reference:**
 
 | Category | Operations | Examples |
 |----------|-----------|----------|
@@ -85,11 +91,12 @@ ExcelMcp.CLI provides **154 operations** across 11 categories:
 | **Power Query** | 9 | `powerquery list`, `powerquery create`, `powerquery refresh`, `powerquery update` |
 | **Ranges** | 42 | `range get-values`, `range set-values`, `range copy`, `range find`, `range merge-cells`, `range add-hyperlink` |
 | **Conditional Formatting** | 2 | `conditionalformat add-rule`, `conditionalformat clear-rules` |
-| **Excel Tables** | 23 | `table create`, `table apply-filter`, `table sort`, `table add-column`, `table get-column-format` |
+| **Excel Tables** | 24 | `table create`, `table apply-filter`, `table get-data`, `table sort`, `table add-column` |
+| **Charts** | 14 | `chart create-from-range`, `chart add-series`, `chart set-chart-type`, `chart show-legend` |
 | **PivotTables** | 25 | `pivottable create-from-range`, `pivottable add-row-field`, `pivottable refresh`, `pivottable delete` |
 | **Data Model** | 14 | `datamodel create-measure`, `datamodel create-relationship`, `datamodel refresh` |
 | **Connections** | 9 | `connection list`, `connection refresh`, `connection test` |
-| **Named Ranges** | 7 | `namedrange create`, `namedrange read`, `namedrange write`, `namedrange create-bulk` |
+| **Named Ranges** | 6 | `namedrange create`, `namedrange read`, `namedrange write`, `namedrange update` |
 | **VBA** | 6 | `vba list`, `vba import`, `vba run`, `vba update`
 
 ---

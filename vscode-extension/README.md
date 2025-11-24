@@ -3,56 +3,55 @@
 [![GitHub](https://img.shields.io/badge/GitHub-sbroenne%2Fmcp--server--excel-blue)](https://github.com/sbroenne/mcp-server-excel)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+
 **Control Microsoft Excel with AI through GitHub Copilot - just ask in natural language!**
 
-Instead of clicking through Excel menus, simply ask:
+**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations - no Excel programming knowledge required. 
+
+**🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
+
+**💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
+
+## Features
+
+The Excel MCP Server provides **12 specialized tools with 172 operations** for comprehensive Excel automation:
+
+- 🔄 **Power Query** (9 ops) - Atomic workflows, M code management, load destinations
+- 📊 **Data Model/DAX** (14 ops) - Measures, relationships, model structure
+- 🎨 **Excel Tables** (24 ops) - Lifecycle, filtering, sorting, structured references
+- 📈 **PivotTables** (25 ops) - Creation, fields, aggregations, data extraction
+- 📉 **Charts** (14 ops) - Create, configure, manage series and formatting
+- 📝 **VBA** (6 ops) - Modules, execution, version control
+- 📋 **Ranges** (42 ops) - Values, formulas, formatting, validation, protection
+- 📄 **Worksheets** (16 ops) - Lifecycle, colors, visibility, cross-workbook moves
+- 🔌 **Connections** (9 ops) - OLEDB/ODBC management and refresh
+- 🏷️ **Named Ranges** (6 ops) - Parameters and configuration
+- 📁 **Files** (5 ops) - Session management and workbook creation
+- 🎨 **Conditional Formatting** (2 ops) - Rules and clearing
+
+📚 **[Complete Feature Reference →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)**
+
+
+## 💬 Example Prompts
 
 **Data Transformation & Analysis:**
 - *"Optimize all my Power Queries in this workbook for better performance"*
-- *"Create a PivotTable from SalesData table showing top 10 products by region"*
+- *"Create a PivotTable from SalesData table showing top 10 products by region with sum and average"*
+- *"Create a data model from the following tables ... "*
 - *"Build a DAX measure calculating year-over-year growth with proper time intelligence"*
+- *"Filter this table by Column Product = Sushi"*
+- *"Create a treemap chart from this table".
 
 **Formatting & Styling (No Programming Required):**
-- *"Format revenue columns as currency, make headers bold with blue background"*
-- *"Apply conditional formatting to highlight values above $10,000 in red"*
-- *"Convert this range to an Excel Table with filters and totals row"*
+- *"Format the revenue columns as currency, make headers bold with blue background, and add borders to the table"*
+- *"Apply conditional formatting to highlight values above $10,000 in red and below $5,000 in yellow"*
+- *"Convert this data range to an Excel Table with style TableStyleMedium2, add auto-filters, and create a totals row"*
 
 **Workflow Automation:**
-- *"Find all cells containing 'Q1 2024' and replace with 'Q1 2025'"*
-- *"Add data validation dropdowns to Status column with options: Active, Pending, Completed"*
+- *"Find all cells containing 'Q1 2024' and replace with 'Q1 2025', then sort the table by Date descending"*
+- *"Add data validation dropdowns to the Status column with options: Active, Pending, Completed"*
+- *"Merge the header cells, center-align them, and auto-fit all column widths to content"*
 
-**🛡️ 100% Safe - Uses Excel's Native API**
-
-Unlike third-party libraries that manipulate `.xlsx` files directly (risking file corruption), Excel MCP Server uses **Excel's official COM API**. This ensures:
-- ✅ **Zero risk of document corruption** - Excel handles all file operations safely
-- ✅ **Interactive development** - See changes in real-time as you work with live Excel files
-- ✅ **Comprehensive automation** - Currently supports 154 operations across 11 specialized tools
-
-**Quick Example:**
-
-```
-You: "Create a Power Query named 'SalesData' that loads from data.csv into a worksheet and data model and creates matching pivot tables. Format it professionally."
-
-Copilot uses Excel MCP Server to:
-1. Create/open an Excel workbook
-2. Add the Power Query with proper M code based on its analysis of the CSV file
-3. Load the data to a worksheet and a data model
-4. Create profesionally formatted pivot tables
-
-Result: Just what you requested - without touching Excel once.
-```
-
-## 👥 Who Should Use This?
-
-**Perfect for:**
-- ✅ **Data analysts** automating repetitive Excel workflows
-- ✅ **Developers** building Excel-based data solutions
-- ✅ **Business users** managing complex Excel workbooks
-- ✅ **Teams** maintaining Power Query/VBA/DAX code in Git
-
-**Not suitable for:**
-- ❌ Linux/macOS users (Windows + Excel installation required)
-- ❌ High-volume batch operations (consider Excel-free alternatives)
 
 ## Quick Start
 
@@ -72,26 +71,7 @@ Result: Just what you requested - without touching Excel once.
 - **Microsoft Excel 2016+** - Must be installed on your system
 - **.NET 8 Runtime** - **Automatically installed** by the extension
 
-## What's Included
-
-## Features
-
-The Excel MCP Server provides **11 specialized tools (154 operations)** for comprehensive Excel automation:
-
-| Tool | Operations | Purpose |
-|------|------------|---------|
-| **excel_powerquery** | 9 actions | Power Query M code: create, view, update, delete, load configuration, list sources |
-| **excel_datamodel** | 14 actions | Power Pivot (Data Model): DAX measures, relationships, discover structure (tables, columns), refresh |
-| **excel_table** | 23 actions | Excel Tables: lifecycle, columns, filters, sorts, structured references, number formatting |
-| **excel_pivottable** | 25 actions | PivotTables: create, field management, aggregations, filters, sorting, grand totals control, extract data |
-| **excel_range** | 42 actions | Ranges: get/set values/formulas, formatting, validation, clear, copy, insert/delete, find/replace, merge, cell protection |
-| **excel_conditionalformat** | 2 actions | Conditional Formatting: add rules (cell value, expression-based), clear rules |
-| **excel_vba** | 6 actions | VBA: list, view, export, import, update, run modules |
-| **excel_connection** | 9 actions | Connections: OLEDB/ODBC management, properties, refresh |
-| **excel_worksheet** | 16 actions | Worksheets: lifecycle, tab colors, visibility, copy/move between workbooks |
-| **excel_namedrange** | 7 actions | Named ranges: list, get, set, create, delete, update, bulk create |
-| **excel_file** | 5 actions | File operations: open session, close session (with save option), create empty, test |
-| **Total** | **154 actions**
+## Potential Issues
 
 **"Excel is not installed" error:**
 - Ensure Microsoft Excel 2016+ is installed on your Windows machine

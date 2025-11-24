@@ -7,15 +7,15 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 [![NuGet Downloads](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue.svg)](https://github.com/sbroenne/mcp-server-excel)
 
-**Control Excel with Natural Language** through AI assistants like GitHub Copilot, Claude, and ChatGPT. This MCP server enables AI-powered Excel automation for Power Query, DAX measures, VBA macros, PivotTables, and more.
+**Control Excel with Natural Language** through AI assistants like GitHub Copilot, Claude, and ChatGPT. This MCP server enables AI-powered Excel automation for Power Query, DAX measures, VBA macros, PivotTables, Charts, and more.
 
 ➡️ **[Learn more and see examples](https://sbroenne.github.io/mcp-server-excel/)** 
 
-Also includes a powerful CLI for RPA (Robotic Process Automation) and scripting workflows.
-
 **🛡️ 100% Safe - Uses Excel's Native COM API**
 
-Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time. Currently supports **154 operations across 11 specialized tools** with active development expanding capabilities.
+Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time.
+
+**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. Both interfaces share the same 172 operations.
 
 **Requirements:** Windows OS + Excel 2016+
 
@@ -51,28 +51,28 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 ## 🛠️ What You Can Do
 
-**11 specialized tools with 154 operations:**
+**12 specialized tools with 172 operations:**
 
-1. **Power Query & M Code** (11 actions) - Create, edit, optimize Power Query transformations with AI assistance
-2. **Power Pivot / Data Model** (14 actions) - Build DAX measures, manage relationships, discover model structure, refresh data model
-3. **Excel Tables** (23 actions) - Automate table creation, filtering, sorting, column management, structured references, number formatting
-4. **PivotTables** (18 actions) - Create and configure PivotTables for interactive data analysis
-5. **Ranges & Data** (43 actions) - Get/set values/formulas, number formatting, visual formatting (font, fill, border, alignment), data validation, find/replace, sort, insert/delete, hyperlinks, merge, conditional formatting, cell protection
-6. **VBA Macros** (6 actions) - Import, update, run VBA code with version control integration
-7. **Data Connections** (9 actions) - Manage OLEDB, ODBC connections and properties
-8. **Worksheets** (16 actions) - Lifecycle management, tab colors, visibility controls
-9. **Named Ranges** (7 actions) - Manage parameters and configuration through named ranges
-10. **File Operations** (6 actions) - Create Excel workbooks (.xlsx/.xlsm), open/close workbook, save, test
-11. **Conditional Formatting** (2 actions) - Add and clear conditional formatting rules
+- 🔄 **Power Query** (9 ops) - Atomic workflows, M code management, load destinations
+- 📊 **Data Model/DAX** (14 ops) - Measures, relationships, model structure
+- 🎨 **Excel Tables** (24 ops) - Lifecycle, filtering, sorting, structured references
+- 📈 **PivotTables** (25 ops) - Creation, fields, aggregations, data extraction
+- 📉 **Charts** (14 ops) - Create, configure, manage series and formatting
+- 📝 **VBA** (6 ops) - Modules, execution, version control
+- 📋 **Ranges** (42 ops) - Values, formulas, formatting, validation, protection
+- 📄 **Worksheets** (16 ops) - Lifecycle, colors, visibility, cross-workbook moves
+- 🔌 **Connections** (9 ops) - OLEDB/ODBC management and refresh
+- 🏷️ **Named Ranges** (6 ops) - Parameters and configuration
+- 📁 **Files** (5 ops) - Session management and workbook creation
+- 🎨 **Conditional Formatting** (2 ops) - Rules and clearing
 
-**Total: 11 tools with 154 operations**
+📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 172 operations
 
 **AI-Powered Workflows:**
-- 💬 Natural language Excel commands through GitHub Copilot or Claude
+- 💬 Natural language Excel commands through GitHub Copilot, Claude, or ChatGPT
 - 🔄 Optimize Power Query M code for performance and readability  
 - 📊 Build complex DAX measures with AI guidance
 - 📋 Automate repetitive data transformations and formatting
-- 🤖 **RPA:** Comprehensive CLI for robotic process automation, CI/CD, and batch processing
 
 
 ---

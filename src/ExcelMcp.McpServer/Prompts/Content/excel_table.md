@@ -5,6 +5,7 @@
 - resize: Changes table boundaries (not the same as append)
 - get-structured-reference: Returns formula + range address for use with excel_range
 - set-style: Apply built-in Excel table styles (60+ presets available)
+- get-data: Returns row data (set `visibleOnly: true` to honor active filters)
 
 **Server-specific quirks**:
 - Column names: Any string including purely numeric (e.g., "60")
@@ -12,6 +13,7 @@
 - AutoFilter: Enabled by default on table creation
 - Structured references: =Table1[@ColumnName] (auto-adjusts when table resizes)
 - Table styles: Can be applied during create or changed later with set-style
+- get-data with `visibleOnly=true` returns only rows still visible after filters (same order as Excel)
 
 **Table Style Categories** (60+ built-in styles):
 - **Light** (TableStyleLight1-21): Subtle colors, minimal formatting

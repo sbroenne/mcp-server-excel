@@ -61,6 +61,15 @@ public interface ITableCommands
     void Append(IExcelBatch batch, string tableName, List<List<object?>> rows);
 
     /// <summary>
+    /// Retrieves data rows from a table, optionally limited to currently visible rows.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="tableName">Table name</param>
+    /// <param name="visibleOnly">If true, only rows not hidden by filters are returned</param>
+    /// <exception cref="InvalidOperationException">Table not found</exception>
+    TableDataResult GetData(IExcelBatch batch, string tableName, bool visibleOnly = false);
+
+    /// <summary>
     /// Changes the style of an Excel Table
     /// </summary>
     /// <exception cref="InvalidOperationException">Table not found or invalid style</exception>
