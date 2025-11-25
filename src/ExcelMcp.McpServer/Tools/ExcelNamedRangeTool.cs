@@ -40,6 +40,7 @@ public static class ExcelNamedRangeTool
         string? value = null)
     {
         return ExcelToolsBase.ExecuteToolAction(
+            "excel_namedrange",
             action.ToActionString(),
             excelPath,
             () =>

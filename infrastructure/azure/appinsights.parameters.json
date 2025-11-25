@@ -1,0 +1,28 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "resourceGroupName": {
+      "value": "excelmcp-observability"
+    },
+    "location": {
+      "value": "swedencentral"
+    },
+    "logAnalyticsName": {
+      "value": "excelmcp-logs"
+    },
+    "appInsightsName": {
+      "value": "excelmcp-appinsights"
+    },
+    "retentionInDays": {
+      "value": 90
+    },
+    "tags": {
+      "value": {
+        "project": "ExcelMcp",
+        "purpose": "Telemetry",
+        "managedBy": "Bicep"
+      }
+    }
+  }
+}

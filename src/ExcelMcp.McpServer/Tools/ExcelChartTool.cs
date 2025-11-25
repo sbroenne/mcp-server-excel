@@ -87,6 +87,7 @@ public static class ExcelChartTool
         int? styleId = null)
     {
         return ExcelToolsBase.ExecuteToolAction(
+            "excel_chart",
             action.ToActionString(),
             excelPath,
             () =>

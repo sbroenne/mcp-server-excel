@@ -94,6 +94,7 @@ POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
         string? visibility = null)
     {
         return ExcelToolsBase.ExecuteToolAction(
+            "excel_worksheet",
             action.ToActionString(),
             () =>
             {

@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ModelContextProtocol;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.McpServer.Telemetry;
 
 #pragma warning disable IL2070 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' requirements
 
@@ -170,34 +172,45 @@ public static class ExcelToolsBase
 
     /// <summary>
     /// Executes a tool operation and serializes any exception using shared error formatting.
+    /// Tracks tool usage telemetry (if enabled).
     /// </summary>
+    /// <param name="toolName">Tool name for telemetry (e.g., "excel_range").</param>
     /// <param name="actionName">Action string (kebab-case) included in error context.</param>
     /// <param name="operation">Synchronous operation to execute.</param>
     /// <param name="customHandler">Optional handler that can override default error serialization. Return null/empty to fall back to default.</param>
     /// <returns>Serialized JSON response.</returns>
     public static string ExecuteToolAction(
+        string toolName,
         string actionName,
         Func<string> operation,
         Func<Exception, string?>? customHandler = null) =>
-        ExecuteToolAction(actionName, null, operation, customHandler);
+        ExecuteToolAction(toolName, actionName, null, operation, customHandler);
 
     /// <summary>
     /// Executes a tool operation and serializes any exception using shared error formatting.
+    /// Tracks tool usage telemetry (if enabled).
     /// </summary>
+    /// <param name="toolName">Tool name for telemetry (e.g., "excel_range").</param>
     /// <param name="actionName">Action string (kebab-case) included in error context.</param>
     /// <param name="excelPath">Optional Excel path for context in error messages.</param>
     /// <param name="operation">Synchronous operation to execute.</param>
     /// <param name="customHandler">Optional handler that can override default error serialization. Return null/empty to fall back to default.</param>
     /// <returns>Serialized JSON response.</returns>
     public static string ExecuteToolAction(
+        string toolName,
         string actionName,
         string? excelPath,
         Func<string> operation,
         Func<Exception, string?>? customHandler = null)
     {
+        var stopwatch = Stopwatch.StartNew();
+        var success = false;
+
         try
         {
-            return operation();
+            var result = operation();
+            success = true;
+            return result;
         }
         catch (Exception ex)
         {
@@ -211,6 +224,11 @@ public static class ExcelToolsBase
             }
 
             return SerializeToolError(actionName, excelPath, ex);
+        }
+        finally
+        {
+            stopwatch.Stop();
+            ExcelMcpTelemetry.TrackToolInvocation(toolName, actionName, stopwatch.ElapsedMilliseconds, success);
         }
     }
 

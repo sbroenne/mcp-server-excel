@@ -2,5 +2,7 @@
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory).., 'Directory.Build.props'))\Directory.Build.props" />
   <PropertyGroup>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Use test.runsettings for all test projects (enables debug telemetry) -->
+    <RunSettingsFilePath>$(MSBuildThisFileDirectory)test.runsettings</RunSettingsFilePath>
   </PropertyGroup>
 </Project>

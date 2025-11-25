@@ -96,6 +96,7 @@ TIMEOUT SAFEGUARD:
         int? refreshPeriod = null)
     {
         return ExcelToolsBase.ExecuteToolAction(
+            "excel_connection",
             action.ToActionString(),
             excelPath,
             () =>

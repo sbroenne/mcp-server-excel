@@ -57,6 +57,7 @@ FILE FORMATS:
         bool save = false)
     {
         return ExcelToolsBase.ExecuteToolAction(
+            "excel_file",
             action.ToActionString(),
             excelPath,
             () =>

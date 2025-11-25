@@ -84,46 +84,41 @@ public static class ExcelDataModelTool
         bool? isActive = null)
     {
         _ = excelPath; // retained for schema compatibility (operations require open session)
-        try
-        {
-            var dataModelCommands = new DataModelCommands();
 
-            // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
-            return action switch
+        return ExcelToolsBase.ExecuteToolAction(
+            "excel_datamodel",
+            action.ToActionString(),
+            () =>
             {
-                // Discovery operations
-                DataModelAction.ListTables => ListTablesAsync(dataModelCommands, sessionId),
-                DataModelAction.ListMeasures => ListMeasuresAsync(dataModelCommands, sessionId),
-                DataModelAction.Read => ReadMeasureAsync(dataModelCommands, sessionId, measureName),
-                DataModelAction.ListRelationships => ListRelationshipsAsync(dataModelCommands, sessionId),
-                DataModelAction.Refresh => RefreshAsync(dataModelCommands, sessionId),
-                DataModelAction.DeleteMeasure => DeleteMeasureAsync(dataModelCommands, sessionId, measureName),
-                DataModelAction.DeleteRelationship => DeleteRelationshipAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn),
-                DataModelAction.ReadTable => ReadTableAsync(dataModelCommands, sessionId, tableName),
-                DataModelAction.ListColumns => ListColumnsAsync(dataModelCommands, sessionId, tableName),
-                DataModelAction.ReadInfo => ReadModelInfoAsync(dataModelCommands, sessionId),
+                var dataModelCommands = new DataModelCommands();
 
-                // DAX measures (requires Office 2016+)
-                DataModelAction.CreateMeasure => CreateMeasureComAsync(dataModelCommands, sessionId, tableName, measureName, daxFormula, formatString, description),
-                DataModelAction.UpdateMeasure => UpdateMeasureComAsync(dataModelCommands, sessionId, measureName, daxFormula, formatString, description),
+                // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
+                return action switch
+                {
+                    // Discovery operations
+                    DataModelAction.ListTables => ListTablesAsync(dataModelCommands, sessionId),
+                    DataModelAction.ListMeasures => ListMeasuresAsync(dataModelCommands, sessionId),
+                    DataModelAction.Read => ReadMeasureAsync(dataModelCommands, sessionId, measureName),
+                    DataModelAction.ListRelationships => ListRelationshipsAsync(dataModelCommands, sessionId),
+                    DataModelAction.Refresh => RefreshAsync(dataModelCommands, sessionId),
+                    DataModelAction.DeleteMeasure => DeleteMeasureAsync(dataModelCommands, sessionId, measureName),
+                    DataModelAction.DeleteRelationship => DeleteRelationshipAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn),
+                    DataModelAction.ReadTable => ReadTableAsync(dataModelCommands, sessionId, tableName),
+                    DataModelAction.ListColumns => ListColumnsAsync(dataModelCommands, sessionId, tableName),
+                    DataModelAction.ReadInfo => ReadModelInfoAsync(dataModelCommands, sessionId),
 
-                // Relationships (requires Office 2016+)
-                DataModelAction.CreateRelationship => CreateRelationshipComAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn, isActive),
-                DataModelAction.UpdateRelationship => UpdateRelationshipComAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn, isActive),
+                    // DAX measures (requires Office 2016+)
+                    DataModelAction.CreateMeasure => CreateMeasureComAsync(dataModelCommands, sessionId, tableName, measureName, daxFormula, formatString, description),
+                    DataModelAction.UpdateMeasure => UpdateMeasureComAsync(dataModelCommands, sessionId, measureName, daxFormula, formatString, description),
 
-                _ => throw new ArgumentException(
-                    $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed: {ex.Message}",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                    // Relationships (requires Office 2016+)
+                    DataModelAction.CreateRelationship => CreateRelationshipComAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn, isActive),
+                    DataModelAction.UpdateRelationship => UpdateRelationshipComAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn, isActive),
+
+                    _ => throw new ArgumentException(
+                        $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            });
     }
 
     private static string ListTablesAsync(DataModelCommands commands, string sessionId)

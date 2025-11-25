@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <RunConfiguration>
+    <!-- Enable debug telemetry during test runs (logs to console instead of Azure) -->
+    <EnvironmentVariables>
+      <EXCELMCP_DEBUG_TELEMETRY>true</EXCELMCP_DEBUG_TELEMETRY>
+    </EnvironmentVariables>
+  </RunConfiguration>
+</RunSettings>

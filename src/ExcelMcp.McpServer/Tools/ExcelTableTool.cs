@@ -74,6 +74,7 @@ public static class TableTool
         bool visibleOnly = false)
     {
         return ExcelToolsBase.ExecuteToolAction(
+            "excel_table",
             action.ToActionString(),
             excelPath,
             () =>
