@@ -75,6 +75,22 @@ jobs:
         cd vscode-extension
         npm install
 
+    - name: Inject Application Insights Connection String
+      run: |
+        $telemetryFile = "src/ExcelMcp.McpServer/Telemetry/ExcelMcpTelemetry.cs"
+        $connectionString = "${{ secrets.APPINSIGHTS_CONNECTION_STRING }}"
+
+        if ([string]::IsNullOrWhiteSpace($connectionString)) {
+          Write-Output "⚠️ APPINSIGHTS_CONNECTION_STRING secret not configured - telemetry will be disabled"
+        } else {
+          Write-Output "Injecting Application Insights connection string..."
+          $content = Get-Content $telemetryFile -Raw
+          $content = $content -replace '__APPINSIGHTS_CONNECTION_STRING__', $connectionString
+          Set-Content $telemetryFile $content
+          Write-Output "✅ Telemetry connection string injected"
+        }
+      shell: pwsh
+
     - name: Build and Package Extension
       run: |
         cd vscode-extension
