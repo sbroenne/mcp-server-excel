@@ -1,192 +1,184 @@
-# GitHub Copilot Instructions - ExcelMcp VS Code Extension
+# Excel MCP Server - Usage Instructions
 
-> **TypeScript VS Code Extension for Excel MCP Server Integration**
+> **How to use the Excel MCP Server tools to automate Microsoft Excel**
 
-## Overview
+## Prerequisites
 
-This VS Code extension provides one-click installation of the ExcelMcp MCP server, enabling AI assistants like GitHub Copilot to automate Microsoft Excel through natural language.
-
-**Key Technologies:**
-- TypeScript with ES2022 target
-- VS Code Extension API (^1.106.0)
-- MCP Server Definition Provider API
-- Bundled .NET 8 self-contained executable
+- **Windows OS** - Excel COM automation requires Windows
+- **Microsoft Excel 2016 or later** - Must be installed
+- **File must be CLOSED in Excel** - ExcelMcp requires exclusive file access
 
 ---
 
-## Project Structure
+## Available Tools (12 tools, 172 operations)
 
-```
-vscode-extension/
-├── src/extension.ts       # Extension entry point (activation, MCP registration)
-├── package.json           # Extension manifest (metadata, version, dependencies)
-├── tsconfig.json          # TypeScript configuration
-├── eslint.config.mjs      # ESLint rules (flat config)
-├── README.md              # Marketplace description
-├── CHANGELOG.md           # Version history
-├── bin/                   # Bundled MCP server executable
-└── out/                   # Compiled JavaScript output
-```
-
----
-
-## Coding Standards
-
-### TypeScript
-- Use strict mode (`"strict": true` in tsconfig.json)
-- Use ES2022 features and Node16 module resolution
-- Prefer `const` over `let`; avoid `var`
-- Use explicit type annotations for function parameters and return types
-
-### Naming Conventions
-- **Functions**: camelCase (`ensureDotNetRuntime`, `showWelcomeMessage`)
-- **Constants**: UPPER_SNAKE_CASE for true constants, camelCase for const variables
-- **Imports**: camelCase or PascalCase
-
-### VS Code API Patterns
-```typescript
-// Extension activation
-export async function activate(context: vscode.ExtensionContext) {
-    // Register disposables with context.subscriptions
-    context.subscriptions.push(
-        vscode.lm.registerMcpServerDefinitionProvider('excel-mcp', provider)
-    );
-}
-
-// Error handling
-try {
-    await asyncOperation();
-} catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    vscode.window.showErrorMessage(`ExcelMcp: ${errorMessage}`);
-}
-```
+| Tool | Purpose |
+|------|---------|
+| `excel_file` | Open/close sessions, create workbooks |
+| `excel_powerquery` | Import external data, M code management |
+| `excel_datamodel` | DAX measures, relationships, Power Pivot |
+| `excel_table` | Excel Tables with filtering and sorting |
+| `excel_pivottable` | PivotTables from ranges/tables/data model |
+| `excel_chart` | Create and configure charts |
+| `excel_range` | Cell values, formulas, formatting |
+| `excel_worksheet` | Sheet lifecycle (create, delete, rename) |
+| `excel_namedrange` | Named ranges for parameters |
+| `excel_connection` | Manage OLEDB/ODBC connections |
+| `excel_vba` | VBA modules (.xlsm files only) |
+| `excel_conditionalformat` | Conditional formatting rules |
 
 ---
 
-## Development Commands
+## Critical Rules
 
-```bash
-# Install dependencies
-npm install
+### Session Management
+- **ALWAYS** start with `excel_file(action: 'open')` before any operations
+- **KEEP session open** across multiple operations
+- **ONLY close** with `excel_file(action: 'close')` when all operations complete
+- Ask user "Should I close the session now?" if unclear
 
-# Compile TypeScript
-npm run compile
+### File Access
+- File MUST be closed in Excel UI before automation
+- Tell user: "Please close the file in Excel before running automation"
 
-# Watch mode (auto-recompile on changes)
-npm run watch
+---
 
-# Lint code
-npm run lint
+## Tool Selection Guide
 
-# Package extension (includes bundled MCP server)
-npm run package
+| Need | Use | NOT |
+|------|-----|-----|
+| External data (CSV, databases, APIs) | `excel_powerquery` | `excel_table` |
+| DAX measures / Data Model | `excel_datamodel` | `excel_range` |
+| Worksheet formulas | `excel_range` | `excel_datamodel` |
+| Convert range to table | `excel_table` | - |
+| Sheet lifecycle | `excel_worksheet` | - |
+| Named ranges | `excel_namedrange` | - |
+| VBA macros | `excel_vba` (.xlsm only) | - |
 
-# Build bundled MCP server executable
-npm run build:mcp-server
+---
+
+## Power Query (excel_powerquery)
+
+**Actions**: list, view, create, update, refresh, load-to, unload, delete
+
+**Load destinations** (critical for DAX):
+- `worksheet` - Users see data, NO DAX capability (default)
+- `data-model` - Ready for DAX, users DON'T see data
+- `both` - Users see data AND DAX works
+
+**Common patterns**:
+```
+# Import CSV to worksheet
+excel_powerquery(action: 'create', mCode: 'let Source = Csv.Document(...) in Source', loadDestination: 'worksheet')
+
+# Import for DAX analysis
+excel_powerquery(action: 'create', mCode: '...', loadDestination: 'data-model')
 ```
 
----
-
-## Testing
-
-### Local Testing (F5 Method)
-1. Open extension folder in VS Code
-2. Press F5 (opens Extension Development Host)
-3. Check Debug Console for activation logs:
-   - ✅ `ExcelMcp extension is now active`
-   - ✅ `ExcelMcp: .NET runtime setup completed`
-
-### VSIX Testing
-1. Run `npm run package` to create VSIX
-2. `Ctrl+Shift+P` → "Install from VSIX"
-3. Verify extension loads and MCP server is registered
+**Mistakes to avoid**:
+- Using `create` on existing query → use `update` instead
+- Omitting `loadDestination` when DAX is needed
 
 ---
 
-## Version Management
+## Data Model & DAX (excel_datamodel)
 
-**DO NOT manually edit `package.json` version** - The release workflow handles this:
+**Actions**: list-tables, read-table, list-columns, create-measure, update-measure, delete-measure, list-measures, list-relationships, create-relationship, delete-relationship
 
-```bash
-# Create and push tag - workflow does everything
-git tag vscode-v1.2.3
-git push origin vscode-v1.2.3
+**Prerequisites**: Data must be loaded with `loadDestination: 'data-model'` or `'both'`
+
+**DAX syntax** (NOT worksheet formulas):
+```
+# Create measure
+excel_datamodel(action: 'create-measure', tableName: 'Sales', measureName: 'Total Revenue', formula: 'SUM(Sales[Amount])')
 ```
 
-The workflow automatically:
-1. Extracts version from tag
-2. Updates package.json
-3. Updates CHANGELOG.md with release date
-4. Publishes to VS Code Marketplace
+---
+
+## Range Operations (excel_range)
+
+**Actions**: get-values, set-values, get-formulas, set-formulas, format-range, clear-all, clear-contents, copy, sort, find, replace, validate-range, add-hyperlink, merge-cells, autofit-columns, and more (42 total)
+
+**Quirks**:
+- Single cell returns `[[value]]` (2D array), NOT scalar
+- Named ranges: use `sheetName: ''` (empty string)
+
+**Format vs Style**:
+- Use `set-style` for built-in Excel styles (faster, theme-aware)
+- Use `format-range` only for custom brand colors
 
 ---
 
-## CHANGELOG.md Maintenance
+## Tables (excel_table)
 
-Keep a **top entry ready for next release** with placeholder version:
+**Actions**: create, list, get, resize, rename, delete, add-column, remove-column, append-rows, apply-filter, clear-filter, sort, get-data, add-to-datamodel, and more (24 total)
 
-```markdown
-## [X.Y.Z] - YYYY-MM-DD
+**When to use**: Structured data with headers, AutoFilter, structured references
 
-### Added
-- New feature description
+---
 
-### Fixed
-- Bug fix description
+## PivotTables (excel_pivottable)
+
+**Actions**: create, list, get, add-field, remove-field, set-aggregation, apply-filter, sort-field, refresh, get-data, delete, and more (25 total)
+
+**Create from different sources**:
+```
+# From range
+excel_pivottable(action: 'create', sourceType: 'range', sourceRange: 'Sheet1!A1:D100')
+
+# From table
+excel_pivottable(action: 'create', sourceType: 'table', tableName: 'SalesData')
+
+# From data model
+excel_pivottable(action: 'create', sourceType: 'datamodel')
 ```
 
-The release workflow replaces the version and date automatically.
+---
+
+## Common Mistakes
+
+| ❌ Wrong | ✅ Correct |
+|----------|-----------|
+| `excel_table(action: 'create')` for CSV import | `excel_powerquery(action: 'create', loadDestination: 'worksheet')` |
+| `excel_powerquery(action: 'create')` for DAX | `excel_powerquery(action: 'create', loadDestination: 'data-model')` |
+| `excel_namedrange(action: 'create')` called 5 times | `excel_namedrange(action: 'create-bulk')` with array |
+| `excel_range` for DAX formulas | `excel_datamodel(action: 'create-measure')` |
+| Working on file open in Excel | Ask user to close file first |
+| Closing session mid-workflow | Keep session open until complete |
 
 ---
 
-## Common Mistakes to Avoid
+## Error Handling
 
-| ❌ Don't | ✅ Do |
-|----------|-------|
-| Manually edit package.json version | Use git tags for releases |
-| Forget to add disposables to subscriptions | `context.subscriptions.push(...)` |
-| Use synchronous file operations | Use `vscode.workspace.fs` async API |
-| Ignore error types | Check `error instanceof Error` |
-| Skip lint before commit | Run `npm run lint` |
+**"File is already open"** → Tell user to close Excel file first
 
----
+**"Value does not fall within expected range"** → Usually invalid range address or unsupported operation
 
-## Extension Manifest (package.json)
+**"Query 'X' already exists"** → Use `update` action instead of `create`
 
-**Critical fields:**
-- `displayName`: Title shown in marketplace
-- `description`: Brief subtitle
-- `engines.vscode`: Minimum VS Code version
-- `activationEvents`: Use `onStartupFinished` for background activation
-- `extensionDependencies`: Include required extensions
-- `contributes.mcpServerDefinitionProviders`: MCP server registration
+**Refresh timeout** → Ask user to run refresh manually in Excel
 
 ---
 
-## MCP Server Integration
+## Example Workflows
 
-The extension registers an MCP server using the bundled executable:
+### Import CSV and Create PivotTable
+1. `excel_file(action: 'open', filePath: 'workbook.xlsx')`
+2. `excel_powerquery(action: 'create', mCode: '...', loadDestination: 'worksheet')`
+3. `excel_table(action: 'list')` - verify table created
+4. `excel_pivottable(action: 'create', sourceType: 'table', tableName: '...')`
+5. `excel_pivottable(action: 'add-field', fieldName: 'Region', area: 'Row')`
+6. `excel_file(action: 'close', save: true)`
 
-```typescript
-const extensionPath = context.extensionPath;
-const mcpServerPath = path.join(extensionPath, 'bin', 'Sbroenne.ExcelMcp.McpServer.exe');
-
-new vscode.McpStdioServerDefinition(
-    'ExcelMcp - Excel Automation',
-    mcpServerPath,
-    [],
-    {} // Environment variables
-)
-```
-
-**Note:** The MCP server is bundled as a self-contained .NET 8 executable (~41 MB).
+### Build DAX Measure
+1. `excel_file(action: 'open', filePath: 'workbook.xlsx')`
+2. `excel_powerquery(action: 'create', loadDestination: 'data-model', mCode: '...')`
+3. `excel_datamodel(action: 'create-measure', tableName: 'Sales', measureName: 'YoY Growth', formula: '...')`
+4. `excel_file(action: 'close', save: true)`
 
 ---
 
 ## References
 
-- [VS Code Extension API](https://code.visualstudio.com/api)
-- [MCP Server Definition Provider](https://code.visualstudio.com/api/references/vscode-api#McpServerDefinitionProvider)
-- [Publishing Extensions](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)
-- [Main Project Docs](https://github.com/sbroenne/mcp-server-excel)
+- [Complete Feature Reference](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)
+- [Main Documentation](https://github.com/sbroenne/mcp-server-excel)
