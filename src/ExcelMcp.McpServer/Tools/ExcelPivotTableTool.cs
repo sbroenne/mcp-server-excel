@@ -108,49 +108,45 @@ public static class ExcelPivotTableTool
         [Description("Show/hide column grand totals: true=show right summary column, false=hide")]
         bool? showColumnGrandTotals = null)
     {
-        var commands = new PivotTableCommands();
+        _ = excelPath; // retained for schema compatibility (operations require open session)
 
-        try
-        {
-            return action switch
+        return ExcelToolsBase.ExecuteToolAction(
+            "excel_pivottable",
+            action.ToActionString(),
+            () =>
             {
-                PivotTableAction.List => List(commands, sessionId),
-                PivotTableAction.Read => Read(commands, sessionId, pivotTableName),
-                PivotTableAction.CreateFromRange => CreateFromRange(commands, sessionId, sheetName, range, destinationSheet, destinationCell, pivotTableName),
-                PivotTableAction.CreateFromTable => CreateFromTable(commands, sessionId, tableName, destinationSheet, destinationCell, pivotTableName),
-                PivotTableAction.CreateFromDataModel => CreateFromDataModel(commands, sessionId, dataModelTableName, destinationSheet, destinationCell, pivotTableName),
-                PivotTableAction.Delete => Delete(commands, sessionId, pivotTableName),
-                PivotTableAction.Refresh => Refresh(commands, sessionId, pivotTableName),
-                PivotTableAction.ListFields => ListFields(commands, sessionId, pivotTableName),
-                PivotTableAction.AddRowField => AddRowField(commands, sessionId, pivotTableName, fieldName, position),
-                PivotTableAction.AddColumnField => AddColumnField(commands, sessionId, pivotTableName, fieldName, position),
-                PivotTableAction.AddValueField => AddValueField(commands, sessionId, pivotTableName, fieldName, aggregationFunction, customName),
-                PivotTableAction.AddFilterField => AddFilterField(commands, sessionId, pivotTableName, fieldName),
-                PivotTableAction.RemoveField => RemoveField(commands, sessionId, pivotTableName, fieldName),
-                PivotTableAction.SetFieldFunction => SetFieldFunction(commands, sessionId, pivotTableName, fieldName, aggregationFunction),
-                PivotTableAction.SetFieldName => SetFieldName(commands, sessionId, pivotTableName, fieldName, customName),
-                PivotTableAction.SetFieldFormat => SetFieldFormat(commands, sessionId, pivotTableName, fieldName, numberFormat),
-                PivotTableAction.GetData => GetData(commands, sessionId, pivotTableName),
-                PivotTableAction.SetFieldFilter => SetFieldFilter(commands, sessionId, pivotTableName, fieldName, filterValues),
-                PivotTableAction.SortField => SortField(commands, sessionId, pivotTableName, fieldName, sortDirection),
-                PivotTableAction.GroupByDate => GroupByDate(commands, sessionId, pivotTableName, fieldName, dateGroupingInterval),
-                PivotTableAction.GroupByNumeric => GroupByNumeric(commands, sessionId, pivotTableName, fieldName, numericGroupingStart, numericGroupingEnd, numericGroupingInterval),
-                PivotTableAction.CreateCalculatedField => CreateCalculatedField(commands, sessionId, pivotTableName, fieldName, formula),
-                PivotTableAction.SetLayout => SetLayout(commands, sessionId, pivotTableName, layout),
-                PivotTableAction.SetSubtotals => SetSubtotals(commands, sessionId, pivotTableName, fieldName, subtotalsVisible),
-                PivotTableAction.SetGrandTotals => SetGrandTotals(commands, sessionId, pivotTableName, showRowGrandTotals, showColumnGrandTotals),
-                _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-            };
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = $"{action.ToActionString()} failed for '{excelPath}': {ex.Message}",
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+                var commands = new PivotTableCommands();
+
+                return action switch
+                {
+                    PivotTableAction.List => List(commands, sessionId),
+                    PivotTableAction.Read => Read(commands, sessionId, pivotTableName),
+                    PivotTableAction.CreateFromRange => CreateFromRange(commands, sessionId, sheetName, range, destinationSheet, destinationCell, pivotTableName),
+                    PivotTableAction.CreateFromTable => CreateFromTable(commands, sessionId, tableName, destinationSheet, destinationCell, pivotTableName),
+                    PivotTableAction.CreateFromDataModel => CreateFromDataModel(commands, sessionId, dataModelTableName, destinationSheet, destinationCell, pivotTableName),
+                    PivotTableAction.Delete => Delete(commands, sessionId, pivotTableName),
+                    PivotTableAction.Refresh => Refresh(commands, sessionId, pivotTableName),
+                    PivotTableAction.ListFields => ListFields(commands, sessionId, pivotTableName),
+                    PivotTableAction.AddRowField => AddRowField(commands, sessionId, pivotTableName, fieldName, position),
+                    PivotTableAction.AddColumnField => AddColumnField(commands, sessionId, pivotTableName, fieldName, position),
+                    PivotTableAction.AddValueField => AddValueField(commands, sessionId, pivotTableName, fieldName, aggregationFunction, customName),
+                    PivotTableAction.AddFilterField => AddFilterField(commands, sessionId, pivotTableName, fieldName),
+                    PivotTableAction.RemoveField => RemoveField(commands, sessionId, pivotTableName, fieldName),
+                    PivotTableAction.SetFieldFunction => SetFieldFunction(commands, sessionId, pivotTableName, fieldName, aggregationFunction),
+                    PivotTableAction.SetFieldName => SetFieldName(commands, sessionId, pivotTableName, fieldName, customName),
+                    PivotTableAction.SetFieldFormat => SetFieldFormat(commands, sessionId, pivotTableName, fieldName, numberFormat),
+                    PivotTableAction.GetData => GetData(commands, sessionId, pivotTableName),
+                    PivotTableAction.SetFieldFilter => SetFieldFilter(commands, sessionId, pivotTableName, fieldName, filterValues),
+                    PivotTableAction.SortField => SortField(commands, sessionId, pivotTableName, fieldName, sortDirection),
+                    PivotTableAction.GroupByDate => GroupByDate(commands, sessionId, pivotTableName, fieldName, dateGroupingInterval),
+                    PivotTableAction.GroupByNumeric => GroupByNumeric(commands, sessionId, pivotTableName, fieldName, numericGroupingStart, numericGroupingEnd, numericGroupingInterval),
+                    PivotTableAction.CreateCalculatedField => CreateCalculatedField(commands, sessionId, pivotTableName, fieldName, formula),
+                    PivotTableAction.SetLayout => SetLayout(commands, sessionId, pivotTableName, layout),
+                    PivotTableAction.SetSubtotals => SetSubtotals(commands, sessionId, pivotTableName, fieldName, subtotalsVisible),
+                    PivotTableAction.SetGrandTotals => SetGrandTotals(commands, sessionId, pivotTableName, showRowGrandTotals, showColumnGrandTotals),
+                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                };
+            });
     }
 
     private static string List(

@@ -70,6 +70,7 @@ public static class ExcelPowerQueryTool
         int? refreshTimeoutSeconds = null)
     {
         return ExcelToolsBase.ExecuteToolAction(
+            "excel_powerquery",
             action.ToActionString(),
             () =>
             {

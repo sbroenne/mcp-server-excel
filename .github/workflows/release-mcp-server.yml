@@ -7,8 +7,9 @@ name: Release MCP Server & CLI
 # Unified Versioning: MCP Server and CLI always release together with the same version
 # Tag pattern: v1.2.3 (removes mcp-v prefix, CLI and MCP Server share version)
 #
-# Required GitHub Secret:
+# Required GitHub Secrets:
 # - NUGET_USER: Your NuGet.org username (profile name, NOT email)
+# - APPINSIGHTS_CONNECTION_STRING: Application Insights connection string for telemetry
 #
 # Required NuGet.org Configuration:
 # - Package: Sbroenne.ExcelMcp.McpServer
@@ -94,6 +95,22 @@ jobs:
       run: |
         dotnet restore src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
         dotnet restore src/ExcelMcp.CLI/ExcelMcp.CLI.csproj
+
+    - name: Inject Application Insights Connection String
+      run: |
+        $telemetryFile = "src/ExcelMcp.McpServer/Telemetry/ExcelMcpTelemetry.cs"
+        $connectionString = "${{ secrets.APPINSIGHTS_CONNECTION_STRING }}"
+
+        if ([string]::IsNullOrWhiteSpace($connectionString)) {
+          Write-Output "⚠️ APPINSIGHTS_CONNECTION_STRING secret not configured - telemetry will be disabled"
+        } else {
+          Write-Output "Injecting Application Insights connection string..."
+          $content = Get-Content $telemetryFile -Raw
+          $content = $content -replace '__APPINSIGHTS_CONNECTION_STRING__', $connectionString
+          Set-Content $telemetryFile $content
+          Write-Output "✅ Telemetry connection string injected"
+        }
+      shell: pwsh
 
     - name: Build MCP Server & CLI
       run: |

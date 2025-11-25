@@ -225,3 +225,4 @@ gh-pages/vendor
 gh-pages/_site/*
 
 codeql-db/*
+infrastructure/azure/appinsights.secrets.local

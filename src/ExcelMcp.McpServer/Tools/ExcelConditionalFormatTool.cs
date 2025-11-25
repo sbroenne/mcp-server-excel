@@ -88,6 +88,7 @@ Example: Highlight cells > 100 in red:
         string? borderColor = null)
     {
         return ExcelToolsBase.ExecuteToolAction(
+            "excel_conditionalformat",
             action.ToActionString(),
             excelPath,
             () =>

@@ -371,6 +371,157 @@ dotnet build -c Release
 .\src\ExcelMcp.CLI\bin\Release\net10.0\excelcli.exe --version
 ```
 
+## 📊 **Application Insights / Telemetry Setup**
+
+ExcelMcp uses Azure Application Insights for anonymous usage telemetry and crash reporting. Telemetry is **opt-out** (enabled by default in release builds).
+
+### **What is Tracked**
+
+- **Tool invocations**: Tool name, action, duration (ms), success/failure
+- **Unhandled exceptions**: Exception type and redacted stack trace
+- **Session ID**: Random GUID per process (no user identification)
+
+### **What is NOT Tracked**
+
+- File paths, file names, or file contents
+- User identity, machine name, or IP address
+- Excel data, formulas, or cell values
+- Connection strings, credentials, or passwords
+
+### **Sensitive Data Redaction**
+
+All telemetry passes through `SensitiveDataRedactingProcessor` which removes:
+- Windows file paths (`C:\Users\...` → `[REDACTED_PATH]`)
+- UNC paths (`\\server\share\...` → `[REDACTED_PATH]`)
+- Connection string secrets (`Password=...` → `[REDACTED_CREDENTIAL]`)
+- Email addresses → `[REDACTED_EMAIL]`
+
+### **Azure Resources Setup (Maintainers Only)**
+
+To deploy the Application Insights infrastructure:
+
+```powershell
+# 1. Login to Azure
+az login
+
+# 2. Deploy resources (creates RG, Log Analytics, App Insights)
+.\infrastructure\azure\deploy-appinsights.ps1 -SubscriptionId "<your-subscription-id>"
+
+# 3. Copy the connection string from output
+# Output: "Connection String: InstrumentationKey=xxx;IngestionEndpoint=..."
+```
+
+### **GitHub Secret Configuration (Maintainers Only)**
+
+After deploying Azure resources:
+
+1. Go to GitHub repo → **Settings** → **Secrets and variables** → **Actions**
+2. Add new secret: `APPINSIGHTS_CONNECTION_STRING`
+3. Paste the connection string from deployment output
+
+The release workflow automatically injects this at build time.
+
+### **Local Development**
+
+During local development, telemetry is **disabled by default** because the placeholder connection string is not replaced. This is intentional - no telemetry data is sent from dev builds.
+
+#### **Debug Mode: Console Output**
+
+To test telemetry locally without Azure, enable debug mode which logs to stderr:
+
+```powershell
+# Enable debug telemetry (logs to console instead of Azure)
+$env:EXCELMCP_DEBUG_TELEMETRY = "true"
+
+# Build and run the MCP server
+dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
+dotnet run --project src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
+
+# You'll see telemetry output like:
+# [Telemetry] Debug mode enabled - logging to stderr
+# Activity.TraceId: abc123...
+# Activity.DisplayName: ToolInvocation
+# Activity.Tags:
+#     tool.name: excel_file
+#     tool.action: list
+#     tool.duration_ms: 42
+#     tool.success: true
+```
+
+#### **Testing with Real Azure Resources**
+
+To test with actual Application Insights:
+
+```powershell
+# 1. Deploy Azure resources
+.\infrastructure\azure\deploy-appinsights.ps1 -SubscriptionId "<your-sub-id>"
+
+# 2. Temporarily inject connection string (DON'T COMMIT!)
+$connStr = "InstrumentationKey=xxx;IngestionEndpoint=https://..."
+(Get-Content "src/ExcelMcp.McpServer/Telemetry/ExcelMcpTelemetry.cs") -replace `
+    '__APPINSIGHTS_CONNECTION_STRING__', $connStr | `
+    Set-Content "src/ExcelMcp.McpServer/Telemetry/ExcelMcpTelemetry.cs"
+
+# 3. Build and run
+dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
+dotnet run --project src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
+
+# 4. Check Azure Portal → Application Insights → Transaction search
+
+# 5. IMPORTANT: Revert the file (don't commit connection string!)
+git checkout src/ExcelMcp.McpServer/Telemetry/ExcelMcpTelemetry.cs
+```
+
+To verify telemetry state:
+```csharp
+// ExcelMcpTelemetry.IsEnabled returns false when:
+// - Connection string is placeholder "__APPINSIGHTS_CONNECTION_STRING__"
+// - User has opted out via EXCELMCP_TELEMETRY_OPTOUT=true
+
+// ExcelMcpTelemetry.IsEnabled returns true when:
+// - EXCELMCP_DEBUG_TELEMETRY=true (console output mode)
+// - Connection string is real (injected at build time)
+```
+
+### **User Opt-Out**
+
+Users can disable telemetry by setting an environment variable:
+
+```powershell
+# Windows
+$env:EXCELMCP_TELEMETRY_OPTOUT = "true"
+
+# Or permanently via System Properties → Environment Variables
+```
+
+### **Telemetry Architecture**
+
+```
+MCP Tool Invocation
+    │
+    ▼
+ExcelToolsBase.ExecuteToolAction()
+    │ (tracks: tool, action, duration, success)
+    ▼
+ExcelMcpTelemetry.TrackToolInvocation()
+    │
+    ▼
+SensitiveDataRedactingProcessor
+    │ (removes: paths, credentials, emails)
+    ▼
+Azure Monitor Exporter → Application Insights
+```
+
+### **Files Overview**
+
+| File | Purpose |
+|------|---------|
+| `Telemetry/ExcelMcpTelemetry.cs` | Static helper for tracking |
+| `Telemetry/SensitiveDataRedactingProcessor.cs` | Redacts PII before transmission |
+| `Program.cs` | OpenTelemetry configuration |
+| `infrastructure/azure/appinsights.bicep` | Azure resource definitions |
+| `infrastructure/azure/deploy-appinsights.ps1` | Deployment script |
+
 ## 📞 **Need Help?**
 
 - **Read the docs**: [Contributing Guide](CONTRIBUTING.md)

@@ -205,6 +205,7 @@ DATA FORMAT:
         bool? locked = null)
     {
         return ExcelToolsBase.ExecuteToolAction(
+            "excel_range",
             action.ToActionString(),
             excelPath,
             () =>

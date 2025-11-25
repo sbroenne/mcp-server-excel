@@ -57,6 +57,7 @@ public static class ExcelVbaTool
         string? parameters = null)
     {
         return ExcelToolsBase.ExecuteToolAction(
+            "excel_vba",
             action.ToActionString(),
             excelPath,
             () =>
