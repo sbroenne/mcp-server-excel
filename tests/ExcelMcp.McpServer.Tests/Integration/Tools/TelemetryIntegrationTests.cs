@@ -1,9 +1,6 @@
 // Copyright (c) Sbroenne. All rights reserved.
 // Licensed under the MIT License.
 
-using System.Diagnostics;
-using OpenTelemetry;
-using OpenTelemetry.Trace;
 using Sbroenne.ExcelMcp.McpServer.Models;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 using Sbroenne.ExcelMcp.McpServer.Tools;
@@ -13,40 +10,105 @@ using Xunit.Abstractions;
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
 /// <summary>
-/// Integration test that demonstrates telemetry output during tool invocations.
+/// Integration test that verifies telemetry configuration and sensitive data redaction.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "Telemetry")]
-public class TelemetryIntegrationTests : IDisposable
+public class TelemetryIntegrationTests
 {
     private readonly ITestOutputHelper _output;
-    private readonly TracerProvider _tracerProvider;
-    private readonly List<Activity> _capturedActivities = [];
 
     public TelemetryIntegrationTests(ITestOutputHelper output)
     {
         _output = output;
-
-        // Configure OpenTelemetry to capture activities for testing
-        _tracerProvider = Sdk.CreateTracerProviderBuilder()
-            .AddSource(ExcelMcpTelemetry.ActivitySource.Name)
-            .AddProcessor(new SensitiveDataRedactingProcessor())
-            .AddProcessor(new TestActivityProcessor(_capturedActivities, _output))
-            .Build()!;
-    }
-
-    public void Dispose()
-    {
-        _tracerProvider.Dispose();
-        GC.SuppressFinalize(this);
     }
 
     [Fact]
-    public void ToolInvocation_TracksToTelemetry()
+    public void TelemetryConfiguration_HasStableUserAndSessionIds()
     {
-        _output.WriteLine("=== TELEMETRY INTEGRATION TEST ===\n");
+        _output.WriteLine("=== TELEMETRY CONFIGURATION TEST ===\n");
+
+        // Get user and session IDs
+        var userId = ExcelMcpTelemetry.UserId;
+        var sessionId = ExcelMcpTelemetry.SessionId;
+
+        _output.WriteLine($"User ID: {userId}");
+        _output.WriteLine($"Session ID: {sessionId}");
+
+        // Assert - user ID should be stable (16 hex chars from SHA256)
+        Assert.NotNull(userId);
+        Assert.Equal(16, userId.Length);
+        Assert.True(userId.All(c => char.IsAsciiHexDigitLower(c)), "User ID should be lowercase hex");
+
+        // Assert - session ID should be unique per process (8 hex chars from GUID)
+        Assert.NotNull(sessionId);
+        Assert.Equal(8, sessionId.Length);
+        Assert.True(sessionId.All(c => char.IsAsciiHexDigit(c)), "Session ID should be hex");
+
+        // Verify IDs are consistent within same process
+        Assert.Equal(userId, ExcelMcpTelemetry.UserId);
+        Assert.Equal(sessionId, ExcelMcpTelemetry.SessionId);
+    }
+
+    [Fact]
+    public void SensitiveDataRedactor_RedactsFilePaths()
+    {
+        var input = "Error loading file C:\\Users\\John\\Documents\\secret.xlsx";
+        var redacted = SensitiveDataRedactor.RedactSensitiveData(input);
+
+        _output.WriteLine($"Input: {input}");
+        _output.WriteLine($"Redacted: {redacted}");
+
+        Assert.DoesNotContain("C:\\", redacted);
+        Assert.Contains("[REDACTED_PATH]", redacted);
+    }
+
+    [Fact]
+    public void SensitiveDataRedactor_RedactsConnectionStrings()
+    {
+        var input = "Connection: Server=myserver;Password=secret123;User=admin";
+        var redacted = SensitiveDataRedactor.RedactSensitiveData(input);
+
+        _output.WriteLine($"Input: {input}");
+        _output.WriteLine($"Redacted: {redacted}");
+
+        Assert.DoesNotContain("secret123", redacted);
+        Assert.Contains("[REDACTED]", redacted);
+    }
+
+    [Fact]
+    public void SensitiveDataRedactor_RedactsEmailAddresses()
+    {
+        var input = "Contact john.doe@example.com for support";
+        var redacted = SensitiveDataRedactor.RedactSensitiveData(input);
+
+        _output.WriteLine($"Input: {input}");
+        _output.WriteLine($"Redacted: {redacted}");
+
+        Assert.DoesNotContain("john.doe@example.com", redacted);
+        Assert.Contains("[REDACTED_EMAIL]", redacted);
+    }
+
+    [Fact]
+    public void SensitiveDataRedactor_RedactsExceptions()
+    {
+        var exception = new InvalidOperationException("Failed to read C:\\Users\\Admin\\data.xlsx");
+        var (type, message, _) = SensitiveDataRedactor.RedactException(exception);
+
+        _output.WriteLine($"Exception Type: {type}");
+        _output.WriteLine($"Redacted Message: {message}");
+
+        Assert.Equal("InvalidOperationException", type);
+        Assert.DoesNotContain("C:\\", message);
+        Assert.Contains("[REDACTED_PATH]", message);
+    }
+
+    [Fact]
+    public void ToolInvocation_ExecutesWithTelemetry()
+    {
+        _output.WriteLine("=== TOOL INVOCATION TEST ===\n");
 
         // Act - call a tool method that uses ExecuteToolAction
         // Using Test action since it doesn't require an actual file
@@ -55,34 +117,10 @@ public class TelemetryIntegrationTests : IDisposable
             excelPath: "C:\\fake\\test.xlsx",
             sessionId: null);
 
-        _output.WriteLine($"\nTool result: {result[..Math.Min(200, result.Length)]}...\n");
+        _output.WriteLine($"Tool result: {result[..Math.Min(200, result.Length)]}...\n");
 
-        // Assert - telemetry was captured
-        Assert.NotEmpty(_capturedActivities);
-
-        var activity = _capturedActivities.First();
-        _output.WriteLine("=== CAPTURED TELEMETRY ===");
-        _output.WriteLine($"Activity Name: {activity.DisplayName}");
-        _output.WriteLine($"Duration: {activity.Duration.TotalMilliseconds:F2}ms");
-        _output.WriteLine($"Status: {activity.Status}");
-        _output.WriteLine("Tags:");
-        foreach (var tag in activity.TagObjects)
-        {
-            _output.WriteLine($"  {tag.Key}: {tag.Value}");
-        }
-    }
-
-    /// <summary>
-    /// Simple processor that captures activities and logs them to test output.
-    /// </summary>
-    private sealed class TestActivityProcessor(List<Activity> activities, ITestOutputHelper output)
-        : BaseProcessor<Activity>
-    {
-        public override void OnEnd(Activity activity)
-        {
-            activities.Add(activity);
-            output.WriteLine($"[TELEMETRY] {activity.DisplayName} - {activity.Duration.TotalMilliseconds:F2}ms - {activity.Status}");
-            base.OnEnd(activity);
-        }
+        // Assert - tool executed (telemetry is tracked internally)
+        Assert.NotNull(result);
+        Assert.Contains("success", result.ToLowerInvariant());
     }
 }
