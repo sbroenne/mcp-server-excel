@@ -1,18 +1,15 @@
 // Copyright (c) Sbroenne. All rights reserved.
 // Licensed under the MIT License.
 
-using System.Diagnostics;
 using System.Text.RegularExpressions;
-using OpenTelemetry;
 
 namespace Sbroenne.ExcelMcp.McpServer.Telemetry;
 
 /// <summary>
-/// OpenTelemetry processor that redacts sensitive data from all telemetry
-/// before it leaves the process. Removes file paths, connection strings,
-/// credentials, and other PII.
+/// Utility class that redacts sensitive data from telemetry before it's sent.
+/// Removes file paths, connection strings, credentials, and other PII.
 /// </summary>
-public sealed partial class SensitiveDataRedactingProcessor : BaseProcessor<Activity>
+public static partial class SensitiveDataRedactor
 {
     // Patterns for sensitive data detection
     private static readonly Regex FilePathPattern = CreateFilePathRegex();
@@ -25,36 +22,6 @@ public sealed partial class SensitiveDataRedactingProcessor : BaseProcessor<Acti
     private const string RedactedPath = "[REDACTED_PATH]";
     private const string RedactedSecret = "[REDACTED]";
     private const string RedactedEmail = "[REDACTED_EMAIL]";
-
-    /// <inheritdoc/>
-    public override void OnEnd(Activity activity)
-    {
-        if (activity == null) return;
-
-        // Redact display name
-        if (!string.IsNullOrEmpty(activity.DisplayName))
-        {
-            activity.DisplayName = RedactSensitiveData(activity.DisplayName);
-        }
-
-        // Redact all tags (custom properties)
-        foreach (var tag in activity.TagObjects.ToList())
-        {
-            if (tag.Value is string stringValue && !string.IsNullOrEmpty(stringValue))
-            {
-                var redacted = RedactSensitiveData(stringValue);
-                if (redacted != stringValue)
-                {
-                    activity.SetTag(tag.Key, redacted);
-                }
-            }
-        }
-
-        // Note: Activity events are immutable structs, so we cannot modify exception details
-        // in events. Exception messages are already redacted through tags above.
-
-        base.OnEnd(activity);
-    }
 
     /// <summary>
     /// Redacts all sensitive data from the given string.
@@ -88,7 +55,7 @@ public sealed partial class SensitiveDataRedactingProcessor : BaseProcessor<Acti
 
     /// <summary>
     /// Redacts sensitive data from an exception for safe logging.
-    /// Returns exception type and redacted message.
+    /// Returns exception type, redacted message, and redacted stack trace.
     /// </summary>
     public static (string Type, string Message, string? StackTrace) RedactException(Exception ex)
     {

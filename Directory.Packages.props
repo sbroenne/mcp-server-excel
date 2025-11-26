@@ -8,13 +8,13 @@
     <PackageVersion Include="Microsoft.AnalysisServices" Version="19.106.1" />
     <!-- UI Framework -->
     <PackageVersion Include="Spectre.Console" Version="0.54.0" />
-    <PackageVersion Include="Spectre.Console.Cli" Version="0.53.0" />
+    <PackageVersion Include="Spectre.Console.Cli" Version="0.53.1" />
     <!-- Microsoft Extensions for MCP Server -->
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
-    <!-- OpenTelemetry for Application Insights -->
-    <PackageVersion Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.3.0" />    <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.11.2" />    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.11.2" />
+    <!-- Application Insights SDK for telemetry (Users, Sessions, Funnels, User Flows) -->
+    <PackageVersion Include="Microsoft.ApplicationInsights" Version="2.23.0" />
     <PackageVersion Include="Microsoft.Extensions.Resilience" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />

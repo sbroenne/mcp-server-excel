@@ -1,8 +1,8 @@
-using Azure.Monitor.OpenTelemetry.Exporter;
+using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using OpenTelemetry.Trace;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 
 namespace Sbroenne.ExcelMcp.McpServer;
@@ -49,7 +49,8 @@ public class Program
     }
 
     /// <summary>
-    /// Configures OpenTelemetry with Azure Monitor exporter for Application Insights.
+    /// Configures Application Insights SDK for telemetry.
+    /// Enables Users/Sessions/Funnels/User Flows analytics in Azure Portal.
     /// Respects opt-out via EXCELMCP_TELEMETRY_OPTOUT environment variable.
     /// </summary>
     private static void ConfigureTelemetry(HostApplicationBuilder builder)
@@ -69,29 +70,34 @@ public class Program
             return; // No connection string available and not in debug mode
         }
 
-        // Configure OpenTelemetry
-        builder.Services.AddOpenTelemetry()
-            .WithTracing(tracing =>
-            {
-                tracing
-                    .AddSource(ExcelMcpTelemetry.ActivitySource.Name)
-                    .AddProcessor(new SensitiveDataRedactingProcessor());
+        // Configure Application Insights SDK
+        var aiConfig = TelemetryConfiguration.CreateDefault();
+        if (!string.IsNullOrEmpty(connectionString))
+        {
+            aiConfig.ConnectionString = connectionString;
+        }
+        else if (isDebugMode)
+        {
+            // Debug mode without connection string - telemetry will be tracked but not sent
+            // This allows testing the tracking code without Azure resources
+            Console.Error.WriteLine("[Telemetry] Debug mode enabled - telemetry tracked locally (no Azure connection)");
+        }
 
-                if (isDebugMode)
-                {
-                    // Debug mode: write to stderr (console) for local testing
-                    tracing.AddConsoleExporter();
-                    Console.Error.WriteLine("[Telemetry] Debug mode enabled - logging to stderr");
-                }
-                else
-                {
-                    // Production: send to Azure Monitor
-                    tracing.AddAzureMonitorTraceExporter(options =>
-                    {
-                        options.ConnectionString = connectionString;
-                    });
-                }
-            });
+        // Add initializer to set User.Id and Session.Id on all telemetry
+        aiConfig.TelemetryInitializers.Add(new ExcelMcpTelemetryInitializer());
+
+        // Register TelemetryClient as singleton for dependency injection
+        var telemetryClient = new TelemetryClient(aiConfig);
+        builder.Services.AddSingleton(telemetryClient);
+        builder.Services.AddSingleton(aiConfig);
+
+        // Store reference for static access in ExcelMcpTelemetry
+        ExcelMcpTelemetry.SetTelemetryClient(telemetryClient);
+
+        if (isDebugMode)
+        {
+            Console.Error.WriteLine($"[Telemetry] Application Insights configured - User.Id={ExcelMcpTelemetry.UserId}, Session.Id={ExcelMcpTelemetry.SessionId}");
+        }
     }
 
     /// <summary>

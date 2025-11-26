@@ -1,22 +1,17 @@
 // Copyright (c) Sbroenne. All rights reserved.
 // Licensed under the MIT License.
 
-using System.Diagnostics;
 using System.Reflection;
+using Microsoft.ApplicationInsights;
 
 namespace Sbroenne.ExcelMcp.McpServer.Telemetry;
 
 /// <summary>
 /// Centralized telemetry helper for ExcelMcp MCP Server.
-/// Provides usage tracking and unhandled exception reporting via OpenTelemetry.
+/// Provides usage tracking and unhandled exception reporting via Application Insights SDK.
 /// </summary>
 public static class ExcelMcpTelemetry
 {
-    /// <summary>
-    /// The ActivitySource for creating traces.
-    /// </summary>
-    public static readonly ActivitySource ActivitySource = new("ExcelMcp.McpServer", GetVersion());
-
     /// <summary>
     /// Environment variable to opt-out of telemetry.
     /// Set to "true" or "1" to disable telemetry.
@@ -40,8 +35,31 @@ public static class ExcelMcpTelemetry
 
     /// <summary>
     /// Unique session ID for correlating telemetry within a single MCP server process.
+    /// Changes each time the MCP server starts.
     /// </summary>
     public static readonly string SessionId = Guid.NewGuid().ToString("N")[..8];
+
+    /// <summary>
+    /// Stable anonymous user ID based on machine identity.
+    /// Persists across sessions for the same machine, enabling user-level analytics
+    /// without collecting personally identifiable information.
+    /// </summary>
+    public static readonly string UserId = GenerateAnonymousUserId();
+
+    /// <summary>
+    /// Application Insights TelemetryClient for sending Custom Events.
+    /// Enables Users/Sessions analytics in Azure Portal.
+    /// </summary>
+    private static TelemetryClient? _telemetryClient;
+
+    /// <summary>
+    /// Sets the TelemetryClient instance for sending Custom Events.
+    /// Called by Program.cs during startup.
+    /// </summary>
+    internal static void SetTelemetryClient(TelemetryClient client)
+    {
+        _telemetryClient = client;
+    }
 
     private static bool? _isEnabled;
 
@@ -89,6 +107,7 @@ public static class ExcelMcpTelemetry
 
     /// <summary>
     /// Tracks a tool invocation with usage metrics.
+    /// Sends Application Insights Custom Event for Users/Sessions analytics.
     /// </summary>
     /// <param name="toolName">The MCP tool name (e.g., "excel_range")</param>
     /// <param name="action">The action performed (e.g., "get-values")</param>
@@ -98,22 +117,36 @@ public static class ExcelMcpTelemetry
     {
         if (!IsEnabled) return;
 
-        using var activity = ActivitySource.StartActivity("ToolInvocation", ActivityKind.Internal);
-        if (activity == null) return;
+        // Debug mode: write to stderr
+        if (IsDebugMode())
+        {
+            Console.Error.WriteLine($"[Telemetry] ToolInvocation: {toolName}.{action} - {(success ? "Success" : "Failed")} ({durationMs}ms)");
+        }
 
-        activity.SetTag("tool.name", toolName);
-        activity.SetTag("tool.action", action);
-        activity.SetTag("tool.duration_ms", durationMs);
-        activity.SetTag("tool.success", success);
-        activity.SetTag("session.id", SessionId);
-        activity.SetTag("app.version", GetVersion());
+        // Send Application Insights Custom Event (populates customEvents table)
+        if (_telemetryClient != null)
+        {
+            var properties = new Dictionary<string, string>
+            {
+                { "ToolName", toolName },
+                { "Action", action },
+                { "Success", success.ToString() },
+                { "AppVersion", GetVersion() }
+            };
 
-        activity.SetStatus(success ? ActivityStatusCode.Ok : ActivityStatusCode.Error);
+            var metrics = new Dictionary<string, double>
+            {
+                { "DurationMs", durationMs }
+            };
+
+            _telemetryClient.TrackEvent("ToolInvocation", properties, metrics);
+        }
     }
 
     /// <summary>
     /// Tracks an unhandled exception.
     /// Only call this for exceptions that escape all catch blocks (true bugs/crashes).
+    /// Sends Application Insights exception and Custom Event.
     /// </summary>
     /// <param name="exception">The unhandled exception</param>
     /// <param name="source">Source of the exception (e.g., "AppDomain.UnhandledException")</param>
@@ -121,37 +154,35 @@ public static class ExcelMcpTelemetry
     {
         if (!IsEnabled || exception == null) return;
 
-        using var activity = ActivitySource.StartActivity("UnhandledException", ActivityKind.Internal);
-        if (activity == null) return;
-
         // Redact sensitive data from exception
-        var (type, message, stackTrace) = SensitiveDataRedactingProcessor.RedactException(exception);
+        var (type, message, _) = SensitiveDataRedactor.RedactException(exception);
 
-        activity.SetTag("exception.type", type);
-        activity.SetTag("exception.message", message);
-        activity.SetTag("exception.source", source);
-        activity.SetTag("session.id", SessionId);
-        activity.SetTag("app.version", GetVersion());
-
-        if (stackTrace != null)
+        // Debug mode: write to stderr
+        if (IsDebugMode())
         {
-            // Truncate stack trace to avoid exceeding limits
-            const int maxStackTraceLength = 4096;
-            if (stackTrace.Length > maxStackTraceLength)
-            {
-                stackTrace = stackTrace[..maxStackTraceLength] + "... [truncated]";
-            }
-            activity.SetTag("exception.stacktrace", stackTrace);
+            Console.Error.WriteLine($"[Telemetry] UnhandledException: {type} - {message} (Source: {source})");
         }
 
-        activity.SetStatus(ActivityStatusCode.Error, message);
-
-        // Record as exception event
-        activity.AddEvent(new ActivityEvent("exception", tags: new ActivityTagsCollection
+        // Send Application Insights telemetry
+        if (_telemetryClient != null)
         {
-            { "exception.type", type },
-            { "exception.message", message }
-        }));
+            // Track as exception in Application Insights (for Failures blade)
+            _telemetryClient.TrackException(exception, new Dictionary<string, string>
+            {
+                { "Source", source },
+                { "ExceptionType", type },
+                { "AppVersion", GetVersion() }
+            });
+
+            // Also track as Custom Event (for Users/Sessions analytics)
+            _telemetryClient.TrackEvent("UnhandledException", new Dictionary<string, string>
+            {
+                { "Source", source },
+                { "ExceptionType", type },
+                { "Message", message ?? "Unknown" },
+                { "AppVersion", GetVersion() }
+            });
+        }
     }
 
     /// <summary>
@@ -163,5 +194,29 @@ public static class ExcelMcpTelemetry
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
             ?? "1.0.0";
+    }
+
+    /// <summary>
+    /// Generates a stable anonymous user ID based on machine identity.
+    /// Uses a hash of machine name and user profile path to create a consistent
+    /// identifier that persists across sessions without collecting PII.
+    /// </summary>
+    private static string GenerateAnonymousUserId()
+    {
+        try
+        {
+            // Combine machine-specific values that are stable but not personally identifiable
+            var machineIdentity = $"{Environment.MachineName}|{Environment.UserName}|{Environment.OSVersion.Platform}";
+
+            // Create a SHA256 hash and take the first 16 characters
+            var bytes = System.Text.Encoding.UTF8.GetBytes(machineIdentity);
+            var hash = System.Security.Cryptography.SHA256.HashData(bytes);
+            return Convert.ToHexString(hash)[..16].ToLowerInvariant();
+        }
+        catch
+        {
+            // Fallback to a random ID if machine identity cannot be determined
+            return Guid.NewGuid().ToString("N")[..16];
+        }
     }
 }
