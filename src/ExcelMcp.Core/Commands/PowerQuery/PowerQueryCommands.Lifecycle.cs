@@ -240,7 +240,10 @@ public partial class PowerQueryCommands
                                     else
                                         commandText = queryTable.CommandText?.ToString() ?? "";
                                 }
-                                catch { /* ignore */ }
+                                catch (System.Runtime.InteropServices.COMException)
+                                {
+                                    // CommandText property may not be accessible for certain QueryTable types
+                                }
 
                                 bool cmdMatches = commandText.Contains($"[{queryName}]", StringComparison.OrdinalIgnoreCase);
 

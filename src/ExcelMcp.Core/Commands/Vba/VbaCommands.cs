@@ -37,13 +37,17 @@ public partial class VbaCommands : IVbaCommands
                         return true;
                     }
                 }
-                catch { /* Try next path */ }
+                catch (System.Security.SecurityException)
+                {
+                    // Registry access denied for this path, try next Office version
+                }
             }
 
             return false; // Assume not enabled if cannot read registry
         }
-        catch
+        catch (System.Security.SecurityException)
         {
+            // Registry access completely denied, assume VBA trust not enabled
             return false;
         }
     }
