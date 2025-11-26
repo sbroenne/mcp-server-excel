@@ -43,12 +43,23 @@ public class ExcelComSmokeTests : IAsyncLifetime
                 _output.WriteLine($"Cleaning up {existingProcesses.Length} existing Excel processes...");
                 foreach (var p in existingProcesses)
                 {
-                    try { p.Kill(); p.WaitForExit(2000); } catch { }
+                    try { p.Kill(); p.WaitForExit(2000); }
+                    catch (InvalidOperationException)
+                    {
+                        // Process already exited - safe to ignore
+                    }
+                    catch (System.ComponentModel.Win32Exception)
+                    {
+                        // Access denied or process not available - safe to ignore in cleanup
+                    }
                 }
                 Thread.Sleep(2000);
             }
         }
-        catch { }
+        catch (InvalidOperationException)
+        {
+            // GetProcessesByName failed - safe to ignore in cleanup
+        }
 
         // Create test file
         _testFile = Path.Join(Path.GetTempPath(), $"excel-com-smoke-{Guid.NewGuid():N}.xlsx");

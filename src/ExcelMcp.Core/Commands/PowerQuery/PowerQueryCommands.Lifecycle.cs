@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -139,11 +140,11 @@ public partial class PowerQueryCommands
                             IsConnectionOnly = isConnectionOnly
                         });
                     }
-                    catch (Exception)
+                    catch (COMException)
                     {
-                        // ✅ Skip query if any error occurs during processing
+                        // Skip query if COM error occurs during processing
                         // This allows listing to continue for remaining queries
-                        // Exceptions are rare - typically only corrupted queries or access issues
+                        // COM exceptions occur for corrupted queries or access issues
                         continue;
                     }
                     finally
@@ -239,7 +240,10 @@ public partial class PowerQueryCommands
                                     else
                                         commandText = queryTable.CommandText?.ToString() ?? "";
                                 }
-                                catch { /* ignore */ }
+                                catch (System.Runtime.InteropServices.COMException)
+                                {
+                                    // CommandText property may not be accessible for certain QueryTable types
+                                }
 
                                 bool cmdMatches = commandText.Contains($"[{queryName}]", StringComparison.OrdinalIgnoreCase);
 

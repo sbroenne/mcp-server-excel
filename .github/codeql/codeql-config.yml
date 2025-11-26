@@ -42,17 +42,90 @@ paths:
   - 'src/**'
   - 'tests/**'
 
-# Query filters - TEMPORARILY DISABLED to see all real issues
-# Will re-enable targeted suppressions after fixing legitimate bugs
-query-filters: []
+# Query filters - Suppress intentional patterns
+query-filters:
+  # ============================================================================
+  # INTENTIONAL PATTERN: Generic Exception Catches in MCP Tools
+  # MCP protocol requires tools to return JSON responses for ALL errors.
+  # Throwing exceptions would break the MCP protocol contract.
+  # ============================================================================
+  - exclude:
+      id: cs/catch-of-all-exceptions
+      paths:
+        - src/ExcelMcp.McpServer/Tools/**
 
-# SUPPRESSED RULES (to be re-added selectively after cleanup):
-# - cs/invalid-dynamic-call: COM interop dynamic calls (20 errors - false positive)
-# - cs/call-to-gc: Explicit GC for COM cleanup (66 warnings - intentional)
-# - cs/catch-of-all-exceptions: Need to audit - some legitimate, some not (1,349)
-# - cs/empty-catch-block: Need to audit - some legitimate COM cleanup, some bugs (162)
-# - cs/path-combine: Test code path handling (463)
-# - Style suggestions: nested-if, missed-ternary, linq suggestions, etc.
+  # ============================================================================
+  # INTENTIONAL PATTERN: Generic Exception Catches in CLI Commands
+  # CLI commands catch exceptions to display user-friendly error messages.
+  # This is the standard pattern for command-line applications.
+  # ============================================================================
+  - exclude:
+      id: cs/catch-of-all-exceptions
+      paths:
+        - src/ExcelMcp.CLI/Commands/**
+        - src/ExcelMcp.CLI/Program.cs
+
+  # ============================================================================
+  # INTENTIONAL PATTERN: COM Interop Exception Handling
+  # Excel COM automation requires catching exceptions at session/batch boundaries
+  # to ensure proper COM cleanup and resource management.
+  # ============================================================================
+  - exclude:
+      id: cs/catch-of-all-exceptions
+      paths:
+        - src/ExcelMcp.ComInterop/Session/**
+
+  # ============================================================================
+  # INTENTIONAL PATTERN: Dynamic COM Calls
+  # Excel COM interop uses late binding (dynamic) extensively.
+  # These are not invalid calls - they're the standard COM interop pattern.
+  # ============================================================================
+  - exclude:
+      id: cs/invalid-dynamic-call
+      paths:
+        - src/ExcelMcp.Core/**
+        - src/ExcelMcp.ComInterop/**
+
+  # ============================================================================
+  # INTENTIONAL PATTERN: Explicit GC for COM Cleanup
+  # GC.Collect() is required after releasing COM objects to ensure
+  # Excel process cleanup. This follows Microsoft guidance for COM interop.
+  # ============================================================================
+  - exclude:
+      id: cs/call-to-gc
+      paths:
+        - src/ExcelMcp.ComInterop/**
+
+  # ============================================================================
+  # TEST CODE: Path.Combine with User Input
+  # Test code constructs paths from test parameters. This is safe because
+  # tests run in isolated temp directories with controlled inputs.
+  # ============================================================================
+  - exclude:
+      id: cs/path-combine
+      paths:
+        - tests/**
+
+  # ============================================================================
+  # AUTO-GENERATED CODE: Regex Generator
+  # System.Text.RegularExpressions.Generator produces code with patterns
+  # that trigger CodeQL alerts. This code is compiler-generated and safe.
+  # ============================================================================
+  - exclude:
+      id: cs/useless-cast-to-self
+      paths:
+        - '**/obj/**'
+        - '**/*.g.cs'
+  - exclude:
+      id: cs/useless-assignment-to-local
+      paths:
+        - '**/obj/**'
+        - '**/*.g.cs'
+  - exclude:
+      id: cs/complex-block
+      paths:
+        - '**/obj/**'
+        - '**/*.g.cs'
 
 # External data sources (for taint tracking)
 # external-repository-token: ${{ secrets.GITHUB_TOKEN }}

@@ -92,25 +92,37 @@ public partial class PivotTableCommands
                                 {
                                     rowFieldCount = pivot.RowFields.Count;
                                 }
-                                catch { /* Count might fail for certain configurations */ }
+                                catch (System.Runtime.InteropServices.COMException)
+                                {
+                                    // RowFields.Count may fail for Data Model or OLAP PivotTables
+                                }
 
                                 try
                                 {
                                     columnFieldCount = pivot.ColumnFields.Count;
                                 }
-                                catch { /* Count might fail for certain configurations */ }
+                                catch (System.Runtime.InteropServices.COMException)
+                                {
+                                    // ColumnFields.Count may fail for Data Model or OLAP PivotTables
+                                }
 
                                 try
                                 {
                                     valueFieldCount = pivot.DataFields.Count;
                                 }
-                                catch { /* Count might fail for certain configurations */ }
+                                catch (System.Runtime.InteropServices.COMException)
+                                {
+                                    // DataFields.Count may fail for Data Model or OLAP PivotTables
+                                }
 
                                 try
                                 {
                                     filterFieldCount = pivot.PageFields.Count;
                                 }
-                                catch { /* Count might fail for certain configurations */ }
+                                catch (System.Runtime.InteropServices.COMException)
+                                {
+                                    // PageFields.Count may fail for Data Model or OLAP PivotTables
+                                }
 
                                 var info = new PivotTableInfo
                                 {

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -51,7 +52,11 @@ public partial class NamedRangeCommands
                                 valueType = rawValue?.GetType().Name ?? "null";
                             }
                         }
-                        catch { }
+                        catch (COMException)
+                        {
+                            // Named range may not have a valid RefersToRange (e.g., formula-based or external reference)
+                            // Continue with null value - this is expected for some named ranges
+                        }
 
                         namedRanges.Add(new NamedRangeInfo
                         {
@@ -61,7 +66,11 @@ public partial class NamedRangeCommands
                             ValueType = valueType
                         });
                     }
-                    catch { }
+                    catch (COMException)
+                    {
+                        // Skip corrupted or inaccessible named ranges - continue listing remaining
+                        continue;
+                    }
                     finally
                     {
                         ComUtilities.Release(ref refersToRange);

@@ -178,14 +178,28 @@ public partial class DataModelCommands
                         {
                             result.FormatString = formatInfo.FormatString?.ToString();
                         }
-                        catch { /* FormatString may not be accessible */ }
+                        catch (System.Runtime.InteropServices.COMException)
+                        {
+                            // FormatString property may not be accessible in certain Excel versions
+                        }
+                        catch (Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
+                        {
+                            // FormatString property may not exist on this COM object type
+                        }
                         finally
                         {
                             ComUtilities.Release(ref formatInfo);
                         }
                     }
                 }
-                catch { /* FormatInformation may not be available in all Excel versions */ }
+                catch (System.Runtime.InteropServices.COMException)
+                {
+                    // FormatInformation may not be available in older Excel versions
+                }
+                catch (Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
+                {
+                    // FormatInformation property may not exist on this COM object type
+                }
 
                 result.Success = true;
             }
