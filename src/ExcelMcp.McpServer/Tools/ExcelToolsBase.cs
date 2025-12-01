@@ -119,18 +119,6 @@ public static class ExcelToolsBase
     }
 
     /// <summary>
-    /// Throws exception for unknown actions.
-    /// </summary>
-    /// <param name="action">The invalid action that was attempted</param>
-    /// <param name="supportedActions">List of supported actions for this tool</param>
-    /// <exception cref="ArgumentException">Always throws with descriptive error message</exception>
-    public static void ThrowUnknownAction(string action, params string[] supportedActions)
-    {
-        throw new ArgumentException(
-            $"Unknown action '{action}'. Supported: {string.Join(", ", supportedActions)}", nameof(action));
-    }
-
-    /// <summary>
     /// Throws exception for missing required parameters.
     /// </summary>
     /// <param name="parameterName">Name of the missing parameter</param>

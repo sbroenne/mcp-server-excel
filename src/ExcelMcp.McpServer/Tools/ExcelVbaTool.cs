@@ -1,12 +1,6 @@
-using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.McpServer.Models;
-
-#pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -14,47 +8,31 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// Excel VBA script management tool for MCP server.
 /// Manages VBA macro operations, code import/export, and script execution in macro-enabled workbooks.
 ///
-/// ⚠️ IMPORTANT: Requires .xlsm files! VBA operations only work with macro-enabled Excel files.
+/// IMPORTANT: Requires .xlsm files! VBA operations only work with macro-enabled Excel files.
 ///
 /// Prerequisites: VBA trust must be enabled for automation. Use setup-vba-trust command to configure.
 /// </summary>
 [McpServerToolType]
-[SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Simple workflow arrays in sealed static class")]
-public static class ExcelVbaTool
+public static partial class ExcelVbaTool
 {
     /// <summary>
-    /// Manage Excel VBA scripts - modules, procedures, and macro execution (requires .xlsm files)
+    /// Manage Excel VBA scripts and macros (requires .xlsm files).
+    /// REQUIREMENTS: File format must be .xlsm (macro-enabled) only. VBA trust must be enabled in Excel settings (one-time setup).
     /// </summary>
+    /// <param name="action">Action to perform</param>
+    /// <param name="excelPath">Excel file path (must be .xlsm for VBA operations)</param>
+    /// <param name="sessionId">Session ID from excel_file 'open' action (required for all VBA operations)</param>
+    /// <param name="moduleName">VBA module name or procedure name (format: 'Module.Procedure' for run)</param>
+    /// <param name="vbaCode">VBA code content as string (for import/update actions)</param>
+    /// <param name="parameters">Parameters for VBA procedure execution (comma-separated)</param>
     [McpServerTool(Name = "excel_vba")]
-    [Description(@"Manage Excel VBA scripts and macros (requires .xlsm files).
-
-⚠️ REQUIREMENTS:
-- File format: .xlsm (macro-enabled) only
-- VBA trust: Must be enabled in Excel settings (one-time setup)
-")]
-    public static string ExcelVba(
-        [Required]
-        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+    public static partial string ExcelVba(
         VbaAction action,
-
-        [Required]
-        [FileExtensions(Extensions = "xlsm")]
-        [Description("Excel file path (must be .xlsm for VBA operations)")]
         string excelPath,
-
-        [Required]
-        [Description("Session ID from excel_file 'open' action (required for all VBA operations)")]
         string sessionId,
-
-        [StringLength(255, MinimumLength = 1)]
-        [Description("VBA module name or procedure name (format: 'Module.Procedure' for run)")]
-        string? moduleName = null,
-
-        [Description("VBA code content as string (for import/update actions)")]
-        string? vbaCode = null,
-
-        [Description("Parameters for VBA procedure execution (comma-separated)")]
-        string? parameters = null)
+        string? moduleName,
+        string? vbaCode,
+        string? parameters)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_vba",

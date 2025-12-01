@@ -1,9 +1,5 @@
-using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
-using Sbroenne.ExcelMcp.Core.Commands.Chart;
-using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -11,80 +7,59 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// MCP tool for Excel Chart operations
 /// </summary>
 [McpServerToolType]
-public static class ExcelChartTool
+public static partial class ExcelChartTool
 {
     private static readonly JsonSerializerOptions JsonOptions = ExcelToolsBase.JsonOptions;
 
+    /// <summary>
+    /// Excel Chart operations - create, modify, and analyze Regular Charts and PivotCharts.
+    /// CHART TYPES: Supports 70+ chart types including Column, Line, Pie, Bar, Area, XYScatter, and specialized types.
+    /// STRATEGY PATTERN: Automatically handles differences between Regular Charts (use SeriesCollection) and PivotCharts (read-only data source).
+    /// </summary>
+    /// <param name="action">Action to perform</param>
+    /// <param name="excelPath">Path to Excel file (.xlsx or .xlsm)</param>
+    /// <param name="sessionId">Session ID from excel_file 'open' action</param>
+    /// <param name="chartName">Chart name (required for most operations)</param>
+    /// <param name="sheetName">Sheet name (for create-from-range)</param>
+    /// <param name="sourceRange">Source data range (e.g., 'A1:D10' for create-from-range, set-source-range)</param>
+    /// <param name="chartType">Chart type enum value (e.g., ColumnClustered, Line, Pie, BarClustered, Area, XYScatter)</param>
+    /// <param name="pivotTableName">PivotTable name (for create-from-pivottable)</param>
+    /// <param name="left">Left position in points</param>
+    /// <param name="top">Top position in points</param>
+    /// <param name="width">Width in points (optional, uses Excel default if not specified)</param>
+    /// <param name="height">Height in points (optional, uses Excel default if not specified)</param>
+    /// <param name="title">Chart title text (empty string hides title)</param>
+    /// <param name="axis">Axis type for set-axis-title: Category, Value, CategorySecondary, ValueSecondary</param>
+    /// <param name="seriesName">Series name (for add-series)</param>
+    /// <param name="valuesRange">Values range for series (e.g., 'Sheet1!B2:B10' for add-series)</param>
+    /// <param name="categoryRange">Category range for series (e.g., 'Sheet1!A2:A10', optional for add-series)</param>
+    /// <param name="seriesIndex">1-based series index (for remove-series)</param>
+    /// <param name="visible">Show/hide legend: true=show, false=hide</param>
+    /// <param name="legendPosition">Legend position: Bottom, Corner, Top, Right, Left</param>
+    /// <param name="styleId">Chart style ID (1-48)</param>
     [McpServerTool(Name = "excel_chart")]
-    [Description(@"Excel Chart operations - create, modify, and analyze Regular Charts and PivotCharts.
-
-⚡ CHART TYPES: Supports 70+ chart types including Column, Line, Pie, Bar, Area, XYScatter, and specialized types.
-
-⚡ STRATEGY PATTERN: Automatically handles differences between Regular Charts (use SeriesCollection) and PivotCharts (read-only data source).")]
-    public static string ExcelChart(
-        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+    public static partial string ExcelChart(
         ChartAction action,
-
-        [Description("Path to Excel file (.xlsx or .xlsm)")]
         string excelPath,
-
-        [Required]
-        [Description("Session ID from excel_file 'open' action")]
         string sessionId,
-
-        [Description("Chart name (required for most operations)")]
-        string? chartName = null,
-
-        [Description("Sheet name (for create-from-range)")]
-        string? sheetName = null,
-
-        [Description("Source data range (e.g., 'A1:D10' for create-from-range, set-source-range)")]
-        string? sourceRange = null,
-
-        [Description("Chart type enum value (e.g., ColumnClustered, Line, Pie, BarClustered, Area, XYScatter)")]
-        ChartType? chartType = null,
-
-        [Description("PivotTable name (for create-from-pivottable)")]
-        string? pivotTableName = null,
-
-        [Description("Left position in points")]
-        double? left = null,
-
-        [Description("Top position in points")]
-        double? top = null,
-
-        [Description("Width in points (optional, uses Excel default if not specified)")]
-        double? width = null,
-
-        [Description("Height in points (optional, uses Excel default if not specified)")]
-        double? height = null,
-
-        [Description("Chart title text (empty string hides title)")]
-        string? title = null,
-
-        [Description("Axis type for set-axis-title: Category, Value, CategorySecondary, ValueSecondary")]
-        ChartAxisType? axis = null,
-
-        [Description("Series name (for add-series)")]
-        string? seriesName = null,
-
-        [Description("Values range for series (e.g., 'Sheet1!B2:B10' for add-series)")]
-        string? valuesRange = null,
-
-        [Description("Category range for series (e.g., 'Sheet1!A2:A10', optional for add-series)")]
-        string? categoryRange = null,
-
-        [Description("1-based series index (for remove-series)")]
-        int? seriesIndex = null,
-
-        [Description("Show/hide legend: true=show, false=hide")]
-        bool? visible = null,
-
-        [Description("Legend position: Bottom, Corner, Top, Right, Left")]
-        LegendPosition? legendPosition = null,
-
-        [Description("Chart style ID (1-48)")]
-        int? styleId = null)
+        string? chartName,
+        string? sheetName,
+        string? sourceRange,
+        ChartType? chartType,
+        string? pivotTableName,
+        double? left,
+        double? top,
+        double? width,
+        double? height,
+        string? title,
+        ChartAxisType? axis,
+        string? seriesName,
+        string? valuesRange,
+        string? categoryRange,
+        int? seriesIndex,
+        bool? visible,
+        LegendPosition? legendPosition,
+        int? styleId)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_chart",

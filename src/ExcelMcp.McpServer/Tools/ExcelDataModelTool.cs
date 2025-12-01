@@ -1,12 +1,7 @@
-using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.McpServer.Models;
-
-#pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -14,74 +9,41 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// MCP tool for Excel Data Model (Power Pivot) operations - DAX measures, relationships, and data refresh.
 /// </summary>
 [McpServerToolType]
-public static class ExcelDataModelTool
+public static partial class ExcelDataModelTool
 {
     /// <summary>
-    /// Manage Excel Data Model (Power Pivot) - tables, measures, relationships
+    /// Manage Excel Power Pivot (Data Model) - DAX measures, relationships, analytical model.
+    /// CALCULATED COLUMNS: NOT supported via automation. When user asks to create calculated columns, provide step-by-step manual instructions OR suggest using DAX measures instead (measures ARE automated and usually better for aggregations).
+    /// TIMEOUT SAFEGUARD: Listing tables/measures/info auto-timeouts after 5 minutes to avoid Power Pivot hangs. On timeout the tool returns SuggestedNextActions instead of freezing the MCP session.
     /// </summary>
+    /// <param name="action">Action to perform</param>
+    /// <param name="excelPath">Excel file path (.xlsx or .xlsm)</param>
+    /// <param name="sessionId">Session ID from excel_file 'open' action</param>
+    /// <param name="measureName">Measure name (for read, export-measure, delete-measure, update-measure)</param>
+    /// <param name="tableName">Table name (for create-measure, read-table)</param>
+    /// <param name="daxFormula">DAX formula (for create-measure, update-measure)</param>
+    /// <param name="description">Description (for create-measure, update-measure)</param>
+    /// <param name="formatString">Format string (for create-measure, update-measure), e.g., '#,##0.00', '0.00%'</param>
+    /// <param name="fromTable">Source table name (for delete-relationship, create-relationship, update-relationship)</param>
+    /// <param name="fromColumn">Source column name (for delete-relationship, create-relationship, update-relationship)</param>
+    /// <param name="toTable">Target table name (for delete-relationship, create-relationship, update-relationship)</param>
+    /// <param name="toColumn">Target column name (for delete-relationship, create-relationship, update-relationship)</param>
+    /// <param name="isActive">Whether relationship is active (for create-relationship, update-relationship), default: true</param>
     [McpServerTool(Name = "excel_datamodel")]
-    [Description(@"Manage Excel Power Pivot (Data Model) - DAX measures, relationships, analytical model.
-
-**CALCULATED COLUMNS:** NOT supported via automation. When user asks to create calculated columns:
-  - Provide step-by-step manual instructions (see LLM Usage Patterns in code comments)
-  - OR suggest using DAX measures instead (measures ARE automated and usually better for aggregations)
-
-    ⏱️ TIMEOUT SAFEGUARD:
-    - Listing tables/measures/info auto-timeouts after 5 minutes to avoid Power Pivot hangs
-    - On timeout the tool returns SuggestedNextActions instead of freezing the MCP session
-")]
-    public static string ExcelDataModel(
-        [Required]
-        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+    public static partial string ExcelDataModel(
         DataModelAction action,
-
-        [Required]
-        [FileExtensions(Extensions = "xlsx,xlsm")]
-        [Description("Excel file path (.xlsx or .xlsm)")]
         string excelPath,
-
-        [Required]
-        [Description("Session ID from excel_file 'open' action")]
         string sessionId,
-
-        [StringLength(255, MinimumLength = 1)]
-        [Description("Measure name (for read, export-measure, delete-measure, update-measure)")]
-        string? measureName = null,
-
-        [StringLength(255, MinimumLength = 1)]
-        [Description("Table name (for create-measure, read-table)")]
-        string? tableName = null,
-
-        [StringLength(8000, MinimumLength = 1)]
-        [Description("DAX formula (for create-measure, update-measure)")]
-        string? daxFormula = null,
-
-        [StringLength(1000)]
-        [Description("Description (for create-measure, update-measure)")]
-        string? description = null,
-
-        [StringLength(255)]
-        [Description("Format string (for create-measure, update-measure), e.g., '#,##0.00', '0.00%'")]
-        string? formatString = null,
-
-        [StringLength(255, MinimumLength = 1)]
-        [Description("Source table name (for delete-relationship, create-relationship, update-relationship)")]
-        string? fromTable = null,
-
-        [StringLength(255, MinimumLength = 1)]
-        [Description("Source column name (for delete-relationship, create-relationship, update-relationship)")]
-        string? fromColumn = null,
-
-        [StringLength(255, MinimumLength = 1)]
-        [Description("Target table name (for delete-relationship, create-relationship, update-relationship)")]
-        string? toTable = null,
-
-        [StringLength(255, MinimumLength = 1)]
-        [Description("Target column name (for delete-relationship, create-relationship, update-relationship)")]
-        string? toColumn = null,
-
-        [Description("Whether relationship is active (for create-relationship, update-relationship), default: true")]
-        bool? isActive = null)
+        string? measureName,
+        string? tableName,
+        string? daxFormula,
+        string? description,
+        string? formatString,
+        string? fromTable,
+        string? fromColumn,
+        string? toTable,
+        string? toColumn,
+        bool? isActive)
     {
         _ = excelPath; // retained for schema compatibility (operations require open session)
 

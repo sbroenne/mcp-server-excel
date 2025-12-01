@@ -1,11 +1,5 @@
-using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
-using Sbroenne.ExcelMcp.Core.Commands.Range;
-using Sbroenne.ExcelMcp.McpServer.Models;
-
-#pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -13,199 +7,126 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// MCP tool for Excel range operations - values, formulas, clearing, copying, inserting, deleting, finding, sorting, and hyperlinks.
 /// </summary>
 [McpServerToolType]
-public static class ExcelRangeTool
+public static partial class ExcelRangeTool
 {
     /// <summary>
-    /// Unified Excel range operations - comprehensive data manipulation API.
-    /// Supports: values, formulas, number formats, clear, copy, insert/delete, find/replace, sort, discovery, hyperlinks.
+    /// Unified Excel range operations - ALL data manipulation.
+    /// DATA FORMAT: Values/formulas are JSON 2D arrays [[row1col1, row1col2], [row2col1, row2col2]]. Example single cell: [[100]] or [['=SUM(A:A)']]. Example range: [[1,2,3], [4,5,6], [7,8,9]].
     /// </summary>
+    /// <param name="action">Action to perform</param>
+    /// <param name="excelPath">Excel file path (.xlsx or .xlsm)</param>
+    /// <param name="sessionId">Session ID from excel_file 'open' action (required for all range operations)</param>
+    /// <param name="sheetName">Worksheet name (empty for named ranges, required for most operations)</param>
+    /// <param name="rangeAddress">Range address (e.g., 'A1:D10') or named range (e.g., 'SalesData'). For named ranges, leave sheetName empty.</param>
+    /// <param name="values">2D array of values for set-values (JSON array of arrays, e.g., [[1,2],[3,4]])</param>
+    /// <param name="formulas">2D array of formulas for set-formulas (JSON array of arrays, e.g., [["=A1+B1","=SUM(A:A)"]])</param>
+    /// <param name="sourceSheet">Source sheet name (for copy operations)</param>
+    /// <param name="sourceRange">Source range address (for copy operations)</param>
+    /// <param name="targetSheet">Target sheet name (for copy operations)</param>
+    /// <param name="targetRange">Target range address (for copy operations)</param>
+    /// <param name="shift">Shift direction for insert-cells/delete-cells: Down, Right, Up, Left</param>
+    /// <param name="searchValue">Search value (for find/replace operations)</param>
+    /// <param name="replaceValue">Replace value (for replace operation)</param>
+    /// <param name="matchCase">Match case (for find/replace, default: false)</param>
+    /// <param name="matchEntireCell">Match entire cell (for find/replace, default: false)</param>
+    /// <param name="searchFormulas">Search formulas (for find/replace, default: true)</param>
+    /// <param name="searchValues">Search values (for find/replace, default: true)</param>
+    /// <param name="replaceAll">Replace all occurrences (for replace, default: true)</param>
+    /// <param name="sortColumns">Sort columns (JSON array, e.g., [{"columnIndex":1,"ascending":true}])</param>
+    /// <param name="hasHeaders">Has header row (for sort, default: true)</param>
+    /// <param name="cellAddress">Cell address for single-cell operations (hyperlinks, current-region)</param>
+    /// <param name="url">Hyperlink URL (for add-hyperlink)</param>
+    /// <param name="displayText">Hyperlink display text (for add-hyperlink, optional)</param>
+    /// <param name="tooltip">Hyperlink tooltip (for add-hyperlink, optional)</param>
+    /// <param name="formatCode">Excel format code for set-number-format (e.g., '$#,##0.00', '0.00%', 'm/d/yyyy')</param>
+    /// <param name="formats">2D array of format codes for set-number-formats (JSON array of arrays, e.g., [['$#,##0','0.00%'],['m/d/yyyy','General']])</param>
+    /// <param name="styleName">Built-in Excel style name (for set-style: 'Heading 1', 'Accent1', 'Good', 'Total', 'Currency', 'Percent', 'Normal', etc. - recommended for consistent formatting)</param>
+    /// <param name="fontName">Font name (for format-range, e.g., 'Arial', 'Calibri')</param>
+    /// <param name="fontSize">Font size (for format-range, e.g., 11, 12, 14)</param>
+    /// <param name="bold">Bold font (for format-range)</param>
+    /// <param name="italic">Italic font (for format-range)</param>
+    /// <param name="underline">Underline font (for format-range)</param>
+    /// <param name="fontColor">Font color (for format-range, #RRGGBB or color index)</param>
+    /// <param name="fillColor">Fill color (for format-range, #RRGGBB or color index)</param>
+    /// <param name="borderStyle">Border style (for format-range: none, continuous, dash, dot, double, etc.)</param>
+    /// <param name="borderColor">Border color (for format-range, #RRGGBB or color index)</param>
+    /// <param name="borderWeight">Border weight (for format-range: hairline, thin, medium, thick)</param>
+    /// <param name="horizontalAlignment">Horizontal alignment (for format-range: left, center, right, justify, distributed)</param>
+    /// <param name="verticalAlignment">Vertical alignment (for format-range: top, center, bottom, justify, distributed)</param>
+    /// <param name="wrapText">Wrap text in cells (for format-range)</param>
+    /// <param name="orientation">Text orientation in degrees (for format-range, 0-90 or -90)</param>
+    /// <param name="validationType">Data validation type (for validate-range: list, whole, decimal, date, time, textLength, custom)</param>
+    /// <param name="validationOperator">Data validation operator (for validate-range: between, notBetween, equal, notEqual, greaterThan, lessThan, greaterThanOrEqual, lessThanOrEqual)</param>
+    /// <param name="validationFormula1">Validation formula1 (for validate-range). For 'list' type: MUST be worksheet range reference like '=$A$1:$A$10' to create dropdown. For other types: value/formula for comparison.</param>
+    /// <param name="validationFormula2">Validation formula2 (for validate-range, second value/formula for between/notBetween)</param>
+    /// <param name="showInputMessage">Show input message (for validate-range)</param>
+    /// <param name="inputTitle">Input message title (for validate-range)</param>
+    /// <param name="inputMessage">Input message text (for validate-range)</param>
+    /// <param name="showErrorAlert">Show error alert (for validate-range)</param>
+    /// <param name="errorStyle">Error alert style (for validate-range: stop, warning, information)</param>
+    /// <param name="errorTitle">Error alert title (for validate-range)</param>
+    /// <param name="errorMessage">Error alert message (for validate-range)</param>
+    /// <param name="ignoreBlank">Ignore blank cells in validation (for validate-range)</param>
+    /// <param name="showDropdown">Show dropdown for list validation (for validate-range)</param>
+    /// <param name="locked">Lock status for cells (for set-cell-lock: true = locked, false = unlocked)</param>
     [McpServerTool(Name = "excel_range")]
-    [Description(@"Unified Excel range operations - ALL data manipulation.
-
-DATA FORMAT:
-- Values/formulas: JSON 2D arrays [[row1col1, row1col2], [row2col1, row2col2]]
-- Single cell returns [[value]] (always 2D, never scalar)
-
-NAMED RANGES:
-- Can use named range name instead of rangeAddress (e.g., 'SalesData' instead of 'A1:D10')
-- When using named range, leave sheetName empty
-")]
-    public static string ExcelRange(
-        [Required]
-        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+    public static partial string ExcelRange(
         RangeAction action,
-
-        [Required]
-        [FileExtensions(Extensions = "xlsx,xlsm")]
-        [Description("Excel file path (.xlsx or .xlsm)")]
         string excelPath,
-
-        [Required]
-        [Description("Session ID from excel_file 'open' action (required for all range operations)")]
         string sessionId,
-
-        [Description("Worksheet name (empty for named ranges, required for most operations)")]
-        string? sheetName = null,
-
-        [Description("Range address (e.g., 'A1:D10') or named range (e.g., 'SalesData'). For named ranges, leave sheetName empty.")]
-        string? rangeAddress = null,
-
-        [Description("2D array of values for set-values (JSON array of arrays, e.g., [[1,2],[3,4]])")]
-        List<List<object?>>? values = null,
-
-        [Description("2D array of formulas for set-formulas (JSON array of arrays, e.g., [[\"=A1+B1\",\"=SUM(A:A)\"]])")]
-        List<List<string>>? formulas = null,
-
-        [Description("Source sheet name (for copy operations)")]
-        string? sourceSheet = null,
-
-        [Description("Source range address (for copy operations)")]
-        string? sourceRange = null,
-
-        [Description("Target sheet name (for copy operations)")]
-        string? targetSheet = null,
-
-        [Description("Target range address (for copy operations)")]
-        string? targetRange = null,
-
-        [Description("Shift direction for insert-cells/delete-cells: Down, Right, Up, Left")]
-        string? shift = null,
-
-        [Description("Search value (for find/replace operations)")]
-        string? searchValue = null,
-
-        [Description("Replace value (for replace operation)")]
-        string? replaceValue = null,
-
-        [Description("Match case (for find/replace, default: false)")]
-        bool? matchCase = null,
-
-        [Description("Match entire cell (for find/replace, default: false)")]
-        bool? matchEntireCell = null,
-
-        [Description("Search formulas (for find/replace, default: true)")]
-        bool? searchFormulas = null,
-
-        [Description("Search values (for find/replace, default: true)")]
-        bool? searchValues = null,
-
-        [Description("Replace all occurrences (for replace, default: true)")]
-        bool? replaceAll = null,
-
-        [Description("Sort columns (JSON array, e.g., [{\"columnIndex\":1,\"ascending\":true}])")]
-        List<SortColumn>? sortColumns = null,
-
-        [Description("Has header row (for sort, default: true)")]
-        bool? hasHeaders = null,
-
-        [Description("Cell address for single-cell operations (hyperlinks, current-region)")]
-        string? cellAddress = null,
-
-        [Description("Hyperlink URL (for add-hyperlink)")]
-        string? url = null,
-
-        [Description("Hyperlink display text (for add-hyperlink, optional)")]
-        string? displayText = null,
-
-        [Description("Hyperlink tooltip (for add-hyperlink, optional)")]
-        string? tooltip = null,
-
-        [Description("Excel format code for set-number-format (e.g., '$#,##0.00', '0.00%', 'm/d/yyyy')")]
-        string? formatCode = null,
-
-        [Description("2D array of format codes for set-number-formats (JSON array of arrays, e.g., [['$#,##0','0.00%'],['m/d/yyyy','General']])")]
-        List<List<string>>? formats = null,
-
-        // === FORMATTING PARAMETERS ===
-
-        [Description("Built-in Excel style name (for set-style: 'Heading 1', 'Accent1', 'Good', 'Total', 'Currency', 'Percent', 'Normal', etc. - recommended for consistent formatting)")]
-        string? styleName = null,
-
-        [Description("Font name (for format-range, e.g., 'Arial', 'Calibri')")]
-        string? fontName = null,
-
-        [Description("Font size (for format-range, e.g., 11, 12, 14)")]
-        double? fontSize = null,
-
-        [Description("Bold font (for format-range)")]
-        bool? bold = null,
-
-        [Description("Italic font (for format-range)")]
-        bool? italic = null,
-
-        [Description("Underline font (for format-range)")]
-        bool? underline = null,
-
-        [Description("Font color (for format-range, #RRGGBB or color index)")]
-        string? fontColor = null,
-
-        [Description("Fill color (for format-range, #RRGGBB or color index)")]
-        string? fillColor = null,
-
-        [Description("Border style (for format-range: none, continuous, dash, dot, double, etc.)")]
-        string? borderStyle = null,
-
-        [Description("Border color (for format-range, #RRGGBB or color index)")]
-        string? borderColor = null,
-
-        [Description("Border weight (for format-range: hairline, thin, medium, thick)")]
-        string? borderWeight = null,
-
-        [Description("Horizontal alignment (for format-range: left, center, right, justify, distributed)")]
-        string? horizontalAlignment = null,
-
-        [Description("Vertical alignment (for format-range: top, center, bottom, justify, distributed)")]
-        string? verticalAlignment = null,
-
-        [Description("Wrap text in cells (for format-range)")]
-        bool? wrapText = null,
-
-        [Description("Text orientation in degrees (for format-range, 0-90 or -90)")]
-        int? orientation = null,
-
-        // === VALIDATION PARAMETERS ===
-
-        [Description("Data validation type (for validate-range: list, whole, decimal, date, time, textLength, custom)")]
-        string? validationType = null,
-
-        [Description("Data validation operator (for validate-range: between, notBetween, equal, notEqual, greaterThan, lessThan, greaterThanOrEqual, lessThanOrEqual)")]
-        string? validationOperator = null,
-
-        [Description("Validation formula1 (for validate-range). For 'list' type: MUST be worksheet range reference like '=$A$1:$A$10' to create dropdown. For other types: value/formula for comparison.")]
-        string? validationFormula1 = null,
-
-        [Description("Validation formula2 (for validate-range, second value/formula for between/notBetween)")]
-        string? validationFormula2 = null,
-
-        [Description("Show input message (for validate-range)")]
-        bool? showInputMessage = null,
-
-        [Description("Input message title (for validate-range)")]
-        string? inputTitle = null,
-
-        [Description("Input message text (for validate-range)")]
-        string? inputMessage = null,
-
-        [Description("Show error alert (for validate-range)")]
-        bool? showErrorAlert = null,
-
-        [Description("Error alert style (for validate-range: stop, warning, information)")]
-        string? errorStyle = null,
-
-        [Description("Error alert title (for validate-range)")]
-        string? errorTitle = null,
-
-        [Description("Error alert message (for validate-range)")]
-        string? errorMessage = null,
-
-        [Description("Ignore blank cells in validation (for validate-range)")]
-        bool? ignoreBlank = null,
-
-        [Description("Show dropdown for list validation (for validate-range)")]
-        bool? showDropdown = null,
-
-        [Description("Lock status for cells (for set-cell-lock: true = locked, false = unlocked)")]
-        bool? locked = null)
+        string? sheetName,
+        string? rangeAddress,
+        List<List<object?>>? values,
+        List<List<string>>? formulas,
+        string? sourceSheet,
+        string? sourceRange,
+        string? targetSheet,
+        string? targetRange,
+        string? shift,
+        string? searchValue,
+        string? replaceValue,
+        bool? matchCase,
+        bool? matchEntireCell,
+        bool? searchFormulas,
+        bool? searchValues,
+        bool? replaceAll,
+        List<SortColumn>? sortColumns,
+        bool? hasHeaders,
+        string? cellAddress,
+        string? url,
+        string? displayText,
+        string? tooltip,
+        string? formatCode,
+        List<List<string>>? formats,
+        string? styleName,
+        string? fontName,
+        double? fontSize,
+        bool? bold,
+        bool? italic,
+        bool? underline,
+        string? fontColor,
+        string? fillColor,
+        string? borderStyle,
+        string? borderColor,
+        string? borderWeight,
+        string? horizontalAlignment,
+        string? verticalAlignment,
+        bool? wrapText,
+        int? orientation,
+        string? validationType,
+        string? validationOperator,
+        string? validationFormula1,
+        string? validationFormula2,
+        bool? showInputMessage,
+        string? inputTitle,
+        string? inputMessage,
+        bool? showErrorAlert,
+        string? errorStyle,
+        string? errorTitle,
+        string? errorMessage,
+        bool? ignoreBlank,
+        bool? showDropdown,
+        bool? locked)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_range",

@@ -1,12 +1,6 @@
-using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
-using Sbroenne.ExcelMcp.McpServer.Models;
-
-#pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -14,64 +8,40 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// MCP tool for Excel Table (ListObject) operations - structured data with AutoFilter and dynamic expansion.
 /// </summary>
 [McpServerToolType]
-[SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Simple workflow arrays in sealed static class")]
-public static class TableTool
+public static partial class TableTool
 {
     /// <summary>
-    /// Manage Excel Tables (ListObjects) - comprehensive table management including Power Pivot integration
+    /// Manage Excel Tables (ListObjects) - structured data with AutoFilter.
+    /// DATA ACCESS: Use action 'get-data' to return table rows. Set visibleOnly=true to respect active filters.
     /// </summary>
+    /// <param name="action">Action to perform</param>
+    /// <param name="excelPath">Excel file path (.xlsx or .xlsm)</param>
+    /// <param name="sessionId">Session ID from excel_file 'open' action</param>
+    /// <param name="tableName">Table name (required for most actions). Must start with letter/underscore, alphanumeric + underscore only</param>
+    /// <param name="sheetName">Sheet name (required for create)</param>
+    /// <param name="range">Excel range (e.g., 'A1:D10') - required for create/resize</param>
+    /// <param name="newName">New table name (required for rename) or column name (required for add-column, rename-column, etc.). Table names must follow Excel naming rules (start with letter/underscore, alphanumeric only). Column names can be any string including numbers.</param>
+    /// <param name="hasHeaders">Whether the range has headers (default: true for create) or show totals (for toggle-totals)</param>
+    /// <param name="tableStyle">Table style name (e.g., 'TableStyleMedium2') for create/set-style, or total function (sum/avg/count) for set-column-total, or CSV data for append</param>
+    /// <param name="filterCriteria">Filter criteria (e.g., '>100', '=Text') for apply-filter, or column position (0-based) for add-column</param>
+    /// <param name="filterValues">JSON array of filter values (e.g., '["Value1","Value2"]') for apply-filter-values</param>
+    /// <param name="formatCode">Excel format code for set-column-number-format (e.g., '$#,##0.00', '0.00%', 'm/d/yyyy')</param>
+    /// <param name="visibleOnly">When reading data, return only rows currently visible after filters (default: false)</param>
     [McpServerTool(Name = "excel_table")]
-    [Description(@"Manage Excel Tables (ListObjects) - structured data with AutoFilter.
-
-⚡ DATA ACCESS: Use action 'get-data' to return table rows. Set visibleOnly=true to respect active filters.")]
-    public static string Table(
-        [Required]
-        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+    public static partial string Table(
         TableAction action,
-
-        [Required]
-        [FileExtensions(Extensions = "xlsx,xlsm")]
-        [Description("Excel file path (.xlsx or .xlsm)")]
         string excelPath,
-
-        [Required]
-        [Description("Session ID from excel_file 'open' action")]
         string sessionId,
-
-        [StringLength(255, MinimumLength = 1)]
-        [RegularExpression(@"^[a-zA-Z_][a-zA-Z0-9_]*$")]
-        [Description("Table name (required for most actions). Must start with letter/underscore, alphanumeric + underscore only")]
-        string? tableName = null,
-
-        [StringLength(31, MinimumLength = 1)]
-        [RegularExpression(@"^[^[\]/*?\\:]+$")]
-        [Description("Sheet name (required for create)")]
-        string? sheetName = null,
-
-        [Description("Excel range (e.g., 'A1:D10') - required for create/resize")]
-        string? range = null,
-
-        [StringLength(255, MinimumLength = 1)]
-        [Description("New table name (required for rename) or column name (required for add-column, rename-column, etc.). Table names must follow Excel naming rules (start with letter/underscore, alphanumeric only). Column names can be any string including numbers.")]
-        string? newName = null,
-
-        [Description("Whether the range has headers (default: true for create) or show totals (for toggle-totals)")]
-        bool hasHeaders = true,
-
-        [Description("Table style name (e.g., 'TableStyleMedium2') for create/set-style, or total function (sum/avg/count) for set-column-total, or CSV data for append")]
-        string? tableStyle = null,
-
-        [Description("Filter criteria (e.g., '>100', '=Text') for apply-filter, or column position (0-based) for add-column")]
-        string? filterCriteria = null,
-
-        [Description("JSON array of filter values (e.g., '[\"Value1\",\"Value2\"]') for apply-filter-values")]
-        string? filterValues = null,
-
-        [Description("Excel format code for set-column-number-format (e.g., '$#,##0.00', '0.00%', 'm/d/yyyy')")]
-        string? formatCode = null,
-
-        [Description("When reading data, return only rows currently visible after filters (default: false)")]
-        bool visibleOnly = false)
+        string? tableName,
+        string? sheetName,
+        string? range,
+        string? newName,
+        bool hasHeaders,
+        string? tableStyle,
+        string? filterCriteria,
+        string? filterValues,
+        string? formatCode,
+        bool visibleOnly)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_table",

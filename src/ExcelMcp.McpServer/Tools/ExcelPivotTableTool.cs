@@ -1,12 +1,7 @@
-using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.McpServer.Models;
-
-#pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -14,99 +9,69 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// MCP tool for Excel PivotTable operations
 /// </summary>
 [McpServerToolType]
-public static class ExcelPivotTableTool
+public static partial class ExcelPivotTableTool
 {
     private static readonly JsonSerializerOptions JsonOptions = ExcelToolsBase.JsonOptions;
 
+    /// <summary>
+    /// Excel PivotTable operations - interactive data analysis and summarization.
+    /// OLAP add-value-field supports TWO modes: 1) Pre-existing measure: fieldName='Total Sales' or '[Measures].[Total Sales]' (adds existing measure) 2) Auto-create measure: fieldName='Sales' (column name, creates DAX measure with aggregationFunction).
+    /// TIMEOUT SAFEGUARD: create-from-datamodel auto-timeouts after 5 minutes to avoid hung OLAP queries. On timeout the tool returns SuggestedNextActions so the agent can recover without Excel hanging.
+    /// </summary>
+    /// <param name="action">Action to perform</param>
+    /// <param name="excelPath">Path to Excel file (.xlsx or .xlsm)</param>
+    /// <param name="sessionId">Session ID from excel_file 'open' action</param>
+    /// <param name="pivotTableName">PivotTable name</param>
+    /// <param name="sheetName">Source sheet name (for create-from-range)</param>
+    /// <param name="range">Source range (for create-from-range)</param>
+    /// <param name="tableName">Excel Table name (for create-from-table)</param>
+    /// <param name="dataModelTableName">Data Model table name (for create-from-datamodel)</param>
+    /// <param name="destinationSheet">Destination sheet for new PivotTable</param>
+    /// <param name="destinationCell">Destination cell for new PivotTable</param>
+    /// <param name="fieldName">Field name for field operations (for OLAP add-value-field: use measure name like 'Total Sales' for existing measure OR column name like 'Sales' to create new measure)</param>
+    /// <param name="aggregationFunction">Aggregation function: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP</param>
+    /// <param name="customName">Custom display name for field</param>
+    /// <param name="numberFormat">Number format code (e.g., '#,##0.00', '0.00%', 'm/d/yyyy')</param>
+    /// <param name="position">Position for field (1-based, optional)</param>
+    /// <param name="filterValues">JSON array of filter values (e.g., '["value1","value2"]')</param>
+    /// <param name="sortDirection">Sort direction: Ascending, Descending</param>
+    /// <param name="dateGroupingInterval">Date grouping interval: Days, Months, Quarters, Years</param>
+    /// <param name="numericGroupingStart">Numeric grouping start value (null = use field minimum)</param>
+    /// <param name="numericGroupingEnd">Numeric grouping end value (null = use field maximum)</param>
+    /// <param name="numericGroupingInterval">Numeric grouping interval size (e.g., 100 for 0-100, 100-200, ...)</param>
+    /// <param name="formula">Formula for calculated field (e.g., '=Revenue-Cost', '=Profit/Revenue')</param>
+    /// <param name="layout">Layout form: 0=Compact (all fields in one column), 1=Tabular (separate columns, subtotals bottom), 2=Outline (separate columns, subtotals top)</param>
+    /// <param name="subtotalsVisible">Show/hide subtotals for field: true=show automatic subtotals, false=hide</param>
+    /// <param name="showRowGrandTotals">Show/hide row grand totals: true=show bottom summary row, false=hide</param>
+    /// <param name="showColumnGrandTotals">Show/hide column grand totals: true=show right summary column, false=hide</param>
     [McpServerTool(Name = "excel_pivottable")]
-    [Description(@"Excel PivotTable operations - interactive data analysis and summarization.
-
-⚡ OLAP add-value-field supports TWO modes:
-  1. Pre-existing measure: fieldName='Total Sales' or '[Measures].[Total Sales]' (adds existing measure)
-  2. Auto-create measure: fieldName='Sales' (column name, creates DAX measure with aggregationFunction)
-
-⏱️ TIMEOUT SAFEGUARD
-- create-from-datamodel auto-timeouts after 5 minutes to avoid hung OLAP queries
-- On timeout the tool returns SuggestedNextActions so the agent can recover without Excel hanging")]
-    public static string ExcelPivotTable(
-        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+    public static partial string ExcelPivotTable(
         PivotTableAction action,
-
-        [Description("Path to Excel file (.xlsx or .xlsm)")]
         string excelPath,
-
-        [Required]
-        [Description("Session ID from excel_file 'open' action")]
         string sessionId,
-
-        [Description("PivotTable name")]
-        string? pivotTableName = null,
-
-        [Description("Source sheet name (for create-from-range)")]
-        string? sheetName = null,
-
-        [Description("Source range (for create-from-range)")]
-        string? range = null,
-
-        [Description("Excel Table name (for create-from-table)")]
-        string? tableName = null,
-
-        [Description("Data Model table name (for create-from-datamodel)")]
-        string? dataModelTableName = null,
-
-        [Description("Destination sheet for new PivotTable")]
-        string? destinationSheet = null,
-
-        [Description("Destination cell for new PivotTable")]
-        string? destinationCell = null,
-
-        [Description("Field name for field operations (for OLAP add-value-field: use measure name like 'Total Sales' for existing measure OR column name like 'Sales' to create new measure)")]
-        string? fieldName = null,
-
-        [Description("Aggregation function: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP")]
-        string? aggregationFunction = null,
-
-        [Description("Custom display name for field")]
-        string? customName = null,
-
-        [Description("Number format code (e.g., '#,##0.00', '0.00%', 'm/d/yyyy')")]
-        string? numberFormat = null,
-
-        [Description("Position for field (1-based, optional)")]
-        int? position = null,
-
-        [Description("JSON array of filter values (e.g., '[\"value1\",\"value2\"]')")]
-        string? filterValues = null,
-
-        [Description("Sort direction: Ascending, Descending")]
-        string? sortDirection = null,
-
-        [Description("Date grouping interval: Days, Months, Quarters, Years")]
-        string? dateGroupingInterval = null,
-
-        [Description("Numeric grouping start value (null = use field minimum)")]
-        double? numericGroupingStart = null,
-
-        [Description("Numeric grouping end value (null = use field maximum)")]
-        double? numericGroupingEnd = null,
-
-        [Description("Numeric grouping interval size (e.g., 100 for 0-100, 100-200, ...)")]
-        double? numericGroupingInterval = null,
-
-        [Description("Formula for calculated field (e.g., '=Revenue-Cost', '=Profit/Revenue')")]
-        string? formula = null,
-
-        [Description("Layout form: 0=Compact (all fields in one column), 1=Tabular (separate columns, subtotals bottom), 2=Outline (separate columns, subtotals top)")]
-        int? layout = null,
-
-        [Description("Show/hide subtotals for field: true=show automatic subtotals, false=hide")]
-        bool? subtotalsVisible = null,
-
-        [Description("Show/hide row grand totals: true=show bottom summary row, false=hide")]
-        bool? showRowGrandTotals = null,
-
-        [Description("Show/hide column grand totals: true=show right summary column, false=hide")]
-        bool? showColumnGrandTotals = null)
+        string? pivotTableName,
+        string? sheetName,
+        string? range,
+        string? tableName,
+        string? dataModelTableName,
+        string? destinationSheet,
+        string? destinationCell,
+        string? fieldName,
+        string? aggregationFunction,
+        string? customName,
+        string? numberFormat,
+        int? position,
+        string? filterValues,
+        string? sortDirection,
+        string? dateGroupingInterval,
+        double? numericGroupingStart,
+        double? numericGroupingEnd,
+        double? numericGroupingInterval,
+        string? formula,
+        int? layout,
+        bool? subtotalsVisible,
+        bool? showRowGrandTotals,
+        bool? showColumnGrandTotals)
     {
         _ = excelPath; // retained for schema compatibility (operations require open session)
 

@@ -209,7 +209,7 @@ private static object ConvertToCellValue(object? value)
 
 ## Best Practices
 
-1. **✅ ALWAYS return JSON** - Serialize Core Command results directly, let `success` flag indicate errors
+1. **ALWAYS return JSON** - Serialize Core Command results directly, let `success` flag indicate errors
 2. **Throw McpException sparingly** - Only for parameter validation and pre-conditions, NOT business errors
 3. **Validate parameters early** - Throw McpException for missing/invalid params before calling Core Commands
 4. **Action methods are synchronous** - Do NOT use async/await in action method implementations
@@ -218,6 +218,7 @@ private static object ConvertToCellValue(object? value)
 7. **JSON serialization** - Always use `JsonSerializer`
 8. **Handle JsonElement** - Convert before COM marshalling
 9. **Error messages: facts not guidance** - State what failed, not what to do next. LLMs figure out next steps.
+10. **NO EMOJIS** - Never use emoji characters in XML comments, `[Description]` attributes, or any code documentation. Use plain text markers like "IMPORTANT:", "WARNING:", "NOTE:" instead.
 
 ## Error Message Style
 
@@ -327,13 +328,13 @@ Before committing MCP tool changes:
 ```csharp
 [Description(@"Manage Power Query M code and data loading.
 
-⚡ PERFORMANCE: Use begin_excel_batch for 2+ operations (75-90% faster)
-
 LOAD DESTINATIONS (non-enum parameter):
 - 'worksheet': Load to worksheet as table (DEFAULT - users can see/validate data)
 - 'data-model': Load to Power Pivot Data Model (ready for DAX measures/relationships)
 - 'both': Load to BOTH worksheet AND Data Model
 - 'connection-only': Don't load data (M code imported but not executed)
+
+TIMEOUT: Long-running refresh/load operations auto-timeout after 5 minutes.
 
 Use excel_datamodel tool for DAX measures after loading to Data Model.")]
 ```
