@@ -206,7 +206,6 @@ jobs:
 
     - name: Install MCP Publisher
       id: install-mcp-publisher
-      continue-on-error: true
       run: |
         Write-Output "Installing MCP Publisher CLI..."
         $arch = if ([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture -eq "Arm64") { "arm64" } else { "amd64" }
@@ -218,8 +217,6 @@ jobs:
 
     - name: Login to MCP Registry
       id: login-mcp-registry
-      continue-on-error: true
-      if: steps.install-mcp-publisher.outcome == 'success'
       run: |
         Write-Output "Authenticating with MCP Registry using GitHub OIDC..."
         ./mcp-publisher.exe login github-oidc
@@ -228,8 +225,6 @@ jobs:
 
     - name: Publish to MCP Registry
       id: publish-mcp-registry
-      continue-on-error: true
-      if: steps.login-mcp-registry.outcome == 'success'
       run: |
         $version = $env:PACKAGE_VERSION
         $packageId = "sbroenne.excelmcp.mcpserver"
@@ -301,25 +296,21 @@ jobs:
           Write-Output "❌ MCP Registry publishing failed with exit code $publishExitCode"
           Write-Output "Error details shown above"
 
-          # Check if this is a duplicate version error
+          # Check if this is a duplicate version error (acceptable for re-runs)
           if ($publishOutput -match "duplicate version") {
             Write-Output ""
-            Write-Output "🔍 DUPLICATE VERSION DETECTED"
+            Write-Output "🔍 DUPLICATE VERSION DETECTED - This is OK for re-runs"
             Write-Output "   This version ($version) is already registered in the MCP Registry."
-            Write-Output "   This can happen if:"
-            Write-Output "   1. A previous workflow run partially succeeded"
-            Write-Output "   2. The version was manually published"
-            Write-Output "   3. The MCP Registry is in an inconsistent state"
+            Write-Output "   The version was successfully published in a previous run."
             Write-Output ""
-            Write-Output "   RESOLUTION OPTIONS:"
-            Write-Output "   - If this is a re-run: The version is already published, no action needed"
-            Write-Output "   - If this is a new release: Create a new tag with incremented version (e.g., v$($version.Split('.')[0]).$([int]$version.Split('.')[1] + 1).0)"
-            Write-Output "   - If registry is inconsistent: Contact MCP Registry support"
-            Write-Output ""
-            Write-Output "   Verify current registry state: $registryCheckUrl"
+            Write-Output "✅ Treating as success (version already exists in registry)"
+            exit 0  # Exit successfully - duplicate is acceptable
           }
 
-          # Exit with error to mark step as failed (continue-on-error will catch it)
+          # Any other error should fail the workflow
+          Write-Output ""
+          Write-Output "❌ MCP Registry publishing failed - this is a real error!"
+          Write-Output "   Check the error details above for the root cause."
           exit $publishExitCode
         }
       shell: pwsh
@@ -464,31 +455,39 @@ jobs:
 
         Write-Output "Created ExcelMcp-CLI-$version-windows.zip"
 
-        # Create release notes
+        # Create release notes using here-string to preserve markdown formatting
         $tagName = "${{ github.ref_name }}"
-        $releaseNotes = "## ExcelMcp v$version - MCP Server & CLI`n`n"
-        $releaseNotes += "### What's New`n`n"
-        $releaseNotes += "See [CHANGELOG](https://github.com/sbroenne/mcp-server-excel/blob/main/vscode-extension/CHANGELOG.md) for detailed changes.`n`n"
-        $releaseNotes += "### Installation`n`n"
-        $releaseNotes += "**MCP Server (.NET Tool)**`n"
-        $releaseNotes += "``````powershell`n"
-        $releaseNotes += "dotnet tool install --global Sbroenne.ExcelMcp.McpServer --version $version`n"
-        $releaseNotes += "mcp-excel`n"
-        $releaseNotes += "``````n`n"
-        $releaseNotes += "**CLI (.NET Tool)**`n"
-        $releaseNotes += "``````powershell`n"
-        $releaseNotes += "dotnet tool install --global Sbroenne.ExcelMcp.CLI --version $version`n"
-        $releaseNotes += "excelcli --help`n"
-        $releaseNotes += "``````n`n"
-        $releaseNotes += "For complete documentation, see the [main README](https://github.com/sbroenne/mcp-server-excel#readme).`n`n"
-        $releaseNotes += "### Requirements`n"
-        $releaseNotes += "- Windows OS with Microsoft Excel installed`n"
-        $releaseNotes += "- .NET 8.0 runtime`n"
-        $releaseNotes += "- Excel 2016+ (for COM interop)`n`n"
-        $releaseNotes += "### Documentation`n"
-        $releaseNotes += "- GitHub Repository: https://github.com/sbroenne/mcp-server-excel`n"
-        $releaseNotes += "- MCP Server: src/ExcelMcp.McpServer/README.md`n"
-        $releaseNotes += "- CLI: src/ExcelMcp.CLI/README.md`n"
+        $releaseNotes = @"
+## What's New
+
+See [CHANGELOG](https://github.com/sbroenne/mcp-server-excel/blob/main/vscode-extension/CHANGELOG.md) for detailed changes.
+
+## Installation
+
+**MCP Server (.NET Tool)**
+```powershell
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer --version $version
+mcp-excel
+```
+
+**CLI (.NET Tool)**
+```powershell
+dotnet tool install --global Sbroenne.ExcelMcp.CLI --version $version
+excelcli --help
+```
+
+For complete documentation, see the [main README](https://github.com/sbroenne/mcp-server-excel#readme).
+
+### Requirements
+- Windows OS with Microsoft Excel installed
+- .NET 8.0 runtime
+- Excel 2016+ (for COM interop)
+
+### Documentation
+- GitHub Repository: https://github.com/sbroenne/mcp-server-excel
+- MCP Server: src/ExcelMcp.McpServer/README.md
+- CLI: src/ExcelMcp.CLI/README.md
+"@
 
         # Create the release with both packages
         gh release create "$tagName" `
