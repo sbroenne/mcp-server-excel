@@ -45,7 +45,7 @@ function Get-InterfaceMethodNames {
 
 # Known intentional exceptions (documented in CORE-METHOD-RENAMING-SUMMARY.md)
 $knownExceptions = @{
-    "FileAction" = @("CloseWorkbook", "Open", "Save", "Close")  # Session management actions (MCP-specific)
+    "FileAction" = @("CloseWorkbook", "Open", "Save", "Close", "List")  # Session management actions (MCP-specific)
     "TableAction" = @("ApplyFilterValues", "SortMulti")  # Composite operations
 }
 
