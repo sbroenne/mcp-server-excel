@@ -1,12 +1,7 @@
-using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.McpServer.Models;
-
-#pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -14,60 +9,33 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// MCP tool for Power Query M code and data loading operations.
 /// </summary>
 [McpServerToolType]
-public static class ExcelPowerQueryTool
+public static partial class ExcelPowerQueryTool
 {
+    /// <summary>
+    /// Manage Power Query M code and data loading.
+    /// INLINE M CODE: Provide raw M code via mCode parameter.
+    /// TARGET SHEETS (Create and LoadTo actions): targetCellAddress works for BOTH create and load-to to place tables without clearing other content. If targetCellAddress is omitted and sheet already contains data, server returns guidance instead of deleting it. When re-using an existing QueryTable, LoadTo refreshes data in-place without recreating the table.
+    /// TIMEOUT SAFEGUARD: Long-running refresh/load operations auto-timeout after 5 minutes to prevent hanging.
+    /// </summary>
+    /// <param name="action">Action to perform</param>
+    /// <param name="sessionId">Session ID from excel_file 'open' action. Required for all Power Query operations.</param>
+    /// <param name="queryName">Power Query name (required for most actions)</param>
+    /// <param name="mCode">Raw Power Query M code (inline string). Required for create and update actions.</param>
+    /// <param name="targetSheet">Target worksheet name (when loadDestination is 'worksheet' or 'both')</param>
+    /// <param name="targetCellAddress">Top-left cell for create/load-to actions when placing data on an existing worksheet (e.g., 'B5'). Only used when load destination is 'worksheet' or 'both'.</param>
+    /// <param name="loadDestination">Load destination for query: 'worksheet' (DEFAULT - load to worksheet as table), 'data-model' (load to Power Pivot), 'both' (load to both), 'connection-only' (don't load data)</param>
+    /// <param name="refreshTimeoutSeconds">Timeout in seconds for refresh action (60-600 seconds / 1-10 minutes). Required when action is 'refresh'.</param>
     [McpServerTool(Name = "excel_powerquery")]
-    [Description(@"Manage Power Query M code and data loading.
-
-    ⚠️ INLINE M CODE
-    - Provide raw M code via mCode parameter
-
-    ⚠️ TARGET SHEETS (Create & LoadTo actions):
-    - targetCellAddress works for BOTH create and load-to to place tables without clearing other content
-    - If targetCellAddress is omitted and sheet already contains data, server returns guidance instead of deleting it
-    - When re-using an existing QueryTable, LoadTo refreshes data in-place without recreating the table
-
-    ⏱️ TIMEOUT SAFEGUARD
-    - Long-running refresh/load operations auto-timeout after 5 minutes
-    - On timeout the tool returns SuggestedNextActions instead of hanging the session
-")]
-    public static string ExcelPowerQuery(
-        [Required]
-        [Description("Action to perform (enum values displayed as dropdown in MCP clients)")]
+    [McpMeta("category", "query")]
+    public static partial string ExcelPowerQuery(
         PowerQueryAction action,
-
-        [Required]
-        [Description("Session ID from excel_file 'open' action. Required for all Power Query operations.")]
         string sessionId,
-
-        [StringLength(255, MinimumLength = 1)]
-        [Description("Power Query name (required for most actions)")]
-        string? queryName = null,
-
-        [Description("Raw Power Query M code (inline string). Required for create and update actions.")]
-        string? mCode = null,
-
-
-        [StringLength(31, MinimumLength = 1)]
-        [RegularExpression(@"^[^[\]/*?\\:]+$")]
-        [Description("Target worksheet name (when loadDestination is 'worksheet' or 'both')")]
-        string? targetSheet = null,
-
-        [RegularExpression(@"\$?[A-Za-z]{1,3}\$?[0-9]{1,7}$")]
-        [Description("Top-left cell for create/load-to actions when placing data on an existing worksheet (e.g., 'B5'). Only used when load destination is 'worksheet' or 'both'.")]
-        string? targetCellAddress = null,
-
-        [RegularExpression("^(worksheet|data-model|both|connection-only)$")]
-        [Description(@"Load destination for query (for create action). Options:
-      - 'worksheet': Load to worksheet as table (DEFAULT - users can see/validate data)
-      - 'data-model': Load to Power Pivot Data Model (for DAX measures/relationships)
-      - 'both': Load to both worksheet AND Data Model
-      - 'connection-only': Don't load data (M code imported but not executed)")]
-        string? loadDestination = null,
-
-        [Range(60, 600)]
-        [Description("Timeout in seconds for refresh action (60-600 seconds / 1-10 minutes). Required when action is 'refresh'.")]
-        int? refreshTimeoutSeconds = null)
+        string? queryName,
+        string? mCode,
+        string? targetSheet,
+        string? targetCellAddress,
+        string? loadDestination,
+        int? refreshTimeoutSeconds)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_powerquery",
@@ -167,8 +135,7 @@ public static class ExcelPowerQueryTool
             return JsonSerializer.Serialize(new
             {
                 success = true,
-                message = $"Query '{queryName}' deleted successfully",
-                workflowHint = "QueryTables referencing this query may need cleanup."
+                message = $"Query '{queryName}' deleted successfully"
             }, ExcelToolsBase.JsonOptions);
         }
         catch (Exception ex)
@@ -196,10 +163,7 @@ public static class ExcelPowerQueryTool
             result.QueryName,
             result.LoadMode,
             result.TargetSheet,
-            result.ErrorMessage,
-            workflowHint = result.Success && result.LoadMode == PowerQueryLoadMode.ConnectionOnly
-                ? "Query is connection-only (M code defined but data not loaded)."
-                : null
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -348,23 +312,11 @@ public static class ExcelPowerQueryTool
         }
         catch (TimeoutException ex)
         {
-            var suggestedNextActions = new[]
-            {
-                "Check if Excel is showing a 'Privacy Level' or credential dialog and dismiss it.",
-                "Verify the data source is reachable and credentials are valid.",
-                "If the dataset is large, load to worksheet first or break the query into smaller sources.",
-                "Use begin_excel_batch to keep the Excel session open while iterating on load configuration."
-            };
-
             return JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = ex.Message,
-                isError = true,
-                suggestedNextActions,
-                retryGuidance = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase)
-                    ? "Maximum timeout reached. Resolve Excel dialogs or reduce the amount of data before retrying."
-                    : "After verifying the data source, you can retry this operation within the 5 minute timeout limit."
+                isError = true
             }, ExcelToolsBase.JsonOptions);
         }
         catch (Exception ex)

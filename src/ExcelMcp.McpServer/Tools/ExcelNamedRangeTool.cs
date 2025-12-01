@@ -1,9 +1,6 @@
-using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -11,42 +8,27 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// MCP tool for Excel named range (parameter) operations.
 /// </summary>
 [McpServerToolType]
-public static class ExcelNamedRangeTool
+public static partial class ExcelNamedRangeTool
 {
     /// <summary>
-    /// Manage Excel parameters (named ranges) - configuration values and reusable references
+    /// Manage Excel named ranges - named cell references for reusable formulas and parameters.
+    /// CREATE/UPDATE: value is a cell reference (e.g., 'Sheet1!A1' or 'Sheet1!$A$1:$B$10'). Use $ for absolute references that won't shift when copied.
+    /// WRITE: value is the actual data to store in the named range's cell(s).
+    /// TIP: Use excel_range with rangeAddress=namedRangeName for bulk data operations on named ranges.
     /// </summary>
+    /// <param name="action">Action to perform</param>
+    /// <param name="excelPath">Excel file path (.xlsx or .xlsm)</param>
+    /// <param name="sessionId">Session ID from excel_file 'open' action</param>
+    /// <param name="namedRangeName">Named range name (for read, write, create, update, delete actions)</param>
+    /// <param name="value">Named range value (for write action) or cell reference (for create/update actions, e.g., 'Sheet1!A1')</param>
     [McpServerTool(Name = "excel_namedrange")]
-    [Description(@"Manage Excel named ranges - named cell references for reusable formulas and parameters.
-
-CREATE/UPDATE:
-- value is a cell reference (e.g., 'Sheet1!A1' or 'Sheet1!$A$1:$B$10')
-- Use $ for absolute references that won't shift when copied
-
-WRITE:
-- value is the actual data to store in the named range's cell(s)
-
-TIP: Use excel_range with rangeAddress=namedRangeName for bulk data operations on named ranges.")]
-    public static string ExcelParameter(
-        [Required]
-        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+    [McpMeta("category", "data")]
+    public static partial string ExcelParameter(
         NamedRangeAction action,
-
-        [Required]
-        [FileExtensions(Extensions = "xlsx,xlsm")]
-        [Description("Excel file path (.xlsx or .xlsm)")]
         string excelPath,
-
-        [Required]
-        [Description("Session ID from excel_file 'open' action")]
         string sessionId,
-
-        [StringLength(255, MinimumLength = 1)]
-        [Description("Named range name (for read, write, create, update, delete actions)")]
-        string? namedRangeName = null,
-
-        [Description("Named range value (for write action) or cell reference (for create/update actions, e.g., 'Sheet1!A1')")]
-        string? value = null)
+        string? namedRangeName,
+        string? value)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_namedrange",
@@ -156,8 +138,7 @@ TIP: Use excel_range with rangeAddress=namedRangeName for bulk data operations o
         return JsonSerializer.Serialize(new
         {
             success = true,
-            message = $"Named range '{namedRangeName}' deleted successfully",
-            workflowHint = "Formulas referencing this named range will show #NAME? error"
+            message = $"Named range '{namedRangeName}' deleted successfully"
         }, ExcelToolsBase.JsonOptions);
     }
 }

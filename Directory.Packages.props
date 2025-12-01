@@ -10,8 +10,8 @@
     <PackageVersion Include="Spectre.Console" Version="0.54.0" />
     <PackageVersion Include="Spectre.Console.Cli" Version="0.53.1" />
     <!-- Microsoft Extensions for MCP Server -->
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
     <!-- Application Insights Worker Service SDK for telemetry (Users, Sessions, Funnels, User Flows) -->
     <!-- Worker Service SDK provides proper DI integration, auto-collection modules, and host lifetime awareness -->
@@ -19,15 +19,15 @@
     <!-- Base SDK needed for tests that directly use TelemetryClient -->
     <PackageVersion Include="Microsoft.ApplicationInsights" Version="2.23.0" />
     <PackageVersion Include="Microsoft.Extensions.Resilience" Version="10.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="9.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.0" />
-    <PackageVersion Include="System.Text.Json" Version="9.0.10" />
+    <PackageVersion Include="System.Text.Json" Version="10.0.0" />
     <!-- NuGet API Client -->
     <PackageVersion Include="NuGet.Protocol" Version="6.12.1" />
     <PackageVersion Include="NuGet.Versioning" Version="6.12.1" />
     <!-- MCP SDK -->
-    <PackageVersion Include="ModelContextProtocol" Version="0.4.0-preview.3" />
+    <PackageVersion Include="ModelContextProtocol" Version="0.4.1-preview.1" />
     <!-- Testing Framework -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
     <PackageVersion Include="System.Net.Http" Version="4.3.5" />

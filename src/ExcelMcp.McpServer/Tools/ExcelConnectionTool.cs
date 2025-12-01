@@ -1,13 +1,7 @@
-using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.McpServer.Models;
-
-#pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -17,83 +11,48 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// Power Query connections automatically redirect to excel_powerquery tool.
 /// </summary>
 [McpServerToolType]
-[SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Conditional arrays with dynamic content")]
-public static class ExcelConnectionTool
+public static partial class ExcelConnectionTool
 {
     /// <summary>
-    /// Manage Excel data connections - OLEDB and ODBC
+    /// Manage Excel data connections (OLEDB, ODBC).
+    /// CONNECTION TYPES: OLEDB (SQL Server, Access/Excel ACE, Oracle - provider must be installed), ODBC data sources, DataFeed/Model (existing Power Query/Power Pivot connections - list/view/refresh/delete only, creation routes to excel_powerquery).
+    /// TEXT/WEB: Not supported via create - use excel_powerquery for CSV/text/web imports.
+    /// POWER QUERY: Connections auto-redirect to excel_powerquery tool.
+    /// TIMEOUT: Refresh and load-to auto-timeout after 5 minutes to prevent hanging.
     /// </summary>
+    /// <param name="action">Action to perform (enum displayed as dropdown in MCP clients)</param>
+    /// <param name="excelPath">Excel file path (.xlsx or .xlsm)</param>
+    /// <param name="sessionId">Session ID from excel_file 'open' action</param>
+    /// <param name="connectionName">Connection name</param>
+    /// <param name="connectionString">Connection string (for create action)</param>
+    /// <param name="commandText">Command text/SQL query (for create action, optional)</param>
+    /// <param name="description">Connection description (for create action, optional)</param>
+    /// <param name="sheetName">Sheet name for loadto action</param>
+    /// <param name="newConnectionString">New connection string (for set-properties, optional)</param>
+    /// <param name="newCommandText">New command text/SQL query (for set-properties, optional)</param>
+    /// <param name="newDescription">New connection description (for set-properties, optional)</param>
+    /// <param name="backgroundQuery">Background query setting (for set-properties, optional)</param>
+    /// <param name="refreshOnFileOpen">Refresh on file open setting (for set-properties, optional)</param>
+    /// <param name="savePassword">Save password setting (for set-properties, optional)</param>
+    /// <param name="refreshPeriod">Refresh period in minutes (for set-properties, optional)</param>
     [McpServerTool(Name = "excel_connection")]
-    [Description(@"Manage Excel data connections (OLEDB, ODBC).
-
-CONNECTION TYPES SUPPORTED:
-- OLEDB: SQL Server, Access/Excel (ACE), Oracle, etc. Provider must already be installed on the machine. Missing providers trigger Excel error 'Value does not fall within expected range'.
-- ODBC: ODBC data sources
-- DataFeed / Model: Appear when workbook already contains Power Query or Power Pivot connections. Tool can list/view/refresh/delete them, but creation is routed to excel_powerquery/Power Pivot.
-
-TEXT/WEB FILE IMPORTS:
-- TEXT and WEB connections are NOT supported via create action
-- Use excel_powerquery tool for CSV/text file and web imports instead
-
-POWER QUERY AUTO-REDIRECT:
-- Power Query connections automatically redirect to excel_powerquery tool
-- Use excel_powerquery for M code-based connections
-
-TIMEOUT SAFEGUARD:
-- Refresh and load-to actions auto-timeout after 5 minutes
-- On timeout, the tool returns SuggestedNextActions instead of hanging the session
-")]
-    public static string ExcelConnection(
-        [Required]
-        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+    [McpMeta("category", "query")]
+    public static partial string ExcelConnection(
         ConnectionAction action,
-
-        [Required]
-        [FileExtensions(Extensions = "xlsx,xlsm")]
-        [Description("Excel file path (.xlsx or .xlsm)")]
         string excelPath,
-
-        [Required]
-        [Description("Session ID from excel_file 'open' action")]
         string sessionId,
-
-        [StringLength(255, MinimumLength = 1)]
-        [Description("Connection name")]
-        string? connectionName = null,
-
-        [Description("Connection string (for create action)")]
-        string? connectionString = null,
-
-        [Description("Command text/SQL query (for create action, optional)")]
-        string? commandText = null,
-
-        [Description("Connection description (for create action, optional)")]
-        string? description = null,
-
-        [StringLength(31, MinimumLength = 1)]
-        [Description("Sheet name for loadto action")]
-        string? sheetName = null,
-
-        [Description("New connection string (for set-properties, optional)")]
-        string? newConnectionString = null,
-
-        [Description("New command text/SQL query (for set-properties, optional)")]
-        string? newCommandText = null,
-
-        [Description("New connection description (for set-properties, optional)")]
-        string? newDescription = null,
-
-        [Description("Background query setting (for set-properties, optional)")]
-        bool? backgroundQuery = null,
-
-        [Description("Refresh on file open setting (for set-properties, optional)")]
-        bool? refreshOnFileOpen = null,
-
-        [Description("Save password setting (for set-properties, optional)")]
-        bool? savePassword = null,
-
-        [Description("Refresh period in minutes (for set-properties, optional)")]
-        int? refreshPeriod = null)
+        string? connectionName,
+        string? connectionString,
+        string? commandText,
+        string? description,
+        string? sheetName,
+        string? newConnectionString,
+        string? newCommandText,
+        string? newDescription,
+        bool? backgroundQuery,
+        bool? refreshOnFileOpen,
+        bool? savePassword,
+        int? refreshPeriod)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_connection",
@@ -179,36 +138,11 @@ TIMEOUT SAFEGUARD:
         }
         catch (TimeoutException ex)
         {
-            bool usedMaxTimeout = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase);
-
-            string[] suggestedNextActions =
-            [
-                "Check Excel for credential prompts or privacy dialogs that might be blocking the refresh.",
-                "Verify network connectivity and confirm the external data source is reachable.",
-                "If the query is large, consider filtering or batching the data source.",
-                "Use begin_excel_batch to keep the session alive while adjusting connection settings."
-            ];
-
-            var operationContext = new Dictionary<string, object>
-            {
-                ["OperationType"] = "Connection.Refresh",
-                ["ConnectionName"] = connectionName,
-                ["TimeoutReached"] = true,
-                ["UsedMaxTimeout"] = usedMaxTimeout
-            };
-
-            var retryGuidance = usedMaxTimeout
-                ? "Maximum timeout reached. Inspect Excel for modal dialogs or reduce the size of the refresh before retrying."
-                : "After resolving connectivity issues, retry the refresh (up to the 5 minute timeout).";
-
             return JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = ex.Message,
-                isError = true,
-                suggestedNextActions,
-                retryGuidance,
-                operationContext
+                isError = true
             }, ExcelToolsBase.JsonOptions);
         }
     }
@@ -259,37 +193,11 @@ TIMEOUT SAFEGUARD:
         }
         catch (TimeoutException ex)
         {
-            bool usedMaxTimeout = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase);
-
-            string[] suggestedNextActions =
-            [
-                "Check Excel for credential or privacy prompts blocking the load.",
-                "Ensure the destination sheet is visible and not protected.",
-                "Consider loading to a worksheet first before creating additional pivots or reports.",
-                "Run begin_excel_batch before issuing multiple load-to commands to reuse the same Excel session."
-            ];
-
-            var operationContext = new Dictionary<string, object>
-            {
-                ["OperationType"] = "Connection.LoadTo",
-                ["ConnectionName"] = connectionName,
-                ["SheetName"] = sheetName,
-                ["TimeoutReached"] = true,
-                ["UsedMaxTimeout"] = usedMaxTimeout
-            };
-
-            var retryGuidance = usedMaxTimeout
-                ? "Maximum timeout reached. Inspect Excel for modal dialogs or reduce the data volume before retrying."
-                : "After verifying sheet readiness and connectivity, retry the load operation.";
-
             return JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = ex.Message,
-                isError = true,
-                suggestedNextActions,
-                retryGuidance,
-                operationContext
+                isError = true
             }, ExcelToolsBase.JsonOptions);
         }
     }

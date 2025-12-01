@@ -198,6 +198,12 @@ Create an empty Excel file called "test.xlsx"
 
 If it works, you're all set! 🎉
 
+**💡 Tip:** Want to watch the AI work? Ask:
+```
+Show me Excel while you work on test.xlsx
+```
+This opens Excel visibly so you can see every change in real-time - great for debugging and demos!
+
 ---
 
 ### Option 3: CLI Installation (No AI Required)

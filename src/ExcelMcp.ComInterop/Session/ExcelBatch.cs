@@ -24,6 +24,7 @@ internal sealed class ExcelBatch : IExcelBatch
 {
     private readonly string _workbookPath; // Primary workbook path
     private readonly string[] _allWorkbookPaths; // All workbook paths (includes primary)
+    private readonly bool _showExcel; // Whether to show Excel window
     private readonly ILogger<ExcelBatch> _logger;
     private readonly Channel<Func<Task>> _workQueue;
     private readonly Thread _staThread;
@@ -42,13 +43,15 @@ internal sealed class ExcelBatch : IExcelBatch
     /// </summary>
     /// <param name="workbookPaths">Paths to Excel workbooks. First path is the primary workbook.</param>
     /// <param name="logger">Optional logger for diagnostic output. If null, uses NullLogger (no output).</param>
-    public ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger = null)
+    /// <param name="showExcel">Whether to show the Excel window (default: false for background automation).</param>
+    public ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger = null, bool showExcel = false)
     {
         if (workbookPaths == null || workbookPaths.Length == 0)
             throw new ArgumentException("At least one workbook path is required", nameof(workbookPaths));
 
         _allWorkbookPaths = workbookPaths;
         _workbookPath = workbookPaths[0]; // Primary workbook
+        _showExcel = showExcel;
         _logger = logger ?? NullLogger<ExcelBatch>.Instance;
         _shutdownCts = new CancellationTokenSource();
 
@@ -77,7 +80,7 @@ internal sealed class ExcelBatch : IExcelBatch
                 }
 
                 dynamic tempExcel = Activator.CreateInstance(excelType)!;
-                tempExcel.Visible = false;
+                tempExcel.Visible = _showExcel;
                 tempExcel.DisplayAlerts = false;
 
                 // Disable macro security warnings for unattended automation

@@ -1,60 +1,52 @@
-using System.ComponentModel;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.McpServer.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
 /// Excel file management tool for MCP server.
-/// Manages Excel file creation and session lifecycle for automation workflows.
-/// Supports .xlsx (standard) and .xlsm (macro-enabled) formats.
 /// </summary>
 [McpServerToolType]
-[SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Simple workflow arrays in sealed static class")]
-public static class ExcelFileTool
+public static partial class ExcelFileTool
 {
     /// <summary>
-    /// Create new Excel files for automation workflows
+    /// Manage Excel files and sessions.
+    ///
+    /// SESSION LIFECYCLE REQUIRED:
+    /// 1. OPEN - Start session, get sessionId
+    /// 2. OPERATE - Use sessionId with other tools
+    /// 3. CLOSE - End session (use save:true parameter to persist changes)
+    ///
+    /// IMPORTANT: NO 'SAVE' ACTION - Use action='close' with save:true to persist changes
+    ///
+    /// CRITICAL: DO NOT CLOSE SESSION PREMATURELY
+    /// - Keep session open across ALL operations in a workflow
+    /// - ONLY close when user explicitly confirms OR all operations complete
+    /// - Closing mid-workflow loses the session and breaks subsequent operations
+    ///
+    /// WORKFLOWS:
+    /// - Persist changes: open → operations(sessionId) → close(save: true)
+    /// - Discard changes: open → operations(sessionId) → close(save: false)
+    /// - Read-only: open → read(sessionId) → close(save: false)
+    ///
+    /// FILE FORMATS:
+    /// - .xlsx: Standard Excel workbook
+    /// - .xlsm: Macro-enabled workbook
     /// </summary>
+    /// <param name="action">Action to perform</param>
+    /// <param name="excelPath">Excel file path (.xlsx or .xlsm) - required for open/create-empty, not used for close</param>
+    /// <param name="sessionId">Session ID from 'open' action - required for close</param>
+    /// <param name="save">Save changes before closing (default: false)</param>
+    /// <param name="showExcel">Show Excel window during operations (default: false). Set true so user can watch changes in real-time.</param>
     [McpServerTool(Name = "excel_file")]
-    [Description(@"Manage Excel files and sessions.
-
-**SESSION LIFECYCLE REQUIRED:**
-1. OPEN - Start session, get sessionId
-2. OPERATE - Use sessionId with other tools
-3. CLOSE - End session (use save:true parameter to persist changes)
-
-**IMPORTANT:** NO 'SAVE' ACTION - Use action='close' with save:true to persist changes
-
-**CRITICAL: DO NOT CLOSE SESSION PREMATURELY**
-- Keep session open across ALL operations in a workflow
-- ONLY close when user explicitly confirms OR all operations complete
-- Closing mid-workflow loses the session and breaks subsequent operations
-
-WORKFLOWS:
-- Persist changes: open → operations(sessionId) → close(save: true)
-- Discard changes: open → operations(sessionId) → close(save: false)
-- Read-only: open → read(sessionId) → close(save: false)
-
-FILE FORMATS:
-- .xlsx: Standard Excel workbook
-- .xlsm: Macro-enabled workbook
-")]
-    public static string ExcelFile(
-        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+    [McpMeta("category", "session")]
+    public static partial string ExcelFile(
         FileAction action,
-
-        [Description("Excel file path (.xlsx or .xlsm extension) - required for open/create-empty, not used for close")]
-        string? excelPath = null,
-
-        [Description("Session ID from 'open' action - required for close, not used for open/create-empty/test")]
-        string? sessionId = null,
-
-        [Description("Save changes before closing (for close action, default: false - use true to persist changes)")]
-        bool save = false)
+        string? excelPath,
+        string? sessionId,
+        bool save,
+        bool showExcel)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_file",
@@ -67,7 +59,7 @@ FILE FORMATS:
                 // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
                 return action switch
                 {
-                    FileAction.Open => OpenSessionAsync(excelPath!),
+                    FileAction.Open => OpenSessionAsync(excelPath!, showExcel),
                     FileAction.Close => CloseSessionAsync(sessionId!, save),
                     FileAction.CreateEmpty => CreateEmptyFileAsync(fileCommands, excelPath!,
                         excelPath!.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase)),
@@ -75,23 +67,6 @@ FILE FORMATS:
                     FileAction.Test => TestFileAsync(fileCommands, excelPath!),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
-            },
-            ex =>
-            {
-                if (ex is ArgumentException argEx && (argEx.Message.Contains("action") || argEx.Message.Contains("Action")))
-                {
-                    return JsonSerializer.Serialize(new
-                    {
-                        success = false,
-                        errorMessage = $"Invalid action value. Valid actions: open, close, create-empty, close-workbook, test. {argEx.Message}",
-                        validActions = new[] { "open", "close", "create-empty", "close-workbook", "test" },
-                        providedAction = action.ToString(),
-                        workflowHint = "For persisting changes, use action='close' with save=true parameter (not action='save')",
-                        isError = true
-                    }, ExcelToolsBase.JsonOptions);
-                }
-
-                return null;
             });
     }
 
@@ -99,7 +74,7 @@ FILE FORMATS:
     /// Opens an Excel file and creates a new session.
     /// Returns sessionId that must be used for all subsequent operations.
     /// </summary>
-    private static string OpenSessionAsync(string excelPath)
+    private static string OpenSessionAsync(string excelPath, bool showExcel)
     {
         if (string.IsNullOrWhiteSpace(excelPath))
         {
@@ -119,14 +94,14 @@ FILE FORMATS:
 
         try
         {
-            string sessionId = ExcelToolsBase.GetSessionManager().CreateSession(excelPath);
+            string sessionId = ExcelToolsBase.GetSessionManager().CreateSession(excelPath, showExcel);
 
             return JsonSerializer.Serialize(new
             {
                 success = true,
                 sessionId,
                 filePath = excelPath,
-                workflowHint = "Use sessionId with other excel_* tools. Call 'close' with save:true to persist changes, or save:false to discard."
+                showExcel
             }, ExcelToolsBase.JsonOptions);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("already open"))
@@ -173,8 +148,7 @@ FILE FORMATS:
                 {
                     success = true,
                     sessionId,
-                    saved = save,
-                    workflowHint = "Session closed successfully. If you need to perform more operations on this file, open a new session."
+                    saved = save
                 }, ExcelToolsBase.JsonOptions);
             }
 

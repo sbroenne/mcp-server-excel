@@ -1,14 +1,8 @@
-using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.McpServer.Models;
-
-#pragma warning disable CA1861 // Avoid constant arrays as arguments - workflow hints are contextual per-call
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -16,75 +10,39 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// MCP tool for Excel worksheet lifecycle and appearance (create, rename, copy, delete, tab colors, visibility).
 /// </summary>
 [McpServerToolType]
-[SuppressMessage("Performance", "CA1861:Avoid constant arrays as arguments", Justification = "Simple workflow arrays in sealed static class")]
-public static class ExcelWorksheetTool
+public static partial class ExcelWorksheetTool
 {
     /// <summary>
-    /// Manage Excel worksheet lifecycle and appearance
+    /// Manage Excel worksheets: lifecycle, tab colors, visibility.
+    /// CROSS-WORKBOOK OPERATIONS (copy-to-workbook, move-to-workbook): Copy or move sheets BETWEEN different Excel files. Requires TWO sessionIds: sourceSessionId + targetSessionId.
+    /// TAB COLORS (set-tab-color): RGB values 0-255 for red, green, blue. Example: red=255, green=0, blue=0 for red tab.
+    /// POSITIONING (move, copy-to-workbook, move-to-workbook): Use beforeSheet OR afterSheet (not both). If neither specified, sheet positioned at end.
     /// </summary>
+    /// <param name="action">Action to perform</param>
+    /// <param name="sessionId">Active Excel session ID from excel_file 'open' action</param>
+    /// <param name="sheetName">Worksheet name (required for most actions)</param>
+    /// <param name="targetName">New sheet name (for rename) or target sheet name (for copy/copy-to-workbook)</param>
+    /// <param name="targetSessionId">Target workbook session ID (for copy-to-workbook and move-to-workbook actions)</param>
+    /// <param name="beforeSheet">Position sheet before this sheet (for move, copy-to-workbook, move-to-workbook)</param>
+    /// <param name="afterSheet">Position sheet after this sheet (for move, copy-to-workbook, move-to-workbook)</param>
+    /// <param name="red">Red component (0-255) for set-tab-color action</param>
+    /// <param name="green">Green component (0-255) for set-tab-color action</param>
+    /// <param name="blue">Blue component (0-255) for set-tab-color action</param>
+    /// <param name="visibility">Visibility level for set-visibility action: visible (normal), hidden (user can unhide), veryhidden (requires code to unhide)</param>
     [McpServerTool(Name = "excel_worksheet")]
-    [Description(@"Manage Excel worksheets: lifecycle, tab colors, visibility.
-
-CROSS-WORKBOOK OPERATIONS (copy-to-workbook, move-to-workbook):
-- Copy or move sheets BETWEEN different Excel files
-- Requires TWO sessionIds: sourceSessionId + targetSessionId
-- Opens both workbooks in same Excel instance automatically
-
-TAB COLORS (set-tab-color):
-- RGB values: 0-255 for red, green, blue components
-- Example: red=255, green=0, blue=0 for red tab
-
-POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
-- Use beforeSheet OR afterSheet (not both) to specify relative position
-- If neither specified, sheet is positioned at the end
-")]
-    public static string ExcelWorksheet(
-        [Required]
-        [Description("Action to perform (enum displayed as dropdown in MCP clients)")]
+    [McpMeta("category", "structure")]
+    public static partial string ExcelWorksheet(
         WorksheetAction action,
-
-        [Required]
-        [Description("Active Excel session ID from excel_file 'open' action")]
         string sessionId,
-
-        [StringLength(31, MinimumLength = 1)]
-        [RegularExpression(@"^[^[\]/*?\\:]+$")]
-        [Description("Worksheet name (required for most actions)")]
-        string? sheetName = null,
-
-        [StringLength(31, MinimumLength = 1)]
-        [RegularExpression(@"^[^[\]/*?\\:]+$")]
-        [Description("New sheet name (for rename) or target sheet name (for copy/copy-to-workbook)")]
-        string? targetName = null,
-
-        [Description("Target workbook session ID (for copy-to-workbook and move-to-workbook actions)")]
-        string? targetSessionId = null,
-
-        [StringLength(31, MinimumLength = 1)]
-        [RegularExpression(@"^[^[\]/*?\\:]+$")]
-        [Description("Position sheet before this sheet (for move, copy-to-workbook, move-to-workbook)")]
-        string? beforeSheet = null,
-
-        [StringLength(31, MinimumLength = 1)]
-        [RegularExpression(@"^[^[\]/*?\\:]+$")]
-        [Description("Position sheet after this sheet (for move, copy-to-workbook, move-to-workbook)")]
-        string? afterSheet = null,
-
-        [Range(0, 255)]
-        [Description("Red component (0-255) for set-tab-color action")]
-        int? red = null,
-
-        [Range(0, 255)]
-        [Description("Green component (0-255) for set-tab-color action")]
-        int? green = null,
-
-        [Range(0, 255)]
-        [Description("Blue component (0-255) for set-tab-color action")]
-        int? blue = null,
-
-        [RegularExpression("^(visible|hidden|veryhidden)$")]
-        [Description("Visibility level for set-visibility action: visible (normal), hidden (user can unhide), veryhidden (requires code to unhide)")]
-        string? visibility = null)
+        string? sheetName,
+        string? targetName,
+        string? targetSessionId,
+        string? beforeSheet,
+        string? afterSheet,
+        int? red,
+        int? green,
+        int? blue,
+        string? visibility)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_worksheet",
@@ -510,8 +468,7 @@ POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
             return JsonSerializer.Serialize(new
             {
                 success = true,
-                message = $"Sheet '{sheetName}' hidden successfully.",
-                workflowHint = "Sheet now hidden (users can unhide via Excel UI)"
+                message = $"Sheet '{sheetName}' hidden successfully."
             }, ExcelToolsBase.JsonOptions);
         }
         catch (Exception ex)
@@ -546,8 +503,7 @@ POSITIONING (move, copy, copy-to-workbook, move-to-workbook):
             return JsonSerializer.Serialize(new
             {
                 success = true,
-                message = $"Sheet '{sheetName}' very-hidden successfully.",
-                workflowHint = "Sheet now very-hidden (not visible even in VBA, requires code to unhide)"
+                message = $"Sheet '{sheetName}' very-hidden successfully."
             }, ExcelToolsBase.JsonOptions);
         }
         catch (Exception ex)

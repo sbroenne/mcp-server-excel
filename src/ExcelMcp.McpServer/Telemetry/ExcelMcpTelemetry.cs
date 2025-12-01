@@ -37,7 +37,6 @@ public static class ExcelMcpTelemetry
     /// </summary>
     internal static void SetTelemetryClient(TelemetryClient client)
     {
-        Console.Error.WriteLine($"[TELEMETRY DIAG] SetTelemetryClient called with client={(client == null ? "NULL" : "instance")}");
         _telemetryClient = client;
     }
 
@@ -49,7 +48,6 @@ public static class ExcelMcpTelemetry
     /// </summary>
     public static void Flush()
     {
-        Console.Error.WriteLine($"[TELEMETRY DIAG] Flush called, client={((_telemetryClient == null) ? "NULL" : "SET")}");
         if (_telemetryClient == null) return;
 
         try
@@ -57,11 +55,9 @@ public static class ExcelMcpTelemetry
             // Flush with timeout to avoid hanging on shutdown
             // 5 seconds is typically sufficient for small batches
             _telemetryClient.FlushAsync(CancellationToken.None).Wait(TimeSpan.FromSeconds(5));
-            Console.Error.WriteLine($"[TELEMETRY DIAG] Flush completed successfully");
         }
-        catch (Exception ex)
+        catch
         {
-            Console.Error.WriteLine($"[TELEMETRY DIAG] Flush failed: {ex.Message}");
             // Don't let telemetry flush failure crash the application
         }
     }
@@ -76,10 +72,8 @@ public static class ExcelMcpTelemetry
         if (string.IsNullOrEmpty(TelemetryConfig.ConnectionString) ||
             TelemetryConfig.ConnectionString.StartsWith("__", StringComparison.Ordinal))
         {
-            Console.Error.WriteLine($"[TELEMETRY DIAG] GetConnectionString returning null. Raw value: '{TelemetryConfig.ConnectionString ?? "(null)"}'");
             return null;
         }
-        Console.Error.WriteLine($"[TELEMETRY DIAG] GetConnectionString returning valid connection string (length={TelemetryConfig.ConnectionString.Length})");
         return TelemetryConfig.ConnectionString;
     }
 
@@ -95,7 +89,7 @@ public static class ExcelMcpTelemetry
     /// <param name="success">Whether the operation succeeded</param>
     public static void TrackToolInvocation(string toolName, string action, long durationMs, bool success)
     {
-        Console.Error.WriteLine($"[TELEMETRY DIAG] TrackToolInvocation called: {toolName}/{action}, client={((_telemetryClient == null) ? "NULL" : "SET")}");
+
         if (_telemetryClient == null) return;
 
         var operationName = $"{toolName}/{action}";
@@ -113,7 +107,6 @@ public static class ExcelMcpTelemetry
             Duration = duration
         };
         _telemetryClient.TrackPageView(pageView);
-        Console.Error.WriteLine($"[TELEMETRY DIAG] TrackRequest + TrackPageView completed for {operationName}");
     }
 
     /// <summary>

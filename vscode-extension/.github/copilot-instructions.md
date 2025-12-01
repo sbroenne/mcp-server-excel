@@ -36,6 +36,11 @@
 - **KEEP session open** across multiple operations
 - **ONLY close** with `excel_file(action: 'close')` when all operations complete
 - Ask user "Should I close the session now?" if unclear
+- **Show Excel**: Use `showExcel: true` when user wants to watch operations:
+  ```
+  excel_file(action: 'open', excelPath: 'file.xlsx', showExcel: true)
+  ```
+  Use when user says "show me Excel", "let me watch", or "I want to see the changes".
 
 ### File Access
 - File MUST be closed in Excel UI before automation
