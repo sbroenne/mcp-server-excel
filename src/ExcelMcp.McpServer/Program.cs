@@ -166,8 +166,8 @@ public class Program
             EnablePerformanceCounterCollectionModule = false,  // Perf counters not useful for short-lived CLI
             EnableEventCounterCollectionModule = false,  // Event counters not needed
 
-            // Enable dependency tracking for HTTP calls
-            EnableDependencyTrackingTelemetryModule = true,
+            // Disable dependency tracking for HTTP calls
+            EnableDependencyTrackingTelemetryModule = false,
         };
 
         builder.Services.AddApplicationInsightsTelemetryWorkerService(aiOptions);
