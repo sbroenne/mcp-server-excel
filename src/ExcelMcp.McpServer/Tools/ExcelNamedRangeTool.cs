@@ -17,7 +17,16 @@ public static class ExcelNamedRangeTool
     /// Manage Excel parameters (named ranges) - configuration values and reusable references
     /// </summary>
     [McpServerTool(Name = "excel_namedrange")]
-    [Description(@"Manage Excel named ranges")]
+    [Description(@"Manage Excel named ranges - named cell references for reusable formulas and parameters.
+
+CREATE/UPDATE:
+- value is a cell reference (e.g., 'Sheet1!A1' or 'Sheet1!$A$1:$B$10')
+- Use $ for absolute references that won't shift when copied
+
+WRITE:
+- value is the actual data to store in the named range's cell(s)
+
+TIP: Use excel_range with rangeAddress=namedRangeName for bulk data operations on named ranges.")]
     public static string ExcelParameter(
         [Required]
         [Description("Action to perform (enum displayed as dropdown in MCP clients)")]

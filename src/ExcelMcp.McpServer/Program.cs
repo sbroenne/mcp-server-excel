@@ -1,3 +1,4 @@
+using System.IO.Pipelines;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.WorkerService;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,13 +9,39 @@ using Sbroenne.ExcelMcp.McpServer.Telemetry;
 namespace Sbroenne.ExcelMcp.McpServer;
 
 /// <summary>
-/// ExcelCLI Model Context Protocol (MCP) Server
-/// Provides resource-based tools for AI assistants to automate Excel operations:
-///
+/// ExcelMCP Model Context Protocol (MCP) Server.
+/// Provides resource-based tools for AI assistants to automate Excel operations.
 /// </summary>
 public class Program
 {
-    public static async Task Main(string[] args)
+    // Test transport configuration - set by tests before calling Main()
+    // These are intentionally static for test injection. Thread-safety is not required
+    // because tests run sequentially and call ResetTestTransport() after each test.
+    private static Pipe? _testInputPipe;
+    private static Pipe? _testOutputPipe;
+
+    /// <summary>
+    /// Configures the server to use in-memory pipe transport for testing.
+    /// Call this before RunAsync() to enable test mode.
+    /// </summary>
+    /// <param name="inputPipe">Pipe for reading client requests (client writes, server reads)</param>
+    /// <param name="outputPipe">Pipe for writing server responses (server writes, client reads)</param>
+    public static void ConfigureTestTransport(Pipe inputPipe, Pipe outputPipe)
+    {
+        _testInputPipe = inputPipe;
+        _testOutputPipe = outputPipe;
+    }
+
+    /// <summary>
+    /// Resets test transport configuration (call after test completes).
+    /// </summary>
+    public static void ResetTestTransport()
+    {
+        _testInputPipe = null;
+        _testOutputPipe = null;
+    }
+
+    public static async Task<int> Main(string[] args)
     {
         // Register global exception handlers for unhandled exceptions (telemetry)
         RegisterGlobalExceptionHandlers();
@@ -27,27 +54,66 @@ public class Program
             consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
         });
 
-        // Configure Application Insights Worker Service SDK for telemetry (if not opted out)
+        // Configure Application Insights
         ConfigureTelemetry(builder);
 
-        // MCP Server architecture:
-        // - Batch session management: LLM controls workbook lifecycle via begin/commit tools
+        // Configure MCP Server - use test transport if configured, otherwise stdio
+        var mcpBuilder = builder.Services
+            .AddMcpServer(options =>
+            {
+                options.ServerInfo = new()
+                {
+                    Name = "excel-mcp",
+                    Version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0"
+                };
 
-        // Add MCP server with Excel tools (auto-discovers tools and prompts via attributes)
-        builder.Services
-            .AddMcpServer()
-            .WithStdioServerTransport()
-            .WithToolsFromAssembly();
+                // Server-wide instructions for LLMs - helps with tool selection and workflow understanding
+                options.ServerInstructions = """
+                    ExcelMCP automates Microsoft Excel via COM interop.
 
-        // Note: Completion support requires manual JSON-RPC method handling
-        // See ExcelCompletionHandler for completion logic implementation
-        // To enable: handle "completion/complete" method in custom transport layer
+                    CRITICAL: File must be CLOSED in Excel desktop app (COM requires exclusive access).
+
+                    SESSION LIFECYCLE:
+                    1. excel_file(action:'open') → returns sessionId
+                    2. Use sessionId with ALL subsequent tools
+                    3. excel_file(action:'close', save:true/false) → ONLY when completely done
+                    Keep session open across multiple operations - don't close prematurely!
+                    """;
+            })
+            .WithToolsFromAssembly()
+            .WithPromptsFromAssembly(); // Auto-discover prompts marked with [McpServerPromptType]
+
+        if (_testInputPipe != null && _testOutputPipe != null)
+        {
+            // Test mode: use in-memory pipe transport
+            mcpBuilder.WithStreamServerTransport(
+                _testInputPipe.Reader.AsStream(),
+                _testOutputPipe.Writer.AsStream());
+        }
+        else
+        {
+            // Production mode: use stdio transport
+            mcpBuilder.WithStdioServerTransport();
+        }
 
         var host = builder.Build();
 
+        // Initialize telemetry client for static access
+        InitializeTelemetryClient(host.Services);
+
+        await host.RunAsync();
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Initializes the static TelemetryClient from DI container.
+    /// </summary>
+    private static void InitializeTelemetryClient(IServiceProvider services)
+    {
         // Resolve TelemetryClient from DI and store for static access
         // Worker Service SDK manages the TelemetryClient lifecycle including flush on shutdown
-        var telemetryClient = host.Services.GetService<TelemetryClient>();
+        var telemetryClient = services.GetService<TelemetryClient>();
         if (telemetryClient != null)
         {
             ExcelMcpTelemetry.SetTelemetryClient(telemetryClient);
@@ -57,16 +123,6 @@ public class Program
                 Console.Error.WriteLine($"[Telemetry] Application Insights configured via Worker Service SDK - User.Id={ExcelMcpTelemetry.UserId}, Session.Id={ExcelMcpTelemetry.SessionId}");
             }
         }
-
-        // Register telemetry flush on application shutdown as backup
-        // Worker Service SDK handles this automatically, but explicit flush ensures no data loss
-        var lifetime = host.Services.GetService<IHostApplicationLifetime>();
-        lifetime?.ApplicationStopping.Register(() =>
-        {
-            ExcelMcpTelemetry.Flush();
-        });
-
-        await host.RunAsync();
     }
 
     /// <summary>
