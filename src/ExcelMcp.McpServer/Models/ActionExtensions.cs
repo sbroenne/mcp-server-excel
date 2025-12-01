@@ -61,6 +61,7 @@ public static class ActionExtensions
         RangeAction.SetFormulas => "set-formulas",
         RangeAction.GetNumberFormats => "get-number-formats",
         RangeAction.SetNumberFormat => "set-number-format",
+        RangeAction.SetNumberFormatCustom => "set-number-format-custom",
         RangeAction.SetNumberFormats => "set-number-formats",
         RangeAction.ClearAll => "clear-all",
         RangeAction.ClearContents => "clear-contents",

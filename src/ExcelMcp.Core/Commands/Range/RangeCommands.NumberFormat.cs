@@ -1,3 +1,4 @@
+using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -141,7 +142,8 @@ public partial class RangeCommands
                 }
 
                 // Set uniform number format for entire range
-                range.NumberFormat = formatCode;
+                // Use NumberFormatLocal to interpret format codes according to user's locale
+                range.NumberFormatLocal = formatCode;
 
                 result.Success = true;
                 return result;
@@ -151,6 +153,24 @@ public partial class RangeCommands
                 ComUtilities.Release(ref range);
             }
         });
+    }
+
+    /// <summary>
+    /// Sets number format using structured options (locale-aware).
+    /// This method automatically generates the correct locale-specific format code.
+    /// </summary>
+    /// <param name="batch">The Excel batch operation context</param>
+    /// <param name="sheetName">Sheet name (empty for named ranges)</param>
+    /// <param name="rangeAddress">Range address or named range name</param>
+    /// <param name="options">Structured format options</param>
+    /// <returns>Operation result</returns>
+    public OperationResult SetNumberFormatStructured(IExcelBatch batch, string sheetName, string rangeAddress, NumberFormatOptions options)
+    {
+        // Build locale-aware format code from structured options using current culture
+        var formatCode = LocaleAwareFormatBuilder.BuildFormatCode(options, CultureInfo.CurrentCulture);
+
+        // Use the existing method with the generated format code
+        return SetNumberFormat(batch, sheetName, rangeAddress, formatCode);
     }
 
     /// <inheritdoc />
@@ -201,7 +221,7 @@ public partial class RangeCommands
                             try
                             {
                                 cell = range.Cells[row, col];
-                                cell.NumberFormat = formats[row - 1][col - 1];
+                                cell.NumberFormatLocal = formats[row - 1][col - 1];
                             }
                             finally
                             {
@@ -223,7 +243,7 @@ public partial class RangeCommands
                     }
 
                     // Set number formats via 2D array
-                    range.NumberFormat = formatArray;
+                    range.NumberFormatLocal = formatArray;
                 }
 
                 result.Success = true;

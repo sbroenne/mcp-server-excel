@@ -10,6 +10,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Models;
 /// </remarks>
 public enum FileAction
 {
+    List,
     Open,
     Close,
     CreateEmpty,
@@ -84,6 +85,7 @@ public enum RangeAction
     // Number Formats
     GetNumberFormats,
     SetNumberFormat,
+    SetNumberFormatCustom,
     SetNumberFormats,
 
     // Clear Operations

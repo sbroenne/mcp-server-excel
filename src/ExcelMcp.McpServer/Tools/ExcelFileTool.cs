@@ -14,7 +14,12 @@ public static partial class ExcelFileTool
     /// <summary>
     /// Manage Excel files and sessions.
     ///
-    /// SESSION LIFECYCLE REQUIRED:
+    /// SESSION VERIFICATION (use instead of calling other tools):
+    /// - LIST - Returns all active sessions (lightweight, no Excel COM calls)
+    /// - Use to verify session exists before operations
+    /// - Use to recover sessionId if lost
+    ///
+    /// SESSION LIFECYCLE:
     /// 1. OPEN - Start session, get sessionId
     /// 2. OPERATE - Use sessionId with other tools
     /// 3. CLOSE - End session (use save:true parameter to persist changes)
@@ -27,6 +32,7 @@ public static partial class ExcelFileTool
     /// - Closing mid-workflow loses the session and breaks subsequent operations
     ///
     /// WORKFLOWS:
+    /// - Verify session: list → check sessionId exists
     /// - Persist changes: open → operations(sessionId) → close(save: true)
     /// - Discard changes: open → operations(sessionId) → close(save: false)
     /// - Read-only: open → read(sessionId) → close(save: false)
@@ -60,6 +66,7 @@ public static partial class ExcelFileTool
                 // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
                 return action switch
                 {
+                    FileAction.List => ListSessions(),
                     FileAction.Open => OpenSessionAsync(excelPath!, showExcel),
                     FileAction.Close => CloseSessionAsync(sessionId!, save),
                     FileAction.CreateEmpty => CreateEmptyFileAsync(fileCommands, excelPath!,
@@ -207,6 +214,28 @@ public static partial class ExcelFileTool
         {
             success = true,
             filePath = excelPath
+        }, ExcelToolsBase.JsonOptions);
+    }
+
+    /// <summary>
+    /// Lists all active sessions. Lightweight operation - no Excel COM calls.
+    /// LLM Pattern: Use this to verify sessions before operations instead of calling other tools.
+    /// </summary>
+    private static string ListSessions()
+    {
+        var sessions = ExcelToolsBase.GetSessionManager().GetActiveSessions();
+
+        var sessionList = sessions.Select(s => new
+        {
+            sessionId = s.SessionId,
+            filePath = s.FilePath
+        }).ToList();
+
+        return JsonSerializer.Serialize(new
+        {
+            success = true,
+            sessions = sessionList,
+            count = sessionList.Count
         }, ExcelToolsBase.JsonOptions);
     }
 

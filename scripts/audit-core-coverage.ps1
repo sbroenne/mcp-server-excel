@@ -352,7 +352,8 @@ if ($CheckNaming) {
     # Known intentional exceptions (documented in CORE-METHOD-RENAMING-SUMMARY.md)
     $knownExceptions = @{
         "TableAction" = @("ApplyFilterValues", "SortMulti")  # Method overloads
-        "FileAction" = @("CloseWorkbook", "Open", "Save", "Close")  # MCP-specific session actions
+        "FileAction" = @("CloseWorkbook", "Open", "Save", "Close", "List")  # MCP-specific session actions
+        "RangeAction" = @("SetNumberFormatCustom")  # MCP action name differs: SetNumberFormatCustom → SetNumberFormat (Core)
     }
 
     $hasNamingIssues = $false
