@@ -24,10 +24,11 @@
 
     <!-- NuGet MCP Server Configuration -->
     <PackageId>Sbroenne.ExcelMcp.McpServer</PackageId>
-    <PackageType>DotnetTool;McpServer</PackageType>
-    <Title>Sbroenne ExcelMcp Model Context Protocol Server</Title>
-    <Description>Model Context Protocol (MCP) server for ExcelMcp by Sbroenne. Enables AI assistants like GitHub Copilot, Claude, and ChatGPT to automate Excel workflows - Power Query M code, Power Pivot DAX measures, VBA macros, PivotTables, Excel Tables, ranges, formatting, data validation, and connections. 165 operations across 11 specialized tools. Uses Excel's native COM API for zero corruption risk. Windows x64 and ARM64 support.</Description>
-    <PackageTags>excel;mcp;model-context-protocol;ai;automation;github-copilot;claude;chatgpt;power-query;dax;power-pivot;vba;pivottables;excel-automation;rpa;dotnet-tool;windows;sbroenne;excel-tables;excel-com;data-analysis</PackageTags>
+    <!-- Note: McpServer type is added via _AddMcpServerPackageType target below
+         because .NET 8 SDK unconditionally sets PackageType=DotnetTool when PackAsTool=true -->
+    <Title>MCP Server for Excel</Title>
+    <Description>Excel automation for AI assistants - manage Sheets, Power Query, DAX, VBA, Tables, Ranges, Formatting, Validation and more. Requires Excel to be installed. Only runs on Windows.</Description>
+    <PackageTags>mcp;model-context-protocol;excel;microsoft;office;spreadsheet;automation;power-query;m-language;dax;data-model;power-pivot;vba;macro;table;copilot;ai;github-copilot;data-analysis</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>See https://github.com/sbroenne/mcp-server-excel/releases for release notes</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
@@ -48,6 +49,15 @@
     <!-- CI/CD sets APPINSIGHTS_CONNECTION_STRING before build; local dev builds get empty string (telemetry disabled) -->
     <AppInsightsConnectionString Condition="'$(AppInsightsConnectionString)' == ''">$(APPINSIGHTS_CONNECTION_STRING)</AppInsightsConnectionString>
   </PropertyGroup>
+
+  <!-- Workaround for .NET 8 SDK unconditionally setting PackageType=DotnetTool when PackAsTool=true.
+       This target runs before Pack and appends McpServer to the package type.
+       In .NET 10+, just setting <PackageType>McpServer</PackageType> would work. -->
+  <Target Name="_AddMcpServerPackageType" BeforeTargets="GenerateNuspec;Pack">
+    <PropertyGroup>
+      <PackageType>$(PackageType);McpServer</PackageType>
+    </PropertyGroup>
+  </Target>
 
   <!-- Generate TelemetryConfig.g.cs with the connection string at build time -->
   <!-- Note: Uses inline task because WriteLinesToFile treats semicolons as line separators -->
