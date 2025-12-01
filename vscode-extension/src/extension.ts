@@ -33,7 +33,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 				return [
 					new vscode.McpStdioServerDefinition(
-						'ExcelMcp - Excel Automation',
+						'Excel MCP Server',
 						mcpServerPath,
 						[],
 						{

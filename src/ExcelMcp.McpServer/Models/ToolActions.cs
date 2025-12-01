@@ -10,6 +10,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Models;
 /// </remarks>
 public enum FileAction
 {
+    List,
     Open,
     Close,
     CreateEmpty,

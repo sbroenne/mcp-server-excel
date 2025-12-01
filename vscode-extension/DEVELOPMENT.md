@@ -32,7 +32,7 @@ vscode.lm.registerMcpServerDefinitionProvider('excelmcp', {
   provideMcpServerDefinitions: async () => {
     return [
       new vscode.McpStdioServerDefinition(
-        'ExcelMcp - Excel Automation',
+        'Excel MCP Server',
         'dotnet',
         ['tool', 'run', 'mcp-excel'],
         {} // Optional environment variables
