@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
@@ -39,19 +40,19 @@ public static partial class ExcelConditionalFormatTool
         ConditionalFormatAction action,
         string excelPath,
         string sessionId,
-        string? sheetName,
-        string? rangeAddress,
-        string? ruleType,
-        string? operatorType,
-        string? formula1,
-        string? formula2,
-        string? interiorColor,
-        string? interiorPattern,
-        string? fontColor,
-        bool? fontBold,
-        bool? fontItalic,
-        string? borderStyle,
-        string? borderColor)
+        [DefaultValue(null)] string? sheetName,
+        [DefaultValue(null)] string? rangeAddress,
+        [DefaultValue(null)] string? ruleType,
+        [DefaultValue(null)] string? operatorType,
+        [DefaultValue(null)] string? formula1,
+        [DefaultValue(null)] string? formula2,
+        [DefaultValue(null)] string? interiorColor,
+        [DefaultValue(null)] string? interiorPattern,
+        [DefaultValue(null)] string? fontColor,
+        [DefaultValue(null)] bool? fontBold,
+        [DefaultValue(null)] bool? fontItalic,
+        [DefaultValue(null)] string? borderStyle,
+        [DefaultValue(null)] string? borderColor)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_conditionalformat",

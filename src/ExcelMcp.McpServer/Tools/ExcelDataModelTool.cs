@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
@@ -35,16 +36,16 @@ public static partial class ExcelDataModelTool
         DataModelAction action,
         string excelPath,
         string sessionId,
-        string? measureName,
-        string? tableName,
-        string? daxFormula,
-        string? description,
-        string? formatString,
-        string? fromTable,
-        string? fromColumn,
-        string? toTable,
-        string? toColumn,
-        bool? isActive)
+        [DefaultValue(null)] string? measureName,
+        [DefaultValue(null)] string? tableName,
+        [DefaultValue(null)] string? daxFormula,
+        [DefaultValue(null)] string? description,
+        [DefaultValue(null)] string? formatString,
+        [DefaultValue(null)] string? fromTable,
+        [DefaultValue(null)] string? fromColumn,
+        [DefaultValue(null)] string? toTable,
+        [DefaultValue(null)] string? toColumn,
+        [DefaultValue(null)] bool? isActive)
     {
         _ = excelPath; // retained for schema compatibility (operations require open session)
 

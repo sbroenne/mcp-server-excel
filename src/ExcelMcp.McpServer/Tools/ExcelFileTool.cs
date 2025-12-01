@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
@@ -43,10 +44,10 @@ public static partial class ExcelFileTool
     [McpMeta("category", "session")]
     public static partial string ExcelFile(
         FileAction action,
-        string? excelPath,
-        string? sessionId,
-        bool save,
-        bool showExcel)
+        [DefaultValue(null)] string? excelPath,
+        [DefaultValue(null)] string? sessionId,
+        [DefaultValue(false)] bool save,
+        [DefaultValue(false)] bool showExcel)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_file",

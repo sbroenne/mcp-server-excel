@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -34,15 +35,15 @@ public static partial class ExcelWorksheetTool
     public static partial string ExcelWorksheet(
         WorksheetAction action,
         string sessionId,
-        string? sheetName,
-        string? targetName,
-        string? targetSessionId,
-        string? beforeSheet,
-        string? afterSheet,
-        int? red,
-        int? green,
-        int? blue,
-        string? visibility)
+        [DefaultValue(null)] string? sheetName,
+        [DefaultValue(null)] string? targetName,
+        [DefaultValue(null)] string? targetSessionId,
+        [DefaultValue(null)] string? beforeSheet,
+        [DefaultValue(null)] string? afterSheet,
+        [DefaultValue(null)] int? red,
+        [DefaultValue(null)] int? green,
+        [DefaultValue(null)] int? blue,
+        [DefaultValue(null)] string? visibility)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_worksheet",

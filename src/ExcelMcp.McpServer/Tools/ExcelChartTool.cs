@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 
@@ -43,24 +44,24 @@ public static partial class ExcelChartTool
         ChartAction action,
         string excelPath,
         string sessionId,
-        string? chartName,
-        string? sheetName,
-        string? sourceRange,
-        ChartType? chartType,
-        string? pivotTableName,
-        double? left,
-        double? top,
-        double? width,
-        double? height,
-        string? title,
-        ChartAxisType? axis,
-        string? seriesName,
-        string? valuesRange,
-        string? categoryRange,
-        int? seriesIndex,
-        bool? visible,
-        LegendPosition? legendPosition,
-        int? styleId)
+        [DefaultValue(null)] string? chartName,
+        [DefaultValue(null)] string? sheetName,
+        [DefaultValue(null)] string? sourceRange,
+        [DefaultValue(null)] ChartType? chartType,
+        [DefaultValue(null)] string? pivotTableName,
+        [DefaultValue(null)] double? left,
+        [DefaultValue(null)] double? top,
+        [DefaultValue(null)] double? width,
+        [DefaultValue(null)] double? height,
+        [DefaultValue(null)] string? title,
+        [DefaultValue(null)] ChartAxisType? axis,
+        [DefaultValue(null)] string? seriesName,
+        [DefaultValue(null)] string? valuesRange,
+        [DefaultValue(null)] string? categoryRange,
+        [DefaultValue(null)] int? seriesIndex,
+        [DefaultValue(null)] bool? visible,
+        [DefaultValue(null)] LegendPosition? legendPosition,
+        [DefaultValue(null)] int? styleId)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_chart",

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
@@ -41,18 +42,18 @@ public static partial class ExcelConnectionTool
         ConnectionAction action,
         string excelPath,
         string sessionId,
-        string? connectionName,
-        string? connectionString,
-        string? commandText,
-        string? description,
-        string? sheetName,
-        string? newConnectionString,
-        string? newCommandText,
-        string? newDescription,
-        bool? backgroundQuery,
-        bool? refreshOnFileOpen,
-        bool? savePassword,
-        int? refreshPeriod)
+        [DefaultValue(null)] string? connectionName,
+        [DefaultValue(null)] string? connectionString,
+        [DefaultValue(null)] string? commandText,
+        [DefaultValue(null)] string? description,
+        [DefaultValue(null)] string? sheetName,
+        [DefaultValue(null)] string? newConnectionString,
+        [DefaultValue(null)] string? newCommandText,
+        [DefaultValue(null)] string? newDescription,
+        [DefaultValue(null)] bool? backgroundQuery,
+        [DefaultValue(null)] bool? refreshOnFileOpen,
+        [DefaultValue(null)] bool? savePassword,
+        [DefaultValue(null)] int? refreshPeriod)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_connection",

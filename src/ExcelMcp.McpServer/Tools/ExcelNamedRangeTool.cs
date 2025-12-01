@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
@@ -27,8 +28,8 @@ public static partial class ExcelNamedRangeTool
         NamedRangeAction action,
         string excelPath,
         string sessionId,
-        string? namedRangeName,
-        string? value)
+        [DefaultValue(null)] string? namedRangeName,
+        [DefaultValue(null)] string? value)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_namedrange",

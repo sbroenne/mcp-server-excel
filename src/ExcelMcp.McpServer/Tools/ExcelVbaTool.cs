@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
@@ -31,9 +32,9 @@ public static partial class ExcelVbaTool
         VbaAction action,
         string excelPath,
         string sessionId,
-        string? moduleName,
-        string? vbaCode,
-        string? parameters)
+        [DefaultValue(null)] string? moduleName,
+        [DefaultValue(null)] string? vbaCode,
+        [DefaultValue(null)] string? parameters)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_vba",

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands;
@@ -30,12 +31,12 @@ public static partial class ExcelPowerQueryTool
     public static partial string ExcelPowerQuery(
         PowerQueryAction action,
         string sessionId,
-        string? queryName,
-        string? mCode,
-        string? targetSheet,
-        string? targetCellAddress,
-        string? loadDestination,
-        int? refreshTimeoutSeconds)
+        [DefaultValue(null)] string? queryName,
+        [DefaultValue(null)] string? mCode,
+        [DefaultValue(null)] string? targetSheet,
+        [DefaultValue(null)] string? targetCellAddress,
+        [DefaultValue(null)] string? loadDestination,
+        [DefaultValue(null)] int? refreshTimeoutSeconds)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_powerquery",
