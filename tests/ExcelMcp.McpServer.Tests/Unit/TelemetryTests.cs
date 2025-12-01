@@ -68,9 +68,9 @@ public class TelemetryTests
     }
 
     [Fact]
-    public void OptOutEnvironmentVariable_HasCorrectName()
+    public void IsEnabled_AlwaysReturnsTrue()
     {
-        Assert.Equal("EXCELMCP_TELEMETRY_OPTOUT", ExcelMcpTelemetry.OptOutEnvironmentVariable);
+        Assert.True(ExcelMcpTelemetry.IsEnabled);
     }
 
     [Fact]

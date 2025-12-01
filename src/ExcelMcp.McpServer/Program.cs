@@ -1,5 +1,5 @@
 using Microsoft.ApplicationInsights;
-using Microsoft.ApplicationInsights.Extensibility;
+using Microsoft.ApplicationInsights.WorkerService;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -27,7 +27,7 @@ public class Program
             consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
         });
 
-        // Configure OpenTelemetry for Application Insights (if not opted out)
+        // Configure Application Insights Worker Service SDK for telemetry (if not opted out)
         ConfigureTelemetry(builder);
 
         // MCP Server architecture:
@@ -45,23 +45,38 @@ public class Program
 
         var host = builder.Build();
 
+        // Resolve TelemetryClient from DI and store for static access
+        // Worker Service SDK manages the TelemetryClient lifecycle including flush on shutdown
+        var telemetryClient = host.Services.GetService<TelemetryClient>();
+        if (telemetryClient != null)
+        {
+            ExcelMcpTelemetry.SetTelemetryClient(telemetryClient);
+
+            if (ExcelMcpTelemetry.IsDebugMode())
+            {
+                Console.Error.WriteLine($"[Telemetry] Application Insights configured via Worker Service SDK - User.Id={ExcelMcpTelemetry.UserId}, Session.Id={ExcelMcpTelemetry.SessionId}");
+            }
+        }
+
+        // Register telemetry flush on application shutdown as backup
+        // Worker Service SDK handles this automatically, but explicit flush ensures no data loss
+        var lifetime = host.Services.GetService<IHostApplicationLifetime>();
+        lifetime?.ApplicationStopping.Register(() =>
+        {
+            ExcelMcpTelemetry.Flush();
+        });
+
         await host.RunAsync();
     }
 
     /// <summary>
-    /// Configures Application Insights SDK for telemetry.
+    /// Configures Application Insights Worker Service SDK for telemetry.
+    /// Uses AddApplicationInsightsTelemetryWorkerService() for proper host integration.
     /// Enables Users/Sessions/Funnels/User Flows analytics in Azure Portal.
-    /// Respects opt-out via EXCELMCP_TELEMETRY_OPTOUT environment variable.
     /// </summary>
     private static void ConfigureTelemetry(HostApplicationBuilder builder)
     {
-        // Check if telemetry is enabled
-        if (ExcelMcpTelemetry.IsOptedOut())
-        {
-            return; // User opted out
-        }
-
-        // Debug mode: log telemetry to stderr instead of Azure (for local testing)
+        // Debug mode: log telemetry to stderr for local testing
         var isDebugMode = ExcelMcpTelemetry.IsDebugMode();
 
         var connectionString = ExcelMcpTelemetry.GetConnectionString();
@@ -70,34 +85,40 @@ public class Program
             return; // No connection string available and not in debug mode
         }
 
-        // Configure Application Insights SDK
-        var aiConfig = TelemetryConfiguration.CreateDefault();
-        if (!string.IsNullOrEmpty(connectionString))
-        {
-            aiConfig.ConnectionString = connectionString;
-        }
-        else if (isDebugMode)
+        if (isDebugMode && string.IsNullOrEmpty(connectionString))
         {
             // Debug mode without connection string - telemetry will be tracked but not sent
-            // This allows testing the tracking code without Azure resources
             Console.Error.WriteLine("[Telemetry] Debug mode enabled - telemetry tracked locally (no Azure connection)");
         }
 
-        // Add initializer to set User.Id and Session.Id on all telemetry
-        aiConfig.TelemetryInitializers.Add(new ExcelMcpTelemetryInitializer());
-
-        // Register TelemetryClient as singleton for dependency injection
-        var telemetryClient = new TelemetryClient(aiConfig);
-        builder.Services.AddSingleton(telemetryClient);
-        builder.Services.AddSingleton(aiConfig);
-
-        // Store reference for static access in ExcelMcpTelemetry
-        ExcelMcpTelemetry.SetTelemetryClient(telemetryClient);
-
-        if (isDebugMode)
+        // Configure Application Insights Worker Service SDK
+        // This provides:
+        // - Proper DI integration with IHostApplicationLifetime
+        // - Automatic dependency tracking
+        // - Automatic performance counter collection (where available)
+        // - Proper telemetry channel with ServerTelemetryChannel (retries, local storage)
+        // - Automatic flush on host shutdown
+        var aiOptions = new ApplicationInsightsServiceOptions
         {
-            Console.Error.WriteLine($"[Telemetry] Application Insights configured - User.Id={ExcelMcpTelemetry.UserId}, Session.Id={ExcelMcpTelemetry.SessionId}");
-        }
+            // Set connection string if available
+            ConnectionString = connectionString,
+
+            // Disable features not needed for MCP server (reduces overhead)
+            EnableHeartbeat = true,  // Useful for monitoring server health
+            EnableAdaptiveSampling = true,  // Helps manage telemetry volume
+            EnableQuickPulseMetricStream = false,  // Live Metrics not needed for CLI tool
+            EnablePerformanceCounterCollectionModule = false,  // Perf counters not useful for short-lived CLI
+            EnableEventCounterCollectionModule = false,  // Event counters not needed
+
+            // Enable dependency tracking for HTTP calls
+            EnableDependencyTrackingTelemetryModule = true,
+        };
+
+        builder.Services.AddApplicationInsightsTelemetryWorkerService(aiOptions);
+
+        // Add custom telemetry initializer for User.Id and Session.Id
+        // This enables the Users and Sessions blades in Azure Portal
+        builder.Services.AddSingleton<Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer, ExcelMcpTelemetryInitializer>();
     }
 
     /// <summary>

@@ -49,4 +49,7 @@
   </PropertyGroup>
 
 
+  <!-- Import user-specific properties (gitignored, for local secrets) -->
+  <Import Project="Directory.Build.props.user" Condition="Exists('Directory.Build.props.user')" />
+
 </Project>

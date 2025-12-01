@@ -13,25 +13,10 @@ namespace Sbroenne.ExcelMcp.McpServer.Telemetry;
 public static class ExcelMcpTelemetry
 {
     /// <summary>
-    /// Environment variable to opt-out of telemetry.
-    /// Set to "true" or "1" to disable telemetry.
-    /// </summary>
-    public const string OptOutEnvironmentVariable = "EXCELMCP_TELEMETRY_OPTOUT";
-
-    /// <summary>
     /// Environment variable to enable debug mode (console output instead of Azure).
     /// Set to "true" or "1" for local testing without Azure resources.
     /// </summary>
     public const string DebugTelemetryEnvironmentVariable = "EXCELMCP_DEBUG_TELEMETRY";
-
-    /// <summary>
-    /// Application Insights connection string (embedded at build time).
-    /// </summary>
-    /// <remarks>
-    /// This value is replaced during CI/CD build from the APPINSIGHTS_CONNECTION_STRING secret.
-    /// Format: InstrumentationKey=xxx;IngestionEndpoint=https://xxx.in.applicationinsights.azure.com/;...
-    /// </remarks>
-    private const string ConnectionString = "__APPINSIGHTS_CONNECTION_STRING__";
 
     /// <summary>
     /// Unique session ID for correlating telemetry within a single MCP server process.
@@ -61,19 +46,46 @@ public static class ExcelMcpTelemetry
         _telemetryClient = client;
     }
 
-    private static bool? _isEnabled;
-
     /// <summary>
-    /// Gets whether telemetry is enabled (not opted out and either debug mode or connection string available).
+    /// Flushes any buffered telemetry to Application Insights.
+    /// CRITICAL: Must be called before application exits to ensure telemetry is not lost.
+    /// Application Insights SDK buffers telemetry and sends in batches - without explicit flush,
+    /// short-lived processes like MCP servers may terminate before telemetry is transmitted.
     /// </summary>
-    public static bool IsEnabled
+    public static void Flush()
     {
-        get
+        if (_telemetryClient == null) return;
+
+        try
         {
-            _isEnabled ??= !IsOptedOut() && (IsDebugMode() || !string.IsNullOrEmpty(GetConnectionString()));
-            return _isEnabled.Value;
+            if (IsDebugMode())
+            {
+                Console.Error.WriteLine("[Telemetry] Flushing telemetry buffer...");
+            }
+
+            // Flush with timeout to avoid hanging on shutdown
+            // 5 seconds is typically sufficient for small batches
+            _telemetryClient.FlushAsync(CancellationToken.None).Wait(TimeSpan.FromSeconds(5));
+
+            if (IsDebugMode())
+            {
+                Console.Error.WriteLine("[Telemetry] Telemetry buffer flushed successfully");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Don't let telemetry flush failure crash the application
+            if (IsDebugMode())
+            {
+                Console.Error.WriteLine($"[Telemetry] Warning: Failed to flush telemetry: {ex.Message}");
+            }
         }
     }
+
+    /// <summary>
+    /// Gets whether telemetry is enabled. Always returns true.
+    /// </summary>
+    public static bool IsEnabled => true;
 
     /// <summary>
     /// Checks if debug telemetry mode is enabled (console output for local testing).
@@ -90,19 +102,9 @@ public static class ExcelMcpTelemetry
     /// </summary>
     public static string? GetConnectionString()
     {
-        // Connection string is embedded at build time via CI/CD
-        // Returns null if placeholder wasn't replaced (local dev builds)
-        return ConnectionString.StartsWith("__", StringComparison.Ordinal) ? null : ConnectionString;
-    }
-
-    /// <summary>
-    /// Checks if user has opted out of telemetry via environment variable.
-    /// </summary>
-    public static bool IsOptedOut()
-    {
-        var optOut = Environment.GetEnvironmentVariable(OptOutEnvironmentVariable);
-        return string.Equals(optOut, "true", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(optOut, "1", StringComparison.OrdinalIgnoreCase);
+        // Connection string is embedded at build time from APPINSIGHTS_CONNECTION_STRING env var
+        // Returns null if not set during build (local dev builds)
+        return string.IsNullOrEmpty(TelemetryConfig.ConnectionString) ? null : TelemetryConfig.ConnectionString;
     }
 
     /// <summary>

@@ -1,0 +1,17 @@
+<!--
+  Local developer settings (COPY to Directory.Build.props.user)
+
+  This file is a template. To use:
+  1. Copy this file to Directory.Build.props.user
+  2. Fill in your actual values
+  3. Directory.Build.props.user is gitignored and won't be committed
+
+  The values here are picked up by MSBuild at build time and embedded into the compiled assembly.
+-->
+<Project>
+  <PropertyGroup>
+    <!-- Application Insights connection string for telemetry -->
+    <!-- Get from Azure Portal: Application Insights > Overview > Connection String -->
+    <AppInsightsConnectionString>YOUR_CONNECTION_STRING_HERE</AppInsightsConnectionString>
+  </PropertyGroup>
+</Project>

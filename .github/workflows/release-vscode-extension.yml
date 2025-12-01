@@ -75,28 +75,19 @@ jobs:
         cd vscode-extension
         npm install
 
-    - name: Inject Application Insights Connection String
-      run: |
-        $telemetryFile = "src/ExcelMcp.McpServer/Telemetry/ExcelMcpTelemetry.cs"
-        $connectionString = "${{ secrets.APPINSIGHTS_CONNECTION_STRING }}"
-
-        if ([string]::IsNullOrWhiteSpace($connectionString)) {
-          Write-Output "⚠️ APPINSIGHTS_CONNECTION_STRING secret not configured - telemetry will be disabled"
-        } else {
-          Write-Output "Injecting Application Insights connection string..."
-          $content = Get-Content $telemetryFile -Raw
-          $content = $content -replace '__APPINSIGHTS_CONNECTION_STRING__', $connectionString
-          Set-Content $telemetryFile $content
-          Write-Output "✅ Telemetry connection string injected"
-        }
-      shell: pwsh
-
     - name: Build and Package Extension
       run: |
         cd vscode-extension
         # Run the package script which does: build:mcp-server + vsce package
         npm run package
+      env:
+        # Application Insights connection string is embedded at build time by MSBuild
+        # See ExcelMcp.McpServer.csproj for the GenerateTelemetryConfig target
+        APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
 
+    - name: Prepare VSIX
+      run: |
+        cd vscode-extension
         $version = "${{ env.PACKAGE_VERSION }}"
 
         # vsce creates filename based on package.json name (excel-mcp)
