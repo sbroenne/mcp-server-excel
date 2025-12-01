@@ -140,17 +140,35 @@ Write-Host ""
 Write-Host "🔍 Running MCP Server smoke test..." -ForegroundColor Cyan
 
 try {
-    # Run the smoke test with proper filter (OnDemand only)
-    $smokeTestFilter = "FullyQualifiedName~McpServerSmokeTests.SmokeTest_AllTools_LlmWorkflow"
+    # Run the smoke test - validates all MCP tools work correctly
+    $smokeTestFilter = "FullyQualifiedName~McpServerSmokeTests.SmokeTest_AllTools_E2EWorkflow"
 
-    Write-Host "   dotnet test --filter `"$smokeTestFilter`" --verbosity quiet" -ForegroundColor Gray
-    dotnet test --filter $smokeTestFilter --verbosity quiet
-
-    if ($LASTEXITCODE -ne 0) {
+    Write-Host "   dotnet test --filter `"$smokeTestFilter`"" -ForegroundColor Gray
+    
+    # Capture output to verify tests actually ran (dotnet test returns 0 even if no tests match!)
+    $testOutput = dotnet test --filter $smokeTestFilter --verbosity minimal 2>&1 | Out-String
+    $testExitCode = $LASTEXITCODE
+    
+    # Check if any tests actually passed (critical - filter typos cause silent failures!)
+    # Note: "No test matches" appears for projects without the test, so we check for "Passed"
+    if (-not ($testOutput -match "Passed!.*Passed:\s*[1-9]")) {
+        Write-Host ""
+        Write-Host "❌ CRITICAL: No smoke tests passed! Filter may have matched zero tests." -ForegroundColor Red
+        Write-Host "   Filter: $smokeTestFilter" -ForegroundColor Yellow
+        Write-Host "   This likely means the test was renamed or deleted." -ForegroundColor Yellow
+        Write-Host "   Verify the test exists: McpServerSmokeTests.SmokeTest_AllTools_E2EWorkflow" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host $testOutput -ForegroundColor Gray
+        exit 1
+    }
+    
+    if ($testExitCode -ne 0) {
         Write-Host ""
         Write-Host "❌ MCP Server smoke test failed! Core functionality is broken." -ForegroundColor Red
-        Write-Host "   This test validates all 11 MCP tools work correctly." -ForegroundColor Red
+        Write-Host "   This test validates all MCP tools work correctly." -ForegroundColor Red
         Write-Host "   Fix the issues before committing." -ForegroundColor Red
+        Write-Host ""
+        Write-Host $testOutput -ForegroundColor Gray
         exit 1
     }
 

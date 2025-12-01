@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
@@ -50,29 +51,29 @@ public static partial class ExcelPivotTableTool
         PivotTableAction action,
         string excelPath,
         string sessionId,
-        string? pivotTableName,
-        string? sheetName,
-        string? range,
-        string? tableName,
-        string? dataModelTableName,
-        string? destinationSheet,
-        string? destinationCell,
-        string? fieldName,
-        string? aggregationFunction,
-        string? customName,
-        string? numberFormat,
-        int? position,
-        string? filterValues,
-        string? sortDirection,
-        string? dateGroupingInterval,
-        double? numericGroupingStart,
-        double? numericGroupingEnd,
-        double? numericGroupingInterval,
-        string? formula,
-        int? layout,
-        bool? subtotalsVisible,
-        bool? showRowGrandTotals,
-        bool? showColumnGrandTotals)
+        [DefaultValue(null)] string? pivotTableName,
+        [DefaultValue(null)] string? sheetName,
+        [DefaultValue(null)] string? range,
+        [DefaultValue(null)] string? tableName,
+        [DefaultValue(null)] string? dataModelTableName,
+        [DefaultValue(null)] string? destinationSheet,
+        [DefaultValue(null)] string? destinationCell,
+        [DefaultValue(null)] string? fieldName,
+        [DefaultValue(null)] string? aggregationFunction,
+        [DefaultValue(null)] string? customName,
+        [DefaultValue(null)] string? numberFormat,
+        [DefaultValue(null)] int? position,
+        [DefaultValue(null)] string? filterValues,
+        [DefaultValue(null)] string? sortDirection,
+        [DefaultValue(null)] string? dateGroupingInterval,
+        [DefaultValue(null)] double? numericGroupingStart,
+        [DefaultValue(null)] double? numericGroupingEnd,
+        [DefaultValue(null)] double? numericGroupingInterval,
+        [DefaultValue(null)] string? formula,
+        [DefaultValue(null)] int? layout,
+        [DefaultValue(null)] bool? subtotalsVisible,
+        [DefaultValue(null)] bool? showRowGrandTotals,
+        [DefaultValue(null)] bool? showColumnGrandTotals)
     {
         _ = excelPath; // retained for schema compatibility (operations require open session)
 

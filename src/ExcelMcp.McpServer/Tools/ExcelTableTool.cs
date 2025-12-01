@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
@@ -33,16 +34,16 @@ public static partial class TableTool
         TableAction action,
         string excelPath,
         string sessionId,
-        string? tableName,
-        string? sheetName,
-        string? range,
-        string? newName,
-        bool hasHeaders,
-        string? tableStyle,
-        string? filterCriteria,
-        string? filterValues,
-        string? formatCode,
-        bool visibleOnly)
+        [DefaultValue(null)] string? tableName,
+        [DefaultValue(null)] string? sheetName,
+        [DefaultValue(null)] string? range,
+        [DefaultValue(null)] string? newName,
+        [DefaultValue(true)] bool hasHeaders,
+        [DefaultValue(null)] string? tableStyle,
+        [DefaultValue(null)] string? filterCriteria,
+        [DefaultValue(null)] string? filterValues,
+        [DefaultValue(null)] string? formatCode,
+        [DefaultValue(false)] bool visibleOnly)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_table",
