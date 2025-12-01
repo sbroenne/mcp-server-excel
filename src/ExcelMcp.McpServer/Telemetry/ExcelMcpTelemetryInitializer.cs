@@ -57,11 +57,9 @@ public sealed class ExcelMcpTelemetryInitializer : ITelemetryInitializer
         // Set role instance to anonymized value (instead of machine name)
         telemetry.Context.Cloud.RoleInstance = _roleInstance;
 
-        // Set version explicitly to override SDK auto-detection (which picks up wrong assembly)
-        if (string.IsNullOrEmpty(telemetry.Context.Component.Version))
-        {
-            telemetry.Context.Component.Version = _version;
-        }
+        // Set version explicitly - ALWAYS override SDK auto-detection
+        // SDK picks up Excel COM version (15.0.0.0) instead of our assembly version
+        telemetry.Context.Component.Version = _version;
     }
 
     /// <summary>

@@ -67,18 +67,6 @@ public class TelemetryTests
         }
     }
 
-    [Fact]
-    public void IsEnabled_AlwaysReturnsTrue()
-    {
-        Assert.True(ExcelMcpTelemetry.IsEnabled);
-    }
-
-    [Fact]
-    public void DebugTelemetryEnvironmentVariable_HasCorrectName()
-    {
-        Assert.Equal("EXCELMCP_DEBUG_TELEMETRY", ExcelMcpTelemetry.DebugTelemetryEnvironmentVariable);
-    }
-
     #endregion
 
     #region SensitiveDataRedactor Tests

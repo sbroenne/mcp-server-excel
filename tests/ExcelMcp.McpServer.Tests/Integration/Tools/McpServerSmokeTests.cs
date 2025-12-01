@@ -5,6 +5,7 @@ using System.IO.Pipelines;
 using System.Text.Json;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
+using Sbroenne.ExcelMcp.McpServer.Telemetry;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -105,26 +106,40 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
 
     private async Task DisposeAsyncCore()
     {
-        // Cancel and clean up
-        await _cts.CancelAsync();
+        // Flush telemetry before shutdown to ensure test telemetry is sent
+        ExcelMcpTelemetry.Flush();
 
-        _clientToServerPipe.Writer.Complete();
-        _serverToClientPipe.Writer.Complete();
-
+        // Dispose client first - this signals we're done sending requests
         if (_client != null)
         {
             await _client.DisposeAsync();
         }
 
+        // Complete the pipes to signal EOF - this triggers GRACEFUL server shutdown
+        // The MCP SDK will see EOF and stop the host naturally, allowing
+        // Application Insights and other services to flush during shutdown
+        _clientToServerPipe.Writer.Complete();
+        _serverToClientPipe.Writer.Complete();
+
+        // Wait for server to shut down gracefully (with timeout)
         if (_serverTask != null)
         {
-            try
+            // Give the server time to flush telemetry and clean up
+            var shutdownTimeout = Task.Delay(TimeSpan.FromSeconds(10));
+            var completed = await Task.WhenAny(_serverTask, shutdownTimeout);
+
+            if (completed == shutdownTimeout)
             {
-                await _serverTask;
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected during shutdown
+                // Server didn't shut down in time - cancel as fallback
+                await _cts.CancelAsync();
+                try
+                {
+                    await _serverTask;
+                }
+                catch (OperationCanceledException)
+                {
+                    // Expected when we had to force cancel
+                }
             }
         }
 

@@ -117,11 +117,6 @@ public class Program
         if (telemetryClient != null)
         {
             ExcelMcpTelemetry.SetTelemetryClient(telemetryClient);
-
-            if (ExcelMcpTelemetry.IsDebugMode())
-            {
-                Console.Error.WriteLine($"[Telemetry] Application Insights configured via Worker Service SDK - User.Id={ExcelMcpTelemetry.UserId}, Session.Id={ExcelMcpTelemetry.SessionId}");
-            }
         }
     }
 
@@ -132,19 +127,10 @@ public class Program
     /// </summary>
     private static void ConfigureTelemetry(HostApplicationBuilder builder)
     {
-        // Debug mode: log telemetry to stderr for local testing
-        var isDebugMode = ExcelMcpTelemetry.IsDebugMode();
-
         var connectionString = ExcelMcpTelemetry.GetConnectionString();
-        if (string.IsNullOrEmpty(connectionString) && !isDebugMode)
+        if (string.IsNullOrEmpty(connectionString))
         {
-            return; // No connection string available and not in debug mode
-        }
-
-        if (isDebugMode && string.IsNullOrEmpty(connectionString))
-        {
-            // Debug mode without connection string - telemetry will be tracked but not sent
-            Console.Error.WriteLine("[Telemetry] Debug mode enabled - telemetry tracked locally (no Azure connection)");
+            return; // No connection string available (local dev build)
         }
 
         // Configure Application Insights Worker Service SDK
