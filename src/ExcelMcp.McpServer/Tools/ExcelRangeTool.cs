@@ -70,6 +70,7 @@ public static partial class ExcelRangeTool
     /// <param name="showDropdown">Show dropdown for list validation (for validate-range)</param>
     /// <param name="locked">Lock status for cells (for set-cell-lock: true = locked, false = unlocked)</param>
     [McpServerTool(Name = "excel_range")]
+    [McpMeta("category", "data")]
     public static partial string ExcelRange(
         RangeAction action,
         string excelPath,

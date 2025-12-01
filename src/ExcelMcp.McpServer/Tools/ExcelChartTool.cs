@@ -38,6 +38,7 @@ public static partial class ExcelChartTool
     /// <param name="legendPosition">Legend position: Bottom, Corner, Top, Right, Left</param>
     /// <param name="styleId">Chart style ID (1-48)</param>
     [McpServerTool(Name = "excel_chart")]
+    [McpMeta("category", "analysis")]
     public static partial string ExcelChart(
         ChartAction action,
         string excelPath,

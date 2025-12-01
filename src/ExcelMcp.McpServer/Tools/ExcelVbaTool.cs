@@ -26,6 +26,7 @@ public static partial class ExcelVbaTool
     /// <param name="vbaCode">VBA code content as string (for import/update actions)</param>
     /// <param name="parameters">Parameters for VBA procedure execution (comma-separated)</param>
     [McpServerTool(Name = "excel_vba")]
+    [McpMeta("category", "automation")]
     public static partial string ExcelVba(
         VbaAction action,
         string excelPath,

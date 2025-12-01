@@ -30,6 +30,7 @@ public static partial class ExcelWorksheetTool
     /// <param name="blue">Blue component (0-255) for set-tab-color action</param>
     /// <param name="visibility">Visibility level for set-visibility action: visible (normal), hidden (user can unhide), veryhidden (requires code to unhide)</param>
     [McpServerTool(Name = "excel_worksheet")]
+    [McpMeta("category", "structure")]
     public static partial string ExcelWorksheet(
         WorksheetAction action,
         string sessionId,
@@ -467,8 +468,7 @@ public static partial class ExcelWorksheetTool
             return JsonSerializer.Serialize(new
             {
                 success = true,
-                message = $"Sheet '{sheetName}' hidden successfully.",
-                workflowHint = "Sheet now hidden (users can unhide via Excel UI)"
+                message = $"Sheet '{sheetName}' hidden successfully."
             }, ExcelToolsBase.JsonOptions);
         }
         catch (Exception ex)
@@ -503,8 +503,7 @@ public static partial class ExcelWorksheetTool
             return JsonSerializer.Serialize(new
             {
                 success = true,
-                message = $"Sheet '{sheetName}' very-hidden successfully.",
-                workflowHint = "Sheet now very-hidden (not visible even in VBA, requires code to unhide)"
+                message = $"Sheet '{sheetName}' very-hidden successfully."
             }, ExcelToolsBase.JsonOptions);
         }
         catch (Exception ex)

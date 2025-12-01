@@ -16,7 +16,7 @@ public static partial class ExcelPivotTableTool
     /// <summary>
     /// Excel PivotTable operations - interactive data analysis and summarization.
     /// OLAP add-value-field supports TWO modes: 1) Pre-existing measure: fieldName='Total Sales' or '[Measures].[Total Sales]' (adds existing measure) 2) Auto-create measure: fieldName='Sales' (column name, creates DAX measure with aggregationFunction).
-    /// TIMEOUT SAFEGUARD: create-from-datamodel auto-timeouts after 5 minutes to avoid hung OLAP queries. On timeout the tool returns SuggestedNextActions so the agent can recover without Excel hanging.
+    /// TIMEOUT SAFEGUARD: create-from-datamodel auto-timeouts after 5 minutes to prevent hung OLAP queries.
     /// </summary>
     /// <param name="action">Action to perform</param>
     /// <param name="excelPath">Path to Excel file (.xlsx or .xlsm)</param>
@@ -45,6 +45,7 @@ public static partial class ExcelPivotTableTool
     /// <param name="showRowGrandTotals">Show/hide row grand totals: true=show bottom summary row, false=hide</param>
     /// <param name="showColumnGrandTotals">Show/hide column grand totals: true=show right summary column, false=hide</param>
     [McpServerTool(Name = "excel_pivottable")]
+    [McpMeta("category", "analysis")]
     public static partial string ExcelPivotTable(
         PivotTableAction action,
         string excelPath,
@@ -237,10 +238,6 @@ public static partial class ExcelPivotTableTool
             ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "create-from-datamodel");
 
         PivotTableCreateResult result;
-        bool isTimeout = false;
-        string[]? suggestedNextActions = null;
-        Dictionary<string, object>? operationContext = null;
-        string? retryGuidance = null;
 
         try
         {
@@ -250,9 +247,6 @@ public static partial class ExcelPivotTableTool
         }
         catch (TimeoutException ex)
         {
-            isTimeout = true;
-            bool usedMaxTimeout = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase);
-
             result = new PivotTableCreateResult
             {
                 Success = false,
@@ -264,26 +258,6 @@ public static partial class ExcelPivotTableTool
                 SourceRowCount = 0,
                 AvailableFields = []
             };
-
-            suggestedNextActions =
-            [
-                "Confirm the Data Model table can be listed via excel_datamodel(action: 'list-tables').",
-                "Check Excel for model refresh dialogs or credential prompts blocking OLAP access.",
-                "If the table is large, filter columns/rows before creating the PivotTable.",
-                "Use begin_excel_batch so the model stays warm while creating multiple pivots."
-            ];
-
-            operationContext = new Dictionary<string, object>
-            {
-                ["OperationType"] = "PivotTable.CreateFromDataModel",
-                ["TableName"] = dataModelTableName!,
-                ["TimeoutReached"] = true,
-                ["UsedMaxTimeout"] = usedMaxTimeout
-            };
-
-            retryGuidance = usedMaxTimeout
-                ? "Maximum timeout reached. Refresh the Data Model in Excel or reduce its size before retrying."
-                : "After confirming the Data Model is responsive, retry the creation (up to the 5 minute timeout).";
         }
 
         return JsonSerializer.Serialize(new
@@ -296,10 +270,7 @@ public static partial class ExcelPivotTableTool
             result.SourceRowCount,
             result.AvailableFields,
             result.ErrorMessage,
-            isError = !result.Success || isTimeout,
-            suggestedNextActions,
-            retryGuidance,
-            operationContext
+            isError = !result.Success
         }, JsonOptions);
     }
 

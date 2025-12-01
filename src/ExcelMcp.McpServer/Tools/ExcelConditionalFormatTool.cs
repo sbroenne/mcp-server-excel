@@ -34,6 +34,7 @@ public static partial class ExcelConditionalFormatTool
     /// <param name="borderStyle">Border line style: 'continuous', 'dash', 'dot', 'dash-dot', 'dash-dot-dot', 'slant-dash-dot', 'double'</param>
     /// <param name="borderColor">Border color (#RRGGBB hex or color index, e.g., '#000000' for black)</param>
     [McpServerTool(Name = "excel_conditionalformat")]
+    [McpMeta("category", "structure")]
     public static partial string ExcelConditionalFormat(
         ConditionalFormatAction action,
         string excelPath,
@@ -126,8 +127,7 @@ public static partial class ExcelConditionalFormatTool
         return JsonSerializer.Serialize(new
         {
             success = true,
-            message = "Conditional formatting rule added successfully",
-            workflowHint = "Rule applied. Use excel_range 'get-values' to verify formatting or add more rules to same range."
+            message = "Conditional formatting rule added successfully"
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -153,8 +153,7 @@ public static partial class ExcelConditionalFormatTool
         return JsonSerializer.Serialize(new
         {
             success = true,
-            message = "All conditional formatting rules removed from range",
-            workflowHint = "All conditional formatting rules removed from range. Cell values unchanged, only formatting cleared."
+            message = "All conditional formatting rules removed from range"
         }, ExcelToolsBase.JsonOptions);
     }
 }

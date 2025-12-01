@@ -22,6 +22,7 @@ public static partial class ExcelNamedRangeTool
     /// <param name="namedRangeName">Named range name (for read, write, create, update, delete actions)</param>
     /// <param name="value">Named range value (for write action) or cell reference (for create/update actions, e.g., 'Sheet1!A1')</param>
     [McpServerTool(Name = "excel_namedrange")]
+    [McpMeta("category", "data")]
     public static partial string ExcelParameter(
         NamedRangeAction action,
         string excelPath,
@@ -137,8 +138,7 @@ public static partial class ExcelNamedRangeTool
         return JsonSerializer.Serialize(new
         {
             success = true,
-            message = $"Named range '{namedRangeName}' deleted successfully",
-            workflowHint = "Formulas referencing this named range will show #NAME? error"
+            message = $"Named range '{namedRangeName}' deleted successfully"
         }, ExcelToolsBase.JsonOptions);
     }
 }

@@ -28,6 +28,7 @@ public static partial class TableTool
     /// <param name="formatCode">Excel format code for set-column-number-format (e.g., '$#,##0.00', '0.00%', 'm/d/yyyy')</param>
     /// <param name="visibleOnly">When reading data, return only rows currently visible after filters (default: false)</param>
     [McpServerTool(Name = "excel_table")]
+    [McpMeta("category", "data")]
     public static partial string Table(
         TableAction action,
         string excelPath,

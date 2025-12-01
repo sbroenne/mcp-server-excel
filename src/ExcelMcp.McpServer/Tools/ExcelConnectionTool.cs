@@ -18,7 +18,7 @@ public static partial class ExcelConnectionTool
     /// CONNECTION TYPES: OLEDB (SQL Server, Access/Excel ACE, Oracle - provider must be installed), ODBC data sources, DataFeed/Model (existing Power Query/Power Pivot connections - list/view/refresh/delete only, creation routes to excel_powerquery).
     /// TEXT/WEB: Not supported via create - use excel_powerquery for CSV/text/web imports.
     /// POWER QUERY: Connections auto-redirect to excel_powerquery tool.
-    /// TIMEOUT: Refresh and load-to auto-timeout after 5 minutes, returns SuggestedNextActions on timeout.
+    /// TIMEOUT: Refresh and load-to auto-timeout after 5 minutes to prevent hanging.
     /// </summary>
     /// <param name="action">Action to perform (enum displayed as dropdown in MCP clients)</param>
     /// <param name="excelPath">Excel file path (.xlsx or .xlsm)</param>
@@ -36,6 +36,7 @@ public static partial class ExcelConnectionTool
     /// <param name="savePassword">Save password setting (for set-properties, optional)</param>
     /// <param name="refreshPeriod">Refresh period in minutes (for set-properties, optional)</param>
     [McpServerTool(Name = "excel_connection")]
+    [McpMeta("category", "query")]
     public static partial string ExcelConnection(
         ConnectionAction action,
         string excelPath,
@@ -137,36 +138,11 @@ public static partial class ExcelConnectionTool
         }
         catch (TimeoutException ex)
         {
-            bool usedMaxTimeout = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase);
-
-            string[] suggestedNextActions =
-            [
-                "Check Excel for credential prompts or privacy dialogs that might be blocking the refresh.",
-                "Verify network connectivity and confirm the external data source is reachable.",
-                "If the query is large, consider filtering or batching the data source.",
-                "Use begin_excel_batch to keep the session alive while adjusting connection settings."
-            ];
-
-            var operationContext = new Dictionary<string, object>
-            {
-                ["OperationType"] = "Connection.Refresh",
-                ["ConnectionName"] = connectionName,
-                ["TimeoutReached"] = true,
-                ["UsedMaxTimeout"] = usedMaxTimeout
-            };
-
-            var retryGuidance = usedMaxTimeout
-                ? "Maximum timeout reached. Inspect Excel for modal dialogs or reduce the size of the refresh before retrying."
-                : "After resolving connectivity issues, retry the refresh (up to the 5 minute timeout).";
-
             return JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = ex.Message,
-                isError = true,
-                suggestedNextActions,
-                retryGuidance,
-                operationContext
+                isError = true
             }, ExcelToolsBase.JsonOptions);
         }
     }
@@ -217,37 +193,11 @@ public static partial class ExcelConnectionTool
         }
         catch (TimeoutException ex)
         {
-            bool usedMaxTimeout = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase);
-
-            string[] suggestedNextActions =
-            [
-                "Check Excel for credential or privacy prompts blocking the load.",
-                "Ensure the destination sheet is visible and not protected.",
-                "Consider loading to a worksheet first before creating additional pivots or reports.",
-                "Run begin_excel_batch before issuing multiple load-to commands to reuse the same Excel session."
-            ];
-
-            var operationContext = new Dictionary<string, object>
-            {
-                ["OperationType"] = "Connection.LoadTo",
-                ["ConnectionName"] = connectionName,
-                ["SheetName"] = sheetName,
-                ["TimeoutReached"] = true,
-                ["UsedMaxTimeout"] = usedMaxTimeout
-            };
-
-            var retryGuidance = usedMaxTimeout
-                ? "Maximum timeout reached. Inspect Excel for modal dialogs or reduce the data volume before retrying."
-                : "After verifying sheet readiness and connectivity, retry the load operation.";
-
             return JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = ex.Message,
-                isError = true,
-                suggestedNextActions,
-                retryGuidance,
-                operationContext
+                isError = true
             }, ExcelToolsBase.JsonOptions);
         }
     }

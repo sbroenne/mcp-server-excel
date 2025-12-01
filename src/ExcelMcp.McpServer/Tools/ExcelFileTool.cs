@@ -14,7 +14,7 @@ public static partial class ExcelFileTool
     /// Manage Excel files and sessions.
     /// Session lifecycle: open (get sessionId) then use sessionId with other tools then close (save:true to persist, save:false to discard).
     /// No separate 'save' action exists - use close with save:true to persist changes.
-    /// Keep session open across ALL operations - only close when workflow complete.
+    /// Keep session open across ALL operations - only close when workflow complete and all actions have reported a status.
     /// Supports .xlsx (standard) and .xlsm (macro-enabled) formats.
     /// </summary>
     /// <param name="action">Action to perform</param>
@@ -22,6 +22,7 @@ public static partial class ExcelFileTool
     /// <param name="sessionId">Session ID from 'open' action - required for close</param>
     /// <param name="save">Save changes before closing (default: false)</param>
     [McpServerTool(Name = "excel_file")]
+    [McpMeta("category", "session")]
     public static partial string ExcelFile(
         FileAction action,
         string? excelPath,
@@ -80,8 +81,7 @@ public static partial class ExcelFileTool
             {
                 success = true,
                 sessionId,
-                filePath = excelPath,
-                workflowHint = "Use sessionId with other excel_* tools. Call 'close' with save:true to persist changes, or save:false to discard."
+                filePath = excelPath
             }, ExcelToolsBase.JsonOptions);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("already open"))
@@ -128,8 +128,7 @@ public static partial class ExcelFileTool
                 {
                     success = true,
                     sessionId,
-                    saved = save,
-                    workflowHint = "Session closed successfully. If you need to perform more operations on this file, open a new session."
+                    saved = save
                 }, ExcelToolsBase.JsonOptions);
             }
 

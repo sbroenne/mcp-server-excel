@@ -15,7 +15,7 @@ public static partial class ExcelPowerQueryTool
     /// Manage Power Query M code and data loading.
     /// INLINE M CODE: Provide raw M code via mCode parameter.
     /// TARGET SHEETS (Create and LoadTo actions): targetCellAddress works for BOTH create and load-to to place tables without clearing other content. If targetCellAddress is omitted and sheet already contains data, server returns guidance instead of deleting it. When re-using an existing QueryTable, LoadTo refreshes data in-place without recreating the table.
-    /// TIMEOUT SAFEGUARD: Long-running refresh/load operations auto-timeout after 5 minutes. On timeout the tool returns SuggestedNextActions instead of hanging the session.
+    /// TIMEOUT SAFEGUARD: Long-running refresh/load operations auto-timeout after 5 minutes to prevent hanging.
     /// </summary>
     /// <param name="action">Action to perform</param>
     /// <param name="sessionId">Session ID from excel_file 'open' action. Required for all Power Query operations.</param>
@@ -26,6 +26,7 @@ public static partial class ExcelPowerQueryTool
     /// <param name="loadDestination">Load destination for query: 'worksheet' (DEFAULT - load to worksheet as table), 'data-model' (load to Power Pivot), 'both' (load to both), 'connection-only' (don't load data)</param>
     /// <param name="refreshTimeoutSeconds">Timeout in seconds for refresh action (60-600 seconds / 1-10 minutes). Required when action is 'refresh'.</param>
     [McpServerTool(Name = "excel_powerquery")]
+    [McpMeta("category", "query")]
     public static partial string ExcelPowerQuery(
         PowerQueryAction action,
         string sessionId,
@@ -134,8 +135,7 @@ public static partial class ExcelPowerQueryTool
             return JsonSerializer.Serialize(new
             {
                 success = true,
-                message = $"Query '{queryName}' deleted successfully",
-                workflowHint = "QueryTables referencing this query may need cleanup."
+                message = $"Query '{queryName}' deleted successfully"
             }, ExcelToolsBase.JsonOptions);
         }
         catch (Exception ex)
@@ -163,10 +163,7 @@ public static partial class ExcelPowerQueryTool
             result.QueryName,
             result.LoadMode,
             result.TargetSheet,
-            result.ErrorMessage,
-            workflowHint = result.Success && result.LoadMode == PowerQueryLoadMode.ConnectionOnly
-                ? "Query is connection-only (M code defined but data not loaded)."
-                : null
+            result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
 
@@ -315,23 +312,11 @@ public static partial class ExcelPowerQueryTool
         }
         catch (TimeoutException ex)
         {
-            var suggestedNextActions = new[]
-            {
-                "Check if Excel is showing a 'Privacy Level' or credential dialog and dismiss it.",
-                "Verify the data source is reachable and credentials are valid.",
-                "If the dataset is large, load to worksheet first or break the query into smaller sources.",
-                "Use begin_excel_batch to keep the Excel session open while iterating on load configuration."
-            };
-
             return JsonSerializer.Serialize(new
             {
                 success = false,
                 errorMessage = ex.Message,
-                isError = true,
-                suggestedNextActions,
-                retryGuidance = ex.Message.Contains("maximum timeout", StringComparison.OrdinalIgnoreCase)
-                    ? "Maximum timeout reached. Resolve Excel dialogs or reduce the amount of data before retrying."
-                    : "After verifying the data source, you can retry this operation within the 5 minute timeout limit."
+                isError = true
             }, ExcelToolsBase.JsonOptions);
         }
         catch (Exception ex)
