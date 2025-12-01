@@ -155,6 +155,139 @@ jobs:
         Write-Output "🔗 Package: https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI/$version"
       shell: pwsh
 
+    - name: Create MCP Server Release Package
+      run: |
+        $version = $env:PACKAGE_VERSION
+
+        # Create release directory structure
+        New-Item -ItemType Directory -Path "release" -Force
+        New-Item -ItemType Directory -Path "release/ExcelMcp-MCP-Server-$version" -Force
+
+        # Copy MCP Server files
+        Copy-Item "src/ExcelMcp.McpServer/bin/Release/net8.0/*" "release/ExcelMcp-MCP-Server-$version/" -Recurse
+
+        # Copy documentation
+        Copy-Item "README.md" "release/ExcelMcp-MCP-Server-$version/"
+        Copy-Item "LICENSE" "release/ExcelMcp-MCP-Server-$version/"
+        Copy-Item "src/ExcelMcp.McpServer/README.md" "release/ExcelMcp-MCP-Server-$version/MCP-SERVER-README.md"
+
+        # Create installation README with proper content
+        $readmeContent = "# ExcelMcp MCP Server v$version`n`n"
+        $readmeContent += "## Quick Start`n`n"
+        $readmeContent += "### Option 1: Install as .NET Tool (Recommended)`n"
+        $readmeContent += "``````powershell`n"
+        $readmeContent += "# Install globally`n"
+        $readmeContent += "dotnet tool install --global Sbroenne.ExcelMcp.McpServer --version $version`n`n"
+        $readmeContent += "# Run MCP server`n"
+        $readmeContent += "mcp-excel`n`n"
+        $readmeContent += "# Update`n"
+        $readmeContent += "dotnet tool update --global Sbroenne.ExcelMcp.McpServer`n"
+        $readmeContent += "``````n`n"
+        $readmeContent += "### Option 2: Run from Binary`n"
+        $readmeContent += "``````powershell`n"
+        $readmeContent += "dotnet ExcelMcp.McpServer.dll`n"
+        $readmeContent += "``````n`n"
+        $readmeContent += "## Features`n`n"
+        $readmeContent += "- AI Assistant Integration - Native MCP protocol support`n"
+        $readmeContent += "- Conversational Interface - Natural language Excel operations`n"
+        $readmeContent += "- 12 Resource-Based Tools - Structured API for AI assistants`n"
+        $readmeContent += "- Excel Development Focus - Power Query, VBA, Data Model, tables, ranges, worksheets`n`n"
+        $readmeContent += "## Requirements`n`n"
+        $readmeContent += "- Windows OS with Microsoft Excel installed`n"
+        $readmeContent += "- .NET 8.0 runtime`n"
+        $readmeContent += "- Excel 2016+ (for COM interop)`n`n"
+        $readmeContent += "## License`n`n"
+        $readmeContent += "MIT License - see LICENSE file for details.`n"
+
+        Set-Content "release/ExcelMcp-MCP-Server-$version/README.md" $readmeContent
+
+        # Create ZIP
+        Compress-Archive -Path "release/ExcelMcp-MCP-Server-$version/*" -DestinationPath "ExcelMcp-MCP-Server-$version-windows.zip"
+
+        Write-Output "Created ExcelMcp-MCP-Server-$version-windows.zip"
+      shell: pwsh
+
+    - name: Create CLI Release Package
+      run: |
+        $version = $env:PACKAGE_VERSION
+
+        # Create CLI release directory
+        New-Item -ItemType Directory -Path "release/ExcelMcp-CLI-$version" -Force
+
+        # Copy CLI files
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/*" "release/ExcelMcp-CLI-$version/" -Recurse
+
+        # Copy documentation
+        Copy-Item "README.md" "release/ExcelMcp-CLI-$version/"
+        Copy-Item "LICENSE" "release/ExcelMcp-CLI-$version/"
+        Copy-Item "src/ExcelMcp.CLI/README.md" "release/ExcelMcp-CLI-$version/CLI-README.md"
+
+        # Create installation README
+        $cliReadme = "# ExcelMcp CLI v$version`n`n"
+        $cliReadme += "## Quick Start`n`n"
+        $cliReadme += "### Option 1: Install as .NET Tool (Recommended)`n"
+        $cliReadme += "``````powershell`n"
+        $cliReadme += "# Install globally`n"
+        $cliReadme += "dotnet tool install --global Sbroenne.ExcelMcp.CLI --version $version`n`n"
+        $cliReadme += "# Run CLI`n"
+        $cliReadme += "excelcli --help`n`n"
+        $cliReadme += "# Update`n"
+        $cliReadme += "dotnet tool update --global Sbroenne.ExcelMcp.CLI`n"
+        $cliReadme += "``````n`n"
+        $cliReadme += "### Option 2: Run from Binary`n"
+        $cliReadme += "``````powershell`n"
+        $cliReadme += "dotnet ExcelMcp.CLI.dll --help`n"
+        $cliReadme += "``````n`n"
+        $cliReadme += "## Requirements`n`n"
+        $cliReadme += "- Windows OS with Microsoft Excel installed`n"
+        $cliReadme += "- .NET 8.0 runtime`n"
+        $cliReadme += "- Excel 2016+ (for COM interop)`n`n"
+        $cliReadme += "## License`n`n"
+        $cliReadme += "MIT License - see LICENSE file for details.`n"
+
+        Set-Content "release/ExcelMcp-CLI-$version/README.md" $cliReadme
+
+        # Create ZIP
+        Compress-Archive -Path "release/ExcelMcp-CLI-$version/*" -DestinationPath "ExcelMcp-CLI-$version-windows.zip"
+
+        Write-Output "Created ExcelMcp-CLI-$version-windows.zip"
+
+        # Create release notes - build string with proper escaping for markdown code blocks
+        $tagName = "${{ github.ref_name }}"
+        $releaseNotes = "## What's New`n`n"
+        $releaseNotes += "See [CHANGELOG](https://github.com/sbroenne/mcp-server-excel/blob/main/vscode-extension/CHANGELOG.md) for detailed changes.`n`n"
+        $releaseNotes += "## Installation`n`n"
+        $releaseNotes += "**MCP Server (.NET Tool)**`n"
+        $releaseNotes += '```powershell' + "`n"
+        $releaseNotes += "dotnet tool install --global Sbroenne.ExcelMcp.McpServer --version $version`n"
+        $releaseNotes += "mcp-excel`n"
+        $releaseNotes += '```' + "`n`n"
+        $releaseNotes += "**CLI (.NET Tool)**`n"
+        $releaseNotes += '```powershell' + "`n"
+        $releaseNotes += "dotnet tool install --global Sbroenne.ExcelMcp.CLI --version $version`n"
+        $releaseNotes += "excelcli --help`n"
+        $releaseNotes += '```' + "`n`n"
+        $releaseNotes += "For complete documentation, see the [main README](https://github.com/sbroenne/mcp-server-excel#readme).`n`n"
+        $releaseNotes += "### Requirements`n"
+        $releaseNotes += "- Windows OS with Microsoft Excel installed`n"
+        $releaseNotes += "- .NET 8.0 runtime`n"
+        $releaseNotes += "- Excel 2016+ (for COM interop)`n`n"
+        $releaseNotes += "### Documentation`n"
+        $releaseNotes += "- GitHub Repository: https://github.com/sbroenne/mcp-server-excel`n"
+        $releaseNotes += "- MCP Server: src/ExcelMcp.McpServer/README.md`n"
+        $releaseNotes += "- CLI: src/ExcelMcp.CLI/README.md`n"
+
+        # Create the release with both packages
+        gh release create "$tagName" `
+          "ExcelMcp-MCP-Server-$version-windows.zip" `
+          "ExcelMcp-CLI-$version-windows.zip" `
+          --title "ExcelMcp v$version - MCP Server & CLI" `
+          --notes $releaseNotes
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
+      shell: pwsh
+
     - name: Wait for NuGet Package Propagation
       run: |
         $version = $env:PACKAGE_VERSION
@@ -356,137 +489,4 @@ jobs:
         }
 
         Write-Output "========================================"
-      shell: pwsh
-
-    - name: Create MCP Server Release Package
-      run: |
-        $version = $env:PACKAGE_VERSION
-
-        # Create release directory structure
-        New-Item -ItemType Directory -Path "release" -Force
-        New-Item -ItemType Directory -Path "release/ExcelMcp-MCP-Server-$version" -Force
-
-        # Copy MCP Server files
-        Copy-Item "src/ExcelMcp.McpServer/bin/Release/net8.0/*" "release/ExcelMcp-MCP-Server-$version/" -Recurse
-
-        # Copy documentation
-        Copy-Item "README.md" "release/ExcelMcp-MCP-Server-$version/"
-        Copy-Item "LICENSE" "release/ExcelMcp-MCP-Server-$version/"
-        Copy-Item "src/ExcelMcp.McpServer/README.md" "release/ExcelMcp-MCP-Server-$version/MCP-SERVER-README.md"
-
-        # Create installation README with proper content
-        $readmeContent = "# ExcelMcp MCP Server v$version`n`n"
-        $readmeContent += "## Quick Start`n`n"
-        $readmeContent += "### Option 1: Install as .NET Tool (Recommended)`n"
-        $readmeContent += "``````powershell`n"
-        $readmeContent += "# Install globally`n"
-        $readmeContent += "dotnet tool install --global Sbroenne.ExcelMcp.McpServer --version $version`n`n"
-        $readmeContent += "# Run MCP server`n"
-        $readmeContent += "mcp-excel`n`n"
-        $readmeContent += "# Update`n"
-        $readmeContent += "dotnet tool update --global Sbroenne.ExcelMcp.McpServer`n"
-        $readmeContent += "``````n`n"
-        $readmeContent += "### Option 2: Run from Binary`n"
-        $readmeContent += "``````powershell`n"
-        $readmeContent += "dotnet ExcelMcp.McpServer.dll`n"
-        $readmeContent += "``````n`n"
-        $readmeContent += "## Features`n`n"
-        $readmeContent += "- AI Assistant Integration - Native MCP protocol support`n"
-        $readmeContent += "- Conversational Interface - Natural language Excel operations`n"
-        $readmeContent += "- 12 Resource-Based Tools - Structured API for AI assistants`n"
-        $readmeContent += "- Excel Development Focus - Power Query, VBA, Data Model, tables, ranges, worksheets`n`n"
-        $readmeContent += "## Requirements`n`n"
-        $readmeContent += "- Windows OS with Microsoft Excel installed`n"
-        $readmeContent += "- .NET 8.0 runtime`n"
-        $readmeContent += "- Excel 2016+ (for COM interop)`n`n"
-        $readmeContent += "## License`n`n"
-        $readmeContent += "MIT License - see LICENSE file for details.`n"
-
-        Set-Content "release/ExcelMcp-MCP-Server-$version/README.md" $readmeContent
-
-        # Create ZIP
-        Compress-Archive -Path "release/ExcelMcp-MCP-Server-$version/*" -DestinationPath "ExcelMcp-MCP-Server-$version-windows.zip"
-
-        Write-Output "Created ExcelMcp-MCP-Server-$version-windows.zip"
-      shell: pwsh
-
-    - name: Create CLI Release Package
-      run: |
-        $version = $env:PACKAGE_VERSION
-
-        # Create CLI release directory
-        New-Item -ItemType Directory -Path "release/ExcelMcp-CLI-$version" -Force
-
-        # Copy CLI files
-        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/*" "release/ExcelMcp-CLI-$version/" -Recurse
-
-        # Copy documentation
-        Copy-Item "README.md" "release/ExcelMcp-CLI-$version/"
-        Copy-Item "LICENSE" "release/ExcelMcp-CLI-$version/"
-        Copy-Item "src/ExcelMcp.CLI/README.md" "release/ExcelMcp-CLI-$version/CLI-README.md"
-
-        # Create installation README
-        $cliReadme = "# ExcelMcp CLI v$version`n`n"
-        $cliReadme += "## Quick Start`n`n"
-        $cliReadme += "### Option 1: Install as .NET Tool (Recommended)`n"
-        $cliReadme += "``````powershell`n"
-        $cliReadme += "# Install globally`n"
-        $cliReadme += "dotnet tool install --global Sbroenne.ExcelMcp.CLI --version $version`n`n"
-        $cliReadme += "# Run CLI`n"
-        $cliReadme += "excelcli --help`n`n"
-        $cliReadme += "# Update`n"
-        $cliReadme += "dotnet tool update --global Sbroenne.ExcelMcp.CLI`n"
-        $cliReadme += "``````n`n"
-        $cliReadme += "### Option 2: Run from Binary`n"
-        $cliReadme += "``````powershell`n"
-        $cliReadme += "dotnet ExcelMcp.CLI.dll --help`n"
-        $cliReadme += "``````n`n"
-        $cliReadme += "## Requirements`n`n"
-        $cliReadme += "- Windows OS with Microsoft Excel installed`n"
-        $cliReadme += "- .NET 8.0 runtime`n"
-        $cliReadme += "- Excel 2016+ (for COM interop)`n`n"
-        $cliReadme += "## License`n`n"
-        $cliReadme += "MIT License - see LICENSE file for details.`n"
-
-        Set-Content "release/ExcelMcp-CLI-$version/README.md" $cliReadme
-
-        # Create ZIP
-        Compress-Archive -Path "release/ExcelMcp-CLI-$version/*" -DestinationPath "ExcelMcp-CLI-$version-windows.zip"
-
-        Write-Output "Created ExcelMcp-CLI-$version-windows.zip"
-
-        # Create release notes - build string with proper escaping for markdown code blocks
-        $tagName = "${{ github.ref_name }}"
-        $releaseNotes = "## What's New`n`n"
-        $releaseNotes += "See [CHANGELOG](https://github.com/sbroenne/mcp-server-excel/blob/main/vscode-extension/CHANGELOG.md) for detailed changes.`n`n"
-        $releaseNotes += "## Installation`n`n"
-        $releaseNotes += "**MCP Server (.NET Tool)**`n"
-        $releaseNotes += '```powershell' + "`n"
-        $releaseNotes += "dotnet tool install --global Sbroenne.ExcelMcp.McpServer --version $version`n"
-        $releaseNotes += "mcp-excel`n"
-        $releaseNotes += '```' + "`n`n"
-        $releaseNotes += "**CLI (.NET Tool)**`n"
-        $releaseNotes += '```powershell' + "`n"
-        $releaseNotes += "dotnet tool install --global Sbroenne.ExcelMcp.CLI --version $version`n"
-        $releaseNotes += "excelcli --help`n"
-        $releaseNotes += '```' + "`n`n"
-        $releaseNotes += "For complete documentation, see the [main README](https://github.com/sbroenne/mcp-server-excel#readme).`n`n"
-        $releaseNotes += "### Requirements`n"
-        $releaseNotes += "- Windows OS with Microsoft Excel installed`n"
-        $releaseNotes += "- .NET 8.0 runtime`n"
-        $releaseNotes += "- Excel 2016+ (for COM interop)`n`n"
-        $releaseNotes += "### Documentation`n"
-        $releaseNotes += "- GitHub Repository: https://github.com/sbroenne/mcp-server-excel`n"
-        $releaseNotes += "- MCP Server: src/ExcelMcp.McpServer/README.md`n"
-        $releaseNotes += "- CLI: src/ExcelMcp.CLI/README.md`n"
-
-        # Create the release with both packages
-        gh release create "$tagName" `
-          "ExcelMcp-MCP-Server-$version-windows.zip" `
-          "ExcelMcp-CLI-$version-windows.zip" `
-          --title "ExcelMcp v$version - MCP Server & CLI" `
-          --notes $releaseNotes
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        PACKAGE_VERSION: ${{ env.PACKAGE_VERSION }}
       shell: pwsh
