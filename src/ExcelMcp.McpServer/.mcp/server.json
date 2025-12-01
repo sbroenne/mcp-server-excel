@@ -1,8 +1,8 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
   "name": "io.github.sbroenne/mcp-server-excel",
-  "title": "Excel MCP Server - AI-Powered Excel Automation",
-  "description": "Excel automation for AI: Power Query, DAX, VBA, PivotTables, Tables, ranges, formatting. 165 ops.",
+  "title": "MCP Server for Excel",
+  "description": "Excel automation for AI assistants - manage Sheets, Power Query, DAX, VBA, Tables, Ranges, Formatting, Validation and more. Requires Excel to be installed. Only runs on Windows.",
   "version": "1.0.0",
   "packages": [
     {
