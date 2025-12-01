@@ -67,18 +67,6 @@ public class TelemetryTests
         }
     }
 
-    [Fact]
-    public void OptOutEnvironmentVariable_HasCorrectName()
-    {
-        Assert.Equal("EXCELMCP_TELEMETRY_OPTOUT", ExcelMcpTelemetry.OptOutEnvironmentVariable);
-    }
-
-    [Fact]
-    public void DebugTelemetryEnvironmentVariable_HasCorrectName()
-    {
-        Assert.Equal("EXCELMCP_DEBUG_TELEMETRY", ExcelMcpTelemetry.DebugTelemetryEnvironmentVariable);
-    }
-
     #endregion
 
     #region SensitiveDataRedactor Tests

@@ -13,27 +13,6 @@ namespace Sbroenne.ExcelMcp.McpServer.Telemetry;
 public static class ExcelMcpTelemetry
 {
     /// <summary>
-    /// Environment variable to opt-out of telemetry.
-    /// Set to "true" or "1" to disable telemetry.
-    /// </summary>
-    public const string OptOutEnvironmentVariable = "EXCELMCP_TELEMETRY_OPTOUT";
-
-    /// <summary>
-    /// Environment variable to enable debug mode (console output instead of Azure).
-    /// Set to "true" or "1" for local testing without Azure resources.
-    /// </summary>
-    public const string DebugTelemetryEnvironmentVariable = "EXCELMCP_DEBUG_TELEMETRY";
-
-    /// <summary>
-    /// Application Insights connection string (embedded at build time).
-    /// </summary>
-    /// <remarks>
-    /// This value is replaced during CI/CD build from the APPINSIGHTS_CONNECTION_STRING secret.
-    /// Format: InstrumentationKey=xxx;IngestionEndpoint=https://xxx.in.applicationinsights.azure.com/;...
-    /// </remarks>
-    private const string ConnectionString = "__APPINSIGHTS_CONNECTION_STRING__";
-
-    /// <summary>
     /// Unique session ID for correlating telemetry within a single MCP server process.
     /// Changes each time the MCP server starts.
     /// </summary>
@@ -58,31 +37,33 @@ public static class ExcelMcpTelemetry
     /// </summary>
     internal static void SetTelemetryClient(TelemetryClient client)
     {
+        Console.Error.WriteLine($"[TELEMETRY DIAG] SetTelemetryClient called with client={(client == null ? "NULL" : "instance")}");
         _telemetryClient = client;
     }
 
-    private static bool? _isEnabled;
-
     /// <summary>
-    /// Gets whether telemetry is enabled (not opted out and either debug mode or connection string available).
+    /// Flushes any buffered telemetry to Application Insights.
+    /// CRITICAL: Must be called before application exits to ensure telemetry is not lost.
+    /// Application Insights SDK buffers telemetry and sends in batches - without explicit flush,
+    /// short-lived processes like MCP servers may terminate before telemetry is transmitted.
     /// </summary>
-    public static bool IsEnabled
+    public static void Flush()
     {
-        get
+        Console.Error.WriteLine($"[TELEMETRY DIAG] Flush called, client={((_telemetryClient == null) ? "NULL" : "SET")}");
+        if (_telemetryClient == null) return;
+
+        try
         {
-            _isEnabled ??= !IsOptedOut() && (IsDebugMode() || !string.IsNullOrEmpty(GetConnectionString()));
-            return _isEnabled.Value;
+            // Flush with timeout to avoid hanging on shutdown
+            // 5 seconds is typically sufficient for small batches
+            _telemetryClient.FlushAsync(CancellationToken.None).Wait(TimeSpan.FromSeconds(5));
+            Console.Error.WriteLine($"[TELEMETRY DIAG] Flush completed successfully");
         }
-    }
-
-    /// <summary>
-    /// Checks if debug telemetry mode is enabled (console output for local testing).
-    /// </summary>
-    public static bool IsDebugMode()
-    {
-        var debug = Environment.GetEnvironmentVariable(DebugTelemetryEnvironmentVariable);
-        return string.Equals(debug, "true", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(debug, "1", StringComparison.Ordinal);
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[TELEMETRY DIAG] Flush failed: {ex.Message}");
+            // Don't let telemetry flush failure crash the application
+        }
     }
 
     /// <summary>
@@ -90,24 +71,23 @@ public static class ExcelMcpTelemetry
     /// </summary>
     public static string? GetConnectionString()
     {
-        // Connection string is embedded at build time via CI/CD
-        // Returns null if placeholder wasn't replaced (local dev builds)
-        return ConnectionString.StartsWith("__", StringComparison.Ordinal) ? null : ConnectionString;
-    }
-
-    /// <summary>
-    /// Checks if user has opted out of telemetry via environment variable.
-    /// </summary>
-    public static bool IsOptedOut()
-    {
-        var optOut = Environment.GetEnvironmentVariable(OptOutEnvironmentVariable);
-        return string.Equals(optOut, "true", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(optOut, "1", StringComparison.OrdinalIgnoreCase);
+        // Connection string is embedded at build time from Directory.Build.props.user
+        // Returns null if not set (placeholder value starts with __)
+        if (string.IsNullOrEmpty(TelemetryConfig.ConnectionString) ||
+            TelemetryConfig.ConnectionString.StartsWith("__", StringComparison.Ordinal))
+        {
+            Console.Error.WriteLine($"[TELEMETRY DIAG] GetConnectionString returning null. Raw value: '{TelemetryConfig.ConnectionString ?? "(null)"}'");
+            return null;
+        }
+        Console.Error.WriteLine($"[TELEMETRY DIAG] GetConnectionString returning valid connection string (length={TelemetryConfig.ConnectionString.Length})");
+        return TelemetryConfig.ConnectionString;
     }
 
     /// <summary>
     /// Tracks a tool invocation with usage metrics.
-    /// Sends Application Insights Custom Event for Users/Sessions analytics.
+    /// Sends Application Insights Request and PageView telemetry.
+    /// - Request: Populates Performance, Failures, Users, Sessions blades
+    /// - PageView: Enables User Flows blade (shows tool usage patterns)
     /// </summary>
     /// <param name="toolName">The MCP tool name (e.g., "excel_range")</param>
     /// <param name="action">The action performed (e.g., "get-values")</param>
@@ -115,74 +95,47 @@ public static class ExcelMcpTelemetry
     /// <param name="success">Whether the operation succeeded</param>
     public static void TrackToolInvocation(string toolName, string action, long durationMs, bool success)
     {
-        if (!IsEnabled) return;
+        Console.Error.WriteLine($"[TELEMETRY DIAG] TrackToolInvocation called: {toolName}/{action}, client={((_telemetryClient == null) ? "NULL" : "SET")}");
+        if (_telemetryClient == null) return;
 
-        // Debug mode: write to stderr
-        if (IsDebugMode())
+        var operationName = $"{toolName}/{action}";
+        var startTime = DateTimeOffset.UtcNow.AddMilliseconds(-durationMs);
+        var duration = TimeSpan.FromMilliseconds(durationMs);
+
+        // Request telemetry: Performance, Failures, Users, Sessions
+        _telemetryClient.TrackRequest(operationName, startTime, duration, success ? "200" : "500", success);
+
+        // PageView telemetry: Enables User Flows blade
+        // Must include duration for proper User Flows visualization
+        var pageView = new Microsoft.ApplicationInsights.DataContracts.PageViewTelemetry(operationName)
         {
-            Console.Error.WriteLine($"[Telemetry] ToolInvocation: {toolName}.{action} - {(success ? "Success" : "Failed")} ({durationMs}ms)");
-        }
-
-        // Send Application Insights Custom Event (populates customEvents table)
-        if (_telemetryClient != null)
-        {
-            var properties = new Dictionary<string, string>
-            {
-                { "ToolName", toolName },
-                { "Action", action },
-                { "Success", success.ToString() },
-                { "AppVersion", GetVersion() }
-            };
-
-            var metrics = new Dictionary<string, double>
-            {
-                { "DurationMs", durationMs }
-            };
-
-            _telemetryClient.TrackEvent("ToolInvocation", properties, metrics);
-        }
+            Timestamp = startTime,
+            Duration = duration
+        };
+        _telemetryClient.TrackPageView(pageView);
+        Console.Error.WriteLine($"[TELEMETRY DIAG] TrackRequest + TrackPageView completed for {operationName}");
     }
 
     /// <summary>
     /// Tracks an unhandled exception.
     /// Only call this for exceptions that escape all catch blocks (true bugs/crashes).
-    /// Sends Application Insights exception and Custom Event.
     /// </summary>
     /// <param name="exception">The unhandled exception</param>
     /// <param name="source">Source of the exception (e.g., "AppDomain.UnhandledException")</param>
     public static void TrackUnhandledException(Exception exception, string source)
     {
-        if (!IsEnabled || exception == null) return;
+        if (_telemetryClient == null || exception == null) return;
 
         // Redact sensitive data from exception
-        var (type, message, _) = SensitiveDataRedactor.RedactException(exception);
+        var (type, _, _) = SensitiveDataRedactor.RedactException(exception);
 
-        // Debug mode: write to stderr
-        if (IsDebugMode())
+        // Track as exception in Application Insights (for Failures blade)
+        _telemetryClient.TrackException(exception, new Dictionary<string, string>
         {
-            Console.Error.WriteLine($"[Telemetry] UnhandledException: {type} - {message} (Source: {source})");
-        }
-
-        // Send Application Insights telemetry
-        if (_telemetryClient != null)
-        {
-            // Track as exception in Application Insights (for Failures blade)
-            _telemetryClient.TrackException(exception, new Dictionary<string, string>
-            {
-                { "Source", source },
-                { "ExceptionType", type },
-                { "AppVersion", GetVersion() }
-            });
-
-            // Also track as Custom Event (for Users/Sessions analytics)
-            _telemetryClient.TrackEvent("UnhandledException", new Dictionary<string, string>
-            {
-                { "Source", source },
-                { "ExceptionType", type },
-                { "Message", message ?? "Unknown" },
-                { "AppVersion", GetVersion() }
-            });
-        }
+            { "Source", source },
+            { "ExceptionType", type },
+            { "AppVersion", GetVersion() }
+        });
     }
 
     /// <summary>

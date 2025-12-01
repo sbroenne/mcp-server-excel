@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <PackageReference Include="xunit" />
+    <!-- Note: Microsoft.ApplicationInsights comes transitively from McpServer's WorkerService SDK -->
     <PackageReference Include="xunit.runner.visualstudio">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

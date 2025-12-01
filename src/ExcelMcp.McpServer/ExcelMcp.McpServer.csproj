@@ -14,6 +14,9 @@
     <!-- MCP Server doesn't need XML documentation warnings - API docs are in MCP schema -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
 
+    <!-- Allow test project to access internal members (e.g., SetTelemetryClient) -->
+    <InternalsVisibleTo>Sbroenne.ExcelMcp.McpServer.Tests</InternalsVisibleTo>
+
     <!-- Version Information -->
     <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
@@ -40,7 +43,43 @@
 
     <!-- Package Validation -->
     <EnablePackageValidation>true</EnablePackageValidation>
+
+    <!-- Application Insights Connection String - embedded at build time from environment variable -->
+    <!-- CI/CD sets APPINSIGHTS_CONNECTION_STRING before build; local dev builds get empty string (telemetry disabled) -->
+    <AppInsightsConnectionString Condition="'$(AppInsightsConnectionString)' == ''">$(APPINSIGHTS_CONNECTION_STRING)</AppInsightsConnectionString>
   </PropertyGroup>
+
+  <!-- Generate TelemetryConfig.g.cs with the connection string at build time -->
+  <!-- Note: Uses inline task because WriteLinesToFile treats semicolons as line separators -->
+  <UsingTask TaskName="WriteTextFile" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <FilePath ParameterType="System.String" Required="true" />
+      <Content ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs">
+        System.IO.File.WriteAllText(FilePath, Content);
+      </Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="GenerateTelemetryConfig" BeforeTargets="BeforeCompile;CoreCompile">
+    <PropertyGroup>
+      <TelemetryConfigFile>$(IntermediateOutputPath)TelemetryConfig.g.cs</TelemetryConfigFile>
+      <TelemetryConfigContent>// Auto-generated at build time - do not edit
+namespace Sbroenne.ExcelMcp.McpServer.Telemetry%3B
+
+internal static class TelemetryConfig
+{
+    public const string ConnectionString = "$(AppInsightsConnectionString)"%3B
+}
+</TelemetryConfigContent>
+    </PropertyGroup>
+    <WriteTextFile FilePath="$(TelemetryConfigFile)" Content="$(TelemetryConfigContent)" />
+    <ItemGroup>
+      <Compile Include="$(TelemetryConfigFile)" />
+    </ItemGroup>
+  </Target>
 
   <!-- Release Build Optimizations -->
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
@@ -79,8 +118,9 @@
     <PackageReference Include="ModelContextProtocol" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
-    <!-- Application Insights SDK for telemetry (Users, Sessions, Funnels, User Flows) -->
-    <PackageReference Include="Microsoft.ApplicationInsights" />
+    <!-- Application Insights Worker Service SDK for telemetry (Users, Sessions, Funnels, User Flows) -->
+    <!-- Worker Service SDK provides proper DI integration, auto-collection modules, and host lifetime awareness -->
+    <PackageReference Include="Microsoft.ApplicationInsights.WorkerService" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>

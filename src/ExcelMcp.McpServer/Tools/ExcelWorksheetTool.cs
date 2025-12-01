@@ -25,17 +25,10 @@ public static class ExcelWorksheetTool
     [McpServerTool(Name = "excel_worksheet")]
     [Description(@"Manage Excel worksheets: lifecycle, tab colors, visibility.
 
-REQUIRED WORKFLOW:
-- Use excel_file(action: 'open') first to get a sessionId
-- Pass sessionId to all worksheet actions
-- Use excel_file(action: 'save') to persist changes
-- Use excel_file(action: 'close') to end the session (does NOT save)
-
 CROSS-WORKBOOK OPERATIONS (copy-to-workbook, move-to-workbook):
 - Copy or move sheets BETWEEN different Excel files
 - Requires TWO sessionIds: sourceSessionId + targetSessionId
 - Opens both workbooks in same Excel instance automatically
-- Example: Copy 'Sales' from Q1.xlsx to Q2.xlsx using both session IDs
 
 TAB COLORS (set-tab-color):
 - RGB values: 0-255 for red, green, blue components

@@ -14,20 +14,14 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Models;
 ///
 /// Uses reflection to automatically discover ALL action enums - no manual maintenance required.
 /// </summary>
+/// <inheritdoc/>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "ActionEnums")]
 [Trait("RequiresExcel", "false")]
-public class ActionEnumCompletenessTests
+public class ActionEnumCompletenessTests(ITestOutputHelper output)
 {
-    private readonly ITestOutputHelper _output;
-    /// <inheritdoc/>
-
-    public ActionEnumCompletenessTests(ITestOutputHelper output)
-    {
-        _output = output;
-    }
 
     /// <summary>
     /// CRITICAL: Discovers ALL *Action enums and verifies every value has a ToActionString() mapping.
@@ -45,10 +39,10 @@ public class ActionEnumCompletenessTests
             .Where(t => t.IsEnum && t.Name.EndsWith("Action", StringComparison.Ordinal) && t.Namespace == "Sbroenne.ExcelMcp.McpServer.Models")
             .ToList();
 
-        _output.WriteLine($"Found {actionEnums.Count} action enums:");
+        output.WriteLine($"Found {actionEnums.Count} action enums:");
         foreach (var enumType in actionEnums)
         {
-            _output.WriteLine($"  - {enumType.Name}");
+            output.WriteLine($"  - {enumType.Name}");
         }
 
         Assert.NotEmpty(actionEnums); // Sanity check
@@ -87,7 +81,7 @@ public class ActionEnumCompletenessTests
                     }
                     else
                     {
-                        _output.WriteLine($"  ✅ {enumType.Name}.{enumValue} → '{result}'");
+                        output.WriteLine($"  ✅ {enumType.Name}.{enumValue} → '{result}'");
                     }
                 }
                 catch (TargetInvocationException ex) when (ex.InnerException is ArgumentException argEx)
@@ -104,7 +98,7 @@ public class ActionEnumCompletenessTests
         if (failures.Count > 0)
         {
             var message = $"Enum mapping failures:\n{string.Join("\n", failures)}";
-            _output.WriteLine($"\n{message}");
+            output.WriteLine($"\n{message}");
             Assert.Fail(message);
         }
     }
@@ -171,7 +165,7 @@ public class ActionEnumCompletenessTests
         if (failures.Count > 0)
         {
             var message = $"Duplicate action string failures:\n{string.Join("\n", failures)}";
-            _output.WriteLine($"\n{message}");
+            output.WriteLine($"\n{message}");
             Assert.Fail(message);
         }
     }
@@ -192,17 +186,17 @@ public class ActionEnumCompletenessTests
             .Where(t => t.IsEnum && t.Name.EndsWith("Action", StringComparison.Ordinal) && t.Namespace == "Sbroenne.ExcelMcp.McpServer.Models")
             .ToList();
 
-        _output.WriteLine($"\nExpected tool files with switch statements:");
-        _output.WriteLine($"Each *Action enum should have corresponding *Tool.cs with exhaustive switch.\n");
+        output.WriteLine($"\nExpected tool files with switch statements:");
+        output.WriteLine($"Each *Action enum should have corresponding *Tool.cs with exhaustive switch.\n");
 
         foreach (var enumType in actionEnums)
         {
             var toolName = enumType.Name.Replace("Action", "Tool");
-            _output.WriteLine($"  - {enumType.Name} → Tools/{toolName}.cs");
-            _output.WriteLine($"    Expected: switch (action.ToActionString()) with all {Enum.GetValues(enumType).Length} cases");
+            output.WriteLine($"  - {enumType.Name} → Tools/{toolName}.cs");
+            output.WriteLine($"    Expected: switch (action.ToActionString()) with all {Enum.GetValues(enumType).Length} cases");
         }
 
-        _output.WriteLine($"\n✅ Compiler enforces exhaustive switches via warning CS8524.");
-        _output.WriteLine($"✅ Build with TreatWarningsAsErrors=true ensures no missing cases.");
+        output.WriteLine($"\n✅ Compiler enforces exhaustive switches via warning CS8524.");
+        output.WriteLine($"✅ Build with TreatWarningsAsErrors=true ensures no missing cases.");
     }
 }

@@ -16,26 +16,19 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "Telemetry")]
-public class TelemetryIntegrationTests
+public class TelemetryIntegrationTests(ITestOutputHelper output)
 {
-    private readonly ITestOutputHelper _output;
-
-    public TelemetryIntegrationTests(ITestOutputHelper output)
-    {
-        _output = output;
-    }
-
     [Fact]
     public void TelemetryConfiguration_HasStableUserAndSessionIds()
     {
-        _output.WriteLine("=== TELEMETRY CONFIGURATION TEST ===\n");
+        output.WriteLine("=== TELEMETRY CONFIGURATION TEST ===\n");
 
         // Get user and session IDs
         var userId = ExcelMcpTelemetry.UserId;
         var sessionId = ExcelMcpTelemetry.SessionId;
 
-        _output.WriteLine($"User ID: {userId}");
-        _output.WriteLine($"Session ID: {sessionId}");
+        output.WriteLine($"User ID: {userId}");
+        output.WriteLine($"Session ID: {sessionId}");
 
         // Assert - user ID should be stable (16 hex chars from SHA256)
         Assert.NotNull(userId);
@@ -58,8 +51,8 @@ public class TelemetryIntegrationTests
         var input = "Error loading file C:\\Users\\John\\Documents\\secret.xlsx";
         var redacted = SensitiveDataRedactor.RedactSensitiveData(input);
 
-        _output.WriteLine($"Input: {input}");
-        _output.WriteLine($"Redacted: {redacted}");
+        output.WriteLine($"Input: {input}");
+        output.WriteLine($"Redacted: {redacted}");
 
         Assert.DoesNotContain("C:\\", redacted);
         Assert.Contains("[REDACTED_PATH]", redacted);
@@ -71,8 +64,8 @@ public class TelemetryIntegrationTests
         var input = "Connection: Server=myserver;Password=secret123;User=admin";
         var redacted = SensitiveDataRedactor.RedactSensitiveData(input);
 
-        _output.WriteLine($"Input: {input}");
-        _output.WriteLine($"Redacted: {redacted}");
+        output.WriteLine($"Input: {input}");
+        output.WriteLine($"Redacted: {redacted}");
 
         Assert.DoesNotContain("secret123", redacted);
         Assert.Contains("[REDACTED]", redacted);
@@ -84,8 +77,8 @@ public class TelemetryIntegrationTests
         var input = "Contact john.doe@example.com for support";
         var redacted = SensitiveDataRedactor.RedactSensitiveData(input);
 
-        _output.WriteLine($"Input: {input}");
-        _output.WriteLine($"Redacted: {redacted}");
+        output.WriteLine($"Input: {input}");
+        output.WriteLine($"Redacted: {redacted}");
 
         Assert.DoesNotContain("john.doe@example.com", redacted);
         Assert.Contains("[REDACTED_EMAIL]", redacted);
@@ -97,8 +90,8 @@ public class TelemetryIntegrationTests
         var exception = new InvalidOperationException("Failed to read C:\\Users\\Admin\\data.xlsx");
         var (type, message, _) = SensitiveDataRedactor.RedactException(exception);
 
-        _output.WriteLine($"Exception Type: {type}");
-        _output.WriteLine($"Redacted Message: {message}");
+        output.WriteLine($"Exception Type: {type}");
+        output.WriteLine($"Redacted Message: {message}");
 
         Assert.Equal("InvalidOperationException", type);
         Assert.DoesNotContain("C:\\", message);
@@ -108,7 +101,7 @@ public class TelemetryIntegrationTests
     [Fact]
     public void ToolInvocation_ExecutesWithTelemetry()
     {
-        _output.WriteLine("=== TOOL INVOCATION TEST ===\n");
+        output.WriteLine("=== TOOL INVOCATION TEST ===\n");
 
         // Act - call a tool method that uses ExecuteToolAction
         // Using Test action since it doesn't require an actual file
@@ -117,7 +110,7 @@ public class TelemetryIntegrationTests
             excelPath: "C:\\fake\\test.xlsx",
             sessionId: null);
 
-        _output.WriteLine($"Tool result: {result[..Math.Min(200, result.Length)]}...\n");
+        output.WriteLine($"Tool result: {result[..Math.Min(200, result.Length)]}...\n");
 
         // Assert - tool executed (telemetry is tracked internally)
         Assert.NotNull(result);

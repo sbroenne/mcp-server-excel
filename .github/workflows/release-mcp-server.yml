@@ -96,26 +96,14 @@ jobs:
         dotnet restore src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
         dotnet restore src/ExcelMcp.CLI/ExcelMcp.CLI.csproj
 
-    - name: Inject Application Insights Connection String
-      run: |
-        $telemetryFile = "src/ExcelMcp.McpServer/Telemetry/ExcelMcpTelemetry.cs"
-        $connectionString = "${{ secrets.APPINSIGHTS_CONNECTION_STRING }}"
-
-        if ([string]::IsNullOrWhiteSpace($connectionString)) {
-          Write-Output "⚠️ APPINSIGHTS_CONNECTION_STRING secret not configured - telemetry will be disabled"
-        } else {
-          Write-Output "Injecting Application Insights connection string..."
-          $content = Get-Content $telemetryFile -Raw
-          $content = $content -replace '__APPINSIGHTS_CONNECTION_STRING__', $connectionString
-          Set-Content $telemetryFile $content
-          Write-Output "✅ Telemetry connection string injected"
-        }
-      shell: pwsh
-
     - name: Build MCP Server & CLI
       run: |
         dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-restore
         dotnet build src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-restore
+      env:
+        # Application Insights connection string is embedded at build time by MSBuild
+        # See ExcelMcp.McpServer.csproj for the GenerateTelemetryConfig target
+        APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
 
     - name: Skip Tests (require Excel)
       run: |

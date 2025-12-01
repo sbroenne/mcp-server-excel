@@ -17,11 +17,4 @@ public static class ExcelElicitationPrompts
     {
         return new ChatMessage(ChatRole.User, MarkdownLoader.LoadElicitation("data_validation.md"));
     }
-
-    [McpServerPrompt(Name = "excel_troubleshooting_guide")]
-    [Description("Common Excel MCP server issues and solutions")]
-    public static ChatMessage TroubleshootingGuide()
-    {
-        return new ChatMessage(ChatRole.User, MarkdownLoader.LoadPrompt("server_quirks.md"));
-    }
 }

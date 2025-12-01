@@ -13,7 +13,10 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
-    <!-- Application Insights SDK for telemetry (Users, Sessions, Funnels, User Flows) -->
+    <!-- Application Insights Worker Service SDK for telemetry (Users, Sessions, Funnels, User Flows) -->
+    <!-- Worker Service SDK provides proper DI integration, auto-collection modules, and host lifetime awareness -->
+    <PackageVersion Include="Microsoft.ApplicationInsights.WorkerService" Version="2.23.0" />
+    <!-- Base SDK needed for tests that directly use TelemetryClient -->
     <PackageVersion Include="Microsoft.ApplicationInsights" Version="2.23.0" />
     <PackageVersion Include="Microsoft.Extensions.Resilience" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="9.0.10" />

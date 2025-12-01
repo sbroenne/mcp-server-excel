@@ -226,3 +226,11 @@ gh-pages/_site/*
 
 codeql-db/*
 infrastructure/azure/appinsights.secrets.local
+
+# Local environment files (secrets, connection strings)
+.env
+.env.local
+.env.*.local
+
+# Local MSBuild properties (secrets, connection strings)
+Directory.Build.props.user

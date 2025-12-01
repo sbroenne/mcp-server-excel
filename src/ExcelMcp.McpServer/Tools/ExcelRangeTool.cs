@@ -24,8 +24,11 @@ public static class ExcelRangeTool
 
 DATA FORMAT:
 - Values/formulas: JSON 2D arrays [[row1col1, row1col2], [row2col1, row2col2]]
-- Example single cell: [[100]] or [['=SUM(A:A)']]
-- Example range: [[1,2,3], [4,5,6], [7,8,9]]
+- Single cell returns [[value]] (always 2D, never scalar)
+
+NAMED RANGES:
+- Can use named range name instead of rangeAddress (e.g., 'SalesData' instead of 'A1:D10')
+- When using named range, leave sheetName empty
 ")]
     public static string ExcelRange(
         [Required]
