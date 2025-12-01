@@ -12,10 +12,27 @@ public static partial class ExcelFileTool
 {
     /// <summary>
     /// Manage Excel files and sessions.
-    /// Session lifecycle: open (get sessionId) then use sessionId with other tools then close (save:true to persist, save:false to discard).
-    /// No separate 'save' action exists - use close with save:true to persist changes.
-    /// Keep session open across ALL operations - only close when workflow complete and all actions have reported a status.
-    /// Supports .xlsx (standard) and .xlsm (macro-enabled) formats.
+    ///
+    /// SESSION LIFECYCLE REQUIRED:
+    /// 1. OPEN - Start session, get sessionId
+    /// 2. OPERATE - Use sessionId with other tools
+    /// 3. CLOSE - End session (use save:true parameter to persist changes)
+    ///
+    /// IMPORTANT: NO 'SAVE' ACTION - Use action='close' with save:true to persist changes
+    ///
+    /// CRITICAL: DO NOT CLOSE SESSION PREMATURELY
+    /// - Keep session open across ALL operations in a workflow
+    /// - ONLY close when user explicitly confirms OR all operations complete
+    /// - Closing mid-workflow loses the session and breaks subsequent operations
+    ///
+    /// WORKFLOWS:
+    /// - Persist changes: open → operations(sessionId) → close(save: true)
+    /// - Discard changes: open → operations(sessionId) → close(save: false)
+    /// - Read-only: open → read(sessionId) → close(save: false)
+    ///
+    /// FILE FORMATS:
+    /// - .xlsx: Standard Excel workbook
+    /// - .xlsm: Macro-enabled workbook
     /// </summary>
     /// <param name="action">Action to perform</param>
     /// <param name="excelPath">Excel file path (.xlsx or .xlsm) - required for open/create-empty, not used for close</param>

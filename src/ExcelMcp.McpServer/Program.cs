@@ -77,7 +77,12 @@ public class Program
                     1. excel_file(action:'open') → returns sessionId
                     2. Use sessionId with ALL subsequent tools
                     3. excel_file(action:'close', save:true/false) → ONLY when completely done
-                    Keep session open across multiple operations - don't close prematurely!
+
+                    CRITICAL - DO NOT CLOSE SESSION PREMATURELY:
+                    - WAIT for ALL pending tool calls to return results before closing
+                    - If you called multiple tools in parallel, wait for ALL responses
+                    - Closing while operations are running will cause those operations to FAIL
+                    - Only close when user confirms OR all operations have completed successfully
                     """;
             })
             .WithToolsFromAssembly()
