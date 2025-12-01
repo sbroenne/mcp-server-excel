@@ -76,8 +76,8 @@ jobs:
         $serverJsonPath = "src/ExcelMcp.McpServer/.mcp/server.json"
         $serverContent = Get-Content $serverJsonPath -Raw
 
-        # Update main version field (near top of file, not in _meta section)
-        $serverContent = $serverContent -replace '(\s*"version":\s*)"[\d\.]+"(\s*,\s*\n\s*"title")' , "`$1`"$version`"`$2"
+        # Update main version field (the one followed by "packages" on next line)
+        $serverContent = $serverContent -replace '("version":\s*)"[\d\.]+"(\s*,\s*\n\s*"packages")' , "`$1`"$version`"`$2"
 
         # Update package version in packages array (specifically after identifier field)
         $serverContent = $serverContent -replace '("identifier":\s*"Sbroenne\.ExcelMcp\.McpServer",\s*\n\s*"version":\s*)"[\d\.]+"', "`$1`"$version`""
@@ -388,23 +388,23 @@ jobs:
 
         # Check if version already exists in MCP Registry
         Write-Output "Checking if version $version already exists in MCP Registry..."
-        $registryCheckUrl = "https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel"
+        $registryCheckUrl = "https://registry.modelcontextprotocol.io/v0.1/servers/io.github.sbroenne%2Fmcp-server-excel/versions/$version"
         try {
-          $registryData = Invoke-RestMethod -Uri $registryCheckUrl -ErrorAction SilentlyContinue
-          $existingVersions = $registryData.versions | Select-Object -ExpandProperty version
-          if ($existingVersions -contains $version) {
-            Write-Output "⚠️ WARNING: Version $version already exists in MCP Registry"
-            Write-Output "   Existing versions: $($existingVersions -join ', ')"
-            Write-Output "   This publish attempt will likely fail with 'duplicate version' error"
-            Write-Output "   If you need to republish, you must either:"
-            Write-Output "   1. Use a new version number (recommended), or"
-            Write-Output "   2. Contact MCP Registry support to remove the existing version"
-            Write-Output ""
-          } else {
-            Write-Output "✅ Version $version not found in registry - proceeding with publish"
-          }
+          $registryData = Invoke-RestMethod -Uri $registryCheckUrl -ErrorAction Stop
+          # If we get here, the version exists (200 response)
+          Write-Output "⚠️ WARNING: Version $version already exists in MCP Registry"
+          Write-Output "   This publish attempt will likely fail with 'duplicate version' error"
+          Write-Output "   If you need to republish, you must either:"
+          Write-Output "   1. Use a new version number (recommended), or"
+          Write-Output "   2. Contact MCP Registry support to remove the existing version"
+          Write-Output ""
         } catch {
-          Write-Output "⚠️ Could not check registry for existing version (this is OK - will attempt publish)"
+          # 404 means version doesn't exist - this is the expected case for new versions
+          if ($_.Exception.Response.StatusCode -eq 404) {
+            Write-Output "✅ Version $version not found in registry - proceeding with publish"
+          } else {
+            Write-Output "⚠️ Could not check registry for existing version (this is OK - will attempt publish)"
+          }
         }
 
         Write-Output ""
@@ -423,7 +423,7 @@ jobs:
         if ($publishExitCode -eq 0) {
           Write-Output ""
           Write-Output "🚀 Published to MCP Registry"
-          Write-Output "🔗 Server available at: https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel"
+          Write-Output "🔗 Server available at: https://registry.modelcontextprotocol.io/v0.1/servers/io.github.sbroenne%2Fmcp-server-excel/versions/$version"
         } else {
           Write-Output ""
           Write-Output "❌ MCP Registry publishing failed with exit code $publishExitCode"
@@ -468,7 +468,7 @@ jobs:
 
         if ($publishStatus -eq "success") {
           Write-Output "✅ MCP Registry publishing succeeded!"
-          Write-Output "🔗 Server available at: https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel"
+          Write-Output "🔗 Server available at: https://registry.modelcontextprotocol.io/v0.1/servers/io.github.sbroenne%2Fmcp-server-excel/versions/${{ env.PACKAGE_VERSION }}"
         } else {
           Write-Output "❌ MCP Registry publishing failed"
           Write-Output ""
@@ -482,7 +482,7 @@ jobs:
           Write-Output ""
           Write-Output "   To diagnose the issue:"
           Write-Output "   1. Check the 'Publish to MCP Registry' step logs above for specific error messages"
-          Write-Output "   2. For duplicate version errors, check: https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel"
+          Write-Output "   2. For duplicate version errors, check: https://registry.modelcontextprotocol.io/v0.1/servers/io.github.sbroenne%2Fmcp-server-excel/versions"
           Write-Output "   3. For README validation errors, verify: https://api.nuget.org/v3-flatcontainer/sbroenne.excelmcp.mcpserver/${{ env.PACKAGE_VERSION }}/readme"
           Write-Output ""
           Write-Output "   For manual retry, see: docs/MCP_REGISTRY_PUBLISHING.md"
