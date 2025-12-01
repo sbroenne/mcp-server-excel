@@ -38,13 +38,15 @@ public static partial class ExcelFileTool
     /// <param name="excelPath">Excel file path (.xlsx or .xlsm) - required for open/create-empty, not used for close</param>
     /// <param name="sessionId">Session ID from 'open' action - required for close</param>
     /// <param name="save">Save changes before closing (default: false)</param>
+    /// <param name="showExcel">Show Excel window during operations (default: false). Set true so user can watch changes in real-time.</param>
     [McpServerTool(Name = "excel_file")]
     [McpMeta("category", "session")]
     public static partial string ExcelFile(
         FileAction action,
         string? excelPath,
         string? sessionId,
-        bool save)
+        bool save,
+        bool showExcel)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_file",
@@ -57,7 +59,7 @@ public static partial class ExcelFileTool
                 // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
                 return action switch
                 {
-                    FileAction.Open => OpenSessionAsync(excelPath!),
+                    FileAction.Open => OpenSessionAsync(excelPath!, showExcel),
                     FileAction.Close => CloseSessionAsync(sessionId!, save),
                     FileAction.CreateEmpty => CreateEmptyFileAsync(fileCommands, excelPath!,
                         excelPath!.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase)),
@@ -72,7 +74,7 @@ public static partial class ExcelFileTool
     /// Opens an Excel file and creates a new session.
     /// Returns sessionId that must be used for all subsequent operations.
     /// </summary>
-    private static string OpenSessionAsync(string excelPath)
+    private static string OpenSessionAsync(string excelPath, bool showExcel)
     {
         if (string.IsNullOrWhiteSpace(excelPath))
         {
@@ -92,13 +94,14 @@ public static partial class ExcelFileTool
 
         try
         {
-            string sessionId = ExcelToolsBase.GetSessionManager().CreateSession(excelPath);
+            string sessionId = ExcelToolsBase.GetSessionManager().CreateSession(excelPath, showExcel);
 
             return JsonSerializer.Serialize(new
             {
                 success = true,
                 sessionId,
-                filePath = excelPath
+                filePath = excelPath,
+                showExcel
             }, ExcelToolsBase.JsonOptions);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("already open"))

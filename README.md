@@ -113,6 +113,14 @@ This means you get:
 - ✅ **Interactive Development** - Immediate Excel feedback as AI makes changes
 - ✅ **All File Formats** - .xlsx, .xlsm, .xlsb, even legacy formats
 
+**💡 Tip: Watch Excel While AI Works**
+By default, Excel runs hidden for faster automation. To see changes in real-time, just ask:
+- *"Show me Excel while you work"*
+- *"Let me watch what you're doing"*
+- *"Open Excel so I can see the changes"*
+
+The AI will display the Excel window so you can watch every operation happen live - great for learning or verifying changes!
+
 **Technical Requirements:**
 - ⚠️ **Windows Only** - COM interop is Windows-specific
 - ⚠️ **Excel Required** - Microsoft Excel 2016 or later must be installed

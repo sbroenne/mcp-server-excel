@@ -14,6 +14,7 @@ public static class ExcelSession
     /// Each CreateNew() spawns a temporary Excel instance - must be sequential.
     /// </summary>
     private static readonly SemaphoreSlim _createFileLock = new(1, 1);
+
     /// <summary>
     /// Begins a batch of Excel operations against one or more workbook instances.
     /// The Excel instance remains open until the batch is disposed, enabling multiple operations
@@ -47,7 +48,20 @@ public static class ExcelSession
     /// </code>
     /// </remarks>
     [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
+    public static IExcelBatch BeginBatch(params string[] filePaths)
+        => BeginBatch(showExcel: false, filePaths);
+
+    /// <summary>
+    /// Begins a batch of Excel operations against one or more workbook instances with optional UI visibility.
+    /// The Excel instance remains open until the batch is disposed, enabling multiple operations
+    /// without incurring Excel startup/shutdown overhead.
+    /// </summary>
+    /// <param name="showExcel">Whether to show the Excel window (default: false for background automation).</param>
+    /// <param name="filePaths">Paths to Excel files. First file is the primary workbook.</param>
+    /// <returns>IExcelBatch for executing multiple operations</returns>
+    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
     public static IExcelBatch BeginBatch(
+        bool showExcel,
         params string[] filePaths)
     {
         if (filePaths == null || filePaths.Length == 0)
@@ -75,7 +89,7 @@ public static class ExcelSession
         }
 
         // Create batch - it will create Excel/workbook on its own STA thread
-        return new ExcelBatch(fullPaths);
+        return new ExcelBatch(fullPaths, logger: null, showExcel: showExcel);
     }
 
     /// <summary>

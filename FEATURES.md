@@ -164,6 +164,7 @@
 - **Session Management:** open, close (with optional save)
 - **Create Empty:** new .xlsx or .xlsm workbooks
 - **Test:** verify workbook can be opened
+- **💡 Show Excel Mode:** Open with `showExcel:true` to watch AI changes live - perfect for debugging, demos, and learning
 
 ---
 

@@ -73,6 +73,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 - 🔄 Optimize Power Query M code for performance and readability  
 - 📊 Build complex DAX measures with AI guidance
 - 📋 Automate repetitive data transformations and formatting
+- 👀 **Show Excel Mode** - Say "Show me Excel while you work" to watch changes live
 
 
 ---

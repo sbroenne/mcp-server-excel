@@ -83,6 +83,18 @@ public class Program
                     - If you called multiple tools in parallel, wait for ALL responses
                     - Closing while operations are running will cause those operations to FAIL
                     - Only close when user confirms OR all operations have completed successfully
+
+                    SHOW EXCEL (watch changes live):
+                    - Use excel_file(action:'open', showExcel:true) to display Excel window
+                    - User can watch operations happen in real-time
+                    - Default is showExcel:false (hidden) for faster background automation
+                    
+                    PROACTIVELY OFFER showExcel when:
+                    - First time working with a user on Excel tasks
+                    - Complex multi-step operations (PivotTables, formatting, charts)
+                    - User seems confused about what's happening
+                    - Debugging or troubleshooting issues
+                    Example: "Would you like me to show Excel so you can watch the changes happen?"
                     """;
             })
             .WithToolsFromAssembly()

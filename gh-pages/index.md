@@ -31,7 +31,7 @@ canonical_url: "https://sbroenne.github.io/mcp-server-excel/"
 
 **Automate Excel with AI - A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.**
 
-**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations - no Excel programming knowledge required. 
+**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations - no Excel programming knowledge required.
 
 **🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
 
@@ -61,6 +61,7 @@ canonical_url: "https://sbroenne.github.io/mcp-server-excel/"
 <div class="feature-card">
 <h3>Interactive Development</h3>
 <p>See changes in real-time - create, test, refine, and iterate instantly. Use Excel as a REPL.</p>
+<p><strong>💡 Tip:</strong> Say "Show me Excel while you work" to watch changes live!</p>
 </div>
 
 <div class="feature-card">
@@ -134,12 +135,14 @@ canonical_url: "https://sbroenne.github.io/mcp-server-excel/"
 ### CLI Examples (Scripting & RPA)
 
 **Automate Power Query Refresh**
+
 ```bash
 # Refresh all queries in a workbook (CI/CD pipeline)
 excel-mcp pq-refresh --file "sales-report.xlsx" --query "SalesData"
 ```
 
 **Batch Update Worksheets**
+
 ```powershell
 # Process multiple workbooks in PowerShell
 Get-ChildItem *.xlsx | ForEach-Object {
@@ -149,6 +152,7 @@ Get-ChildItem *.xlsx | ForEach-Object {
 ```
 
 **Export VBA for Version Control**
+
 ```bash
 # Export all VBA modules to Git repository
 excel-mcp vba-export --file "macro-workbook.xlsm" --module "Module1" --output "src/vba/Module1.bas"

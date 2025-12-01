@@ -32,6 +32,7 @@ public sealed class SessionManager : IDisposable
     /// Creates a new session for the specified Excel file.
     /// </summary>
     /// <param name="filePath">Path to the Excel file to open</param>
+    /// <param name="showExcel">Whether to show the Excel window (default: false for background automation)</param>
     /// <returns>Unique session ID for this session</returns>
     /// <exception cref="FileNotFoundException">File does not exist</exception>
     /// <exception cref="InvalidOperationException">Failed to create session or file already open in another session</exception>
@@ -40,7 +41,7 @@ public sealed class SessionManager : IDisposable
     /// <para><b>Same-file prevention:</b> Throws if file is already open in another session.</para>
     /// <para><b>Concurrency:</b> You can create multiple sessions for DIFFERENT files. Operations within each session execute serially.</para>
     /// </remarks>
-    public string CreateSession(string filePath)
+    public string CreateSession(string filePath, bool showExcel = false)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -65,7 +66,7 @@ public sealed class SessionManager : IDisposable
         try
         {
             // Create batch session using Core API
-            batch = ExcelSession.BeginBatch(filePath);
+            batch = ExcelSession.BeginBatch(showExcel, filePath);
 
             // Store in active sessions
             if (!_activeSessions.TryAdd(sessionId, batch))
