@@ -109,7 +109,9 @@ public static class ExcelMcpTelemetry
 
     /// <summary>
     /// Tracks a tool invocation with usage metrics.
-    /// Sends Application Insights Custom Event for Users/Sessions analytics.
+    /// Sends Application Insights Request and PageView telemetry.
+    /// - Request: Populates Performance, Failures, Users, Sessions blades
+    /// - PageView: Enables User Flows blade (shows tool usage patterns)
     /// </summary>
     /// <param name="toolName">The MCP tool name (e.g., "excel_range")</param>
     /// <param name="action">The action performed (e.g., "get-values")</param>
@@ -125,23 +127,17 @@ public static class ExcelMcpTelemetry
             Console.Error.WriteLine($"[Telemetry] ToolInvocation: {toolName}.{action} - {(success ? "Success" : "Failed")} ({durationMs}ms)");
         }
 
-        // Send Application Insights Custom Event (populates customEvents table)
         if (_telemetryClient != null)
         {
-            var properties = new Dictionary<string, string>
-            {
-                { "ToolName", toolName },
-                { "Action", action },
-                { "Success", success.ToString() },
-                { "AppVersion", GetVersion() }
-            };
+            var operationName = $"{toolName}/{action}";
+            var startTime = DateTimeOffset.UtcNow.AddMilliseconds(-durationMs);
+            var duration = TimeSpan.FromMilliseconds(durationMs);
 
-            var metrics = new Dictionary<string, double>
-            {
-                { "DurationMs", durationMs }
-            };
+            // Request telemetry: Performance, Failures, Users, Sessions
+            _telemetryClient.TrackRequest(operationName, startTime, duration, success ? "200" : "500", success);
 
-            _telemetryClient.TrackEvent("ToolInvocation", properties, metrics);
+            // PageView telemetry: Enables User Flows blade
+            _telemetryClient.TrackPageView(operationName);
         }
     }
 
@@ -173,15 +169,6 @@ public static class ExcelMcpTelemetry
             {
                 { "Source", source },
                 { "ExceptionType", type },
-                { "AppVersion", GetVersion() }
-            });
-
-            // Also track as Custom Event (for Users/Sessions analytics)
-            _telemetryClient.TrackEvent("UnhandledException", new Dictionary<string, string>
-            {
-                { "Source", source },
-                { "ExceptionType", type },
-                { "Message", message ?? "Unknown" },
                 { "AppVersion", GetVersion() }
             });
         }
