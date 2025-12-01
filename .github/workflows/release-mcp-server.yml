@@ -309,7 +309,7 @@ jobs:
           try {
             $response = Invoke-WebRequest -Uri $readmeUrl -UseBasicParsing -ErrorAction SilentlyContinue
             if ($response.StatusCode -eq 200) {
-              $content = $response.Content
+              $content = [System.Text.Encoding]::UTF8.GetString($response.Content)
               if ($content -match "mcp-name:\s+io\.github\.sbroenne/mcp-server-excel") {
                 Write-Output "✅ README found and contains mcp-name validation string!"
                 $found = $true
@@ -374,7 +374,8 @@ jobs:
         Write-Output "Checking README at: $readmeUrl"
 
         try {
-          $readmeContent = Invoke-WebRequest -Uri $readmeUrl -UseBasicParsing | Select-Object -ExpandProperty Content
+          $response = Invoke-WebRequest -Uri $readmeUrl -UseBasicParsing
+          $readmeContent = [System.Text.Encoding]::UTF8.GetString($response.Content)
           if ($readmeContent -match "mcp-name:\s+io\.github\.sbroenne/mcp-server-excel") {
             Write-Output "✅ README contains mcp-name validation string"
           } else {
