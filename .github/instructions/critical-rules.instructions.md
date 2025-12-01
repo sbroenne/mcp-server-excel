@@ -51,6 +51,7 @@ applyTo: "**"
 | 1b. No exception wrapping | Never catch exceptions in Core commands, let batch.Execute() handle | Prevents double-wrapping, preserves stack context |
 | 16. Test scope | Only run tests for code you changed | Saves 10+ minutes per test run |
 | 8. TODO markers | Must resolve before commit | Pre-commit hook blocks |
+| 23. IDE warnings | TRUST them - never dismiss as false positives without verification | Prevents broken code |
 
 **When Writing Code:**
 | Rule | Action | Why Critical |
@@ -722,4 +723,51 @@ finally
 - excel-com-interop.instructions.md for complete patterns
 
 ---
----
+
+## Rule 23: NEVER Dismiss IDE/Linter Warnings as False Positives (CRITICAL)
+
+**When VS Code, linters, or other tooling shows errors or warnings, TRUST THEM. Do not dismiss them as "false positives" without verification.**
+
+**Why Critical:** Dismissing valid warnings leads to broken code reaching production. The agent's job is to write correct code, not rationalize why incorrect code is acceptable.
+
+```yaml
+# ❌ WRONG: Agent dismissed YAML error as "false positive"
+run: |
+  $notes = @"
+  ## Release Notes
+  ```powershell
+  code here
+  ```
+  "@
+# VS Code showed: "Unexpected scalar at node end" - THIS WAS A REAL ERROR
+
+# ✅ CORRECT: Agent should have tested or researched before dismissing
+# PowerShell here-strings (@"..."@) don't work in GitHub Actions YAML
+# Use string concatenation instead:
+run: |
+  $notes = "## Release Notes`n"
+  $notes += '```powershell' + "`n"
+  $notes += "code here`n"
+  $notes += '```'
+```
+
+**Enforcement:**
+- If IDE shows error/warning, assume it's CORRECT until proven otherwise
+- To disprove a warning, you MUST either:
+  1. Run the code and verify it works, OR
+  2. Find authoritative documentation proving the warning is wrong
+- "I think it will work" is NOT verification
+- "The linter is confused" is NOT a valid dismissal
+
+**Common False Positive Claims That Are Usually WRONG:**
+- "YAML linter doesn't understand multi-line strings" - It usually does
+- "PowerShell syntax is valid, YAML just can't parse it" - If YAML can't parse it, the workflow fails
+- "This works locally" - GitHub Actions environment may differ
+
+**What To Do Instead:**
+1. See a warning → Pause and investigate
+2. Research the specific syntax/pattern
+3. Test if possible (run workflow, run code locally)
+4. If warning is truly false positive, document WHY with evidence
+5. If uncertain, use a simpler approach that doesn't trigger warnings
+
