@@ -455,39 +455,30 @@ jobs:
 
         Write-Output "Created ExcelMcp-CLI-$version-windows.zip"
 
-        # Create release notes using here-string to preserve markdown formatting
+        # Create release notes - build string with proper escaping for markdown code blocks
         $tagName = "${{ github.ref_name }}"
-        $releaseNotes = @"
-## What's New
-
-See [CHANGELOG](https://github.com/sbroenne/mcp-server-excel/blob/main/vscode-extension/CHANGELOG.md) for detailed changes.
-
-## Installation
-
-**MCP Server (.NET Tool)**
-```powershell
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer --version $version
-mcp-excel
-```
-
-**CLI (.NET Tool)**
-```powershell
-dotnet tool install --global Sbroenne.ExcelMcp.CLI --version $version
-excelcli --help
-```
-
-For complete documentation, see the [main README](https://github.com/sbroenne/mcp-server-excel#readme).
-
-### Requirements
-- Windows OS with Microsoft Excel installed
-- .NET 8.0 runtime
-- Excel 2016+ (for COM interop)
-
-### Documentation
-- GitHub Repository: https://github.com/sbroenne/mcp-server-excel
-- MCP Server: src/ExcelMcp.McpServer/README.md
-- CLI: src/ExcelMcp.CLI/README.md
-"@
+        $releaseNotes = "## What's New`n`n"
+        $releaseNotes += "See [CHANGELOG](https://github.com/sbroenne/mcp-server-excel/blob/main/vscode-extension/CHANGELOG.md) for detailed changes.`n`n"
+        $releaseNotes += "## Installation`n`n"
+        $releaseNotes += "**MCP Server (.NET Tool)**`n"
+        $releaseNotes += '```powershell' + "`n"
+        $releaseNotes += "dotnet tool install --global Sbroenne.ExcelMcp.McpServer --version $version`n"
+        $releaseNotes += "mcp-excel`n"
+        $releaseNotes += '```' + "`n`n"
+        $releaseNotes += "**CLI (.NET Tool)**`n"
+        $releaseNotes += '```powershell' + "`n"
+        $releaseNotes += "dotnet tool install --global Sbroenne.ExcelMcp.CLI --version $version`n"
+        $releaseNotes += "excelcli --help`n"
+        $releaseNotes += '```' + "`n`n"
+        $releaseNotes += "For complete documentation, see the [main README](https://github.com/sbroenne/mcp-server-excel#readme).`n`n"
+        $releaseNotes += "### Requirements`n"
+        $releaseNotes += "- Windows OS with Microsoft Excel installed`n"
+        $releaseNotes += "- .NET 8.0 runtime`n"
+        $releaseNotes += "- Excel 2016+ (for COM interop)`n`n"
+        $releaseNotes += "### Documentation`n"
+        $releaseNotes += "- GitHub Repository: https://github.com/sbroenne/mcp-server-excel`n"
+        $releaseNotes += "- MCP Server: src/ExcelMcp.McpServer/README.md`n"
+        $releaseNotes += "- CLI: src/ExcelMcp.CLI/README.md`n"
 
         # Create the release with both packages
         gh release create "$tagName" `
