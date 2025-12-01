@@ -65,7 +65,7 @@
     "mcpServerDefinitionProviders": [
       {
         "id": "excel-mcp",
-        "label": "ExcelMcp - Excel Automation"
+        "label": "MCP Server for Excel"
       }
     ]
   },
