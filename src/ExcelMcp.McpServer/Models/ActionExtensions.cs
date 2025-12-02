@@ -155,6 +155,7 @@ public static class ActionExtensions
         DataModelAction.CreateMeasure => "create-measure",
         DataModelAction.UpdateMeasure => "update-measure",
         DataModelAction.DeleteMeasure => "delete-measure",
+        DataModelAction.DeleteTable => "delete-table",
         DataModelAction.ListRelationships => "list-relationships",
         DataModelAction.CreateRelationship => "create-relationship",
         DataModelAction.UpdateRelationship => "update-relationship",

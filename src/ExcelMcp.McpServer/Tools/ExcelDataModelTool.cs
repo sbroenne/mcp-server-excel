@@ -66,6 +66,7 @@ public static partial class ExcelDataModelTool
                     DataModelAction.ListRelationships => ListRelationshipsAsync(dataModelCommands, sessionId),
                     DataModelAction.Refresh => RefreshAsync(dataModelCommands, sessionId),
                     DataModelAction.DeleteMeasure => DeleteMeasureAsync(dataModelCommands, sessionId, measureName),
+                    DataModelAction.DeleteTable => DeleteTableAsync(dataModelCommands, sessionId, tableName),
                     DataModelAction.DeleteRelationship => DeleteRelationshipAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn),
                     DataModelAction.ReadTable => ReadTableAsync(dataModelCommands, sessionId, tableName),
                     DataModelAction.ListColumns => ListColumnsAsync(dataModelCommands, sessionId, tableName),
@@ -214,6 +215,36 @@ public static partial class ExcelDataModelTool
             {
                 success = true,
                 message = $"Measure '{measureName}' deleted successfully"
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = ex.Message,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
+    }
+
+    private static string DeleteTableAsync(DataModelCommands commands, string sessionId, string? tableName)
+    {
+        if (string.IsNullOrWhiteSpace(tableName))
+        {
+            throw new ArgumentException("Parameter 'tableName' is required for delete-table action", nameof(tableName));
+        }
+
+        try
+        {
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch => { commands.DeleteTable(batch, tableName); return 0; });
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                message = $"Table '{tableName}' deleted from Data Model successfully"
             }, ExcelToolsBase.JsonOptions);
         }
         catch (Exception ex)

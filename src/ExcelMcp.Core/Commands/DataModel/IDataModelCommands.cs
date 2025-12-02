@@ -72,6 +72,17 @@ public interface IDataModelCommands
     void DeleteMeasure(IExcelBatch batch, string measureName);
 
     /// <summary>
+    /// Deletes a table from the Data Model.
+    /// Use this to remove orphaned tables created when Power Query is deleted and recreated
+    /// with a different name, leaving stale tables in the Data Model.
+    /// </summary>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
+    /// <param name="tableName">Name of the table to delete</param>
+    /// <exception cref="ArgumentException">Thrown when tableName is invalid</exception>
+    /// <exception cref="InvalidOperationException">Thrown when table not found or deletion fails</exception>
+    void DeleteTable(IExcelBatch batch, string tableName);
+
+    /// <summary>
     /// Deletes a relationship from the Data Model
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
