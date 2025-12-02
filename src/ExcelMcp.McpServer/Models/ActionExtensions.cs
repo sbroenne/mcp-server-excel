@@ -7,6 +7,7 @@ public static class ActionExtensions
 {
     public static string ToActionString(this FileAction action) => action switch
     {
+        FileAction.List => "list",
         FileAction.Open => "open",
         FileAction.Close => "close",
         FileAction.CreateEmpty => "create-empty",

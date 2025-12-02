@@ -79,16 +79,16 @@ public class Program
                     3. excel_file(action:'close', save:true/false) → ONLY when completely done
 
                     CRITICAL - DO NOT CLOSE SESSION PREMATURELY:
-                    - WAIT for ALL pending tool calls to return results before closing
-                    - If you called multiple tools in parallel, wait for ALL responses
-                    - Closing while operations are running will cause those operations to FAIL
-                    - Only close when user confirms OR all operations have completed successfully
+                    - Server automatically tracks active operations per session
+                    - Close will be BLOCKED if operations are still running (returns error with count)
+                    - Wait for error message to clear before retrying close
+                    - This prevents data loss from closing mid-operation
 
                     SHOW EXCEL (watch changes live):
                     - Use excel_file(action:'open', showExcel:true) to display Excel window
                     - User can watch operations happen in real-time
                     - Default is showExcel:false (hidden) for faster background automation
-                    
+
                     PROACTIVELY OFFER showExcel when:
                     - First time working with a user on Excel tasks
                     - Complex multi-step operations (PivotTables, formatting, charts)
