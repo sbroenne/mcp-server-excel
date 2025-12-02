@@ -31,6 +31,12 @@ public static partial class ExcelFileTool
     /// - ONLY close when user explicitly confirms OR all operations complete
     /// - Closing mid-workflow loses the session and breaks subsequent operations
     ///
+    /// WHEN showExcel=true - ASK BEFORE CLOSING:
+    /// - If Excel is visible, the user is actively watching
+    /// - ALWAYS ask user before closing: "Would you like me to save and close, or keep it open?"
+    /// - User may want to inspect results, make manual changes, or continue working
+    /// - Do NOT auto-close visible Excel sessions
+    ///
     /// WORKFLOWS:
     /// - Verify session: list → check sessionId exists
     /// - Persist changes: open → operations(sessionId) → close(save: true)

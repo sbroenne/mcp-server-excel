@@ -95,6 +95,12 @@ public class Program
                     - User seems confused about what's happening
                     - Debugging or troubleshooting issues
                     Example: "Would you like me to show Excel so you can watch the changes happen?"
+
+                    WHEN showExcel=true - ASK BEFORE CLOSING:
+                    - If Excel is visible, the user is actively watching
+                    - ALWAYS ask user before closing: "Would you like me to save and close the file, or keep it open?"
+                    - User may want to inspect results, make manual changes, or continue working
+                    - Do NOT auto-close visible Excel sessions
                     """;
             })
             .WithToolsFromAssembly()
