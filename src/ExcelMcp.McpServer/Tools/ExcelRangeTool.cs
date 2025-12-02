@@ -14,6 +14,13 @@ public static partial class ExcelRangeTool
     /// <summary>
     /// Unified Excel range operations - ALL data manipulation.
     /// DATA FORMAT: Values/formulas are JSON 2D arrays [[row1col1, row1col2], [row2col1, row2col2]]. Example single cell: [[100]] or [['=SUM(A:A)']]. Example range: [[1,2,3], [4,5,6], [7,8,9]].
+    /// 
+    /// NUMBER FORMATTING - Two actions for different use cases:
+    /// - SetNumberFormat: RECOMMENDED. Use numberFormatCategory (Currency, Percentage, Date, etc.) for locale-aware formatting that works correctly on any system.
+    /// - SetNumberFormatCustom: Expert use only. Use formatCode for custom Excel format codes. WARNING: Format codes like '#,##0.00' use US conventions and may display incorrectly on non-US locales.
+    /// 
+    /// Example SetNumberFormat: action='SetNumberFormat', numberFormatCategory='Currency', currencySymbol='EUR', decimalPlaces=2
+    /// Example SetNumberFormatCustom: action='SetNumberFormatCustom', formatCode='[Red]0.00;[Blue]-0.00'
     /// </summary>
     /// <param name="action">Action to perform</param>
     /// <param name="excelPath">Excel file path (.xlsx or .xlsm)</param>
@@ -82,14 +89,6 @@ public static partial class ExcelRangeTool
     /// <param name="showDropdown">Show dropdown for list validation (for validate-range)</param>
     /// <param name="locked">Lock status for cells (for set-cell-lock: true = locked, false = unlocked)</param>
     [McpServerTool(Name = "excel_range")]
-    [Description(@"Unified Excel range operations - ALL data manipulation. DATA FORMAT: Values/formulas are JSON 2D arrays [[row1col1, row1col2], [row2col1, row2col2]]. Example single cell: [[100]] or [['=SUM(A:A)']]. Example range: [[1,2,3], [4,5,6], [7,8,9]].
-
-NUMBER FORMATTING - Two actions for different use cases:
-- SetNumberFormat: RECOMMENDED. Use numberFormatCategory (Currency, Percentage, Date, etc.) for locale-aware formatting that works correctly on any system.
-- SetNumberFormatCustom: Expert use only. Use formatCode for custom Excel format codes. WARNING: Format codes like '#,##0.00' use US conventions and may display incorrectly on non-US locales.
-
-Example SetNumberFormat: action='SetNumberFormat', numberFormatCategory='Currency', currencySymbol='EUR', decimalPlaces=2
-Example SetNumberFormatCustom: action='SetNumberFormatCustom', formatCode='[Red]0.00;[Blue]-0.00'")]
     [McpMeta("category", "data")]
     public static partial string ExcelRange(
         RangeAction action,

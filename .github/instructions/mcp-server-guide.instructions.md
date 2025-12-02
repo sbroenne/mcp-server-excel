@@ -218,7 +218,7 @@ private static object ConvertToCellValue(object? value)
 7. **JSON serialization** - Always use `JsonSerializer`
 8. **Handle JsonElement** - Convert before COM marshalling
 9. **Error messages: facts not guidance** - State what failed, not what to do next. LLMs figure out next steps.
-10. **NO EMOJIS** - Never use emoji characters in XML comments, `[Description]` attributes, or any code documentation. Use plain text markers like "IMPORTANT:", "WARNING:", "NOTE:" instead.
+10. **NO EMOJIS** - Never use emoji characters in XML comments or any code documentation. Use plain text markers like "IMPORTANT:", "WARNING:", "NOTE:" instead.
 
 ## Error Message Style
 
@@ -284,7 +284,7 @@ Before committing MCP tool changes:
 - [ ] Exception messages include context (action name, parameter values)
 - [ ] Build passes with 0 warnings
 - [ ] No `if (!result.Success) throw McpException` blocks (violates MCP spec)
-- [ ] **Tool `[Description]` attribute documents server-specific behavior**
+- [ ] **Tool XML documentation (`/// <summary>`) documents server-specific behavior**
 - [ ] **Non-enum parameter values explained (loadDestination, formatCode, etc.)**
 - [ ] **Performance guidance (batch mode) is accurate**
 - [ ] **Related tools referenced correctly**
@@ -293,8 +293,8 @@ Before committing MCP tool changes:
 
 **Two types of LLM guidance:**
 
-1. **Tool Descriptions** (`[Description]` attributes in C# code):
-   - Part of MCP tool schema sent automatically
+1. **Tool Descriptions** (XML documentation `/// <summary>` on tool methods):
+   - MCP SDK extracts XML comments and includes in tool schema
    - LLMs see when browsing available tools
    - Brief, action-oriented reference
    - **ALWAYS visible** - shown every time tool is considered
@@ -307,7 +307,7 @@ Before committing MCP tool changes:
    - **On-demand** - loaded only when LLM requests the prompt
 
 **Critical:** When changing tool behavior, update BOTH:
-- The `[Description]` attribute on the tool method
+- The XML documentation (`/// <summary>`) on the tool method
 - The corresponding `.md` prompt file (if exists)
 
 ### Keeping Descriptions Up-to-Date
@@ -326,17 +326,19 @@ Before committing MCP tool changes:
 
 **Example - Good tool description:**
 ```csharp
-[Description(@"Manage Power Query M code and data loading.
-
-LOAD DESTINATIONS (non-enum parameter):
-- 'worksheet': Load to worksheet as table (DEFAULT - users can see/validate data)
-- 'data-model': Load to Power Pivot Data Model (ready for DAX measures/relationships)
-- 'both': Load to BOTH worksheet AND Data Model
-- 'connection-only': Don't load data (M code imported but not executed)
-
-TIMEOUT: Long-running refresh/load operations auto-timeout after 5 minutes.
-
-Use excel_datamodel tool for DAX measures after loading to Data Model.")]
+/// <summary>
+/// Manage Power Query M code and data loading.
+/// 
+/// LOAD DESTINATIONS (non-enum parameter):
+/// - 'worksheet': Load to worksheet as table (DEFAULT - users can see/validate data)
+/// - 'data-model': Load to Power Pivot Data Model (ready for DAX measures/relationships)
+/// - 'both': Load to BOTH worksheet AND Data Model
+/// - 'connection-only': Don't load data (M code imported but not executed)
+/// 
+/// TIMEOUT: Long-running refresh/load operations auto-timeout after 5 minutes.
+/// 
+/// Use excel_datamodel tool for DAX measures after loading to Data Model.
+/// </summary>
 ```
 ✅ Describes purpose and use cases
 ✅ Documents server-specific defaults
