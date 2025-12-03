@@ -354,8 +354,10 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                     };
                 }
 
-                // Add to values area
-                cubeField.Orientation = XlPivotFieldOrientation.xlDataField;
+                // Add to values area using AddDataField (more reliable than setting Orientation directly)
+                // Setting cubeField.Orientation = xlDataField can fail with E_INVALIDARG (0x80070057)
+                // for CubeFields in certain states, while AddDataField works consistently
+                pivot.AddDataField(cubeField);
 
                 return new PivotFieldResult
                 {
@@ -468,8 +470,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 throw new InvalidOperationException($"Measure '{measureName}' created but not found in PivotTable CubeFields after refresh");
             }
 
-            // Add to values area
-            cubeField.Orientation = XlPivotFieldOrientation.xlDataField;
+            // Add to values area using AddDataField (more reliable than setting Orientation directly)
+            pivot.AddDataField(cubeField);
 
             return new PivotFieldResult
             {
