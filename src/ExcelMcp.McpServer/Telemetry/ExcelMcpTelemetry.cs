@@ -2,13 +2,24 @@
 // Licensed under the MIT License.
 
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.DataContracts;
 
 namespace Sbroenne.ExcelMcp.McpServer.Telemetry;
 
 /// <summary>
 /// Centralized telemetry helper for ExcelMcp MCP Server.
-/// Provides usage tracking and unhandled exception reporting via Application Insights SDK.
+/// Provides usage tracking and performance metrics via Application Insights SDK.
+///
+/// Telemetry types:
+/// - TrackEvent: Tool usage analytics (which tools, actions, success/failure rates)
+/// - TrackRequest: Performance metrics (duration, response codes for Performance blade)
+/// - TrackException: Unhandled exceptions (for Failures blade)
+///
+/// User/Session context is set by ExcelMcpTelemetryInitializer on all telemetry items.
+/// View data in Azure Portal: Logs blade with Kusto queries on customEvents/requests tables.
 /// </summary>
 public static class ExcelMcpTelemetry
 {
@@ -33,11 +44,31 @@ public static class ExcelMcpTelemetry
 
     /// <summary>
     /// Sets the TelemetryClient instance for sending Custom Events.
-    /// Called by Program.cs during startup.
+    /// Called by Program.cs during startup. Also tracks a session start event.
     /// </summary>
     internal static void SetTelemetryClient(TelemetryClient client)
     {
         _telemetryClient = client;
+
+        // Track session start to ensure Users/Sessions blades have data
+        // This event fires once per MCP server process startup
+        TrackSessionStart();
+    }
+
+    /// <summary>
+    /// Tracks the start of an MCP server session.
+    /// Uses TrackEvent directly - ITelemetryInitializer sets user/session context.
+    /// This ensures Users/Sessions blades have data even if no tools are invoked.
+    /// </summary>
+    private static void TrackSessionStart()
+    {
+        if (_telemetryClient == null) return;
+
+        _telemetryClient.TrackEvent("SessionStart", new Dictionary<string, string>
+        {
+            { "SessionId", SessionId },
+            { "AppVersion", GetVersion() }
+        });
     }
 
     /// <summary>
@@ -78,35 +109,61 @@ public static class ExcelMcpTelemetry
     }
 
     /// <summary>
-    /// Tracks a tool invocation with usage metrics.
-    /// Sends Application Insights Request and PageView telemetry.
-    /// - Request: Populates Performance, Failures, Users, Sessions blades
-    /// - PageView: Enables User Flows blade (shows tool usage patterns)
+    /// Tracks a tool invocation with usage and performance metrics.
+    /// - TrackEvent: For tool usage analytics (customEvents table)
+    /// - TrackRequest: For performance metrics (requests table, Performance blade)
     /// </summary>
     /// <param name="toolName">The MCP tool name (e.g., "excel_range")</param>
     /// <param name="action">The action performed (e.g., "get-values")</param>
     /// <param name="durationMs">Duration in milliseconds</param>
     /// <param name="success">Whether the operation succeeded</param>
-    public static void TrackToolInvocation(string toolName, string action, long durationMs, bool success)
+    /// <param name="excelPath">Optional Excel file path (will be hashed for privacy)</param>
+    public static void TrackToolInvocation(string toolName, string action, long durationMs, bool success, string? excelPath = null)
     {
-
         if (_telemetryClient == null) return;
 
         var operationName = $"{toolName}/{action}";
         var startTime = DateTimeOffset.UtcNow.AddMilliseconds(-durationMs);
         var duration = TimeSpan.FromMilliseconds(durationMs);
 
-        // Request telemetry: Performance, Failures, Users, Sessions
-        _telemetryClient.TrackRequest(operationName, startTime, duration, success ? "200" : "500", success);
-
-        // PageView telemetry: Enables User Flows blade
-        // Must include duration for proper User Flows visualization
-        var pageView = new Microsoft.ApplicationInsights.DataContracts.PageViewTelemetry(operationName)
+        var properties = new Dictionary<string, string>
         {
-            Timestamp = startTime,
-            Duration = duration
+            { "Tool", toolName },
+            { "Action", action },
+            { "Success", success.ToString() }
         };
-        _telemetryClient.TrackPageView(pageView);
+
+        // Add hashed file path for grouping (if provided)
+        if (!string.IsNullOrEmpty(excelPath))
+        {
+            properties["FileSessionId"] = HashFilePath(excelPath);
+        }
+
+        var metrics = new Dictionary<string, double>
+        {
+            { "DurationMs", durationMs }
+        };
+
+        // Track as customEvent for analytics (tool usage, parameters, success/failure)
+        _telemetryClient.TrackEvent(operationName, properties, metrics);
+
+        // Track as request for Performance blade, Failures blade, Smart Detection
+        var request = new RequestTelemetry
+        {
+            Name = operationName,
+            Timestamp = startTime,
+            Duration = duration,
+            ResponseCode = success ? "200" : "500",
+            Success = success
+        };
+
+        // Copy properties to request for consistent filtering
+        foreach (var prop in properties)
+        {
+            request.Properties[prop.Key] = prop.Value;
+        }
+
+        _telemetryClient.TrackRequest(request);
     }
 
     /// <summary>
@@ -155,8 +212,8 @@ public static class ExcelMcpTelemetry
             var machineIdentity = $"{Environment.MachineName}|{Environment.UserName}|{Environment.OSVersion.Platform}";
 
             // Create a SHA256 hash and take the first 16 characters
-            var bytes = System.Text.Encoding.UTF8.GetBytes(machineIdentity);
-            var hash = System.Security.Cryptography.SHA256.HashData(bytes);
+            var bytes = Encoding.UTF8.GetBytes(machineIdentity);
+            var hash = SHA256.HashData(bytes);
             return Convert.ToHexString(hash)[..16].ToLowerInvariant();
         }
         catch
@@ -164,5 +221,18 @@ public static class ExcelMcpTelemetry
             // Fallback to a random ID if machine identity cannot be determined
             return Guid.NewGuid().ToString("N")[..16];
         }
+    }
+
+    /// <summary>
+    /// Hashes a file path for privacy-preserving grouping.
+    /// Enables grouping telemetry by file without exposing actual file paths.
+    /// </summary>
+    /// <param name="filePath">The file path to hash</param>
+    /// <returns>First 12 characters of SHA256 hash (lowercase hex)</returns>
+    private static string HashFilePath(string filePath)
+    {
+        var bytes = Encoding.UTF8.GetBytes(filePath.ToLowerInvariant());
+        var hash = SHA256.HashData(bytes);
+        return Convert.ToHexString(hash)[..12].ToLowerInvariant();
     }
 }
