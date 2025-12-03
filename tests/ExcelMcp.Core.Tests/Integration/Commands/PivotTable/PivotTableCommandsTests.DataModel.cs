@@ -7,7 +7,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 
 /// <summary>
 /// Integration tests for PivotTable creation from Power Pivot Data Model tables.
-/// Uses DataModelTestsFixture which creates ONE Data Model file per test class.
+/// Uses DataModelPivotTableFixture which creates ONE comprehensive Data Model + PivotTable workbook per test class.
 /// </summary>
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
@@ -15,16 +15,16 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 [Trait("Feature", "DataModel")]
 [Trait("Feature", "PivotTables")]
 [Trait("Speed", "Slow")]
-public class PivotTableDataModelTests : IClassFixture<DataModelTestsFixture>
+public class PivotTableDataModelTests : IClassFixture<DataModelPivotTableFixture>
 {
     private readonly PivotTableCommands _pivotCommands;
     private readonly string _dataModelFile;
-    private readonly DataModelCreationResult _creationResult;
+    private readonly DataModelPivotTableCreationResult _creationResult;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PivotTableDataModelTests"/> class.
     /// </summary>
-    public PivotTableDataModelTests(DataModelTestsFixture fixture)
+    public PivotTableDataModelTests(DataModelPivotTableFixture fixture)
     {
         _pivotCommands = new PivotTableCommands();
         _dataModelFile = fixture.TestFilePath;
@@ -45,14 +45,14 @@ public class PivotTableDataModelTests : IClassFixture<DataModelTestsFixture>
         var result = await _pivotCommands.CreateFromDataModel(
             batch,
             "SalesTable",  // Data Model table name from fixture
-            "Sales",       // Destination sheet
+            "SalesData",   // Destination sheet (exists in fixture)
             "H1",          // Destination cell
-            "DataModelPivot");
+            "SalesDataModelPivot");
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
-        Assert.Equal("DataModelPivot", result.PivotTableName);
-        Assert.Equal("Sales", result.SheetName);
+        Assert.Equal("SalesDataModelPivot", result.PivotTableName);
+        Assert.Equal("SalesData", result.SheetName);
         Assert.NotEmpty(result.Range);
         Assert.Contains("ThisWorkbookDataModel", result.SourceData);
         Assert.True(result.SourceRowCount > 0, "Should have rows in source Data Model table");
@@ -79,7 +79,7 @@ public class PivotTableDataModelTests : IClassFixture<DataModelTestsFixture>
             await _pivotCommands.CreateFromDataModel(
                 batch,
                 "NonExistentTable",
-                "Sales",
+                "SalesData",
                 "H1",
                 "FailedPivot"));
 

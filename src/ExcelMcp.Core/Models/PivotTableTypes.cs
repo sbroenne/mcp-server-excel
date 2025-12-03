@@ -201,6 +201,28 @@ public static class XlConsolidationFunction
 }
 
 /// <summary>
+/// Excel COM constants for CubeField.CubeFieldType property.
+/// Used to distinguish between different types of OLAP CubeFields.
+/// </summary>
+public static class XlCubeFieldType
+{
+    /// <summary>
+    /// Hierarchy field (table column/dimension)
+    /// </summary>
+    public const int xlHierarchy = 1;
+
+    /// <summary>
+    /// Measure field (DAX measure or implicit measure)
+    /// </summary>
+    public const int xlMeasure = 2;
+
+    /// <summary>
+    /// Set field
+    /// </summary>
+    public const int xlSet = 3;
+}
+
+/// <summary>
 /// Excel COM constants for sort order
 /// </summary>
 public static class XlSortOrder

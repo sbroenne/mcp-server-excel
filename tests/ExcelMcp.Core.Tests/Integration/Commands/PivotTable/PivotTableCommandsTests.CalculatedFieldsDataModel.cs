@@ -15,13 +15,13 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 [Trait("Layer", "Core")]
 [Trait("Feature", "PivotTables")]
 [Trait("RequiresExcel", "true")]
-public class PivotTableCalculatedFieldsDataModelTests : IClassFixture<DataModelTestsFixture>
+public class PivotTableCalculatedFieldsDataModelTests : IClassFixture<DataModelPivotTableFixture>
 {
     private readonly PivotTableCommands _pivotCommands;
     private readonly string _dataModelFile;
-    private readonly DataModelCreationResult _creationResult;
+    private readonly DataModelPivotTableCreationResult _creationResult;
 
-    public PivotTableCalculatedFieldsDataModelTests(DataModelTestsFixture fixture)
+    public PivotTableCalculatedFieldsDataModelTests(DataModelPivotTableFixture fixture)
     {
         _pivotCommands = new PivotTableCommands();
         _dataModelFile = fixture.TestFilePath;
@@ -37,16 +37,16 @@ public class PivotTableCalculatedFieldsDataModelTests : IClassFixture<DataModelT
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
         // Create OLAP PivotTable from Data Model (SalesTable has: SalesID, Date, CustomerID, ProductID, Amount, Quantity)
-        // Use existing "Sales" sheet from fixture
+        // Use existing "SalesData" sheet from fixture
         var createResult = _pivotCommands.CreateFromDataModel(
-            batch, "SalesTable", "Sales", "K1", "OlapSalesCalcTest");
+            batch, "SalesTable", "SalesData", "K1", "OlapSalesCalcTest");
         Assert.True(createResult.Success, $"Failed to create OLAP PivotTable: {createResult.ErrorMessage}");
 
-        // Add fields to PivotTable
-        var rowResult = _pivotCommands.AddRowField(batch, "OlapSalesCalcTest", "ProductID");
+        // Add fields to PivotTable - use exact CubeField names (LLM discovers via ListFields)
+        var rowResult = _pivotCommands.AddRowField(batch, "OlapSalesCalcTest", "[SalesTable].[ProductID]");
         Assert.True(rowResult.Success, $"AddRowField failed: {rowResult.ErrorMessage}");
 
-        var valueResult = _pivotCommands.AddValueField(batch, "OlapSalesCalcTest", "Amount");
+        var valueResult = _pivotCommands.AddValueField(batch, "OlapSalesCalcTest", "[SalesTable].[Amount]");
         Assert.True(valueResult.Success, $"AddValueField failed: {valueResult.ErrorMessage}");
 
         // Act - Attempt to create calculated field on OLAP PivotTable
