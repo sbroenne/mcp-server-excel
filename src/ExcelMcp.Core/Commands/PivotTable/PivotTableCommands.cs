@@ -314,43 +314,25 @@ public partial class PivotTableCommands : IPivotTableCommands
             if (isOlap)
             {
                 // OLAP PivotTable - access via CubeFields
-                // CubeField names may be hierarchical like "[TableName].[FieldName]"
+                // CubeField names are hierarchical like "[TableName].[FieldName]" or "[Measures].[MeasureName]"
+                // EXACT MATCH ONLY - no partial matching to avoid disambiguation bugs
                 dynamic? cubeField = null;
                 try
                 {
-                    // Try exact match first
+                    // Exact match only - the LLM knows the exact field names
                     try
                     {
                         cubeField = cubeFields.Item(fieldName);
                     }
                     catch
                     {
-                        // Try partial match for hierarchical names
-                        for (int i = 1; i <= cubeFields.Count; i++)
-                        {
-                            dynamic? cf = null;
-                            try
-                            {
-                                cf = cubeFields.Item(i);
-                                string cfName = cf.Name?.ToString() ?? "";
-                                if (cfName.Contains(fieldName, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    cubeField = cf;
-                                    cf = null; // Don't release, we're returning it
-                                    break;
-                                }
-                            }
-                            finally
-                            {
-                                if (cf != null)
-                                    ComUtilities.Release(ref cf);
-                            }
-                        }
+                        // Field not found by exact name
+                        cubeField = null;
                     }
 
                     if (cubeField == null)
                     {
-                        throw new InvalidOperationException($"CubeField '{fieldName}' not found in Data Model PivotTable");
+                        throw new InvalidOperationException($"CubeField '{fieldName}' not found in Data Model PivotTable. Use the exact CubeField name (e.g., '[Measures].[ACR]' or '[TableName].[ColumnName]').");
                     }
 
                     // Get or create the PivotField from the CubeField

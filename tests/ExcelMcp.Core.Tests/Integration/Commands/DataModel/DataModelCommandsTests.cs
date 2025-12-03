@@ -8,23 +8,23 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.DataModel;
 /// <summary>
 /// Integration tests for Data Model operations focusing on LLM use cases.
 /// Tests cover essential workflows: list tables/measures/relationships, create/update/delete measures, manage relationships.
-/// Uses DataModelTestsFixture which creates ONE Data Model per test class.
+/// Uses DataModelPivotTableFixture which creates ONE comprehensive Data Model + PivotTable workbook per test class.
 /// </summary>
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "DataModel")]
 [Trait("Speed", "Slow")]
-public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
+public class DataModelCommandsTests : IClassFixture<DataModelPivotTableFixture>
 {
     private readonly DataModelCommands _dataModelCommands;
     private readonly string _dataModelFile;
-    private readonly DataModelCreationResult _creationResult;
+    private readonly DataModelPivotTableCreationResult _creationResult;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DataModelCommandsTests"/> class.
     /// </summary>
-    public DataModelCommandsTests(DataModelTestsFixture fixture)
+    public DataModelCommandsTests(DataModelPivotTableFixture fixture)
     {
         _dataModelCommands = new DataModelCommands();
         _dataModelFile = fixture.TestFilePath;
@@ -43,10 +43,10 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
         Assert.True(_creationResult.Success,
             $"Data Model creation failed: {_creationResult.ErrorMessage}");
         Assert.True(_creationResult.FileCreated);
-        Assert.Equal(3, _creationResult.TablesCreated);
-        Assert.Equal(3, _creationResult.TablesLoadedToModel);
+        Assert.Equal(5, _creationResult.TablesCreated);  // SalesTable, CustomersTable, ProductsTable, RegionalSalesTable, DisambiguationTable
+        Assert.Equal(5, _creationResult.TablesLoadedToModel);
         Assert.Equal(2, _creationResult.RelationshipsCreated);
-        Assert.Equal(3, _creationResult.MeasuresCreated);
+        Assert.Equal(6, _creationResult.MeasuresCreated);  // Total Sales, Average Sale, Total Customers, TotalRevenue, ACR, Discount
     }
 
     /// <summary>
@@ -60,10 +60,12 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
         var result = await _dataModelCommands.ListTables(batch);
 
         Assert.True(result.Success, $"ListTables failed: {result.ErrorMessage}");
-        Assert.Equal(3, result.Tables.Count);
+        Assert.Equal(5, result.Tables.Count);  // Now includes RegionalSalesTable and DisambiguationTable
         Assert.Contains(result.Tables, t => t.Name == "SalesTable");
         Assert.Contains(result.Tables, t => t.Name == "CustomersTable");
         Assert.Contains(result.Tables, t => t.Name == "ProductsTable");
+        Assert.Contains(result.Tables, t => t.Name == "RegionalSalesTable");
+        Assert.Contains(result.Tables, t => t.Name == "DisambiguationTable");
     }
 
     /// <summary>
@@ -95,8 +97,8 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
         var result = await _dataModelCommands.ReadInfo(batch);
 
         Assert.True(result.Success, $"GetModelInfo failed: {result.ErrorMessage}");
-        Assert.Equal(3, result.TableCount);
-        Assert.Equal(3, result.MeasureCount);
+        Assert.Equal(5, result.TableCount);  // Now includes RegionalSalesTable and DisambiguationTable
+        Assert.Equal(6, result.MeasureCount);  // Now includes TotalRevenue, ACR, Discount
         Assert.Equal(2, result.RelationshipCount);
         Assert.True(result.TotalRows > 0);
         Assert.NotNull(result.TableNames);
@@ -119,12 +121,15 @@ public class DataModelCommandsTests : IClassFixture<DataModelTestsFixture>
 
         Assert.True(result.Success, $"ListMeasures failed: {result.ErrorMessage}");
         Assert.NotNull(result.Measures);
-        Assert.Equal(3, result.Measures.Count);
+        Assert.Equal(6, result.Measures.Count);  // Now includes TotalRevenue, ACR, Discount
 
         var measureNames = result.Measures.Select(m => m.Name).ToList();
         Assert.Contains("Total Sales", measureNames);
         Assert.Contains("Average Sale", measureNames);
         Assert.Contains("Total Customers", measureNames);
+        Assert.Contains("TotalRevenue", measureNames);
+        Assert.Contains("ACR", measureNames);
+        Assert.Contains("Discount", measureNames);
     }
 
     /// <summary>

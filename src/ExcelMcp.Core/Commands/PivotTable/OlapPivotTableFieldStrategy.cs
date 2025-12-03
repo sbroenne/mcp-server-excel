@@ -39,39 +39,23 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         try
         {
             cubeFields = pivot.CubeFields;
-            // Try exact match first
+
+            // EXACT MATCH ONLY - no partial matching to avoid disambiguation bugs
+            // The LLM knows exact field names, so partial matching only causes problems
+            // (e.g., "ACR" incorrectly matching "[DisambiguationTable].[ACRTypeKey]")
             try
             {
                 cubeField = cubeFields.Item(fieldName);
             }
             catch
             {
-                // Try partial match for hierarchical names (e.g., "[Sales].[Region]" matches "Region")
-                for (int i = 1; i <= cubeFields.Count; i++)
-                {
-                    dynamic? cf = null;
-                    try
-                    {
-                        cf = cubeFields.Item(i);
-                        string cfName = cf.Name?.ToString() ?? "";
-                        if (cfName.Contains(fieldName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            cubeField = cf;
-                            cf = null; // Don't release, we're transferring ownership
-                            break;
-                        }
-                    }
-                    finally
-                    {
-                        if (cf != null)
-                            ComUtilities.Release(ref cf);
-                    }
-                }
+                // Field not found by exact name - return null to trigger error
+                cubeField = null;
             }
 
             if (cubeField == null)
             {
-                throw new InvalidOperationException($"Field '{fieldName}' not found in OLAP PivotTable");
+                throw new InvalidOperationException($"Field '{fieldName}' not found in OLAP PivotTable. Use the exact CubeField name (e.g., '[Measures].[ACR]' or '[TableName].[ColumnName]').");
             }
 
             // CRITICAL FIX: CreatePivotFields() must be called before manipulating OLAP fields
@@ -83,7 +67,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
         catch (Exception ex) when (cubeField == null)
         {
-            throw new InvalidOperationException($"Field '{fieldName}' not found in OLAP PivotTable", ex);
+            throw new InvalidOperationException($"Field '{fieldName}' not found in OLAP PivotTable. Use the exact CubeField name (e.g., '[Measures].[ACR]' or '[TableName].[ColumnName]').", ex);
         }
         finally
         {
@@ -299,6 +283,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             if (IsExistingMeasure(model, fieldName, out string? existingMeasureName))
             {
                 // Find the measure's CubeField and add it to values area
+                // IMPORTANT: Use exact match to avoid disambiguation bugs (e.g., "ACR" matching "ACRTypeKey")
                 dynamic? cubeFields = null;
                 try
                 {
@@ -310,11 +295,18 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                         {
                             cf = cubeFields.Item(i);
                             string cfName = cf.Name?.ToString() ?? "";
+                            int cubeFieldType = Convert.ToInt32(cf.CubeFieldType);
 
-                            // Match by exact name or by measure name (might be [Measures].[Name] format)
-                            if (cfName.Equals(fieldName, StringComparison.OrdinalIgnoreCase) ||
+                            // Only match measures (CubeFieldType=2), not hierarchies (CubeFieldType=1)
+                            // This prevents "ACR" from matching "[DisambiguationTable].[ACRTypeKey]"
+                            if (cubeFieldType != XlCubeFieldType.xlMeasure)
+                                continue;
+
+                            // Check for exact match: [Measures].[MeasureName]
+                            string expectedCubeFieldName = $"[Measures].[{existingMeasureName}]";
+                            if (cfName.Equals(expectedCubeFieldName, StringComparison.OrdinalIgnoreCase) ||
                                 cfName.Equals(existingMeasureName, StringComparison.OrdinalIgnoreCase) ||
-                                cfName.Contains(existingMeasureName!, StringComparison.OrdinalIgnoreCase))
+                                cfName.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
                             {
                                 cubeField = cf;
                                 cf = null; // Transfer ownership
@@ -432,7 +424,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             // Refresh the PivotTable connection to make the measure available in CubeFields
             pivot.RefreshTable();
 
-            // Find the measure in CubeFields - measures appear with [Measures]. prefix or just by name
+            // Find the measure in CubeFields - measures appear with [Measures]. prefix
+            // Use CubeFieldType to ensure we only match measures, not hierarchies
             dynamic? cubeFieldsForNewMeasure = null;
             try
             {
@@ -444,9 +437,16 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                     {
                         cf = cubeFieldsForNewMeasure.Item(i);
                         string cfName = cf.Name?.ToString() ?? "";
+                        int cubeFieldType = Convert.ToInt32(cf.CubeFieldType);
 
-                        // Check if this is our measure (might be "[Measures].[Name]" or just "Name")
-                        if (cfName.Contains(measureName, StringComparison.OrdinalIgnoreCase))
+                        // Only match measures (CubeFieldType=2)
+                        if (cubeFieldType != XlCubeFieldType.xlMeasure)
+                            continue;
+
+                        // Check for exact match: [Measures].[MeasureName]
+                        string expectedCubeFieldName = $"[Measures].[{measureName}]";
+                        if (cfName.Equals(expectedCubeFieldName, StringComparison.OrdinalIgnoreCase) ||
+                            cfName.Equals(measureName, StringComparison.OrdinalIgnoreCase))
                         {
                             cubeField = cf;
                             cf = null; // Transfer ownership
@@ -1115,6 +1115,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// <summary>
     /// Find the source table and column for a CubeField in the Data Model.
     /// OLAP CubeFields reference Data Model columns in format: [TableName].[ColumnName]
+    /// NOTE: This only searches hierarchy fields (CubeFieldType=1), not measures.
     /// </summary>
     private (string tableName, string columnName) FindTableAndColumn(dynamic pivot, string fieldName)
     {
@@ -1124,6 +1125,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             cubeFields = pivot.CubeFields;
 
             // Try to find the CubeField matching fieldName
+            // Only look at hierarchies (table columns), not measures
             for (int i = 1; i <= cubeFields.Count; i++)
             {
                 dynamic? cf = null;
@@ -1131,10 +1133,14 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 {
                     cf = cubeFields.Item(i);
                     string cfName = cf.Name?.ToString() ?? "";
+                    int cubeFieldType = Convert.ToInt32(cf.CubeFieldType);
 
-                    // Check if this is the field we're looking for
-                    if (cfName.Equals(fieldName, StringComparison.OrdinalIgnoreCase) ||
-                        cfName.Contains(fieldName, StringComparison.OrdinalIgnoreCase))
+                    // Skip measures - we're looking for table columns only
+                    if (cubeFieldType == XlCubeFieldType.xlMeasure)
+                        continue;
+
+                    // EXACT MATCH ONLY - no partial matching
+                    if (cfName.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
                     {
                         // Parse hierarchical name format: [TableName].[ColumnName]
                         // Example: "[RegionalSalesTable].[Sales]" -> table="RegionalSalesTable", column="Sales"
@@ -1556,7 +1562,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// <summary>
     /// Check if fieldName refers to an existing measure in the Data Model.
     /// Returns true if the measure exists, and outputs the measure name.
-    /// Handles formats: "[Measures].[Name]", "Name", or partial match.
+    /// Handles formats: "[Measures].[Name]" or "Name" (exact match only).
     /// </summary>
     private static bool IsExistingMeasure(dynamic model, string fieldName, out string? measureName)
     {
@@ -1582,7 +1588,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 }
             }
 
-            // Search for measure by name (exact or partial match)
+            // Search for measure by name (EXACT match only - no partial matching)
+            // Partial matching causes disambiguation bugs where "ACR" could match "ACRTypeKey"
             for (int i = 1; i <= measures.Count; i++)
             {
                 dynamic? measure = null;
@@ -1591,16 +1598,9 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                     measure = measures.Item(i);
                     string mName = measure.Name?.ToString() ?? "";
 
-                    // Try exact match first
+                    // Exact match only - no Contains() to avoid false positives
                     if (mName.Equals(searchName, StringComparison.OrdinalIgnoreCase) ||
                         mName.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        measureName = mName;
-                        return true;
-                    }
-
-                    // Try partial match (handle "Total ACR" matching "Total ACR Sum")
-                    if (mName.Contains(searchName, StringComparison.OrdinalIgnoreCase))
                     {
                         measureName = mName;
                         return true;

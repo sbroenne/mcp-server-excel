@@ -29,12 +29,13 @@ public partial class PivotTableCommandsTests
         using var batch = ExcelSession.BeginBatch(olapTestFile);
 
         // Act - Remove existing Region field first, then add Quarter
-        _pivotCommands.RemoveField(batch, "DataModelPivot", "Region");
-        var result = _pivotCommands.AddRowField(batch, "DataModelPivot", "Quarter", null);
+        // Use exact CubeField names (LLM discovers via ListFields)
+        _pivotCommands.RemoveField(batch, "DataModelPivot", "[RegionalSalesTable].[Region]");
+        var result = _pivotCommands.AddRowField(batch, "DataModelPivot", "[RegionalSalesTable].[Quarter]", null);
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
-        Assert.Equal("Quarter", result.FieldName);
+        Assert.Equal("[RegionalSalesTable].[Quarter]", result.FieldName);
         Assert.Equal(PivotFieldArea.Row, result.Area);
     }
 
@@ -48,12 +49,13 @@ public partial class PivotTableCommandsTests
         using var batch = ExcelSession.BeginBatch(olapTestFile);
 
         // Act - Remove existing Region field first to make room for Quarter
-        _pivotCommands.RemoveField(batch, "DataModelPivot", "Region");
-        var result = _pivotCommands.AddColumnField(batch, "DataModelPivot", "Quarter", null);
+        // Use exact CubeField names (LLM discovers via ListFields)
+        _pivotCommands.RemoveField(batch, "DataModelPivot", "[RegionalSalesTable].[Region]");
+        var result = _pivotCommands.AddColumnField(batch, "DataModelPivot", "[RegionalSalesTable].[Quarter]", null);
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
-        Assert.Equal("Quarter", result.FieldName);
+        Assert.Equal("[RegionalSalesTable].[Quarter]", result.FieldName);
         Assert.Equal(PivotFieldArea.Column, result.Area);
     }
 
@@ -67,15 +69,16 @@ public partial class PivotTableCommandsTests
         using var batch = ExcelSession.BeginBatch(olapTestFile);
 
         // Act - Region row field exists in fixture
+        // Use exact CubeField name (LLM discovers via ListFields)
         var result = _pivotCommands.SortField(
             batch,
             "DataModelPivot",
-            "Region",
+            "[RegionalSalesTable].[Region]",
             SortDirection.Descending);
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
-        Assert.Equal("Region", result.FieldName);
+        Assert.Equal("[RegionalSalesTable].[Region]", result.FieldName);
     }
 
     /// <summary>
@@ -98,12 +101,12 @@ public partial class PivotTableCommandsTests
         using var batch = ExcelSession.BeginBatch(olapTestFile);
 
         // Act - Try to add Sales field as a Sum value field
-        // Currently this throws InvalidOperationException
-        // After implementation, should auto-create: [Sales Sum] = SUM('RegionalSalesTable'[Sales])
+        // Use exact CubeField name format [TableName].[ColumnName]
+        // After implementation, should auto-create: [Total Sales] = SUM('RegionalSalesTable'[Sales])
         var result = _pivotCommands.AddValueField(
             batch,
             "DataModelPivot",
-            "Sales",
+            "[RegionalSalesTable].[Sales]",
             AggregationFunction.Sum,
             "Total Sales");
 
@@ -139,11 +142,12 @@ public partial class PivotTableCommandsTests
         using var batch = ExcelSession.BeginBatch(olapTestFile);
 
         // Act - Add Quarter field with Count aggregation
-        // Should auto-create: [Quarter Count] = COUNT('RegionalSalesTable'[Quarter])
+        // Use exact CubeField name format [TableName].[ColumnName]
+        // Should auto-create: [Number of Quarters] = COUNT('RegionalSalesTable'[Quarter])
         var result = _pivotCommands.AddValueField(
             batch,
             "DataModelPivot",
-            "Quarter",
+            "[RegionalSalesTable].[Quarter]",
             AggregationFunction.Count,
             "Number of Quarters");
 
@@ -250,12 +254,12 @@ public partial class PivotTableCommandsTests
 
     /// <summary>
     /// Helper to create OLAP test file with Data Model PivotTable.
-    /// Uses PivotTableRealisticFixture internally.
+    /// Uses DataModelPivotTableFixture internally.
     /// </summary>
     private string CreateOlapTestFile(string _)
     {
-        // For OLAP tests, we use the realistic fixture which has a Data Model PivotTable
-        var fixture = new PivotTableRealisticFixture();
+        // For OLAP tests, we use the unified fixture which has a Data Model PivotTable
+        var fixture = new DataModelPivotTableFixture();
         fixture.InitializeAsync().GetAwaiter().GetResult();
         _createdFixtures.Add(fixture);
         return fixture.TestFilePath;
@@ -274,24 +278,26 @@ public partial class PivotTableCommandsTests
         var olapTestFile = CreateOlapTestFile(nameof(SetFieldFunction_OlapPivot_UpdatesDaxMeasureFormula));
         using var batch = ExcelSession.BeginBatch(olapTestFile);
 
+        // Use exact CubeField name format [TableName].[ColumnName]
         var addResult = _pivotCommands.AddValueField(
             batch,
             "DataModelPivot",
-            "Sales",
+            "[RegionalSalesTable].[Sales]",
             AggregationFunction.Sum,
             "Sales Measure");
         Assert.True(addResult.Success, $"Setup failed: {addResult.ErrorMessage}");
 
         // Act - Change from SUM to COUNT
+        // After the measure is created, reference it by its measure name or [Measures].[Name]
         var updateResult = _pivotCommands.SetFieldFunction(
             batch,
             "DataModelPivot",
-            "Sales Measure",
+            "[Measures].[Sales Measure]",
             AggregationFunction.Count);
 
         // Assert - Operation succeeded
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
-        Assert.Equal("Sales Measure", updateResult.FieldName);
+        Assert.Contains("Sales Measure", updateResult.FieldName);
         Assert.Equal(AggregationFunction.Count, updateResult.Function);
 
         // Verify the DAX measure formula changed in Data Model
@@ -318,26 +324,28 @@ public partial class PivotTableCommandsTests
         var olapTestFile = CreateOlapTestFile(nameof(SetFieldFormat_OlapPivot_UpdatesMeasureFormat));
         using var batch = ExcelSession.BeginBatch(olapTestFile);
 
+        // Use exact CubeField name format [TableName].[ColumnName]
         var addResult = _pivotCommands.AddValueField(
             batch,
             "DataModelPivot",
-            "Sales",
+            "[RegionalSalesTable].[Sales]",
             AggregationFunction.Sum,
             "Sales Total");
         Assert.True(addResult.Success, $"Setup failed: {addResult.ErrorMessage}");
 
         // Act - Set currency format
+        // After the measure is created, reference it by [Measures].[Name]
         var updateResult = _pivotCommands.SetFieldFormat(
             batch,
             "DataModelPivot",
-            "Sales Total",
+            "[Measures].[Sales Total]",
             "$#,##0.00");
 
         // Assert - Operation succeeded
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
-        Assert.Equal("Sales Total", updateResult.FieldName);
+        Assert.Contains("Sales Total", updateResult.FieldName);
         Assert.Equal("$#,##0.00", updateResult.NumberFormat);
     }
 
-    private readonly List<PivotTableRealisticFixture> _createdFixtures = new();
+    private readonly List<DataModelPivotTableFixture> _createdFixtures = new();
 }
