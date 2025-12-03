@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -15,12 +14,10 @@ public static partial class ExcelRangeTool
     /// Unified Excel range operations - ALL data manipulation.
     /// DATA FORMAT: Values/formulas are JSON 2D arrays [[row1col1, row1col2], [row2col1, row2col2]]. Example single cell: [[100]] or [['=SUM(A:A)']]. Example range: [[1,2,3], [4,5,6], [7,8,9]].
     ///
-    /// NUMBER FORMATTING - Two actions for different use cases:
-    /// - SetNumberFormat: RECOMMENDED. Use numberFormatCategory (Currency, Percentage, Date, etc.) for locale-aware formatting that works correctly on any system.
-    /// - SetNumberFormatCustom: Expert use only. Use formatCode for custom Excel format codes. WARNING: Format codes like '#,##0.00' use US conventions and may display incorrectly on non-US locales.
-    ///
-    /// Example SetNumberFormat: action='SetNumberFormat', numberFormatCategory='Currency', currencySymbol='EUR', decimalPlaces=2
-    /// Example SetNumberFormatCustom: action='SetNumberFormatCustom', formatCode='[Red]0.00;[Blue]-0.00'
+    /// NUMBER FORMATTING - CROSS-CULTURE TIP:
+    /// When setting date/time formats, prefix with [$-409] for universal compatibility.
+    /// Example: formatCode='[$-409]mm/dd/yyyy' works correctly on ALL locales.
+    /// The [$-409] tells Excel to interpret format codes as US English.
     /// </summary>
     /// <param name="action">Action to perform</param>
     /// <param name="excelPath">Excel file path (.xlsx or .xlsm)</param>
@@ -47,17 +44,7 @@ public static partial class ExcelRangeTool
     /// <param name="url">Hyperlink URL (for add-hyperlink)</param>
     /// <param name="displayText">Hyperlink display text (for add-hyperlink, optional)</param>
     /// <param name="tooltip">Hyperlink tooltip (for add-hyperlink, optional)</param>
-    /// <param name="formatCode">Excel format code for set-number-format-custom (e.g., '$#,##0.00', '0.00%', 'm/d/yyyy')</param>
-    /// <param name="numberFormatCategory">Format category for set-number-format: General, Number, Currency, Accounting, Date, Time, Percentage, Fraction, Scientific, Text, Special. Use instead of formatCode for locale-aware formatting.</param>
-    /// <param name="decimalPlaces">Decimal places for Number, Currency, Accounting, Percentage, Scientific formats (default: 2)</param>
-    /// <param name="currencySymbol">Currency symbol for Currency/Accounting formats (e.g., '$', '€', '£', '¥'). Uses system default if not specified.</param>
-    /// <param name="useThousandsSeparator">Use thousands separator for Number, Currency, Accounting (default: true)</param>
-    /// <param name="negativeNumberFormat">How to display negative numbers: MinusSign, Red, Parentheses, RedParentheses</param>
-    /// <param name="dateFormatStyle">Date format style: ShortDate, LongDate, ISO, MonthYear, DayMonth, Year, Month, Day</param>
-    /// <param name="timeFormatStyle">Time format style: ShortTime, LongTime, Duration, HoursMinutes, HoursMinutesSeconds</param>
-    /// <param name="includeDate">Include date with time format (for Time category)</param>
-    /// <param name="fractionStyle">Fraction format: OneDigit, TwoDigits, ThreeDigits, Halves, Quarters, Eighths, Sixteenths, Tenths, Hundredths</param>
-    /// <param name="specialFormatType">Special format: ZipCode, ZipCodePlus4, PhoneNumber, SocialSecurityNumber</param>
+    /// <param name="formatCode">Excel format code for set-number-format (e.g., '$#,##0.00', '0.00%', '[$-409]mm/dd/yyyy'). Use [$-409] prefix for cross-culture date/time formats.</param>
     /// <param name="formats">2D array of format codes for set-number-formats (JSON array of arrays, e.g., [['$#,##0','0.00%'],['m/d/yyyy','General']])</param>
     /// <param name="styleName">Built-in Excel style name (for set-style: 'Heading 1', 'Accent1', 'Good', 'Total', 'Currency', 'Percent', 'Normal', etc. - recommended for consistent formatting)</param>
     /// <param name="fontName">Font name (for format-range, e.g., 'Arial', 'Calibri')</param>
@@ -117,16 +104,6 @@ public static partial class ExcelRangeTool
         [DefaultValue(null)] string? displayText,
         [DefaultValue(null)] string? tooltip,
         [DefaultValue(null)] string? formatCode,
-        [DefaultValue(null)] string? numberFormatCategory,
-        [DefaultValue(null)] int? decimalPlaces,
-        [DefaultValue(null)] string? currencySymbol,
-        [DefaultValue(null)] bool? useThousandsSeparator,
-        [DefaultValue(null)] string? negativeNumberFormat,
-        [DefaultValue(null)] string? dateFormatStyle,
-        [DefaultValue(null)] string? timeFormatStyle,
-        [DefaultValue(null)] bool? includeDate,
-        [DefaultValue(null)] string? fractionStyle,
-        [DefaultValue(null)] string? specialFormatType,
         [DefaultValue(null)] List<List<string>>? formats,
         [DefaultValue(null)] string? styleName,
         [DefaultValue(null)] string? fontName,
@@ -174,8 +151,7 @@ public static partial class ExcelRangeTool
                     RangeAction.GetFormulas => GetFormulasAsync(rangeCommands, sessionId, sheetName, rangeAddress),
                     RangeAction.SetFormulas => SetFormulasAsync(rangeCommands, sessionId, sheetName, rangeAddress, formulas),
                     RangeAction.GetNumberFormats => GetNumberFormatsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                    RangeAction.SetNumberFormat => SetNumberFormatAsync(rangeCommands, sessionId, sheetName, rangeAddress, numberFormatCategory, decimalPlaces, currencySymbol, useThousandsSeparator, negativeNumberFormat, dateFormatStyle, timeFormatStyle, includeDate, fractionStyle, specialFormatType),
-                    RangeAction.SetNumberFormatCustom => SetNumberFormatCustomAsync(rangeCommands, sessionId, sheetName, rangeAddress, formatCode),
+                    RangeAction.SetNumberFormat => SetNumberFormatAsync(rangeCommands, sessionId, sheetName, rangeAddress, formatCode),
                     RangeAction.SetNumberFormats => SetNumberFormatsAsync(rangeCommands, sessionId, sheetName, rangeAddress, formats),
                     RangeAction.ClearAll => ClearAllAsync(rangeCommands, sessionId, sheetName, rangeAddress),
                     RangeAction.ClearContents => ClearContentsAsync(rangeCommands, sessionId, sheetName, rangeAddress),
@@ -331,59 +307,13 @@ public static partial class ExcelRangeTool
         string sessionId,
         string? sheetName,
         string? rangeAddress,
-        string? numberFormatCategory,
-        int? decimalPlaces,
-        string? currencySymbol,
-        bool? useThousandsSeparator,
-        string? negativeNumberFormat,
-        string? dateFormatStyle,
-        string? timeFormatStyle,
-        bool? includeDate,
-        string? fractionStyle,
-        string? specialFormatType)
+        string? formatCode)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-number-format");
 
-        if (string.IsNullOrEmpty(numberFormatCategory))
-            ExcelToolsBase.ThrowMissingParameter("numberFormatCategory", "set-number-format");
-
-        // Use structured format options (locale-aware)
-        var options = BuildNumberFormatOptions(
-            numberFormatCategory!,
-            decimalPlaces,
-            currencySymbol,
-            useThousandsSeparator,
-            negativeNumberFormat,
-            dateFormatStyle,
-            timeFormatStyle,
-            includeDate,
-            fractionStyle,
-            specialFormatType);
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.SetNumberFormatStructured(batch, sheetName ?? "", rangeAddress!, options));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string SetNumberFormatCustomAsync(
-        RangeCommands commands,
-        string sessionId,
-        string? sheetName,
-        string? rangeAddress,
-        string? formatCode)
-    {
-        if (string.IsNullOrEmpty(rangeAddress))
-            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-number-format-custom");
-
         if (string.IsNullOrEmpty(formatCode))
-            ExcelToolsBase.ThrowMissingParameter("formatCode", "set-number-format-custom");
+            ExcelToolsBase.ThrowMissingParameter("formatCode", "set-number-format");
 
         var result = ExcelToolsBase.WithSession(
             sessionId,
@@ -394,92 +324,6 @@ public static partial class ExcelRangeTool
             result.Success,
             result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static NumberFormatOptions BuildNumberFormatOptions(
-        string category,
-        int? decimalPlaces,
-        string? currencySymbol,
-        bool? useThousandsSeparator,
-        string? negativeNumberFormat,
-        string? dateFormatStyle,
-        string? timeFormatStyle,
-        bool? includeDate,
-        string? fractionStyle,
-        string? specialFormatType)
-    {
-        var options = new NumberFormatOptions
-        {
-            DecimalPlaces = decimalPlaces,
-            CurrencySymbol = currencySymbol,
-            UseThousandsSeparator = useThousandsSeparator,
-            IncludeDate = includeDate
-        };
-
-        // Parse category
-        if (!Enum.TryParse<NumberFormatCategory>(category, true, out var cat))
-        {
-            throw new ModelContextProtocol.McpException(
-                $"Invalid numberFormatCategory '{category}'. Valid values: General, Number, Currency, Accounting, Date, Time, Percentage, Fraction, Scientific, Text, Special");
-        }
-        options.Category = cat;
-
-        // Parse negative format
-        if (!string.IsNullOrEmpty(negativeNumberFormat))
-        {
-            if (!Enum.TryParse<NegativeNumberFormat>(negativeNumberFormat, true, out var negFmt))
-            {
-                throw new ModelContextProtocol.McpException(
-                    $"Invalid negativeNumberFormat '{negativeNumberFormat}'. Valid values: MinusSign, Red, Parentheses, RedParentheses");
-            }
-            options.NegativeFormat = negFmt;
-        }
-
-        // Parse date format style
-        if (!string.IsNullOrEmpty(dateFormatStyle))
-        {
-            if (!Enum.TryParse<DateFormatStyle>(dateFormatStyle, true, out var dateFmt))
-            {
-                throw new ModelContextProtocol.McpException(
-                    $"Invalid dateFormatStyle '{dateFormatStyle}'. Valid values: ShortDate, LongDate, ISO, MonthYear, DayMonth, Year, Month, Day");
-            }
-            options.DateFormat = dateFmt;
-        }
-
-        // Parse time format style
-        if (!string.IsNullOrEmpty(timeFormatStyle))
-        {
-            if (!Enum.TryParse<TimeFormatStyle>(timeFormatStyle, true, out var timeFmt))
-            {
-                throw new ModelContextProtocol.McpException(
-                    $"Invalid timeFormatStyle '{timeFormatStyle}'. Valid values: ShortTime, LongTime, Duration, HoursMinutes, HoursMinutesSeconds");
-            }
-            options.TimeFormat = timeFmt;
-        }
-
-        // Parse fraction style
-        if (!string.IsNullOrEmpty(fractionStyle))
-        {
-            if (!Enum.TryParse<FractionStyle>(fractionStyle, true, out var fracFmt))
-            {
-                throw new ModelContextProtocol.McpException(
-                    $"Invalid fractionStyle '{fractionStyle}'. Valid values: OneDigit, TwoDigits, ThreeDigits, Halves, Quarters, Eighths, Sixteenths, Tenths, Hundredths");
-            }
-            options.FractionFormat = fracFmt;
-        }
-
-        // Parse special format type
-        if (!string.IsNullOrEmpty(specialFormatType))
-        {
-            if (!Enum.TryParse<SpecialFormatType>(specialFormatType, true, out var specFmt))
-            {
-                throw new ModelContextProtocol.McpException(
-                    $"Invalid specialFormatType '{specialFormatType}'. Valid values: ZipCode, ZipCodePlus4, PhoneNumber, SocialSecurityNumber");
-            }
-            options.SpecialFormat = specFmt;
-        }
-
-        return options;
     }
 
     private static string SetNumberFormatsAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, List<List<string>>? formats)

@@ -1,4 +1,3 @@
-using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -141,9 +140,10 @@ public partial class RangeCommands
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
-                // Set uniform number format for entire range
-                // Use NumberFormatLocal to interpret format codes according to user's locale
-                range.NumberFormatLocal = formatCode;
+                // Automatically add US LCID prefix for date/time formats to ensure cross-culture compatibility.
+                // This prevents 'm' being interpreted as minutes instead of months on non-US locales.
+                string effectiveFormat = EnsureDateTimeLcid(formatCode);
+                range.NumberFormat = effectiveFormat;
 
                 result.Success = true;
                 return result;
@@ -156,21 +156,68 @@ public partial class RangeCommands
     }
 
     /// <summary>
-    /// Sets number format using structured options (locale-aware).
-    /// This method automatically generates the correct locale-specific format code.
+    /// Ensures date/time format codes have a US LCID prefix for cross-culture compatibility.
+    /// If the format contains date/time specifiers (d, m, y, h, s) but no LCID prefix,
+    /// automatically adds [$-409] to ensure consistent interpretation across all locales.
     /// </summary>
-    /// <param name="batch">The Excel batch operation context</param>
-    /// <param name="sheetName">Sheet name (empty for named ranges)</param>
-    /// <param name="rangeAddress">Range address or named range name</param>
-    /// <param name="options">Structured format options</param>
-    /// <returns>Operation result</returns>
-    public OperationResult SetNumberFormatStructured(IExcelBatch batch, string sheetName, string rangeAddress, NumberFormatOptions options)
+    /// <param name="formatCode">The original format code.</param>
+    /// <returns>Format code with LCID prefix if needed, or original if not a date/time format.</returns>
+    private static string EnsureDateTimeLcid(string formatCode)
     {
-        // Build locale-aware format code from structured options using current culture
-        var formatCode = LocaleAwareFormatBuilder.BuildFormatCode(options, CultureInfo.CurrentCulture);
+        if (string.IsNullOrEmpty(formatCode))
+            return formatCode;
 
-        // Use the existing method with the generated format code
-        return SetNumberFormat(batch, sheetName, rangeAddress, formatCode);
+        // Already has LCID prefix - don't modify
+        if (formatCode.Contains("[$-"))
+            return formatCode;
+
+        // Check if this looks like a date/time format (contains d, m, y, h, s outside of quotes)
+        // but NOT a number format (which uses # , 0 . %)
+        if (!ContainsDateTimeSpecifiers(formatCode))
+            return formatCode;
+
+        // Add US LCID prefix for cross-culture compatibility
+        return $"[$-409]{formatCode}";
+    }
+
+    /// <summary>
+    /// Checks if a format code contains date/time specifiers (d, m, y, h, s) outside of quoted strings.
+    /// Returns false for pure number formats (containing only #, 0, ., ,, %, $, etc.)
+    /// </summary>
+    private static bool ContainsDateTimeSpecifiers(string formatCode)
+    {
+        bool inQuotes = false;
+        bool hasDateTimeChars = false;
+        bool hasNumberChars = false;
+
+        foreach (char c in formatCode)
+        {
+            if (c == '"')
+            {
+                inQuotes = !inQuotes;
+                continue;
+            }
+
+            if (inQuotes)
+                continue;
+
+            char lower = char.ToLowerInvariant(c);
+
+            // Date/time specifiers
+            if (lower is 'd' or 'm' or 'y' or 'h' or 's')
+            {
+                hasDateTimeChars = true;
+            }
+            // Number format specifiers (not date/time)
+            else if (c is '#' or '0' or '%')
+            {
+                hasNumberChars = true;
+            }
+        }
+
+        // Only treat as date/time if it has date/time chars and is NOT primarily a number format
+        // Exception: "m" alone with number chars (like #,##0) is minutes in time context but we skip those
+        return hasDateTimeChars && !hasNumberChars;
     }
 
     /// <inheritdoc />
@@ -221,7 +268,8 @@ public partial class RangeCommands
                             try
                             {
                                 cell = range.Cells[row, col];
-                                cell.NumberFormatLocal = formats[row - 1][col - 1];
+                                // Auto-add LCID for date/time formats
+                                cell.NumberFormat = EnsureDateTimeLcid(formats[row - 1][col - 1]);
                             }
                             finally
                             {
@@ -238,12 +286,13 @@ public partial class RangeCommands
                     {
                         for (int col = 0; col < columnCount; col++)
                         {
-                            formatArray[row, col] = formats[row][col];
+                            // Auto-add LCID for date/time formats
+                            formatArray[row, col] = EnsureDateTimeLcid(formats[row][col]);
                         }
                     }
 
                     // Set number formats via 2D array
-                    range.NumberFormatLocal = formatArray;
+                    range.NumberFormat = formatArray;
                 }
 
                 result.Success = true;

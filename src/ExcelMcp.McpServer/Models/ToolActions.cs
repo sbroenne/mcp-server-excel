@@ -85,7 +85,6 @@ public enum RangeAction
     // Number Formats
     GetNumberFormats,
     SetNumberFormat,
-    SetNumberFormatCustom,
     SetNumberFormats,
 
     // Clear Operations

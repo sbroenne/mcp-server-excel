@@ -1,68 +1,31 @@
-# excel_range Tool - Number Formatting Guide
+# excel_range - Number Formats
 
-## Number Formatting Actions
+## Format Codes
 
-**Two actions for number formatting - choose based on use case:**
+| Type | Code | Example |
+|------|------|---------|
+| Number | `#,##0.00` | 1,234.56 |
+| Dollar | `$#,##0.00` | $1,234.56 |
+| Euro | `€#,##0.00` | €1,234.56 |
+| Pound | `£#,##0.00` | £1,234.56 |
+| Yen | `¥#,##0` | ¥1,235 |
+| Percent | `0.00%` | 12.34% |
+| Date (ISO) | `yyyy-mm-dd` | 2023-03-15 |
+| Date (US) | `mm/dd/yyyy` | 03/15/2023 |
+| Date (EU) | `dd/mm/yyyy` | 15/03/2023 |
+| Time | `h:mm AM/PM` | 2:30 PM |
+| Time (24h) | `hh:mm:ss` | 14:30:00 |
+| Text | `@` | (as-is) |
 
-### SetNumberFormat (RECOMMENDED)
-**Use for:** Standard formatting that works correctly on any locale.
+Date/time formats auto-handle cross-culture compatibility. Currency symbols are literal.
 
-**Required:** `numberFormatCategory` - the type of format to apply.
+## Actions
 
-**Categories:** General, Number, Currency, Accounting, Date, Time, Percentage, Fraction, Scientific, Text, Special
+**SetNumberFormat**: Apply one format to entire range.
 
-**Optional parameters by category:**
+- `formatCode`: Format code from table above
 
-| Category | Parameters |
-|----------|------------|
-| Number | decimalPlaces, useThousandsSeparator, negativeNumberFormat |
-| Currency | decimalPlaces, currencySymbol, useThousandsSeparator, negativeNumberFormat |
-| Accounting | decimalPlaces, currencySymbol |
-| Percentage | decimalPlaces |
-| Scientific | decimalPlaces |
-| Date | dateFormatStyle (ShortDate, LongDate, ISO, MonthYear, DayMonth, Year, Month, Day) |
-| Time | timeFormatStyle (ShortTime, LongTime, Duration, HoursMinutes, HoursMinutesSeconds), includeDate |
-| Fraction | fractionStyle (OneDigit, TwoDigits, Halves, Quarters, Eighths, Tenths, Hundredths) |
-| Special | specialFormatType (ZipCode, ZipCodePlus4, PhoneNumber, SocialSecurityNumber) |
+**SetNumberFormats**: Apply different formats per cell.
 
-**Examples:**
-- Currency with Euro: `numberFormatCategory='Currency', currencySymbol='€', decimalPlaces=2`
-- Percentage: `numberFormatCategory='Percentage', decimalPlaces=1`
-- Short date: `numberFormatCategory='Date', dateFormatStyle='ShortDate'`
-
-### SetNumberFormatCustom (Expert Use)
-**Use for:** Custom format codes when structured options don't cover your needs.
-
-**Required:** `formatCode` - Excel format code string.
-
-**Warning:** Format codes use US conventions (`#,##0.00` means comma=thousands, period=decimal). On non-US locales (German, French, etc.), these may display incorrectly. Use SetNumberFormat for locale-safe formatting.
-
-**When to use:**
-- Custom color formatting: `[Red]0.00;[Blue]-0.00`
-- Conditional formatting: `[>1000]#,##0;[<0]-#,##0;0`
-- Custom text: `0.00" units"`
-- Complex patterns not covered by structured options
-
-### SetNumberFormats (Bulk)
-**Use for:** Applying different formats to different cells in a range.
-
-**Required:** `formats` - 2D array matching range dimensions.
-
-**Example:** `formats=[['$#,##0','0.00%'],['m/d/yyyy','General']]`
-
-## Decision Tree
-
-```
-Need to format numbers?
-├─ Standard format (currency, percent, date)?
-│  └─ Use SetNumberFormat with numberFormatCategory
-│
-├─ Custom color/conditional format?
-│  └─ Use SetNumberFormatCustom with formatCode
-│
-├─ Different formats per cell?
-│  └─ Use SetNumberFormats with formats array
-│
-└─ Unsure about locale?
-   └─ ALWAYS use SetNumberFormat (locale-safe)
-```
+- `formats`: 2D array matching range dimensions
+- Example: `[["$#,##0.00", "0.00%"], ["mm/dd/yyyy", "General"]]`

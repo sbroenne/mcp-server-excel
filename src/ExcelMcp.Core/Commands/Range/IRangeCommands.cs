@@ -212,7 +212,6 @@ public interface IRangeCommands
     /// <param name="rangeAddress">Range address (e.g., "A1:D10")</param>
     /// <param name="formatCode">
     /// Excel format code (e.g., "$#,##0.00", "0.00%", "m/d/yyyy", "General", "@")
-    /// See NumberFormatPresets class for common patterns
     /// </param>
     OperationResult SetNumberFormat(IExcelBatch batch, string sheetName, string rangeAddress, string formatCode);
 

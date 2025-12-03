@@ -316,7 +316,7 @@ public partial class ConnectionCommands : IConnectionCommands
                     3 => "Table",
                     4 => "Default",
                     5 => "List",
-                    _ => "Unknown(" + (cmdType.HasValue ? cmdType.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "null") + ")"
+                    _ => "Unknown(" + (cmdType.HasValue ? cmdType.Value.ToString(CultureInfo.InvariantCulture) : "null") + ")"
                 };
             }
             else if (connType == 2) // ODBC
@@ -329,7 +329,7 @@ public partial class ConnectionCommands : IConnectionCommands
                     3 => "Table",
                     4 => "Default",
                     5 => "List",
-                    _ => "Unknown(" + (cmdType.HasValue ? cmdType.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "null") + ")"
+                    _ => "Unknown(" + (cmdType.HasValue ? cmdType.Value.ToString(CultureInfo.InvariantCulture) : "null") + ")"
                 };
             }
         }
