@@ -124,14 +124,16 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         // Delete test files
         if (Directory.Exists(_tempDir))
         {
+#pragma warning disable CA1031 // Catch general exception - best effort cleanup in test disposal
             try
             {
                 Directory.Delete(_tempDir, recursive: true);
             }
             catch
             {
-                // Best effort
+                // Best effort cleanup - test files will be cleaned by OS temp cleanup
             }
+#pragma warning restore CA1031
         }
     }
 

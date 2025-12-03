@@ -309,27 +309,29 @@ public partial class ConnectionCommands : IConnectionCommands
             if (connType == 1) // OLEDB
             {
                 int? cmdType = conn.OLEDBConnection?.CommandType;
-                return cmdType switch
+                if (!cmdType.HasValue) return "Unknown(null)";
+                return cmdType.Value switch
                 {
                     1 => "Cube",
                     2 => "SQL",
                     3 => "Table",
                     4 => "Default",
                     5 => "List",
-                    _ => "Unknown(" + (cmdType.HasValue ? cmdType.Value.ToString(CultureInfo.InvariantCulture) : "null") + ")"
+                    _ => $"Unknown({cmdType.Value.ToString(CultureInfo.InvariantCulture)})"
                 };
             }
             else if (connType == 2) // ODBC
             {
                 int? cmdType = conn.ODBCConnection?.CommandType;
-                return cmdType switch
+                if (!cmdType.HasValue) return "Unknown(null)";
+                return cmdType.Value switch
                 {
                     1 => "Cube",
                     2 => "SQL",
                     3 => "Table",
                     4 => "Default",
                     5 => "List",
-                    _ => "Unknown(" + (cmdType.HasValue ? cmdType.Value.ToString(CultureInfo.InvariantCulture) : "null") + ")"
+                    _ => $"Unknown({cmdType.Value.ToString(CultureInfo.InvariantCulture)})"
                 };
             }
         }

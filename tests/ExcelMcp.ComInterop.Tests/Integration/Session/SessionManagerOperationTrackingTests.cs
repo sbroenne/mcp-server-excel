@@ -24,7 +24,9 @@ public class SessionManagerOperationTrackingTests : IDisposable
     public SessionManagerOperationTrackingTests(ITestOutputHelper output)
     {
         _output = output;
+#pragma warning disable CA3003 // Path.Combine is safe here - test code with controlled inputs
         _tempDir = Path.Combine(Path.GetTempPath(), $"SessionManagerOpTrackingTests_{Guid.NewGuid():N}");
+#pragma warning restore CA3003
         Directory.CreateDirectory(_tempDir);
     }
 
@@ -32,17 +34,18 @@ public class SessionManagerOperationTrackingTests : IDisposable
     {
         GC.SuppressFinalize(this);
 
-        foreach (var file in _testFiles)
+        foreach (var file in _testFiles.Where(File.Exists))
         {
-            if (File.Exists(file))
-            {
-                try { File.Delete(file); } catch { /* best effort */ }
-            }
+#pragma warning disable CA1031 // Catch general exception - best effort cleanup in test disposal
+            try { File.Delete(file); } catch { /* best effort */ }
+#pragma warning restore CA1031
         }
 
         if (Directory.Exists(_tempDir))
         {
+#pragma warning disable CA1031 // Catch general exception - best effort cleanup in test disposal
             try { Directory.Delete(_tempDir, recursive: true); } catch { /* best effort */ }
+#pragma warning restore CA1031
         }
 
         Thread.Sleep(500);
@@ -51,7 +54,9 @@ public class SessionManagerOperationTrackingTests : IDisposable
     private string CreateTestFile(string testName)
     {
         var fileName = $"{testName}_{Guid.NewGuid():N}.xlsx";
+#pragma warning disable CA3003 // Path.Combine is safe here - test code with controlled inputs
         var filePath = Path.Combine(_tempDir, fileName);
+#pragma warning restore CA3003
 
         ExcelSession.CreateNew(
             filePath,
@@ -350,7 +355,7 @@ public class SessionManagerOperationTrackingTests : IDisposable
     {
         var testFile1 = CreateTestFile($"{nameof(Dispose_CleansUpAllTracking)}_1");
         var testFile2 = CreateTestFile($"{nameof(Dispose_CleansUpAllTracking)}_2");
-        var manager = new SessionManager();
+        using var manager = new SessionManager();
 
         var session1 = manager.CreateSession(testFile1, showExcel: true);
         var session2 = manager.CreateSession(testFile2, showExcel: false);
