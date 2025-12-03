@@ -1,6 +1,19 @@
 # Excel MCP Server - Quick Reference
 
-> **Cross-tool guidance not covered by individual tool descriptions**
+> **When user asks about Excel files, spreadsheets, workbooks, or data in .xlsx/.xlsm files - USE the excel_* tools.**
+
+## When to Use Excel MCP
+
+USE these tools when user wants to:
+- Read/write Excel data, formulas, or formatting
+- Create PivotTables, charts, or tables
+- Import data via Power Query
+- Run VBA macros
+- Any .xlsx or .xlsm file operations
+
+DO NOT use for: CSV files (use standard file tools), Google Sheets, or non-Excel formats.
+
+---
 
 ## Prerequisites
 
