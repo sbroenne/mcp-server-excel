@@ -124,9 +124,18 @@ public class Program
         // Initialize telemetry client for static access
         InitializeTelemetryClient(host.Services);
 
-        await host.RunAsync();
-
-        return 0;
+        try
+        {
+            await host.RunAsync();
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            // Track MCP SDK/transport errors (protocol errors, serialization errors, etc.)
+            ExcelMcpTelemetry.TrackUnhandledException(ex, "McpServer.RunAsync");
+            ExcelMcpTelemetry.Flush(); // Ensure telemetry is sent before exit
+            throw; // Re-throw to preserve original behavior
+        }
     }
 
     /// <summary>
