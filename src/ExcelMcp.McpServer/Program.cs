@@ -85,16 +85,15 @@ public class Program
                     - This prevents data loss from closing mid-operation
 
                     SHOW EXCEL (watch changes live):
-                    - Use excel_file(action:'open', showExcel:true) to display Excel window
-                    - User can watch operations happen in real-time
-                    - Default is showExcel:false (hidden) for faster background automation
+                    - Default is showExcel:false (hidden) - USE THIS DEFAULT unless user explicitly requests visible Excel
+                    - showExcel:true displays Excel window so user can watch operations in real-time
+                    - showExcel:true is SLOWER - only use when user explicitly wants to watch
 
-                    PROACTIVELY OFFER showExcel when:
-                    - First time working with a user on Excel tasks
-                    - Complex multi-step operations (PivotTables, formatting, charts)
-                    - User seems confused about what's happening
-                    - Debugging or troubleshooting issues
-                    Example: "Would you like me to show Excel so you can watch the changes happen?"
+                    WHEN TO ASK (not auto-enable) about showExcel:
+                    - Only ASK if user seems confused about what's happening
+                    - Only ASK if debugging or troubleshooting issues
+                    - Example question: "Would you like me to show Excel so you can watch the changes?"
+                    - DO NOT default to showExcel:true - always use showExcel:false unless user says yes
 
                     WHEN showExcel=true - ASK BEFORE CLOSING:
                     - If Excel is visible, the user is actively watching

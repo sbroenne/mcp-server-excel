@@ -52,7 +52,7 @@ public static partial class ExcelFileTool
     /// <param name="excelPath">Excel file path (.xlsx or .xlsm) - required for open/create-empty, not used for close</param>
     /// <param name="sessionId">Session ID from 'open' action - required for close</param>
     /// <param name="save">Save changes before closing (default: false)</param>
-    /// <param name="showExcel">Show Excel window during operations (default: false). Set true so user can watch changes in real-time.</param>
+    /// <param name="showExcel">Show Excel window during operations. DEFAULT: false (hidden, faster). Only set true if user explicitly requests to watch changes.</param>
     [McpServerTool(Name = "excel_file")]
     [McpMeta("category", "session")]
     public static partial string ExcelFile(
