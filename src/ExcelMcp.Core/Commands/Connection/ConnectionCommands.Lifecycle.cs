@@ -200,7 +200,7 @@ public partial class ConnectionCommands
             // Check if this is a Power Query connection
             if (PowerQueryHelpers.IsPowerQueryConnection(conn))
             {
-                throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Use 'pq-delete' command instead.");
+                throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Use excel_powerquery with action 'Delete' instead.");
             }
 
             // Remove associated QueryTables first

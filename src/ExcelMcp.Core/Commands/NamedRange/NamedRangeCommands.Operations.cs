@@ -6,7 +6,7 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Named range lifecycle operations (List, Set, Get, Create, Update, Delete, CreateBulk)
+/// Named range lifecycle operations (List, Read, Write, Create, Update, Delete)
 /// </summary>
 public partial class NamedRangeCommands
 {

@@ -211,6 +211,7 @@ public enum DataModelAction
     CreateMeasure,
     UpdateMeasure,
     DeleteMeasure,
+    DeleteTable,
     ListRelationships,
     CreateRelationship,
     UpdateRelationship,

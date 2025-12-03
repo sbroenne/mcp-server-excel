@@ -92,7 +92,7 @@ public partial class PivotTableCommands
                                 {
                                     rowFieldCount = pivot.RowFields.Count;
                                 }
-                                catch (System.Runtime.InteropServices.COMException)
+                                catch (COMException)
                                 {
                                     // RowFields.Count may fail for Data Model or OLAP PivotTables
                                 }
@@ -101,7 +101,7 @@ public partial class PivotTableCommands
                                 {
                                     columnFieldCount = pivot.ColumnFields.Count;
                                 }
-                                catch (System.Runtime.InteropServices.COMException)
+                                catch (COMException)
                                 {
                                     // ColumnFields.Count may fail for Data Model or OLAP PivotTables
                                 }
@@ -110,7 +110,7 @@ public partial class PivotTableCommands
                                 {
                                     valueFieldCount = pivot.DataFields.Count;
                                 }
-                                catch (System.Runtime.InteropServices.COMException)
+                                catch (COMException)
                                 {
                                     // DataFields.Count may fail for Data Model or OLAP PivotTables
                                 }
@@ -119,7 +119,7 @@ public partial class PivotTableCommands
                                 {
                                     filterFieldCount = pivot.PageFields.Count;
                                 }
-                                catch (System.Runtime.InteropServices.COMException)
+                                catch (COMException)
                                 {
                                     // PageFields.Count may fail for Data Model or OLAP PivotTables
                                 }

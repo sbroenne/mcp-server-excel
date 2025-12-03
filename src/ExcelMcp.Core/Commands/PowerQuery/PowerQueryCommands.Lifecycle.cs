@@ -37,7 +37,7 @@ public partial class PowerQueryCommands
                         {
                             formula = query.Formula?.ToString() ?? "";
                         }
-                        catch (System.Runtime.InteropServices.COMException)
+                        catch (COMException)
                         {
                             // Formula property not accessible (e.g., corrupted query, permission issue)
                             // Don't fail the entire List operation - just mark this query
@@ -81,7 +81,7 @@ public partial class PowerQueryCommands
                                             {
                                                 queryTable = listObject.QueryTable;
                                             }
-                                            catch (System.Runtime.InteropServices.COMException ex)
+                                            catch (COMException ex)
                                                 when (ex.HResult == unchecked((int)0x800A03EC))
                                             {
                                                 // ListObject doesn't have QueryTable - skip it
@@ -240,7 +240,7 @@ public partial class PowerQueryCommands
                                     else
                                         commandText = queryTable.CommandText?.ToString() ?? "";
                                 }
-                                catch (System.Runtime.InteropServices.COMException)
+                                catch (COMException)
                                 {
                                     // CommandText property may not be accessible for certain QueryTable types
                                 }

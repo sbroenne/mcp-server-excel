@@ -48,6 +48,59 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
+    public void DeleteTable(IExcelBatch batch, string tableName)
+    {
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic? model = null;
+            dynamic? table = null;
+            dynamic? sourceConnection = null;
+            try
+            {
+                // Check if workbook has Data Model
+                if (!HasDataModelTables(ctx.Book))
+                {
+                    throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
+                }
+
+                model = ctx.Book.Model;
+
+                // Find the table
+                table = FindModelTable(model, tableName);
+                if (table == null)
+                {
+                    throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(tableName));
+                }
+
+                // IMPORTANT: ModelTable is read-only and cannot be deleted directly!
+                // The correct way to delete a Data Model table is to delete its
+                // SourceWorkbookConnection. When the connection is deleted,
+                // the associated ModelTable is automatically removed.
+                // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.modeltable
+                // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.workbookconnection.delete
+                sourceConnection = table.SourceWorkbookConnection;
+                if (sourceConnection == null)
+                {
+                    throw new InvalidOperationException(
+                        $"Table '{tableName}' does not have an associated connection and cannot be deleted. " +
+                        "This may indicate the table was created through an unsupported method.");
+                }
+
+                // Delete the connection, which removes the associated Data Model table
+                sourceConnection.Delete();
+            }
+            finally
+            {
+                ComUtilities.Release(ref sourceConnection);
+                ComUtilities.Release(ref table);
+                ComUtilities.Release(ref model);
+            }
+
+            return 0;
+        });
+    }
+
+    /// <inheritdoc />
     public void DeleteRelationship(IExcelBatch batch, string fromTable, string fromColumn, string toTable, string toColumn)
     {
         batch.Execute((ctx, ct) =>

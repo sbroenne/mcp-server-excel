@@ -1414,9 +1414,8 @@ Where: red, green, blue are each 0-255
 // Step 1: Create PivotTable from table
 {
   "tool": "excel_pivottable",
-  "action": "create",
-  "sourceType": "table",
-  "sourceTable": "SalesData",
+  "action": "create-from-table",
+  "tableName": "SalesData",
   "destinationSheet": "Analysis",
   "destinationCell": "A1",
   "pivotTableName": "SalesPivot"

@@ -74,7 +74,16 @@ public static class ExcelToolsBase
             throw new InvalidOperationException(errorMessage);
         }
 
-        return action(batch);
+        // Track operation start/end to prevent premature session close
+        SessionManager.BeginOperation(sessionId);
+        try
+        {
+            return action(batch);
+        }
+        finally
+        {
+            SessionManager.EndOperation(sessionId);
+        }
     }
 
     /// <summary>
@@ -115,7 +124,16 @@ public static class ExcelToolsBase
             throw new InvalidOperationException(errorMessage);
         }
 
-        return await action(batch);
+        // Track operation start/end to prevent premature session close
+        SessionManager.BeginOperation(sessionId);
+        try
+        {
+            return await action(batch);
+        }
+        finally
+        {
+            SessionManager.EndOperation(sessionId);
+        }
     }
 
     /// <summary>
@@ -216,7 +234,7 @@ public static class ExcelToolsBase
         finally
         {
             stopwatch.Stop();
-            ExcelMcpTelemetry.TrackToolInvocation(toolName, actionName, stopwatch.ElapsedMilliseconds, success);
+            ExcelMcpTelemetry.TrackToolInvocation(toolName, actionName, stopwatch.ElapsedMilliseconds, success, excelPath);
         }
     }
 

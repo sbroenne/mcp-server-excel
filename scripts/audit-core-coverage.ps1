@@ -353,6 +353,7 @@ if ($CheckNaming) {
     $knownExceptions = @{
         "TableAction" = @("ApplyFilterValues", "SortMulti")  # Method overloads
         "FileAction" = @("CloseWorkbook", "Open", "Save", "Close", "List")  # MCP-specific session actions
+        "RangeAction" = @("SetNumberFormatCustom")  # MCP action name differs: SetNumberFormatCustom → SetNumberFormat (Core)
     }
 
     $hasNamingIssues = $false

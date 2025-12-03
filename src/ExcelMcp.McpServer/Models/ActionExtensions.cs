@@ -7,6 +7,7 @@ public static class ActionExtensions
 {
     public static string ToActionString(this FileAction action) => action switch
     {
+        FileAction.List => "list",
         FileAction.Open => "open",
         FileAction.Close => "close",
         FileAction.CreateEmpty => "create-empty",
@@ -153,6 +154,7 @@ public static class ActionExtensions
         DataModelAction.CreateMeasure => "create-measure",
         DataModelAction.UpdateMeasure => "update-measure",
         DataModelAction.DeleteMeasure => "delete-measure",
+        DataModelAction.DeleteTable => "delete-table",
         DataModelAction.ListRelationships => "list-relationships",
         DataModelAction.CreateRelationship => "create-relationship",
         DataModelAction.UpdateRelationship => "update-relationship",

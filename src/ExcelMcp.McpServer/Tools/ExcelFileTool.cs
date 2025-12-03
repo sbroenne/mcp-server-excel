@@ -15,8 +15,8 @@ public static partial class ExcelFileTool
     /// Manage Excel files and sessions.
     ///
     /// SESSION VERIFICATION (use instead of calling other tools):
-    /// - LIST - Returns all active sessions (lightweight, no Excel COM calls)
-    /// - Use to verify session exists before operations
+    /// - LIST - Returns all active sessions with status (activeOperations, canClose, isExcelVisible)
+    /// - Use to check if operations are still running before attempting close
     /// - Use to recover sessionId if lost
     ///
     /// SESSION LIFECYCLE:
@@ -26,16 +26,23 @@ public static partial class ExcelFileTool
     ///
     /// IMPORTANT: NO 'SAVE' ACTION - Use action='close' with save:true to persist changes
     ///
-    /// CRITICAL: DO NOT CLOSE SESSION PREMATURELY
-    /// - Keep session open across ALL operations in a workflow
-    /// - ONLY close when user explicitly confirms OR all operations complete
-    /// - Closing mid-workflow loses the session and breaks subsequent operations
+    /// OPERATION TRACKING (automatic protection):
+    /// - Server tracks active operations per session
+    /// - Close is BLOCKED if operations are still running
+    /// - Use LIST to check activeOperations count before closing
+    /// - Wait for canClose=true before closing
+    ///
+    /// WHEN showExcel=true - ASK BEFORE CLOSING:
+    /// - If Excel is visible (isExcelVisible=true in LIST), the user is actively watching
+    /// - ALWAYS ask user before closing: "Would you like me to save and close, or keep it open?"
+    /// - User may want to inspect results, make manual changes, or continue working
+    /// - Do NOT auto-close visible Excel sessions
     ///
     /// WORKFLOWS:
     /// - Verify session: list → check sessionId exists
+    /// - Check before close: list → verify canClose=true → close
     /// - Persist changes: open → operations(sessionId) → close(save: true)
     /// - Discard changes: open → operations(sessionId) → close(save: false)
-    /// - Read-only: open → read(sessionId) → close(save: false)
     ///
     /// FILE FORMATS:
     /// - .xlsx: Standard Excel workbook
@@ -45,7 +52,7 @@ public static partial class ExcelFileTool
     /// <param name="excelPath">Excel file path (.xlsx or .xlsm) - required for open/create-empty, not used for close</param>
     /// <param name="sessionId">Session ID from 'open' action - required for close</param>
     /// <param name="save">Save changes before closing (default: false)</param>
-    /// <param name="showExcel">Show Excel window during operations (default: false). Set true so user can watch changes in real-time.</param>
+    /// <param name="showExcel">Show Excel window during operations. DEFAULT: false (hidden, faster). Only set true if user explicitly requests to watch changes.</param>
     [McpServerTool(Name = "excel_file")]
     [McpMeta("category", "session")]
     public static partial string ExcelFile(
@@ -146,9 +153,39 @@ public static partial class ExcelFileTool
             throw new ArgumentException("sessionId is required for 'close' action", nameof(sessionId));
         }
 
+        var sessionManager = ExcelToolsBase.GetSessionManager();
+
+        // Validate before closing - check for running operations
+        var validation = sessionManager.ValidateClose(sessionId);
+
+        if (!validation.SessionExists)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                sessionId,
+                errorMessage = validation.BlockingReason ?? $"Session '{sessionId}' not found",
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
+
+        if (validation.ActiveOperationCount > 0)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                sessionId,
+                errorMessage = validation.BlockingReason,
+                activeOperations = validation.ActiveOperationCount,
+                isExcelVisible = validation.IsExcelVisible,
+                suggestedAction = "Wait for all operations to complete before closing the session.",
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
+
         try
         {
-            bool success = ExcelToolsBase.GetSessionManager().CloseSession(sessionId, save);
+            bool success = sessionManager.CloseSession(sessionId, save);
 
             if (success)
             {
@@ -218,17 +255,21 @@ public static partial class ExcelFileTool
     }
 
     /// <summary>
-    /// Lists all active sessions. Lightweight operation - no Excel COM calls.
-    /// LLM Pattern: Use this to verify sessions before operations instead of calling other tools.
+    /// Lists all active sessions with status info. Lightweight operation - no Excel COM calls.
+    /// LLM Pattern: Use this to verify sessions and check for running operations before closing.
     /// </summary>
     private static string ListSessions()
     {
-        var sessions = ExcelToolsBase.GetSessionManager().GetActiveSessions();
+        var sessionManager = ExcelToolsBase.GetSessionManager();
+        var sessions = sessionManager.GetActiveSessions();
 
         var sessionList = sessions.Select(s => new
         {
             sessionId = s.SessionId,
-            filePath = s.FilePath
+            filePath = s.FilePath,
+            activeOperations = sessionManager.GetActiveOperationCount(s.SessionId),
+            isExcelVisible = sessionManager.IsExcelVisible(s.SessionId),
+            canClose = sessionManager.GetActiveOperationCount(s.SessionId) == 0
         }).ToList();
 
         return JsonSerializer.Serialize(new

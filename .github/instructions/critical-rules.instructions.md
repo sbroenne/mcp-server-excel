@@ -84,7 +84,7 @@ applyTo: "**"
 |------|--------|------|
 | 20. PR review comments | Check/fix automated comments immediately | 5-10 min |
 | 14. Bug fixes | Complete 6-step process | 30-60 min |
-| 19. Tool descriptions | Verify [Description] matches behavior | Per change |
+| 19. Tool descriptions | Verify XML docs (`/// <summary>`) match behavior | Per change |
 
 **Rare/Specialized:**
 | Rule | Action | When |
@@ -433,7 +433,7 @@ Delete commented-out code (use git history). Exception: Documentation files only
 | 15. Enum mappings | All enum values mapped in ToActionString() | Always |
 | 16. Test scope | Only run tests for code you changed | Per change |
 | 17. MCP error checks | Check result.Success before JsonSerializer.Serialize | Every method |
-| 18. Tool descriptions | Verify [Description] matches tool behavior | Per tool change |
+| 18. Tool descriptions | Verify XML docs (`/// <summary>`) match tool behavior | Per tool change |
 | 19. PR review comments | Check and fix all automated review comments after creating PR | 5-10 min |
 
 
@@ -566,41 +566,45 @@ if (string.IsNullOrWhiteSpace(tableName))
 
 ## Rule 18: Tool Descriptions Must Match Behavior (CRITICAL)
 
-**Tool `[Description]` attributes are part of the MCP schema sent to LLMs. They must be accurate and current.**
+**Tool XML documentation (`/// <summary>`) is extracted by MCP SDK and sent to LLMs. It must be accurate and current.**
 
 **What to verify when changing a tool:**
 
 1. **Purpose and Use Cases Clear**:
    ```csharp
    // ❌ WRONG: Vague description
-   [Description("Manage worksheets")]
+   /// <summary>Manage worksheets</summary>
    
    // ✅ CORRECT: Clear purpose and use cases
-   [Description("Manage Excel worksheet lifecycle: create, rename, copy, delete sheets")]
+   /// <summary>
+   /// Manage Excel worksheet lifecycle: create, rename, copy, delete sheets.
+   /// </summary>
    ```
 
 2. **Non-Enum Parameter Values Documented**:
    ```csharp
    // ❌ WRONG: Parameter values not explained
-   [Description("Import Power Query with loadDestination parameter")]
+   /// <summary>Import Power Query with loadDestination parameter</summary>
    
    // ✅ CORRECT: Non-enum parameter values explained
-   [Description(@"Import Power Query.
-   
-   LOAD DESTINATIONS:
-   - 'worksheet': Load to worksheet (DEFAULT)
-   - 'data-model': Load to Power Pivot
-   - 'both': Load to BOTH
-   - 'connection-only': Don't load data")]
+   /// <summary>
+   /// Import Power Query.
+   /// 
+   /// LOAD DESTINATIONS:
+   /// - 'worksheet': Load to worksheet (DEFAULT)
+   /// - 'data-model': Load to Power Pivot
+   /// - 'both': Load to BOTH
+   /// - 'connection-only': Don't load data
+   /// </summary>
    ```
 
 3. **Server-Specific Behavior Documented**:
    ```csharp
    // ❌ WRONG: Behavior changed but description outdated
-   [Description("Default: loadDestination='connection-only'")]  // Wrong!
+   /// <summary>Default: loadDestination='connection-only'</summary>  // Wrong!
    
    // ✅ CORRECT: Description reflects actual default
-   [Description("Default: loadDestination='worksheet'")]
+   /// <summary>Default: loadDestination='worksheet'</summary>
    ```
 
 **What NOT to include:**

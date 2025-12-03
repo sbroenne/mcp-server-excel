@@ -47,6 +47,7 @@ function Get-InterfaceMethodNames {
 $knownExceptions = @{
     "FileAction" = @("CloseWorkbook", "Open", "Save", "Close", "List")  # Session management actions (MCP-specific)
     "TableAction" = @("ApplyFilterValues", "SortMulti")  # Composite operations
+    "RangeAction" = @("SetNumberFormatCustom")  # Maps to SetNumberFormat Core method (intentional name difference for LLM usability)
 }
 
 # Define mappings: Enum -> Core Interface File

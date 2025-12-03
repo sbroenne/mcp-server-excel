@@ -79,22 +79,27 @@ public class Program
                     3. excel_file(action:'close', save:true/false) → ONLY when completely done
 
                     CRITICAL - DO NOT CLOSE SESSION PREMATURELY:
-                    - WAIT for ALL pending tool calls to return results before closing
-                    - If you called multiple tools in parallel, wait for ALL responses
-                    - Closing while operations are running will cause those operations to FAIL
-                    - Only close when user confirms OR all operations have completed successfully
+                    - Server automatically tracks active operations per session
+                    - Close will be BLOCKED if operations are still running (returns error with count)
+                    - Wait for error message to clear before retrying close
+                    - This prevents data loss from closing mid-operation
 
                     SHOW EXCEL (watch changes live):
-                    - Use excel_file(action:'open', showExcel:true) to display Excel window
-                    - User can watch operations happen in real-time
-                    - Default is showExcel:false (hidden) for faster background automation
-                    
-                    PROACTIVELY OFFER showExcel when:
-                    - First time working with a user on Excel tasks
-                    - Complex multi-step operations (PivotTables, formatting, charts)
-                    - User seems confused about what's happening
-                    - Debugging or troubleshooting issues
-                    Example: "Would you like me to show Excel so you can watch the changes happen?"
+                    - Default is showExcel:false (hidden) - USE THIS DEFAULT unless user explicitly requests visible Excel
+                    - showExcel:true displays Excel window so user can watch operations in real-time
+                    - showExcel:true is SLOWER - only use when user explicitly wants to watch
+
+                    WHEN TO ASK (not auto-enable) about showExcel:
+                    - Only ASK if user seems confused about what's happening
+                    - Only ASK if debugging or troubleshooting issues
+                    - Example question: "Would you like me to show Excel so you can watch the changes?"
+                    - DO NOT default to showExcel:true - always use showExcel:false unless user says yes
+
+                    WHEN showExcel=true - ASK BEFORE CLOSING:
+                    - If Excel is visible, the user is actively watching
+                    - ALWAYS ask user before closing: "Would you like me to save and close the file, or keep it open?"
+                    - User may want to inspect results, make manual changes, or continue working
+                    - Do NOT auto-close visible Excel sessions
                     """;
             })
             .WithToolsFromAssembly()
@@ -118,9 +123,18 @@ public class Program
         // Initialize telemetry client for static access
         InitializeTelemetryClient(host.Services);
 
-        await host.RunAsync();
-
-        return 0;
+        try
+        {
+            await host.RunAsync();
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            // Track MCP SDK/transport errors (protocol errors, serialization errors, etc.)
+            ExcelMcpTelemetry.TrackUnhandledException(ex, "McpServer.RunAsync");
+            ExcelMcpTelemetry.Flush(); // Ensure telemetry is sent before exit
+            throw; // Re-throw to preserve original behavior
+        }
     }
 
     /// <summary>
