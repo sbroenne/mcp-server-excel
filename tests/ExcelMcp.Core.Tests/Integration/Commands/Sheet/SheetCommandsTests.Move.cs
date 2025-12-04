@@ -5,7 +5,7 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Sheet;
 
 /// <summary>
-/// Tests for Sheet move and cross-workbook operations (move, copy-to-workbook, move-to-workbook)
+/// Tests for Sheet move and cross-file operations (move, copy-to-file, move-to-file)
 /// </summary>
 public partial class SheetCommandsTests
 {
@@ -143,219 +143,295 @@ public partial class SheetCommandsTests
     }
 
     // ========================================
-    // COPY-TO-WORKBOOK (cross-workbook) Tests
-    // Tests for copying sheets between different workbooks using multi-file batch
+    // COPY-TO-FILE (atomic cross-file) Tests
+    // Tests for copying sheets between different files using atomic operations
     // ========================================
 
-    /// <inheritdoc/>
     [Fact]
-    public void CopyToWorkbook_WithTargetName_CopiesAndRenames()
+    public void CopyToFile_WithTargetName_CopiesAndRenames()
     {
-        // Arrange
-        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_WithTargetName_CopiesAndRenames), "Source");
-        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_WithTargetName_CopiesAndRenames), "Target");
+        // Arrange - Create source and target files with a sheet to copy
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToFile_WithTargetName_CopiesAndRenames), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToFile_WithTargetName_CopiesAndRenames), "Target");
 
-        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
+        // Create source sheet using a batch
+        using (var batch = ExcelSession.BeginBatch(sourceFile))
+        {
+            _sheetCommands.Create(batch, "SourceSheet");
+            batch.Save();
+        }
 
-        _sheetCommands.Create(batch, "SourceSheet", sourceFile);
+        // Act - Copy sheet to target file with new name (atomic operation)
+        _sheetCommands.CopyToFile(sourceFile, "SourceSheet", targetFile, "CopiedSheet");
 
-        // Act - Copy sheet to target workbook with new name
-        _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile, "CopiedSheet");  // CopyToWorkbook throws on error
+        // Assert - Verify sheet exists in target file with new name
+        using (var batch = ExcelSession.BeginBatch(targetFile))
+        {
+            var targetList = _sheetCommands.List(batch);
+            Assert.Contains(targetList.Worksheets, s => s.Name == "CopiedSheet");
+        }
 
-        // Assert - reaching here means copy succeeded
-
-        // Verify sheet exists in target workbook with new name
-        var targetList = _sheetCommands.List(batch, targetFile);
-        Assert.Contains(targetList.Worksheets, s => s.Name == "CopiedSheet");
-
-        // Verify source sheet still exists in source workbook
-        var sourceList = _sheetCommands.List(batch, sourceFile);
-        Assert.Contains(sourceList.Worksheets, s => s.Name == "SourceSheet");
+        // Verify source sheet still exists in source file
+        using (var batch = ExcelSession.BeginBatch(sourceFile))
+        {
+            var sourceList = _sheetCommands.List(batch);
+            Assert.Contains(sourceList.Worksheets, s => s.Name == "SourceSheet");
+        }
     }
 
-    /// <inheritdoc/>
     [Fact]
-    public void CopyToWorkbook_NoTargetName_CopiesWithOriginalName()
+    public void CopyToFile_NoTargetName_CopiesWithOriginalName()
     {
         // Arrange
-        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_NoTargetName_CopiesWithOriginalName), "Source");
-        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_NoTargetName_CopiesWithOriginalName), "Target");
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToFile_NoTargetName_CopiesWithOriginalName), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToFile_NoTargetName_CopiesWithOriginalName), "Target");
 
-        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
-
-        _sheetCommands.Create(batch, "SourceSheet", sourceFile);
+        using (var batch = ExcelSession.BeginBatch(sourceFile))
+        {
+            _sheetCommands.Create(batch, "SourceSheet");
+            batch.Save();
+        }
 
         // Act - Copy without specifying target name
-        _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile);  // CopyToWorkbook throws on error
+        _sheetCommands.CopyToFile(sourceFile, "SourceSheet", targetFile);
 
-        // Assert - reaching here means copy succeeded
-
-        // Verify sheet was copied (Excel keeps original name)
-        var targetList = _sheetCommands.List(batch, targetFile);
-        Assert.Contains(targetList.Worksheets, s => s.Name == "SourceSheet");
+        // Assert - Verify sheet was copied with original name
+        using (var batch = ExcelSession.BeginBatch(targetFile))
+        {
+            var targetList = _sheetCommands.List(batch);
+            Assert.Contains(targetList.Worksheets, s => s.Name == "SourceSheet");
+        }
     }
 
-    /// <inheritdoc/>
     [Fact]
-    public void CopyToWorkbook_WithBeforeSheet_PositionsCorrectly()
+    public void CopyToFile_WithBeforeSheet_PositionsCorrectly()
     {
         // Arrange
-        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_WithBeforeSheet_PositionsCorrectly), "Source");
-        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_WithBeforeSheet_PositionsCorrectly), "Target");
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToFile_WithBeforeSheet_PositionsCorrectly), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToFile_WithBeforeSheet_PositionsCorrectly), "Target");
 
-        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
+        using (var batch = ExcelSession.BeginBatch(sourceFile))
+        {
+            _sheetCommands.Create(batch, "SourceSheet");
+            batch.Save();
+        }
 
-        _sheetCommands.Create(batch, "SourceSheet", sourceFile);
+        // Act - Copy before Sheet1 in target file
+        _sheetCommands.CopyToFile(sourceFile, "SourceSheet", targetFile, "Copied", beforeSheet: "Sheet1");
 
-        // Act - Copy before Sheet1 in target workbook
-        _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile, "Copied", beforeSheet: "Sheet1");  // CopyToWorkbook throws on error
-
-        // Assert - reaching here means copy succeeded
-
-        // Verify sheet was copied to target workbook
-        var targetList = _sheetCommands.List(batch, targetFile);
-        Assert.Contains(targetList.Worksheets, s => s.Name == "Copied");
+        // Assert - Verify sheet was copied and positioned before Sheet1
+        using (var batch = ExcelSession.BeginBatch(targetFile))
+        {
+            var targetList = _sheetCommands.List(batch);
+            var sheets = targetList.Worksheets.ToList();
+            var copiedIndex = sheets.FindIndex(s => s.Name == "Copied");
+            var sheet1Index = sheets.FindIndex(s => s.Name == "Sheet1");
+            Assert.True(copiedIndex < sheet1Index, $"Expected Copied (index {copiedIndex}) to be before Sheet1 (index {sheet1Index})");
+        }
     }
 
-    /// <inheritdoc/>
     [Fact]
-    public void CopyToWorkbook_WithAfterSheet_PositionsCorrectly()
+    public void CopyToFile_WithAfterSheet_PositionsCorrectly()
     {
         // Arrange
-        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_WithAfterSheet_PositionsCorrectly), "Source");
-        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_WithAfterSheet_PositionsCorrectly), "Target");
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToFile_WithAfterSheet_PositionsCorrectly), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToFile_WithAfterSheet_PositionsCorrectly), "Target");
 
-        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
+        using (var batch = ExcelSession.BeginBatch(sourceFile))
+        {
+            _sheetCommands.Create(batch, "SourceSheet");
+            batch.Save();
+        }
 
-        _sheetCommands.Create(batch, "SourceSheet", sourceFile);
+        // Act - Copy after Sheet1 in target file
+        _sheetCommands.CopyToFile(sourceFile, "SourceSheet", targetFile, "Copied", afterSheet: "Sheet1");
 
-        // Act - Copy after Sheet1 in target workbook
-        _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile, "Copied", afterSheet: "Sheet1");  // CopyToWorkbook throws on error
-
-        // Assert - reaching here means copy succeeded
-
-        // Verify sheet was copied to target workbook
-        var targetList = _sheetCommands.List(batch, targetFile);
-        Assert.Contains(targetList.Worksheets, s => s.Name == "Copied");
+        // Assert - Verify sheet was copied and positioned after Sheet1
+        using (var batch = ExcelSession.BeginBatch(targetFile))
+        {
+            var targetList = _sheetCommands.List(batch);
+            var sheets = targetList.Worksheets.ToList();
+            var copiedIndex = sheets.FindIndex(s => s.Name == "Copied");
+            var sheet1Index = sheets.FindIndex(s => s.Name == "Sheet1");
+            Assert.True(copiedIndex > sheet1Index, $"Expected Copied (index {copiedIndex}) to be after Sheet1 (index {sheet1Index})");
+        }
     }
 
-    /// <inheritdoc/>
     [Fact]
-    public void CopyToWorkbook_BothBeforeAndAfter_ThrowsException()
+    public void CopyToFile_BothBeforeAndAfter_ThrowsException()
     {
         // Arrange
-        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_BothBeforeAndAfter_ThrowsException), "Source");
-        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_BothBeforeAndAfter_ThrowsException), "Target");
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToFile_BothBeforeAndAfter_ThrowsException), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToFile_BothBeforeAndAfter_ThrowsException), "Target");
 
-        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
-
-        _sheetCommands.Create(batch, "SourceSheet", sourceFile);
+        using (var batch = ExcelSession.BeginBatch(sourceFile))
+        {
+            _sheetCommands.Create(batch, "SourceSheet");
+            batch.Save();
+        }
 
         // Act & Assert - Should throw ArgumentException when both beforeSheet and afterSheet specified
         var exception = Assert.Throws<ArgumentException>(
-            () => _sheetCommands.CopyToWorkbook(batch, sourceFile, "SourceSheet", targetFile, "Copied", beforeSheet: "Sheet1", afterSheet: "Sheet1"));
+            () => _sheetCommands.CopyToFile(sourceFile, "SourceSheet", targetFile, "Copied", beforeSheet: "Sheet1", afterSheet: "Sheet1"));
         Assert.Contains("both beforeSheet and afterSheet", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-
-    // ========================================
-    // MOVE-TO-WORKBOOK (cross-workbook) Tests
-    // Tests for moving sheets between different workbooks using multi-file batch
-    // ========================================
-
-    /// <inheritdoc/>
     [Fact]
-    public void MoveToWorkbook_Default_MovesSheetSuccessfully()
+    public void CopyToFile_SameFile_ThrowsException()
     {
         // Arrange
-        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToWorkbook_Default_MovesSheetSuccessfully), "Source");
-        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToWorkbook_Default_MovesSheetSuccessfully), "Target");
+        var testFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToFile_SameFile_ThrowsException), "Test");
 
-        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
-
-        _sheetCommands.Create(batch, "MoveMe", sourceFile);
-
-        // Act - Move sheet to target workbook
-        _sheetCommands.MoveToWorkbook(batch, sourceFile, "MoveMe", targetFile);  // MoveToWorkbook throws on error
-
-        // Assert - reaching here means move succeeded
-
-        // Verify sheet exists in target workbook
-        var targetList = _sheetCommands.List(batch, targetFile);
-        Assert.Contains(targetList.Worksheets, s => s.Name == "MoveMe");
-
-        // Verify sheet no longer exists in source workbook
-        var sourceList = _sheetCommands.List(batch, sourceFile);
-        Assert.DoesNotContain(sourceList.Worksheets, s => s.Name == "MoveMe");
-    }
-
-    /// <inheritdoc/>
-    [Fact]
-    public void MoveToWorkbook_WithBeforeSheet_PositionsCorrectly()
-    {
-        // Arrange
-        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToWorkbook_WithBeforeSheet_PositionsCorrectly), "Source");
-        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToWorkbook_WithBeforeSheet_PositionsCorrectly), "Target");
-
-        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
-
-        _sheetCommands.Create(batch, "MoveMe", sourceFile);
-
-        // Act - Move before Sheet1 in target workbook
-        _sheetCommands.MoveToWorkbook(batch, sourceFile, "MoveMe", targetFile, beforeSheet: "Sheet1");  // MoveToWorkbook throws on error
-
-        // Assert - reaching here means move succeeded
-
-        // Verify sheet was moved to target workbook
-        var targetList = _sheetCommands.List(batch, targetFile);
-        Assert.Contains(targetList.Worksheets, s => s.Name == "MoveMe");
-
-        // Verify removal from source
-        var sourceList = _sheetCommands.List(batch, sourceFile);
-        Assert.DoesNotContain(sourceList.Worksheets, s => s.Name == "MoveMe");
-    }
-
-    /// <inheritdoc/>
-    [Fact]
-    public void MoveToWorkbook_WithAfterSheet_PositionsCorrectly()
-    {
-        // Arrange
-        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToWorkbook_WithAfterSheet_PositionsCorrectly), "Source");
-        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToWorkbook_WithAfterSheet_PositionsCorrectly), "Target");
-
-        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
-
-        _sheetCommands.Create(batch, "MoveMe", sourceFile);
-
-        // Act - Move after Sheet1 in target workbook
-        _sheetCommands.MoveToWorkbook(batch, sourceFile, "MoveMe", targetFile, afterSheet: "Sheet1");  // MoveToWorkbook throws on error
-
-        // Assert - reaching here means move succeeded
-
-        // Verify sheet was moved to target workbook
-        var targetList = _sheetCommands.List(batch, targetFile);
-        Assert.Contains(targetList.Worksheets, s => s.Name == "MoveMe");
-
-        // Verify removal from source
-        var sourceList = _sheetCommands.List(batch, sourceFile);
-        Assert.DoesNotContain(sourceList.Worksheets, s => s.Name == "MoveMe");
-    }
-
-    /// <inheritdoc/>
-    [Fact]
-    public void MoveToWorkbook_BothBeforeAndAfter_ThrowsException()
-    {
-        // Arrange
-        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToWorkbook_BothBeforeAndAfter_ThrowsException), "Source");
-        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToWorkbook_BothBeforeAndAfter_ThrowsException), "Target");
-
-        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
-
-        _sheetCommands.Create(batch, "MoveMe", sourceFile);
-
-        // Act & Assert - Should throw ArgumentException when both beforeSheet and afterSheet specified
+        // Act & Assert - Should throw when source and target are the same
         var exception = Assert.Throws<ArgumentException>(
-            () => _sheetCommands.MoveToWorkbook(batch, sourceFile, "MoveMe", targetFile, beforeSheet: "Sheet1", afterSheet: "Sheet1"));
+            () => _sheetCommands.CopyToFile(testFile, "Sheet1", testFile, "Copied"));
+        Assert.Contains("same-file copy", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void CopyToFile_SourceFileNotFound_ThrowsException()
+    {
+        // Arrange
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToFile_SourceFileNotFound_ThrowsException), "Target");
+        var nonExistentSource = Path.Combine(_fixture.TempDir, "NonExistent.xlsx");
+
+        // Act & Assert
+        var exception = Assert.Throws<FileNotFoundException>(
+            () => _sheetCommands.CopyToFile(nonExistentSource, "Sheet1", targetFile));
+        Assert.Contains("Source file not found", exception.Message);
+    }
+
+    [Fact]
+    public void CopyToFile_TargetFileNotFound_ThrowsException()
+    {
+        // Arrange
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToFile_TargetFileNotFound_ThrowsException), "Source");
+        var nonExistentTarget = Path.Combine(_fixture.TempDir, "NonExistent.xlsx");
+
+        // Act & Assert
+        var exception = Assert.Throws<FileNotFoundException>(
+            () => _sheetCommands.CopyToFile(sourceFile, "Sheet1", nonExistentTarget));
+        Assert.Contains("Target file not found", exception.Message);
+    }
+
+    // ========================================
+    // MOVE-TO-FILE (atomic cross-file) Tests
+    // Tests for moving sheets between different files using atomic operations
+    // ========================================
+
+    [Fact]
+    public void MoveToFile_Default_MovesSheetSuccessfully()
+    {
+        // Arrange
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToFile_Default_MovesSheetSuccessfully), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToFile_Default_MovesSheetSuccessfully), "Target");
+
+        using (var batch = ExcelSession.BeginBatch(sourceFile))
+        {
+            _sheetCommands.Create(batch, "MoveMe");
+            batch.Save();
+        }
+
+        // Act - Move sheet to target file (atomic operation)
+        _sheetCommands.MoveToFile(sourceFile, "MoveMe", targetFile);
+
+        // Assert - Verify sheet exists in target file
+        using (var batch = ExcelSession.BeginBatch(targetFile))
+        {
+            var targetList = _sheetCommands.List(batch);
+            Assert.Contains(targetList.Worksheets, s => s.Name == "MoveMe");
+        }
+
+        // Verify sheet no longer exists in source file
+        using (var batch = ExcelSession.BeginBatch(sourceFile))
+        {
+            var sourceList = _sheetCommands.List(batch);
+            Assert.DoesNotContain(sourceList.Worksheets, s => s.Name == "MoveMe");
+        }
+    }
+
+    [Fact]
+    public void MoveToFile_WithBeforeSheet_PositionsCorrectly()
+    {
+        // Arrange
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToFile_WithBeforeSheet_PositionsCorrectly), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToFile_WithBeforeSheet_PositionsCorrectly), "Target");
+
+        using (var batch = ExcelSession.BeginBatch(sourceFile))
+        {
+            _sheetCommands.Create(batch, "MoveMe");
+            batch.Save();
+        }
+
+        // Act - Move before Sheet1 in target file
+        _sheetCommands.MoveToFile(sourceFile, "MoveMe", targetFile, beforeSheet: "Sheet1");
+
+        // Assert - Verify sheet was moved and positioned correctly
+        using (var batch = ExcelSession.BeginBatch(targetFile))
+        {
+            var targetList = _sheetCommands.List(batch);
+            var sheets = targetList.Worksheets.ToList();
+            var moveMeIndex = sheets.FindIndex(s => s.Name == "MoveMe");
+            var sheet1Index = sheets.FindIndex(s => s.Name == "Sheet1");
+            Assert.True(moveMeIndex < sheet1Index, $"Expected MoveMe (index {moveMeIndex}) to be before Sheet1 (index {sheet1Index})");
+        }
+    }
+
+    [Fact]
+    public void MoveToFile_WithAfterSheet_PositionsCorrectly()
+    {
+        // Arrange
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToFile_WithAfterSheet_PositionsCorrectly), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToFile_WithAfterSheet_PositionsCorrectly), "Target");
+
+        using (var batch = ExcelSession.BeginBatch(sourceFile))
+        {
+            _sheetCommands.Create(batch, "MoveMe");
+            batch.Save();
+        }
+
+        // Act - Move after Sheet1 in target file
+        _sheetCommands.MoveToFile(sourceFile, "MoveMe", targetFile, afterSheet: "Sheet1");
+
+        // Assert - Verify sheet was moved and positioned correctly
+        using (var batch = ExcelSession.BeginBatch(targetFile))
+        {
+            var targetList = _sheetCommands.List(batch);
+            var sheets = targetList.Worksheets.ToList();
+            var moveMeIndex = sheets.FindIndex(s => s.Name == "MoveMe");
+            var sheet1Index = sheets.FindIndex(s => s.Name == "Sheet1");
+            Assert.True(moveMeIndex > sheet1Index, $"Expected MoveMe (index {moveMeIndex}) to be after Sheet1 (index {sheet1Index})");
+        }
+    }
+
+    [Fact]
+    public void MoveToFile_BothBeforeAndAfter_ThrowsException()
+    {
+        // Arrange
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToFile_BothBeforeAndAfter_ThrowsException), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToFile_BothBeforeAndAfter_ThrowsException), "Target");
+
+        using (var batch = ExcelSession.BeginBatch(sourceFile))
+        {
+            _sheetCommands.Create(batch, "MoveMe");
+            batch.Save();
+        }
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(
+            () => _sheetCommands.MoveToFile(sourceFile, "MoveMe", targetFile, beforeSheet: "Sheet1", afterSheet: "Sheet1"));
         Assert.Contains("both beforeSheet and afterSheet", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void MoveToFile_SameFile_ThrowsException()
+    {
+        // Arrange
+        var testFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToFile_SameFile_ThrowsException), "Test");
+
+        // Act & Assert - Should throw when source and target are the same
+        var exception = Assert.Throws<ArgumentException>(
+            () => _sheetCommands.MoveToFile(testFile, "Sheet1", testFile));
+        Assert.Contains("same-file move", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 }

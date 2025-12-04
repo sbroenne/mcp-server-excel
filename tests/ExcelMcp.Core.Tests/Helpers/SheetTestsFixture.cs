@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
 /// <summary>
 /// Shared fixture for SheetCommandsTests that provides a single Excel file for single-workbook tests.
-/// Cross-workbook tests (CopyToWorkbook, MoveToWorkbook) still create their own file pairs.
+/// Cross-file tests (CopyToFile, MoveToFile) create their own file pairs.
 /// Uses IAsyncLifetime to create file once for all tests, reducing test execution time.
 /// </summary>
 public class SheetTestsFixture : IAsyncLifetime

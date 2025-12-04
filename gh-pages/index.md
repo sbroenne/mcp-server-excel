@@ -397,8 +397,8 @@ Same 172 operations available via CLI and MCP. Consistent behavior across interf
 | `copy` | Copy worksheet within same workbook |
 | `delete` | Delete worksheet |
 | `move` | Move worksheet to different position |
-| `copy-to-workbook` | Copy worksheet to different workbook |
-| `move-to-workbook` | Move worksheet to different workbook |
+| `copy-to-file` | Copy worksheet to different file (atomic, no session needed) |
+| `move-to-file` | Move worksheet to different file (atomic, no session needed) |
 | `set-tab-color` | Set worksheet tab color (RGB) |
 | `get-tab-color` | Get current tab color |
 | `clear-tab-color` | Remove tab color |

@@ -63,33 +63,33 @@ public interface ISheetCommands
     /// <param name="afterSheet">Optional: Name of sheet to position after</param>
     void Move(IExcelBatch batch, string sheetName, string? beforeSheet = null, string? afterSheet = null);
 
-    /// <summary>
-    /// Copies a worksheet to another workbook.
-    /// Both workbooks must be open in the same batch (multi-workbook batch).
-    /// Throws exception on error.
-    /// </summary>
-    /// <param name="batch">Excel batch containing both workbooks</param>
-    /// <param name="sourceFile">Source workbook file path</param>
-    /// <param name="sourceSheet">Name of sheet to copy</param>
-    /// <param name="targetFile">Target workbook file path</param>
-    /// <param name="targetSheetName">Optional: New name for the copied sheet in target workbook</param>
-    /// <param name="beforeSheet">Optional: Name of sheet in target workbook to position before</param>
-    /// <param name="afterSheet">Optional: Name of sheet in target workbook to position after</param>
-    void CopyToWorkbook(IExcelBatch batch, string sourceFile, string sourceSheet, string targetFile, string? targetSheetName = null, string? beforeSheet = null, string? afterSheet = null);
+    // === ATOMIC CROSS-FILE OPERATIONS ===
 
     /// <summary>
-    /// Moves a worksheet to another workbook.
-    /// Both workbooks must be open in the same batch (multi-workbook batch).
-    /// The sheet will be removed from the source workbook.
-    /// Throws exception on error.
+    /// Copies a worksheet to another file (atomic operation - no session required).
+    /// Creates a temporary Excel instance, opens both files, performs the copy,
+    /// saves the target file, and closes both files.
     /// </summary>
-    /// <param name="batch">Excel batch containing both workbooks</param>
-    /// <param name="sourceFile">Source workbook file path</param>
-    /// <param name="sourceSheet">Name of sheet to move</param>
-    /// <param name="targetFile">Target workbook file path</param>
-    /// <param name="beforeSheet">Optional: Name of sheet in target workbook to position before</param>
-    /// <param name="afterSheet">Optional: Name of sheet in target workbook to position after</param>
-    void MoveToWorkbook(IExcelBatch batch, string sourceFile, string sourceSheet, string targetFile, string? beforeSheet = null, string? afterSheet = null);
+    /// <param name="sourceFile">Full path to the source workbook</param>
+    /// <param name="sourceSheet">Name of the sheet to copy</param>
+    /// <param name="targetFile">Full path to the target workbook</param>
+    /// <param name="targetSheetName">Optional: New name for the copied sheet (default: keeps original name)</param>
+    /// <param name="beforeSheet">Optional: Position before this sheet in target</param>
+    /// <param name="afterSheet">Optional: Position after this sheet in target</param>
+    void CopyToFile(string sourceFile, string sourceSheet, string targetFile, string? targetSheetName = null, string? beforeSheet = null, string? afterSheet = null);
+
+    /// <summary>
+    /// Moves a worksheet to another file (atomic operation - no session required).
+    /// Creates a temporary Excel instance, opens both files, performs the move,
+    /// saves both files, and closes them.
+    /// This is the RECOMMENDED way to move sheets between files.
+    /// </summary>
+    /// <param name="sourceFile">Full path to the source workbook</param>
+    /// <param name="sourceSheet">Name of the sheet to move</param>
+    /// <param name="targetFile">Full path to the target workbook</param>
+    /// <param name="beforeSheet">Optional: Position before this sheet in target</param>
+    /// <param name="afterSheet">Optional: Position after this sheet in target</param>
+    void MoveToFile(string sourceFile, string sourceSheet, string targetFile, string? beforeSheet = null, string? afterSheet = null);
 
     // === TAB COLOR OPERATIONS ===
 

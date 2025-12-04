@@ -9,7 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Sheet;
 /// These tests require Excel installation and validate Core worksheet lifecycle management.
 /// Tests use Core commands directly (not through CLI wrapper).
 /// Single-workbook tests share one Excel file with unique sheets for isolation.
-/// Cross-workbook tests (CopyToWorkbook, MoveToWorkbook) use their own file pairs.
+/// Cross-file tests (CopyToFile, MoveToFile) use their own file pairs.
 /// Data operations (read, write, clear) moved to RangeCommandsTests.
 /// </summary>
 [Trait("Layer", "Core")]
