@@ -185,7 +185,6 @@ public partial class PowerQueryCommands
             dynamic? query = null;
             dynamic? worksheets = null;
             dynamic? connections = null;
-            dynamic? names = null;
             try
             {
                 query = ComUtilities.FindQuery(ctx.Book, queryName);
@@ -275,79 +274,64 @@ public partial class PowerQueryCommands
                     if (hasTableConnection) break;
                 }
 
-                // Check for connections (for data model or other types)
+                // Check connections for Data Model membership using InModel property
                 connections = ctx.Book.Connections;
                 for (int i = 1; i <= connections.Count; i++)
                 {
                     dynamic? conn = null;
+                    dynamic? oledbConn = null;
                     try
                     {
                         conn = connections.Item(i);
                         string connName = conn.Name?.ToString() ?? "";
 
-                        if (connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
-                            connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase))
+                        // Check if this connection is related to our query
+                        bool isQueryConnection = connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
+                            connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase);
+
+                        // Also check connection string for Power Query pattern
+                        if (!isQueryConnection)
+                        {
+                            try
+                            {
+                                oledbConn = conn.OLEDBConnection;
+                                if (oledbConn != null)
+                                {
+                                    string connString = oledbConn.Connection?.ToString() ?? "";
+                                    bool isPowerQuery = connString.Contains("Provider=Microsoft.Mashup.OleDb.1", StringComparison.OrdinalIgnoreCase);
+                                    bool matchesQuery = connString.Contains($"Location={queryName}", StringComparison.OrdinalIgnoreCase);
+                                    isQueryConnection = isPowerQuery && matchesQuery;
+                                }
+                            }
+                            catch
+                            {
+                                // Connection doesn't have OLEDBConnection
+                            }
+                        }
+
+                        if (isQueryConnection)
                         {
                             result.HasConnection = true;
 
-                            // If we don't have a table connection but have a workbook connection,
-                            // it's likely a data model connection
-                            if (!hasTableConnection)
+                            // Check InModel property to detect Data Model connections
+                            try
                             {
-                                hasDataModelConnection = true;
+                                bool inModel = conn.InModel;
+                                if (inModel)
+                                {
+                                    hasDataModelConnection = true;
+                                }
                             }
-                        }
-                        else if (connName.Equals($"DataModel_{queryName}", StringComparison.OrdinalIgnoreCase))
-                        {
-                            // This is our explicit data model connection marker
-                            result.HasConnection = true;
-                            hasDataModelConnection = true;
+                            catch
+                            {
+                                // InModel property not available
+                            }
                         }
                     }
                     finally
                     {
+                        ComUtilities.Release(ref oledbConn!);
                         ComUtilities.Release(ref conn);
-                    }
-                }
-
-                // Always check for named range markers that indicate data model loading
-                // (even if we have table connections, for LoadToBoth mode)
-                if (!hasDataModelConnection)
-                {
-                    // Check for our data model marker
-                    try
-                    {
-                        names = ctx.Book.Names;
-                        string markerName = $"DataModel_Query_{queryName}";
-
-                        for (int i = 1; i <= names.Count; i++)
-                        {
-                            dynamic? existingName = null;
-                            try
-                            {
-                                existingName = names.Item(i);
-                                if (existingName.Name.ToString() == markerName)
-                                {
-                                    hasDataModelConnection = true;
-                                    ComUtilities.Release(ref existingName);
-                                    break;
-                                }
-                            }
-                            finally
-                            {
-                                ComUtilities.Release(ref existingName);
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        // Cannot check names
-                    }
-
-                    // Fallback: Check if the query has data model indicators
-                    if (!hasDataModelConnection)
-                    {
-                        hasDataModelConnection = CheckQueryDataModelConfiguration(query);
                     }
                 }
 
@@ -376,7 +360,6 @@ public partial class PowerQueryCommands
             }
             finally
             {
-                ComUtilities.Release(ref names);
                 ComUtilities.Release(ref connections);
                 ComUtilities.Release(ref worksheets);
                 ComUtilities.Release(ref query);
