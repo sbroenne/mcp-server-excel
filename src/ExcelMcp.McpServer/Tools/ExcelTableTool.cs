@@ -26,7 +26,7 @@ public static partial class TableTool
     /// <param name="tableStyle">Table style name (e.g., 'TableStyleMedium2') for create/set-style, or total function (sum/avg/count) for set-column-total, or CSV data for append</param>
     /// <param name="filterCriteria">Filter criteria (e.g., '>100', '=Text') for apply-filter, or column position (0-based) for add-column</param>
     /// <param name="filterValues">JSON array of filter values (e.g., '["Value1","Value2"]') for apply-filter-values</param>
-    /// <param name="formatCode">Excel format code for set-column-number-format (e.g., '$#,##0.00', '0.00%', 'm/d/yyyy')</param>
+    /// <param name="formatCode">Excel format code for set-column-number-format. ALWAYS use US format codes (e.g., '$#,##0.00', '0.00%', 'm/d/yyyy'). The server auto-translates to the user's locale.</param>
     /// <param name="visibleOnly">When reading data, return only rows currently visible after filters (default: false)</param>
     [McpServerTool(Name = "excel_table")]
     [McpMeta("category", "data")]

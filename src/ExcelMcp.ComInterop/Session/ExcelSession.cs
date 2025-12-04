@@ -178,6 +178,12 @@ public static class ExcelSession
                 excel.Visible = false;
                 excel.DisplayAlerts = false;
 
+                // Use US-style separators (. for decimal, , for thousands) regardless of system locale
+                // This ensures format codes like "$#,##0.00" work consistently across all locales
+                excel.UseSystemSeparators = false;
+                excel.DecimalSeparator = ".";
+                excel.ThousandsSeparator = ",";
+
                 workbook = excel.Workbooks.Add();
 
                 // SaveAs with 5-minute timeout

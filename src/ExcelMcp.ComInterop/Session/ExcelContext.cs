@@ -1,3 +1,5 @@
+using Sbroenne.ExcelMcp.ComInterop.Formatting;
+
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
 /// <summary>
@@ -17,6 +19,9 @@ public sealed class ExcelContext
         WorkbookPath = workbookPath ?? throw new ArgumentNullException(nameof(workbookPath));
         App = excel ?? throw new ArgumentNullException(nameof(excel));
         Book = workbook ?? throw new ArgumentNullException(nameof(workbook));
+
+        // Initialize date format translator with locale-specific codes from Excel
+        DateFormatter = new DateFormatTranslator(excel);
     }
 
     /// <summary>
@@ -33,4 +38,21 @@ public sealed class ExcelContext
     /// Gets the Excel.Workbook COM object.
     /// </summary>
     public dynamic Book { get; }
+
+    /// <summary>
+    /// Gets the date format translator for converting US date format codes to locale-specific codes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Use this to translate format strings like "m/d/yyyy" to locale-specific codes
+    /// (e.g., "M/T/JJJJ" on German Excel) before setting <c>Range.NumberFormat</c>.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// string localeFormat = ctx.DateFormatter.TranslateToLocale("m/d/yyyy");
+    /// range.NumberFormat = localeFormat;
+    /// </code>
+    /// </example>
+    /// </remarks>
+    public DateFormatTranslator DateFormatter { get; }
 }

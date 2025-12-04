@@ -58,10 +58,19 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 throw new InvalidOperationException($"Field '{fieldName}' not found in OLAP PivotTable. Use the exact CubeField name (e.g., '[Measures].[ACR]' or '[TableName].[ColumnName]').");
             }
 
-            // CRITICAL FIX: CreatePivotFields() must be called before manipulating OLAP fields
-            // Without this, PivotFields don't exist and operations fail
-            // Reference: https://github.com/NetOfficeFw/NetOffice/search?q=CreatePivotFields
-            cubeField.CreatePivotFields();
+            // CreatePivotFields() initializes PivotFields for fields not yet in the PivotTable.
+            // It may throw if PivotFields already exist (field already in Values area).
+            // Safe to ignore error - if PivotFields exist, we're good; if they don't and this fails, 
+            // subsequent operations will provide a more specific error.
+            // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.cubefield.createpivotfields
+            try
+            {
+                cubeField.CreatePivotFields();
+            }
+            catch
+            {
+                // PivotFields may already exist (field already added to PivotTable)
+            }
 
             return cubeField; // Return CubeField, not PivotField
         }
@@ -725,93 +734,69 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// <inheritdoc/>
     public PivotFieldResult SetFieldFormat(dynamic pivot, string fieldName, string numberFormat, string workbookPath)
     {
-        dynamic? workbook = null;
-        dynamic? model = null;
-        dynamic? measures = null;
-        dynamic? measure = null;
-        dynamic? formatObject = null;
+        dynamic? cubeField = null;
+        dynamic? pivotFields = null;
+        dynamic? pivotField = null;
         try
         {
-            // For OLAP PivotTables, we need to update the measure format in the Data Model
-            // Get workbook and model
-            workbook = pivot.Parent.Parent;
-            model = workbook.Model;
+            // For OLAP PivotTables, find the CubeField and set NumberFormat on its PivotField
+            // This works for measures in the Values area (including [Measures].[Name] format)
+            cubeField = GetFieldForManipulation(pivot, fieldName);
 
-            if (model == null)
+            // Verify the field is in the Values area (only data fields can have number formats)
+            int orientation = Convert.ToInt32(cubeField.Orientation);
+            if (orientation != XlPivotFieldOrientation.xlDataField)
             {
                 throw new InvalidOperationException(
-                    $"Cannot update format for measure '{fieldName}' - workbook has no Data Model");
+                    $"Field '{fieldName}' is not in the Values area (Orientation={orientation}). " +
+                    "Only value fields can have number formats.");
             }
 
-            // Find the measure by name
-            measures = model.ModelMeasures;
-            for (int i = 1; i <= measures.Count; i++)
+            // Access the PivotFields collection to set the NumberFormat
+            // OLAP CubeFields expose their formatting through PivotFields
+            pivotFields = cubeField.PivotFields;
+            if (pivotFields == null || pivotFields.Count == 0)
             {
-                dynamic? m = null;
-                try
-                {
-                    m = measures.Item(i);
-                    string mName = m.Name?.ToString() ?? "";
-                    if (mName.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        measure = m;
-                        m = null; // Transfer ownership
-                        break;
-                    }
-                }
-                finally
-                {
-                    if (m != null)
-                        ComUtilities.Release(ref m);
-                }
+                throw new InvalidOperationException(
+                    $"Cannot format OLAP field '{fieldName}' - PivotFields not available. " +
+                    "Ensure the field has been added to the Values area.");
             }
 
-            if (measure == null)
-            {
-                throw new InvalidOperationException($"Measure '{fieldName}' not found in Data Model");
-            }
-
-            // Get the CURRENT format object from the measure
-            // FormatInformation property returns the current format object which we can modify
-            formatObject = measure.FormatInformation;
-
-            if (formatObject == null)
-            {
-                throw new InvalidOperationException($"Measure '{fieldName}' has no format information");
-            }
-
-            // Modify the format object based on the requested format string
-            // The format object type varies (Currency, Percentage, Decimal, etc.)
-            ModifyFormatObject(formatObject, numberFormat);
+            // Get the first (and typically only) PivotField and set its NumberFormat
+            pivotField = pivotFields.Item(1);
+            pivotField.NumberFormat = numberFormat;
 
             // Refresh the PivotTable to reflect the change
             pivot.RefreshTable();
+
+            // Read back the format to verify it was set
+            string? appliedFormat = null;
+            try
+            {
+                appliedFormat = pivotField.NumberFormat?.ToString();
+            }
+            catch
+            {
+                // If we can't read it back, use what we set
+                appliedFormat = numberFormat;
+            }
 
             return new PivotFieldResult
             {
                 Success = true,
                 FieldName = fieldName,
-                NumberFormat = numberFormat,
+                CustomName = cubeField.Caption?.ToString() ?? fieldName,
+                Area = PivotFieldArea.Value,
+                NumberFormat = appliedFormat,
                 DataType = "Cube",
-                FilePath = workbookPath
-            };
-        }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message,
                 FilePath = workbookPath
             };
         }
         finally
         {
-            ComUtilities.Release(ref formatObject);
-            ComUtilities.Release(ref measure);
-            ComUtilities.Release(ref measures);
-            ComUtilities.Release(ref model);
-            ComUtilities.Release(ref workbook);
+            ComUtilities.Release(ref pivotField);
+            ComUtilities.Release(ref pivotFields);
+            ComUtilities.Release(ref cubeField);
         }
     }
     /// <inheritdoc/>

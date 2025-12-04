@@ -11,6 +11,41 @@ public partial class RangeCommands
 {
     // === NUMBER FORMAT OPERATIONS ===
 
+    /// <summary>
+    /// Helper to execute code with US-style number format separators.
+    /// This ensures format codes like "$#,##0.00" are interpreted correctly
+    /// regardless of system locale (e.g., German locale uses ',' as decimal).
+    /// </summary>
+    /// <remarks>
+    /// Excel COM interprets '.' and ',' in format codes based on Application.DecimalSeparator
+    /// and Application.ThousandsSeparator settings. By temporarily forcing US separators,
+    /// we ensure format codes are interpreted as intended (US-style: '.' = decimal, ',' = thousands).
+    /// </remarks>
+    private static T WithUSFormatSeparators<T>(dynamic app, Func<T> action)
+    {
+        // Save original separator settings
+        bool originalUseSystemSeparators = app.UseSystemSeparators;
+        string originalDecimalSeparator = app.DecimalSeparator?.ToString() ?? ".";
+        string originalThousandsSeparator = app.ThousandsSeparator?.ToString() ?? ",";
+
+        try
+        {
+            // Force US-style separators for consistent format code interpretation
+            app.DecimalSeparator = ".";
+            app.ThousandsSeparator = ",";
+            app.UseSystemSeparators = false;
+
+            return action();
+        }
+        finally
+        {
+            // Restore original settings
+            app.DecimalSeparator = originalDecimalSeparator;
+            app.ThousandsSeparator = originalThousandsSeparator;
+            app.UseSystemSeparators = originalUseSystemSeparators;
+        }
+    }
+
     /// <inheritdoc />
     public RangeNumberFormatResult GetNumberFormats(IExcelBatch batch, string sheetName, string rangeAddress)
     {
@@ -140,10 +175,9 @@ public partial class RangeCommands
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
-                // Automatically add US LCID prefix for date/time formats to ensure cross-culture compatibility.
-                // This prevents 'm' being interpreted as minutes instead of months on non-US locales.
-                string effectiveFormat = EnsureDateTimeLcid(formatCode);
-                range.NumberFormat = effectiveFormat;
+                // Translate US date format codes to locale-specific codes
+                var translatedFormat = ctx.DateFormatter.TranslateToLocale(formatCode);
+                range.NumberFormat = translatedFormat;
 
                 result.Success = true;
                 return result;
@@ -153,71 +187,6 @@ public partial class RangeCommands
                 ComUtilities.Release(ref range);
             }
         });
-    }
-
-    /// <summary>
-    /// Ensures date/time format codes have a US LCID prefix for cross-culture compatibility.
-    /// If the format contains date/time specifiers (d, m, y, h, s) but no LCID prefix,
-    /// automatically adds [$-409] to ensure consistent interpretation across all locales.
-    /// </summary>
-    /// <param name="formatCode">The original format code.</param>
-    /// <returns>Format code with LCID prefix if needed, or original if not a date/time format.</returns>
-    private static string EnsureDateTimeLcid(string formatCode)
-    {
-        if (string.IsNullOrEmpty(formatCode))
-            return formatCode;
-
-        // Already has LCID prefix - don't modify
-        if (formatCode.Contains("[$-"))
-            return formatCode;
-
-        // Check if this looks like a date/time format (contains d, m, y, h, s outside of quotes)
-        // but NOT a number format (which uses # , 0 . %)
-        if (!ContainsDateTimeSpecifiers(formatCode))
-            return formatCode;
-
-        // Add US LCID prefix for cross-culture compatibility
-        return $"[$-409]{formatCode}";
-    }
-
-    /// <summary>
-    /// Checks if a format code contains date/time specifiers (d, m, y, h, s) outside of quoted strings.
-    /// Returns false for pure number formats (containing only #, 0, ., ,, %, $, etc.)
-    /// </summary>
-    private static bool ContainsDateTimeSpecifiers(string formatCode)
-    {
-        bool inQuotes = false;
-        bool hasDateTimeChars = false;
-        bool hasNumberChars = false;
-
-        foreach (char c in formatCode)
-        {
-            if (c == '"')
-            {
-                inQuotes = !inQuotes;
-                continue;
-            }
-
-            if (inQuotes)
-                continue;
-
-            char lower = char.ToLowerInvariant(c);
-
-            // Date/time specifiers
-            if (lower is 'd' or 'm' or 'y' or 'h' or 's')
-            {
-                hasDateTimeChars = true;
-            }
-            // Number format specifiers (not date/time)
-            else if (c is '#' or '0' or '%')
-            {
-                hasNumberChars = true;
-            }
-        }
-
-        // Only treat as date/time if it has date/time chars and is NOT primarily a number format
-        // Exception: "m" alone with number chars (like #,##0) is minutes in time context but we skip those
-        return hasDateTimeChars && !hasNumberChars;
     }
 
     /// <inheritdoc />
@@ -257,6 +226,9 @@ public partial class RangeCommands
                     }
                 }
 
+                // Translate all format codes to locale-specific codes
+                var translator = ctx.DateFormatter;
+
                 // If single row or column, can't use 2D array - must set cell by cell
                 if (rowCount == 1 || columnCount == 1)
                 {
@@ -268,8 +240,7 @@ public partial class RangeCommands
                             try
                             {
                                 cell = range.Cells[row, col];
-                                // Auto-add LCID for date/time formats
-                                cell.NumberFormat = EnsureDateTimeLcid(formats[row - 1][col - 1]);
+                                cell.NumberFormat = translator.TranslateToLocale(formats[row - 1][col - 1]);
                             }
                             finally
                             {
@@ -286,8 +257,7 @@ public partial class RangeCommands
                     {
                         for (int col = 0; col < columnCount; col++)
                         {
-                            // Auto-add LCID for date/time formats
-                            formatArray[row, col] = EnsureDateTimeLcid(formats[row][col]);
+                            formatArray[row, col] = translator.TranslateToLocale(formats[row][col]);
                         }
                     }
 
