@@ -20,9 +20,9 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixture>
 {
     private readonly PivotTableCommands _pivotCommands;
+    private readonly PivotTableTestsFixture _fixture;
     private readonly string _pivotFile;
     private readonly PivotTableCreationResult _creationResult;
-    private readonly string _tempDir;
     private readonly ITestOutputHelper _output;
     private readonly ILoggerFactory _loggerFactory;
 
@@ -32,9 +32,9 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     public PivotTableCommandsTests(PivotTableTestsFixture fixture, ITestOutputHelper output)
     {
         _pivotCommands = new PivotTableCommands();
+        _fixture = fixture;
         _pivotFile = fixture.TestFilePath;
         _creationResult = fixture.CreationResult;
-        _tempDir = Path.GetDirectoryName(fixture.TestFilePath)!;
         _output = output;
         _loggerFactory = LoggerFactory.Create(builder => builder
             .AddXUnit(output)
@@ -47,8 +47,7 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     /// </summary>
     private string CreateTestFileWithData(string testName)
     {
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(PivotTableCommandsTests), testName, _tempDir);
+        var testFile = _fixture.CreateTestFile(testName);
 
         using var batch = ExcelSession.BeginBatch(testFile);
 

@@ -1,5 +1,4 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
@@ -13,10 +12,7 @@ public partial class ConnectionCommandsTests
     public void Delete_ExistingTextConnection_ReturnsSuccess()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            nameof(Delete_ExistingTextConnection_ReturnsSuccess),
-            _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         // Use ODBC connection (doesn't need actual DSN for delete test)
         string connectionString = "ODBC;DSN=TestDSN;DBQ=C:\\temp\\test.xlsx";
@@ -46,10 +42,7 @@ public partial class ConnectionCommandsTests
     public void Delete_NonExistentConnection_ThrowsException()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            nameof(Delete_NonExistentConnection_ThrowsException),
-            _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         string connectionName = "NonExistentConnection";
 
@@ -68,10 +61,7 @@ public partial class ConnectionCommandsTests
     public void Delete_AfterCreatingMultiple_RemovesOnlySpecified()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            nameof(Delete_AfterCreatingMultiple_RemovesOnlySpecified),
-            _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         // Use ODBC connections (don't need actual DSNs for delete test)
         string conn1Name = "Connection1";
@@ -101,10 +91,7 @@ public partial class ConnectionCommandsTests
     public void Delete_ConnectionWithDescription_RemovesSuccessfully()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            nameof(Delete_ConnectionWithDescription_RemovesSuccessfully),
-            _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         string connectionName = "DescribedConnection";
         string description = "Test connection with description";
@@ -127,10 +114,7 @@ public partial class ConnectionCommandsTests
     public void Delete_ImmediatelyAfterCreate_WorksCorrectly()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            nameof(Delete_ImmediatelyAfterCreate_WorksCorrectly),
-            _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         string connectionName = "ImmediateDeleteTest";
         string connectionString = "ODBC;DSN=ImmediateDSN;DBQ=C:\\temp\\immediate.xlsx";
@@ -151,10 +135,7 @@ public partial class ConnectionCommandsTests
     public void Delete_ConnectionAfterViewOperation_RemovesSuccessfully()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            nameof(Delete_ConnectionAfterViewOperation_RemovesSuccessfully),
-            _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         string connectionName = "ViewThenDelete";
         string connectionString = "ODBC;DSN=ViewDeleteDSN;DBQ=C:\\temp\\viewdelete.xlsx";
@@ -180,10 +161,7 @@ public partial class ConnectionCommandsTests
     public void Delete_EmptyConnectionName_ThrowsException()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            nameof(Delete_EmptyConnectionName_ThrowsException),
-            _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -200,10 +178,7 @@ public partial class ConnectionCommandsTests
     public void Delete_RepeatedDeleteAttempts_SecondAttemptFails()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            nameof(Delete_RepeatedDeleteAttempts_SecondAttemptFails),
-            _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         string connectionName = "DoubleDeleteTest";
         string connectionString = "ODBC;DSN=DoubleDeleteDSN;DBQ=C:\\temp\\doubledelete.xlsx";

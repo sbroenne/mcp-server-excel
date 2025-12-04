@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
@@ -15,15 +16,22 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 /// - Each test gets its own batch (isolation at batch level)
 /// - No file sharing between test classes
 /// - Creation results exposed for validation tests
+/// - Provides CreateModificationTestFile() for tests that need isolated files
 /// </summary>
 public class TableTestsFixture : IAsyncLifetime
 {
     private readonly string _tempDir;
+    private readonly TableCommands _tableCommands = new TableCommands();
 
     /// <summary>
-    /// Path to the test Table file
+    /// Path to the test Table file (shared READ-ONLY)
     /// </summary>
     public string TestFilePath { get; private set; } = null!;
+
+    /// <summary>
+    /// Temp directory for modification tests that need unique files
+    /// </summary>
+    public string TempDir => _tempDir;
 
     /// <summary>
     /// Results of Table creation (exposed for validation)
@@ -140,6 +148,65 @@ public class TableTestsFixture : IAsyncLifetime
             // Cleanup is best-effort
         }
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Creates a unique test file with SalesTable for modification tests.
+    /// Use this for tests that modify the table (delete, rename, resize, etc.)
+    /// </summary>
+    /// <param name="testName">Auto-populated from caller method name</param>
+    /// <returns>Path to the unique test file</returns>
+    public string CreateModificationTestFile([CallerMemberName] string testName = "")
+    {
+        var guid = Guid.NewGuid().ToString("N")[..8];
+        var testFile = Path.Join(_tempDir, $"Table_{testName}_{guid}.xlsx");
+
+        var fileCommands = new FileCommands();
+        fileCommands.CreateEmpty(testFile);
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create worksheet with sample data
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Name = "Sales";
+
+            // Headers
+            sheet.Range["A1"].Value2 = "Region";
+            sheet.Range["B1"].Value2 = "Product";
+            sheet.Range["C1"].Value2 = "Amount";
+            sheet.Range["D1"].Value2 = "Date";
+
+            // Sample data
+            sheet.Range["A2"].Value2 = "North";
+            sheet.Range["B2"].Value2 = "Widget";
+            sheet.Range["C2"].Value2 = 100;
+            sheet.Range["D2"].Value2 = new DateTime(2025, 1, 15);
+
+            sheet.Range["A3"].Value2 = "South";
+            sheet.Range["B3"].Value2 = "Gadget";
+            sheet.Range["C3"].Value2 = 250;
+            sheet.Range["D3"].Value2 = new DateTime(2025, 2, 20);
+
+            sheet.Range["A4"].Value2 = "East";
+            sheet.Range["B4"].Value2 = "Widget";
+            sheet.Range["C4"].Value2 = 150;
+            sheet.Range["D4"].Value2 = new DateTime(2025, 3, 10);
+
+            sheet.Range["A5"].Value2 = "West";
+            sheet.Range["B5"].Value2 = "Gadget";
+            sheet.Range["C5"].Value2 = 300;
+            sheet.Range["D5"].Value2 = new DateTime(2025, 1, 25);
+
+            return 0;
+        });
+
+        // Create table from range A1:D5
+        _tableCommands.Create(batch, "Sales", "SalesTable", "A1:D5", true, TableStylePresets.Medium2);
+
+        batch.Save();
+        return testFile;
     }
 }
 

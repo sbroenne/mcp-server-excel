@@ -17,9 +17,8 @@ public partial class SheetCommandsTests
     [Fact]
     public void Move_WithBeforeSheet_RepositionsSheet()
     {
-        // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), nameof(Move_WithBeforeSheet_RepositionsSheet), _tempDir);
+        // Arrange - Move tests need isolated file to control sheet order
+        var testFile = _fixture.CreateCrossWorkbookTestFile(nameof(Move_WithBeforeSheet_RepositionsSheet));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         _sheetCommands.Create(batch, "MoveMe");
@@ -47,9 +46,8 @@ public partial class SheetCommandsTests
     [Fact]
     public void Move_WithAfterSheet_RepositionsSheet()
     {
-        // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), nameof(Move_WithAfterSheet_RepositionsSheet), _tempDir);
+        // Arrange - Move tests need isolated file to control sheet order
+        var testFile = _fixture.CreateCrossWorkbookTestFile(nameof(Move_WithAfterSheet_RepositionsSheet));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         _sheetCommands.Create(batch, "MoveMe");
@@ -77,9 +75,8 @@ public partial class SheetCommandsTests
     [Fact]
     public void Move_NoPositionSpecified_MovesToEnd()
     {
-        // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), nameof(Move_NoPositionSpecified_MovesToEnd), _tempDir);
+        // Arrange - Move tests need isolated file to control sheet order
+        var testFile = _fixture.CreateCrossWorkbookTestFile(nameof(Move_NoPositionSpecified_MovesToEnd));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         _sheetCommands.Create(batch, "Sheet2");
@@ -102,8 +99,7 @@ public partial class SheetCommandsTests
     public void Move_BothBeforeAndAfter_ThrowsException()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), nameof(Move_BothBeforeAndAfter_ThrowsException), _tempDir);
+        var testFile = _fixture.CreateCrossWorkbookTestFile(nameof(Move_BothBeforeAndAfter_ThrowsException));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         _sheetCommands.Create(batch, "Sheet2");
@@ -120,8 +116,7 @@ public partial class SheetCommandsTests
     public void Move_NonExistentSheet_ThrowsException()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), nameof(Move_NonExistentSheet_ThrowsException), _tempDir);
+        var testFile = _fixture.CreateCrossWorkbookTestFile(nameof(Move_NonExistentSheet_ThrowsException));
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -136,8 +131,7 @@ public partial class SheetCommandsTests
     public void Move_NonExistentTargetSheet_ThrowsException()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), nameof(Move_NonExistentTargetSheet_ThrowsException), _tempDir);
+        var testFile = _fixture.CreateCrossWorkbookTestFile(nameof(Move_NonExistentTargetSheet_ThrowsException));
 
         using var batch = ExcelSession.BeginBatch(testFile);
         _sheetCommands.Create(batch, "Sheet2");
@@ -158,10 +152,8 @@ public partial class SheetCommandsTests
     public void CopyToWorkbook_WithTargetName_CopiesAndRenames()
     {
         // Arrange
-        var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithTargetName_CopiesAndRenames)}_Source", _tempDir);
-        var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithTargetName_CopiesAndRenames)}_Target", _tempDir);
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_WithTargetName_CopiesAndRenames), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_WithTargetName_CopiesAndRenames), "Target");
 
         using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
@@ -186,10 +178,8 @@ public partial class SheetCommandsTests
     public void CopyToWorkbook_NoTargetName_CopiesWithOriginalName()
     {
         // Arrange
-        var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_NoTargetName_CopiesWithOriginalName)}_Source", _tempDir);
-        var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_NoTargetName_CopiesWithOriginalName)}_Target", _tempDir);
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_NoTargetName_CopiesWithOriginalName), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_NoTargetName_CopiesWithOriginalName), "Target");
 
         using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
@@ -210,10 +200,8 @@ public partial class SheetCommandsTests
     public void CopyToWorkbook_WithBeforeSheet_PositionsCorrectly()
     {
         // Arrange
-        var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithBeforeSheet_PositionsCorrectly)}_Source", _tempDir);
-        var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithBeforeSheet_PositionsCorrectly)}_Target", _tempDir);
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_WithBeforeSheet_PositionsCorrectly), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_WithBeforeSheet_PositionsCorrectly), "Target");
 
         using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
@@ -234,10 +222,8 @@ public partial class SheetCommandsTests
     public void CopyToWorkbook_WithAfterSheet_PositionsCorrectly()
     {
         // Arrange
-        var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithAfterSheet_PositionsCorrectly)}_Source", _tempDir);
-        var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_WithAfterSheet_PositionsCorrectly)}_Target", _tempDir);
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_WithAfterSheet_PositionsCorrectly), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_WithAfterSheet_PositionsCorrectly), "Target");
 
         using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
@@ -258,10 +244,8 @@ public partial class SheetCommandsTests
     public void CopyToWorkbook_BothBeforeAndAfter_ThrowsException()
     {
         // Arrange
-        var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_BothBeforeAndAfter_ThrowsException)}_Source", _tempDir);
-        var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(CopyToWorkbook_BothBeforeAndAfter_ThrowsException)}_Target", _tempDir);
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_BothBeforeAndAfter_ThrowsException), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(CopyToWorkbook_BothBeforeAndAfter_ThrowsException), "Target");
 
         using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
@@ -284,10 +268,8 @@ public partial class SheetCommandsTests
     public void MoveToWorkbook_Default_MovesSheetSuccessfully()
     {
         // Arrange
-        var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_Default_MovesSheetSuccessfully)}_Source", _tempDir);
-        var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_Default_MovesSheetSuccessfully)}_Target", _tempDir);
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToWorkbook_Default_MovesSheetSuccessfully), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToWorkbook_Default_MovesSheetSuccessfully), "Target");
 
         using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
@@ -312,10 +294,8 @@ public partial class SheetCommandsTests
     public void MoveToWorkbook_WithBeforeSheet_PositionsCorrectly()
     {
         // Arrange
-        var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_WithBeforeSheet_PositionsCorrectly)}_Source", _tempDir);
-        var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_WithBeforeSheet_PositionsCorrectly)}_Target", _tempDir);
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToWorkbook_WithBeforeSheet_PositionsCorrectly), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToWorkbook_WithBeforeSheet_PositionsCorrectly), "Target");
 
         using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
@@ -340,10 +320,8 @@ public partial class SheetCommandsTests
     public void MoveToWorkbook_WithAfterSheet_PositionsCorrectly()
     {
         // Arrange
-        var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_WithAfterSheet_PositionsCorrectly)}_Source", _tempDir);
-        var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_WithAfterSheet_PositionsCorrectly)}_Target", _tempDir);
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToWorkbook_WithAfterSheet_PositionsCorrectly), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToWorkbook_WithAfterSheet_PositionsCorrectly), "Target");
 
         using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
@@ -368,10 +346,8 @@ public partial class SheetCommandsTests
     public void MoveToWorkbook_BothBeforeAndAfter_ThrowsException()
     {
         // Arrange
-        var sourceFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_BothBeforeAndAfter_ThrowsException)}_Source", _tempDir);
-        var targetFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), $"{nameof(MoveToWorkbook_BothBeforeAndAfter_ThrowsException)}_Target", _tempDir);
+        var sourceFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToWorkbook_BothBeforeAndAfter_ThrowsException), "Source");
+        var targetFile = _fixture.CreateCrossWorkbookTestFile(nameof(MoveToWorkbook_BothBeforeAndAfter_ThrowsException), "Target");
 
         using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 

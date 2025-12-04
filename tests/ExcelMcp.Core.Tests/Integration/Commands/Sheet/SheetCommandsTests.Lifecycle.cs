@@ -13,18 +13,14 @@ public partial class SheetCommandsTests
     [Fact]
     public void List_DefaultWorkbook_ReturnsDefaultSheets()
     {
-        // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), nameof(List_DefaultWorkbook_ReturnsDefaultSheets), _tempDir);
-
-        // Act
-        using var batch = ExcelSession.BeginBatch(testFile);
+        // Arrange & Act
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
         var result = _sheetCommands.List(batch);
 
         // Assert
         Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
         Assert.NotNull(result.Worksheets);
-        Assert.NotEmpty(result.Worksheets); // New Excel file has Sheet1
+        Assert.NotEmpty(result.Worksheets); // Shared file has Sheet1 plus test sheets
     }
     /// <inheritdoc/>
 
@@ -32,21 +28,17 @@ public partial class SheetCommandsTests
     public void Create_UniqueName_ReturnsSuccess()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), nameof(Create_UniqueName_ReturnsSuccess), _tempDir);
-
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = $"Create_{Guid.NewGuid():N}"[..31]; // Unique name, max 31 chars
 
         // Act
-        _sheetCommands.Create(batch, "TestSheet");
+        _sheetCommands.Create(batch, sheetName);
         // Create throws on error, so reaching here means success
 
         // Verify sheet actually exists
         var listResult = _sheetCommands.List(batch);
         Assert.True(listResult.Success);
-        Assert.Contains(listResult.Worksheets, w => w.Name == "TestSheet");
-
-        // Save changes
+        Assert.Contains(listResult.Worksheets, w => w.Name == sheetName);
     }
     /// <inheritdoc/>
 
@@ -54,23 +46,21 @@ public partial class SheetCommandsTests
     public void Rename_ExistingSheet_ReturnsSuccess()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), nameof(Rename_ExistingSheet_ReturnsSuccess), _tempDir);
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-        _sheetCommands.Create(batch, "OldName");
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var uniqueId = Guid.NewGuid().ToString("N")[..8];
+        var oldName = $"Old_{uniqueId}";
+        var newName = $"New_{uniqueId}";
+        _sheetCommands.Create(batch, oldName);
 
         // Act
-        _sheetCommands.Rename(batch, "OldName", "NewName");
+        _sheetCommands.Rename(batch, oldName, newName);
         // Rename throws on error, so reaching here means success
 
         // Verify rename actually happened
         var listResult = _sheetCommands.List(batch);
         Assert.True(listResult.Success);
-        Assert.DoesNotContain(listResult.Worksheets, w => w.Name == "OldName");
-        Assert.Contains(listResult.Worksheets, w => w.Name == "NewName");
-
-        // Save changes
+        Assert.DoesNotContain(listResult.Worksheets, w => w.Name == oldName);
+        Assert.Contains(listResult.Worksheets, w => w.Name == newName);
     }
     /// <inheritdoc/>
 
@@ -78,22 +68,18 @@ public partial class SheetCommandsTests
     public void Delete_NonActiveSheet_ReturnsSuccess()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), nameof(Delete_NonActiveSheet_ReturnsSuccess), _tempDir);
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-        _sheetCommands.Create(batch, "ToDelete");
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = $"Del_{Guid.NewGuid():N}"[..31];
+        _sheetCommands.Create(batch, sheetName);
 
         // Act
-        _sheetCommands.Delete(batch, "ToDelete");
+        _sheetCommands.Delete(batch, sheetName);
         // Delete throws on error, so reaching here means success
 
         // Verify sheet is actually gone
         var listResult = _sheetCommands.List(batch);
         Assert.True(listResult.Success);
-        Assert.DoesNotContain(listResult.Worksheets, w => w.Name == "ToDelete");
-
-        // Save changes
+        Assert.DoesNotContain(listResult.Worksheets, w => w.Name == sheetName);
     }
     /// <inheritdoc/>
 
@@ -101,23 +87,21 @@ public partial class SheetCommandsTests
     public void Copy_ExistingSheet_CreatesNewSheet()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests), nameof(Copy_ExistingSheet_CreatesNewSheet), _tempDir);
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-        _sheetCommands.Create(batch, "Source");
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var uniqueId = Guid.NewGuid().ToString("N")[..8];
+        var sourceName = $"Src_{uniqueId}";
+        var targetName = $"Tgt_{uniqueId}";
+        _sheetCommands.Create(batch, sourceName);
 
         // Act
-        _sheetCommands.Copy(batch, "Source", "Target");  // Copy throws on error
+        _sheetCommands.Copy(batch, sourceName, targetName);  // Copy throws on error
 
         // Assert - reaching here means copy succeeded
 
         // Verify both source and target sheets exist
         var listResult = _sheetCommands.List(batch);
         Assert.True(listResult.Success);
-        Assert.Contains(listResult.Worksheets, w => w.Name == "Source");
-        Assert.Contains(listResult.Worksheets, w => w.Name == "Target");
-
-        // Save changes
+        Assert.Contains(listResult.Worksheets, w => w.Name == sourceName);
+        Assert.Contains(listResult.Worksheets, w => w.Name == targetName);
     }
 }

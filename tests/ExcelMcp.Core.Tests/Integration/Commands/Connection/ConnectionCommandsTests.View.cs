@@ -9,13 +9,11 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
 /// </summary>
 public partial class ConnectionCommandsTests
 {
-    /// <inheritdoc/>
     [Fact]
     public void View_ExistingConnection_ReturnsDetails()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests), nameof(View_ExistingConnection_ReturnsDetails), _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         // Use ODBC connection (doesn't need actual DSN for view test)
         var connName = "ViewTestConnection";
@@ -32,14 +30,12 @@ public partial class ConnectionCommandsTests
         Assert.NotNull(result.ConnectionString);
         Assert.NotNull(result.Type);
     }
-    /// <inheritdoc/>
 
     [Fact]
     public void View_NonExistentConnection_ThrowsException()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests), nameof(View_NonExistentConnection_ThrowsException), _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         // Act & Assert
         using var batch = ExcelSession.BeginBatch(testFile);

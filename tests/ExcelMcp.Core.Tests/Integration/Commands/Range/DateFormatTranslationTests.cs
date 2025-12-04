@@ -15,15 +15,15 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 [Trait("Layer", "Core")]
 [Trait("Feature", "Ranges")]
 [Trait("RequiresExcel", "true")]
-public class DateFormatTranslationTests : IClassFixture<TempDirectoryFixture>
+public class DateFormatTranslationTests : IClassFixture<RangeTestsFixture>
 {
     private readonly ITestOutputHelper _output;
-    private readonly string _tempDir;
+    private readonly RangeTestsFixture _fixture;
     private readonly RangeCommands _rangeCommands;
 
-    public DateFormatTranslationTests(TempDirectoryFixture fixture, ITestOutputHelper output)
+    public DateFormatTranslationTests(RangeTestsFixture fixture, ITestOutputHelper output)
     {
-        _tempDir = fixture.TempDir;
+        _fixture = fixture;
         _output = output;
         _rangeCommands = new RangeCommands();
     }
@@ -32,11 +32,7 @@ public class DateFormatTranslationTests : IClassFixture<TempDirectoryFixture>
     public void SetNumberFormat_USDateFormat_DisplaysCorrectly()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(DateFormatTranslationTests),
-            nameof(SetNumberFormat_USDateFormat_DisplaysCorrectly),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -89,11 +85,7 @@ public class DateFormatTranslationTests : IClassFixture<TempDirectoryFixture>
     public void SetNumberFormat_ISODateFormat_DisplaysCorrectly()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(DateFormatTranslationTests),
-            nameof(SetNumberFormat_ISODateFormat_DisplaysCorrectly),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -130,11 +122,7 @@ public class DateFormatTranslationTests : IClassFixture<TempDirectoryFixture>
     public void SetNumberFormat_MultipleDates_AllDisplayCorrectly()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(DateFormatTranslationTests),
-            nameof(SetNumberFormat_MultipleDates_AllDisplayCorrectly),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -189,11 +177,7 @@ public class DateFormatTranslationTests : IClassFixture<TempDirectoryFixture>
     {
         // Currency formats should NOT be affected by date translation
 
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(DateFormatTranslationTests),
-            nameof(SetNumberFormat_CurrencyFormat_NotAffected),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -227,11 +211,7 @@ public class DateFormatTranslationTests : IClassFixture<TempDirectoryFixture>
     public void SetNumberFormat_TimeFormat_DisplaysCorrectly()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(DateFormatTranslationTests),
-            nameof(SetNumberFormat_TimeFormat_DisplaysCorrectly),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -266,11 +246,7 @@ public class DateFormatTranslationTests : IClassFixture<TempDirectoryFixture>
     {
         // Test combined date+time format
 
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(DateFormatTranslationTests),
-            nameof(SetNumberFormat_DateTimeFormat_DisplaysCorrectly),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 

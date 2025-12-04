@@ -11,15 +11,11 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
 [Trait("RequiresExcel", "true")]
 public partial class ConnectionCommandsTests
 {
-    /// <inheritdoc/>
     [Fact]
     public void Refresh_ConnectionNotFound_ThrowsException()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            nameof(Refresh_ConnectionNotFound_ThrowsException),
-            _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         // Act & Assert
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -33,8 +29,7 @@ public partial class ConnectionCommandsTests
     [Fact]
     public void Refresh_AceOleDbConnection_ReturnsSuccess()
     {
-        var (testFile, sourceWorkbook, connectionName) = SetupAceOleDbConnection(
-            nameof(Refresh_AceOleDbConnection_ReturnsSuccess));
+        var (testFile, sourceWorkbook, connectionName) = SetupAceOleDbConnection();
 
         try
         {
@@ -59,8 +54,7 @@ public partial class ConnectionCommandsTests
     [Fact]
     public void Refresh_AceOleDbConnectionAfterDataUpdate_ReturnsSuccess()
     {
-        var (testFile, sourceWorkbook, connectionName) = SetupAceOleDbConnection(
-            nameof(Refresh_AceOleDbConnectionAfterDataUpdate_ReturnsSuccess));
+        var (testFile, sourceWorkbook, connectionName) = SetupAceOleDbConnection();
 
         try
         {
@@ -87,14 +81,11 @@ public partial class ConnectionCommandsTests
         }
     }
 
-    private (string testFile, string sourceWorkbook, string connectionName) SetupAceOleDbConnection(string testName)
+    private (string testFile, string sourceWorkbook, string connectionName) SetupAceOleDbConnection()
     {
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            testName,
-            _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
-        var sourceWorkbook = Path.Combine(_tempDir, $"{testName}_Source.xlsx");
+        var sourceWorkbook = _fixture.GetSourceFilePath("AceOleDbSource");
         AceOleDbTestHelper.CreateExcelDataSource(sourceWorkbook);
 
         var connectionName = "TestAceOleDbConnection";

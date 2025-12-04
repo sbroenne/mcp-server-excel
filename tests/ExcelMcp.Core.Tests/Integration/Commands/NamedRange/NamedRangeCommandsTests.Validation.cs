@@ -19,12 +19,8 @@ public partial class NamedRangeCommandsTests
     [Fact]
     public void Create_EmptyParameterName_ReturnsError()
     {
-        // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(NamedRangeCommandsTests), nameof(Create_EmptyParameterName_ReturnsError), _tempDir);
-
-        // Act & Assert - Empty parameter name should throw ArgumentException
-        using var batch = ExcelSession.BeginBatch(testFile);
+        // Arrange & Act & Assert - Empty parameter name should throw ArgumentException
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
         var exception = Assert.Throws<ArgumentException>(() =>
             _parameterCommands.Create(batch, "", "Sheet1!A1"));
 
@@ -35,12 +31,8 @@ public partial class NamedRangeCommandsTests
     [Fact]
     public void Create_WhitespaceParameterName_ReturnsError()
     {
-        // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(NamedRangeCommandsTests), nameof(Create_WhitespaceParameterName_ReturnsError), _tempDir);
-
-        // Act & Assert - Whitespace parameter name should throw ArgumentException
-        using var batch = ExcelSession.BeginBatch(testFile);
+        // Arrange & Act & Assert - Whitespace parameter name should throw ArgumentException
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
         var exception = Assert.Throws<ArgumentException>(() =>
             _parameterCommands.Create(batch, "   ", "Sheet1!A1"));
 
@@ -52,13 +44,12 @@ public partial class NamedRangeCommandsTests
     public void Create_ParameterNameExactly255Characters_ReturnsSuccess()
     {
         // Arrange - Create name with exactly 255 characters (Excel's limit)
-        var paramName = new string('A', 255);
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(NamedRangeCommandsTests), nameof(Create_ParameterNameExactly255Characters_ReturnsSuccess), _tempDir);
+        var uniquePrefix = Guid.NewGuid().ToString("N")[..8] + "_";
+        var paramName = uniquePrefix + new string('A', 255 - uniquePrefix.Length);
 
         // Act
-        using var batch = ExcelSession.BeginBatch(testFile);
-        _parameterCommands.Create(batch, paramName, "Sheet1!A1");
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        _parameterCommands.Create(batch, paramName, _fixture.GetUniqueCellReference());
 
         // Assert - Verify the parameter was actually created
         var namedRanges = _parameterCommands.List(batch);
@@ -71,11 +62,9 @@ public partial class NamedRangeCommandsTests
     {
         // Arrange - Create name with 256 characters (exceeds Excel's limit)
         var paramName = new string('B', 256);
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(NamedRangeCommandsTests), nameof(Create_ParameterName256Characters_ReturnsError), _tempDir);
 
         // Act & Assert - 256-character name should throw ArgumentException
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
         var exception = Assert.Throws<ArgumentException>(() =>
             _parameterCommands.Create(batch, paramName, "Sheet1!A1"));
 
@@ -89,11 +78,9 @@ public partial class NamedRangeCommandsTests
     {
         // Arrange
         var longParamName = new string('C', 300);
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(NamedRangeCommandsTests), nameof(Update_ParameterNameExceeds255Characters_ReturnsError), _tempDir);
 
         // Act & Assert - 300-character name should throw ArgumentException
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
         var exception = Assert.Throws<ArgumentException>(() =>
             _parameterCommands.Update(batch, longParamName, "Sheet1!B2"));
 

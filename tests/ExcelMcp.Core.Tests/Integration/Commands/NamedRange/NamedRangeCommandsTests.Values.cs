@@ -14,20 +14,18 @@ public partial class NamedRangeCommandsTests
     public void Set_ExistingParameter_UpdatesValue()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(NamedRangeCommandsTests), nameof(Set_ExistingParameter_UpdatesValue), _tempDir);
-
-        // Act - Use single batch for create, set, and verify
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var paramName = _fixture.GetUniqueNamedRangeName();
+        var cellRef = _fixture.GetUniqueCellReference();
 
         // Create parameter first
-        _parameterCommands.Create(batch, "SetTestParam", "Sheet1!A1");
+        _parameterCommands.Create(batch, paramName, cellRef);
 
         // Set the parameter value
-        _parameterCommands.Write(batch, "SetTestParam", "TestValue");
+        _parameterCommands.Write(batch, paramName, "TestValue");
 
         // Assert - Verify the parameter value was actually set by reading it back
-        var namedRangeValue = _parameterCommands.Read(batch, "SetTestParam");
+        var namedRangeValue = _parameterCommands.Read(batch, paramName);
         Assert.Equal("TestValue", namedRangeValue.Value?.ToString());
     }
     /// <inheritdoc/>
@@ -36,19 +34,17 @@ public partial class NamedRangeCommandsTests
     public void Get_ExistingParameter_ReturnsValue()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(NamedRangeCommandsTests), nameof(Get_ExistingParameter_ReturnsValue), _tempDir);
         string testValue = "Integration Test Value";
-
-        // Act - Use single batch for create, set, and get
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var paramName = _fixture.GetUniqueNamedRangeName();
+        var cellRef = _fixture.GetUniqueCellReference();
 
         // Create and set parameter value
-        _parameterCommands.Create(batch, "GetTestParam", "Sheet1!A1");
-        _parameterCommands.Write(batch, "GetTestParam", testValue);
+        _parameterCommands.Create(batch, paramName, cellRef);
+        _parameterCommands.Write(batch, paramName, testValue);
 
         // Get the parameter value
-        var namedRangeValue = _parameterCommands.Read(batch, "GetTestParam");
+        var namedRangeValue = _parameterCommands.Read(batch, paramName);
 
         // Assert
         Assert.Equal(testValue, namedRangeValue.Value?.ToString());
@@ -58,13 +54,10 @@ public partial class NamedRangeCommandsTests
     [Fact]
     public void Get_WithNonExistentParameter_ThrowsException()
     {
-        // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(NamedRangeCommandsTests), nameof(Get_WithNonExistentParameter_ThrowsException), _tempDir);
-
-        // Act & Assert
-        using var batch = ExcelSession.BeginBatch(testFile);
-        var exception = Assert.Throws<InvalidOperationException>(() => _parameterCommands.Read(batch, "NonExistentParam"));
+        // Arrange & Act & Assert
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => _parameterCommands.Read(batch, $"NonExistent_{Guid.NewGuid():N}"));
         Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -14,10 +15,17 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 /// - Each test gets its own batch (isolation at batch level)
 /// - No file sharing between test classes
 /// - Creation results exposed for validation tests
+/// - CreateTestFile() available for tests that need unique files
 /// </summary>
 public class PowerQueryTestsFixture : IAsyncLifetime
 {
     private readonly string _tempDir;
+    private readonly FileCommands _fileCommands = new();
+
+    /// <summary>
+    /// Temp directory for all test files (auto-cleaned on disposal)
+    /// </summary>
+    public string TempDir => _tempDir;
 
     /// <summary>
     /// Path to the test Power Query file
@@ -28,7 +36,6 @@ public class PowerQueryTestsFixture : IAsyncLifetime
     /// Results of Power Query creation (exposed for validation)
     /// </summary>
     public PowerQueryCreationResult CreationResult { get; private set; } = null!;
-    /// <inheritdoc/>
 
     public PowerQueryTestsFixture()
     {
@@ -113,6 +120,20 @@ public class PowerQueryTestsFixture : IAsyncLifetime
             // Cleanup is best-effort
         }
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Creates a unique empty test file for the calling test.
+    /// Uses [CallerMemberName] to auto-populate the test name.
+    /// </summary>
+    /// <param name="testName">Auto-populated from caller method name</param>
+    /// <returns>Path to the unique test file</returns>
+    public string CreateTestFile([CallerMemberName] string testName = "")
+    {
+        var guid = Guid.NewGuid().ToString("N")[..8];
+        var testFile = Path.Join(_tempDir, $"PQ_{testName}_{guid}.xlsx");
+        _fileCommands.CreateEmpty(testFile);
+        return testFile;
     }
 
     /// <summary>

@@ -1,5 +1,4 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
@@ -9,13 +8,11 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
 /// </summary>
 public partial class ConnectionCommandsTests
 {
-    /// <inheritdoc/>
     [Fact]
     public void List_EmptyWorkbook_ReturnsSuccessWithEmptyList()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests), nameof(List_EmptyWorkbook_ReturnsSuccessWithEmptyList), _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
