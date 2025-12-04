@@ -261,85 +261,78 @@ public partial class ChartCommands : IChartCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? pivotCache = null;
             dynamic? worksheet = null;
-            dynamic? targetRange = null;
             dynamic? pivotChartShape = null;
             dynamic? chart = null;
+            dynamic? pivotTable = null;
+            dynamic? tableRange = null;
+            dynamic? shapes = null;
 
             try
             {
                 // Find PivotTable
-                dynamic? pivotTable = FindPivotTable(ctx.Book, pivotTableName);
+                pivotTable = FindPivotTable(ctx.Book, pivotTableName);
                 if (pivotTable == null)
                 {
                     throw new InvalidOperationException($"PivotTable '{pivotTableName}' not found in workbook.");
                 }
 
-                try
+                // Get target worksheet
+                worksheet = ctx.Book.Worksheets.Item(sheetName);
+
+                // Create a chart via Shapes.AddChart and set source to PivotTable's range.
+                // This approach works for both OLAP (Data Model) and non-OLAP PivotTables,
+                // unlike PivotCache.CreatePivotChart which has parameter issues in dynamic
+                // COM and throws DISP_E_UNKNOWNNAME for OLAP sources.
+                shapes = worksheet.Shapes;
+
+                // Create chart using AddChart
+                pivotChartShape = shapes.AddChart(
+                    XlChartType: (int)chartType,
+                    Left: left,
+                    Top: top,
+                    Width: width,
+                    Height: height
+                );
+
+                chart = pivotChartShape.Chart;
+
+                // Get the PivotTable's data range and set it as the chart's source
+                tableRange = pivotTable.TableRange1;
+                chart.SetSourceData(tableRange);
+
+                // Set custom name if provided
+                if (!string.IsNullOrWhiteSpace(chartName))
                 {
-                    // Get PivotCache
-                    pivotCache = pivotTable.PivotCache();
-
-                    // Get target worksheet
-                    worksheet = ctx.Book.Worksheets.Item(sheetName);
-
-                    // Calculate cell address from left/top position
-                    // Excel uses approximate 6 points per character width, 15 points per row
-                    int col = (int)(left / 50) + 1; // Approximate column
-                    int row = (int)(top / 15) + 1;  // Approximate row
-                    targetRange = worksheet.Cells(row, col);
-
-                    // Create PivotChart
-                    pivotChartShape = pivotCache.CreatePivotChart(Destination: targetRange);
-
-                    chart = pivotChartShape.Chart;
-
-                    // Set chart type
-                    chart.ChartType = (int)chartType;
-
-                    // Position and size
-                    pivotChartShape.Left = left;
-                    pivotChartShape.Top = top;
-                    pivotChartShape.Width = width;
-                    pivotChartShape.Height = height;
-
-                    // Set custom name if provided
-                    if (!string.IsNullOrWhiteSpace(chartName))
-                    {
-                        pivotChartShape.Name = chartName;
-                    }
-
-                    string finalName = pivotChartShape.Name?.ToString() ?? "PivotChart";
-
-                    var result = new ChartCreateResult
-                    {
-                        Success = true,
-                        ChartName = finalName,
-                        SheetName = sheetName,
-                        ChartType = chartType,
-                        IsPivotChart = true,
-                        LinkedPivotTable = pivotTableName,
-                        Left = left,
-                        Top = top,
-                        Width = width,
-                        Height = height
-                    };
-
-                    return result;
+                    pivotChartShape.Name = chartName;
                 }
-                finally
+
+                string finalName = pivotChartShape.Name?.ToString() ?? "Chart";
+
+                var result = new ChartCreateResult
                 {
-                    ComUtilities.Release(ref pivotTable!);
-                }
+                    Success = true,
+                    ChartName = finalName,
+                    SheetName = sheetName,
+                    ChartType = chartType,
+                    IsPivotChart = true,
+                    LinkedPivotTable = pivotTableName,
+                    Left = left,
+                    Top = top,
+                    Width = width,
+                    Height = height
+                };
+
+                return result;
             }
             finally
             {
                 if (chart != null) ComUtilities.Release(ref chart!);
                 if (pivotChartShape != null) ComUtilities.Release(ref pivotChartShape!);
-                if (targetRange != null) ComUtilities.Release(ref targetRange!);
+                if (tableRange != null) ComUtilities.Release(ref tableRange!);
+                if (shapes != null) ComUtilities.Release(ref shapes!);
                 if (worksheet != null) ComUtilities.Release(ref worksheet!);
-                if (pivotCache != null) ComUtilities.Release(ref pivotCache!);
+                if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
             }
         });
     }

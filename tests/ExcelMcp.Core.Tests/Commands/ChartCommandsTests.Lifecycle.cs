@@ -1,3 +1,4 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -83,6 +84,186 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
         var charts = _commands.List(batch);
         Assert.Single(charts);
         Assert.Equal("TestChart", charts[0].Name);
+    }
+
+    [Fact]
+    public void CreateFromPivotTable_RangePivotTable_CreatesPivotChart()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create data and PivotTable
+        string pivotTableName = "TestPivot";
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            dynamic? dataRange = null;
+            dynamic? pivotCache = null;
+            dynamic? newSheet = null;
+            dynamic? pivot = null;
+            dynamic? rowField = null;
+            dynamic? dataField = null;
+
+            try
+            {
+                sheet = ctx.Book.Worksheets.Item[1];
+
+                // Create sample data
+                sheet.Range["A1:C5"].Value2 = new object[,] {
+                    { "Product", "Region", "Sales" },
+                    { "Widget", "North", 100 },
+                    { "Widget", "South", 150 },
+                    { "Gadget", "North", 200 },
+                    { "Gadget", "South", 250 }
+                };
+
+                // Create PivotTable
+                dataRange = sheet.Range["A1:C5"];
+                pivotCache = ctx.Book.PivotCaches().Create(1, dataRange);
+                newSheet = ctx.Book.Worksheets.Add();
+                newSheet.Name = "PivotSheet";
+                pivot = pivotCache.CreatePivotTable(newSheet.Range["A1"], pivotTableName);
+
+                // Add fields
+                rowField = pivot.PivotFields("Product");
+                rowField.Orientation = 1; // xlRowField
+
+                dataField = pivot.PivotFields("Sales");
+                dataField.Orientation = 4; // xlDataField
+
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref dataField);
+                ComUtilities.Release(ref rowField);
+                ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref newSheet);
+                ComUtilities.Release(ref pivotCache);
+                ComUtilities.Release(ref dataRange);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+
+        // Act
+        var result = _commands.CreateFromPivotTable(
+            batch,
+            pivotTableName,
+            "PivotSheet",
+            ChartType.ColumnClustered,
+            300,
+            50,
+            400,
+            300,
+            "PivotChart1");
+
+        // Assert
+        Assert.True(result.IsPivotChart, "Chart should be marked as PivotChart");
+        Assert.Equal(pivotTableName, result.LinkedPivotTable);
+        Assert.Equal("PivotSheet", result.SheetName);
+        Assert.Equal(ChartType.ColumnClustered, result.ChartType);
+
+        // Verify chart exists in list
+        var charts = _commands.List(batch);
+        Assert.Contains(charts, c => c.Name == result.ChartName && c.IsPivotChart);
+    }
+
+    [Fact]
+    public void CreateFromPivotTable_NonExistentPivotTable_ThrowsException()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        // Act & Assert
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            _commands.CreateFromPivotTable(
+                batch,
+                "NonExistentPivot",
+                "Sheet1",
+                ChartType.ColumnClustered,
+                50,
+                50));
+
+        Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void CreateFromPivotTable_DifferentChartTypes_CreatesCorrectType()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create data and PivotTable
+        string pivotTableName = "ChartTypePivot";
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            dynamic? dataRange = null;
+            dynamic? pivotCache = null;
+            dynamic? newSheet = null;
+            dynamic? pivot = null;
+            dynamic? rowField = null;
+            dynamic? dataField = null;
+
+            try
+            {
+                sheet = ctx.Book.Worksheets.Item[1];
+
+                // Create sample data
+                sheet.Range["A1:B4"].Value2 = new object[,] {
+                    { "Category", "Value" },
+                    { "A", 10 },
+                    { "B", 20 },
+                    { "C", 30 }
+                };
+
+                // Create PivotTable
+                dataRange = sheet.Range["A1:B4"];
+                pivotCache = ctx.Book.PivotCaches().Create(1, dataRange);
+                newSheet = ctx.Book.Worksheets.Add();
+                newSheet.Name = "PivotSheet2";
+                pivot = pivotCache.CreatePivotTable(newSheet.Range["A1"], pivotTableName);
+
+                // Add fields
+                rowField = pivot.PivotFields("Category");
+                rowField.Orientation = 1; // xlRowField
+
+                dataField = pivot.PivotFields("Value");
+                dataField.Orientation = 4; // xlDataField
+
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref dataField);
+                ComUtilities.Release(ref rowField);
+                ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref newSheet);
+                ComUtilities.Release(ref pivotCache);
+                ComUtilities.Release(ref dataRange);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+
+        // Act - Create Pie chart
+        var result = _commands.CreateFromPivotTable(
+            batch,
+            pivotTableName,
+            "PivotSheet2",
+            ChartType.Pie,
+            300,
+            50,
+            300,
+            300);
+
+        // Assert
+        Assert.Equal(ChartType.Pie, result.ChartType);
+        Assert.True(result.IsPivotChart);
     }
 
     [Fact]
