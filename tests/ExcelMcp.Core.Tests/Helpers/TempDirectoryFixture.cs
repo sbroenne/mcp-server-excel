@@ -1,3 +1,7 @@
+using System.Runtime.CompilerServices;
+
+using Sbroenne.ExcelMcp.Core.Commands;
+
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
 /// <summary>
@@ -9,22 +13,38 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 /// <code>
 /// public partial class MyTests : IClassFixture&lt;TempDirectoryFixture&gt;
 /// {
-///     private readonly string _tempDir;
+///     private readonly TempDirectoryFixture _fixture;
 ///     
 ///     public MyTests(TempDirectoryFixture fixture)
 ///     {
-///         _tempDir = fixture.TempDir;
+///         _fixture = fixture;
 ///     }
 /// }
 /// </code>
 /// </remarks>
 public class TempDirectoryFixture : IDisposable
 {
+    private readonly FileCommands _fileCommands = new();
+
     /// <summary>
     /// Temporary directory for test files. Created in constructor, deleted in Dispose.
     /// Shared across all tests in the test class.
     /// </summary>
     public string TempDir { get; }
+
+    /// <summary>
+    /// Creates a unique test Excel file for the calling test method.
+    /// </summary>
+    /// <param name="testName">Auto-populated with the calling method name.</param>
+    /// <param name="extension">File extension (default: .xlsx).</param>
+    /// <returns>Full path to the created file.</returns>
+    public string CreateTestFile([CallerMemberName] string testName = "", string extension = ".xlsx")
+    {
+        var fileName = $"{testName}_{Guid.NewGuid():N}{extension}";
+        var filePath = Path.Combine(TempDir, fileName);
+        _fileCommands.CreateEmpty(filePath);
+        return filePath;
+    }
 
     private bool _disposed;
 

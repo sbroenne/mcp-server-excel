@@ -18,19 +18,19 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.DataModel;
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "DataModel")]
 [Trait("Speed", "Slow")]
-public class DataModelDeleteTableTests : IClassFixture<TempDirectoryFixture>
+public class DataModelDeleteTableTests : IClassFixture<DataModelTestsFixture>
 {
     private readonly DataModelCommands _dataModelCommands;
     private readonly TableCommands _tableCommands;
     private readonly FileCommands _fileCommands;
-    private readonly string _tempDir;
+    private readonly DataModelTestsFixture _fixture;
 
-    public DataModelDeleteTableTests(TempDirectoryFixture fixture)
+    public DataModelDeleteTableTests(DataModelTestsFixture fixture)
     {
         _dataModelCommands = new DataModelCommands();
         _tableCommands = new TableCommands();
         _fileCommands = new FileCommands();
-        _tempDir = fixture.TempDir;
+        _fixture = fixture;
     }
 
     /// <summary>
@@ -38,13 +38,7 @@ public class DataModelDeleteTableTests : IClassFixture<TempDirectoryFixture>
     /// </summary>
     private string CreateTestFileWithDataModelTable(string testName)
     {
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(DataModelDeleteTableTests),
-            testName,
-            _tempDir,
-            ".xlsx");
-
-        _fileCommands.CreateEmpty(testFile, overwriteIfExists: true);
+        var testFile = _fixture.CreateTestFile(testName);
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -144,13 +138,7 @@ public class DataModelDeleteTableTests : IClassFixture<TempDirectoryFixture>
     public void DeleteTable_EmptyDataModel_ThrowsInvalidOperationException()
     {
         // Arrange - Create file without Data Model
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(DataModelDeleteTableTests),
-            nameof(DeleteTable_EmptyDataModel_ThrowsInvalidOperationException),
-            _tempDir,
-            ".xlsx");
-
-        _fileCommands.CreateEmpty(testFile, overwriteIfExists: true);
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 

@@ -14,11 +14,7 @@ public partial class ChartCommandsTests
     public void SetSourceRange_RegularChart_UpdatesDataSource()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(SetSourceRange_RegularChart_UpdatesDataSource),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -58,11 +54,7 @@ public partial class ChartCommandsTests
     public void AddSeries_RegularChart_AddsNewSeries()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(AddSeries_RegularChart_AddsNewSeries),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -105,11 +97,7 @@ public partial class ChartCommandsTests
     public void RemoveSeries_RegularChart_RemovesSeries()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(RemoveSeries_RegularChart_RemovesSeries),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -144,11 +132,7 @@ public partial class ChartCommandsTests
     public void AddSeries_WithoutCategoryRange_CreatesSeriesSuccessfully()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(AddSeries_WithoutCategoryRange_CreatesSeriesSuccessfully),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -179,11 +163,7 @@ public partial class ChartCommandsTests
     public void SetSourceRange_NonExistentChart_ReturnsError()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(SetSourceRange_NonExistentChart_ReturnsError),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         // Act & Assert
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -196,11 +176,7 @@ public partial class ChartCommandsTests
     public void AddSeries_InvalidSeriesIndex_HandlesGracefully()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(AddSeries_InvalidSeriesIndex_HandlesGracefully),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -230,11 +206,7 @@ public partial class ChartCommandsTests
     public void SetSourceRange_ExpandedRange_UpdatesChartData()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(SetSourceRange_ExpandedRange_UpdatesChartData),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 

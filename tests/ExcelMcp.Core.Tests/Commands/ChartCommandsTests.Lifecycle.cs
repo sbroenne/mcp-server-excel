@@ -13,26 +13,22 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 [Trait("Layer", "Core")]
 [Trait("Feature", "Charts")]
 [Trait("RequiresExcel", "true")]
-public partial class ChartCommandsTests : IClassFixture<TempDirectoryFixture>
+public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
 {
     private readonly ChartCommands _commands;
-    private readonly string _tempDir;
+    private readonly ChartTestsFixture _fixture;
 
-    public ChartCommandsTests(TempDirectoryFixture fixture)
+    public ChartCommandsTests(ChartTestsFixture fixture)
     {
         _commands = new ChartCommands();
-        _tempDir = fixture.TempDir;
+        _fixture = fixture;
     }
 
     [Fact]
     public void List_EmptyWorkbook_ReturnsEmptyList()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(List_EmptyWorkbook_ReturnsEmptyList),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -46,11 +42,7 @@ public partial class ChartCommandsTests : IClassFixture<TempDirectoryFixture>
     public void CreateFromRange_ValidData_CreatesChart()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(CreateFromRange_ValidData_CreatesChart),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -97,11 +89,7 @@ public partial class ChartCommandsTests : IClassFixture<TempDirectoryFixture>
     public void Read_ExistingChart_ReturnsDetails()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(Read_ExistingChart_ReturnsDetails),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -135,11 +123,7 @@ public partial class ChartCommandsTests : IClassFixture<TempDirectoryFixture>
     public void Read_NonExistentChart_ReturnsError()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(Read_NonExistentChart_ReturnsError),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         // Act & Assert
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -151,11 +135,7 @@ public partial class ChartCommandsTests : IClassFixture<TempDirectoryFixture>
     public void Delete_ExistingChart_RemovesChart()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(Delete_ExistingChart_RemovesChart),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -185,11 +165,7 @@ public partial class ChartCommandsTests : IClassFixture<TempDirectoryFixture>
     public void Move_ExistingChart_UpdatesPosition()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(Move_ExistingChart_UpdatesPosition),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -218,11 +194,7 @@ public partial class ChartCommandsTests : IClassFixture<TempDirectoryFixture>
     public void List_MultipleCharts_ReturnsAll()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(List_MultipleCharts_ReturnsAll),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -258,11 +230,7 @@ public partial class ChartCommandsTests : IClassFixture<TempDirectoryFixture>
     public void CreateFromRange_DifferentChartTypes_CreatesCorrectly()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(CreateFromRange_DifferentChartTypes_CreatesCorrectly),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 

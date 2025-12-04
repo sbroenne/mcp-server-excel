@@ -26,11 +26,7 @@ public partial class PowerQueryCommandsTests
     public void List_WorkbookWithManualTable_ReturnsOnlyQueries()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(PowerQueryCommandsTests),
-            nameof(List_WorkbookWithManualTable_ReturnsOnlyQueries),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         var dataModelCommands = new DataModelCommands();
         var commands = new PowerQueryCommands(dataModelCommands);

@@ -9,13 +9,11 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Vba;
 /// </summary>
 public partial class VbaCommandsTests
 {
-    /// <inheritdoc/>
     [Fact]
     public void ScriptCommands_List_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(VbaCommandsTests), nameof(ScriptCommands_List_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
+        var testFile = _fixture.CreateTestFile();
 
         // Act
         using var batch = ExcelSession.BeginBatch(testFile);
@@ -25,14 +23,11 @@ public partial class VbaCommandsTests
         Assert.True(result.Success, $"List should succeed with VBA trust enabled. Error: {result.ErrorMessage}");
         Assert.NotNull(result.Scripts);
     }
-    /// <inheritdoc/>
-
     [Fact]
     public void ScriptCommands_Import_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(VbaCommandsTests), nameof(ScriptCommands_Import_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
+        var testFile = _fixture.CreateTestFile();
 
         string vbaCode = "Sub TestImport()\nEnd Sub";
 
@@ -44,14 +39,11 @@ public partial class VbaCommandsTests
         var listResult = _scriptCommands.List(batch);
         Assert.Contains(listResult.Scripts, s => s.Name == "TestModule");
     }
-    /// <inheritdoc/>
-
     [Fact]
     public void ScriptCommands_Export_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(VbaCommandsTests), nameof(ScriptCommands_Export_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
+        var testFile = _fixture.CreateTestFile();
 
         // First import a module so we have something to export
         string vbaCode = "Sub TestCode()\nEnd Sub";
@@ -67,14 +59,11 @@ public partial class VbaCommandsTests
         Assert.NotNull(result.Code);
         Assert.NotEmpty(result.Code);
     }
-    /// <inheritdoc/>
-
     [Fact]
     public void ScriptCommands_Run_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(VbaCommandsTests), nameof(ScriptCommands_Run_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
+        var testFile = _fixture.CreateTestFile();
 
         // Import a test macro first
         string vbaCode = @"Sub TestProcedure()
@@ -91,14 +80,11 @@ End Sub";
         var listResult = _scriptCommands.List(batch);
         Assert.Contains(listResult.Scripts, s => s.Name == "TestModule");
     }
-    /// <inheritdoc/>
-
     [Fact]
     public void ScriptCommands_Delete_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(VbaCommandsTests), nameof(ScriptCommands_Delete_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
+        var testFile = _fixture.CreateTestFile();
 
         // Import a module first
         string vbaCode = "Sub TestCode()\nEnd Sub";
@@ -113,14 +99,11 @@ End Sub";
         var listResult = _scriptCommands.List(batch);
         Assert.DoesNotContain(listResult.Scripts, s => s.Name == "TestModule");
     }
-    /// <inheritdoc/>
-
     [Fact]
     public void ScriptCommands_View_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(VbaCommandsTests), nameof(ScriptCommands_View_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
+        var testFile = _fixture.CreateTestFile();
 
         // Import a module with known code
         string expectedCode = "Sub ViewTest()\n    MsgBox \"Hello\"\nEnd Sub";
@@ -137,14 +120,11 @@ End Sub";
         Assert.Contains("ViewTest", result.Code);
         Assert.Contains("MsgBox", result.Code);
     }
-    /// <inheritdoc/>
-
     [Fact]
     public void ScriptCommands_Update_WithTrustEnabled_WorksCorrectly()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(VbaCommandsTests), nameof(ScriptCommands_Update_WithTrustEnabled_WorksCorrectly), _tempDir, ".xlsm");
+        var testFile = _fixture.CreateTestFile();
 
         // Import initial module
         string initialCode = "Sub OriginalCode()\nEnd Sub";

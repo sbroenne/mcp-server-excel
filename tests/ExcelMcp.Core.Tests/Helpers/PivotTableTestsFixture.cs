@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Xunit;
@@ -13,10 +14,17 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 /// - Each test gets its own batch (isolation at batch level)
 /// - No file sharing between test classes
 /// - Creation results exposed for validation tests
+/// - CreateTestFile() available for tests that need unique files
 /// </summary>
 public class PivotTableTestsFixture : IAsyncLifetime
 {
     private readonly string _tempDir;
+    private readonly FileCommands _fileCommands = new();
+
+    /// <summary>
+    /// Temp directory for all test files (auto-cleaned on disposal)
+    /// </summary>
+    public string TempDir => _tempDir;
 
     /// <summary>
     /// Path to the test PivotTable file
@@ -27,7 +35,6 @@ public class PivotTableTestsFixture : IAsyncLifetime
     /// Results of data creation (exposed for validation)
     /// </summary>
     public PivotTableCreationResult CreationResult { get; private set; } = null!;
-    /// <inheritdoc/>
 
     public PivotTableTestsFixture()
     {
@@ -114,6 +121,21 @@ public class PivotTableTestsFixture : IAsyncLifetime
         }
 
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Creates a unique test file for tests that need their own file.
+    /// File name includes test name + GUID for uniqueness.
+    /// </summary>
+    /// <param name="testName">Test name (auto-populated via CallerMemberName)</param>
+    /// <param name="extension">File extension (default: .xlsx)</param>
+    /// <returns>Path to the new test file</returns>
+    public string CreateTestFile([CallerMemberName] string testName = "", string extension = ".xlsx")
+    {
+        var fileName = $"{testName}_{Guid.NewGuid():N}{extension}";
+        var filePath = Path.Join(_tempDir, fileName);
+        _fileCommands.CreateEmpty(filePath);
+        return filePath;
     }
 
     /// <summary>

@@ -16,26 +16,20 @@ public partial class SheetCommandsTests
     public void SetVisibility_ToHidden_WorksCorrectly()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests),
-            nameof(SetVisibility_ToHidden_WorksCorrectly),
-            _tempDir);
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-        _sheetCommands.Create(batch, "HideTest");
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = $"Hide_{Guid.NewGuid():N}"[..31];
+        _sheetCommands.Create(batch, sheetName);
 
         // Act
-        _sheetCommands.SetVisibility(batch, "HideTest", SheetVisibility.Hidden);  // SetVisibility throws on error
+        _sheetCommands.SetVisibility(batch, sheetName, SheetVisibility.Hidden);  // SetVisibility throws on error
 
         // Assert - reaching here means set succeeded
 
         // Verify by reading visibility
-        var getResult = _sheetCommands.GetVisibility(batch, "HideTest");
+        var getResult = _sheetCommands.GetVisibility(batch, sheetName);
         Assert.True(getResult.Success);
         Assert.Equal(SheetVisibility.Hidden, getResult.Visibility);
         Assert.Equal("Hidden", getResult.VisibilityName);
-
-        // Save changes
     }
     /// <inheritdoc/>
 
@@ -43,25 +37,19 @@ public partial class SheetCommandsTests
     public void SetVisibility_ToVeryHidden_WorksCorrectly()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests),
-            nameof(SetVisibility_ToVeryHidden_WorksCorrectly),
-            _tempDir);
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-        _sheetCommands.Create(batch, "VeryHideTest");
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = $"VHide_{Guid.NewGuid():N}"[..31];
+        _sheetCommands.Create(batch, sheetName);
 
         // Act
-        _sheetCommands.SetVisibility(batch, "VeryHideTest", SheetVisibility.VeryHidden);  // SetVisibility throws on error
+        _sheetCommands.SetVisibility(batch, sheetName, SheetVisibility.VeryHidden);  // SetVisibility throws on error
 
         // Assert - reaching here means set succeeded
 
-        var getResult = _sheetCommands.GetVisibility(batch, "VeryHideTest");
+        var getResult = _sheetCommands.GetVisibility(batch, sheetName);
         Assert.True(getResult.Success);
         Assert.Equal(SheetVisibility.VeryHidden, getResult.Visibility);
         Assert.Equal("VeryHidden", getResult.VisibilityName);
-
-        // Save changes
     }
     /// <inheritdoc/>
 
@@ -69,28 +57,22 @@ public partial class SheetCommandsTests
     public void Show_HiddenSheet_MakesVisible()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests),
-            nameof(Show_HiddenSheet_MakesVisible),
-            _tempDir);
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-        _sheetCommands.Create(batch, "ShowTest");
-        _sheetCommands.Hide(batch, "ShowTest");
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = $"ShowH_{Guid.NewGuid():N}"[..31];
+        _sheetCommands.Create(batch, sheetName);
+        _sheetCommands.Hide(batch, sheetName);
 
         // Verify it's hidden
-        var hiddenCheck = _sheetCommands.GetVisibility(batch, "ShowTest");
+        var hiddenCheck = _sheetCommands.GetVisibility(batch, sheetName);
         Assert.Equal(SheetVisibility.Hidden, hiddenCheck.Visibility);
 
         // Act - Show the sheet
-        _sheetCommands.Show(batch, "ShowTest");  // Show throws on error
+        _sheetCommands.Show(batch, sheetName);  // Show throws on error
 
         // Assert - reaching here means show succeeded
 
-        var visibleCheck = _sheetCommands.GetVisibility(batch, "ShowTest");
+        var visibleCheck = _sheetCommands.GetVisibility(batch, sheetName);
         Assert.Equal(SheetVisibility.Visible, visibleCheck.Visibility);
-
-        // Save changes
     }
     /// <inheritdoc/>
 
@@ -98,28 +80,22 @@ public partial class SheetCommandsTests
     public void Show_VeryHiddenSheet_MakesVisible()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests),
-            nameof(Show_VeryHiddenSheet_MakesVisible),
-            _tempDir);
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-        _sheetCommands.Create(batch, "VeryHideShowTest");
-        _sheetCommands.VeryHide(batch, "VeryHideShowTest");
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = $"ShowVH_{Guid.NewGuid():N}"[..31];
+        _sheetCommands.Create(batch, sheetName);
+        _sheetCommands.VeryHide(batch, sheetName);
 
         // Verify it's very hidden
-        var veryHiddenCheck = _sheetCommands.GetVisibility(batch, "VeryHideShowTest");
+        var veryHiddenCheck = _sheetCommands.GetVisibility(batch, sheetName);
         Assert.Equal(SheetVisibility.VeryHidden, veryHiddenCheck.Visibility);
 
         // Act - Show the sheet
-        _sheetCommands.Show(batch, "VeryHideShowTest");  // Show throws on error
+        _sheetCommands.Show(batch, sheetName);  // Show throws on error
 
         // Assert - reaching here means show succeeded
 
-        var visibleCheck = _sheetCommands.GetVisibility(batch, "VeryHideShowTest");
+        var visibleCheck = _sheetCommands.GetVisibility(batch, sheetName);
         Assert.Equal(SheetVisibility.Visible, visibleCheck.Visibility);
-
-        // Save changes
     }
     /// <inheritdoc/>
 
@@ -127,23 +103,17 @@ public partial class SheetCommandsTests
     public void Hide_VisibleSheet_MakesHidden()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests),
-            nameof(Hide_VisibleSheet_MakesHidden),
-            _tempDir);
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-        _sheetCommands.Create(batch, "HideMe");
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = $"HideMe_{Guid.NewGuid():N}"[..31];
+        _sheetCommands.Create(batch, sheetName);
 
         // Act
-        _sheetCommands.Hide(batch, "HideMe");  // Hide throws on error
+        _sheetCommands.Hide(batch, sheetName);  // Hide throws on error
 
         // Assert - reaching here means hide succeeded
 
-        var getResult = _sheetCommands.GetVisibility(batch, "HideMe");
+        var getResult = _sheetCommands.GetVisibility(batch, sheetName);
         Assert.Equal(SheetVisibility.Hidden, getResult.Visibility);
-
-        // Save changes
     }
     /// <inheritdoc/>
 
@@ -151,23 +121,17 @@ public partial class SheetCommandsTests
     public void VeryHide_VeryHidesVisibleSheet()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests),
-            nameof(VeryHide_VeryHidesVisibleSheet),
-            _tempDir);
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-        _sheetCommands.Create(batch, "VeryHideMe");
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = $"VHide_{Guid.NewGuid():N}"[..31];
+        _sheetCommands.Create(batch, sheetName);
 
         // Act
-        _sheetCommands.VeryHide(batch, "VeryHideMe");  // VeryHide throws on error
+        _sheetCommands.VeryHide(batch, sheetName);  // VeryHide throws on error
 
         // Assert - reaching here means veryhide succeeded
 
-        var getResult = _sheetCommands.GetVisibility(batch, "VeryHideMe");
+        var getResult = _sheetCommands.GetVisibility(batch, sheetName);
         Assert.Equal(SheetVisibility.VeryHidden, getResult.Visibility);
-
-        // Save changes
     }
     /// <inheritdoc/>
 
@@ -175,16 +139,12 @@ public partial class SheetCommandsTests
     public void GetVisibility_ForVisibleSheet_ReturnsVisible()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests),
-            nameof(GetVisibility_ForVisibleSheet_ReturnsVisible),
-            _tempDir);
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-        _sheetCommands.Create(batch, "VisibleSheet");
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = $"Vis_{Guid.NewGuid():N}"[..31];
+        _sheetCommands.Create(batch, sheetName);
 
         // Act
-        var result = _sheetCommands.GetVisibility(batch, "VisibleSheet");
+        var result = _sheetCommands.GetVisibility(batch, sheetName);
 
         // Assert
         Assert.True(result.Success);
@@ -197,16 +157,11 @@ public partial class SheetCommandsTests
     public void SetVisibility_WithNonExistentSheet_ThrowsException()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests),
-            nameof(SetVisibility_WithNonExistentSheet_ThrowsException),
-            _tempDir);
-
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
 
         // Act & Assert - Should throw InvalidOperationException when sheet not found
         var exception = Assert.Throws<InvalidOperationException>(
-            () => _sheetCommands.SetVisibility(batch, "NonExistent", SheetVisibility.Hidden));
+            () => _sheetCommands.SetVisibility(batch, $"NonExist_{Guid.NewGuid():N}", SheetVisibility.Hidden));
         Assert.Contains("not found", exception.Message);
     }
     /// <inheritdoc/>
@@ -215,35 +170,29 @@ public partial class SheetCommandsTests
     public void Visibility_CompleteWorkflow_AllLevelsWork()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SheetCommandsTests),
-            nameof(Visibility_CompleteWorkflow_AllLevelsWork),
-            _tempDir);
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-        _sheetCommands.Create(batch, "Workflow");
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = $"WFlow_{Guid.NewGuid():N}"[..31];
+        _sheetCommands.Create(batch, sheetName);
 
         // Act & Assert - Test complete visibility workflow
 
         // Start visible
-        var check1 = _sheetCommands.GetVisibility(batch, "Workflow");
+        var check1 = _sheetCommands.GetVisibility(batch, sheetName);
         Assert.Equal(SheetVisibility.Visible, check1.Visibility);
 
         // Hide it
-        _sheetCommands.Hide(batch, "Workflow");
-        var check2 = _sheetCommands.GetVisibility(batch, "Workflow");
+        _sheetCommands.Hide(batch, sheetName);
+        var check2 = _sheetCommands.GetVisibility(batch, sheetName);
         Assert.Equal(SheetVisibility.Hidden, check2.Visibility);
 
         // Very hide it
-        _sheetCommands.VeryHide(batch, "Workflow");
-        var check3 = _sheetCommands.GetVisibility(batch, "Workflow");
+        _sheetCommands.VeryHide(batch, sheetName);
+        var check3 = _sheetCommands.GetVisibility(batch, sheetName);
         Assert.Equal(SheetVisibility.VeryHidden, check3.Visibility);
 
         // Show it again
-        _sheetCommands.Show(batch, "Workflow");
-        var check4 = _sheetCommands.GetVisibility(batch, "Workflow");
+        _sheetCommands.Show(batch, sheetName);
+        var check4 = _sheetCommands.GetVisibility(batch, sheetName);
         Assert.Equal(SheetVisibility.Visible, check4.Visibility);
-
-        // Save changes
     }
 }

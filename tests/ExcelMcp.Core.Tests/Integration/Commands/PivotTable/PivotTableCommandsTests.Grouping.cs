@@ -341,8 +341,7 @@ public partial class PivotTableCommandsTests
     /// </summary>
     private string CreateTestFileWithNumericData(string testName)
     {
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(PivotTableCommandsTests), testName, _tempDir);
+        var testFile = _fixture.CreateTestFile(testName);
 
         using var batch = ExcelSession.BeginBatch(testFile);
 

@@ -14,17 +14,17 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Vba;
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "VBA")]
-public partial class VbaCommandsTests : IClassFixture<TempDirectoryFixture>
+public partial class VbaCommandsTests : IClassFixture<VbaTestsFixture>
 {
     private readonly VbaCommands _scriptCommands;
-    private readonly string _tempDir;
+    private readonly VbaTestsFixture _fixture;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="VbaCommandsTests"/> class.
     /// </summary>
-    public VbaCommandsTests(TempDirectoryFixture fixture)
+    public VbaCommandsTests(VbaTestsFixture fixture)
     {
         _scriptCommands = new VbaCommands();
-        _tempDir = fixture.TempDir;
+        _fixture = fixture;
     }
 }

@@ -13,7 +13,7 @@ public partial class FileCommandsTests
     public void CreateEmpty_ThenOpenAndList_ReturnsSheet1()
     {
         // Arrange
-        string testFile = Path.Join(_tempDir, $"{nameof(CreateEmpty_ThenOpenAndList_ReturnsSheet1)}_{Guid.NewGuid():N}.xlsx");
+        string testFile = Path.Join(_fixture.TempDir, $"{nameof(CreateEmpty_ThenOpenAndList_ReturnsSheet1)}_{Guid.NewGuid():N}.xlsx");
 
         // Act 1: CreateEmpty (what LLM called first)
         _fileCommands.CreateEmpty(testFile);
@@ -43,7 +43,7 @@ public partial class FileCommandsTests
     public void CreateEmpty_ThenOpenAndListMultipleTimes_ConsistentResults()
     {
         // Arrange
-        string testFile = Path.Join(_tempDir, $"{nameof(CreateEmpty_ThenOpenAndListMultipleTimes_ConsistentResults)}_{Guid.NewGuid():N}.xlsx");
+        string testFile = Path.Join(_fixture.TempDir, $"{nameof(CreateEmpty_ThenOpenAndListMultipleTimes_ConsistentResults)}_{Guid.NewGuid():N}.xlsx");
 
         // Act 1: CreateEmpty
         _fileCommands.CreateEmpty(testFile);
@@ -66,7 +66,7 @@ public partial class FileCommandsTests
     public void CreateEmpty_ThenOpenAndCreateMoreSheets_AllSheetsVisible()
     {
         // Arrange
-        string testFile = Path.Join(_tempDir, $"{nameof(CreateEmpty_ThenOpenAndCreateMoreSheets_AllSheetsVisible)}_{Guid.NewGuid():N}.xlsx");
+        string testFile = Path.Join(_fixture.TempDir, $"{nameof(CreateEmpty_ThenOpenAndCreateMoreSheets_AllSheetsVisible)}_{Guid.NewGuid():N}.xlsx");
 
         // Act 1: CreateEmpty
         _fileCommands.CreateEmpty(testFile);

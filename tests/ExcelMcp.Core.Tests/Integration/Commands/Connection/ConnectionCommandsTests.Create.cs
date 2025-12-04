@@ -18,12 +18,9 @@ public partial class ConnectionCommandsTests
     public void Create_TextConnection_ThrowsNotSupportedException()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            nameof(Create_TextConnection_ThrowsNotSupportedException),
-            _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
-        var csvPath = Path.Combine(_tempDir, "test_data.csv");
+        var csvPath = Path.Combine(_fixture.TempDir, "test_data.csv");
         System.IO.File.WriteAllText(csvPath, "Name,Value\nTest,123");
 
         string connectionString = $"TEXT;{csvPath}";
@@ -42,10 +39,7 @@ public partial class ConnectionCommandsTests
     public void Create_WebConnection_ThrowsNotSupportedException()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            nameof(Create_WebConnection_ThrowsNotSupportedException),
-            _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         string connectionString = "URL;https://example.com/data.xml";
         string connectionName = "TestWebConnection";
@@ -63,12 +57,9 @@ public partial class ConnectionCommandsTests
     public void Create_AceOleDbConnection_ReturnsSuccess()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            nameof(Create_AceOleDbConnection_ReturnsSuccess),
-            _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
-        var sourceWorkbook = Path.Combine(_tempDir, "AceOleDbSource.xlsx");
+        var sourceWorkbook = _fixture.GetSourceFilePath("AceOleDbSource");
         AceOleDbTestHelper.CreateExcelDataSource(sourceWorkbook);
 
         string connectionString = AceOleDbTestHelper.GetExcelConnectionString(sourceWorkbook);
@@ -96,10 +87,7 @@ public partial class ConnectionCommandsTests
     public void Create_OdbcConnection_ReturnsSuccess()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            nameof(Create_OdbcConnection_ReturnsSuccess),
-            _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         // ODBC connection string - Excel accepts but may not connect without actual DSN
         string connectionString = "ODBC;DSN=Excel Files;DBQ=C:\\temp\\test.xlsx";
@@ -119,10 +107,7 @@ public partial class ConnectionCommandsTests
     public void Create_DuplicateName_CreatesSecondConnection()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            nameof(Create_DuplicateName_CreatesSecondConnection),
-            _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         string connectionString1 = "ODBC;DSN=Source1;DBQ=C:\\temp\\test1.xlsx";
         string connectionString2 = "ODBC;DSN=Source2;DBQ=C:\\temp\\test2.xlsx";
@@ -152,10 +137,7 @@ public partial class ConnectionCommandsTests
     public void Create_WithDescription_CreatesConnection()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ConnectionCommandsTests),
-            nameof(Create_WithDescription_CreatesConnection),
-            _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         string connectionString = "ODBC;DSN=Excel Files;DBQ=C:\\temp\\test.xlsx";
         string connectionName = "ConnectionWithDescription";

@@ -14,11 +14,7 @@ public partial class ChartCommandsTests
     public void SetChartType_ExistingChart_ChangesType()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(SetChartType_ExistingChart_ChangesType),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -50,11 +46,7 @@ public partial class ChartCommandsTests
     public void SetTitle_ValidTitle_SetsChartTitle()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(SetTitle_ValidTitle_SetsChartTitle),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -84,11 +76,7 @@ public partial class ChartCommandsTests
     public void SetTitle_EmptyString_HidesTitle()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(SetTitle_EmptyString_HidesTitle),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -115,11 +103,7 @@ public partial class ChartCommandsTests
     public void SetAxisTitle_CategoryAxis_SetsTitleSuccessfully()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(SetAxisTitle_CategoryAxis_SetsTitleSuccessfully),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -146,11 +130,7 @@ public partial class ChartCommandsTests
     public void SetAxisTitle_ValueAxis_SetsTitleSuccessfully()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(SetAxisTitle_ValueAxis_SetsTitleSuccessfully),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -177,11 +157,7 @@ public partial class ChartCommandsTests
     public void ShowLegend_WithPosition_DisplaysLegendAtPosition()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(ShowLegend_WithPosition_DisplaysLegendAtPosition),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -212,11 +188,7 @@ public partial class ChartCommandsTests
     public void ShowLegend_HideLegend_RemovesLegend()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(ShowLegend_HideLegend_RemovesLegend),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -243,11 +215,7 @@ public partial class ChartCommandsTests
     public void SetStyle_ValidStyleId_AppliesStyle()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(SetStyle_ValidStyleId_AppliesStyle),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -274,11 +242,7 @@ public partial class ChartCommandsTests
     public void SetStyle_InvalidStyleId_ReturnsError()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(SetStyle_InvalidStyleId_ReturnsError),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -302,11 +266,7 @@ public partial class ChartCommandsTests
     public void SetChartType_MultipleTypes_AllWorkCorrectly()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(SetChartType_MultipleTypes_AllWorkCorrectly),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -341,11 +301,7 @@ public partial class ChartCommandsTests
     public void ShowLegend_DifferentPositions_AllWorkCorrectly()
     {
         // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(ChartCommandsTests),
-            nameof(ShowLegend_DifferentPositions_AllWorkCorrectly),
-            _tempDir,
-            ".xlsx");
+        var testFile = _fixture.CreateTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 

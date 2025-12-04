@@ -8,13 +8,11 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.File;
 /// </summary>
 public partial class FileCommandsTests
 {
-    /// <inheritdoc/>
     [Fact]
     public void Test_ExistingValidFile_ReturnsSuccess()
     {
         // Arrange - Create a valid file
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(FileCommandsTests), nameof(Test_ExistingValidFile_ReturnsSuccess), _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         // Act
         var info = _fileCommands.Test(testFile);
@@ -26,13 +24,11 @@ public partial class FileCommandsTests
         Assert.True(info.Size > 0);
         Assert.Null(info.Message);
     }
-    /// <inheritdoc/>
-
     [Fact]
     public void Test_NonExistent_ReturnsFailure()
     {
         // Arrange
-        string testFile = Path.Join(_tempDir, $"NonExistent_{Guid.NewGuid():N}.xlsx");
+        string testFile = Path.Join(_fixture.TempDir, $"NonExistent_{Guid.NewGuid():N}.xlsx");
 
         // Act
         var info = _fileCommands.Test(testFile);
@@ -43,8 +39,6 @@ public partial class FileCommandsTests
         Assert.NotNull(info.Message);
         Assert.Contains("not found", info.Message, StringComparison.OrdinalIgnoreCase);
     }
-    /// <inheritdoc/>
-
     [Theory]
     [InlineData("TestFile.xls", ".xls")]
     [InlineData("TestFile.csv", ".csv")]
@@ -52,7 +46,7 @@ public partial class FileCommandsTests
     public void Test_InvalidExtension_ReturnsFailure(string fileName, string expectedExt)
     {
         // Arrange
-        string testFile = Path.Join(_tempDir, $"{Guid.NewGuid():N}_{fileName}");
+        string testFile = Path.Join(_fixture.TempDir, $"{Guid.NewGuid():N}_{fileName}");
 
         // Create file with invalid extension
         System.IO.File.WriteAllText(testFile, "test content");

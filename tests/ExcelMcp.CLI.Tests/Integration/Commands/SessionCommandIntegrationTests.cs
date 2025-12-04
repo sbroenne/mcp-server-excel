@@ -16,20 +16,17 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration.Commands;
 [Trait("Speed", "Medium")]
 public sealed class SessionCommandIntegrationTests : IClassFixture<TempDirectoryFixture>
 {
-    private readonly string _tempDir;
+    private readonly TempDirectoryFixture _fixture;
 
     public SessionCommandIntegrationTests(TempDirectoryFixture fixture)
     {
-        _tempDir = fixture.TempDir;
+        _fixture = fixture;
     }
 
     [Fact]
     public void SessionCommands_OpenListClose_ManagesLifecycle()
     {
-        var filePath = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SessionCommandIntegrationTests),
-            nameof(SessionCommands_OpenListClose_ManagesLifecycle),
-            _tempDir);
+        var filePath = _fixture.CreateTestFile();
 
         using var sessionService = new SessionService();
 
@@ -75,10 +72,7 @@ public sealed class SessionCommandIntegrationTests : IClassFixture<TempDirectory
     [Fact]
     public void SheetCommand_CreateAndList_Worksheets()
     {
-        var filePath = CoreTestHelper.CreateUniqueTestFile(
-            nameof(SessionCommandIntegrationTests),
-            nameof(SheetCommand_CreateAndList_Worksheets),
-            _tempDir);
+        var filePath = _fixture.CreateTestFile();
 
         using var sessionService = new SessionService();
 

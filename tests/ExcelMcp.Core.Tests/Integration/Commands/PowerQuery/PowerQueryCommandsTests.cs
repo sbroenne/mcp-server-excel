@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
 /// Integration tests for Power Query operations focusing on LLM use cases.
 /// Tests cover the essential workflows: import, list, view, update, delete, refresh with load destinations.
 /// Uses PowerQueryTestsFixture which creates ONE Power Query file per test class.
-/// Each test uses unique files for complete isolation where needed.
+/// Tests that modify queries use CreateTestFile() for isolation.
 /// </summary>
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
@@ -24,19 +24,19 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
     private readonly SheetCommands _sheetCommands;
     private readonly string _powerQueryFile;
     private readonly PowerQueryCreationResult _creationResult;
-    private readonly string _tempDir;
+    private readonly PowerQueryTestsFixture _fixture;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PowerQueryCommandsTests"/> class.
     /// </summary>
     public PowerQueryCommandsTests(PowerQueryTestsFixture fixture)
     {
+        _fixture = fixture;
         var dataModelCommands = new DataModelCommands();
         _powerQueryCommands = new PowerQueryCommands(dataModelCommands);
         _sheetCommands = new SheetCommands();
         _powerQueryFile = fixture.TestFilePath;
         _creationResult = fixture.CreationResult;
-        _tempDir = Path.GetDirectoryName(fixture.TestFilePath)!;
     }
 
     #region Core Lifecycle Tests (6 tests)
@@ -66,10 +66,7 @@ public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixt
     public void Import_ValidMCode_ReturnsSuccess()
     {
         // Arrange - Use unique file to avoid polluting fixture
-        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(PowerQueryCommandsTests),
-            nameof(Import_ValidMCode_ReturnsSuccess),
-            _tempDir);
+        var testExcelFile = _fixture.CreateTestFile();
         var queryName = "TestQuery";
         var mCode = @"let
     Source = #table(
@@ -135,10 +132,7 @@ in
     public void Update_ExistingQuery_ReturnsSuccess()
     {
         // Arrange
-        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(PowerQueryCommandsTests),
-            nameof(Update_ExistingQuery_ReturnsSuccess),
-            _tempDir);
+        var testExcelFile = _fixture.CreateTestFile();
 
         var queryName = "PQ_Update_" + Guid.NewGuid().ToString("N")[..8];
         var originalMCode = @"let
@@ -180,10 +174,7 @@ in
     public void Update_ExistingQuery_ReplacesNotMergesMCode()
     {
         // Arrange
-        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(PowerQueryCommandsTests),
-            nameof(Update_ExistingQuery_ReplacesNotMergesMCode),
-            _tempDir);
+        var testExcelFile = _fixture.CreateTestFile();
 
         var queryName = "PQ_ReplaceTest_" + Guid.NewGuid().ToString("N")[..8];
 
@@ -242,10 +233,7 @@ in
     public void Update_MultipleSequentialUpdates_EachReplacesCompletely()
     {
         // Arrange
-        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(PowerQueryCommandsTests),
-            nameof(Update_MultipleSequentialUpdates_EachReplacesCompletely),
-            _tempDir);
+        var testExcelFile = _fixture.CreateTestFile();
 
         var queryName = "PQ_MultiUpdate_" + Guid.NewGuid().ToString("N")[..8];
 
@@ -301,10 +289,7 @@ in
     public void Delete_ExistingQuery_ReturnsSuccess()
     {
         // Arrange
-        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(PowerQueryCommandsTests),
-            nameof(Delete_ExistingQuery_ReturnsSuccess),
-            _tempDir);
+        var testExcelFile = _fixture.CreateTestFile();
 
         var queryName = "PQ_Delete_" + Guid.NewGuid().ToString("N")[..8];
         var mCode = @"let
@@ -337,10 +322,7 @@ in
     public void Create_DuplicateQueryName_ReturnsError()
     {
         // Arrange
-        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(PowerQueryCommandsTests),
-            nameof(Create_DuplicateQueryName_ReturnsError),
-            _tempDir);
+        var testExcelFile = _fixture.CreateTestFile();
 
         var queryName = "TestQuery";
         var mCode = @"let
@@ -389,10 +371,7 @@ in
     public void Import_QueryReferencingAnotherQuery_LoadsDataSuccessfully()
     {
         // Arrange
-        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(PowerQueryCommandsTests),
-            nameof(Import_QueryReferencingAnotherQuery_LoadsDataSuccessfully),
-            _tempDir);
+        var testExcelFile = _fixture.CreateTestFile();
 
         // Create M code for the source query (base data)
         string sourceQueryMCode = @"let
@@ -470,10 +449,7 @@ in
     public void Update_QueryLoadedToSheet_PreservesLoadConfiguration()
     {
         // Arrange
-        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(PowerQueryCommandsTests),
-            nameof(Update_QueryLoadedToSheet_PreservesLoadConfiguration),
-            _tempDir);
+        var testExcelFile = _fixture.CreateTestFile();
 
         var queryName = "LoadedQuery_" + Guid.NewGuid().ToString("N")[..8];
         var sheetName = "DataSheet";
@@ -542,10 +518,7 @@ in
     {
         // Arrange
 
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(PowerQueryCommandsTests),
-            nameof(UpdateMCodeThenRefresh_QueryLoadedToSheet_PreservesLoadConfiguration),
-            _tempDir);
+        var testFile = _fixture.CreateTestFile();
 
         var queryName = "LoadedQuery_" + Guid.NewGuid().ToString("N")[..8];
         var sheetName = "DataSheet";
@@ -627,10 +600,7 @@ in
     public void Update_QueryColumnStructure_UpdatesWorksheetColumns()
     {
         // Arrange
-        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(PowerQueryCommandsTests),
-            nameof(Update_QueryColumnStructure_UpdatesWorksheetColumns),
-            _tempDir);
+        var testExcelFile = _fixture.CreateTestFile();
 
         var queryName = "ColumnStructureQuery_" + Guid.NewGuid().ToString("N")[..8];
         var sheetName = "DataSheet";
@@ -739,10 +709,7 @@ in
     public void Update_QueryColumnStructureWithDeleteRecreate_NoAccumulation()
     {
         // Arrange
-        var testExcelFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(PowerQueryCommandsTests),
-            nameof(Update_QueryColumnStructureWithDeleteRecreate_NoAccumulation),
-            _tempDir);
+        var testExcelFile = _fixture.CreateTestFile();
 
         var queryName = "AccumulationBug_" + Guid.NewGuid().ToString("N")[..8];
         var sheetName = "TestSheet";

@@ -1,5 +1,4 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
@@ -9,21 +8,20 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 /// </summary>
 public partial class RangeCommandsTests
 {
-    /// <inheritdoc/>
     // === VALUE OPERATIONS TESTS ===
 
     [Fact]
     public void GetValues_SingleCell_Returns1x1Array()
     {
-        // Arrange
-        string testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
-        using var batch = ExcelSession.BeginBatch(testFile);
+        // Arrange - use shared file, create unique sheet for this test
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
 
         // Set a value first
-        _commands.SetValues(batch, "Sheet1", "A1", [[100]]);
+        _commands.SetValues(batch, sheetName, "A1", [[100]]);
 
         // Act
-        var result = _commands.GetValues(batch, "Sheet1", "A1");
+        var result = _commands.GetValues(batch, sheetName, "A1");
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
@@ -35,14 +33,13 @@ public partial class RangeCommandsTests
             100.0,
             Convert.ToDouble(result.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
     }
-    /// <inheritdoc/>
 
     [Fact]
     public void GetValues_3x3Range_Returns2DArray()
     {
-        // Arrange
-        string testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
-        using var batch = ExcelSession.BeginBatch(testFile);
+        // Arrange - use shared file, create unique sheet for this test
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
 
         var testData = new List<List<object?>>
         {
@@ -51,10 +48,10 @@ public partial class RangeCommandsTests
             new() { 7, 8, 9 }
         };
 
-        _commands.SetValues(batch, "Sheet1", "A1:C3", testData);
+        _commands.SetValues(batch, sheetName, "A1:C3", testData);
 
         // Act
-        var result = _commands.GetValues(batch, "Sheet1", "A1:C3");
+        var result = _commands.GetValues(batch, sheetName, "A1:C3");
 
         // Assert
         Assert.True(result.Success);
@@ -68,14 +65,13 @@ public partial class RangeCommandsTests
             9.0,
             Convert.ToDouble(result.Values[2][2], System.Globalization.CultureInfo.InvariantCulture));
     }
-    /// <inheritdoc/>
 
     [Fact]
     public void SetValues_TableWithHeaders_WritesAndReadsBack()
     {
-        // Arrange
-        string testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
-        using var batch = ExcelSession.BeginBatch(testFile);
+        // Arrange - use shared file, create unique sheet for this test
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
 
         var testData = new List<List<object?>>
         {
@@ -85,25 +81,24 @@ public partial class RangeCommandsTests
         };
 
         // Act
-        var result = _commands.SetValues(batch, "Sheet1", "A1:B3", testData);
+        var result = _commands.SetValues(batch, sheetName, "A1:B3", testData);
         // Assert
         Assert.True(result.Success);
 
         // Verify by reading back
-        var readResult = _commands.GetValues(batch, "Sheet1", "A1:B3");
+        var readResult = _commands.GetValues(batch, sheetName, "A1:B3");
         Assert.Equal("Name", readResult.Values[0][0]);
         Assert.Equal(
             30.0,
             Convert.ToDouble(readResult.Values[1][1], System.Globalization.CultureInfo.InvariantCulture));
     }
-    /// <inheritdoc/>
 
     [Fact]
     public void SetValues_JsonElementStrings_WritesCorrectly()
     {
         // Arrange - Simulate MCP Server scenario where JSON deserialization creates JsonElement objects
-        string testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
 
         // Simulate MCP JSON: [["Azure Region Code", "Azure Region Name", "Geography", "Country"]]
         string json = """[["Azure Region Code", "Azure Region Name", "Geography", "Country"]]""";
@@ -123,25 +118,24 @@ public partial class RangeCommandsTests
         }
 
         // Act
-        var result = _commands.SetValues(batch, "Sheet1", "A1:D1", testData);
+        var result = _commands.SetValues(batch, sheetName, "A1:D1", testData);
         // Assert
         Assert.True(result.Success, $"SetValuesAsync failed: {result.ErrorMessage}");
 
         // Verify by reading back
-        var readResult = _commands.GetValues(batch, "Sheet1", "A1:D1");
+        var readResult = _commands.GetValues(batch, sheetName, "A1:D1");
         Assert.Equal("Azure Region Code", readResult.Values[0][0]);
         Assert.Equal("Azure Region Name", readResult.Values[0][1]);
         Assert.Equal("Geography", readResult.Values[0][2]);
         Assert.Equal("Country", readResult.Values[0][3]);
     }
-    /// <inheritdoc/>
 
     [Fact]
     public void SetValues_JsonElementMixedTypes_WritesCorrectly()
     {
         // Arrange - Test different JSON value types (string, number, boolean, null)
-        string testFile = CoreTestHelper.CreateUniqueTestFile(nameof(RangeCommandsTests), $"{Guid.NewGuid():N}", _tempDir);
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
 
         // Simulate MCP JSON: [["Text", 123, true, null]]
         string json = """[["Text", 123, true, null]]""";
@@ -161,12 +155,12 @@ public partial class RangeCommandsTests
         }
 
         // Act
-        var result = _commands.SetValues(batch, "Sheet1", "A1:D1", testData);
+        var result = _commands.SetValues(batch, sheetName, "A1:D1", testData);
         // Assert
         Assert.True(result.Success, $"SetValuesAsync failed: {result.ErrorMessage}");
 
         // Verify by reading back
-        var readResult = _commands.GetValues(batch, "Sheet1", "A1:D1");
+        var readResult = _commands.GetValues(batch, sheetName, "A1:D1");
         Assert.Equal("Text", readResult.Values[0][0]);
         Assert.Equal(
             123.0,
@@ -182,12 +176,9 @@ public partial class RangeCommandsTests
         // Regression test for bug where 0-based arrays caused "out of memory" error
         // Root cause: Excel COM requires 1-based arrays, we were passing 0-based C# arrays
 
-        // Arrange
-        string testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(RangeCommandsTests),
-            nameof(SetValues_WideHorizontalRange_NoOutOfMemoryError),
-            _tempDir);
-        using var batch = ExcelSession.BeginBatch(testFile);
+        // Arrange - use shared file, create unique sheet for this test
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
 
         // Create test data with 16 columns (matching user's A2:P2 scenario)
         var testData = new List<List<object?>>
@@ -196,13 +187,13 @@ public partial class RangeCommandsTests
         };
 
         // Act - Write 16 values to A1:P1 (single row, 16 columns)
-        var result = _commands.SetValues(batch, "Sheet1", "A1:P1", testData);
+        var result = _commands.SetValues(batch, sheetName, "A1:P1", testData);
 
         // Assert - Should succeed without "out of memory" error
         Assert.True(result.Success, $"SetValues failed: {result.ErrorMessage}");
 
         // Verify values were written correctly
-        var readResult = _commands.GetValues(batch, "Sheet1", "A1:P1");
+        var readResult = _commands.GetValues(batch, sheetName, "A1:P1");
         Assert.True(readResult.Success);
         Assert.Single(readResult.Values); // One row
         Assert.Equal(16, readResult.Values[0].Count); // 16 columns

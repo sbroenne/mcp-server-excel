@@ -1,7 +1,6 @@
 // Copyright (c) Stefan Broenne. All rights reserved.
 
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
@@ -11,18 +10,13 @@ public partial class RangeCommandsTests
     [Fact]
     public void ValidateRange_WithInputMessage_ReturnsSuccess()
     {
-        // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(RangeCommandsTests),
-            nameof(ValidateRange_WithInputMessage_ReturnsSuccess),
-            _tempDir);
-
-        // Act - First write list values to worksheet (required for dropdown)
-        using var batch = ExcelSession.BeginBatch(testFile);
+        // Arrange & Act - First write list values to worksheet (required for dropdown)
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
 
         _commands.SetValues(
             batch,
-            "Sheet1",
+            sheetName,
             "B1:B3",
             new List<List<object?>>
             {
@@ -34,7 +28,7 @@ public partial class RangeCommandsTests
         // Apply validation referencing the range (creates dropdown)
         _commands.ValidateRange(
             batch,
-            "Sheet1",
+            sheetName,
             "A1",
             validationType: "list",
             validationOperator: null,
@@ -52,7 +46,7 @@ public partial class RangeCommandsTests
         // void method throws on failure, succeeds silently
 
         // Verify validation is retrieved correctly (same batch)
-        var getResult = _commands.GetValidation(batch, "Sheet1", "A1");
+        var getResult = _commands.GetValidation(batch, sheetName, "A1");
 
         // Assert - Validation retrieved successfully
         Assert.True(getResult.Success, $"Get validation failed: {getResult.ErrorMessage}");
@@ -74,18 +68,13 @@ public partial class RangeCommandsTests
     [Fact]
     public void GetValidation_WithInputMessage_ReturnsInputTitleAndMessage()
     {
-        // Arrange
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(RangeCommandsTests),
-            nameof(GetValidation_WithInputMessage_ReturnsInputTitleAndMessage),
-            _tempDir);
-
-        // Act - First write list values to worksheet (required for dropdown)
-        using var batch = ExcelSession.BeginBatch(testFile);
+        // Arrange & Act - First write list values to worksheet (required for dropdown)
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
 
         _commands.SetValues(
             batch,
-            "Sheet1",
+            sheetName,
             "B1:B3",
             new List<List<object?>>
             {
@@ -97,7 +86,7 @@ public partial class RangeCommandsTests
         // Apply validation using the ValidateRangeAsync API
         _commands.ValidateRange(
             batch,
-            "Sheet1",
+            sheetName,
             "A1",
             validationType: "list",
             validationOperator: null,  // Not used for list type
@@ -115,7 +104,7 @@ public partial class RangeCommandsTests
         // void method throws on failure, succeeds silently
 
         // Act - Get validation to verify InputTitle/InputMessage are returned
-        var result = _commands.GetValidation(batch, "Sheet1", "A1");
+        var result = _commands.GetValidation(batch, sheetName, "A1");
 
         // Assert
         Assert.True(result.Success, $"Get validation failed: {result.ErrorMessage}");

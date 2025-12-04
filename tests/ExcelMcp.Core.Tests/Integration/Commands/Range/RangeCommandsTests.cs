@@ -6,24 +6,28 @@ using Xunit.Abstractions;
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
 /// <summary>
-/// Integration tests for RangeCommands - main partial class with shared fixture
+/// Integration tests for RangeCommands - main partial class with shared fixture.
+/// Uses RangeTestsFixture to create ONE file shared across all tests in this class.
+/// Each test creates its own sheet within that file for isolation.
 /// Other test methods are in partial files: Values.cs, Formulas.cs, Editing.cs, Search.cs, Discovery.cs, Hyperlinks.cs
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
 [Trait("Feature", "Range")]
 [Trait("RequiresExcel", "true")]
-public partial class RangeCommandsTests : IClassFixture<TempDirectoryFixture>
+public partial class RangeCommandsTests : IClassFixture<RangeTestsFixture>
 {
     private readonly ITestOutputHelper _output;
     private readonly RangeCommands _commands;
-    private readonly string _tempDir;
-    /// <inheritdoc/>
+    private readonly RangeTestsFixture _fixture;
 
-    public RangeCommandsTests(ITestOutputHelper output, TempDirectoryFixture fixture)
+    /// <summary>
+    /// Initializes a new instance of the test class with shared fixture
+    /// </summary>
+    public RangeCommandsTests(ITestOutputHelper output, RangeTestsFixture fixture)
     {
         _output = output;
         _commands = new RangeCommands();
-        _tempDir = fixture.TempDir;
+        _fixture = fixture;
     }
 }

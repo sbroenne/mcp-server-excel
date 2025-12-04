@@ -11,6 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Table;
 /// Integration tests for Table operations focusing on LLM use cases.
 /// Tests cover essential workflows: create, list, info, delete, rename, resize, columns, filters, totals.
 /// Uses TableTestsFixture which creates ONE Table file per test class.
+/// Modification tests use CreateModificationTestFile() for isolated files.
 /// </summary>
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
@@ -21,9 +22,9 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
 {
     private readonly TableCommands _tableCommands;
     private readonly IRangeCommands _rangeCommands;
+    private readonly TableTestsFixture _fixture;
     private readonly string _tableFile;
     private readonly TableCreationResult _creationResult;
-    private readonly string _tempDir;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="TableCommandsTests"/> class.
@@ -32,9 +33,9 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     {
         _tableCommands = new TableCommands();
         _rangeCommands = new RangeCommands();
+        _fixture = fixture;
         _tableFile = fixture.TestFilePath;
         _creationResult = fixture.CreationResult;
-        _tempDir = Path.GetDirectoryName(fixture.TestFilePath)!;
     }
 
     #region Core Lifecycle Tests (7 tests)
@@ -92,24 +93,23 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public void Create_WithValidData_CreatesTable()
     {
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(TableCommandsTests), nameof(Create_WithValidData_CreatesTable), _tempDir);
+        var testFile = _fixture.CreateModificationTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        // Add data first
+        // Add data to a new location (different from the SalesTable created by fixture method)
         batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1"].Value2 = "Name";
-            sheet.Range["B1"].Value2 = "Value";
-            sheet.Range["A2"].Value2 = "Test1";
-            sheet.Range["B2"].Value2 = 100;
+            sheet.Range["F1"].Value2 = "Name";
+            sheet.Range["G1"].Value2 = "Value";
+            sheet.Range["F2"].Value2 = "Test1";
+            sheet.Range["G2"].Value2 = 100;
             return 0;
         });
 
         // Create table
-        _tableCommands.Create(batch, "Sheet1", "TestTable", "A1:B2", true, "TableStyleLight1");
+        _tableCommands.Create(batch, "Sales", "TestTable", "F1:G2", true, "TableStyleLight1");
         // Create throws on error, so reaching here means success
 
         // Verify table was created
@@ -124,7 +124,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public void Delete_WithExistingTable_RemovesTable()
     {
-        var testFile = CreateTestFileWithTable(nameof(Delete_WithExistingTable_RemovesTable));
+        var testFile = _fixture.CreateModificationTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
         _tableCommands.Delete(batch, "SalesTable");
@@ -142,7 +142,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public void Rename_WithExistingTable_RenamesSuccessfully()
     {
-        var testFile = CreateTestFileWithTable(nameof(Rename_WithExistingTable_RenamesSuccessfully));
+        var testFile = _fixture.CreateModificationTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
         _tableCommands.Rename(batch, "SalesTable", "RevenueTable");
@@ -161,7 +161,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public void Resize_WithExistingTable_ResizesSuccessfully()
     {
-        var testFile = CreateTestFileWithTable(nameof(Resize_WithExistingTable_ResizesSuccessfully));
+        var testFile = _fixture.CreateModificationTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -187,7 +187,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public void AddColumn_WithExistingTable_AddsColumnSuccessfully()
     {
-        var testFile = CreateTestFileWithTable(nameof(AddColumn_WithExistingTable_AddsColumnSuccessfully));
+        var testFile = _fixture.CreateModificationTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -210,7 +210,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public void RenameColumn_WithExistingColumn_RenamesSuccessfully()
     {
-        var testFile = CreateTestFileWithTable(nameof(RenameColumn_WithExistingColumn_RenamesSuccessfully));
+        var testFile = _fixture.CreateModificationTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -234,7 +234,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public void Append_WithNewData_AddsRowsToTable()
     {
-        var testFile = CreateTestFileWithTable(nameof(Append_WithNewData_AddsRowsToTable));
+        var testFile = _fixture.CreateModificationTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -259,7 +259,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public void GetData_WithoutFilters_ReturnsAllRows()
     {
-        var testFile = CreateTestFileWithTable(nameof(GetData_WithoutFilters_ReturnsAllRows));
+        var testFile = _fixture.CreateModificationTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -279,7 +279,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public void GetData_WithVisibleOnlyFilter_ReturnsFilteredRows()
     {
-        var testFile = CreateTestFileWithTable(nameof(GetData_WithVisibleOnlyFilter_ReturnsFilteredRows));
+        var testFile = _fixture.CreateModificationTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -321,7 +321,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public void ApplyFilter_WithColumnCriteria_FiltersTable()
     {
-        var testFile = CreateTestFileWithTable(nameof(ApplyFilter_WithColumnCriteria_FiltersTable));
+        var testFile = _fixture.CreateModificationTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
         _tableCommands.ApplyFilter(batch, "SalesTable", "Region", ["North"]);
@@ -335,7 +335,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public void ClearFilters_AfterFiltering_RemovesAllFilters()
     {
-        var testFile = CreateTestFileWithTable(nameof(ClearFilters_AfterFiltering_RemovesAllFilters));
+        var testFile = _fixture.CreateModificationTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -358,7 +358,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public void ToggleTotals_EnableTotals_AddsTotalsRow()
     {
-        var testFile = CreateTestFileWithTable(nameof(ToggleTotals_EnableTotals_AddsTotalsRow));
+        var testFile = _fixture.CreateModificationTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
         _tableCommands.ToggleTotals(batch, "SalesTable", true);
@@ -376,7 +376,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public void SetColumnTotal_WithSumFunction_SetsTotalFormula()
     {
-        var testFile = CreateTestFileWithTable(nameof(SetColumnTotal_WithSumFunction_SetsTotalFormula));
+        var testFile = _fixture.CreateModificationTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -386,63 +386,6 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
         // Set sum for Amount column
         _tableCommands.SetColumnTotal(batch, "SalesTable", "Amount", "Sum");
         // SetColumnTotal throws on error, so reaching here means success
-    }
-
-    #endregion
-
-    #region Helper Methods
-
-    /// <summary>
-    /// Creates a unique test file with SalesTable for modification tests.
-    /// </summary>
-    private string CreateTestFileWithTable(string testName)
-    {
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(TableCommandsTests), testName, _tempDir);
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create worksheet with sample data
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Name = "Sales";
-
-            // Headers
-            sheet.Range["A1"].Value2 = "Region";
-            sheet.Range["B1"].Value2 = "Product";
-            sheet.Range["C1"].Value2 = "Amount";
-            sheet.Range["D1"].Value2 = "Date";
-
-            // Sample data
-            sheet.Range["A2"].Value2 = "North";
-            sheet.Range["B2"].Value2 = "Widget";
-            sheet.Range["C2"].Value2 = 100;
-            sheet.Range["D2"].Value2 = new DateTime(2025, 1, 15);
-
-            sheet.Range["A3"].Value2 = "South";
-            sheet.Range["B3"].Value2 = "Gadget";
-            sheet.Range["C3"].Value2 = 250;
-            sheet.Range["D3"].Value2 = new DateTime(2025, 2, 20);
-
-            sheet.Range["A4"].Value2 = "East";
-            sheet.Range["B4"].Value2 = "Widget";
-            sheet.Range["C4"].Value2 = 150;
-            sheet.Range["D4"].Value2 = new DateTime(2025, 3, 10);
-
-            sheet.Range["A5"].Value2 = "West";
-            sheet.Range["B5"].Value2 = "Gadget";
-            sheet.Range["C5"].Value2 = 300;
-            sheet.Range["D5"].Value2 = new DateTime(2025, 1, 25);
-
-            return 0;
-        });
-
-        // Create table from range A1:D5
-        _tableCommands.Create(batch, "Sales", "SalesTable", "A1:D5", true, TableStylePresets.Medium2);  // Create throws on error
-
-        batch.Save();
-        return testFile;
     }
 
     #endregion
@@ -457,7 +400,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public void AddColumn_WithNumericName_AddsColumnSuccessfully()
     {
-        var testFile = CreateTestFileWithTable(nameof(AddColumn_WithNumericName_AddsColumnSuccessfully));
+        var testFile = _fixture.CreateModificationTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -482,7 +425,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public void RenameColumn_ToNumericName_RenamesSuccessfully()
     {
-        var testFile = CreateTestFileWithTable(nameof(RenameColumn_ToNumericName_RenamesSuccessfully));
+        var testFile = _fixture.CreateModificationTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -504,7 +447,7 @@ public class TableCommandsTests : IClassFixture<TableTestsFixture>
     [Fact]
     public void RenameColumn_NumericToNumeric_RenamesSuccessfully()
     {
-        var testFile = CreateTestFileWithTable(nameof(RenameColumn_NumericToNumeric_RenamesSuccessfully));
+        var testFile = _fixture.CreateModificationTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
