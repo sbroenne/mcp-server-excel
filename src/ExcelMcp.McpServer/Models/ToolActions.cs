@@ -51,6 +51,12 @@ public enum PowerQueryAction
 /// <summary>
 /// Actions available for excel_worksheet tool
 /// </summary>
+/// <remarks>
+/// ATOMIC CROSS-FILE OPERATIONS:
+/// - CopyToFile: Copy sheet to another file (no session required)
+/// - MoveToFile: Move sheet to another file (no session required)
+/// These operations handle opening both files internally.
+/// </remarks>
 public enum WorksheetAction
 {
     List,
@@ -59,8 +65,11 @@ public enum WorksheetAction
     Copy,
     Delete,
     Move,
-    CopyToWorkbook,
-    MoveToWorkbook,
+
+    // Atomic cross-file operations
+    CopyToFile,
+    MoveToFile,
+
     SetTabColor,
     GetTabColor,
     ClearTabColor,

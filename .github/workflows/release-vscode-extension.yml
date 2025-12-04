@@ -58,15 +58,15 @@ jobs:
         cd vscode-extension
         npm version "$version" --no-git-tag-version
 
-        # Update CHANGELOG.md - replace the first version number and date
+        # Update CHANGELOG.md - replace [Unreleased] with the new version and date
         $date = Get-Date -Format 'yyyy-MM-dd'
         $changelogPath = 'CHANGELOG.md'
         $changelogContent = Get-Content $changelogPath -Raw
-        $changelogContent = $changelogContent -replace '(?m)^## \[\d+\.\d+\.\d+\] - \d{4}-\d{2}-\d{2}', "## [$version] - $date"
-        Set-Content $changelogPath $changelogContent
+        $changelogContent = $changelogContent -replace '## \[Unreleased\]', "## [$version] - $date"
+        Set-Content $changelogPath $changelogContent -NoNewline
 
         Write-Output "Updated extension version to $version"
-        Write-Output "Updated CHANGELOG.md to version $version with date $date"
+        Write-Output "Updated CHANGELOG.md: [Unreleased] -> [$version] - $date"
         "PACKAGE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       shell: pwsh
 

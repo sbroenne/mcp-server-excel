@@ -212,14 +212,37 @@ public partial class SheetCommands
         });
     }
 
+    // === ATOMIC CROSS-FILE OPERATIONS ===
+
     /// <inheritdoc />
-    public void CopyToWorkbook(IExcelBatch batch, string sourceFile, string sourceSheet, string targetFile, string? targetSheetName = null, string? beforeSheet = null, string? afterSheet = null)
+    public void CopyToFile(string sourceFile, string sourceSheet, string targetFile, string? targetSheetName = null, string? beforeSheet = null, string? afterSheet = null)
     {
         // Validate positioning parameters
         if (!string.IsNullOrWhiteSpace(beforeSheet) && !string.IsNullOrWhiteSpace(afterSheet))
         {
             throw new ArgumentException("Cannot specify both beforeSheet and afterSheet. Choose one or neither.");
         }
+
+        // Validate file paths
+        if (string.IsNullOrWhiteSpace(sourceFile))
+            throw new ArgumentException("sourceFile is required", nameof(sourceFile));
+        if (string.IsNullOrWhiteSpace(targetFile))
+            throw new ArgumentException("targetFile is required", nameof(targetFile));
+        if (!File.Exists(sourceFile))
+            throw new FileNotFoundException($"Source file not found: {sourceFile}");
+        if (!File.Exists(targetFile))
+            throw new FileNotFoundException($"Target file not found: {targetFile}");
+
+        // Normalize paths for comparison
+        string normalizedSource = Path.GetFullPath(sourceFile);
+        string normalizedTarget = Path.GetFullPath(targetFile);
+        if (string.Equals(normalizedSource, normalizedTarget, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Source and target files must be different. For same-file copy, use the 'copy' action.");
+        }
+
+        // Create a batch with both files open in the same Excel instance
+        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
         batch.Execute((ctx, ct) =>
         {
@@ -233,8 +256,8 @@ public partial class SheetCommands
             try
             {
                 // Get both workbooks from the batch
-                sourceWb = batch.GetWorkbook(sourceFile);
-                targetWb = batch.GetWorkbook(targetFile);
+                sourceWb = batch.GetWorkbook(normalizedSource);
+                targetWb = batch.GetWorkbook(normalizedTarget);
 
                 // Find source sheet
                 sourceSheetObj = ComUtilities.FindSheet(sourceWb, sourceSheet);
@@ -245,6 +268,7 @@ public partial class SheetCommands
 
                 // Handle positioning
                 targetSheets = targetWb.Worksheets;
+                int? copiedSheetPosition = null;
 
                 if (!string.IsNullOrWhiteSpace(beforeSheet))
                 {
@@ -253,7 +277,8 @@ public partial class SheetCommands
                     {
                         throw new InvalidOperationException($"Target sheet '{beforeSheet}' not found in '{Path.GetFileName(targetFile)}'");
                     }
-                    // Copy before specified sheet
+                    // Get position before copy - the copied sheet will be at this position
+                    copiedSheetPosition = Convert.ToInt32(targetPositionSheet.Index);
                     sourceSheetObj.Copy(Before: targetPositionSheet);
                 }
                 else if (!string.IsNullOrWhiteSpace(afterSheet))
@@ -263,7 +288,8 @@ public partial class SheetCommands
                     {
                         throw new InvalidOperationException($"Target sheet '{afterSheet}' not found in '{Path.GetFileName(targetFile)}'");
                     }
-                    // Copy after specified sheet
+                    // Get position before copy - the copied sheet will be at position + 1
+                    copiedSheetPosition = Convert.ToInt32(targetPositionSheet.Index) + 1;
                     sourceSheetObj.Copy(After: targetPositionSheet);
                 }
                 else
@@ -273,6 +299,8 @@ public partial class SheetCommands
                     try
                     {
                         sourceSheetObj.Copy(After: lastSheet);
+                        // Copied sheet will be at the end (new count)
+                        copiedSheetPosition = targetSheets.Count;
                     }
                     finally
                     {
@@ -280,12 +308,16 @@ public partial class SheetCommands
                     }
                 }
 
-                // Rename if requested
-                if (!string.IsNullOrWhiteSpace(targetSheetName))
+                // Rename if requested - use correct position based on where sheet was copied
+                if (!string.IsNullOrWhiteSpace(targetSheetName) && copiedSheetPosition.HasValue)
                 {
-                    copiedSheet = targetSheets.Item(targetSheets.Count); // Last sheet is the copied one
+                    copiedSheet = targetSheets.Item(copiedSheetPosition.Value);
                     copiedSheet.Name = targetSheetName;
                 }
+
+                // Save the target workbook (source unchanged, only target modified)
+                targetWb.Save();
+
                 return 0;
             }
             finally
@@ -294,19 +326,39 @@ public partial class SheetCommands
                 ComUtilities.Release(ref targetPositionSheet);
                 ComUtilities.Release(ref targetSheets);
                 ComUtilities.Release(ref sourceSheetObj);
-                // Note: Don't release sourceWb and targetWb - they're managed by the batch
             }
         });
     }
 
     /// <inheritdoc />
-    public void MoveToWorkbook(IExcelBatch batch, string sourceFile, string sourceSheet, string targetFile, string? beforeSheet = null, string? afterSheet = null)
+    public void MoveToFile(string sourceFile, string sourceSheet, string targetFile, string? beforeSheet = null, string? afterSheet = null)
     {
         // Validate positioning parameters
         if (!string.IsNullOrWhiteSpace(beforeSheet) && !string.IsNullOrWhiteSpace(afterSheet))
         {
             throw new ArgumentException("Cannot specify both beforeSheet and afterSheet. Choose one or neither.");
         }
+
+        // Validate file paths
+        if (string.IsNullOrWhiteSpace(sourceFile))
+            throw new ArgumentException("sourceFile is required", nameof(sourceFile));
+        if (string.IsNullOrWhiteSpace(targetFile))
+            throw new ArgumentException("targetFile is required", nameof(targetFile));
+        if (!File.Exists(sourceFile))
+            throw new FileNotFoundException($"Source file not found: {sourceFile}");
+        if (!File.Exists(targetFile))
+            throw new FileNotFoundException($"Target file not found: {targetFile}");
+
+        // Normalize paths for comparison
+        string normalizedSource = Path.GetFullPath(sourceFile);
+        string normalizedTarget = Path.GetFullPath(targetFile);
+        if (string.Equals(normalizedSource, normalizedTarget, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("Source and target files must be different. For same-file move, use the 'move' action.");
+        }
+
+        // Create a batch with both files open in the same Excel instance
+        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
         batch.Execute((ctx, ct) =>
         {
@@ -319,8 +371,8 @@ public partial class SheetCommands
             try
             {
                 // Get both workbooks from the batch
-                sourceWb = batch.GetWorkbook(sourceFile);
-                targetWb = batch.GetWorkbook(targetFile);
+                sourceWb = batch.GetWorkbook(normalizedSource);
+                targetWb = batch.GetWorkbook(normalizedTarget);
 
                 // Find source sheet
                 sourceSheetObj = ComUtilities.FindSheet(sourceWb, sourceSheet);
@@ -339,7 +391,6 @@ public partial class SheetCommands
                     {
                         throw new InvalidOperationException($"Target sheet '{beforeSheet}' not found in '{Path.GetFileName(targetFile)}'");
                     }
-                    // Move before specified sheet
                     sourceSheetObj.Move(Before: targetPositionSheet);
                 }
                 else if (!string.IsNullOrWhiteSpace(afterSheet))
@@ -349,7 +400,6 @@ public partial class SheetCommands
                     {
                         throw new InvalidOperationException($"Target sheet '{afterSheet}' not found in '{Path.GetFileName(targetFile)}'");
                     }
-                    // Move after specified sheet
                     sourceSheetObj.Move(After: targetPositionSheet);
                 }
                 else
@@ -365,14 +415,18 @@ public partial class SheetCommands
                         ComUtilities.Release(ref lastSheet!);
                     }
                 }
+
+                // Save both workbooks (source lost a sheet, target gained one)
+                sourceWb.Save();
+                targetWb.Save();
+
                 return 0;
             }
             finally
             {
                 ComUtilities.Release(ref targetPositionSheet);
                 ComUtilities.Release(ref targetSheets);
-                ComUtilities.Release(ref sourceSheetObj);
-                // Note: Don't release sourceWb and targetWb - they're managed by the batch
+                // Note: sourceSheetObj has been moved, don't release it
             }
         });
     }

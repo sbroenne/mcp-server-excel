@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
-using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 
@@ -15,17 +14,26 @@ public static partial class ExcelWorksheetTool
 {
     /// <summary>
     /// Manage Excel worksheets: lifecycle, tab colors, visibility.
-    /// CROSS-WORKBOOK OPERATIONS (copy-to-workbook, move-to-workbook): Copy or move sheets BETWEEN different Excel files. Requires TWO sessionIds: sourceSessionId + targetSessionId.
-    /// TAB COLORS (set-tab-color): RGB values 0-255 for red, green, blue. Example: red=255, green=0, blue=0 for red tab.
-    /// POSITIONING (move, copy-to-workbook, move-to-workbook): Use beforeSheet OR afterSheet (not both). If neither specified, sheet positioned at end.
+    ///
+    /// CROSS-FILE OPERATIONS (RECOMMENDED - no session required):
+    /// - copy-to-file: Copy sheet to another file. Provide sourceFile, sheetName, targetFile.
+    /// - move-to-file: Move sheet to another file. Provide sourceFile, sheetName, targetFile.
+    /// These operations are ATOMIC - they handle file opening/saving/closing internally.
+    ///
+    /// SESSION-BASED OPERATIONS (require active session):
+    /// All other operations require sessionId from excel_file 'open' action.
+    ///
+    /// TAB COLORS: RGB values 0-255 for red, green, blue.
+    /// POSITIONING: Use beforeSheet OR afterSheet (not both). If neither, sheet goes to end.
     /// </summary>
     /// <param name="action">Action to perform</param>
-    /// <param name="sessionId">Active Excel session ID from excel_file 'open' action</param>
+    /// <param name="sessionId">Active Excel session ID (required for session-based actions, not needed for copy-to-file/move-to-file)</param>
+    /// <param name="sourceFile">Source file path (required for copy-to-file and move-to-file actions)</param>
     /// <param name="sheetName">Worksheet name (required for most actions)</param>
-    /// <param name="targetName">New sheet name (for rename) or target sheet name (for copy/copy-to-workbook)</param>
-    /// <param name="targetSessionId">Target workbook session ID (for copy-to-workbook and move-to-workbook actions)</param>
-    /// <param name="beforeSheet">Position sheet before this sheet (for move, copy-to-workbook, move-to-workbook)</param>
-    /// <param name="afterSheet">Position sheet after this sheet (for move, copy-to-workbook, move-to-workbook)</param>
+    /// <param name="targetFile">Target file path (required for copy-to-file and move-to-file actions)</param>
+    /// <param name="targetName">New sheet name (for rename, copy, or copy-to-file actions)</param>
+    /// <param name="beforeSheet">Position sheet before this sheet</param>
+    /// <param name="afterSheet">Position sheet after this sheet</param>
     /// <param name="red">Red component (0-255) for set-tab-color action</param>
     /// <param name="green">Green component (0-255) for set-tab-color action</param>
     /// <param name="blue">Blue component (0-255) for set-tab-color action</param>
@@ -34,10 +42,11 @@ public static partial class ExcelWorksheetTool
     [McpMeta("category", "structure")]
     public static partial string ExcelWorksheet(
         WorksheetAction action,
-        string sessionId,
+        [DefaultValue(null)] string? sessionId,
+        [DefaultValue(null)] string? sourceFile,
         [DefaultValue(null)] string? sheetName,
+        [DefaultValue(null)] string? targetFile,
         [DefaultValue(null)] string? targetName,
-        [DefaultValue(null)] string? targetSessionId,
         [DefaultValue(null)] string? beforeSheet,
         [DefaultValue(null)] string? afterSheet,
         [DefaultValue(null)] int? red,
@@ -55,22 +64,25 @@ public static partial class ExcelWorksheetTool
                 // Expression switch pattern for audit compliance
                 return action switch
                 {
-                    WorksheetAction.List => ListAsync(sheetCommands, sessionId),
-                    WorksheetAction.Create => CreateAsync(sheetCommands, sessionId, sheetName),
-                    WorksheetAction.Delete => DeleteAsync(sheetCommands, sessionId, sheetName),
-                    WorksheetAction.Rename => RenameAsync(sheetCommands, sessionId, sheetName, targetName),
-                    WorksheetAction.Copy => CopyAsync(sheetCommands, sessionId, sheetName, targetName),
-                    WorksheetAction.Move => MoveAsync(sheetCommands, sessionId, sheetName, beforeSheet, afterSheet),
-                    WorksheetAction.CopyToWorkbook => CopyToWorkbookAsync(sheetCommands, sessionId, sheetName, targetSessionId, targetName, beforeSheet, afterSheet),
-                    WorksheetAction.MoveToWorkbook => MoveToWorkbookAsync(sheetCommands, sessionId, sheetName, targetSessionId, beforeSheet, afterSheet),
-                    WorksheetAction.SetTabColor => SetTabColorAsync(sheetCommands, sessionId, sheetName, red, green, blue),
-                    WorksheetAction.GetTabColor => GetTabColorAsync(sheetCommands, sessionId, sheetName),
-                    WorksheetAction.ClearTabColor => ClearTabColorAsync(sheetCommands, sessionId, sheetName),
-                    WorksheetAction.SetVisibility => SetVisibilityAsync(sheetCommands, sessionId, sheetName, visibility),
-                    WorksheetAction.GetVisibility => GetVisibilityAsync(sheetCommands, sessionId, sheetName),
-                    WorksheetAction.Show => ShowAsync(sheetCommands, sessionId, sheetName),
-                    WorksheetAction.Hide => HideAsync(sheetCommands, sessionId, sheetName),
-                    WorksheetAction.VeryHide => VeryHideAsync(sheetCommands, sessionId, sheetName),
+                    // Atomic cross-file operations (no session required)
+                    WorksheetAction.CopyToFile => CopyToFileHandler(sheetCommands, sourceFile, sheetName, targetFile, targetName, beforeSheet, afterSheet),
+                    WorksheetAction.MoveToFile => MoveToFileHandler(sheetCommands, sourceFile, sheetName, targetFile, beforeSheet, afterSheet),
+
+                    // Session-based operations
+                    WorksheetAction.List => ListAsync(sheetCommands, sessionId!),
+                    WorksheetAction.Create => CreateAsync(sheetCommands, sessionId!, sheetName),
+                    WorksheetAction.Delete => DeleteAsync(sheetCommands, sessionId!, sheetName),
+                    WorksheetAction.Rename => RenameAsync(sheetCommands, sessionId!, sheetName, targetName),
+                    WorksheetAction.Copy => CopyAsync(sheetCommands, sessionId!, sheetName, targetName),
+                    WorksheetAction.Move => MoveAsync(sheetCommands, sessionId!, sheetName, beforeSheet, afterSheet),
+                    WorksheetAction.SetTabColor => SetTabColorAsync(sheetCommands, sessionId!, sheetName, red, green, blue),
+                    WorksheetAction.GetTabColor => GetTabColorAsync(sheetCommands, sessionId!, sheetName),
+                    WorksheetAction.ClearTabColor => ClearTabColorAsync(sheetCommands, sessionId!, sheetName),
+                    WorksheetAction.SetVisibility => SetVisibilityAsync(sheetCommands, sessionId!, sheetName, visibility),
+                    WorksheetAction.GetVisibility => GetVisibilityAsync(sheetCommands, sessionId!, sheetName),
+                    WorksheetAction.Show => ShowAsync(sheetCommands, sessionId!, sheetName),
+                    WorksheetAction.Hide => HideAsync(sheetCommands, sessionId!, sheetName),
+                    WorksheetAction.VeryHide => VeryHideAsync(sheetCommands, sessionId!, sheetName),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });
@@ -555,46 +567,38 @@ public static partial class ExcelWorksheetTool
         }
     }
 
-    private static string CopyToWorkbookAsync(
+    // === ATOMIC CROSS-FILE OPERATIONS ===
+
+    private static string CopyToFileHandler(
         SheetCommands sheetCommands,
-        string sessionId,
+        string? sourceFile,
         string? sheetName,
-        string? targetSessionId,
+        string? targetFile,
         string? targetName,
         string? beforeSheet,
         string? afterSheet)
     {
-        if (string.IsNullOrEmpty(sheetName))
-            throw new ArgumentException("sheetName is required for copy-to-workbook action", nameof(sheetName));
+        if (string.IsNullOrEmpty(sourceFile))
+            throw new ArgumentException("sourceFile is required for copy-to-file action", nameof(sourceFile));
 
-        if (string.IsNullOrEmpty(targetSessionId))
-            throw new ArgumentException("targetSessionId is required for copy-to-workbook action", nameof(targetSessionId));
+        if (string.IsNullOrEmpty(sheetName))
+            throw new ArgumentException("sheetName is required for copy-to-file action", nameof(sheetName));
+
+        if (string.IsNullOrEmpty(targetFile))
+            throw new ArgumentException("targetFile is required for copy-to-file action", nameof(targetFile));
 
         try
         {
-            // Resolve both sessions to get file paths
-            var sessionManager = ExcelToolsBase.GetSessionManager();
-            var sourceBatch = sessionManager.GetSession(sessionId);
-            var targetBatch = sessionManager.GetSession(targetSessionId);
-
-            if (sourceBatch == null)
-                throw new InvalidOperationException($"Source session '{sessionId}' not found");
-
-            if (targetBatch == null)
-                throw new InvalidOperationException($"Target session '{targetSessionId}' not found");
-
-            string sourceFile = sourceBatch.WorkbookPath;
-            string targetFile = targetBatch.WorkbookPath;
-
-            // Create a temporary multi-file batch containing both workbooks
-            using var multiBatch = ExcelSession.BeginBatch(sourceFile, targetFile);
-
-            sheetCommands.CopyToWorkbook(multiBatch, sourceFile, sheetName, targetFile, targetName, beforeSheet, afterSheet);
+            sheetCommands.CopyToFile(sourceFile, sheetName, targetFile, targetName, beforeSheet, afterSheet);
 
             return JsonSerializer.Serialize(new
             {
                 success = true,
-                message = $"Sheet '{sheetName}' copied to target workbook successfully."
+                message = $"Sheet '{sheetName}' copied from '{Path.GetFileName(sourceFile)}' to '{Path.GetFileName(targetFile)}' successfully.",
+                sourceFile,
+                targetFile,
+                sheetName,
+                targetSheetName = targetName ?? sheetName
             }, ExcelToolsBase.JsonOptions);
         }
         catch (Exception ex)
@@ -608,45 +612,34 @@ public static partial class ExcelWorksheetTool
         }
     }
 
-    private static string MoveToWorkbookAsync(
+    private static string MoveToFileHandler(
         SheetCommands sheetCommands,
-        string sessionId,
+        string? sourceFile,
         string? sheetName,
-        string? targetSessionId,
+        string? targetFile,
         string? beforeSheet,
         string? afterSheet)
     {
-        if (string.IsNullOrEmpty(sheetName))
-            throw new ArgumentException("sheetName is required for move-to-workbook action", nameof(sheetName));
+        if (string.IsNullOrEmpty(sourceFile))
+            throw new ArgumentException("sourceFile is required for move-to-file action", nameof(sourceFile));
 
-        if (string.IsNullOrEmpty(targetSessionId))
-            throw new ArgumentException("targetSessionId is required for move-to-workbook action", nameof(targetSessionId));
+        if (string.IsNullOrEmpty(sheetName))
+            throw new ArgumentException("sheetName is required for move-to-file action", nameof(sheetName));
+
+        if (string.IsNullOrEmpty(targetFile))
+            throw new ArgumentException("targetFile is required for move-to-file action", nameof(targetFile));
 
         try
         {
-            // Resolve both sessions to get file paths
-            var sessionManager = ExcelToolsBase.GetSessionManager();
-            var sourceBatch = sessionManager.GetSession(sessionId);
-            var targetBatch = sessionManager.GetSession(targetSessionId);
-
-            if (sourceBatch == null)
-                throw new InvalidOperationException($"Source session '{sessionId}' not found");
-
-            if (targetBatch == null)
-                throw new InvalidOperationException($"Target session '{targetSessionId}' not found");
-
-            string sourceFile = sourceBatch.WorkbookPath;
-            string targetFile = targetBatch.WorkbookPath;
-
-            // Create a temporary multi-file batch containing both workbooks
-            using var multiBatch = ExcelSession.BeginBatch(sourceFile, targetFile);
-
-            sheetCommands.MoveToWorkbook(multiBatch, sourceFile, sheetName, targetFile, beforeSheet, afterSheet);
+            sheetCommands.MoveToFile(sourceFile, sheetName, targetFile, beforeSheet, afterSheet);
 
             return JsonSerializer.Serialize(new
             {
                 success = true,
-                message = $"Sheet '{sheetName}' moved to target workbook successfully."
+                message = $"Sheet '{sheetName}' moved from '{Path.GetFileName(sourceFile)}' to '{Path.GetFileName(targetFile)}' successfully.",
+                sourceFile,
+                targetFile,
+                sheetName
             }, ExcelToolsBase.JsonOptions);
         }
         catch (Exception ex)
