@@ -32,7 +32,7 @@ public static partial class ExcelPivotTableTool
     /// <param name="fieldName">Field name for field operations (for OLAP add-value-field: use measure name like 'Total Sales' for existing measure OR column name like 'Sales' to create new measure)</param>
     /// <param name="aggregationFunction">Aggregation function: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP</param>
     /// <param name="customName">Custom display name for field</param>
-    /// <param name="numberFormat">Number format code (e.g., '#,##0.00', '0.00%', 'm/d/yyyy')</param>
+    /// <param name="numberFormat">Number format code. ALWAYS use US format codes (e.g., '#,##0.00', '0.00%', 'm/d/yyyy'). The server auto-translates to the user's locale.</param>
     /// <param name="position">Position for field (1-based, optional)</param>
     /// <param name="filterValues">JSON array of filter values (e.g., '["value1","value2"]')</param>
     /// <param name="sortDirection">Sort direction: Ascending, Descending</param>

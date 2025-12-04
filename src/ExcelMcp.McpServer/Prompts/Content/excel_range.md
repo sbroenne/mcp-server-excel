@@ -1,5 +1,7 @@
 # excel_range - Number Formats
 
+**IMPORTANT: Always use US format codes.** The server automatically translates to the user's locale.
+
 ## Format Codes
 
 | Type | Code | Example |
@@ -17,7 +19,7 @@
 | Time (24h) | `hh:mm:ss` | 14:30:00 |
 | Text | `@` | (as-is) |
 
-Date/time formats auto-handle cross-culture compatibility. Currency symbols are literal.
+All format codes are auto-translated to the user's locale. Use US codes (d/m/y for dates, . for decimal, , for thousands).
 
 ## Actions
 

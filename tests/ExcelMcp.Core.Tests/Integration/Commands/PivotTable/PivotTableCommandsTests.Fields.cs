@@ -193,6 +193,72 @@ public partial class PivotTableCommandsTests
         Assert.NotNull(result.NumberFormat);
         Assert.Contains("$", result.NumberFormat);
     }
+
+    /// <summary>
+    /// Verifies that SetFieldFormat with US currency format works correctly on any locale.
+    /// The server should auto-translate format codes (number separators handled by UseSystemSeparators=false).
+    /// </summary>
+    [Fact]
+    [Trait("Speed", "Medium")]
+    [Trait("Category", "Regular")]
+    public void SetFieldFormat_USCurrencyFormat_RoundTripsCorrectly()
+    {
+        // Arrange
+        var testFile = CreateTestFileWithData(nameof(SetFieldFormat_USCurrencyFormat_RoundTripsCorrectly));
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var createResult = _pivotCommands.CreateFromRange(
+            batch, "SalesData", "A1:D6", "SalesData", "F1", "TestPivot");
+        Assert.True(createResult.Success);
+
+        // Add Sales as value field
+        var addResult = _pivotCommands.AddValueField(batch, "TestPivot", "Sales");
+        Assert.True(addResult.Success);
+
+        // Act - Apply US currency format
+        var result = _pivotCommands.SetFieldFormat(batch, "TestPivot", "Sales", "$#,##0.00");
+
+        // Assert - Format should round-trip correctly (not corrupted by locale)
+        Assert.True(result.Success, $"SetFieldFormat failed: {result.ErrorMessage}");
+        Assert.NotNull(result.NumberFormat);
+        // Verify the format contains expected components ($ symbol, decimal separator)
+        Assert.Contains("$", result.NumberFormat);
+        Assert.Contains(".", result.NumberFormat); // Decimal separator should be preserved
+        Assert.Contains(",", result.NumberFormat); // Thousands separator should be preserved
+    }
+
+    /// <summary>
+    /// Verifies that SetFieldFormat with US date format works correctly on value fields.
+    /// Uses a Count function on a date field to create a numeric value that can be formatted.
+    /// The server auto-translates format codes (number separators handled by UseSystemSeparators=false).
+    /// </summary>
+    [Fact]
+    [Trait("Speed", "Medium")]
+    [Trait("Category", "Regular")]
+    public void SetFieldFormat_USPercentFormat_RoundTripsCorrectly()
+    {
+        // Arrange
+        var testFile = CreateTestFileWithData(nameof(SetFieldFormat_USPercentFormat_RoundTripsCorrectly));
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var createResult = _pivotCommands.CreateFromRange(
+            batch, "SalesData", "A1:D6", "SalesData", "F1", "TestPivot");
+        Assert.True(createResult.Success);
+
+        // Add Sales as value field
+        var addResult = _pivotCommands.AddValueField(batch, "TestPivot", "Sales");
+        Assert.True(addResult.Success);
+
+        // Act - Apply US percent format (tests decimal separator preservation)
+        var result = _pivotCommands.SetFieldFormat(batch, "TestPivot", "Sales", "0.00%");
+
+        // Assert - Format should round-trip correctly (not corrupted by locale)
+        Assert.True(result.Success, $"SetFieldFormat failed: {result.ErrorMessage}");
+        Assert.NotNull(result.NumberFormat);
+        // Verify the format contains expected components (percent symbol, decimal separator)
+        Assert.Contains("%", result.NumberFormat);
+        Assert.Contains(".", result.NumberFormat); // Decimal separator should be preserved
+    }
     /// <inheritdoc/>
 
     [Fact]

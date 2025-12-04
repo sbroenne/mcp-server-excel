@@ -13,11 +13,6 @@ public static partial class ExcelRangeTool
     /// <summary>
     /// Unified Excel range operations - ALL data manipulation.
     /// DATA FORMAT: Values/formulas are JSON 2D arrays [[row1col1, row1col2], [row2col1, row2col2]]. Example single cell: [[100]] or [['=SUM(A:A)']]. Example range: [[1,2,3], [4,5,6], [7,8,9]].
-    ///
-    /// NUMBER FORMATTING - CROSS-CULTURE TIP:
-    /// When setting date/time formats, prefix with [$-409] for universal compatibility.
-    /// Example: formatCode='[$-409]mm/dd/yyyy' works correctly on ALL locales.
-    /// The [$-409] tells Excel to interpret format codes as US English.
     /// </summary>
     /// <param name="action">Action to perform</param>
     /// <param name="excelPath">Excel file path (.xlsx or .xlsm)</param>
@@ -44,7 +39,7 @@ public static partial class ExcelRangeTool
     /// <param name="url">Hyperlink URL (for add-hyperlink)</param>
     /// <param name="displayText">Hyperlink display text (for add-hyperlink, optional)</param>
     /// <param name="tooltip">Hyperlink tooltip (for add-hyperlink, optional)</param>
-    /// <param name="formatCode">Excel format code for set-number-format (e.g., '$#,##0.00', '0.00%', '[$-409]mm/dd/yyyy'). Use [$-409] prefix for cross-culture date/time formats.</param>
+    /// <param name="formatCode">Excel format code for set-number-format. ALWAYS use US format codes (e.g., '$#,##0.00', '0.00%', 'm/d/yyyy'). The server auto-translates to the user's locale.</param>
     /// <param name="formats">2D array of format codes for set-number-formats (JSON array of arrays, e.g., [['$#,##0','0.00%'],['m/d/yyyy','General']])</param>
     /// <param name="styleName">Built-in Excel style name (for set-style: 'Heading 1', 'Accent1', 'Good', 'Total', 'Currency', 'Percent', 'Normal', etc. - recommended for consistent formatting)</param>
     /// <param name="fontName">Font name (for format-range, e.g., 'Arial', 'Calibri')</param>
