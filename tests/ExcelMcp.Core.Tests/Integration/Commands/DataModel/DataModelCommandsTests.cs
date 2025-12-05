@@ -15,7 +15,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.DataModel;
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "DataModel")]
 [Trait("Speed", "Slow")]
-public class DataModelCommandsTests : IClassFixture<DataModelPivotTableFixture>
+public partial class DataModelCommandsTests : IClassFixture<DataModelPivotTableFixture>
 {
     private readonly DataModelCommands _dataModelCommands;
     private readonly string _dataModelFile;
