@@ -23,7 +23,7 @@
 
 **💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
 
-**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. Both interfaces share the same 172 operations.
+**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. Both interfaces share the same 173 operations.
 
 ## 🚀 Quick Start (1 Minute)
 
@@ -43,7 +43,7 @@ The extension opens automatically after installation with a quick start guide!
 
 ## 🎯 What You Can Do
 
-**12 specialized tools with 172 operations:**
+**12 specialized tools with 173 operations:**
 
 - 🔄 **Power Query** (9 ops) - Atomic workflows, M code management, load destinations
 - 📊 **Data Model/DAX** (14 ops) - Measures, relationships, model structure
@@ -58,7 +58,7 @@ The extension opens automatically after installation with a quick start guide!
 - 📁 **Files** (5 ops) - Session management and workbook creation
 - 🎨 **Conditional Formatting** (2 ops) - Rules and clearing
 
-📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 172 operations
+📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 173 operations
 
 
 ## 💬 Example Prompts

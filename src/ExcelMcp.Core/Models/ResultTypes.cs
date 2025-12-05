@@ -1322,6 +1322,17 @@ public class DataModelRelationshipListResult : ResultBase
 }
 
 /// <summary>
+/// Result for reading a single relationship
+/// </summary>
+public class DataModelRelationshipViewResult : ResultBase
+{
+    /// <summary>
+    /// The relationship details
+    /// </summary>
+    public DataModelRelationshipInfo? Relationship { get; set; }
+}
+
+/// <summary>
 /// Information about a table relationship
 /// </summary>
 public class DataModelRelationshipInfo

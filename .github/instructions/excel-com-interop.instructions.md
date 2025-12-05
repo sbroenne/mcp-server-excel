@@ -344,6 +344,32 @@ if (connType == 3 || connType == 4) {  // TEXT files report as type 4 (WEB)
 }
 ```
 
+## Data Model (Power Pivot) API Limitations
+
+**⚠️ KNOWN LIMITATION: Hidden columns, relationships, and measures cannot be detected via Excel COM API**
+
+When objects are marked "Hidden from client tools" in Power Pivot, the Excel COM API provides no way to detect this or retrieve them.
+
+**Affected Objects:**
+
+| Object | Available Properties | Missing |
+|--------|---------------------|---------|
+| `ModelTableColumn` | Application, Creator, DataType, Name, Parent | **NO IsHidden** |
+| `ModelRelationship` | Application, Creator, ForeignKeyColumn, ForeignKeyTable, PrimaryKeyColumn, PrimaryKeyTable, Active | **NO IsHidden** |
+| `ModelMeasure` | Application, AssociatedTable, Creator, Description, FormatInformation, Formula, Name, Parent | **NO IsHidden** |
+
+**Alternative APIs that were investigated and DO NOT WORK:**
+
+| Approach | Why It Doesn't Work |
+|----------|---------------------|
+| TOM (Tabular Object Model) | Requires `Microsoft.AnalysisServices.Tabular` library which cannot connect to Excel's embedded Analysis Services engine |
+| XMLA queries | Excel's embedded AS engine doesn't expose a queryable endpoint for external XMLA connections |
+| CubeField.ShowInFieldList | Only applies to PivotTable field visibility, not underlying Data Model hidden status |
+
+**Bottom Line:** If a column, relationship, or measure is hidden in the Data Model, it cannot be seen or listed through the Excel COM API. This is a fundamental limitation of Microsoft's Excel automation interface.
+
+---
+
 ## Common Mistakes
 
 | Mistake | Fix |
@@ -355,5 +381,6 @@ if (connType == 3 || connType == 4) {  // TEXT files report as type 4 (WEB)
 | Not releasing objects | `try/finally` + `ReleaseComObject()` |
 | `int x = field.Property` | Use `Convert.ToInt32()` for ALL numeric properties |
 | Assuming enum types | Numeric properties return `double`, convert to enum |
+| Using TOM/XMLA for Data Model | Not accessible from Excel COM - use only ModelTable/ModelTableColumn APIs |
 
 **📚 Reference:** [Excel Object Model](https://docs.microsoft.com/en-us/office/vba/api/overview/excel)

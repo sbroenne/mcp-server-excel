@@ -63,6 +63,17 @@ public interface IDataModelCommands
     DataModelRelationshipListResult ListRelationships(IExcelBatch batch);
 
     /// <summary>
+    /// Gets a specific relationship by its table/column identifiers
+    /// </summary>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
+    /// <param name="fromTable">Source table name</param>
+    /// <param name="fromColumn">Source column name</param>
+    /// <param name="toTable">Target table name</param>
+    /// <param name="toColumn">Target column name</param>
+    /// <returns>Result containing relationship details</returns>
+    DataModelRelationshipViewResult ReadRelationship(IExcelBatch batch, string fromTable, string fromColumn, string toTable, string toColumn);
+
+    /// <summary>
     /// Deletes a DAX measure from the Data Model
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>

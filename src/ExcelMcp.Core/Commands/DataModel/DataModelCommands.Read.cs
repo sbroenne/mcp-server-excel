@@ -257,6 +257,67 @@ public partial class DataModelCommands
     }
 
     /// <inheritdoc />
+    public DataModelRelationshipViewResult ReadRelationship(IExcelBatch batch, string fromTable, string fromColumn, string toTable, string toColumn)
+    {
+        var result = new DataModelRelationshipViewResult { FilePath = batch.WorkbookPath };
+
+        return batch.Execute((ctx, ct) =>
+        {
+            dynamic? model = null;
+            try
+            {
+                // Check if workbook has Data Model
+                if (!HasDataModelTables(ctx.Book))
+                {
+                    throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
+                }
+
+                model = ctx.Book.Model;
+
+                // Find the matching relationship
+                DataModelRelationshipInfo? foundRelationship = null;
+                ForEachRelationship(model, (Action<dynamic, int>)((relationship, index) =>
+                {
+                    var relFromTable = ComUtilities.SafeGetString(relationship.ForeignKeyColumn?.Parent, "Name");
+                    var relFromColumn = ComUtilities.SafeGetString(relationship.ForeignKeyColumn, "Name");
+                    var relToTable = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn?.Parent, "Name");
+                    var relToColumn = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn, "Name");
+
+                    if (string.Equals(relFromTable, fromTable, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(relFromColumn, fromColumn, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(relToTable, toTable, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(relToColumn, toColumn, StringComparison.OrdinalIgnoreCase))
+                    {
+                        foundRelationship = new DataModelRelationshipInfo
+                        {
+                            FromTable = relFromTable,
+                            FromColumn = relFromColumn,
+                            ToTable = relToTable,
+                            ToColumn = relToColumn,
+                            IsActive = relationship.Active ?? false
+                        };
+                    }
+                }));
+
+                if (foundRelationship == null)
+                {
+                    throw new InvalidOperationException(
+                        $"Relationship not found: {fromTable}.{fromColumn} -> {toTable}.{toColumn}");
+                }
+
+                result.Relationship = foundRelationship;
+                result.Success = true;
+            }
+            finally
+            {
+                ComUtilities.Release(ref model);
+            }
+
+            return result;
+        });
+    }
+
+    /// <inheritdoc />
     public DataModelTableColumnsResult ListColumns(IExcelBatch batch, string tableName)
     {
         var result = new DataModelTableColumnsResult

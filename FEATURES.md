@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**12 specialized tools with 172 operations for comprehensive Excel automation**
+**12 specialized tools with 173 operations for comprehensive Excel automation**
 
 ---
 
@@ -21,10 +21,10 @@
 
 ---
 
-## 📊 Data Model & DAX (Power Pivot) (14 operations)
+## 📊 Data Model & DAX (Power Pivot) (15 operations)
 
 - Create/update/delete DAX measures with format types (Currency, Percentage, Decimal, General)
-- Manage table relationships (create, toggle active/inactive, delete)
+- Manage table relationships (create, read, toggle active/inactive, delete)
 - Discover model structure (tables, columns, measures, relationships)
 - Get comprehensive model information
 - Refresh data model
@@ -180,7 +180,7 @@
 | Category | Operations |
 |----------|-----------|
 | Power Query | 9 |
-| Data Model/DAX | 14 |
+| Data Model/DAX | 15 |
 | Excel Tables | 24 |
 | PivotTables | 25 |
 | Charts | 14 |
@@ -191,7 +191,7 @@
 | Named Ranges | 6 |
 | File Operations | 5 |
 | Conditional Formatting | 2 |
-| **Total** | **172** |
+| **Total** | **173** |
 
 ---
 
