@@ -20,8 +20,8 @@ public sealed class ExcelContext
         App = excel ?? throw new ArgumentNullException(nameof(excel));
         Book = workbook ?? throw new ArgumentNullException(nameof(workbook));
 
-        // Initialize date format translator with locale-specific codes from Excel
-        DateFormatter = new DateFormatTranslator(excel);
+        // Initialize number format translator with locale-specific codes from Excel
+        FormatTranslator = new NumberFormatTranslator(excel);
     }
 
     /// <summary>
@@ -40,19 +40,19 @@ public sealed class ExcelContext
     public dynamic Book { get; }
 
     /// <summary>
-    /// Gets the date format translator for converting US date format codes to locale-specific codes.
+    /// Gets the number format translator for converting US format codes to locale-specific codes.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Use this to translate format strings like "m/d/yyyy" to locale-specific codes
-    /// (e.g., "M/T/JJJJ" on German Excel) before setting <c>Range.NumberFormat</c>.
+    /// Use this to translate format strings like "m/d/yyyy" or "$#,##0.00" to locale-specific codes
+    /// (e.g., "M/T/JJJJ" and "$#.##0,00" on German Excel) before setting <c>Range.NumberFormat</c>.
     /// </para>
     /// <example>
     /// <code>
-    /// string localeFormat = ctx.DateFormatter.TranslateToLocale("m/d/yyyy");
+    /// string localeFormat = ctx.FormatTranslator.TranslateToLocale("m/d/yyyy");
     /// range.NumberFormat = localeFormat;
     /// </code>
     /// </example>
     /// </remarks>
-    public DateFormatTranslator DateFormatter { get; }
+    public NumberFormatTranslator FormatTranslator { get; }
 }

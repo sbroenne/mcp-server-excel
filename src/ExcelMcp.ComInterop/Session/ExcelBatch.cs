@@ -83,12 +83,6 @@ internal sealed class ExcelBatch : IExcelBatch
                 tempExcel.Visible = _showExcel;
                 tempExcel.DisplayAlerts = false;
 
-                // Use US-style separators (. for decimal, , for thousands) regardless of system locale
-                // This ensures format codes like "$#,##0.00" work consistently across all locales
-                tempExcel.UseSystemSeparators = false;
-                tempExcel.DecimalSeparator = ".";
-                tempExcel.ThousandsSeparator = ",";
-
                 // Disable macro security warnings for unattended automation
                 // msoAutomationSecurityForceDisable = 3 (disable all macros, no prompts)
                 // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity

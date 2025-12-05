@@ -11,41 +11,6 @@ public partial class RangeCommands
 {
     // === NUMBER FORMAT OPERATIONS ===
 
-    /// <summary>
-    /// Helper to execute code with US-style number format separators.
-    /// This ensures format codes like "$#,##0.00" are interpreted correctly
-    /// regardless of system locale (e.g., German locale uses ',' as decimal).
-    /// </summary>
-    /// <remarks>
-    /// Excel COM interprets '.' and ',' in format codes based on Application.DecimalSeparator
-    /// and Application.ThousandsSeparator settings. By temporarily forcing US separators,
-    /// we ensure format codes are interpreted as intended (US-style: '.' = decimal, ',' = thousands).
-    /// </remarks>
-    private static T WithUSFormatSeparators<T>(dynamic app, Func<T> action)
-    {
-        // Save original separator settings
-        bool originalUseSystemSeparators = app.UseSystemSeparators;
-        string originalDecimalSeparator = app.DecimalSeparator?.ToString() ?? ".";
-        string originalThousandsSeparator = app.ThousandsSeparator?.ToString() ?? ",";
-
-        try
-        {
-            // Force US-style separators for consistent format code interpretation
-            app.DecimalSeparator = ".";
-            app.ThousandsSeparator = ",";
-            app.UseSystemSeparators = false;
-
-            return action();
-        }
-        finally
-        {
-            // Restore original settings
-            app.DecimalSeparator = originalDecimalSeparator;
-            app.ThousandsSeparator = originalThousandsSeparator;
-            app.UseSystemSeparators = originalUseSystemSeparators;
-        }
-    }
-
     /// <inheritdoc />
     public RangeNumberFormatResult GetNumberFormats(IExcelBatch batch, string sheetName, string rangeAddress)
     {
@@ -175,8 +140,8 @@ public partial class RangeCommands
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
-                // Translate US date format codes to locale-specific codes
-                var translatedFormat = ctx.DateFormatter.TranslateToLocale(formatCode);
+                // Translate US format codes to locale-specific codes
+                var translatedFormat = ctx.FormatTranslator.TranslateToLocale(formatCode);
                 range.NumberFormat = translatedFormat;
 
                 result.Success = true;
@@ -227,7 +192,7 @@ public partial class RangeCommands
                 }
 
                 // Translate all format codes to locale-specific codes
-                var translator = ctx.DateFormatter;
+                var translator = ctx.FormatTranslator;
 
                 // If single row or column, can't use 2D array - must set cell by cell
                 if (rowCount == 1 || columnCount == 1)

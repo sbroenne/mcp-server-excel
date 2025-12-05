@@ -8,20 +8,20 @@ using Xunit.Abstractions;
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
 
 /// <summary>
-/// Tests that date format translation works correctly across locales.
+/// Tests that format translation (date and number separators) works correctly across locales.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
 [Trait("Layer", "Core")]
 [Trait("Feature", "Ranges")]
 [Trait("RequiresExcel", "true")]
-public class DateFormatTranslationTests : IClassFixture<RangeTestsFixture>
+public class FormatTranslationTests : IClassFixture<RangeTestsFixture>
 {
     private readonly ITestOutputHelper _output;
     private readonly RangeTestsFixture _fixture;
     private readonly RangeCommands _rangeCommands;
 
-    public DateFormatTranslationTests(RangeTestsFixture fixture, ITestOutputHelper output)
+    public FormatTranslationTests(RangeTestsFixture fixture, ITestOutputHelper output)
     {
         _fixture = fixture;
         _output = output;
@@ -39,7 +39,7 @@ public class DateFormatTranslationTests : IClassFixture<RangeTestsFixture>
         // Log translator info
         batch.Execute((ctx, ct) =>
         {
-            _output.WriteLine($"DateFormatter: {ctx.DateFormatter}");
+            _output.WriteLine($"FormatTranslator: {ctx.FormatTranslator}");
         });
 
         // Set a date value (45000 = March 15, 2023)
