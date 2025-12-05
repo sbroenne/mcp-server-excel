@@ -17,7 +17,7 @@ applyTo: "**/*.md,README.md,**/README.md"
 ### Tool Counts Must Match
 ### Tool & Action Counts Must Match
 - All READMEs: **12 specialized tools**
-- Current total actions: **172 operations** (update if tool schema changes)
+- Current total actions: **173 operations** (update if tool schema changes)
 - Sync counts across:
 	- `/README.md`
 	- `/src/ExcelMcp.McpServer/README.md`
@@ -29,7 +29,7 @@ applyTo: "**/*.md,README.md,**/README.md"
 # Check READMEs/sites have same tool count
 git grep "12 specialized tools" README.md src/ExcelMcp.McpServer/README.md src/ExcelMcp.CLI/README.md vscode-extension/README.md gh-pages/index.md
 
-# Check total operations text (172)
+# Check total operations text (173)
 - All READMEs mention: **COM API** (not "Excel's internal API")
 - Highlight: zero corruption, interactive development, growing features
 

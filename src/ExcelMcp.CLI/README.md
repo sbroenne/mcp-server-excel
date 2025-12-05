@@ -6,7 +6,7 @@
 
 **Optional command-line interface for Excel automation without AI assistance.**
 
-For advanced users who prefer direct scripting control, the CLI provides the same 172 operations as the MCP Server. Perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
+For advanced users who prefer direct scripting control, the CLI provides the same 173 operations as the MCP Server. Perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
 
 **Note:** Most users should use the [MCP Server with AI assistants](../ExcelMcp.McpServer/README.md) for natural language automation.
 
@@ -78,7 +78,7 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **172 operations** across 12 categories:
+ExcelMcp.CLI provides **173 operations** across 12 categories:
 
 📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all operations
 

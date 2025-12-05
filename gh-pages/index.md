@@ -39,7 +39,7 @@ canonical_url: "https://excelmcpserver.dev/"
 
 **💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
 
-**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. Both interfaces share the same 172 operations.
+**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. Both interfaces share the same 173 operations.
 
 ## 🚀 Visual Studio Code Quick Start (1 Minute)
 
@@ -50,8 +50,8 @@ canonical_url: "https://excelmcpserver.dev/"
 
 <div class="features-grid">
 <div class="feature-card">
-<h3>172 Operations</h3>
-<p>12 specialized tools with 172 operations covering Power Query, DAX, Charts, VBA, PivotTables, ranges, conditional formatting, and more</p>
+<h3>173 Operations</h3>
+<p>12 specialized tools with 173 operations covering Power Query, DAX, Charts, VBA, PivotTables, ranges, conditional formatting, and more</p>
 <p><a href="https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md">Complete Feature Reference →</a></p>
 </div>
 
@@ -73,7 +73,7 @@ canonical_url: "https://excelmcpserver.dev/"
 
 <div class="feature-card">
 <h3>Comprehensive Automation</h3>
-<p>172 operations covering Power Query, DAX, Charts, VBA, Tables, and more</p>
+<p>173 operations covering Power Query, DAX, Charts, VBA, Tables, and more</p>
 </div>
 
 <div class="feature-card">
@@ -169,7 +169,7 @@ excel-mcp vba-export --file "macro-workbook.xlsm" --module "Module1" --output "s
 <li><strong>Natural Language Control:</strong> Describe tasks in plain English</li>
 <li><strong>Safe:</strong> Official COM API - zero corruption risk</li>
 <li><strong>Interactive:</strong> See changes in real-time in Excel</li>
-<li><strong>Comprehensive:</strong> 172 operations across 12 tools</li>
+<li><strong>Comprehensive:</strong> 173 operations across 12 tools</li>
 <li><strong>Works with:</strong> GitHub Copilot, Claude, ChatGPT, and any MCP client</li>
 </ul>
 </div>
@@ -188,12 +188,12 @@ excel-mcp vba-export --file "macro-workbook.xlsm" --module "Module1" --output "s
 
 <div class="callout">
 <strong>Both Share the Same Core</strong>
-Same 172 operations available via CLI and MCP. Consistent behavior across interfaces.
+Same 173 operations available via CLI and MCP. Consistent behavior across interfaces.
 </div>
 
 ## Complete Tool & Action Reference
 
-**12 specialized tools with 172 operations:**
+**12 specialized tools with 173 operations:**
 
 <div class="tools-reference" markdown="1">
 
@@ -211,7 +211,7 @@ Same 172 operations available via CLI and MCP. Consistent behavior across interf
 | `get-load-config` | Get load destination settings for a query |
 | `load-to` | Load query data to worksheet, data model, or both |
 
-### 🔢 Power Pivot / Data Model (14 actions)
+### 🔢 Power Pivot / Data Model (15 actions)
 
 | Action | Description |
 |--------|-------------|
@@ -224,6 +224,7 @@ Same 172 operations available via CLI and MCP. Consistent behavior across interf
 | `update-measure` | Update existing DAX measure formula or format |
 | `delete-measure` | Delete a DAX measure |
 | `list-relationships` | List all table relationships |
+| `read-relationship` | Read details of a specific relationship |
 | `create-relationship` | Create relationship between tables |
 | `update-relationship` | Update relationship properties |
 | `delete-relationship` | Delete a relationship |

@@ -14,6 +14,7 @@ public static partial class ExcelDataModelTool
 {
     /// <summary>
     /// Manage Excel Power Pivot (Data Model) - DAX measures, relationships, analytical model.
+    /// HIDDEN COLUMNS/RELATIONSHIPS/MEASURES: Objects marked "Hidden from client tools" in Power Pivot are NOT visible via list-columns, list-relationships, or list-measures actions. This is an Excel API limitation with no workaround. If user reports missing columns, relationships, or measures, ask them to unhide them in Power Pivot (Manage Data Model, right-click object, uncheck "Hide from Client Tools").
     /// CALCULATED COLUMNS: NOT supported via automation. When user asks to create calculated columns, provide step-by-step manual instructions OR suggest using DAX measures instead (measures ARE automated and usually better for aggregations).
     /// TIMEOUT SAFEGUARD: Listing tables/measures/info auto-timeouts after 5 minutes to prevent Power Pivot hangs.
     /// </summary>
@@ -64,6 +65,7 @@ public static partial class ExcelDataModelTool
                     DataModelAction.ListMeasures => ListMeasuresAsync(dataModelCommands, sessionId),
                     DataModelAction.Read => ReadMeasureAsync(dataModelCommands, sessionId, measureName),
                     DataModelAction.ListRelationships => ListRelationshipsAsync(dataModelCommands, sessionId),
+                    DataModelAction.ReadRelationship => ReadRelationshipAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn),
                     DataModelAction.Refresh => RefreshAsync(dataModelCommands, sessionId),
                     DataModelAction.DeleteMeasure => DeleteMeasureAsync(dataModelCommands, sessionId, measureName),
                     DataModelAction.DeleteTable => DeleteTableAsync(dataModelCommands, sessionId, tableName),
@@ -169,6 +171,35 @@ public static partial class ExcelDataModelTool
         {
             result.Success,
             result.Relationships,
+            result.ErrorMessage
+        }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string ReadRelationshipAsync(DataModelCommands commands, string sessionId, string? fromTable, string? fromColumn, string? toTable, string? toColumn)
+    {
+        if (string.IsNullOrWhiteSpace(fromTable))
+        {
+            throw new ArgumentException("Parameter 'fromTable' is required for read-relationship action", nameof(fromTable));
+        }
+        if (string.IsNullOrWhiteSpace(fromColumn))
+        {
+            throw new ArgumentException("Parameter 'fromColumn' is required for read-relationship action", nameof(fromColumn));
+        }
+        if (string.IsNullOrWhiteSpace(toTable))
+        {
+            throw new ArgumentException("Parameter 'toTable' is required for read-relationship action", nameof(toTable));
+        }
+        if (string.IsNullOrWhiteSpace(toColumn))
+        {
+            throw new ArgumentException("Parameter 'toColumn' is required for read-relationship action", nameof(toColumn));
+        }
+
+        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.ReadRelationship(batch, fromTable, fromColumn, toTable, toColumn));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.Relationship,
             result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
