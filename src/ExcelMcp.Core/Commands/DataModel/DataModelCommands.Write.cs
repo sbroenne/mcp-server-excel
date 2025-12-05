@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Formatting;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.DataModel;
 
@@ -222,6 +223,12 @@ public partial class DataModelCommands
                     throw new InvalidOperationException($"Measure '{measureName}' already exists in the Data Model");
                 }
 
+                // Translate DAX formula separators from US format (comma) to locale-specific format
+                // This fixes issues on European locales where semicolon is the list separator
+                // Example: DATEADD(Date[Date], -1, MONTH) → DATEADD(Date[Date]; -1; MONTH) on German Excel
+                var daxTranslator = new DaxFormulaTranslator(ctx.App);
+                string localizedFormula = daxTranslator.TranslateToLocale(daxFormula);
+
                 // Get ModelMeasures collection from MODEL (not from table!)
                 // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
                 measures = model.ModelMeasures;
@@ -237,7 +244,7 @@ public partial class DataModelCommands
                 newMeasure = measures.Add(
                     measureName,                                        // MeasureName (required)
                     table,                                              // AssociatedTable (required)
-                    daxFormula,                                         // Formula (required) - must be valid DAX
+                    localizedFormula,                                   // Formula (required) - must be valid DAX, translated for locale
                     formatObject,                                       // FormatInformation (required) - NEVER null/Type.Missing
                     string.IsNullOrEmpty(description) ? Type.Missing : description  // Description (optional)
                 );
@@ -289,7 +296,11 @@ public partial class DataModelCommands
                 // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.modelmeasure (Formula property is Read/Write)
                 if (!string.IsNullOrEmpty(daxFormula))
                 {
-                    measure.Formula = daxFormula;
+                    // Translate DAX formula separators from US format (comma) to locale-specific format
+                    // This fixes issues on European locales where semicolon is the list separator
+                    var daxTranslator = new DaxFormulaTranslator(ctx.App);
+                    string localizedFormula = daxTranslator.TranslateToLocale(daxFormula);
+                    measure.Formula = localizedFormula;
                     updates.Add("Formula updated");
                 }
 

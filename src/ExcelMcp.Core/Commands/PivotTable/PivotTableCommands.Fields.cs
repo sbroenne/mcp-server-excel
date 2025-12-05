@@ -479,8 +479,8 @@ public partial class PivotTableCommands
 
             try
             {
-                // Translate US date format codes to locale-specific codes
-                var translatedFormat = ctx.DateFormatter.TranslateToLocale(numberFormat);
+                // Translate US format codes to locale-specific codes
+                var translatedFormat = ctx.FormatTranslator.TranslateToLocale(numberFormat);
 
                 // Use Strategy Pattern to delegate to appropriate implementation
                 var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);

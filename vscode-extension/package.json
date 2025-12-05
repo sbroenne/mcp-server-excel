@@ -1,7 +1,7 @@
 {
   "name": "excel-mcp",
   "displayName": "Excel MCP Server",
-  "description": "Excel automation for AI assistants - manage Sheets, Power Query, DAX, VBA, Tables, Ranges, Formatting, Validation & more - requires Excel to be installed",
+  "description": "Excel automation for AI assistants - manage Sheets, Power Query, DAX, VBA, PowerPivot, Tables, Ranges, Charts, Formatting, Validation & more - requires Excel to be installed",
   "version": "1.1.3",
   "publisher": "sbroenne",
   "icon": "icon.png",
@@ -12,7 +12,7 @@
   "bugs": {
     "url": "https://github.com/sbroenne/mcp-server-excel/issues"
   },
-  "homepage": "https://github.com/sbroenne/mcp-server-excel#readme",
+  "homepage": "https://excelmcpserver.dev/",
   "license": "MIT",
   "engines": {
     "vscode": "^1.106.0"

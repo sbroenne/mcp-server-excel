@@ -3,28 +3,32 @@ using System.Text;
 namespace Sbroenne.ExcelMcp.ComInterop.Formatting;
 
 /// <summary>
-/// Translates date/time format codes between US (English) format and the locale-specific format
+/// Translates number and date/time format codes between US (English) format and the locale-specific format
 /// that Excel expects based on the current system locale.
 /// </summary>
 /// <remarks>
 /// <para><b>Why This Is Needed:</b></para>
 /// <para>
-/// Excel interprets date format code letters based on the system locale. On German systems,
-/// 'd' (day), 'm' (month), 'y' (year) are NOT recognized - Excel expects 'T' (Tag), 'M' (Monat), 'J' (Jahr).
+/// Excel interprets format code characters based on the system locale:
 /// </para>
+/// <list type="bullet">
+/// <item>Date codes: On German systems, 'd' (day), 'm' (month), 'y' (year) must be 'T', 'M', 'J'</item>
+/// <item>Number separators: On German systems, '.' (decimal) and ',' (thousands) are swapped</item>
+/// </list>
 /// <para>
 /// This translator reads the locale-specific codes from Excel's <c>Application.International</c> property
-/// and translates US format codes (like "m/d/yyyy") to locale format codes (like "M/T/JJJJ" on German).
+/// and translates US format codes to locale format codes.
 /// </para>
 /// <para><b>Usage:</b></para>
 /// <code>
-/// var translator = new DateFormatTranslator(excelApp);
-/// string localeFormat = translator.TranslateToLocale("m/d/yyyy"); // Returns "M/T/JJJJ" on German Excel
+/// var translator = new NumberFormatTranslator(excelApp);
+/// string dateFormat = translator.TranslateToLocale("m/d/yyyy");   // Returns "M/T/JJJJ" on German
+/// string currencyFormat = translator.TranslateToLocale("$#,##0.00"); // Returns "$#.##0,00" on German
 /// </code>
 /// </remarks>
-public sealed class DateFormatTranslator
+public sealed class NumberFormatTranslator
 {
-    // XlApplicationInternational enum values
+    // XlApplicationInternational enum values for date/time
     private const int XlDayCode = 21;
     private const int XlMonthCode = 20;
     private const int XlYearCode = 19;
@@ -33,6 +37,10 @@ public sealed class DateFormatTranslator
     private const int XlSecondCode = 24;
     private const int XlDateSeparator = 17;
     private const int XlTimeSeparator = 18;
+
+    // XlApplicationInternational enum values for number separators
+    private const int XlDecimalSeparator = 3;
+    private const int XlThousandsSeparator = 4;
 
     /// <summary>Locale-specific day code (e.g., 'd' for English, 'T' for German)</summary>
     public string DayCode { get; }
@@ -58,14 +66,23 @@ public sealed class DateFormatTranslator
     /// <summary>Locale-specific time separator (typically ':')</summary>
     public string TimeSeparator { get; }
 
+    /// <summary>Locale-specific decimal separator (e.g., '.' for English, ',' for German)</summary>
+    public string DecimalSeparator { get; }
+
+    /// <summary>Locale-specific thousands separator (e.g., ',' for English, '.' for German)</summary>
+    public string ThousandsSeparator { get; }
+
     /// <summary>True if locale uses same codes as US English (d/m/y)</summary>
-    public bool IsEnglishLocale { get; }
+    public bool IsEnglishDateLocale { get; }
+
+    /// <summary>True if locale uses same number separators as US English (. for decimal, , for thousands)</summary>
+    public bool IsEnglishNumberLocale { get; }
 
     /// <summary>
-    /// Creates a new DateFormatTranslator by reading locale codes from the Excel Application.
+    /// Creates a new NumberFormatTranslator by reading locale codes from the Excel Application.
     /// </summary>
     /// <param name="excelApp">The Excel.Application COM object (dynamic)</param>
-    public DateFormatTranslator(dynamic excelApp)
+    public NumberFormatTranslator(dynamic excelApp)
     {
         // Read locale-specific codes from Excel's International property
         DayCode = GetInternationalValue(excelApp, XlDayCode) ?? "d";
@@ -77,17 +94,25 @@ public sealed class DateFormatTranslator
         DateSeparator = GetInternationalValue(excelApp, XlDateSeparator) ?? "/";
         TimeSeparator = GetInternationalValue(excelApp, XlTimeSeparator) ?? ":";
 
-        // Check if this is already English locale (no translation needed)
-        IsEnglishLocale = DayCode.Equals("d", StringComparison.OrdinalIgnoreCase) &&
-                          MonthCode.Equals("m", StringComparison.OrdinalIgnoreCase) &&
-                          YearCode.Equals("y", StringComparison.OrdinalIgnoreCase);
+        // Read number separators
+        DecimalSeparator = GetInternationalValue(excelApp, XlDecimalSeparator) ?? ".";
+        ThousandsSeparator = GetInternationalValue(excelApp, XlThousandsSeparator) ?? ",";
+
+        // Check if this is already English locale for dates (no translation needed)
+        IsEnglishDateLocale = DayCode.Equals("d", StringComparison.OrdinalIgnoreCase) &&
+                               MonthCode.Equals("m", StringComparison.OrdinalIgnoreCase) &&
+                               YearCode.Equals("y", StringComparison.OrdinalIgnoreCase);
+
+        // Check if this is already English locale for numbers (no translation needed)
+        IsEnglishNumberLocale = DecimalSeparator == "." && ThousandsSeparator == ",";
     }
 
     /// <summary>
-    /// Translates a US (English) date format string to the locale-specific format Excel expects.
+    /// Translates a US (English) format string to the locale-specific format Excel expects.
+    /// Handles both date/time codes and number separators.
     /// </summary>
-    /// <param name="usFormat">US format string (e.g., "m/d/yyyy", "mm/dd/yyyy", "yyyy-mm-dd")</param>
-    /// <returns>Locale-specific format string (e.g., "M/T/JJJJ" on German Excel)</returns>
+    /// <param name="usFormat">US format string (e.g., "m/d/yyyy", "$#,##0.00")</param>
+    /// <returns>Locale-specific format string (e.g., "M/T/JJJJ", "$#.##0,00" on German Excel)</returns>
     /// <remarks>
     /// <para>Translation rules:</para>
     /// <list type="bullet">
@@ -97,6 +122,8 @@ public sealed class DateFormatTranslator
     /// <item>'mmm' or 'mmmm' (month names) → kept as-is (Excel handles these)</item>
     /// <item>'y' or 'yy' or 'yyyy' (year) → locale year code</item>
     /// <item>'h', 'm' (after :), 's' (time) → locale time codes</item>
+    /// <item>'.' (decimal separator in number formats) → locale decimal separator</item>
+    /// <item>',' (thousands separator in number formats) → locale thousands separator</item>
     /// <item>Literal text in quotes or brackets is preserved</item>
     /// </list>
     /// </remarks>
@@ -105,8 +132,8 @@ public sealed class DateFormatTranslator
         if (string.IsNullOrEmpty(usFormat))
             return usFormat;
 
-        // If already English locale, no translation needed
-        if (IsEnglishLocale)
+        // If already English locale for both dates and numbers, no translation needed
+        if (IsEnglishDateLocale && IsEnglishNumberLocale)
             return usFormat;
 
         // Don't translate if it already contains locale-specific codes
@@ -138,7 +165,7 @@ public sealed class DateFormatTranslator
     }
 
     /// <summary>
-    /// Translates format string character by character, handling context (date vs time).
+    /// Translates format string character by character, handling context (date vs time vs number).
     /// </summary>
     private string TranslateFormatString(string format)
     {
@@ -184,6 +211,36 @@ public sealed class DateFormatTranslator
                 continue;
             }
 
+            // Handle decimal separator '.' in number format context
+            // A '.' is a decimal separator if it's followed by a digit placeholder (0 or #)
+            if (c == '.' && !IsEnglishNumberLocale)
+            {
+                if (i + 1 < format.Length && IsDigitPlaceholder(format[i + 1]))
+                {
+                    // This is a decimal separator in a number format - translate it
+                    result.Append(DecimalSeparator);
+                    i++;
+                    continue;
+                }
+            }
+
+            // Handle thousands separator ',' in number format context
+            // A ',' is a thousands separator if it's between digit placeholders
+            if (c == ',' && !IsEnglishNumberLocale)
+            {
+                // Check if this is a thousands separator (surrounded by digit placeholders)
+                bool prevIsDigit = i > 0 && (IsDigitPlaceholder(format[i - 1]) || format[i - 1] == '.');
+                bool nextIsDigit = i + 1 < format.Length && (IsDigitPlaceholder(format[i + 1]) || format[i + 1] == '#' || format[i + 1] == '0');
+
+                if (prevIsDigit && nextIsDigit)
+                {
+                    // This is a thousands separator in a number format - translate it
+                    result.Append(ThousandsSeparator);
+                    i++;
+                    continue;
+                }
+            }
+
             // Time separator - switch to time context
             if (c == ':')
             {
@@ -198,7 +255,14 @@ public sealed class DateFormatTranslator
             {
                 inTimeContext = true;
                 int count = CountRepeatingChar(format, i, c);
-                result.Append(HourCode[0], count);
+                if (!IsEnglishDateLocale)
+                {
+                    result.Append(HourCode[0], count);
+                }
+                else
+                {
+                    result.Append(c, count);
+                }
                 i += count;
                 continue;
             }
@@ -207,13 +271,20 @@ public sealed class DateFormatTranslator
             if (c == 's' || c == 'S')
             {
                 int count = CountRepeatingChar(format, i, c);
-                result.Append(SecondCode[0], count);
+                if (!IsEnglishDateLocale)
+                {
+                    result.Append(SecondCode[0], count);
+                }
+                else
+                {
+                    result.Append(c, count);
+                }
                 i += count;
                 continue;
             }
 
             // Day code - 'd' or 'D'
-            if (c == 'd' || c == 'D')
+            if ((c == 'd' || c == 'D') && !IsEnglishDateLocale)
             {
                 int count = CountRepeatingChar(format, i, c);
 
@@ -233,7 +304,7 @@ public sealed class DateFormatTranslator
 
             // Month/Minute code - 'm' or 'M'
             // This is the tricky one - 'm' means month in date context, minutes in time context
-            if (c == 'm' || c == 'M')
+            if ((c == 'm' || c == 'M') && !IsEnglishDateLocale)
             {
                 int count = CountRepeatingChar(format, i, c);
 
@@ -261,7 +332,7 @@ public sealed class DateFormatTranslator
             }
 
             // Year code - 'y' or 'Y'
-            if (c == 'y' || c == 'Y')
+            if ((c == 'y' || c == 'Y') && !IsEnglishDateLocale)
             {
                 int count = CountRepeatingChar(format, i, c);
                 result.Append(YearCode[0], count);
@@ -282,6 +353,11 @@ public sealed class DateFormatTranslator
 
         return result.ToString();
     }
+
+    /// <summary>
+    /// Checks if a character is a digit placeholder in Excel number formats.
+    /// </summary>
+    private static bool IsDigitPlaceholder(char c) => c == '0' || c == '#' || c == '?';
 
     /// <summary>
     /// Counts how many times a character repeats starting at position.
@@ -323,8 +399,10 @@ public sealed class DateFormatTranslator
     /// </summary>
     public override string ToString()
     {
-        return $"DateFormatTranslator: Day='{DayCode}' Month='{MonthCode}' Year='{YearCode}' " +
+        return $"NumberFormatTranslator: Day='{DayCode}' Month='{MonthCode}' Year='{YearCode}' " +
                $"Hour='{HourCode}' Minute='{MinuteCode}' Second='{SecondCode}' " +
-               $"DateSep='{DateSeparator}' TimeSep='{TimeSeparator}' IsEnglish={IsEnglishLocale}";
+               $"DateSep='{DateSeparator}' TimeSep='{TimeSeparator}' " +
+               $"DecimalSep='{DecimalSeparator}' ThousandsSep='{ThousandsSeparator}' " +
+               $"IsEnglishDate={IsEnglishDateLocale} IsEnglishNumber={IsEnglishNumberLocale}";
     }
 }

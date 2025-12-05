@@ -2,6 +2,10 @@
 
 All notable changes to the ExcelMcp VS Code extension will be documented in this file.
 
+## [1.4.34] - 2025-12-05
+
+- **DAX Formula Locale Handling** (#281): DAX formulas with US comma separators now work correctly on European locales (German, French, etc.)
+
 ## [1.4.33] - 2025-12-04
 
 - **Atomic Cross-File Worksheet Operations** (#273): New `copy-to-file` and `move-to-file` actions replace session-based `copy-to-workbook` and `move-to-workbook` - simpler API with no session management required
