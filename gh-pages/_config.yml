@@ -4,8 +4,8 @@
 # Site settings
 title: "Excel MCP Server"
 description: "AI-powered Excel automation through conversational AI"
-url: "https://sbroenne.github.io"
-baseurl: "/mcp-server-excel"
+url: "https://excelmcpserver.dev"
+baseurl: ""
 repository: "sbroenne/mcp-server-excel"
 
 # Theme

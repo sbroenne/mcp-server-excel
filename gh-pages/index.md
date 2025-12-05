@@ -3,7 +3,7 @@ layout: default
 title: "Excel MCP Server - AI-Powered Excel Automation"
 description: "Control Microsoft Excel with natural language through AI assistants like GitHub Copilot and Claude. Automate Power Query, DAX, VBA, PivotTables, and more. One-click install for Visual Studio Code."
 keywords: "Excel automation, MCP server, AI Excel, Power Query, DAX measures, VBA macros, GitHub Copilot Excel, Claude Excel, Excel CLI, M code, REPL"
-canonical_url: "https://sbroenne.github.io/mcp-server-excel/"
+canonical_url: "https://excelmcpserver.dev/"
 ---
 
 <div class="hero">
