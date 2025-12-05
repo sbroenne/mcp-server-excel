@@ -12,11 +12,16 @@ public partial class PowerQueryCommands
 {
     /// <summary>
     /// Update Power Query M code. Preserves load configuration (worksheet/data model).
-    /// UPDATED to check for BOTH QueryTable (from LoadTo) and ListObject (from previous Update) patterns.
+    /// - Worksheet queries: Uses QueryTable.Refresh(false) for synchronous refresh with column propagation
+    /// - Data Model queries: Uses connection.Refresh() to update the Data Model
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="queryName">Name of query to update</param>
+    /// <param name="mCode">New M code</param>
+    /// <param name="refresh">Whether to refresh data after update (default: true)</param>
     /// <exception cref="ArgumentException">Thrown when queryName or mCode is invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when query not found or update fails</exception>
-    public void Update(IExcelBatch batch, string queryName, string mCode)
+    public void Update(IExcelBatch batch, string queryName, string mCode, bool refresh = true)
     {
         if (!ValidateQueryName(queryName, out string? validationError))
         {
@@ -188,13 +193,57 @@ public partial class PowerQueryCommands
                 // STEP 3: Update the M code
                 query.Formula = mCode;
 
-                // STEP 4: Refresh existing QueryTable if it exists
-                if (existingQueryTable != null)
+                // STEP 4: Refresh if requested
+                if (refresh)
                 {
-                    // Just refresh - PreserveColumnInfo=false allows schema changes
-                    existingQueryTable.Refresh(false);  // Synchronous
+                    if (existingQueryTable != null)
+                    {
+                        // Worksheet query: Use QueryTable.Refresh(false) for synchronous refresh
+                        // This properly propagates column structure changes
+                        existingQueryTable.Refresh(false);
+                    }
+                    else
+                    {
+                        // Data Model-only query (no worksheet table): Use connection.Refresh()
+                        // Find the Power Query connection and refresh it
+                        dynamic? connections = null;
+                        try
+                        {
+                            connections = ctx.Book.Connections;
+                            for (int i = 1; i <= connections.Count; i++)
+                            {
+                                dynamic? conn = null;
+                                dynamic? oledbConn = null;
+                                try
+                                {
+                                    conn = connections.Item(i);
+                                    oledbConn = conn.OLEDBConnection;
+                                    if (oledbConn == null) continue;
+
+                                    string connString = oledbConn.Connection?.ToString() ?? "";
+                                    bool isMashup = connString.Contains("Provider=Microsoft.Mashup.OleDb.1", StringComparison.OrdinalIgnoreCase);
+                                    bool locationMatches = connString.Contains($"Location={queryName}", StringComparison.OrdinalIgnoreCase);
+
+                                    if (isMashup && locationMatches)
+                                    {
+                                        conn.Refresh();
+                                        break;
+                                    }
+                                }
+                                finally
+                                {
+                                    if (oledbConn != null) ComUtilities.Release(ref oledbConn!);
+                                    if (conn != null) ComUtilities.Release(ref conn!);
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            if (connections != null) ComUtilities.Release(ref connections!);
+                        }
+                    }
                 }
-                // No QueryTable or ListObject - connection-only query (no action needed)
+                // Connection-only queries (no QueryTable, no Data Model connection) don't need refresh
 
                 return 0;
             }

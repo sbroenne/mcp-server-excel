@@ -5,13 +5,20 @@
 - create: Import NEW query using inline `mCode` (FAILS if query already exists - use update instead)
 - update: Update EXISTING query M code + refresh data (use this if query exists)
 - load-to: Loads to worksheet or data model or both (not just config change) - CHECKS for sheet conflicts
-- unload: Removes data from worksheet but keeps query definition (inverse of load-to)
+- unload: Removes data from ALL destinations (worksheet AND Data Model) - keeps query definition
+- delete: Completely removes query AND all associated data (worksheet, Data Model connections)
 
 **When to use create vs update**:
 
 - Query doesn't exist? → Use create
 - Query already exists? → Use update (create will error "already exists")
 - Not sure? → Check with list action first, then use update if exists or create if new
+
+**List action and IsConnectionOnly**:
+
+- `IsConnectionOnly=true` means query has NO data destination (not in worksheet, not in Data Model)
+- `IsConnectionOnly=false` means query loads data SOMEWHERE (worksheet OR Data Model OR both)
+- A query loaded ONLY to Data Model is NOT connection-only
 
 **Inline M code**:
 
@@ -31,6 +38,7 @@
 - Using create on existing query → ERROR "Query 'X' already exists" (should use update)
 - Using update on new query → ERROR "Query 'X' not found" (should use create)
 - Calling LoadTo without checking if sheet exists (will error if sheet exists)
+- Assuming unload only removes worksheet data → Also removes Data Model connections
 
 **Server-specific quirks**:
 
@@ -40,3 +48,9 @@
 - Single cell returns [[value]] not scalar
 - refresh action REQUIRES `refreshTimeoutSeconds` between 60-600 seconds (1-10 minutes). If refresh needs more than 10 minutes, ask the user to run it manually in Excel—the server refuses longer windows and will not pick a default for you.
 - load-to has a 5-minute guard. If Excel is blocked by privacy dialogs/credentials, you'll get `SuggestedNextActions` instead of a hang—surface them to the user before retrying.
+
+**Data Model connection cleanup**:
+
+- Unload removes BOTH worksheet ListObjects AND Data Model connections
+- Delete removes query, worksheet ListObjects, AND Data Model connections
+- Connection naming pattern: "Query - {queryName}" or "Query - {queryName} - suffix"

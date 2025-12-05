@@ -132,6 +132,44 @@ public partial class PowerQueryCommands
                             ComUtilities.Release(ref worksheets!);
                         }
 
+                        // Also check for Data Model connections
+                        // A query loaded ONLY to Data Model has no ListObjects but has a connection
+                        if (isConnectionOnly)
+                        {
+                            dynamic? connections = null;
+                            try
+                            {
+                                connections = ctx.Book.Connections;
+                                for (int c = 1; c <= connections.Count; c++)
+                                {
+                                    dynamic? conn = null;
+                                    try
+                                    {
+                                        conn = connections.Item(c);
+                                        string connName = conn.Name?.ToString() ?? "";
+
+                                        // Check if this is a Data Model connection for our query
+                                        // Pattern: "Query - {queryName}" or "Query - {queryName} - suffix"
+                                        if (connName.Equals($"Query - {name}", StringComparison.OrdinalIgnoreCase) ||
+                                            connName.StartsWith($"Query - {name} -", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            // Has Data Model connection - NOT connection-only
+                                            isConnectionOnly = false;
+                                            break;
+                                        }
+                                    }
+                                    finally
+                                    {
+                                        ComUtilities.Release(ref conn);
+                                    }
+                                }
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref connections);
+                            }
+                        }
+
                         result.Queries.Add(new PowerQueryInfo
                         {
                             Name = name,
@@ -459,7 +497,60 @@ public partial class PowerQueryCommands
                     }
                 }
 
-                // STEP 2: Delete the query itself
+                // STEP 2: Remove Data Model connections
+                // Data Model connections follow pattern: "Query - {queryName}" or "Query - {queryName} - suffix"
+                dynamic? connections = null;
+                try
+                {
+                    connections = ctx.Book.Connections;
+                    var connectionsToDelete = new List<string>();
+
+                    for (int c = 1; c <= connections.Count; c++)
+                    {
+                        dynamic? conn = null;
+                        try
+                        {
+                            conn = connections.Item(c);
+                            string connName = conn.Name?.ToString() ?? "";
+
+                            // Check if this is a Data Model connection for our query
+                            if (connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase) ||
+                                connName.StartsWith($"Query - {queryName} -", StringComparison.OrdinalIgnoreCase))
+                            {
+                                connectionsToDelete.Add(connName);
+                            }
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref conn);
+                        }
+                    }
+
+                    // Delete connections
+                    foreach (var connName in connectionsToDelete)
+                    {
+                        dynamic? connToDelete = null;
+                        try
+                        {
+                            connToDelete = connections.Item(connName);
+                            connToDelete.Delete();
+                        }
+                        catch
+                        {
+                            // Connection may have already been deleted
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref connToDelete);
+                        }
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref connections);
+                }
+
+                // STEP 3: Delete the query itself
                 queriesCollection = ctx.Book.Queries;
                 queriesCollection.Item(queryName).Delete();
 
@@ -605,6 +696,60 @@ public partial class PowerQueryCommands
                         ComUtilities.Release(ref listObjects);
                         ComUtilities.Release(ref sheet);
                     }
+                }
+
+                // STEP 2: Remove Data Model connections
+                // Data Model connections follow pattern: "Query - {queryName}" or "Query - {queryName} - suffix"
+                dynamic? connections = null;
+                try
+                {
+                    connections = ctx.Book.Connections;
+                    var connectionsToDelete = new List<string>();
+
+                    for (int i = 1; i <= connections.Count; i++)
+                    {
+                        dynamic? conn = null;
+                        try
+                        {
+                            conn = connections.Item(i);
+                            string connName = conn.Name?.ToString() ?? "";
+
+                            // Check if this is a Data Model connection for our query
+                            // Pattern: "Query - {queryName}" or "Query - {queryName} - Model" etc.
+                            if (connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase) ||
+                                connName.StartsWith($"Query - {queryName} -", StringComparison.OrdinalIgnoreCase))
+                            {
+                                connectionsToDelete.Add(connName);
+                            }
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref conn);
+                        }
+                    }
+
+                    // Delete connections (must iterate separately to avoid modifying collection while enumerating)
+                    foreach (var connName in connectionsToDelete)
+                    {
+                        dynamic? connToDelete = null;
+                        try
+                        {
+                            connToDelete = connections.Item(connName);
+                            connToDelete.Delete();
+                        }
+                        catch
+                        {
+                            // Connection may have already been deleted or is in use
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref connToDelete);
+                        }
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref connections);
                 }
 
                 result.Success = true;

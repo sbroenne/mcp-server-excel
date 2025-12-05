@@ -1,0 +1,295 @@
+# Excel COM API Behavior Findings
+
+> **Summary of diagnostic test findings from empirical testing of raw Excel COM API behavior**
+
+This document captures the key discoveries made through diagnostic tests that use raw COM API calls to understand Excel's actual behavior, without our abstractions.
+
+## Test Suites
+
+- **PowerQueryComApiBehaviorTests**: 12 scenarios testing Power Query M code operations
+- **DataModelComApiBehaviorTests**: 11 scenarios testing Data Model (Power Pivot) operations
+
+## Critical Finding: Query Deletion Orphans Tables
+
+### Power Query (Scenario 4)
+
+**FINDING: Deleting a Power Query does NOT delete the associated table (ListObject)**
+
+```csharp
+// Delete the query
+query.Delete();
+
+// Table SURVIVES - query deletion does NOT cascade to table
+// Tables after delete: 1  (same as before)
+// Orphaned table name: TestQuery
+// Data rows still accessible: 3
+```
+
+**Implication:** Cleanup code that removes orphaned tables after query deletion is **JUSTIFIED** and necessary. This is not "cargo cult" code - it addresses real orphan behavior.
+
+### Data Model (Scenario 8)
+
+**FINDING: Deleting a Power Query does NOT delete the associated Data Model table**
+
+```csharp
+// Delete query that loaded to Data Model
+query.Delete();
+
+// Model table SURVIVES!
+// Queries after delete: 0
+// Model tables after delete: 1  (orphaned)
+```
+
+**Implication:** Same as Power Query - Data Model tables become orphaned when their source query is deleted. Cleanup code is required.
+
+---
+
+## Power Query API Findings
+
+### Scenario 1: Query Creation and Loading
+
+- `Queries.Add(name, formula)` creates query definition only
+- Query alone does NOT create a table
+- To load to worksheet, must use `QueryTables.Add()` with connection string:
+
+  ```
+  OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={QueryName}
+  ```
+
+- `QueryTable.Refresh(false)` required for synchronous data load
+
+### Scenario 2-3: Formula Updates
+
+**FINDING: Updating formula does NOT automatically update loaded data**
+
+```csharp
+query.Formula = ModifiedQuery;  // Updates M code
+// Table still shows OLD data
+// Must call qt.Refresh(false) to update
+```
+
+**Implication:** Refresh operation is required after formula updates.
+
+### Scenario 6: Connection-Only Mode
+
+**FINDING: There is NO "connection-only" flag on WorkbookQuery**
+
+- Excel UI has this option, but COM API does not expose it
+- `WorkbookQuery` only has these members:
+  - **Properties:** `Application`, `Creator`, `Description`, `Formula`, `Name`, `Parent`
+  - **Methods:** `Delete()`, `Refresh()`
+  - **NO `IsConnectionOnly`, `LoadDestination`, or similar property exists**
+- "Connection-only" is the **ABSENCE** of load destinations (no ListObject, no Data Model connection)
+- To convert loaded query to connection-only:
+  1. Find and remove worksheet tables (ListObjects with matching QueryTable)
+  2. Find and remove Data Model connections (connections with "Query - {name}" pattern)
+  3. Keep the query in `Workbook.Queries` collection
+  
+**Implication:** Connection-only must be implemented by removing ALL load destinations.
+
+### Scenario 12-14: Unload to Connection-Only (Bug Discovery)
+
+**CRITICAL BUG FOUND: Unload only removes worksheet tables, NOT Data Model connections**
+
+```csharp
+// Current Unload implementation (INCOMPLETE):
+foreach (ListObject in worksheet.ListObjects)
+{
+    if (QueryTable.Connection.Contains(queryName))
+        listObject.Unlist();
+}
+// BUG: Never checks/removes Data Model connections!
+```
+
+**Scenarios Tested:**
+
+| Scenario | Initial State | After Current Unload | Correct Result |
+|----------|--------------|---------------------|----------------|
+| 12: Data Model Only | Query → Data Model | Data Model connection REMAINS | Should remove connection |
+| 13: Both Destinations | Query → Worksheet + Data Model | Worksheet removed, Data Model REMAINS | Should remove both |
+| 14: Proper Implementation | Query → Both | BOTH removed | ✅ Correct |
+
+**Proper Connection-Only Implementation:**
+
+```csharp
+// Step 1: Remove worksheet tables (existing behavior)
+foreach (ListObject in worksheet.ListObjects)
+{
+    if (QueryTable.Connection.Contains(queryName))
+        listObject.Unlist();
+}
+
+// Step 2: Remove Data Model connections (MISSING!)
+foreach (Connection in workbook.Connections)
+{
+    if (connection.Name == $"Query - {queryName}")
+        connection.Delete();
+}
+
+// Query remains in Workbook.Queries = connection-only
+```
+
+**Implication:** `Unload` method in `PowerQueryCommands.Lifecycle.cs` needs to also remove Data Model connections.
+
+### Scenario 12: Query Renaming
+
+**FINDING: Renaming a query breaks the connection to the table**
+
+```csharp
+query.Name = "RenamedQuery";
+// Table's QueryTable.Connection still references old name!
+// Refresh FAILS because connection can't find "OldName"
+```
+
+**Implication:** Renaming requires fixing the connection string or recreating the table.
+
+---
+
+## Data Model API Findings
+
+### ModelMeasures.Add() Signature
+
+**CORRECT Signature:**
+
+```csharp
+measures.Add(
+    "MeasureName",           // Required: String
+    modelTable,              // Required: ModelTable object (NOT string!)
+    "DAX Formula",           // Required: String
+    model.ModelFormatGeneral // Required: ModelFormat* object (NOT null!)
+    // Description            // Optional: String
+);
+```
+
+**Key Points:**
+
+- `AssociatedTable` parameter is a **ModelTable object**, not a table name string
+- `FormatInformation` is **REQUIRED** - use `model.ModelFormatGeneral` for default format
+- Available format types: ModelFormatGeneral, ModelFormatCurrency, ModelFormatDate, ModelFormatDecimalNumber, ModelFormatWholeNumber, ModelFormatPercentageNumber, ModelFormatScientificNumber, ModelFormatBoolean
+
+### Scenario 3-5: Measure Lifecycle
+
+- Measures can be added, updated (by changing Formula property), and deleted
+- `measure.Delete()` removes the measure from the model
+- Measure can reference any table in the model, not just the associated table
+
+### Scenario 6-7: Relationships
+
+- Relationships require two tables with compatible columns
+- `ModelRelationships.Add()` creates relationship between columns
+- Relationships can be deleted individually
+
+### Scenario 9: Orphaned Measures
+
+**FINDING: Measures referencing deleted tables become invalid**
+
+When a table is removed from the Data Model, measures that reference it remain but become #ERROR.
+
+---
+
+## COM API Quirks
+
+### 1-Based Indexing
+
+All Excel COM collections use 1-based indexing:
+
+```csharp
+collection.Item(1)  // First item, NOT collection.Item(0)
+```
+
+### Numeric Property Types
+
+All Excel COM numeric properties return `double`, not `int`:
+
+```csharp
+// WRONG: Runtime error
+int position = field.Position;
+
+// CORRECT: Explicit conversion required
+int position = Convert.ToInt32(field.Position);
+```
+
+### Error Handling
+
+COM exceptions provide HResult codes for error identification:
+
+```csharp
+catch (COMException ex) when (ex.HResult == -2147417851)  // RPC_E_SERVERCALL_RETRYLATER
+```
+
+---
+
+## Implications for Production Code
+
+### 1. Cleanup Code is Necessary
+
+The discovery that `query.Delete()` leaves tables orphaned validates our cleanup code:
+
+- Power Query delete should also delete/unlist associated table
+- Data Model cleanup should remove orphaned model tables
+
+### 2. Refresh is Required After Updates
+
+Formula changes do NOT auto-refresh:
+
+- After updating M code, must call refresh
+- Refresh should be synchronous (`Refresh(false)`)
+
+### 3. Connection Strings Must Be Managed
+
+When renaming queries, connection strings break:
+
+- Must update connection string or recreate table
+- Consider using query name as table name for consistency
+
+### 4. ModelMeasures.Add Requires Proper Parameters
+
+The API signature differs from what might be assumed:
+
+- TableName → ModelTable object
+- FormatInformation → Required ModelFormat* object (not null)
+
+### 5. Unload Must Remove ALL Load Destinations (BUG FIX NEEDED)
+
+Current `Unload` method only removes worksheet tables (ListObjects):
+
+- **Missing:** Removal of Data Model connections
+- Queries loaded only to Data Model are NOT affected by current Unload
+- Queries loaded to BOTH destinations only have worksheet table removed
+
+**Fix Required in `PowerQueryCommands.Lifecycle.cs`:**
+
+```csharp
+// After unlisting worksheet tables, also remove Data Model connections:
+foreach (Connection in workbook.Connections)
+{
+    if (connection.Name == $"Query - {queryName}")
+        connection.Delete();
+}
+```
+
+---
+
+## Test Execution
+
+Run diagnostic tests on demand:
+
+```bash
+# Power Query diagnostics
+dotnet test --filter "FullyQualifiedName~PowerQueryComApiBehaviorTests"
+
+# Data Model diagnostics  
+dotnet test --filter "FullyQualifiedName~DataModelComApiBehaviorTests"
+```
+
+These tests are marked `[Trait("RunType", "OnDemand")]` and excluded from regular test runs due to their longer execution time.
+
+---
+
+## References
+
+- Microsoft VBA Documentation: <https://learn.microsoft.com/en-us/office/vba/api/overview/excel>
+- NetOffice (C# COM wrappers): <https://github.com/NetOfficeFw/NetOffice>
+- Test Files:
+  - `tests/ExcelMcp.Core.Tests/Integration/Diagnostics/PowerQueryComApiBehaviorTests.cs`
+  - `tests/ExcelMcp.Core.Tests/Integration/Diagnostics/DataModelComApiBehaviorTests.cs`

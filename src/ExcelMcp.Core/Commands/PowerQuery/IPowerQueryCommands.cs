@@ -54,14 +54,14 @@ public interface IPowerQueryCommands
         string? targetCellAddress = null);
 
     /// <summary>
-    /// Updates M code and refreshes data atomically
-    /// Complete operation: Updates query formula AND reloads fresh data (no stale data footgun)
+    /// Updates M code. Optionally refreshes loaded data.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query to update</param>
     /// <param name="mCode">Raw M code (inline string)</param>
+    /// <param name="refresh">Whether to refresh data after update (default: true)</param>
     /// <exception cref="InvalidOperationException">Thrown when the query is not found, M code is invalid, or refresh fails</exception>
-    void Update(IExcelBatch batch, string queryName, string mCode);
+    void Update(IExcelBatch batch, string queryName, string mCode, bool refresh = true);
 
     /// <summary>
     /// Atomically sets load destination and refreshes data
