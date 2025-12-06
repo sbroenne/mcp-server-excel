@@ -15,19 +15,15 @@
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/sbroenne/mcp-server-excel)
 [![Built with Copilot](https://img.shields.io/badge/Built%20with-GitHub%20Copilot-0366d6.svg)](https://copilot.github.com/)
 
-<a href="https://glama.ai/mcp/servers/@sbroenne/mcp-server-excel">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/@sbroenne/mcp-server-excel/badge" alt="mcp-server-excel MCP server" />
-</a>
-
 **Automate Excel with AI - A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.**
 
-**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations - no Excel programming knowledge required. 
+**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (12 tools with 180 operations).
 
 **🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
 
 **💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
 
-**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. Both interfaces share the same 173 operations.
+**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. 
 
 ## 🚀 Quick Start (1 Minute)
 
@@ -47,22 +43,22 @@ The extension opens automatically after installation with a quick start guide!
 
 ## 🎯 What You Can Do
 
-**12 specialized tools with 173 operations:**
+**12 specialized tools with 180 operations:**
 
 - 🔄 **Power Query** (9 ops) - Atomic workflows, M code management, load destinations
-- 📊 **Data Model/DAX** (14 ops) - Measures, relationships, model structure
+- 📊 **Data Model/DAX** (16 ops) - Measures, relationships, model structure
 - 🎨 **Excel Tables** (24 ops) - Lifecycle, filtering, sorting, structured references
-- 📈 **PivotTables** (25 ops) - Creation, fields, aggregations, data extraction
+- 📈 **PivotTables** (30 ops) - Creation, fields, aggregations, calculated members/fields
 - 📉 **Charts** (14 ops) - Create, configure, manage series and formatting
 - 📝 **VBA** (6 ops) - Modules, execution, version control
 - 📋 **Ranges** (42 ops) - Values, formulas, formatting, validation, protection
 - 📄 **Worksheets** (16 ops) - Lifecycle, colors, visibility, cross-workbook moves
 - 🔌 **Connections** (9 ops) - OLEDB/ODBC management and refresh
 - 🏷️ **Named Ranges** (6 ops) - Parameters and configuration
-- 📁 **Files** (5 ops) - Session management and workbook creation
+- 📁 **Files** (6 ops) - Session management and workbook creation
 - 🎨 **Conditional Formatting** (2 ops) - Rules and clearing
 
-📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 173 operations
+📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 180 operations
 
 
 ## 💬 Example Prompts

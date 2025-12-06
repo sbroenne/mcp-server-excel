@@ -39,7 +39,7 @@ canonical_url: "https://excelmcpserver.dev/"
 
 **💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
 
-**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. Both interfaces share the same 173 operations.
+**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. CLI has 13 command categories with 172 operations (MCP Server has 12 tools with 180 operations).
 
 ## 🚀 Visual Studio Code Quick Start (1 Minute)
 
@@ -50,8 +50,8 @@ canonical_url: "https://excelmcpserver.dev/"
 
 <div class="features-grid">
 <div class="feature-card">
-<h3>173 Operations</h3>
-<p>12 specialized tools with 173 operations covering Power Query, DAX, Charts, VBA, PivotTables, ranges, conditional formatting, and more</p>
+<h3>180 Operations</h3>
+<p>12 specialized tools with 180 operations covering Power Query, DAX, Charts, VBA, PivotTables, ranges, conditional formatting, and more</p>
 <p><a href="https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md">Complete Feature Reference →</a></p>
 </div>
 
@@ -73,7 +73,7 @@ canonical_url: "https://excelmcpserver.dev/"
 
 <div class="feature-card">
 <h3>Comprehensive Automation</h3>
-<p>173 operations covering Power Query, DAX, Charts, VBA, Tables, and more</p>
+<p>180 operations covering Power Query, DAX, Charts, VBA, Tables, and more</p>
 </div>
 
 <div class="feature-card">
@@ -169,7 +169,7 @@ excel-mcp vba-export --file "macro-workbook.xlsm" --module "Module1" --output "s
 <li><strong>Natural Language Control:</strong> Describe tasks in plain English</li>
 <li><strong>Safe:</strong> Official COM API - zero corruption risk</li>
 <li><strong>Interactive:</strong> See changes in real-time in Excel</li>
-<li><strong>Comprehensive:</strong> 173 operations across 12 tools</li>
+<li><strong>Comprehensive:</strong> 180 operations across 12 tools</li>
 <li><strong>Works with:</strong> GitHub Copilot, Claude, ChatGPT, and any MCP client</li>
 </ul>
 </div>
@@ -188,12 +188,12 @@ excel-mcp vba-export --file "macro-workbook.xlsm" --module "Module1" --output "s
 
 <div class="callout">
 <strong>Both Share the Same Core</strong>
-Same 173 operations available via CLI and MCP. Consistent behavior across interfaces.
+CLI provides 172 operations, MCP Server provides 180 operations. Both share the same Core layer for consistent behavior.
 </div>
 
 ## Complete Tool & Action Reference
 
-**12 specialized tools with 173 operations:**
+**12 specialized tools with 180 operations:**
 
 <div class="tools-reference" markdown="1">
 
@@ -211,12 +211,13 @@ Same 173 operations available via CLI and MCP. Consistent behavior across interf
 | `get-load-config` | Get load destination settings for a query |
 | `load-to` | Load query data to worksheet, data model, or both |
 
-### 🔢 Power Pivot / Data Model (15 actions)
+### 🔢 Power Pivot / Data Model (16 actions)
 
 | Action | Description |
 |--------|-------------|
 | `list-tables` | List all tables in Data Model |
 | `read-table` | Read data from a Data Model table |
+| `delete-table` | Delete a table from the Data Model |
 | `list-columns` | List all columns in a table |
 | `list-measures` | List all DAX measures in a table |
 | `read` | Read details of a specific measure |
@@ -260,7 +261,7 @@ Same 173 operations available via CLI and MCP. Consistent behavior across interf
 | `get-column-number-format` | Get number format for column |
 | `set-column-number-format` | Set number format for column |
 
-### 📈 PivotTables (25 actions)
+### 📈 PivotTables (30 actions)
 
 | Action | Description |
 |--------|-------------|
@@ -284,11 +285,16 @@ Same 173 operations available via CLI and MCP. Consistent behavior across interf
 | `sort-field` | Sort field values |
 | `get-data` | Extract PivotTable data as values |
 | `set-grand-totals` | Configure grand totals display |
-| `set-column-grand-totals` | Show/hide column grand totals |
-| `set-row-grand-totals` | Show/hide row grand totals |
-| `get-grand-totals` | Get grand totals configuration |
 | `set-subtotals` | Configure subtotals for fields |
-| `get-subtotals` | Get subtotals configuration |
+| `set-layout` | Set PivotTable layout style |
+| `group-by-date` | Group field by date periods |
+| `group-by-numeric` | Group field by numeric ranges |
+| `create-calculated-field` | Create calculated field with formula |
+| `delete-calculated-field` | Delete a calculated field |
+| `list-calculated-fields` | List all calculated fields |
+| `create-calculated-member` | Create calculated member (OLAP) |
+| `delete-calculated-member` | Delete a calculated member |
+| `list-calculated-members` | List all calculated members |
 
 ### 📊 Charts (14 actions)
 
@@ -406,6 +412,7 @@ Same 173 operations available via CLI and MCP. Consistent behavior across interf
 | `hide` | Hide worksheet from UI (visible in VBA) |
 | `very-hide` | Hide from UI and VBA |
 | `show` | Make worksheet visible |
+| `set-visibility` | Set worksheet visibility state |
 | `get-visibility` | Get current visibility state |
 | `set-visibility` | Set visibility state |
 
@@ -420,10 +427,11 @@ Same 173 operations available via CLI and MCP. Consistent behavior across interf
 | `update` | Update named range reference |
 | `delete` | Delete named range |
 
-### 📁 File Operations (5 actions)
+### 📁 File Operations (6 actions)
 
 | Action | Description |
 |--------|-------------|
+| `list` | List all open workbook sessions |
 | `open` | Open workbook session |
 | `close` | Close workbook session without saving |
 | `create-empty` | Create new empty workbook (.xlsx or .xlsm) |
