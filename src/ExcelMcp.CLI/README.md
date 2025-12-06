@@ -6,7 +6,7 @@
 
 **Optional command-line interface for Excel automation without AI assistance.**
 
-For advanced users who prefer direct scripting control, the CLI provides the same 173 operations as the MCP Server. Perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
+For advanced users who prefer direct scripting control, the CLI provides 13 command categories with 172 operations (the MCP Server has 12 tools with 180 operations). Perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
 
 **Note:** Most users should use the [MCP Server with AI assistants](../ExcelMcp.McpServer/README.md) for natural language automation.
 
@@ -78,9 +78,9 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **173 operations** across 12 categories:
+ExcelMcp.CLI provides **172 operations** across 13 categories:
 
-📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all operations
+📚 **[Complete Feature Reference →](../../FEATURES.md)** - Full MCP Server documentation (180 operations)
 
 **Quick Reference:**
 
@@ -94,10 +94,12 @@ ExcelMcp.CLI provides **173 operations** across 12 categories:
 | **Excel Tables** | 24 | `table create`, `table apply-filter`, `table get-data`, `table sort`, `table add-column` |
 | **Charts** | 14 | `chart create-from-range`, `chart add-series`, `chart set-chart-type`, `chart show-legend` |
 | **PivotTables** | 25 | `pivottable create-from-range`, `pivottable add-row-field`, `pivottable refresh`, `pivottable delete` |
-| **Data Model** | 14 | `datamodel create-measure`, `datamodel create-relationship`, `datamodel refresh` |
+| **Data Model** | 15 | `datamodel create-measure`, `datamodel create-relationship`, `datamodel refresh` |
 | **Connections** | 9 | `connection list`, `connection refresh`, `connection test` |
 | **Named Ranges** | 6 | `namedrange create`, `namedrange read`, `namedrange write`, `namedrange update` |
-| **VBA** | 6 | `vba list`, `vba import`, `vba run`, `vba update`
+| **VBA** | 6 | `vba list`, `vba import`, `vba run`, `vba update` |
+
+**Note:** CLI uses session commands for multi-operation workflows.
 
 ---
 

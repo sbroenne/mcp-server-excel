@@ -15,7 +15,7 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time.
 
-**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. Both interfaces share the same 173 operations.
+**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. CLI has 13 command categories with 172 operations (MCP Server has 12 tools with 180 operations).
 
 **Requirements:** Windows OS + Excel 2016+
 
@@ -51,22 +51,22 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 ## 🛠️ What You Can Do
 
-**12 specialized tools with 173 operations:**
+**12 specialized tools with 180 operations:**
 
 - 🔄 **Power Query** (9 ops) - Atomic workflows, M code management, load destinations
-- 📊 **Data Model/DAX** (14 ops) - Measures, relationships, model structure
+- 📊 **Data Model/DAX** (16 ops) - Measures, relationships, model structure
 - 🎨 **Excel Tables** (24 ops) - Lifecycle, filtering, sorting, structured references
-- 📈 **PivotTables** (25 ops) - Creation, fields, aggregations, data extraction
+- 📈 **PivotTables** (30 ops) - Creation, fields, aggregations, calculated members/fields
 - 📉 **Charts** (14 ops) - Create, configure, manage series and formatting
 - 📝 **VBA** (6 ops) - Modules, execution, version control
 - 📋 **Ranges** (42 ops) - Values, formulas, formatting, validation, protection
 - 📄 **Worksheets** (16 ops) - Lifecycle, colors, visibility, cross-workbook moves
 - 🔌 **Connections** (9 ops) - OLEDB/ODBC management and refresh
 - 🏷️ **Named Ranges** (6 ops) - Parameters and configuration
-- 📁 **Files** (5 ops) - Session management and workbook creation
+- 📁 **Files** (6 ops) - Session management and workbook creation
 - 🎨 **Conditional Formatting** (2 ops) - Rules and clearing
 
-📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 173 operations
+📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 180 operations
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot, Claude, or ChatGPT
