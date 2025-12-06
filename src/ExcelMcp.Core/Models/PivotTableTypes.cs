@@ -629,3 +629,175 @@ public class PivotFieldFilterResult : ResultBase
     /// </summary>
     public bool ShowAll { get; set; }
 }
+
+/// <summary>
+/// Information about a calculated field in a regular PivotTable
+/// </summary>
+public class CalculatedFieldInfo
+{
+    /// <summary>
+    /// Name of the calculated field
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Formula for the calculated field (e.g., "=Revenue-Cost")
+    /// </summary>
+    public string Formula { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Source name of the field
+    /// </summary>
+    public string? SourceName { get; set; }
+}
+
+/// <summary>
+/// Result for listing calculated fields
+/// </summary>
+public class CalculatedFieldListResult : ResultBase
+{
+    /// <summary>
+    /// List of calculated fields in the PivotTable
+    /// </summary>
+    public List<CalculatedFieldInfo> CalculatedFields { get; set; } = [];
+}
+
+/// <summary>
+/// Excel COM constants for calculated member types
+/// </summary>
+public static class XlCalculatedMemberType
+{
+    /// <summary>
+    /// Calculated member (custom MDX formula member)
+    /// </summary>
+    public const int xlCalculatedMember = 0;
+
+    /// <summary>
+    /// Calculated set (named set of members)
+    /// </summary>
+    public const int xlCalculatedSet = 1;
+
+    /// <summary>
+    /// Calculated measure (DAX-like measure for Data Model)
+    /// </summary>
+    public const int xlCalculatedMeasure = 2;
+}
+
+/// <summary>
+/// Type of calculated member
+/// </summary>
+public enum CalculatedMemberType
+{
+    /// <summary>
+    /// Calculated member (custom MDX formula member)
+    /// </summary>
+    Member = 0,
+
+    /// <summary>
+    /// Calculated set (named set of members)
+    /// </summary>
+    Set = 1,
+
+    /// <summary>
+    /// Calculated measure (DAX-like measure for Data Model)
+    /// </summary>
+    Measure = 2
+}
+
+/// <summary>
+/// Information about a calculated member in a PivotTable
+/// </summary>
+public class CalculatedMemberInfo
+{
+    /// <summary>
+    /// Name of the calculated member
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// MDX or DAX formula
+    /// </summary>
+    public string Formula { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Type of calculated member (Member, Set, or Measure)
+    /// </summary>
+    public CalculatedMemberType Type { get; set; }
+
+    /// <summary>
+    /// Solve order for calculation precedence
+    /// </summary>
+    public int SolveOrder { get; set; }
+
+    /// <summary>
+    /// Whether the calculated member is valid
+    /// </summary>
+    public bool IsValid { get; set; }
+
+    /// <summary>
+    /// Display folder path (for measures)
+    /// </summary>
+    public string? DisplayFolder { get; set; }
+
+    /// <summary>
+    /// Number format code
+    /// </summary>
+    public string? NumberFormat { get; set; }
+}
+
+/// <summary>
+/// Result for listing calculated members
+/// </summary>
+public class CalculatedMemberListResult : ResultBase
+{
+    /// <summary>
+    /// List of calculated members in the PivotTable
+    /// </summary>
+    public List<CalculatedMemberInfo> CalculatedMembers { get; set; } = [];
+}
+
+/// <summary>
+/// Result for calculated member operations
+/// </summary>
+public class CalculatedMemberResult : ResultBase
+{
+    /// <summary>
+    /// Name of the calculated member
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// MDX or DAX formula
+    /// </summary>
+    public string Formula { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Type of calculated member
+    /// </summary>
+    public CalculatedMemberType Type { get; set; }
+
+    /// <summary>
+    /// Solve order for calculation precedence
+    /// </summary>
+    public int SolveOrder { get; set; }
+
+    /// <summary>
+    /// Whether the calculated member is valid
+    /// </summary>
+    public bool IsValid { get; set; }
+
+    /// <summary>
+    /// Display folder path (for measures)
+    /// </summary>
+    public string? DisplayFolder { get; set; }
+
+    /// <summary>
+    /// Number format code
+    /// </summary>
+    public string? NumberFormat { get; set; }
+
+    /// <summary>
+    /// Workflow hint describing what happened and suggested next steps
+    /// </summary>
+    public string? WorkflowHint { get; set; }
+}

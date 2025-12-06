@@ -311,8 +311,15 @@ public enum PivotTableAction
     GroupByDate,
     GroupByNumeric,
 
-    // Calculated Fields
+    // Calculated Fields (for regular PivotTables)
+    ListCalculatedFields,
     CreateCalculatedField,
+    DeleteCalculatedField,
+
+    // Calculated Members (for OLAP/Data Model PivotTables)
+    ListCalculatedMembers,
+    CreateCalculatedMember,
+    DeleteCalculatedMember,
 
     // Layout and Formatting
     SetLayout,

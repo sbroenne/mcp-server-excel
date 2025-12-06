@@ -286,6 +286,31 @@ public interface IPivotTableCommands
         string fieldName, string formula);
 
     /// <summary>
+    /// Lists all calculated fields in a regular PivotTable.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <returns>List of calculated fields with names and formulas</returns>
+    /// <remarks>
+    /// NOTE: OLAP PivotTables do not support CalculatedFields.
+    /// Use ListCalculatedMembers for OLAP PivotTables instead.
+    /// </remarks>
+    CalculatedFieldListResult ListCalculatedFields(IExcelBatch batch, string pivotTableName);
+
+    /// <summary>
+    /// Deletes a calculated field from a regular PivotTable.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="fieldName">Name of the calculated field to delete</param>
+    /// <returns>Result indicating success or failure</returns>
+    /// <remarks>
+    /// NOTE: OLAP PivotTables do not support CalculatedFields.
+    /// Use DeleteCalculatedMember for OLAP PivotTables instead.
+    /// </remarks>
+    OperationResult DeleteCalculatedField(IExcelBatch batch, string pivotTableName, string fieldName);
+
+    /// <summary>
     /// Sets the row layout form for a PivotTable.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
@@ -340,4 +365,63 @@ public interface IPivotTableCommands
     /// </remarks>
     OperationResult SetGrandTotals(IExcelBatch batch, string pivotTableName,
         bool showRowGrandTotals, bool showColumnGrandTotals);
+
+    // === CALCULATED MEMBERS (OLAP ONLY) ===
+
+    /// <summary>
+    /// Lists all calculated members in an OLAP PivotTable.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <returns>List of calculated members with names, formulas, types</returns>
+    /// <remarks>
+    /// OLAP ONLY: Calculated members are only available for OLAP PivotTables (Data Model-based).
+    /// Regular PivotTables use calculated fields instead (see CreateCalculatedField).
+    ///
+    /// CALCULATED MEMBER TYPES:
+    /// - Member: Custom MDX formula creating a new member in a hierarchy
+    /// - Set: Named set of members for filtering/grouping
+    /// - Measure: DAX-like calculated measure for Data Model
+    /// </remarks>
+    CalculatedMemberListResult ListCalculatedMembers(IExcelBatch batch, string pivotTableName);
+
+    /// <summary>
+    /// Creates a calculated member (MDX formula) in an OLAP PivotTable.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="memberName">Name for the calculated member (MDX naming format)</param>
+    /// <param name="formula">MDX formula for the calculated member</param>
+    /// <param name="type">Type of calculated member (Member, Set, or Measure)</param>
+    /// <param name="solveOrder">Solve order for calculation precedence (default: 0)</param>
+    /// <param name="displayFolder">Display folder path for organizing measures (optional)</param>
+    /// <param name="numberFormat">Number format code for the calculated member (optional)</param>
+    /// <returns>Result with created calculated member details</returns>
+    /// <remarks>
+    /// OLAP ONLY: Works only with OLAP PivotTables (Data Model-based).
+    /// Regular PivotTables should use CreateCalculatedField instead.
+    ///
+    /// MDX FORMULA EXAMPLES:
+    /// - Measure: "[Measures].[Profit]" formula = "[Measures].[Revenue] - [Measures].[Cost]"
+    /// - Member: "[Product].[Category].[All].[High Margin]" formula = "Aggregate({[Product].[Category].&amp;[A], [Product].[Category].&amp;[B]})"
+    ///
+    /// SOLVE ORDER:
+    /// - Higher solve order = calculated later (can reference lower solve order members)
+    /// - Default is 0, use higher values for dependent calculations
+    /// </remarks>
+    CalculatedMemberResult CreateCalculatedMember(IExcelBatch batch, string pivotTableName,
+        string memberName, string formula, CalculatedMemberType type = CalculatedMemberType.Measure,
+        int solveOrder = 0, string? displayFolder = null, string? numberFormat = null);
+
+    /// <summary>
+    /// Deletes a calculated member from an OLAP PivotTable.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="memberName">Name of the calculated member to delete</param>
+    /// <returns>Operation result indicating success or failure</returns>
+    /// <remarks>
+    /// OLAP ONLY: Works only with OLAP PivotTables (Data Model-based).
+    /// </remarks>
+    OperationResult DeleteCalculatedMember(IExcelBatch batch, string pivotTableName, string memberName);
 }
