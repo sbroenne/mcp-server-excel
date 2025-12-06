@@ -21,6 +21,11 @@ author: "Stefan Broenne"
 twitter:
   username: sbroenne
   card: summary_large_image
+social:
+  name: Stefan Broenne
+  links:
+    - https://github.com/sbroenne
+    - https://twitter.com/sbroenne
 
 logo: /assets/images/excel-mcp-icon-256.png
 
