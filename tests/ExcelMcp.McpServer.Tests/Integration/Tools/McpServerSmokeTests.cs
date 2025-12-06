@@ -571,7 +571,7 @@ in
     /// <summary>
     /// Asserts the JSON response indicates success.
     /// </summary>
-    private void AssertSuccess(string jsonResult, string operationName)
+    private static void AssertSuccess(string jsonResult, string operationName)
     {
         Assert.NotNull(jsonResult);
 

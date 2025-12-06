@@ -55,7 +55,7 @@ dotnet_diagnostic.CA5394.severity = error        # Do not use insecure randomnes
 dotnet_diagnostic.CA1806.severity = warning      # Do not ignore method results
 dotnet_diagnostic.CA1816.severity = warning      # Dispose methods should call SuppressFinalize
 dotnet_diagnostic.CA1821.severity = warning      # Remove empty Finalizers
-dotnet_diagnostic.CA1822.severity = suggestion   # Mark members as static
+dotnet_diagnostic.CA1822.severity = warning      # Mark members as static
 dotnet_diagnostic.CA1825.severity = warning      # Avoid zero-length array allocations
 
 # Code style enforcement (IDE rules)
@@ -88,9 +88,6 @@ dotnet_diagnostic.SYSLIB1054.severity = none
 # Suppress CA2016 for STA thread operations - CancellationToken cannot be used with Task.Run in STA context
 # COM operations require STA thread apartment and use timeout-based cancellation instead
 dotnet_diagnostic.CA2016.severity = suggestion
-
-# Suppress CS1573 for discard parameters - discard parameters intentionally have no XML documentation
-dotnet_diagnostic.CS1573.severity = none
 
 # Suppress CA1707 for test projects - test method names use underscores for readability
 # Pattern: MethodName_StateUnderTest_ExpectedBehavior (standard xUnit convention)

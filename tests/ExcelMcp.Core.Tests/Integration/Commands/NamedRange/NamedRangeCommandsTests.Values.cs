@@ -15,7 +15,7 @@ public partial class NamedRangeCommandsTests
     {
         // Arrange
         using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
-        var paramName = _fixture.GetUniqueNamedRangeName();
+        var paramName = NamedRangeTestsFixture.GetUniqueNamedRangeName();
         var cellRef = _fixture.GetUniqueCellReference();
 
         // Create parameter first
@@ -36,7 +36,7 @@ public partial class NamedRangeCommandsTests
         // Arrange
         string testValue = "Integration Test Value";
         using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
-        var paramName = _fixture.GetUniqueNamedRangeName();
+        var paramName = NamedRangeTestsFixture.GetUniqueNamedRangeName();
         var cellRef = _fixture.GetUniqueCellReference();
 
         // Create and set parameter value
