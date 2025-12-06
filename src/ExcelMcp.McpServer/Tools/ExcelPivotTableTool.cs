@@ -17,6 +17,7 @@ public static partial class ExcelPivotTableTool
     /// <summary>
     /// Excel PivotTable operations - interactive data analysis and summarization.
     /// OLAP add-value-field supports TWO modes: 1) Pre-existing measure: fieldName='Total Sales' or '[Measures].[Total Sales]' (adds existing measure) 2) Auto-create measure: fieldName='Sales' (column name, creates DAX measure with aggregationFunction).
+    /// OLAP CALCULATED MEMBERS: For Data Model PivotTables, use list-calculated-members, create-calculated-member, delete-calculated-member to manage MDX calculated members. Use aggregationFunction for type (Member, Set, Measure).
     /// TIMEOUT SAFEGUARD: create-from-datamodel auto-timeouts after 5 minutes to prevent hung OLAP queries.
     /// </summary>
     /// <param name="action">Action to perform</param>
@@ -107,7 +108,12 @@ public static partial class ExcelPivotTableTool
                     PivotTableAction.SortField => SortField(commands, sessionId, pivotTableName, fieldName, sortDirection),
                     PivotTableAction.GroupByDate => GroupByDate(commands, sessionId, pivotTableName, fieldName, dateGroupingInterval),
                     PivotTableAction.GroupByNumeric => GroupByNumeric(commands, sessionId, pivotTableName, fieldName, numericGroupingStart, numericGroupingEnd, numericGroupingInterval),
+                    PivotTableAction.ListCalculatedFields => ListCalculatedFields(commands, sessionId, pivotTableName),
                     PivotTableAction.CreateCalculatedField => CreateCalculatedField(commands, sessionId, pivotTableName, fieldName, formula),
+                    PivotTableAction.DeleteCalculatedField => DeleteCalculatedField(commands, sessionId, pivotTableName, fieldName),
+                    PivotTableAction.ListCalculatedMembers => ListCalculatedMembers(commands, sessionId, pivotTableName),
+                    PivotTableAction.CreateCalculatedMember => CreateCalculatedMember(commands, sessionId, pivotTableName, fieldName, formula, aggregationFunction, numberFormat),
+                    PivotTableAction.DeleteCalculatedMember => DeleteCalculatedMember(commands, sessionId, pivotTableName, fieldName),
                     PivotTableAction.SetLayout => SetLayout(commands, sessionId, pivotTableName, layout),
                     PivotTableAction.SetSubtotals => SetSubtotals(commands, sessionId, pivotTableName, fieldName, subtotalsVisible),
                     PivotTableAction.SetGrandTotals => SetGrandTotals(commands, sessionId, pivotTableName, showRowGrandTotals, showColumnGrandTotals),
@@ -807,6 +813,47 @@ public static partial class ExcelPivotTableTool
         }, JsonOptions);
     }
 
+    private static string ListCalculatedFields(
+        PivotTableCommands commands,
+        string sessionId,
+        string? pivotTableName)
+    {
+        if (string.IsNullOrEmpty(pivotTableName))
+            throw new ArgumentException("pivotTableName is required for list-calculated-fields action", nameof(pivotTableName));
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.ListCalculatedFields(batch, pivotTableName!));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.CalculatedFields,
+            result.ErrorMessage
+        }, JsonOptions);
+    }
+
+    private static string DeleteCalculatedField(
+        PivotTableCommands commands,
+        string sessionId,
+        string? pivotTableName,
+        string? fieldName)
+    {
+        if (string.IsNullOrEmpty(pivotTableName))
+            throw new ArgumentException("pivotTableName is required for delete-calculated-field action", nameof(pivotTableName));
+
+        if (string.IsNullOrEmpty(fieldName))
+            throw new ArgumentException("fieldName is required for delete-calculated-field action", nameof(fieldName));
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.DeleteCalculatedField(batch, pivotTableName!, fieldName!));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage
+        }, JsonOptions);
+    }
+
     private static string SetLayout(
         PivotTableCommands commands,
         string sessionId,
@@ -877,5 +924,94 @@ public static partial class ExcelPivotTableTool
             batch => commands.SetGrandTotals(batch, pivotTableName!, showRowGrandTotals.Value, showColumnGrandTotals.Value));
 
         return JsonSerializer.Serialize(result, JsonOptions);
+    }
+
+    private static string ListCalculatedMembers(
+        PivotTableCommands commands,
+        string sessionId,
+        string? pivotTableName)
+    {
+        if (string.IsNullOrEmpty(pivotTableName))
+            throw new ArgumentException("pivotTableName is required for list-calculated-members action", nameof(pivotTableName));
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.ListCalculatedMembers(batch, pivotTableName!));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.CalculatedMembers,
+            result.ErrorMessage
+        }, JsonOptions);
+    }
+
+    private static string CreateCalculatedMember(
+        PivotTableCommands commands,
+        string sessionId,
+        string? pivotTableName,
+        string? memberName,
+        string? formula,
+        string? memberType,
+        string? numberFormat)
+    {
+        if (string.IsNullOrEmpty(pivotTableName))
+            throw new ArgumentException("pivotTableName is required for create-calculated-member action", nameof(pivotTableName));
+
+        if (string.IsNullOrEmpty(memberName))
+            throw new ArgumentException("fieldName (member name) is required for create-calculated-member action", nameof(memberName));
+
+        if (string.IsNullOrEmpty(formula))
+            throw new ArgumentException("formula (MDX expression) is required for create-calculated-member action", nameof(formula));
+
+        // Parse member type from aggregationFunction parameter (reusing it for type)
+        CalculatedMemberType type = CalculatedMemberType.Measure; // Default
+        if (!string.IsNullOrEmpty(memberType))
+        {
+            if (!Enum.TryParse(memberType, true, out type))
+            {
+                throw new ArgumentException(
+                    $"Invalid member type '{memberType}'. Valid values: Member, Set, Measure",
+                    nameof(memberType));
+            }
+        }
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.CreateCalculatedMember(batch, pivotTableName!, memberName!, formula!, type, 0, null, numberFormat));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.Name,
+            result.Formula,
+            result.Type,
+            result.SolveOrder,
+            result.IsValid,
+            result.DisplayFolder,
+            result.NumberFormat,
+            result.WorkflowHint,
+            result.ErrorMessage
+        }, JsonOptions);
+    }
+
+    private static string DeleteCalculatedMember(
+        PivotTableCommands commands,
+        string sessionId,
+        string? pivotTableName,
+        string? memberName)
+    {
+        if (string.IsNullOrEmpty(pivotTableName))
+            throw new ArgumentException("pivotTableName is required for delete-calculated-member action", nameof(pivotTableName));
+
+        if (string.IsNullOrEmpty(memberName))
+            throw new ArgumentException("fieldName (member name) is required for delete-calculated-member action", nameof(memberName));
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.DeleteCalculatedMember(batch, pivotTableName!, memberName!));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ErrorMessage
+        }, JsonOptions);
     }
 }

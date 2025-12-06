@@ -148,4 +148,116 @@ public partial class PivotTableCommandsTests
         Assert.True(listResult.Success);
         Assert.Contains(listResult.Fields, f => f.Name == "WithBonus");
     }
+
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void ListCalculatedFields_NoCalculatedFields_ReturnsEmptyList()
+    {
+        // Arrange
+        var testFile = CreateTestFileWithData(nameof(ListCalculatedFields_NoCalculatedFields_ReturnsEmptyList));
+
+        var logger = _loggerFactory.CreateLogger<ExcelBatch>();
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
+
+        var createResult = _pivotCommands.CreateFromRange(
+            batch, "SalesData", "A1:D6", "SalesData", "F2", "SalesPivot");
+        Assert.True(createResult.Success);
+
+        // Act - List calculated fields (should be empty)
+        var result = _pivotCommands.ListCalculatedFields(batch, "SalesPivot");
+
+        // Assert
+        Assert.True(result.Success, $"ListCalculatedFields failed: {result.ErrorMessage}");
+        Assert.Empty(result.CalculatedFields);
+    }
+
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void ListCalculatedFields_AfterCreate_ReturnsField()
+    {
+        // Arrange
+        var testFile = CreateTestFileWithData(nameof(ListCalculatedFields_AfterCreate_ReturnsField));
+
+        var logger = _loggerFactory.CreateLogger<ExcelBatch>();
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
+
+        var createPivotResult = _pivotCommands.CreateFromRange(
+            batch, "SalesData", "A1:D6", "SalesData", "F2", "SalesPivot");
+        Assert.True(createPivotResult.Success);
+
+        // Add a row field and value to make valid PivotTable
+        _pivotCommands.AddRowField(batch, "SalesPivot", "Region");
+        _pivotCommands.AddValueField(batch, "SalesPivot", "Sales");
+
+        // Create a calculated field
+        var createResult = _pivotCommands.CreateCalculatedField(batch, "SalesPivot", "DoubleSales", "=Sales*2");
+        Assert.True(createResult.Success, $"CreateCalculatedField failed: {createResult.ErrorMessage}");
+
+        // Act - List calculated fields
+        var result = _pivotCommands.ListCalculatedFields(batch, "SalesPivot");
+
+        // Assert
+        Assert.True(result.Success, $"ListCalculatedFields failed: {result.ErrorMessage}");
+        Assert.Single(result.CalculatedFields);
+        Assert.Equal("DoubleSales", result.CalculatedFields[0].Name);
+        Assert.Contains("Sales*2", result.CalculatedFields[0].Formula);
+    }
+
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void DeleteCalculatedField_ExistingField_RemovesField()
+    {
+        // Arrange
+        var testFile = CreateTestFileWithData(nameof(DeleteCalculatedField_ExistingField_RemovesField));
+
+        var logger = _loggerFactory.CreateLogger<ExcelBatch>();
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
+
+        var createPivotResult = _pivotCommands.CreateFromRange(
+            batch, "SalesData", "A1:D6", "SalesData", "F2", "SalesPivot");
+        Assert.True(createPivotResult.Success);
+
+        _pivotCommands.AddRowField(batch, "SalesPivot", "Region");
+        _pivotCommands.AddValueField(batch, "SalesPivot", "Sales");
+
+        // Create a calculated field
+        var createResult = _pivotCommands.CreateCalculatedField(batch, "SalesPivot", "TestCalcField", "=Sales*3");
+        Assert.True(createResult.Success);
+
+        // Verify it exists
+        var listBefore = _pivotCommands.ListCalculatedFields(batch, "SalesPivot");
+        Assert.Contains(listBefore.CalculatedFields, f => f.Name == "TestCalcField");
+
+        // Act - Delete the calculated field
+        var deleteResult = _pivotCommands.DeleteCalculatedField(batch, "SalesPivot", "TestCalcField");
+
+        // Assert
+        Assert.True(deleteResult.Success, $"DeleteCalculatedField failed: {deleteResult.ErrorMessage}");
+
+        // Verify it's gone
+        var listAfter = _pivotCommands.ListCalculatedFields(batch, "SalesPivot");
+        Assert.DoesNotContain(listAfter.CalculatedFields, f => f.Name == "TestCalcField");
+    }
+
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void DeleteCalculatedField_NonExistentField_ReturnsError()
+    {
+        // Arrange
+        var testFile = CreateTestFileWithData(nameof(DeleteCalculatedField_NonExistentField_ReturnsError));
+
+        var logger = _loggerFactory.CreateLogger<ExcelBatch>();
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
+
+        var createPivotResult = _pivotCommands.CreateFromRange(
+            batch, "SalesData", "A1:D6", "SalesData", "F2", "SalesPivot");
+        Assert.True(createPivotResult.Success);
+
+        // Act - Try to delete non-existent field
+        var result = _pivotCommands.DeleteCalculatedField(batch, "SalesPivot", "NonExistentField");
+
+        // Assert
+        Assert.False(result.Success);
+        Assert.Contains("not found", result.ErrorMessage);
+    }
 }
