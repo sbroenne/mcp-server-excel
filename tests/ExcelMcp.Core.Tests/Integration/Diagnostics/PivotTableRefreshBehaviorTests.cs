@@ -37,6 +37,7 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
     private const int xlHidden = 0;
     private const int xlSum = -4157;
     private const int xlCount = -4112;
+    private const int xlAverage = -4106;
     private const int xlDatabase = 1;
 
     public PivotTableRefreshBehaviorTests(TempDirectoryFixture fixture, ITestOutputHelper output)
@@ -384,6 +385,101 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
         Assert.Equal(xlRowField, Convert.ToInt32(reopenedRegion.Orientation));
         Assert.Equal(xlDataField, Convert.ToInt32(reopenedSales.Orientation));
         Assert.Equal("0.00%", reopenedSales.NumberFormat?.ToString());
+    }
+
+    [Fact]
+    public void FunctionChange_WithoutRefresh_VerifyPersistence()
+    {
+        // Arrange - Create PivotTable with value field using SUM
+        var pivot = CreatePivotTable("TestPivot10");
+        dynamic rowField = pivot.PivotFields("Region");
+        rowField.Orientation = xlRowField;
+
+        dynamic valueField = pivot.PivotFields("Sales");
+        valueField.Orientation = xlDataField;
+        valueField.Function = xlSum;
+        pivot.RefreshTable(); // Initial setup - structure must be refreshed
+
+        // Act - Change function WITHOUT RefreshTable()
+        dynamic dataField = pivot.DataFields.Item(1);  // Get from DataFields collection
+        dataField.Function = xlAverage;
+        // NO pivot.RefreshTable();
+
+        // Save and close
+        _workbook.SaveAs(_testFile);
+        _workbook.Close(false);
+        Marshal.ReleaseComObject(_workbook);
+        _workbook = null;
+
+        // Reopen
+        _workbook = _excel.Workbooks.Open(_testFile);
+        dynamic reopenedPivot = _workbook.Worksheets.Item("Pivot_TestPivot10").PivotTables("TestPivot10");
+        dynamic reopenedDataField = reopenedPivot.DataFields.Item(1);
+        int reopenedFunction = Convert.ToInt32(reopenedDataField.Function);
+
+        _output.WriteLine($"Function Change WITHOUT RefreshTable - Persistence Test:");
+        _output.WriteLine($"  Expected Function: {xlAverage} (xlAverage)");
+        _output.WriteLine($"  Actual Function:   {reopenedFunction}");
+        _output.WriteLine($"  Persisted: {reopenedFunction == xlAverage}");
+
+        // Question: Does function change persist without RefreshTable()?
+        // If this fails, RefreshTable() IS required after SetFieldFunction
+        Assert.Equal(xlAverage, reopenedFunction);
+    }
+
+    [Fact]
+    public void Filter_WithoutRefresh_VerifyPersistence()
+    {
+        // Arrange - Create PivotTable with row field
+        var pivot = CreatePivotTable("TestPivot11");
+        dynamic rowField = pivot.PivotFields("Region");
+        rowField.Orientation = xlRowField;
+        pivot.RefreshTable(); // Initial setup
+
+        // Act - Apply filter WITHOUT RefreshTable()
+        // Set only "North" visible
+        dynamic items = rowField.PivotItems();
+        for (int i = 1; i <= items.Count; i++)
+        {
+            dynamic item = items.Item(i);
+            string itemName = item.Name?.ToString() ?? "";
+            item.Visible = (itemName == "North");
+        }
+        // NO pivot.RefreshTable();
+
+        // Save and close
+        _workbook.SaveAs(_testFile);
+        _workbook.Close(false);
+        Marshal.ReleaseComObject(_workbook);
+        _workbook = null;
+
+        // Reopen
+        _workbook = _excel.Workbooks.Open(_testFile);
+        dynamic reopenedPivot = _workbook.Worksheets.Item("Pivot_TestPivot11").PivotTables("TestPivot11");
+        dynamic reopenedField = reopenedPivot.PivotFields("Region");
+        dynamic reopenedItems = reopenedField.PivotItems();
+
+        int visibleCount = 0;
+        string visibleItemName = "";
+        for (int i = 1; i <= reopenedItems.Count; i++)
+        {
+            dynamic item = reopenedItems.Item(i);
+            if (item.Visible)
+            {
+                visibleCount++;
+                visibleItemName = item.Name?.ToString() ?? "";
+            }
+        }
+
+        _output.WriteLine($"Filter WITHOUT RefreshTable - Persistence Test:");
+        _output.WriteLine($"  Expected: Only 'North' visible");
+        _output.WriteLine($"  Visible count: {visibleCount}");
+        _output.WriteLine($"  Visible item: {visibleItemName}");
+
+        // Question: Does filter persist without RefreshTable()?
+        // If this fails, RefreshTable() IS required after SetFieldFilter
+        Assert.Equal(1, visibleCount);
+        Assert.Equal("North", visibleItemName);
     }
 
     public void Dispose()

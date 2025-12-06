@@ -401,7 +401,8 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
 
             int comFunction = GetComAggregationFunction(aggregationFunction);
             field.Function = comFunction;
-            pivot.RefreshTable();
+            // NOTE: No RefreshTable() needed - Function change persists without refresh
+            // (Verified by diagnostic test: FunctionChange_WithoutRefresh_VerifyPersistence)
 
             return new PivotFieldResult
             {
@@ -523,7 +524,8 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 }
             }
 
-            pivot.RefreshTable();
+            // NOTE: No RefreshTable() needed - Filter changes persist without refresh
+            // (Verified by diagnostic test: Filter_WithoutRefresh_VerifyPersistence)
 
             return new PivotFieldFilterResult
             {
