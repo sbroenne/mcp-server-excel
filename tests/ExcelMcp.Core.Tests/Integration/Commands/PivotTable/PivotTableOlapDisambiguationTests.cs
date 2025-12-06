@@ -24,11 +24,11 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 /// - DAX measures "ACR", "Discount" that could be confused with columns
 /// - DisambiguationTest PivotTable connected to the Data Model
 /// </summary>
-[Collection("PivotTableRealistic")]
+[Collection("DataModel")]
 [Trait("Category", "Integration")]
 [Trait("Feature", "PivotTables")]
 [Trait("RequiresExcel", "true")]
-public class PivotTableOlapDisambiguationTests : IClassFixture<DataModelPivotTableFixture>
+public class PivotTableOlapDisambiguationTests
 {
     private readonly DataModelPivotTableFixture _fixture;
     private readonly PivotTableCommands _pivotCommands;

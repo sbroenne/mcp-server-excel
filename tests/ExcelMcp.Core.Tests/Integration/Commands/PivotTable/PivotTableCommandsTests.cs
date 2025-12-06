@@ -10,9 +10,11 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 /// <summary>
 /// Integration tests for PivotTable commands.
 /// Uses PivotTableTestsFixture which creates ONE data file per test class (~5-10s setup).
+/// Uses DataModelPivotTableFixture for OLAP tests (shared across ALL test classes via collection fixture).
 /// Fixture initialization IS the test for data preparation.
 /// Each test gets its own batch for isolation.
 /// </summary>
+[Collection("DataModel")]
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
@@ -21,6 +23,7 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
 {
     private readonly PivotTableCommands _pivotCommands;
     private readonly PivotTableTestsFixture _fixture;
+    private readonly DataModelPivotTableFixture _olapFixture;
     private readonly string _pivotFile;
     private readonly PivotTableCreationResult _creationResult;
     private readonly ITestOutputHelper _output;
@@ -29,10 +32,11 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     /// <summary>
     /// Initializes a new instance of the <see cref="PivotTableCommandsTests"/> class.
     /// </summary>
-    public PivotTableCommandsTests(PivotTableTestsFixture fixture, ITestOutputHelper output)
+    public PivotTableCommandsTests(PivotTableTestsFixture fixture, DataModelPivotTableFixture olapFixture, ITestOutputHelper output)
     {
         _pivotCommands = new PivotTableCommands();
         _fixture = fixture;
+        _olapFixture = olapFixture;
         _pivotFile = fixture.TestFilePath;
         _creationResult = fixture.CreationResult;
         _output = output;
