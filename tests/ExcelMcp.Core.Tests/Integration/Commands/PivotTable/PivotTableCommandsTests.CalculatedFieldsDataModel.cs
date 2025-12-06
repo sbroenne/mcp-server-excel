@@ -10,12 +10,13 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 /// OLAP PivotTables do NOT support CalculatedFields (Excel COM limitation).
 /// For OLAP, use DAX measures via excel_datamodel tool instead.
 /// </summary>
+[Collection("DataModel")]
 [Trait("Category", "Integration")]
 [Trait("Speed", "Slow")]
 [Trait("Layer", "Core")]
 [Trait("Feature", "PivotTables")]
 [Trait("RequiresExcel", "true")]
-public class PivotTableCalculatedFieldsDataModelTests : IClassFixture<DataModelPivotTableFixture>
+public class PivotTableCalculatedFieldsDataModelTests
 {
     private readonly PivotTableCommands _pivotCommands;
     private readonly string _dataModelFile;

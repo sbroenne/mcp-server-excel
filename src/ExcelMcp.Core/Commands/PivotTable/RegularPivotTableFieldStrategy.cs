@@ -331,7 +331,8 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         {
             field = GetFieldForManipulation(pivot, fieldName);
             field.Caption = customName;
-            pivot.RefreshTable();
+
+            // NOTE: No RefreshTable() needed - Caption is a visual-only property
 
             return new PivotFieldResult
             {
@@ -459,7 +460,8 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             }
 
             field.NumberFormat = numberFormat;
-            pivot.RefreshTable();
+
+            // NOTE: No RefreshTable() needed - NumberFormat is a visual-only property
 
             // Read back the format to verify it was set
             string? appliedFormat = null;
@@ -553,7 +555,8 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 : XlSortOrder.xlDescending;
 
             field.AutoSort(sortOrder, fieldName);
-            pivot.RefreshTable();
+
+            // NOTE: No RefreshTable() needed - Sorting is a visual-only operation
 
             return new PivotFieldResult
             {
@@ -983,7 +986,8 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     {
         // xlCompactRow=0, xlTabularRow=1, xlOutlineRow=2
         pivot.RowAxisLayout(layoutType);
-        pivot.RefreshTable();
+
+        // NOTE: No RefreshTable() needed - Layout is a visual-only property
 
         if (logger is not null && logger.IsEnabled(LogLevel.Information))
         {
@@ -1010,8 +1014,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         dynamic? field = null;
         try
         {
-            pivot.RefreshTable();
-
             // Get the field from row fields
             dynamic pivotFields = pivot.PivotFields;
             field = pivotFields.Item(fieldName);
@@ -1021,7 +1023,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             // If showSubtotals=false, disable all subtotals
             field.Subtotals[1] = showSubtotals;
 
-            pivot.RefreshTable();
+            // NOTE: No RefreshTable() needed - Subtotals is a visual-only property
 
             if (logger is not null && logger.IsEnabled(LogLevel.Information))
             {
@@ -1055,8 +1057,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             pivot.RowGrand = showRowGrandTotals;
             pivot.ColumnGrand = showColumnGrandTotals;
 
-            // Refresh to apply changes
-            pivot.RefreshTable();
+            // NOTE: No RefreshTable() needed - GrandTotals are visual-only properties
 
             if (logger is not null && logger.IsEnabled(LogLevel.Information))
             {

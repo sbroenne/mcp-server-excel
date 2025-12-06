@@ -60,7 +60,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
             // CreatePivotFields() initializes PivotFields for fields not yet in the PivotTable.
             // It may throw if PivotFields already exist (field already in Values area).
-            // Safe to ignore error - if PivotFields exist, we're good; if they don't and this fails, 
+            // Safe to ignore error - if PivotFields exist, we're good; if they don't and this fails,
             // subsequent operations will provide a more specific error.
             // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.cubefield.createpivotfields
             try
@@ -656,6 +656,9 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                     $"Cannot update measure '{fieldName}' - workbook has no Data Model");
             }
 
+            // Normalize field name - extract measure name from [Measures].[Name] format if present
+            string targetMeasureName = NormalizeMeasureName(fieldName);
+
             // Find the measure by name
             measures = model.ModelMeasures;
             for (int i = 1; i <= measures.Count; i++)
@@ -665,7 +668,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 {
                     m = measures.Item(i);
                     string mName = m.Name?.ToString() ?? "";
-                    if (mName.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
+                    if (mName.Equals(targetMeasureName, StringComparison.OrdinalIgnoreCase))
                     {
                         measure = m;
                         m = null; // Transfer ownership
@@ -766,8 +769,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             pivotField = pivotFields.Item(1);
             pivotField.NumberFormat = numberFormat;
 
-            // Refresh the PivotTable to reflect the change
-            pivot.RefreshTable();
+            // NOTE: No RefreshTable() needed - NumberFormat is a visual-only property
+            // RefreshTable() would re-query the Data Model which is very slow for OLAP PivotTables
 
             // Read back the format to verify it was set
             string? appliedFormat = null;
@@ -860,7 +863,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 : XlSortOrder.xlDescending;
 
             pivotField.AutoSort(sortOrder, fieldName);
-            pivot.RefreshTable();
+
+            // NOTE: No RefreshTable() needed - Sorting is a visual-only operation
 
             return new PivotFieldResult
             {
@@ -999,7 +1003,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         // OLAP PivotTables support all three layout forms
         // xlCompactRow=0, xlTabularRow=1, xlOutlineRow=2
         pivot.RowAxisLayout(layoutType);
-        pivot.RefreshTable();
+
+        // NOTE: No RefreshTable() needed - Layout is a visual-only property
 
         if (logger?.IsEnabled(LogLevel.Information) == true)
         {
@@ -1026,8 +1031,6 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         dynamic? field = null;
         try
         {
-            pivot.RefreshTable();
-
             // Get the field - for OLAP, use PivotFields (not CubeFields)
             dynamic pivotFields = pivot.PivotFields;
             field = pivotFields.Item(fieldName);
@@ -1036,7 +1039,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             // Other subtotal types not available for OLAP data sources
             field.Subtotals[1] = showSubtotals;
 
-            pivot.RefreshTable();
+            // NOTE: No RefreshTable() needed - Subtotals is a visual-only property
 
             if (logger?.IsEnabled(LogLevel.Information) == true)
             {
@@ -1080,7 +1083,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     {
         pivot.RowGrand = showRowGrandTotals;
         pivot.ColumnGrand = showColumnGrandTotals;
-        pivot.RefreshTable();
+
+        // NOTE: No RefreshTable() needed - GrandTotals are visual-only properties
 
         if (logger is not null && logger.IsEnabled(LogLevel.Information))
         {
@@ -1545,6 +1549,24 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <summary>
+    /// Normalize measure name by extracting it from [Measures].[Name] format if present.
+    /// Returns the bare measure name (e.g., "Total Sales" from "[Measures].[Total Sales]").
+    /// </summary>
+    private static string NormalizeMeasureName(string fieldName)
+    {
+        if (fieldName.StartsWith("[Measures].", StringComparison.OrdinalIgnoreCase))
+        {
+            // Remove [Measures]. prefix and extract name from brackets
+            var parts = fieldName.Split(FieldNameSeparators, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2)
+            {
+                return parts[1]; // "Total Sales" from "[Measures].[Total Sales]"
+            }
+        }
+        return fieldName;
+    }
+
+    /// <summary>
     /// Check if fieldName refers to an existing measure in the Data Model.
     /// Returns true if the measure exists, and outputs the measure name.
     /// Handles formats: "[Measures].[Name]" or "Name" (exact match only).
@@ -1562,16 +1584,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             }
 
             // Extract measure name from [Measures].[Name] format if present
-            string searchName = fieldName;
-            if (fieldName.StartsWith("[Measures].", StringComparison.OrdinalIgnoreCase))
-            {
-                // Remove [Measures]. prefix and extract name from brackets
-                var parts = fieldName.Split(FieldNameSeparators, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length >= 2)
-                {
-                    searchName = parts[1]; // "Total ACR" from "[Measures].[Total ACR]"
-                }
-            }
+            string searchName = NormalizeMeasureName(fieldName);
 
             // Search for measure by name (EXACT match only - no partial matching)
             // Partial matching causes disambiguation bugs where "ACR" could match "ACRTypeKey"

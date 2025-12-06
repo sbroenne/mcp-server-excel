@@ -7,15 +7,16 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 
 /// <summary>
 /// Integration tests for PivotTable creation from Power Pivot Data Model tables.
-/// Uses DataModelPivotTableFixture which creates ONE comprehensive Data Model + PivotTable workbook per test class.
+/// Uses DataModelPivotTableFixture which creates ONE comprehensive Data Model + PivotTable workbook (shared via collection fixture).
 /// </summary>
+[Collection("DataModel")]
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "DataModel")]
 [Trait("Feature", "PivotTables")]
 [Trait("Speed", "Slow")]
-public class PivotTableDataModelTests : IClassFixture<DataModelPivotTableFixture>
+public class PivotTableDataModelTests
 {
     private readonly PivotTableCommands _pivotCommands;
     private readonly string _dataModelFile;

@@ -16,12 +16,13 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 /// This tests the OLAP-specific chart creation path which uses Shapes.AddChart() + SetSourceData()
 /// instead of PivotCache.CreatePivotChart() (which fails for OLAP sources).
 /// </summary>
+[Collection("DataModel")]
 [Trait("Category", "Integration")]
 [Trait("Speed", "Slow")]
 [Trait("Layer", "Core")]
 [Trait("Feature", "Charts")]
 [Trait("RequiresExcel", "true")]
-public class ChartCommandsOlapTests : IClassFixture<DataModelPivotTableFixture>
+public class ChartCommandsOlapTests
 {
     private readonly ChartCommands _commands;
     private readonly DataModelPivotTableFixture _fixture;

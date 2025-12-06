@@ -8,14 +8,15 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.DataModel;
 /// <summary>
 /// Integration tests for Data Model operations focusing on LLM use cases.
 /// Tests cover essential workflows: list tables/measures/relationships, create/update/delete measures, manage relationships.
-/// Uses DataModelPivotTableFixture which creates ONE comprehensive Data Model + PivotTable workbook per test class.
+/// Uses DataModelPivotTableFixture which creates ONE comprehensive Data Model + PivotTable workbook (shared via collection fixture).
 /// </summary>
+[Collection("DataModel")]
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "DataModel")]
 [Trait("Speed", "Slow")]
-public partial class DataModelCommandsTests : IClassFixture<DataModelPivotTableFixture>
+public partial class DataModelCommandsTests
 {
     private readonly DataModelCommands _dataModelCommands;
     private readonly string _dataModelFile;

@@ -102,19 +102,20 @@ public partial class PivotTableCommandsTests
 
         // Act - Try to add Sales field as a Sum value field
         // Use exact CubeField name format [TableName].[ColumnName]
-        // After implementation, should auto-create: [Total Sales] = SUM('RegionalSalesTable'[Sales])
+        // After implementation, should auto-create: [Regional Sales Total] = SUM('RegionalSalesTable'[Sales])
+        // NOTE: Use unique name to avoid conflict with fixture's "Total Sales" measure on SalesTable
         var result = _pivotCommands.AddValueField(
             batch,
             "DataModelPivot",
             "[RegionalSalesTable].[Sales]",
             AggregationFunction.Sum,
-            "Total Sales");
+            "Regional Sales Total");
 
         // Assert - Should succeed with auto-created DAX measure
         Assert.True(result.Success, $"AddValueField should auto-create DAX measure but failed: {result.ErrorMessage}");
-        Assert.Equal("Total Sales", result.FieldName); // Field name is the measure name
+        Assert.Equal("Regional Sales Total", result.FieldName); // Field name is the measure name
         Assert.Equal(PivotFieldArea.Value, result.Area);
-        Assert.Equal("Total Sales", result.CustomName);
+        Assert.Equal("Regional Sales Total", result.CustomName);
 
         // Verify the DAX measure was created in Data Model
         var dataModelCommands = new DataModelCommands();
@@ -123,8 +124,7 @@ public partial class PivotTableCommandsTests
 
         // Should contain either the auto-created measure or use the custom name
         var hasMeasure = measuresResult.Measures.Any(m =>
-            m.Name.Contains("Sales", StringComparison.OrdinalIgnoreCase) ||
-            m.Name.Contains("Total Sales", StringComparison.OrdinalIgnoreCase));
+            m.Name.Contains("Regional Sales Total", StringComparison.OrdinalIgnoreCase));
         Assert.True(hasMeasure, "Auto-created DAX measure should exist in Data Model");
     }
 
@@ -253,16 +253,14 @@ public partial class PivotTableCommandsTests
 
 
     /// <summary>
-    /// Helper to create OLAP test file with Data Model PivotTable.
-    /// Uses DataModelPivotTableFixture internally.
+    /// Helper to get the OLAP test file path from shared DataModelPivotTableFixture.
+    /// Uses shared fixture instead of creating new one each time (massive performance improvement).
     /// </summary>
     private string CreateOlapTestFile(string _)
     {
-        // For OLAP tests, we use the unified fixture which has a Data Model PivotTable
-        var fixture = new DataModelPivotTableFixture();
-        fixture.InitializeAsync().GetAwaiter().GetResult();
-        _createdFixtures.Add(fixture);
-        return fixture.TestFilePath;
+        // Use the shared fixture from [Collection("DataModel")] - created ONCE for all test classes
+        // This is initialized ONCE per test run, not per test method or per test class
+        return _olapFixture.TestFilePath;
     }
 
     /// <summary>
@@ -392,6 +390,4 @@ public partial class PivotTableCommandsTests
         Assert.Contains("ACR", formatResult.FieldName);
         Assert.Equal("0%", formatResult.NumberFormat);
     }
-
-    private readonly List<DataModelPivotTableFixture> _createdFixtures = new();
 }
