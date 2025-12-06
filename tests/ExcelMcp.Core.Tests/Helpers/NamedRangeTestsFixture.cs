@@ -46,7 +46,7 @@ public class NamedRangeTestsFixture : IAsyncLifetime
     /// Gets a unique named range name for test isolation.
     /// Named range names are limited to 255 chars (Excel limit).
     /// </summary>
-    public string GetUniqueNamedRangeName([System.Runtime.CompilerServices.CallerMemberName] string testName = "")
+    public static string GetUniqueNamedRangeName([System.Runtime.CompilerServices.CallerMemberName] string testName = "")
     {
         // Create a unique name that fits within Excel's 255 character limit
         var uniqueId = Guid.NewGuid().ToString("N")[..8];

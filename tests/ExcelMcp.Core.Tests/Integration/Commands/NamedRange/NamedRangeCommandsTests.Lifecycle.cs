@@ -31,7 +31,7 @@ public partial class NamedRangeCommandsTests
     {
         // Arrange
         using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
-        var paramName = _fixture.GetUniqueNamedRangeName();
+        var paramName = NamedRangeTestsFixture.GetUniqueNamedRangeName();
         var cellRef = _fixture.GetUniqueCellReference();
 
         // Act
@@ -48,7 +48,7 @@ public partial class NamedRangeCommandsTests
     {
         // Arrange
         using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
-        var paramName = _fixture.GetUniqueNamedRangeName();
+        var paramName = NamedRangeTestsFixture.GetUniqueNamedRangeName();
         var cellRef = _fixture.GetUniqueCellReference();
 
         // Create parameter first

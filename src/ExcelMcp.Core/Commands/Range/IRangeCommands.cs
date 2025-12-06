@@ -22,6 +22,8 @@ public interface IRangeCommands
     /// <summary>
     /// Sets values in a range from 2D array
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Target worksheet name</param>
     /// <param name="rangeAddress">
     /// MUST specify full range matching data dimensions:
     /// - Single cell: "A1" for [[value]]
@@ -30,6 +32,7 @@ public interface IRangeCommands
     /// IMPORTANT: Passing "A1" with multi-cell array may not auto-expand reliably.
     /// Always specify the exact range address.
     /// </param>
+    /// <param name="values">2D array of values to set</param>
     OperationResult SetValues(IExcelBatch batch, string sheetName, string rangeAddress, List<List<object?>> values);
 
     // === FORMULA OPERATIONS ===

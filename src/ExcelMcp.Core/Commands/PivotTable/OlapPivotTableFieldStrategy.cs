@@ -1102,7 +1102,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// OLAP CubeFields reference Data Model columns in format: [TableName].[ColumnName]
     /// NOTE: This only searches hierarchy fields (CubeFieldType=1), not measures.
     /// </summary>
-    private (string tableName, string columnName) FindTableAndColumn(dynamic pivot, string fieldName)
+    private static (string tableName, string columnName) FindTableAndColumn(dynamic pivot, string fieldName)
     {
         dynamic? cubeFields = null;
         try

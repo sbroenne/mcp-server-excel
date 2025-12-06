@@ -112,7 +112,6 @@ public static class ExcelSession
         string filePath,
         bool isMacroEnabled,
         Func<ExcelContext, CancellationToken, T> operation,
-        TimeSpan? _ = null,
         CancellationToken cancellationToken = default)
     {
         // CRITICAL: Acquire lock to serialize file creation operations

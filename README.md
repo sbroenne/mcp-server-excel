@@ -15,6 +15,10 @@
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/sbroenne/mcp-server-excel)
 [![Built with Copilot](https://img.shields.io/badge/Built%20with-GitHub%20Copilot-0366d6.svg)](https://copilot.github.com/)
 
+<a href="https://glama.ai/mcp/servers/@sbroenne/mcp-server-excel">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@sbroenne/mcp-server-excel/badge" alt="mcp-server-excel MCP server" />
+</a>
+
 **Automate Excel with AI - A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.**
 
 **MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations - no Excel programming knowledge required. 
@@ -149,4 +153,3 @@ The AI will display the Excel window so you can watch every operation happen liv
 ### SEO & Discovery
 
 `Excel Automation` • `Automate Excel with AI` • `MCP Server` • `Model Context Protocol` • `GitHub Copilot Excel` • `AI Excel Assistant` • `Power Query Automation` • `Power Query M Code` • `Power Pivot Automation` • `DAX Measures` • `DAX Automation` • `Data Model Automation` • `PivotTable Automation` • `VBA Automation` • `Excel Tables Automation` • `Excel AI Integration` • `COM Interop` • `Windows Excel Automation` • `Excel Development Tools` • `Excel Productivity` • `Excel Scripting` • `Conversational Excel` • `Natural Language Excel`
-# test
