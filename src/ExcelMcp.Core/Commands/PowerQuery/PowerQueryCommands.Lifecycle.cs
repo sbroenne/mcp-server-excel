@@ -149,9 +149,13 @@ public partial class PowerQueryCommands
                                         string connName = conn.Name?.ToString() ?? "";
 
                                         // Check if this is a Data Model connection for our query
-                                        // Pattern: "Query - {queryName}" or "Query - {queryName} - suffix"
+                                        // Patterns:
+                                        // - "Query - {queryName}" (worksheet connection)
+                                        // - "Query - {queryName} (Data Model)" (Data Model connection)
+                                        // - "Query - {queryName} - suffix" (legacy pattern)
                                         if (connName.Equals($"Query - {name}", StringComparison.OrdinalIgnoreCase) ||
-                                            connName.StartsWith($"Query - {name} -", StringComparison.OrdinalIgnoreCase))
+                                            connName.StartsWith($"Query - {name} -", StringComparison.OrdinalIgnoreCase) ||
+                                            connName.StartsWith($"Query - {name} (", StringComparison.OrdinalIgnoreCase))
                                         {
                                             // Has Data Model connection - NOT connection-only
                                             isConnectionOnly = false;
@@ -324,8 +328,15 @@ public partial class PowerQueryCommands
                         string connName = conn.Name?.ToString() ?? "";
 
                         // Check if this connection is related to our query
+                        // Patterns:
+                        // - "{queryName}" (exact match)
+                        // - "Query - {queryName}" (worksheet connection)
+                        // - "Query - {queryName} (Data Model)" (Data Model connection)
+                        // - "Query - {queryName} - suffix" (legacy pattern)
                         bool isQueryConnection = connName.Equals(queryName, StringComparison.OrdinalIgnoreCase) ||
-                            connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase);
+                            connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase) ||
+                            connName.StartsWith($"Query - {queryName} -", StringComparison.OrdinalIgnoreCase) ||
+                            connName.StartsWith($"Query - {queryName} (", StringComparison.OrdinalIgnoreCase);
 
                         // Also check connection string for Power Query pattern
                         if (!isQueryConnection)
@@ -513,9 +524,14 @@ public partial class PowerQueryCommands
                             conn = connections.Item(c);
                             string connName = conn.Name?.ToString() ?? "";
 
-                            // Check if this is a Data Model connection for our query
+                            // Check if this is a connection for our query
+                            // Patterns:
+                            // - "Query - {queryName}" (worksheet connection)
+                            // - "Query - {queryName} (Data Model)" (Data Model connection)
+                            // - "Query - {queryName} - suffix" (legacy pattern)
                             if (connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase) ||
-                                connName.StartsWith($"Query - {queryName} -", StringComparison.OrdinalIgnoreCase))
+                                connName.StartsWith($"Query - {queryName} -", StringComparison.OrdinalIgnoreCase) ||
+                                connName.StartsWith($"Query - {queryName} (", StringComparison.OrdinalIgnoreCase))
                             {
                                 connectionsToDelete.Add(connName);
                             }
@@ -714,10 +730,14 @@ public partial class PowerQueryCommands
                             conn = connections.Item(i);
                             string connName = conn.Name?.ToString() ?? "";
 
-                            // Check if this is a Data Model connection for our query
-                            // Pattern: "Query - {queryName}" or "Query - {queryName} - Model" etc.
+                            // Check if this is a connection for our query
+                            // Patterns:
+                            // - "Query - {queryName}" (worksheet connection)
+                            // - "Query - {queryName} (Data Model)" (Data Model connection)
+                            // - "Query - {queryName} - suffix" (legacy pattern)
                             if (connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase) ||
-                                connName.StartsWith($"Query - {queryName} -", StringComparison.OrdinalIgnoreCase))
+                                connName.StartsWith($"Query - {queryName} -", StringComparison.OrdinalIgnoreCase) ||
+                                connName.StartsWith($"Query - {queryName} (", StringComparison.OrdinalIgnoreCase))
                             {
                                 connectionsToDelete.Add(connName);
                             }

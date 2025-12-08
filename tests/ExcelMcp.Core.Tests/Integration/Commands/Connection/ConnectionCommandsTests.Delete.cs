@@ -1,5 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.PowerQuery;
 using Xunit;
+using IOFile = System.IO.File;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
 
@@ -199,4 +201,201 @@ public partial class ConnectionCommandsTests
 
         Assert.Contains("not found", exception.Message);
     }
+
+    #region Orphaned Power Query Connection Tests
+
+    /// <summary>
+    /// Tests that orphaned Power Query connections (generic names like "Connection", "Connection1")
+    /// can be deleted via the connection API even though they use the Mashup provider.
+    /// These connections don't follow the standard "Query - {name}" pattern.
+    /// </summary>
+    [Fact]
+    public void Delete_OrphanedPowerQueryConnection_GenericName_Succeeds()
+    {
+        // Arrange - Use the test file that has orphaned connections
+        var sourceFile = Path.Combine(AppContext.BaseDirectory, "TestData", "MSXI Baseline.xlsx");
+
+        if (!IOFile.Exists(sourceFile))
+        {
+            // Skip if test data file doesn't exist
+            return;
+        }
+
+        var testFile = Path.Combine(_fixture.TempDir, $"OrphanedPQ_{Guid.NewGuid():N}.xlsx");
+        IOFile.Copy(sourceFile, testFile);
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Verify the orphaned connection exists
+        var listBefore = _commands.List(batch);
+        var orphanedConn = listBefore.Connections.FirstOrDefault(c => c.Name == "Connection");
+        Assert.NotNull(orphanedConn);
+        Assert.True(orphanedConn.IsPowerQuery, "Connection should be detected as Power Query");
+
+        // Act - Delete the orphaned connection
+        _commands.Delete(batch, "Connection");
+
+        // Assert - Connection should be removed
+        var listAfter = _commands.List(batch);
+        Assert.DoesNotContain(listAfter.Connections, c => c.Name == "Connection");
+    }
+
+    /// <summary>
+    /// Tests that a Power Query connection following the "Query - {name}" pattern
+    /// but with no corresponding query can be deleted.
+    /// </summary>
+    [Fact]
+    public void Delete_OrphanedPowerQueryConnection_StandardNameMissingQuery_Succeeds()
+    {
+        // Arrange - Use the test file that has orphaned connections
+        var sourceFile = Path.Combine(AppContext.BaseDirectory, "TestData", "MSXI Baseline.xlsx");
+
+        if (!IOFile.Exists(sourceFile))
+        {
+            // Skip if test data file doesn't exist
+            return;
+        }
+
+        var testFile = Path.Combine(_fixture.TempDir, $"OrphanedPQ2_{Guid.NewGuid():N}.xlsx");
+        IOFile.Copy(sourceFile, testFile);
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Verify the orphaned connection exists (Query - 2 ReservationYearsBaseline has no matching query)
+        var listBefore = _commands.List(batch);
+        var orphanedConn = listBefore.Connections.FirstOrDefault(c => c.Name == "Query - 2 ReservationYearsBaseline");
+        Assert.NotNull(orphanedConn);
+        Assert.True(orphanedConn.IsPowerQuery, "Connection should be detected as Power Query");
+
+        // Act - Delete the orphaned connection
+        _commands.Delete(batch, "Query - 2 ReservationYearsBaseline");
+
+        // Assert - Connection should be removed
+        var listAfter = _commands.List(batch);
+        Assert.DoesNotContain(listAfter.Connections, c => c.Name == "Query - 2 ReservationYearsBaseline");
+    }
+
+    /// <summary>
+    /// Tests that a valid Power Query connection (with matching query) cannot be deleted
+    /// via the connection API - should redirect to excel_powerquery.
+    /// </summary>
+    [Fact]
+    public void Delete_ValidPowerQueryConnection_ThrowsWithRedirect()
+    {
+        // Arrange - Use the test file that has valid Power Query connections
+        var sourceFile = Path.Combine(AppContext.BaseDirectory, "TestData", "MSXI Baseline.xlsx");
+
+        if (!IOFile.Exists(sourceFile))
+        {
+            // Skip if test data file doesn't exist
+            return;
+        }
+
+        var testFile = Path.Combine(_fixture.TempDir, $"ValidPQ_{Guid.NewGuid():N}.xlsx");
+        IOFile.Copy(sourceFile, testFile);
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // "Query - Milestones" has a matching query named "Milestones"
+        var listBefore = _commands.List(batch);
+        var validConn = listBefore.Connections.FirstOrDefault(c => c.Name == "Query - Milestones");
+        Assert.NotNull(validConn);
+        Assert.True(validConn.IsPowerQuery, "Connection should be detected as Power Query");
+
+        // Act & Assert - Should throw with redirect message
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+        {
+            _commands.Delete(batch, "Query - Milestones");
+        });
+
+        Assert.Contains("excel_powerquery", exception.Message);
+    }
+
+    /// <summary>
+    /// Verifies that IsOrphanedPowerQueryConnection correctly identifies orphaned connections.
+    /// </summary>
+    [Fact]
+    public void IsOrphanedPowerQueryConnection_GenericNamedConnection_ReturnsTrue()
+    {
+        // Arrange - Use the test file that has orphaned connections
+        var sourceFile = Path.Combine(AppContext.BaseDirectory, "TestData", "MSXI Baseline.xlsx");
+
+        if (!IOFile.Exists(sourceFile))
+        {
+            // Skip if test data file doesn't exist
+            return;
+        }
+
+        var testFile = Path.Combine(_fixture.TempDir, $"IsOrphaned_{Guid.NewGuid():N}.xlsx");
+        IOFile.Copy(sourceFile, testFile);
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Act - Check if generic-named connections are orphaned
+        var result = batch.Execute((ctx, ct) =>
+        {
+            dynamic? conn = null;
+            try
+            {
+                // "Connection" is a generic-named Power Query connection
+                conn = ctx.Book.Connections.Item("Connection");
+                return PowerQueryHelpers.IsOrphanedPowerQueryConnection(ctx.Book, conn);
+            }
+            finally
+            {
+                if (conn != null)
+                {
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(conn);
+                }
+            }
+        });
+
+        // Assert - Generic-named Power Query connections are always orphaned
+        Assert.True(result);
+    }
+
+    /// <summary>
+    /// Verifies that IsOrphanedPowerQueryConnection correctly identifies valid connections.
+    /// </summary>
+    [Fact]
+    public void IsOrphanedPowerQueryConnection_ValidConnection_ReturnsFalse()
+    {
+        // Arrange - Use the test file that has valid Power Query connections
+        var sourceFile = Path.Combine(AppContext.BaseDirectory, "TestData", "MSXI Baseline.xlsx");
+
+        if (!IOFile.Exists(sourceFile))
+        {
+            // Skip if test data file doesn't exist
+            return;
+        }
+
+        var testFile = Path.Combine(_fixture.TempDir, $"IsValid_{Guid.NewGuid():N}.xlsx");
+        IOFile.Copy(sourceFile, testFile);
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Act - Check if "Query - Milestones" (has matching query) is orphaned
+        var result = batch.Execute((ctx, ct) =>
+        {
+            dynamic? conn = null;
+            try
+            {
+                // "Query - Milestones" has a matching "Milestones" query
+                conn = ctx.Book.Connections.Item("Query - Milestones");
+                return PowerQueryHelpers.IsOrphanedPowerQueryConnection(ctx.Book, conn);
+            }
+            finally
+            {
+                if (conn != null)
+                {
+                    System.Runtime.InteropServices.Marshal.ReleaseComObject(conn);
+                }
+            }
+        });
+
+        // Assert - This is NOT orphaned because the query exists
+        Assert.False(result);
+    }
+
+    #endregion
 }

@@ -98,23 +98,11 @@ public partial class PowerQueryCommands
                         break;
 
                     case PowerQueryLoadMode.LoadToBoth:
-                        // Load to worksheet first
-                        if (LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress!, result))
-                        {
-                            // Preserve worksheet properties before loading to Data Model
-                            int worksheetRows = result.RowsLoaded;
-                            string? worksheetCell = result.TargetCellAddress;
-                            string? worksheetName = result.WorksheetName;
-
-                            // Then also load to Data Model
-                            if (LoadQueryToDataModel(ctx.Book, queryName, result))
-                            {
-                                // Restore worksheet properties (Data Model sets them to null/-1)
-                                result.RowsLoaded = worksheetRows;
-                                result.TargetCellAddress = worksheetCell;
-                                result.WorksheetName = worksheetName;
-                            }
-                        }
+                        // For LoadToBoth, create TWO separate properly-named connections:
+                        // 1. Worksheet connection: "Query - {name}" (created by LoadQueryToWorksheet)
+                        // 2. Data Model connection: "Query - {name} (Data Model)" (with suffix to avoid conflict)
+                        LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress!, result);
+                        LoadQueryToDataModel(ctx.Book, queryName, result, " (Data Model)");
                         break;
                 }
 

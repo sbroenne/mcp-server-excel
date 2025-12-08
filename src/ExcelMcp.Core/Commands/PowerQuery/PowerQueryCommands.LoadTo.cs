@@ -103,21 +103,11 @@ public partial class PowerQueryCommands
                         break;
 
                     case PowerQueryLoadMode.LoadToBoth:
-                        // Load to worksheet first
-                        if (LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result))
-                        {
-                            // Preserve worksheet properties before loading to Data Model
-                            int worksheetRows = result.RowsLoaded;
-                            string? worksheetCell = result.TargetCellAddress;
-
-                            // Then also load to Data Model
-                            if (LoadQueryToDataModel(ctx.Book, queryName, result))
-                            {
-                                // Restore worksheet properties (Data Model sets them to null/-1)
-                                result.RowsLoaded = worksheetRows;
-                                result.TargetCellAddress = worksheetCell;
-                            }
-                        }
+                        // For LoadToBoth, create TWO separate properly-named connections:
+                        // 1. Worksheet connection: "Query - {name}" (created by LoadQueryToWorksheet)
+                        // 2. Data Model connection: "Query - {name} (Data Model)" (with suffix to avoid conflict)
+                        LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result);
+                        LoadQueryToDataModel(ctx.Book, queryName, result, " (Data Model)");
                         break;
 
                     case PowerQueryLoadMode.ConnectionOnly:
@@ -166,6 +156,8 @@ public partial class PowerQueryCommands
         dynamic? worksheets = null;
         dynamic? sheet = null;
         dynamic? destination = null;
+        dynamic? connections = null;
+        dynamic? connection = null;
         dynamic? listObjects = null;
         dynamic? listObject = null;
         dynamic? queryTable = null;
@@ -275,15 +267,30 @@ public partial class PowerQueryCommands
                 }
             }
 
-            // Build OLE DB connection string for Power Query
-            string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName};Extended Properties=\"\"";
+            // Step 1: Create connection with Connections.Add2() using proper naming
+            // This ensures the connection is named "Query - {queryName}" instead of generic "Connection", "Connection1", etc.
+            connections = workbook.Connections;
+            string connectionName = $"Query - {queryName}";
+            string connectionDescription = $"Connection to the '{queryName}' query in the workbook.";
+            string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
+            string commandText = $"SELECT * FROM [{queryName}]";
 
-            // Add ListObject (Excel Table) with external data source
-            // This is the CORRECT way to load Power Query to worksheet
+            connection = connections.Add2(
+                Name: connectionName,
+                Description: connectionDescription,
+                ConnectionString: connectionString,
+                CommandText: commandText,
+                lCmdtype: 2,                    // xlCmdSql
+                CreateModelConnection: false,   // Worksheet loading, NOT Data Model
+                ImportRelationships: false
+            );
+
+            // Step 2: Add ListObject using the connection object (not connection string)
+            // This reuses the properly-named connection instead of creating a new generic one
             listObjects = sheet.ListObjects;
             listObject = listObjects.Add(
                 0,                  // SourceType: 0 = xlSrcExternal
-                connectionString,   // Source: connection string
+                connection,         // Source: connection object (reuses existing named connection)
                 Type.Missing,       // LinkSource
                 1,                  // XlListObjectHasHeaders: xlYes
                 destination         // Destination: starting cell
@@ -317,6 +324,8 @@ public partial class PowerQueryCommands
             ComUtilities.Release(ref queryTable);
             ComUtilities.Release(ref listObject);
             ComUtilities.Release(ref listObjects);
+            ComUtilities.Release(ref connection);
+            ComUtilities.Release(ref connections);
             ComUtilities.Release(ref destination);
             ComUtilities.Release(ref sheet);
             ComUtilities.Release(ref worksheets);
@@ -327,10 +336,15 @@ public partial class PowerQueryCommands
     /// Loads query data to the Data Model using Connections.Add2.
     /// SHARED IMPLEMENTATION - Used by both Create and LoadTo.
     /// </summary>
+    /// <param name="workbook">The workbook to load into.</param>
+    /// <param name="queryName">The Power Query name.</param>
+    /// <param name="result">Result object to populate.</param>
+    /// <param name="connectionNameSuffix">Optional suffix for connection name to avoid conflicts (e.g., " (Data Model)").</param>
     private static bool LoadQueryToDataModel(
         dynamic workbook,
         string queryName,
-        dynamic result)
+        dynamic result,
+        string? connectionNameSuffix = null)
     {
         dynamic? connections = null;
         dynamic? connection = null;
@@ -339,7 +353,10 @@ public partial class PowerQueryCommands
         {
             connections = workbook.Connections;
 
-            string connectionName = $"Query - {queryName}";
+            // Use suffix if provided (for LoadToBoth to avoid conflict with worksheet connection)
+            string connectionName = string.IsNullOrEmpty(connectionNameSuffix)
+                ? $"Query - {queryName}"
+                : $"Query - {queryName}{connectionNameSuffix}";
             string description = $"Connection to the '{queryName}' query in the workbook.";
             string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
             string commandText = $"\"{queryName}\"";

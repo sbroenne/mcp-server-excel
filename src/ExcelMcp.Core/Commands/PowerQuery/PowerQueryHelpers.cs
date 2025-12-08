@@ -8,6 +8,65 @@ namespace Sbroenne.ExcelMcp.Core.PowerQuery;
 public static class PowerQueryHelpers
 {
     /// <summary>
+    /// Determines if a Power Query connection is orphaned (no corresponding query exists).
+    /// An orphaned connection is one that appears to be a Power Query connection (based on
+    /// connection string or naming pattern) but has no matching entry in the Queries collection.
+    /// This commonly occurs after query deletions, renames, or copy/paste operations in Excel.
+    /// 
+    /// A connection is considered orphaned if:
+    /// 1. It's a Power Query connection (uses Microsoft.Mashup provider)
+    /// 2. AND EITHER:
+    ///    a. It doesn't follow the standard "Query - {queryName}" naming pattern (e.g., "Connection", "Connection1")
+    ///    b. OR it follows the pattern but the corresponding query no longer exists in Workbook.Queries
+    /// </summary>
+    /// <param name="workbook">Excel workbook COM object</param>
+    /// <param name="connection">Connection COM object</param>
+    /// <returns>True if connection is a Power Query connection with no corresponding query</returns>
+    public static bool IsOrphanedPowerQueryConnection(dynamic workbook, dynamic connection)
+    {
+        // First check if this is even a Power Query connection
+        if (!IsPowerQueryConnection(connection))
+        {
+            return false;
+        }
+
+        string connectionName = connection.Name?.ToString() ?? "";
+
+        // Check if connection follows the standard "Query - {queryName}" naming pattern
+        // Only connections with this pattern are considered "proper" Power Query connections
+        if (!connectionName.StartsWith("Query - ", StringComparison.OrdinalIgnoreCase))
+        {
+            // Generic names like "Connection", "Connection1", etc. are ALWAYS orphaned
+            // even if their Location= points to an existing query.
+            // The proper connection for a query is always named "Query - {queryName}".
+            return true;
+        }
+
+        // Extract the query name from the "Query - {queryName}" pattern
+        string expectedQueryName = connectionName["Query - ".Length..];
+
+        // Handle potential suffixes like "Query - Name - Model" (though rare)
+        int dashIndex = expectedQueryName.IndexOf(" -", StringComparison.Ordinal);
+        if (dashIndex > 0)
+        {
+            expectedQueryName = expectedQueryName[..dashIndex];
+        }
+
+        // Check if a query with this name exists
+        dynamic? query = null;
+        try
+        {
+            query = ComUtilities.FindQuery(workbook, expectedQueryName);
+            // If query is null, the connection is orphaned
+            return query == null;
+        }
+        finally
+        {
+            ComUtilities.Release(ref query);
+        }
+    }
+
+    /// <summary>
     /// Determines if a connection is a Power Query connection
     /// </summary>
     /// <param name="connection">Connection COM object</param>
