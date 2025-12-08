@@ -11,8 +11,7 @@ canonical_url: "https://excelmcpserver.dev/"
     <div class="hero-content">
       <img src="{{ '/assets/images/icon.png' | relative_url }}" alt="Excel MCP Server Icon" class="hero-icon">
       <h1 class="hero-title">Excel MCP Server</h1>
-      <p class="hero-subtitle">AI-Powered Excel Automation</p>
-      <p class="hero-description">Control Microsoft Excel with Natural Language through AI assistants like GitHub Copilot and Claude. One-click install for Visual Studio Code.</p>
+      <p class="hero-subtitle">Automate Excel with AI via GitHub Copilot, Claude, and other MCP clients — including Power Query, DAX, VBA, PowerPivot, and Tables.</p>
     </div>
   </div>
 </div>
