@@ -25,6 +25,14 @@ echo "   ✓ Copied CHANGELOG.md"
 cp "$ROOT_DIR/docs/INSTALLATION.md" "$SCRIPT_DIR/_includes/installation.md"
 echo "   ✓ Copied INSTALLATION.md"
 
+# Copy CONTRIBUTING.md from docs
+cp "$ROOT_DIR/docs/CONTRIBUTING.md" "$SCRIPT_DIR/_includes/contributing.md"
+echo "   ✓ Copied CONTRIBUTING.md"
+
+# Copy SECURITY.md from docs
+cp "$ROOT_DIR/docs/SECURITY.md" "$SCRIPT_DIR/_includes/security.md"
+echo "   ✓ Copied SECURITY.md"
+
 # Determine build mode
 if [ "$1" == "serve" ]; then
     echo ""

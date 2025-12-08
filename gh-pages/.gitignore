@@ -10,3 +10,5 @@ Gemfile.lock
 _includes/features.md
 _includes/changelog.md
 _includes/installation.md
+_includes/contributing.md
+_includes/security.md

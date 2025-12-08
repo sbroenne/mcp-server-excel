@@ -15,6 +15,11 @@ theme: jekyll-theme-cayman
 plugins:
   - jekyll-sitemap
   - jekyll-seo-tag
+  - jekyll-feed
+
+# Feed settings
+feed:
+  path: feed.xml
 
 # SEO settings
 author: "Stefan Broenne"
