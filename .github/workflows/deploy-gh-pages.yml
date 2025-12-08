@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - 'gh-pages/**'
+      - 'FEATURES.md'
+      - 'vscode-extension/CHANGELOG.md'
       - '.github/workflows/deploy-gh-pages.yml'
   workflow_dispatch:
 
@@ -39,7 +41,9 @@ jobs:
 
       - name: Build with Jekyll
         working-directory: gh-pages
-        run: bundle exec jekyll build
+        run: |
+          chmod +x build.sh
+          ./build.sh production
         env:
           JEKYLL_ENV: production
 

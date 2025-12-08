@@ -87,6 +87,11 @@ Quick reference:
 - MCP Server & CLI (unified): `v1.2.3`
 - VS Code Extension: `vscode-v1.1.3`
 
+**Before Tagging VS Code Extension:**
+1. Update `/vscode-extension/CHANGELOG.md` with new version section
+2. Use format: `## [1.2.3] - YYYY-MM-DD`
+3. Release workflow auto-extracts this for GitHub Release notes
+
 Push tag → Workflow auto-builds → GitHub release created
 
 ## Key Principles

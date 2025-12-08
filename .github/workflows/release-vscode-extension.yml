@@ -115,11 +115,41 @@ jobs:
       continue-on-error: true
       id: publishToMarketplace
 
+    - name: Extract Changelog for Version
+      id: extract-changelog
+      run: |
+        $version = "${{ env.PACKAGE_VERSION }}"
+        $changelogPath = "vscode-extension/CHANGELOG.md"
+        
+        Write-Output "Extracting changelog entries for version $version..."
+        
+        # Read the changelog file
+        $content = Get-Content $changelogPath -Raw
+        
+        # Extract the section for this version (from ## [version] to next ## or end)
+        $pattern = "(?s)## \[$version\][^\n]*\n(.*?)(?=\n## \[|$)"
+        if ($content -match $pattern) {
+          $versionChanges = $matches[1].Trim()
+          Write-Output "Found changelog entry for $version"
+          
+          # Save to environment file for next step
+          # Use a delimiter for multiline content
+          $delimiter = "EOF_CHANGELOG"
+          "CHANGELOG_CONTENT<<$delimiter" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $versionChanges | Out-File -FilePath $env:GITHUB_ENV -Append
+          $delimiter | Out-File -FilePath $env:GITHUB_ENV -Append
+        } else {
+          Write-Output "No specific changelog entry found for $version, using generic message"
+          "CHANGELOG_CONTENT=See CHANGELOG.md for details" | Out-File -FilePath $env:GITHUB_ENV -Append
+        }
+      shell: pwsh
+
     - name: Create GitHub Release
       run: |
         $tagName = "${{ github.ref_name }}"
         $version = "${{ env.PACKAGE_VERSION }}"
         $vsixFile = "${{ env.VSIX_PATH }}"
+        $changelogContent = "${{ env.CHANGELOG_CONTENT }}"
 
         $marketplaceStatus = "Not published"
         if ("${{ steps.publishToMarketplace.outcome }}" -eq "success") {
@@ -127,6 +157,11 @@ jobs:
         }
 
         $notes = "## ExcelMcp VS Code Extension $tagName`n`n"
+        
+        # Add changelog content at the top
+        $notes += "### What's New`n`n"
+        $notes += "$changelogContent`n`n"
+        
         $notes += "### One-Click Excel MCP Server Installation for VS Code`n`n"
         $notes += "This extension automatically registers the ExcelMcp MCP server with VS Code.`n`n"
         $notes += "### Installation Options`n`n"
@@ -138,13 +173,14 @@ jobs:
         $notes += "- Automatic .NET Installation`n"
         $notes += "- Bundled MCP Server`n"
         $notes += "- Works in all VS Code workspaces`n"
-        $notes += "- 10 Excel Tools with 108+ actions`n`n"
+        $notes += "- 12 Excel Tools with 180 operations`n`n"
         $notes += "### Requirements`n"
         $notes += "- Windows OS`n"
         $notes += "- Microsoft Excel 2016+`n"
         $notes += "- VS Code 1.105.0+`n"
         $notes += "- .NET 8 Runtime (auto-installed by extension)`n`n"
         $notes += "### Documentation`n"
+        $notes += "- [Full Changelog](https://github.com/sbroenne/mcp-server-excel/blob/main/vscode-extension/CHANGELOG.md)`n"
         $notes += "- [Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/vscode-extension/INSTALL.md)`n"
         $notes += "- [Main Repository](https://github.com/sbroenne/mcp-server-excel)`n"
 
