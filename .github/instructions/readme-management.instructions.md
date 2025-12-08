@@ -73,6 +73,17 @@ Before committing README changes:
 
 ## Common Mistakes
 
+## CHANGELOG.md
+
+The VS Code extension has its own changelog at `/vscode-extension/CHANGELOG.md`. This file:
+- Is **automatically used** by the release workflow to populate GitHub Release notes
+- Should be updated with every feature/bug fix before release
+- Uses standard Keep a Changelog format: `## [version] - YYYY-MM-DD`
+
+**When to update:**
+- Before creating a `vscode-v*` tag, ensure the version section exists in CHANGELOG.md
+- The release workflow extracts the specific version's changes for release notes
+
 | Mistake | Fix |
 |---------|-----|
 | Duplicate tool entries | List each tool once |
@@ -82,3 +93,4 @@ Before committing README changes:
 | Overclaiming features | Use actual counts, not estimates |
 | Missing safety callout | Add COM API benefits |
 | Manual version updates | Let workflow handle it |
+| Missing CHANGELOG entry | Add before creating release tag |

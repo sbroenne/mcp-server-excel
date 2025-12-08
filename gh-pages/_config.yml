@@ -19,15 +19,21 @@ plugins:
 # SEO settings
 author: "Stefan Broenne"
 twitter:
-  username: sbroenne
   card: summary_large_image
 social:
   name: Stefan Broenne
   links:
     - https://github.com/sbroenne
-    - https://twitter.com/sbroenne
+    - https://www.youtube.com/channel/UCq1ojGTy4-aZz8_CmEPp2aw
 
-logo: /assets/images/excel-mcp-icon-256.png
+logo: /assets/images/icon.png
+
+# Additional SEO settings
+defaults:
+  - scope:
+      path: ""
+    values:
+      image: /assets/images/icon.png
 
 # Build settings
 markdown: kramdown

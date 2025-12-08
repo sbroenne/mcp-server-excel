@@ -33,431 +33,141 @@ canonical_url: "https://excelmcpserver.dev/"
 
 **Automate Excel with AI - A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.**
 
-**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations - no Excel programming knowledge required.
+<p>One-click setup with GitHub Copilot integration</p>
+<p><a href="https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp" class="button-link">Install from Marketplace</a></p>
+
+**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands, including Power Query & M, PowerPivot & DAX, VBA macros, PivotTables, Charts, formatting & much more – no Excel programming knowledge required.
+
+It works with any MCP-compatible AI assistant like GitHub Copilot, Claude Desktop, Cursor, Windsurf, etc.
 
 **🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
 
-**💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
+**💡 Interactive Development** - Watch Excel update in real-time as AI works. Say "Show me Excel while you work" and see every change live - create a query, watch it populate, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
 
-**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. CLI has 13 command categories with 172 operations (MCP Server has 12 tools with 180 operations).
-
-## 🚀 Visual Studio Code Quick Start (1 Minute)
-
-<p>One-click setup with GitHub Copilot integration</p>
-<p><a href="https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp" class="button-link">Install from Marketplace</a></p>
+<div class="video-preview">
+  <a href="https://youtu.be/B6eIQ5BIbNc" target="_blank" title="Watch Excel MCP Server intro video">
+    <img src="https://img.youtube.com/vi/B6eIQ5BIbNc/maxresdefault.jpg" alt="Excel MCP Server intro video thumbnail" style="max-width: 560px; width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+    <p style="text-align: center; margin-top: 8px;">▶️ Watch the intro video (1 min)</p>
+  </a>
+</div>
 
 ## Key Features
 
 <div class="features-grid">
 <div class="feature-card">
-<h3>180 Operations</h3>
-<p>12 specialized tools with 180 operations covering Power Query, DAX, Charts, VBA, PivotTables, ranges, conditional formatting, and more</p>
-<p><a href="https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md">Complete Feature Reference →</a></p>
+<h3>Power Query & M Code</h3>
+<p>Create, edit, and optimize M code. Import from files, databases, APIs. Refresh queries and manage load destinations.</p>
 </div>
 
 <div class="feature-card">
-<h3>100% Safe</h3>
-<p>Uses Excel's native COM API - zero corruption risk, full compatibility</p>
+<h3>Power Pivot & DAX</h3>
+<p>Build Data Models, create DAX measures, manage table relationships. Full Power Pivot automation.</p>
 </div>
 
 <div class="feature-card">
-<h3>Interactive Development</h3>
-<p>See changes in real-time - create, test, refine, and iterate instantly. Use Excel as a REPL.</p>
-<p><strong>💡 Tip:</strong> Say "Show me Excel while you work" to watch changes live!</p>
+<h3>PivotTables & Charts</h3>
+<p>Create PivotTables from ranges, tables, or Data Model. Build charts and PivotCharts with full formatting control.</p>
 </div>
 
 <div class="feature-card">
-<h3>Natural Language Control</h3>
-<p>Describe what you want, AI does the rest</p>
+<h3>Tables & Ranges</h3>
+<p>Read/write data, formulas, formatting. Filter, sort, validate. Manage Excel Tables with structured references.</p>
 </div>
 
 <div class="feature-card">
-<h3>Comprehensive Automation</h3>
-<p>180 operations covering Power Query, DAX, Charts, VBA, Tables, and more</p>
+<h3>VBA Macros</h3>
+<p>View, import, update, and execute VBA code. Export modules for version control.</p>
 </div>
 
 <div class="feature-card">
-<h3>Dual Interface</h3>
-<p>Choose MCP for AI assistants or CLI for scripts and RPA</p>
+<h3>Worksheets & Connections</h3>
+<p>Manage sheets, named ranges, data connections. Copy/move sheets between workbooks.</p>
 </div>
 </div>
 
-## Installation
+<p><a href="/features/">See all 12 tools and 180 operations →</a></p>
 
-<div class="install-options">
-<div class="install-option">
-<h3>VS Code Extension <span class="badge">Recommended</span></h3>
-<p>One-click setup with GitHub Copilot integration</p>
-<p><a href="https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp" class="button-link">Install from Marketplace</a></p>
-</div>
+## What Can You Do With It?
 
-<div class="install-option">
-<h3>MCP Server</h3>
-<p>For Claude, ChatGPT, and other MCP clients</p>
-<pre><code>dotnet tool install -g Sbroenne.ExcelMcp.McpServer</code></pre>
-</div>
-
-<div class="install-option">
-<h3>CLI Tool</h3>
-<p>For scripting, RPA, and CI/CD workflows</p>
-<pre><code>dotnet tool install -g Sbroenne.ExcelMcp.CLI</code></pre>
-</div>
-</div>
-
-📖 **[Complete Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md)**
-
-## Documentation
-
-- [Excel MCP Server source code on GitHub](https://github.com/sbroenne/mcp-server-excel)
-- [How to contribute to Excel MCP Server development](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/CONTRIBUTING.md)
-- [Complete API documentation and developer guides](https://github.com/sbroenne/mcp-server-excel/tree/main/docs)
-
-## Examples
-
-### AI Assistant Examples (MCP Server)
+Ask your AI assistant to automate Excel tasks using natural language:
 
 <div class="example-section">
-<h4>🔍 Optimize Power Query</h4>
+<h4>🔍 Power Query & M Code</h4>
 <p><strong>You:</strong> "This Power Query is taking 5 minutes to refresh. Can you optimize it?"</p>
 <p>AI analyzes your M code, identifies inefficiencies, and applies best practices automatically.</p>
 </div>
 
 <div class="example-section">
-<h4>📊 Create PivotTable</h4>
-<p><strong>You:</strong> "Create a PivotTable from SalesData showing top 10 products by region"</p>
-<p>AI creates the PivotTable with proper field configuration in seconds.</p>
+<h4>📊 PivotTables & Data Model</h4>
+<p><strong>You:</strong> "Create a PivotTable from the Data Model showing top 10 products by region with a DAX measure for profit margin"</p>
+<p>AI creates the PivotTable, adds fields, and builds the DAX measure in seconds.</p>
 </div>
 
 <div class="example-section">
-<h4>🎨 Format Data</h4>
-<p><strong>You:</strong> "Format revenue as currency, make headers bold blue, and add borders"</p>
-<p>AI applies all formatting directly to your Excel file.</p>
+<h4>📈 Charts & Visualization</h4>
+<p><strong>You:</strong> "Create a column chart from SalesData and add a trend line"</p>
+<p>AI builds the chart with proper formatting and data series configuration.</p>
 </div>
 
-### CLI Examples (Scripting & RPA)
+<div class="example-section">
+<h4>🖥️ VBA Macros</h4>
+<p><strong>You:</strong> "Write a VBA macro that exports all sheets to PDF"</p>
+<p>AI creates, imports, and can execute VBA code directly in your workbook.</p>
+</div>
 
-**Automate Power Query Refresh**
+<div class="example-section">
+<h4>🎨 Tables & Formatting</h4>
+<p><strong>You:</strong> "Convert this range to an Excel Table, format revenue as currency, and add conditional formatting for values over 10000"</p>
+<p>AI applies structured tables, number formats, and conditional rules.</p>
+</div>
+
+## CLI Tool (Optional)
+
+For scripting, RPA workflows, and CI/CD pipelines — automate Excel without AI:
 
 ```bash
-# Refresh all queries in a workbook (CI/CD pipeline)
-excel-mcp pq-refresh --file "sales-report.xlsx" --query "SalesData"
+dotnet tool install -g Sbroenne.ExcelMcp.CLI
 ```
-
-**Batch Update Worksheets**
-
-```powershell
-# Process multiple workbooks in PowerShell
-Get-ChildItem *.xlsx | ForEach-Object {
-    excel-mcp sheet-create --file $_.Name --name "Summary"
-    excel-mcp range-set-values --file $_.Name --sheet "Summary" --range "A1" --values "[[\"Generated: $(Get-Date)\"]]"
-}
-```
-
-**Export VBA for Version Control**
 
 ```bash
-# Export all VBA modules to Git repository
-excel-mcp vba-export --file "macro-workbook.xlsm" --module "Module1" --output "src/vba/Module1.bas"
+# Refresh Power Query
+excel-cli pq refresh sales.xlsx --query SalesData
+
+# Export VBA for version control  
+excel-cli vba export macro-workbook.xlsm --module Module1 --output src/vba/
+
+# Read range values
+excel-cli range get-values report.xlsx --sheet Sheet1 --range A1:D10
 ```
 
-## Why Choose This Project?
+The CLI provides 172 operations across 13 command groups, sharing the same Core engine as the MCP Server.
 
-<div class="features-grid">
-<div class="feature-card">
-<h3>🤖 MCP Server (AI-Powered)</h3>
-<ul>
-<li><strong>Natural Language Control:</strong> Describe tasks in plain English</li>
-<li><strong>Safe:</strong> Official COM API - zero corruption risk</li>
-<li><strong>Interactive:</strong> See changes in real-time in Excel</li>
-<li><strong>Comprehensive:</strong> 180 operations across 12 tools</li>
-<li><strong>Works with:</strong> GitHub Copilot, Claude, ChatGPT, and any MCP client</li>
-</ul>
-</div>
 
-<div class="feature-card">
-<h3>⚙️ CLI (Automation & Scripting)</h3>
-<ul>
-<li><strong>RPA Ready:</strong> Perfect for robotic process automation workflows</li>
-<li><strong>CI/CD Integration:</strong> Automate Excel operations in build pipelines</li>
-<li><strong>Scripting:</strong> PowerShell, Bash, Python integration</li>
-<li><strong>Batch Processing:</strong> Process multiple workbooks programmatically</li>
-<li><strong>No AI Required:</strong> Direct command-line control for scripts</li>
-</ul>
-</div>
-</div>
+## Documentation
 
-<div class="callout">
-<strong>Both Share the Same Core</strong>
-CLI provides 172 operations, MCP Server provides 180 operations. Both share the same Core layer for consistent behavior.
-</div>
+📖 **[Complete Feature Reference](/features/)** — All 12 tools and 180 operations
 
-## Complete Tool & Action Reference
+📥 **[Installation Guide](/installation/)** — Setup for VS Code, Claude Desktop, other MCP clients, and CLI
 
-**12 specialized tools with 180 operations:**
+📋 **[Changelog](/changelog/)** — Release notes and version history
 
-<div class="tools-reference" markdown="1">
+## More Information
 
-### 📊 Power Query & M Code (9 actions)
-
-| Action | Description |
-|--------|-------------|
-| `list` | List all Power Query queries in workbook |
-| `view` | View M code for a specific query |
-| `create` | Create new Power Query from M code |
-| `update` | Update existing query's M code |
-| `delete` | Delete a Power Query |
-| `refresh` | Refresh a specific query to reload data |
-| `refresh-all` | Refresh all queries in workbook |
-| `get-load-config` | Get load destination settings for a query |
-| `load-to` | Load query data to worksheet, data model, or both |
-
-### 🔢 Power Pivot / Data Model (16 actions)
-
-| Action | Description |
-|--------|-------------|
-| `list-tables` | List all tables in Data Model |
-| `read-table` | Read data from a Data Model table |
-| `delete-table` | Delete a table from the Data Model |
-| `list-columns` | List all columns in a table |
-| `list-measures` | List all DAX measures in a table |
-| `read` | Read details of a specific measure |
-| `create-measure` | Create new DAX measure |
-| `update-measure` | Update existing DAX measure formula or format |
-| `delete-measure` | Delete a DAX measure |
-| `list-relationships` | List all table relationships |
-| `read-relationship` | Read details of a specific relationship |
-| `create-relationship` | Create relationship between tables |
-| `update-relationship` | Update relationship properties |
-| `delete-relationship` | Delete a relationship |
-| `read-info` | Get Data Model metadata and statistics |
-| `refresh` | Refresh entire Data Model |
-
-### 📋 Excel Tables (24 actions)
-
-| Action | Description |
-|--------|-------------|
-| `list` | List all Excel Tables in workbook |
-| `read` | Read table data and properties |
-| `create` | Create new Excel Table from range |
-| `rename` | Rename an Excel Table |
-| `delete` | Delete an Excel Table |
-| `resize` | Resize table range |
-| `set-style` | Apply table style (TableStyleMedium2, etc.) |
-| `toggle-totals` | Show/hide totals row |
-| `set-column-total` | Set aggregation function for column total |
-| `append` | Append rows to table |
-| `get-data` | Return table data (optionally respecting active filters) |
-| `add-to-datamodel` | Add table to Power Pivot Data Model |
-| `apply-filter` | Apply filter criteria to column |
-| `apply-filter-values` | Filter by specific values |
-| `clear-filters` | Clear all filters |
-| `get-filters` | Get current filter settings |
-| `add-column` | Add new column to table |
-| `remove-column` | Remove column from table |
-| `rename-column` | Rename table column |
-| `get-structured-reference` | Get structured reference formula |
-| `sort` | Sort table by column |
-| `sort-multi` | Sort by multiple columns |
-| `get-column-number-format` | Get number format for column |
-| `set-column-number-format` | Set number format for column |
-
-### 📈 PivotTables (30 actions)
-
-| Action | Description |
-|--------|-------------|
-| `list` | List all PivotTables in workbook |
-| `read` | Read PivotTable configuration |
-| `create-from-range` | Create PivotTable from range |
-| `create-from-table` | Create PivotTable from Excel Table |
-| `create-from-datamodel` | Create PivotTable from Data Model |
-| `delete` | Delete a PivotTable |
-| `refresh` | Refresh PivotTable data |
-| `list-fields` | List all available fields |
-| `add-row-field` | Add field to Rows area |
-| `add-column-field` | Add field to Columns area |
-| `add-value-field` | Add field to Values area with aggregation |
-| `add-filter-field` | Add field to Filters area |
-| `remove-field` | Remove field from PivotTable |
-| `set-field-function` | Set aggregation function (Sum, Count, Average, etc.) |
-| `set-field-name` | Set custom field display name |
-| `set-field-format` | Set number format for value field |
-| `set-field-filter` | Apply filter to a field |
-| `sort-field` | Sort field values |
-| `get-data` | Extract PivotTable data as values |
-| `set-grand-totals` | Configure grand totals display |
-| `set-subtotals` | Configure subtotals for fields |
-| `set-layout` | Set PivotTable layout style |
-| `group-by-date` | Group field by date periods |
-| `group-by-numeric` | Group field by numeric ranges |
-| `create-calculated-field` | Create calculated field with formula |
-| `delete-calculated-field` | Delete a calculated field |
-| `list-calculated-fields` | List all calculated fields |
-| `create-calculated-member` | Create calculated member (OLAP) |
-| `delete-calculated-member` | Delete a calculated member |
-| `list-calculated-members` | List all calculated members |
-
-### 📊 Charts (14 actions)
-
-| Action | Description |
-|--------|-------------|
-| `list` | List all charts in the workbook |
-| `read` | Read chart metadata and data source information |
-| `create-from-range` | Create chart from a worksheet range |
-| `create-from-pivottable` | Create PivotChart from a PivotTable |
-| `delete` | Delete a chart |
-| `move` | Move and resize chart on the sheet |
-| `set-source-range` | Update chart source range |
-| `add-series` | Add a new data series to the chart |
-| `remove-series` | Remove a data series by index |
-| `set-chart-type` | Change chart type (Column, Line, Pie, etc.) |
-| `set-title` | Set chart title text |
-| `set-axis-title` | Set title for primary or secondary axes |
-| `show-legend` | Show/hide legend and set legend position |
-| `set-style` | Apply built-in chart style (1-48) |
-
-### 📝 Ranges & Data (42 actions)
-
-| Action | Description |
-|--------|-------------|
-| `get-values` | Read cell values from range |
-| `set-values` | Write values to range |
-| `get-formulas` | Read formulas from range |
-| `set-formulas` | Write formulas to range |
-| `get-number-formats` | Get number formats for range |
-| `set-number-format` | Set number format (currency, percentage, date, etc.) |
-| `set-number-formats` | Set multiple number formats at once |
-| `clear-all` | Clear values, formulas, and formatting |
-| `clear-contents` | Clear values and formulas only |
-| `clear-formats` | Clear formatting only |
-| `copy` | Copy range (all attributes) |
-| `copy-values` | Copy values only |
-| `copy-formulas` | Copy formulas only |
-| `insert-cells` | Insert cells with shift direction |
-| `delete-cells` | Delete cells with shift direction |
-| `insert-rows` | Insert rows |
-| `delete-rows` | Delete rows |
-| `insert-columns` | Insert columns |
-| `delete-columns` | Delete columns |
-| `find` | Find cells matching criteria |
-| `replace` | Find and replace in range |
-| `sort` | Sort range by columns |
-| `get-used-range` | Get actual used range in worksheet |
-| `get-current-region` | Get contiguous range around cell |
-| `get-info` | Get range metadata (address, size, etc.) |
-| `add-hyperlink` | Add hyperlink to cell |
-| `remove-hyperlink` | Remove hyperlink from cell |
-| `list-hyperlinks` | List all hyperlinks in range |
-| `get-hyperlink` | Get hyperlink details |
-| `get-style` | Get cell style name |
-| `set-style` | Apply built-in Excel style |
-| `format-range` | Apply visual formatting (font, fill, border, alignment) |
-| `validate-range` | Add data validation rules (dropdowns, number/date/text rules) |
-| `get-validation` | Get validation settings |
-| `remove-validation` | Remove data validation |
-| `autofit-columns` | Auto-fit column widths |
-| `autofit-rows` | Auto-fit row heights |
-| `merge-cells` | Merge cells in range |
-| `unmerge-cells` | Unmerge cells |
-| `get-merge-info` | Get merge status and areas |
-| `set-cell-lock` | Lock/unlock cells for protection |
-| `get-cell-lock` | Get cell lock status |
-
-### 🎨 Conditional Formatting (2 actions)
-
-| Action | Description |
-|--------|-------------|
-| `add-rule` | Add conditional formatting rule (cell value or expression-based) |
-| `clear-rules` | Clear conditional formatting from range |
-
-### 🖥️ VBA Macros (6 actions)
-
-| Action | Description |
-|--------|-------------|
-| `list` | List all VBA modules in workbook |
-| `view` | View VBA module code |
-| `import` | Import VBA code from file |
-| `delete` | Delete VBA module |
-| `run` | Execute VBA macro |
-| `update` | Update existing VBA module code |
-
-### 🔌 Data Connections (9 actions)
-
-| Action | Description |
-|--------|-------------|
-| `list` | List all data connections |
-| `view` | View connection details and settings |
-| `create` | Create new data connection (OLEDB, ODBC, Text, Web) |
-| `test` | Test connection validity |
-| `refresh` | Refresh connection to reload data |
-| `delete` | Delete a connection |
-| `load-to` | Load connection data to worksheet |
-| `get-properties` | Get connection properties |
-| `set-properties` | Update connection properties |
-
-### 📄 Worksheets (16 actions)
-
-| Action | Description |
-|--------|-------------|
-| `list` | List all worksheets in workbook |
-| `create` | Create new worksheet |
-| `rename` | Rename worksheet |
-| `copy` | Copy worksheet within same workbook |
-| `delete` | Delete worksheet |
-| `move` | Move worksheet to different position |
-| `copy-to-file` | Copy worksheet to different file (atomic, no session needed) |
-| `move-to-file` | Move worksheet to different file (atomic, no session needed) |
-| `set-tab-color` | Set worksheet tab color (RGB) |
-| `get-tab-color` | Get current tab color |
-| `clear-tab-color` | Remove tab color |
-| `hide` | Hide worksheet from UI (visible in VBA) |
-| `very-hide` | Hide from UI and VBA |
-| `show` | Make worksheet visible |
-| `set-visibility` | Set worksheet visibility state |
-| `get-visibility` | Get current visibility state |
-| `set-visibility` | Set visibility state |
-
-### 🏷️ Named Ranges (6 actions)
-
-| Action | Description |
-|--------|-------------|
-| `list` | List all named ranges |
-| `read` | Read named range value |
-| `write` | Write value to named range |
-| `create` | Create new named range |
-| `update` | Update named range reference |
-| `delete` | Delete named range |
-
-### 📁 File Operations (6 actions)
-
-| Action | Description |
-|--------|-------------|
-| `list` | List all open workbook sessions |
-| `open` | Open workbook session |
-| `close` | Close workbook session without saving |
-| `create-empty` | Create new empty workbook (.xlsx or .xlsm) |
-| `close-workbook` | Close workbook and optionally save changes |
-| `test` | Test if workbook can be opened |
-
-</div>
+- [GitHub Repository](https://github.com/sbroenne/mcp-server-excel) — Source code, issues, and contributions
+- [Contributing Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/CONTRIBUTING.md) — How to contribute
 
 ## Related Projects
 
-- [Model Context Protocol specification and documentation](https://modelcontextprotocol.io/)
-- [Official MCP server examples and implementations](https://github.com/modelcontextprotocol/servers)
-- [Download Claude Desktop AI assistant with MCP support](https://claude.ai/download)
-- [GitHub Copilot AI coding assistant](https://github.com/features/copilot)
+Other projects by the author:
 
-## Keywords
-
-<div class="keywords">
-Excel automation, MCP server, Model Context Protocol, GitHub Copilot, Claude AI, Power Query, M language, DAX, Power Pivot, VBA macros, Excel Tables, PivotTables, data analysis, spreadsheet automation, RPA, robotic process automation, COM automation, Windows automation, AI Excel assistant, natural language Excel, Excel API, Excel COM interop, Excel CLI, command line Excel, Excel scripting, Excel batch processing, CI/CD Excel, DevOps Excel, Excel PowerShell, Excel automation tool, .NET Excel library, Excel NuGet package
-</div>
-
-</div>
-
+- [OBS Studio MCP Server](https://github.com/sbroenne/mcp-server-obs) — AI-powered OBS Studio automation for recording, streaming, and window capture
+- [HeyGen MCP Server](https://github.com/sbroenne/heygen-mcp) — MCP server for HeyGen AI video generation
+- [RVToolsMerge](https://github.com/sbroenne/RvToolsMerge) — Merge and anonymize VMware RVTools exports.
+- [Azure Retail Prices Exporter](https://github.com/sbroenne/azureretailprices-exporter) — Daily automated Azure pricing data exports with FX rates
+- [AWS CUR Anonymize](https://github.com/sbroenne/aws-cur-anonymize) — Anonymize AWS Cost & Usage Reports for secure sharing
+  
 <footer>
 <div class="container">
-<p><strong>Excel MCP Server</strong> - MIT License</p>
-<p><a href="https://github.com/sbroenne/mcp-server-excel" title="View Excel MCP Server source code and documentation">GitHub Repository</a> | <a href="https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md" title="Installation instructions for Windows, VS Code, and CLI">Installation Guide</a> | <a href="https://github.com/sbroenne/mcp-server-excel/blob/main/docs/CONTRIBUTING.md" title="Learn how to contribute to Excel MCP Server">Contributing</a></p>
+<p><strong>Excel MCP Server</strong> — MIT License — © 2024-2025</p>
 </div>
 </footer>

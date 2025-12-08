@@ -4,7 +4,7 @@
     {
       "label": "Jekyll: Serve",
       "type": "shell",
-      "command": "bundle exec jekyll serve --host 127.0.0.1 --port 4000",
+      "command": "./build.sh serve",
       "options": {
         "cwd": "${workspaceFolder}/gh-pages"
       },
@@ -38,7 +38,7 @@
     {
       "label": "Jekyll: Build",
       "type": "shell",
-      "command": "bundle exec jekyll build",
+      "command": "./build.sh",
       "options": {
         "cwd": "${workspaceFolder}/gh-pages"
       },
@@ -57,7 +57,7 @@
     {
       "label": "Jekyll: Build (Production)",
       "type": "shell",
-      "command": "JEKYLL_ENV=production bundle exec jekyll build",
+      "command": "./build.sh production",
       "options": {
         "cwd": "${workspaceFolder}/gh-pages"
       },
