@@ -1600,6 +1600,149 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
         }
     }
 
+    // =========================================================================
+    // SCENARIO 17: Use Add2 for Worksheet Loading (avoid orphaned connections)
+    // =========================================================================
+
+    [Fact]
+    public void Scenario17_UseAdd2ForWorksheetLoading()
+    {
+        _output.WriteLine("=== SCENARIO 17: Use Add2 for Worksheet Loading ===");
+        _output.WriteLine("PURPOSE: Test if we can use Connections.Add2 with CreateModelConnection=false");
+        _output.WriteLine("         and then create a ListObject that uses that named connection\n");
+
+        dynamic? queries = null;
+        dynamic? query = null;
+        dynamic? connections = null;
+        dynamic? connection = null;
+        dynamic? sheet = null;
+        dynamic? listObjects = null;
+        dynamic? listObject = null;
+        dynamic? queryTable = null;
+        dynamic? range = null;
+
+        try
+        {
+            // Step 1: Create query
+            queries = _workbook.Queries;
+            query = queries.Add("Add2WorksheetTest", SimpleQuery);
+            _output.WriteLine("Query created: Add2WorksheetTest");
+
+            // Step 2: Create connection with Add2 (CreateModelConnection = false)
+            connections = _workbook.Connections;
+            string connString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location=Add2WorksheetTest";
+
+            _output.WriteLine("\n--- Step 2: Create connection with Add2 (CreateModelConnection=false) ---");
+            connection = connections.Add2(
+                "Query - Add2WorksheetTest",           // Name - proper naming!
+                "Power Query - Add2WorksheetTest",     // Description
+                connString,                            // ConnectionString
+                "SELECT * FROM [Add2WorksheetTest]",   // CommandText
+                2,                                     // lCmdtype (xlCmdSql)
+                false,                                 // CreateModelConnection = FALSE (worksheet, not data model)
+                false                                  // ImportRelationships
+            );
+            _output.WriteLine($"Connection created: {connection.Name}");
+
+            // Step 3: Try to create ListObject using this connection
+            _output.WriteLine("\n--- Step 3: Create ListObject using the named connection ---");
+            sheet = _workbook.Worksheets.Item(1);
+            range = sheet.Range["A1"];
+            listObjects = sheet.ListObjects;
+
+            // Try using the connection name instead of connection string
+            try
+            {
+                // Method 1: Use connection name directly
+                listObject = listObjects.Add(
+                    0,                              // SourceType: 0 = xlSrcExternal
+                    connection,                     // Source: try passing connection object
+                    Type.Missing,                   // LinkSource
+                    1,                              // XlListObjectHasHeaders: xlYes
+                    range                           // Destination
+                );
+                _output.WriteLine("ListObjects.Add with connection object SUCCEEDED!");
+            }
+            catch (Exception ex)
+            {
+                _output.WriteLine($"ListObjects.Add with connection object FAILED: {ex.Message}");
+
+                // Method 2: Try with connection string but specifying the connection name
+                ComUtilities.Release(ref listObject);
+                try
+                {
+                    // Use the full connection string but the connection should already exist
+                    string fullConnString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location=Add2WorksheetTest;Extended Properties=\"\"";
+                    listObject = listObjects.Add(
+                        0,                          // SourceType: 0 = xlSrcExternal
+                        fullConnString,             // Source: connection string
+                        Type.Missing,               // LinkSource
+                        1,                          // XlListObjectHasHeaders: xlYes
+                        range                       // Destination
+                    );
+                    _output.WriteLine("ListObjects.Add with connection string SUCCEEDED!");
+                }
+                catch (Exception ex2)
+                {
+                    _output.WriteLine($"ListObjects.Add with connection string ALSO FAILED: {ex2.Message}");
+                }
+            }
+
+            if (listObject != null)
+            {
+                // Configure and refresh
+                queryTable = listObject.QueryTable;
+                queryTable.CommandType = 2;
+                queryTable.CommandText = "SELECT * FROM [Add2WorksheetTest]";
+                queryTable.BackgroundQuery = false;
+
+                _output.WriteLine("\n--- Step 4: Refresh and check connection name ---");
+                queryTable.Refresh(false);
+                _output.WriteLine("Refresh succeeded!");
+
+                // Check how many connections exist now
+                ComUtilities.Release(ref connections);
+                connections = _workbook.Connections;
+                _output.WriteLine($"\nConnections after ListObjects.Add:");
+                for (int i = 1; i <= connections.Count; i++)
+                {
+                    dynamic? conn = connections.Item(i);
+                    _output.WriteLine($"  Connection {i}: '{conn.Name}' (Type: {conn.Type})");
+                    ComUtilities.Release(ref conn);
+                }
+
+                // Key question: Did ListObjects.Add create ANOTHER connection or use our existing one?
+                int connectionCount = connections.Count;
+                if (connectionCount == 1)
+                {
+                    _output.WriteLine("\nSUCCESS: Only 1 connection exists - ListObjects.Add used our named connection!");
+                }
+                else
+                {
+                    _output.WriteLine($"\nISSUE: {connectionCount} connections exist - ListObjects.Add created a new one!");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _output.WriteLine($"ERROR: {ex.Message}");
+        }
+        finally
+        {
+            ComUtilities.Release(ref queryTable);
+            ComUtilities.Release(ref listObject);
+            ComUtilities.Release(ref listObjects);
+            ComUtilities.Release(ref range);
+            ComUtilities.Release(ref sheet);
+            ComUtilities.Release(ref connection);
+            ComUtilities.Release(ref connections);
+            ComUtilities.Release(ref query);
+            ComUtilities.Release(ref queries);
+        }
+
+        _output.WriteLine("=== SCENARIO 17 COMPLETE ===\n");
+    }
+
     /// <summary>
     /// Gets the column count from the first table.
     /// </summary>
