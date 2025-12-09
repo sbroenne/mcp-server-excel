@@ -85,9 +85,10 @@ Source: .github/instructions/critical-rules.instructions.md (Rules 0-23)
 **Use Excel COM API for everything it supports.**
 
 - Only use external libraries (TOM) for features Excel COM doesn't provide
-- Validate against Microsoft docs before adding dependencies
+- Validate against [Microsoft Excel VBA docs](https://learn.microsoft.com/office/vba/api/overview/excel) before adding dependencies
 - Excel collections use 1-based indexing, NOT 0-based
-- Search NetOffice repo for working examples before implementing
+- Search [NetOffice repo](https://github.com/NetOfficeFw/NetOffice) for working examples before implementing
+- See also: Technical Constraints → Platform Requirements
 
 **Rationale**: Excel COM is quirky. Real-world examples prevent common pitfalls.
 
@@ -241,18 +242,11 @@ Source: .github/instructions/critical-rules.instructions.md (Rules 0-23)
 3. **CLI** (`src/ExcelMcp.CLI`): Command-line interface for scripting
 4. **MCP Server** (`src/ExcelMcp.McpServer`): Model Context Protocol for AI assistants
 
-### COM API First
-
-- Use Excel COM API for everything it supports
-- Only use external libraries (TOM) for features Excel COM doesn't provide
-- Validate against Microsoft docs before adding dependencies
-- Excel collections use 1-based indexing, NOT 0-based
-
 ### Build Quality
 
 - `TreatWarningsAsErrors=true`: Zero warnings policy
-- No TODO/FIXME/HACK markers in source code
 - Security analyzers enabled (CA2100, CA3003, CA3006, CA5389, CA5390, CA5394 are errors)
+- See Principle XVII for TODO/FIXME marker rules
 
 ## Development Workflow
 
@@ -279,13 +273,7 @@ dotnet test --filter "Feature=PowerQuery&RunType!=OnDemand"
 
 ### Bug Fix Completeness
 
-Every bug fix MUST include:
-1. **Code Fix**: Minimal surgical changes
-2. **Tests**: 5-8 new tests (regression + edge cases)
-3. **Documentation**: Update 3+ files (tool docs, user docs, prompts)
-4. **Workflow Hints**: Update SuggestedNextActions and error messages
-5. **Quality Verification**: Build passes, tests green
-6. **PR Description**: Comprehensive summary
+See **Principle XIV** for the 6 required components. Detailed checklist: `.github/instructions/bug-fixing-checklist.instructions.md`
 
 ### Release Process
 
