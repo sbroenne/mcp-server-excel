@@ -5,7 +5,6 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Microsoft.AnalysisServices" Version="19.106.1" />
     <!-- UI Framework -->
     <PackageVersion Include="Spectre.Console" Version="0.54.0" />
     <PackageVersion Include="Spectre.Console.Cli" Version="0.53.1" />
@@ -23,10 +22,7 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.0" />
     <PackageVersion Include="System.Text.Json" Version="10.0.0" />
-    <!-- NuGet API Client -->
-    <PackageVersion Include="NuGet.Protocol" Version="6.12.1" />
-    <PackageVersion Include="NuGet.Versioning" Version="6.12.1" />
-    <!-- MCP SDK -->
+    <!-- MCP SDK - Latest stable preview -->
     <PackageVersion Include="ModelContextProtocol" Version="0.4.1-preview.1" />
     <!-- Testing Framework -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />

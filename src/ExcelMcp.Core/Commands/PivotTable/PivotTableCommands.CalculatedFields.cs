@@ -77,10 +77,9 @@ public partial class PivotTableCommands
                         var fieldInfo = new CalculatedFieldInfo
                         {
                             Name = field.Name?.ToString() ?? string.Empty,
-                            Formula = field.Formula?.ToString() ?? string.Empty
+                            Formula = field.Formula?.ToString() ?? string.Empty,
+                            SourceName = field.SourceName?.ToString()
                         };
-
-                        try { fieldInfo.SourceName = field.SourceName?.ToString(); } catch { }
 
                         result.CalculatedFields.Add(fieldInfo);
                     }

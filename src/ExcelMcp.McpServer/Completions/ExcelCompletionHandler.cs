@@ -53,8 +53,10 @@ public static class ExcelCompletionHandler
 
             return CreateEmptyCompletion();
         }
-        catch
+        catch (Exception ex)
         {
+            // Log parsing errors but return empty rather than crash
+            System.Diagnostics.Debug.WriteLine($"Completion parsing error: {ex.Message}");
             return CreateEmptyCompletion();
         }
     }

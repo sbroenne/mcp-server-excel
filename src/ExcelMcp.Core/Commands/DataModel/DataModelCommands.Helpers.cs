@@ -253,13 +253,10 @@ public partial class DataModelCommands
         try
         {
             model = workbook.Model;
+            if (model == null) return false;
+
             modelTables = model.ModelTables;
             return modelTables != null && modelTables.Count > 0;
-        }
-        catch (System.Runtime.InteropServices.COMException)
-        {
-            // Model or ModelTables not accessible
-            return false;
         }
         finally
         {

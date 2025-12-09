@@ -75,21 +75,7 @@ public partial class PowerQueryCommands
                 }
 
                 // STEP 2: Read WorkbookQuery properties (per Microsoft docs)
-                string mCode = "";
-                try
-                {
-                    mCode = query.Formula?.ToString() ?? "";
-                }
-                catch (System.Runtime.InteropServices.COMException ex)
-                {
-                    // Formula property not accessible - provide meaningful error
-                    throw new InvalidOperationException(
-                        $"Cannot access formula for query '{queryName}'. " +
-                        $"The query may be corrupted or have permission restrictions. " +
-                        $"COM Error: 0x{ex.HResult:X8}",
-                        ex);
-                }
-
+                string mCode = query.Formula?.ToString() ?? "";
                 result.MCode = mCode;
                 result.CharacterCount = mCode.Length;
 
