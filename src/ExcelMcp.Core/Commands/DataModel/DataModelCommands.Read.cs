@@ -168,37 +168,19 @@ public partial class DataModelCommands
                 result.CharacterCount = result.DaxFormula.Length;
                 result.TableName = GetMeasureTableName(model, measureName) ?? "";
 
-                // Try to get format information
+                // Try to get format information - use null-safe access
+                dynamic? formatInfo = null;
                 try
                 {
-                    dynamic? formatInfo = measure.FormatInformation;
+                    formatInfo = measure.FormatInformation;
                     if (formatInfo != null)
                     {
-                        try
-                        {
-                            result.FormatString = formatInfo.FormatString?.ToString();
-                        }
-                        catch (System.Runtime.InteropServices.COMException)
-                        {
-                            // FormatString property may not be accessible in certain Excel versions
-                        }
-                        catch (Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
-                        {
-                            // FormatString property may not exist on this COM object type
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref formatInfo);
-                        }
+                        result.FormatString = formatInfo.FormatString?.ToString();
                     }
                 }
-                catch (System.Runtime.InteropServices.COMException)
+                finally
                 {
-                    // FormatInformation may not be available in older Excel versions
-                }
-                catch (Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
-                {
-                    // FormatInformation property may not exist on this COM object type
+                    ComUtilities.Release(ref formatInfo);
                 }
 
                 result.Success = true;
