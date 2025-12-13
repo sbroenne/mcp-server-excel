@@ -15,6 +15,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 /// Verifies that LIST action returns operation counts and that
 /// CLOSE is blocked when operations are running.
 /// </summary>
+[Collection("ProgramTransport")]  // Uses Program.ConfigureTestTransport() - must run sequentially
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
 [Trait("Layer", "McpServer")]
@@ -50,6 +51,10 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         // Run the real server
         _serverTask = Program.Main([]);
 
+        // Allow server to initialize before client connection
+        // SDK 0.5.0+ has stricter initialization timing
+        await Task.Delay(100);
+
         // Create client connected to the server via pipes
         _client = await McpClient.CreateAsync(
             new StreamClientTransport(
@@ -57,7 +62,8 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
                 serverOutput: _serverToClientPipe.Reader.AsStream()),
             clientOptions: new McpClientOptions
             {
-                ClientInfo = new() { Name = "OpTrackingTestClient", Version = "1.0.0" }
+                ClientInfo = new() { Name = "OpTrackingTestClient", Version = "1.0.0" },
+                InitializationTimeout = TimeSpan.FromSeconds(30)  // Increase timeout for test stability
             },
             cancellationToken: _cts.Token);
 
@@ -120,6 +126,9 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         _clientToServerPipe.Reader.Complete();
         _serverToClientPipe.Writer.Complete();
         _serverToClientPipe.Reader.Complete();
+
+        // Reset test transport to avoid contaminating other tests
+        Program.ResetTestTransport();
 
         // Delete test files
         if (Directory.Exists(_tempDir))

@@ -122,7 +122,7 @@ public partial class PivotTableCommands
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Warning: Failed to read cube field {i}: {ex.Message}");
+                    Console.Error.WriteLine($"Warning: Failed to read cube field {i}: {ex.Message}");
                 }
                 finally
                 {
@@ -263,7 +263,7 @@ public partial class PivotTableCommands
                 catch (Exception ex)
                 {
                     // Log but continue - don't let one bad field break the entire list
-                    Console.WriteLine($"Warning: Failed to read field {i}: {ex.Message}");
+                    Console.Error.WriteLine($"Warning: Failed to read field {i}: {ex.Message}");
                 }
                 finally
                 {

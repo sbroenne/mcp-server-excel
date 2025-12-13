@@ -128,12 +128,21 @@ public class Program
             await host.RunAsync();
             return 0;
         }
+        catch (OperationCanceledException)
+        {
+            // Graceful shutdown via cancellation (e.g., Ctrl+C, SIGTERM)
+            // This is expected behavior, not an error
+            return 0;
+        }
         catch (Exception ex)
         {
             // Track MCP SDK/transport errors (protocol errors, serialization errors, etc.)
             ExcelMcpTelemetry.TrackUnhandledException(ex, "McpServer.RunAsync");
             ExcelMcpTelemetry.Flush(); // Ensure telemetry is sent before exit
-            throw; // Re-throw to preserve original behavior
+
+            // Return exit code 1 for fatal errors (FR-024, SC-015a)
+            // Do NOT re-throw - deterministic exit code is more important for callers
+            return 1;
         }
     }
 

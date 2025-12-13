@@ -32,6 +32,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 /// Run before commits to catch breaking changes:
 /// dotnet test --filter "FullyQualifiedName~McpServerSmokeTests"
 /// </summary>
+[Collection("ProgramTransport")]  // Uses Program.ConfigureTestTransport() - must run sequentially
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
 [Trait("Layer", "McpServer")]
@@ -79,6 +80,10 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         // The server will use our configured pipes for transport
         _serverTask = Program.Main([]);
 
+        // Allow server to initialize before client connection
+        // SDK 0.5.0+ has stricter initialization timing
+        await Task.Delay(100);
+
         // Create client connected to the server via pipes
         _client = await McpClient.CreateAsync(
             new StreamClientTransport(
@@ -86,7 +91,8 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
                 serverOutput: _serverToClientPipe.Reader.AsStream()),
             clientOptions: new McpClientOptions
             {
-                ClientInfo = new() { Name = "SmokeTestClient", Version = "1.0.0" }
+                ClientInfo = new() { Name = "SmokeTestClient", Version = "1.0.0" },
+                InitializationTimeout = TimeSpan.FromSeconds(30)  // Increase timeout for test stability
             },
             cancellationToken: _cts.Token);
 
