@@ -159,5 +159,11 @@ dotnet run --project src/ExcelMcp.McpServer
 | `tests/.../ExcelFileToolOperationTrackingTests.cs` | Modified | Test isolation |
 | `tests/.../ProgramTransportTestCollection.cs` | Created | xUnit collection |
 | `src/ExcelMcp.CLI/Commands/Sheet/SheetCommand.cs` | Modified | JSON output for mutations |
+| `src/ExcelMcp.McpServer/Program.cs` | Modified | Exit code handling (0/1) |
+| `src/ExcelMcp.Core/.../PivotTableCommands.Fields.cs` | Modified | stderr for warnings |
+| `src/ExcelMcp.Core/.../PivotTableCommands.Lifecycle.cs` | Modified | stderr for warnings |
+| `src/ExcelMcp.Core/.../RegularPivotTableFieldStrategy.cs` | Modified | stderr for warnings |
+| `src/ExcelMcp.Core/.../OlapPivotTableFieldStrategy.cs` | Modified | stderr for warnings |
 | `specs/001-upgrade-mcp-sdk/impact-report.md` | Created | Impact documentation |
 | `specs/001-upgrade-mcp-sdk/validation-plan.md` | Created | This file |
+| `specs/001-upgrade-mcp-sdk/tasks.md` | Modified | Task tracking |

@@ -134,6 +134,48 @@ The following removed/deprecated APIs from 0.5.0-preview.1 changelog were verifi
 
 ---
 
+## New SDK Features Adopted (Phase 6-7)
+
+### McpMeta Attributes (Already Present)
+
+All 12 MCP Server tools already use `[McpMeta("category", "...")]` attributes for tool categorization:
+
+| Tool | Category |
+|------|----------|
+| excel_file | session |
+| excel_worksheet | structure |
+| excel_vba | automation |
+| excel_table | data |
+| excel_range | data |
+| excel_namedrange | data |
+| excel_powerquery | query |
+| excel_connection | query |
+| excel_pivottable | analysis |
+| excel_datamodel | analysis |
+| excel_chart | analysis |
+| excel_conditionalformat | structure |
+
+### Exit Code Improvements (T039)
+
+**File**: `src/ExcelMcp.McpServer/Program.cs`
+
+**Changes**:
+- Added `OperationCanceledException` handler returning exit code `0` (graceful shutdown)
+- Changed generic exception handler to return exit code `1` instead of re-throwing
+- Ensures deterministic exit codes for callers: `0` = success/graceful, `1` = fatal error
+
+### Stdout Protocol Purity (T038)
+
+**Issue**: 8 `Console.WriteLine()` calls in Core layer PivotTable commands would pollute stdout when MCP Server uses stdio transport.
+
+**Fix**: Changed to `Console.Error.WriteLine()` in the following files:
+- `src/ExcelMcp.Core/Commands/PivotTable/PivotTableCommands.Fields.cs` (2 occurrences)
+- `src/ExcelMcp.Core/Commands/PivotTable/PivotTableCommands.Lifecycle.cs` (4 occurrences)
+- `src/ExcelMcp.Core/Commands/PivotTable/RegularPivotTableFieldStrategy.cs` (1 occurrence)
+- `src/ExcelMcp.Core/Commands/PivotTable/OlapPivotTableFieldStrategy.cs` (1 occurrence)
+
+---
+
 ## New SDK Features Available (Not Adopted)
 
 The following 0.5.0-preview.1 features are available for future adoption but not required for this upgrade:
