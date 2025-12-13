@@ -1,0 +1,158 @@
+openapi: "3.0.3"
+info:
+  title: MCP SDK Upgrade Validation Automation
+  version: "1.0.0"
+  description: |
+    Documentation-only contract for automating the upgrade validation workflow.
+    Used to formalize inputs/outputs for scripted validation steps.
+
+paths:
+  /build:
+    post:
+      operationId: runBuild
+      summary: Build solution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuildRequest"
+      responses:
+        "200":
+          description: Build succeeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuildResult"
+        "400":
+          description: Build failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuildResult"
+
+  /test:
+    post:
+      operationId: runTests
+      summary: Execute feature-scoped tests
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TestRequest"
+      responses:
+        "200":
+          description: Tests passed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestResult"
+        "400":
+          description: Tests failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestResult"
+
+  /status:
+    get:
+      operationId: getUpgradeStatus
+      summary: Get current upgrade status
+      responses:
+        "200":
+          description: Status report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusReport"
+
+components:
+  schemas:
+    BuildRequest:
+      type: object
+      properties:
+        solutionPath:
+          type: string
+          description: Path to .sln file
+        configuration:
+          type: string
+          enum: [Debug, Release]
+      required:
+        - solutionPath
+
+    BuildResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        warningCount:
+          type: integer
+        errorCount:
+          type: integer
+        errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiagnosticItem"
+
+    TestRequest:
+      type: object
+      properties:
+        projectPath:
+          type: string
+        filter:
+          type: string
+          description: xUnit filter expression
+      required:
+        - projectPath
+
+    TestResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        passed:
+          type: integer
+        failed:
+          type: integer
+        skipped:
+          type: integer
+        failures:
+          type: array
+          items:
+            type: string
+
+    StatusReport:
+      type: object
+      properties:
+        dependencyBumped:
+          type: boolean
+        buildPassing:
+          type: boolean
+        testsGreen:
+          type: boolean
+        criteriaStatus:
+          type: array
+          items:
+            $ref: "#/components/schemas/CriterionStatus"
+
+    CriterionStatus:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Success-criterion ID (e.g., SC-001)
+        passed:
+          type: boolean
+
+    DiagnosticItem:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        filePath:
+          type: string
+        line:
+          type: integer

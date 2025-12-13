@@ -66,12 +66,12 @@ internal sealed class SheetCommand : Command<SheetCommand.Settings>
         try
         {
             _sheetCommands.Create(batch, settings.SheetName);
-            _console.WriteInfo($"Sheet '{settings.SheetName}' created successfully.");
+            _console.WriteJson(new { success = true, message = $"Sheet '{settings.SheetName}' created successfully" });
             return 0;
         }
         catch (Exception ex)
         {
-            _console.WriteError($"Failed to create sheet '{settings.SheetName}': {ex.Message}");
+            _console.WriteJson(new { success = false, message = $"Failed to create sheet '{settings.SheetName}': {ex.Message}" });
             return 1;
         }
     }
@@ -87,12 +87,12 @@ internal sealed class SheetCommand : Command<SheetCommand.Settings>
         try
         {
             _sheetCommands.Rename(batch, settings.SheetName, settings.NewSheetName);
-            _console.WriteInfo($"Sheet '{settings.SheetName}' renamed to '{settings.NewSheetName}' successfully.");
+            _console.WriteJson(new { success = true, message = $"Sheet '{settings.SheetName}' renamed to '{settings.NewSheetName}' successfully" });
             return 0;
         }
         catch (Exception ex)
         {
-            _console.WriteError($"Failed to rename sheet '{settings.SheetName}': {ex.Message}");
+            _console.WriteJson(new { success = false, message = $"Failed to rename sheet '{settings.SheetName}': {ex.Message}" });
             return 1;
         }
     }
@@ -108,12 +108,12 @@ internal sealed class SheetCommand : Command<SheetCommand.Settings>
         try
         {
             _sheetCommands.Copy(batch, settings.SourceSheet, settings.TargetSheet);
-            _console.WriteInfo($"Sheet '{settings.SourceSheet}' copied to '{settings.TargetSheet}' successfully.");
+            _console.WriteJson(new { success = true, message = $"Sheet '{settings.SourceSheet}' copied to '{settings.TargetSheet}' successfully" });
             return 0;
         }
         catch (Exception ex)
         {
-            _console.WriteError($"Failed to copy sheet '{settings.SourceSheet}': {ex.Message}");
+            _console.WriteJson(new { success = false, message = $"Failed to copy sheet '{settings.SourceSheet}': {ex.Message}" });
             return 1;
         }
     }
@@ -129,12 +129,12 @@ internal sealed class SheetCommand : Command<SheetCommand.Settings>
         try
         {
             _sheetCommands.Delete(batch, settings.SheetName);
-            _console.WriteInfo($"Sheet '{settings.SheetName}' deleted successfully.");
+            _console.WriteJson(new { success = true, message = $"Sheet '{settings.SheetName}' deleted successfully" });
             return 0;
         }
         catch (Exception ex)
         {
-            _console.WriteError($"Failed to delete sheet '{settings.SheetName}': {ex.Message}");
+            _console.WriteJson(new { success = false, message = $"Failed to delete sheet '{settings.SheetName}': {ex.Message}" });
             return 1;
         }
     }
@@ -156,12 +156,12 @@ internal sealed class SheetCommand : Command<SheetCommand.Settings>
         try
         {
             _sheetCommands.SetTabColor(batch, settings.SheetName, settings.Red.Value, settings.Green.Value, settings.Blue.Value);
-            _console.WriteInfo($"Tab color for sheet '{settings.SheetName}' set successfully.");
+            _console.WriteJson(new { success = true, message = $"Tab color for sheet '{settings.SheetName}' set successfully" });
             return 0;
         }
         catch (Exception ex)
         {
-            _console.WriteError($"Failed to set tab color for sheet '{settings.SheetName}': {ex.Message}");
+            _console.WriteJson(new { success = false, message = $"Failed to set tab color for sheet '{settings.SheetName}': {ex.Message}" });
             return 1;
         }
     }
@@ -188,12 +188,12 @@ internal sealed class SheetCommand : Command<SheetCommand.Settings>
         try
         {
             _sheetCommands.ClearTabColor(batch, settings.SheetName);
-            _console.WriteInfo($"Tab color for sheet '{settings.SheetName}' cleared successfully.");
+            _console.WriteJson(new { success = true, message = $"Tab color for sheet '{settings.SheetName}' cleared successfully" });
             return 0;
         }
         catch (Exception ex)
         {
-            _console.WriteError($"Failed to clear tab color for sheet '{settings.SheetName}': {ex.Message}");
+            _console.WriteJson(new { success = false, message = $"Failed to clear tab color for sheet '{settings.SheetName}': {ex.Message}" });
             return 1;
         }
     }
@@ -215,12 +215,12 @@ internal sealed class SheetCommand : Command<SheetCommand.Settings>
         try
         {
             _sheetCommands.SetVisibility(batch, settings.SheetName, visibility);
-            _console.WriteInfo($"Sheet '{settings.SheetName}' visibility set to {visibility} successfully.");
+            _console.WriteJson(new { success = true, message = $"Sheet '{settings.SheetName}' visibility set to {visibility} successfully" });
             return 0;
         }
         catch (Exception ex)
         {
-            _console.WriteError($"Failed to set visibility for sheet '{settings.SheetName}': {ex.Message}");
+            _console.WriteJson(new { success = false, message = $"Failed to set visibility for sheet '{settings.SheetName}': {ex.Message}" });
             return 1;
         }
     }
@@ -236,12 +236,12 @@ internal sealed class SheetCommand : Command<SheetCommand.Settings>
         try
         {
             _sheetCommands.Show(batch, settings.SheetName);
-            _console.WriteInfo($"Sheet '{settings.SheetName}' shown successfully.");
+            _console.WriteJson(new { success = true, message = $"Sheet '{settings.SheetName}' shown successfully" });
             return 0;
         }
         catch (Exception ex)
         {
-            _console.WriteError($"Failed to show sheet '{settings.SheetName}': {ex.Message}");
+            _console.WriteJson(new { success = false, message = $"Failed to show sheet '{settings.SheetName}': {ex.Message}" });
             return 1;
         }
     }
@@ -257,12 +257,12 @@ internal sealed class SheetCommand : Command<SheetCommand.Settings>
         try
         {
             _sheetCommands.Hide(batch, settings.SheetName);
-            _console.WriteInfo($"Sheet '{settings.SheetName}' hidden successfully.");
+            _console.WriteJson(new { success = true, message = $"Sheet '{settings.SheetName}' hidden successfully" });
             return 0;
         }
         catch (Exception ex)
         {
-            _console.WriteError($"Failed to hide sheet '{settings.SheetName}': {ex.Message}");
+            _console.WriteJson(new { success = false, message = $"Failed to hide sheet '{settings.SheetName}': {ex.Message}" });
             return 1;
         }
     }
@@ -278,12 +278,12 @@ internal sealed class SheetCommand : Command<SheetCommand.Settings>
         try
         {
             _sheetCommands.VeryHide(batch, settings.SheetName);
-            _console.WriteInfo($"Sheet '{settings.SheetName}' very hidden successfully.");
+            _console.WriteJson(new { success = true, message = $"Sheet '{settings.SheetName}' very hidden successfully" });
             return 0;
         }
         catch (Exception ex)
         {
-            _console.WriteError($"Failed to very-hide sheet '{settings.SheetName}': {ex.Message}");
+            _console.WriteJson(new { success = false, message = $"Failed to very-hide sheet '{settings.SheetName}': {ex.Message}" });
             return 1;
         }
     }
