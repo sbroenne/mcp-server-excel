@@ -146,7 +146,19 @@ public partial class PowerQueryCommands
                                 try
                                 {
                                     listObj = listObjects.Item(lo);
-                                    queryTable = listObj.QueryTable;
+
+                                    // NOTE: Accessing QueryTable on a regular Excel table (not from external data)
+                                    // throws COMException 0x800A03EC. We must catch and skip such tables.
+                                    try
+                                    {
+                                        queryTable = listObj.QueryTable;
+                                    }
+                                    catch (System.Runtime.InteropServices.COMException)
+                                    {
+                                        // Regular table without QueryTable - skip it
+                                        continue;
+                                    }
+
                                     if (queryTable == null) continue;
 
                                     wbConn = queryTable.WorkbookConnection;
