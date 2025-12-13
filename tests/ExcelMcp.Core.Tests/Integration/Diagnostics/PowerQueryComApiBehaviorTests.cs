@@ -1743,6 +1743,486 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
         _output.WriteLine("=== SCENARIO 17 COMPLETE ===\n");
     }
 
+    // =========================================================================
+    // SCENARIO 18: List vs View Behavior on Connection-Only Queries
+    // =========================================================================
+    // Bug Report: List works but View fails with 0x800A03EC on complex queries
+    // This test investigates what operations fail on connection-only queries
+
+    [Fact]
+    public void Scenario18_ListVsView_ConnectionOnlyQuery()
+    {
+        _output.WriteLine("=== SCENARIO 18: List vs View on Connection-Only Query ===");
+        _output.WriteLine("PURPOSE: Investigate why List works but View fails with 0x800A03EC\n");
+
+        // Use a more complex M code that references functions (similar to bug report)
+        const string complexQuery = """
+            let
+                // Simulates a query with helper function (like fnLoadMilestoneExport in bug report)
+                fnHelper = (x as number) => x * 2,
+                Source = #table({"ID", "Name", "Value"}, {
+                    {1, "Item1", fnHelper(100)},
+                    {2, "Item2", fnHelper(200)},
+                    {3, "Item3", fnHelper(300)}
+                }),
+                AddColumn = Table.AddColumn(Source, "Doubled", each fnHelper([Value]))
+            in
+                AddColumn
+            """;
+
+        dynamic? queries = null;
+        dynamic? query = null;
+        dynamic? worksheets = null;
+
+        try
+        {
+            queries = _workbook.Queries;
+
+            // STEP 1: Create a connection-only query (no loading to worksheet)
+            _output.WriteLine("--- STEP 1: Create Connection-Only Query ---");
+            query = queries.Add("ComplexConnectionOnly", complexQuery);
+            _output.WriteLine($"Query created: ComplexConnectionOnly");
+            _output.WriteLine($"Query count: {queries.Count}");
+
+            // STEP 2: Test List-like operations (what List() does)
+            _output.WriteLine("\n--- STEP 2: Test List-like Operations ---");
+            _output.WriteLine("Iterating queries like List() does...\n");
+
+            for (int i = 1; i <= queries.Count; i++)
+            {
+                dynamic? q = null;
+                try
+                {
+                    _output.WriteLine($"Query {i}:");
+
+                    // Test accessing queries.Item(i) - like List does
+                    _output.WriteLine($"  Calling queries.Item({i})...");
+                    q = queries.Item(i);
+                    _output.WriteLine($"  SUCCESS: queries.Item({i}) worked");
+
+                    // Test accessing Name property
+                    _output.WriteLine($"  Calling q.Name...");
+                    string name = q.Name?.ToString() ?? "(null)";
+                    _output.WriteLine($"  SUCCESS: Name = '{name}'");
+
+                    // Test accessing Formula property (this is what List catches with try-catch)
+                    _output.WriteLine($"  Calling q.Formula...");
+                    try
+                    {
+                        string formula = q.Formula?.ToString() ?? "(null)";
+                        _output.WriteLine($"  SUCCESS: Formula length = {formula.Length} chars");
+                        _output.WriteLine($"  Formula preview: {formula[..Math.Min(50, formula.Length)]}...");
+                    }
+                    catch (COMException ex)
+                    {
+                        _output.WriteLine($"  FAILED: Formula access threw 0x{ex.HResult:X8}");
+                        _output.WriteLine($"  Message: {ex.Message}");
+                    }
+                }
+                catch (COMException ex)
+                {
+                    _output.WriteLine($"  FAILED at query {i}: 0x{ex.HResult:X8} - {ex.Message}");
+                }
+                finally
+                {
+                    if (q != null) ComUtilities.Release(ref q!);
+                }
+            }
+
+            // STEP 3: Test View-like operations (what View() does differently)
+            _output.WriteLine("\n--- STEP 3: Test View-like Operations ---");
+            _output.WriteLine("Simulating View() operations...\n");
+
+            // View does the same query lookup, but then also iterates worksheets
+            dynamic? foundQuery = null;
+            try
+            {
+                // Find query by name (same as View)
+                _output.WriteLine("Finding query by name 'ComplexConnectionOnly'...");
+                for (int i = 1; i <= queries.Count; i++)
+                {
+                    dynamic? q = null;
+                    try
+                    {
+                        q = queries.Item(i);
+                        string qName = q.Name?.ToString() ?? "";
+                        if (qName.Equals("ComplexConnectionOnly", StringComparison.OrdinalIgnoreCase))
+                        {
+                            foundQuery = q;
+                            q = null; // Don't release
+                            _output.WriteLine($"  Found query at index {i}");
+                            break;
+                        }
+                    }
+                    finally
+                    {
+                        if (q != null) ComUtilities.Release(ref q!);
+                    }
+                }
+
+                if (foundQuery == null)
+                {
+                    _output.WriteLine("  ERROR: Query not found!");
+                }
+                else
+                {
+                    // Read Formula (same as View)
+                    _output.WriteLine("\nReading Formula property...");
+                    try
+                    {
+                        string mCode = foundQuery.Formula?.ToString() ?? "";
+                        _output.WriteLine($"  SUCCESS: Formula length = {mCode.Length}");
+                    }
+                    catch (COMException ex)
+                    {
+                        _output.WriteLine($"  FAILED: 0x{ex.HResult:X8} - {ex.Message}");
+                    }
+
+                    // Now iterate worksheets to detect load configuration (this is what View does extra)
+                    _output.WriteLine("\nIterating worksheets to detect load configuration...");
+                    worksheets = _workbook.Worksheets;
+                    _output.WriteLine($"  Worksheet count: {worksheets.Count}");
+
+                    for (int ws = 1; ws <= worksheets.Count; ws++)
+                    {
+                        dynamic? worksheet = null;
+                        dynamic? queryTables = null;
+                        dynamic? listObjects = null;
+
+                        try
+                        {
+                            _output.WriteLine($"\n  Worksheet {ws}:");
+                            worksheet = worksheets.Item(ws);
+                            _output.WriteLine($"    Name: {worksheet.Name}");
+
+                            // Check QueryTables
+                            _output.WriteLine($"    Accessing QueryTables...");
+                            try
+                            {
+                                queryTables = worksheet.QueryTables;
+                                _output.WriteLine($"    SUCCESS: QueryTables.Count = {queryTables.Count}");
+
+                                for (int qt = 1; qt <= queryTables.Count; qt++)
+                                {
+                                    dynamic? qTable = null;
+                                    dynamic? wbConn = null;
+                                    dynamic? oledbConn = null;
+                                    try
+                                    {
+                                        _output.WriteLine($"      QueryTable {qt}:");
+                                        qTable = queryTables.Item(qt);
+
+                                        _output.WriteLine($"        Accessing WorkbookConnection...");
+                                        wbConn = qTable.WorkbookConnection;
+                                        if (wbConn == null)
+                                        {
+                                            _output.WriteLine($"        WorkbookConnection is null");
+                                            continue;
+                                        }
+                                        _output.WriteLine($"        SUCCESS: WorkbookConnection accessed");
+
+                                        _output.WriteLine($"        Accessing OLEDBConnection...");
+                                        oledbConn = wbConn.OLEDBConnection;
+                                        if (oledbConn == null)
+                                        {
+                                            _output.WriteLine($"        OLEDBConnection is null");
+                                            continue;
+                                        }
+                                        _output.WriteLine($"        SUCCESS: OLEDBConnection accessed");
+
+                                        _output.WriteLine($"        Accessing Connection string...");
+                                        string connString = oledbConn.Connection?.ToString() ?? "";
+                                        _output.WriteLine($"        SUCCESS: Connection string length = {connString.Length}");
+                                    }
+                                    catch (COMException ex)
+                                    {
+                                        _output.WriteLine($"        FAILED: 0x{ex.HResult:X8} - {ex.Message}");
+                                    }
+                                    finally
+                                    {
+                                        if (oledbConn != null) ComUtilities.Release(ref oledbConn!);
+                                        if (wbConn != null) ComUtilities.Release(ref wbConn!);
+                                        if (qTable != null) ComUtilities.Release(ref qTable!);
+                                    }
+                                }
+                            }
+                            catch (COMException ex)
+                            {
+                                _output.WriteLine($"    FAILED accessing QueryTables: 0x{ex.HResult:X8} - {ex.Message}");
+                            }
+
+                            // Check ListObjects
+                            _output.WriteLine($"    Accessing ListObjects...");
+                            try
+                            {
+                                listObjects = worksheet.ListObjects;
+                                _output.WriteLine($"    SUCCESS: ListObjects.Count = {listObjects.Count}");
+
+                                for (int lo = 1; lo <= listObjects.Count; lo++)
+                                {
+                                    dynamic? listObj = null;
+                                    dynamic? loQueryTable = null;
+
+                                    try
+                                    {
+                                        _output.WriteLine($"      ListObject {lo}:");
+                                        listObj = listObjects.Item(lo);
+
+                                        _output.WriteLine($"        Accessing QueryTable property...");
+                                        try
+                                        {
+                                            loQueryTable = listObj.QueryTable;
+                                            if (loQueryTable == null)
+                                            {
+                                                _output.WriteLine($"        QueryTable is null (manual table)");
+                                            }
+                                            else
+                                            {
+                                                _output.WriteLine($"        SUCCESS: QueryTable accessed");
+                                            }
+                                        }
+                                        catch (COMException ex)
+                                        {
+                                            _output.WriteLine($"        EXPECTED: ListObject.QueryTable threw 0x{ex.HResult:X8}");
+                                            _output.WriteLine($"        (Normal for ListObjects without QueryTable)");
+                                        }
+                                    }
+                                    finally
+                                    {
+                                        if (loQueryTable != null) ComUtilities.Release(ref loQueryTable!);
+                                        if (listObj != null) ComUtilities.Release(ref listObj!);
+                                    }
+                                }
+                            }
+                            catch (COMException ex)
+                            {
+                                _output.WriteLine($"    FAILED accessing ListObjects: 0x{ex.HResult:X8} - {ex.Message}");
+                            }
+                        }
+                        catch (COMException ex)
+                        {
+                            _output.WriteLine($"    FAILED accessing worksheet: 0x{ex.HResult:X8} - {ex.Message}");
+                        }
+                        finally
+                        {
+                            if (listObjects != null) ComUtilities.Release(ref listObjects!);
+                            if (queryTables != null) ComUtilities.Release(ref queryTables!);
+                            if (worksheet != null) ComUtilities.Release(ref worksheet!);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                if (foundQuery != null) ComUtilities.Release(ref foundQuery!);
+            }
+
+            _output.WriteLine("\n--- SUMMARY ---");
+            _output.WriteLine("If List-like operations succeeded but View-like failed,");
+            _output.WriteLine("the issue is in the worksheet/QueryTable/ListObject iteration.");
+            _output.WriteLine("If both succeeded, the issue may be specific to the real workbook's state.");
+        }
+        finally
+        {
+            ComUtilities.Release(ref worksheets);
+            ComUtilities.Release(ref query);
+            ComUtilities.Release(ref queries);
+        }
+
+        _output.WriteLine("=== SCENARIO 18 COMPLETE ===\n");
+    }
+
+    // =========================================================================
+    // SCENARIO 19: Query with Dependencies (like bug report)
+    // =========================================================================
+    // Bug Report mentions query referencing another query (fnEnsureColumn)
+
+    [Fact]
+    public void Scenario19_QueryWithDependencies()
+    {
+        _output.WriteLine("=== SCENARIO 19: Query with Dependencies ===");
+        _output.WriteLine("PURPOSE: Test View/Update on queries that reference other queries\n");
+
+        // Create a base query first
+        const string baseQuery = """
+            let
+                Source = #table({"ID", "Name"}, {{1, "A"}, {2, "B"}, {3, "C"}})
+            in
+                Source
+            """;
+
+        // Create a dependent query that references the base
+        const string dependentQuery = """
+            let
+                Source = BaseQuery,
+                AddValue = Table.AddColumn(Source, "Value", each [ID] * 10)
+            in
+                AddValue
+            """;
+
+        dynamic? queries = null;
+        dynamic? baseQ = null;
+        dynamic? depQ = null;
+
+        try
+        {
+            queries = _workbook.Queries;
+
+            // Create base query
+            _output.WriteLine("--- Creating Base Query ---");
+            baseQ = queries.Add("BaseQuery", baseQuery);
+            _output.WriteLine($"Base query created. Count: {queries.Count}");
+
+            // Create dependent query
+            _output.WriteLine("\n--- Creating Dependent Query ---");
+            depQ = queries.Add("DependentQuery", dependentQuery);
+            _output.WriteLine($"Dependent query created. Count: {queries.Count}");
+
+            // Test accessing Formula on both
+            _output.WriteLine("\n--- Testing Formula Access ---");
+
+            ComUtilities.Release(ref baseQ);
+            ComUtilities.Release(ref depQ);
+
+            for (int i = 1; i <= queries.Count; i++)
+            {
+                dynamic? q = null;
+                try
+                {
+                    q = queries.Item(i);
+                    string name = q.Name?.ToString() ?? "";
+                    _output.WriteLine($"\nQuery: {name}");
+
+                    try
+                    {
+                        string formula = q.Formula?.ToString() ?? "";
+                        _output.WriteLine($"  Formula access: SUCCESS ({formula.Length} chars)");
+                    }
+                    catch (COMException ex)
+                    {
+                        _output.WriteLine($"  Formula access: FAILED 0x{ex.HResult:X8}");
+                    }
+
+                    // Try to update the formula (like Update does)
+                    _output.WriteLine($"  Testing Formula assignment...");
+                    try
+                    {
+                        string currentFormula = q.Formula?.ToString() ?? "";
+                        // Just reassign the same formula
+                        q.Formula = currentFormula;
+                        _output.WriteLine($"  Formula assignment: SUCCESS");
+                    }
+                    catch (COMException ex)
+                    {
+                        _output.WriteLine($"  Formula assignment: FAILED 0x{ex.HResult:X8}");
+                        _output.WriteLine($"  Message: {ex.Message}");
+                    }
+                }
+                finally
+                {
+                    if (q != null) ComUtilities.Release(ref q!);
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref depQ);
+            ComUtilities.Release(ref baseQ);
+            ComUtilities.Release(ref queries);
+        }
+
+        _output.WriteLine("\n=== SCENARIO 19 COMPLETE ===\n");
+    }
+
+    // =========================================================================
+    // SCENARIO 20: ListObject.QueryTable Access on Non-External Data Tables
+    // =========================================================================
+    // CRITICAL TEST: Does accessing QueryTable property on a ListObject
+    // created from regular data (not external connection) throw an exception?
+
+    [Fact]
+    public void Scenario20_ListObjectQueryTableAccess_OnRegularTable()
+    {
+        _output.WriteLine("=== SCENARIO 20: ListObject.QueryTable Access on Regular Tables ===");
+        _output.WriteLine("PURPOSE: Determine if accessing QueryTable on a non-query ListObject throws\n");
+
+        dynamic? sheets = null;
+        dynamic? sheet = null;
+        dynamic? range = null;
+        dynamic? listObjects = null;
+        dynamic? listObject = null;
+
+        try
+        {
+            // Create a regular Excel table (not from external data)
+            sheets = _workbook.Worksheets;
+            sheet = sheets.Add();
+            string sheetName = sheet.Name;
+
+            _output.WriteLine($"Created test sheet: {sheetName}");
+
+            // Add some data
+            sheet.Range["A1"].Value2 = "Header1";
+            sheet.Range["B1"].Value2 = "Header2";
+            sheet.Range["A2"].Value2 = "Value1";
+            sheet.Range["B2"].Value2 = "Value2";
+
+            // Create a ListObject from range (regular table, NOT from external data)
+            range = sheet.Range["A1:B2"];
+            listObjects = sheet.ListObjects;
+
+            // xlSrcRange = 1 (create from range data)
+            listObject = listObjects.Add(1, range, Type.Missing, 1, Type.Missing);
+            string tableName = listObject.Name;
+            _output.WriteLine($"Created regular table: {tableName}");
+
+            // NOW: Try to access QueryTable on this regular table
+            _output.WriteLine("\n--- Testing ListObject.QueryTable access ---");
+            _output.WriteLine("Attempting to access listObject.QueryTable on regular table...");
+
+            dynamic? queryTable = null;
+            try
+            {
+                queryTable = listObject.QueryTable;
+                if (queryTable == null)
+                {
+                    _output.WriteLine("RESULT: QueryTable property returned NULL (no exception)");
+                }
+                else
+                {
+                    _output.WriteLine($"RESULT: QueryTable property returned an object (unexpected for regular table)");
+                }
+            }
+            catch (System.Runtime.InteropServices.COMException ex)
+            {
+                _output.WriteLine($"RESULT: COMException thrown!");
+                _output.WriteLine($"  HResult: 0x{ex.HResult:X8}");
+                _output.WriteLine($"  Message: {ex.Message}");
+                _output.WriteLine("\n*** FINDING: View/Update MUST use try-catch when accessing ListObject.QueryTable ***");
+            }
+            finally
+            {
+                if (queryTable != null) ComUtilities.Release(ref queryTable!);
+            }
+
+            // Clean up the test table
+            listObject.Delete();
+            sheet.Delete();
+
+            _output.WriteLine("\nCleanup complete");
+        }
+        finally
+        {
+            if (listObject != null) ComUtilities.Release(ref listObject!);
+            if (listObjects != null) ComUtilities.Release(ref listObjects!);
+            if (range != null) ComUtilities.Release(ref range!);
+            if (sheet != null) ComUtilities.Release(ref sheet!);
+            if (sheets != null) ComUtilities.Release(ref sheets!);
+        }
+
+        _output.WriteLine("\n=== SCENARIO 20 COMPLETE ===\n");
+    }
+
     /// <summary>
     /// Gets the column count from the first table.
     /// </summary>

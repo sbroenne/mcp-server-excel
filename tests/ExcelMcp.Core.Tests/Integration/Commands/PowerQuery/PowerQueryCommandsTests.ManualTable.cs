@@ -111,4 +111,186 @@ in
         // Query should be connection-only (manual table shouldn't affect this)
         Assert.True(query.IsConnectionOnly);
     }
+
+    /// <summary>
+    /// Regression test: Verifies View() handles workbooks with manually created tables
+    /// Bug: View() was throwing COMException 0x800A03EC when iterating ListObjects
+    /// because manually created tables don't have QueryTable property.
+    /// Fix: View() now catches COMException when accessing ListObject.QueryTable and skips non-query tables.
+    /// </summary>
+    [Fact]
+    public void View_WorkbookWithManualTable_ReturnsQueryDetails()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        var dataModelCommands = new DataModelCommands();
+        var commands = new PowerQueryCommands(dataModelCommands);
+
+        const string queryName = "TestQuery";
+        const string mCode = @"let
+    Source = #table(
+        {""Column1"", ""Column2""},
+        {
+            {""A"", ""B""},
+            {""C"", ""D""}
+        }
+    )
+in
+    Source";
+
+        // Act
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Step 1: Create a manually created table (no Power Query connection)
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            dynamic? range = null;
+            dynamic? listObjects = null;
+            try
+            {
+                sheet = ctx.Book.Worksheets.Item(1);
+                sheet.Name = "TestSheet";
+
+                // Add some data
+                range = sheet.Range["A1:B3"];
+                range.Value2 = new object[,]
+                {
+                    { "Header1", "Header2" },
+                    { "Data1", "Data2" },
+                    { "Data3", "Data4" }
+                };
+
+                // Create a manual table (ListObject) - NO QueryTable
+                listObjects = sheet.ListObjects;
+                dynamic? listObject = listObjects.Add(
+                    1,              // xlSrcRange (manual table from range)
+                    range,          // Source range
+                    Type.Missing,   // LinkSource
+                    1,              // xlYes (has headers)
+                    Type.Missing    // Destination
+                );
+                listObject.Name = "ManualTable";
+                ComUtilities.Release(ref listObject!);
+            }
+            finally
+            {
+                ComUtilities.Release(ref listObjects!);
+                ComUtilities.Release(ref range!);
+                ComUtilities.Release(ref sheet!);
+            }
+        });
+
+        // Step 2: Create a Power Query (connection-only)
+        commands.Create(batch, queryName, mCode, PowerQueryLoadMode.ConnectionOnly);
+
+        // Step 3: View the query - THIS WAS THROWING 0x800A03EC before the fix
+        var result = commands.View(batch, queryName);
+
+        // Assert
+        Assert.True(result.Success, $"View failed: {result.ErrorMessage}");
+        Assert.Equal(queryName, result.QueryName);
+        Assert.NotEmpty(result.MCode);
+        Assert.Contains("Source = #table", result.MCode);
+
+        // Verify load destination detected correctly despite manual table presence
+        Assert.True(result.IsConnectionOnly);
+    }
+
+    /// <summary>
+    /// Regression test: Verifies Update() handles workbooks with manually created tables
+    /// Bug: Update() was throwing COMException 0x800A03EC when iterating ListObjects
+    /// because manually created tables don't have QueryTable property.
+    /// Fix: Update() now catches COMException when accessing ListObject.QueryTable and skips non-query tables.
+    /// </summary>
+    [Fact]
+    public void Update_WorkbookWithManualTable_UpdatesQuerySuccessfully()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        var dataModelCommands = new DataModelCommands();
+        var commands = new PowerQueryCommands(dataModelCommands);
+
+        const string queryName = "TestQuery";
+        const string originalMCode = @"let
+    Source = #table(
+        {""Column1"", ""Column2""},
+        {
+            {""A"", ""B""},
+            {""C"", ""D""}
+        }
+    )
+in
+    Source";
+
+        const string updatedMCode = @"let
+    Source = #table(
+        {""NewCol1"", ""NewCol2"", ""NewCol3""},
+        {
+            {1, 2, 3},
+            {4, 5, 6}
+        }
+    )
+in
+    Source";
+
+        // Act
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Step 1: Create a manually created table (no Power Query connection)
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            dynamic? range = null;
+            dynamic? listObjects = null;
+            try
+            {
+                sheet = ctx.Book.Worksheets.Item(1);
+                sheet.Name = "TestSheet";
+
+                // Add some data
+                range = sheet.Range["A1:B3"];
+                range.Value2 = new object[,]
+                {
+                    { "Header1", "Header2" },
+                    { "Data1", "Data2" },
+                    { "Data3", "Data4" }
+                };
+
+                // Create a manual table (ListObject) - NO QueryTable
+                listObjects = sheet.ListObjects;
+                dynamic? listObject = listObjects.Add(
+                    1,              // xlSrcRange (manual table from range)
+                    range,          // Source range
+                    Type.Missing,   // LinkSource
+                    1,              // xlYes (has headers)
+                    Type.Missing    // Destination
+                );
+                listObject.Name = "ManualTable";
+                ComUtilities.Release(ref listObject!);
+            }
+            finally
+            {
+                ComUtilities.Release(ref listObjects!);
+                ComUtilities.Release(ref range!);
+                ComUtilities.Release(ref sheet!);
+            }
+        });
+
+        // Step 2: Create a Power Query (connection-only)
+        commands.Create(batch, queryName, originalMCode, PowerQueryLoadMode.ConnectionOnly);
+
+        // Step 3: Update the query - THIS WAS THROWING 0x800A03EC before the fix
+        commands.Update(batch, queryName, updatedMCode);
+
+        // Step 4: Verify the update by viewing
+        var viewResult = commands.View(batch, queryName);
+        Assert.True(viewResult.Success, $"View after update failed: {viewResult.ErrorMessage}");
+        Assert.Contains("NewCol1", viewResult.MCode);
+        Assert.Contains("NewCol2", viewResult.MCode);
+        Assert.Contains("NewCol3", viewResult.MCode);
+        Assert.DoesNotContain("Column1", viewResult.MCode);
+    }
 }
