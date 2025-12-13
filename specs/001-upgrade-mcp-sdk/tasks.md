@@ -177,10 +177,14 @@
   - **Status**: ✅ Build succeeded with 0 warnings, 0 errors
 - [X] T050 Full test verification: Run all feature-scoped tests per validation plan
   - **Status**: ✅ MCP Server: 66/66, CLI: 2/2 passed
-- [ ] T051 Update CHANGELOG or release notes with SDK upgrade summary
-- [ ] T051a List all documentation files requiring updates with assigned owners/locations (FR-007)
+- [X] T051 Update CHANGELOG or release notes with SDK upgrade summary
+  - **Status**: ✅ Added v1.4.35 entry to vscode-extension/CHANGELOG.md
+- [X] T051a List all documentation files requiring updates with assigned owners/locations (FR-007)
+  - **Status**: ✅ Documented in impact-report.md and validation-plan.md
 - [ ] T051b Archive/link SDK 0.5.0-preview.1 release notes sources for future audits (FR-008)
-- [ ] T052 PR description: Document bug/fix, tests, docs updated per bug-fixing-checklist
+  - **Status**: Skipped - SDK is pre-release, official release notes available on GitHub/NuGet
+- [X] T052 PR description: Document bug/fix, tests, docs updated per bug-fixing-checklist
+  - **Status**: ✅ PR #301 updated with comprehensive description
 
 ---
 
