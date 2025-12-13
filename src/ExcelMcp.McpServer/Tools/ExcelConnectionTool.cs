@@ -36,8 +36,9 @@ public static partial class ExcelConnectionTool
     /// <param name="refreshOnFileOpen">Refresh on file open setting (for set-properties, optional)</param>
     /// <param name="savePassword">Save password setting (for set-properties, optional)</param>
     /// <param name="refreshPeriod">Refresh period in minutes (for set-properties, optional)</param>
-    [McpServerTool(Name = "excel_connection")]
+    [McpServerTool(Name = "excel_connection", Title = "Excel Data Connection Operations")]
     [McpMeta("category", "query")]
+    [McpMeta("requiresSession", true)]
     public static partial string ExcelConnection(
         ConnectionAction action,
         string excelPath,

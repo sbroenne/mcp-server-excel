@@ -28,8 +28,9 @@ public static partial class TableTool
     /// <param name="filterValues">JSON array of filter values (e.g., '["Value1","Value2"]') for apply-filter-values</param>
     /// <param name="formatCode">Excel format code for set-column-number-format. ALWAYS use US format codes (e.g., '$#,##0.00', '0.00%', 'm/d/yyyy'). The server auto-translates to the user's locale.</param>
     /// <param name="visibleOnly">When reading data, return only rows currently visible after filters (default: false)</param>
-    [McpServerTool(Name = "excel_table")]
+    [McpServerTool(Name = "excel_table", Title = "Excel Table Operations")]
     [McpMeta("category", "data")]
+    [McpMeta("requiresSession", true)]
     public static partial string Table(
         TableAction action,
         string excelPath,

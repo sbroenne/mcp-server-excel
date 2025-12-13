@@ -31,8 +31,9 @@ public static partial class ExcelDataModelTool
     /// <param name="toTable">Target table name (for delete-relationship, create-relationship, update-relationship)</param>
     /// <param name="toColumn">Target column name (for delete-relationship, create-relationship, update-relationship)</param>
     /// <param name="isActive">Whether relationship is active (for create-relationship, update-relationship), default: true</param>
-    [McpServerTool(Name = "excel_datamodel")]
+    [McpServerTool(Name = "excel_datamodel", Title = "Excel Data Model Operations")]
     [McpMeta("category", "analysis")]
+    [McpMeta("requiresSession", true)]
     public static partial string ExcelDataModel(
         DataModelAction action,
         string excelPath,

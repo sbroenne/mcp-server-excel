@@ -46,8 +46,9 @@ public static partial class ExcelPivotTableTool
     /// <param name="subtotalsVisible">Show/hide subtotals for field: true=show automatic subtotals, false=hide</param>
     /// <param name="showRowGrandTotals">Show/hide row grand totals: true=show bottom summary row, false=hide</param>
     /// <param name="showColumnGrandTotals">Show/hide column grand totals: true=show right summary column, false=hide</param>
-    [McpServerTool(Name = "excel_pivottable")]
+    [McpServerTool(Name = "excel_pivottable", Title = "Excel PivotTable Operations")]
     [McpMeta("category", "analysis")]
+    [McpMeta("requiresSession", true)]
     public static partial string ExcelPivotTable(
         PivotTableAction action,
         string excelPath,

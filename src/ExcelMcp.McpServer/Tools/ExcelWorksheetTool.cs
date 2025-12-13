@@ -38,8 +38,9 @@ public static partial class ExcelWorksheetTool
     /// <param name="green">Green component (0-255) for set-tab-color action</param>
     /// <param name="blue">Blue component (0-255) for set-tab-color action</param>
     /// <param name="visibility">Visibility level for set-visibility action: visible (normal), hidden (user can unhide), veryhidden (requires code to unhide)</param>
-    [McpServerTool(Name = "excel_worksheet")]
+    [McpServerTool(Name = "excel_worksheet", Title = "Excel Worksheet Operations")]
     [McpMeta("category", "structure")]
+    [McpMeta("requiresSession", true)]
     public static partial string ExcelWorksheet(
         WorksheetAction action,
         [DefaultValue(null)] string? sessionId,

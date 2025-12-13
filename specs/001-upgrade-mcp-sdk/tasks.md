@@ -127,9 +127,9 @@
 **Purpose**: Adopt new SDK features and best practices across the codebase
 
 - [X] T033 [P] Adopt `WithMeta` for at least one tool response in src/ExcelMcp.McpServer/ (FR-020, SC-012)
-  - **Status**: ✅ All 12 tools already have `[McpMeta("category", "...")]` attributes (verified)
+  - **Status**: ✅ All 12 tools now have `Title` property and enhanced McpMeta: `category`, `requiresSession`, `fileFormat` (VBA)
 - [X] T034 [P] Evaluate and adopt new/expanded MCP attributes for tool/prompt metadata in src/ExcelMcp.McpServer/ (FR-022, SC-013)
-  - **Status**: ✅ McpMeta attributes already adopted for all tools with category metadata
+  - **Status**: ✅ Added SDK 0.5.0 `Title` property to all 12 tools, plus `requiresSession` metadata hints
 - [ ] T035 [P] Enhance protocol error handling to optionally include structured `Data` on `McpProtocolException` in src/ExcelMcp.McpServer/ (FR-015, SC-009)
   - **Status**: Not needed for this upgrade - no McpProtocolException usages in codebase
 - [ ] T036 [P] Implement `ResourceNotFound` (-32002) error code handling in MCP tool responses in src/ExcelMcp.McpServer/ (FR-016, SC-010)
