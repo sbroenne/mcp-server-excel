@@ -3,7 +3,7 @@
 
 name: 'Dependency Review'
 
-on: 
+on:
   pull_request:
     branches: [ "main", "develop" ]
 
@@ -17,30 +17,30 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        
+
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
         with:
           # Fail the build if vulnerabilities are found
           fail-on-severity: moderate
-          
+
           # Fail if GPL/AGPL/LGPL licenses detected (stricter than MIT)
           license-check: true
           allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, CC0-1.0, CC-BY-3.0, CC-BY-4.0, Unlicense, BlueOak-1.0.0, Python-2.0, Artistic-2.0, WTFPL, Zlib
-          
+
           # Comment on PR with summary
           comment-summary-in-pr: always
-          
+
           # Show vulnerabilities by severity
           warn-only: false
-          
+
           # Only check runtime dependencies (dev deps don't ship with extension)
           fail-on-scopes: runtime
-          
+
           # Additional configuration
           base-ref: ${{ github.event.pull_request.base.sha }}
           head-ref: ${{ github.event.pull_request.head.sha }}
-          
+
       - name: Dependency Review Summary
         if: always()
         run: |
