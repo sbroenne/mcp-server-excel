@@ -125,7 +125,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 catch (Exception ex)
                 {
                     // Log but continue with other fields
-                    Console.WriteLine($"Error reading OLAP field {i}: {ex.Message}");
+                    Console.Error.WriteLine($"Error reading OLAP field {i}: {ex.Message}");
                 }
                 finally
                 {

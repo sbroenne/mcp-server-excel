@@ -347,7 +347,7 @@ public partial class PivotTableCommands
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Warning: Failed to read cube field {i}: {ex.Message}");
+                    Console.Error.WriteLine($"Warning: Failed to read cube field {i}: {ex.Message}");
                 }
                 finally
                 {
@@ -357,7 +357,7 @@ public partial class PivotTableCommands
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Warning: Failed to enumerate cube fields: {ex.Message}");
+            Console.Error.WriteLine($"Warning: Failed to enumerate cube fields: {ex.Message}");
         }
 
         return fields;
@@ -409,7 +409,7 @@ public partial class PivotTableCommands
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Warning: Failed to read field {i}: {ex.Message}");
+                    Console.Error.WriteLine($"Warning: Failed to read field {i}: {ex.Message}");
                 }
                 finally
                 {
@@ -419,7 +419,7 @@ public partial class PivotTableCommands
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Warning: Failed to enumerate pivot fields: {ex.Message}");
+            Console.Error.WriteLine($"Warning: Failed to enumerate pivot fields: {ex.Message}");
         }
 
         return fields;

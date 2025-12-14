@@ -26,8 +26,10 @@ public static partial class ExcelVbaTool
     /// <param name="moduleName">VBA module name or procedure name (format: 'Module.Procedure' for run)</param>
     /// <param name="vbaCode">VBA code content as string (for import/update actions)</param>
     /// <param name="parameters">Parameters for VBA procedure execution (comma-separated)</param>
-    [McpServerTool(Name = "excel_vba")]
+    [McpServerTool(Name = "excel_vba", Title = "Excel VBA Operations")]
     [McpMeta("category", "automation")]
+    [McpMeta("requiresSession", true)]
+    [McpMeta("fileFormat", ".xlsm")]
     public static partial string ExcelVba(
         VbaAction action,
         string excelPath,

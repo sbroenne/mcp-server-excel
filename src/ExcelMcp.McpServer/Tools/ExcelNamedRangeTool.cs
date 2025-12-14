@@ -22,8 +22,9 @@ public static partial class ExcelNamedRangeTool
     /// <param name="sessionId">Session ID from excel_file 'open' action</param>
     /// <param name="namedRangeName">Named range name (for read, write, create, update, delete actions)</param>
     /// <param name="value">Named range value (for write action) or cell reference (for create/update actions, e.g., 'Sheet1!A1')</param>
-    [McpServerTool(Name = "excel_namedrange")]
+    [McpServerTool(Name = "excel_namedrange", Title = "Excel Named Range Operations")]
     [McpMeta("category", "data")]
+    [McpMeta("requiresSession", true)]
     public static partial string ExcelParameter(
         NamedRangeAction action,
         string excelPath,

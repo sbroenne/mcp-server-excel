@@ -53,8 +53,9 @@ public static partial class ExcelFileTool
     /// <param name="sessionId">Session ID from 'open' action - required for close</param>
     /// <param name="save">Save changes before closing (default: false)</param>
     /// <param name="showExcel">Show Excel window during operations. DEFAULT: false (hidden, faster). Only set true if user explicitly requests to watch changes.</param>
-    [McpServerTool(Name = "excel_file")]
+    [McpServerTool(Name = "excel_file", Title = "Excel File Operations")]
     [McpMeta("category", "session")]
+    [McpMeta("requiresSession", false)]
     public static partial string ExcelFile(
         FileAction action,
         [DefaultValue(null)] string? excelPath,

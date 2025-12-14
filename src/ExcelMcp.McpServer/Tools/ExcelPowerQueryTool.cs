@@ -26,8 +26,9 @@ public static partial class ExcelPowerQueryTool
     /// <param name="targetCellAddress">Top-left cell for create/load-to actions when placing data on an existing worksheet (e.g., 'B5'). Only used when load destination is 'worksheet' or 'both'.</param>
     /// <param name="loadDestination">Load destination for query: 'worksheet' (DEFAULT - load to worksheet as table), 'data-model' (load to Power Pivot), 'both' (load to both), 'connection-only' (don't load data)</param>
     /// <param name="refreshTimeoutSeconds">Timeout in seconds for refresh action (60-600 seconds / 1-10 minutes). Required when action is 'refresh'.</param>
-    [McpServerTool(Name = "excel_powerquery")]
+    [McpServerTool(Name = "excel_powerquery", Title = "Excel Power Query Operations")]
     [McpMeta("category", "query")]
+    [McpMeta("requiresSession", true)]
     public static partial string ExcelPowerQuery(
         PowerQueryAction action,
         string sessionId,

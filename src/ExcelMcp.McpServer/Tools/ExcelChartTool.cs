@@ -38,8 +38,9 @@ public static partial class ExcelChartTool
     /// <param name="visible">Show/hide legend: true=show, false=hide</param>
     /// <param name="legendPosition">Legend position: Bottom, Corner, Top, Right, Left</param>
     /// <param name="styleId">Chart style ID (1-48)</param>
-    [McpServerTool(Name = "excel_chart")]
+    [McpServerTool(Name = "excel_chart", Title = "Excel Chart Operations")]
     [McpMeta("category", "analysis")]
+    [McpMeta("requiresSession", true)]
     public static partial string ExcelChart(
         ChartAction action,
         string excelPath,

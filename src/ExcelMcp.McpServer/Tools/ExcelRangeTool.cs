@@ -70,8 +70,9 @@ public static partial class ExcelRangeTool
     /// <param name="ignoreBlank">Ignore blank cells in validation (for validate-range)</param>
     /// <param name="showDropdown">Show dropdown for list validation (for validate-range)</param>
     /// <param name="locked">Lock status for cells (for set-cell-lock: true = locked, false = unlocked)</param>
-    [McpServerTool(Name = "excel_range")]
+    [McpServerTool(Name = "excel_range", Title = "Excel Range Operations")]
     [McpMeta("category", "data")]
+    [McpMeta("requiresSession", true)]
     public static partial string ExcelRange(
         RangeAction action,
         string excelPath,
