@@ -1,12 +1,12 @@
 {
   "compilerOptions": {
-    "module": "CommonJS",
+    "module": "Node16",
     "target": "ES2022",
     "lib": ["ES2022"],
     "outDir": "out",
     "sourceMap": true,
     "strict": true,
-    "moduleResolution": "Node",
+    "moduleResolution": "Node16",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
