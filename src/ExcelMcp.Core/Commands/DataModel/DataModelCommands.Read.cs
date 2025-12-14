@@ -16,7 +16,7 @@ public partial class DataModelCommands
     {
         var result = new DataModelTableListResult { FilePath = batch.WorkbookPath };
 
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
 
         return batch.Execute((ctx, ct) =>
         {
@@ -62,7 +62,7 @@ public partial class DataModelCommands
     {
         var result = new DataModelMeasureListResult { FilePath = batch.WorkbookPath };
 
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
 
         return batch.Execute((ctx, ct) =>
         {
@@ -139,7 +139,7 @@ public partial class DataModelCommands
             MeasureName = measureName
         };
 
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
 
         return batch.Execute((ctx, ct) =>
         {
@@ -455,7 +455,7 @@ public partial class DataModelCommands
     {
         var result = new DataModelInfoResult { FilePath = batch.WorkbookPath };
 
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
 
         return batch.Execute((ctx, ct) =>
         {

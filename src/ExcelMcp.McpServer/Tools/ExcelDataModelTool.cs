@@ -14,15 +14,29 @@ public static partial class ExcelDataModelTool
 {
     /// <summary>
     /// Manage Excel Power Pivot (Data Model) - DAX measures, relationships, analytical model.
-    /// HIDDEN COLUMNS/RELATIONSHIPS/MEASURES: Objects marked "Hidden from client tools" in Power Pivot are NOT visible via list-columns, list-relationships, or list-measures actions. This is an Excel API limitation with no workaround. If user reports missing columns, relationships, or measures, ask them to unhide them in Power Pivot (Manage Data Model, right-click object, uncheck "Hide from Client Tools").
-    /// CALCULATED COLUMNS: NOT supported via automation. When user asks to create calculated columns, provide step-by-step manual instructions OR suggest using DAX measures instead (measures ARE automated and usually better for aggregations).
-    /// TIMEOUT SAFEGUARD: Listing tables/measures/info auto-timeouts after 5 minutes to prevent Power Pivot hangs.
+    ///
+    /// DESTRUCTIVE OPERATIONS WARNING:
+    /// - delete-table: DELETES TABLE AND ALL ITS MEASURES. Measures cannot be recovered. Use list-measures first to see what will be lost.
+    /// - delete-relationship: Removes relationship only (tables and measures preserved).
+    /// - delete-measure: Removes single measure only (table preserved).
+    ///
+    /// WHEN STUCK - DO NOT DELETE TABLES. Instead:
+    /// 1. Use list-measures to see current state
+    /// 2. Use update-measure to fix existing measures
+    /// 3. Check DAX formula syntax (common: missing quotes, wrong column references)
+    /// 4. Use list-tables and list-columns to verify names
+    ///
+    /// HIDDEN OBJECTS: Objects marked "Hidden from client tools" in Power Pivot are NOT visible via list-columns, list-relationships, or list-measures. If user reports missing items, ask them to unhide in Power Pivot.
+    ///
+    /// CALCULATED COLUMNS: NOT supported via automation. Suggest using DAX measures instead (measures ARE automated and usually better for aggregations).
+    ///
+    /// TIMEOUT: Operations auto-timeout after 2 minutes to prevent hangs.
     /// </summary>
     /// <param name="action">Action to perform</param>
     /// <param name="excelPath">Excel file path (.xlsx or .xlsm)</param>
     /// <param name="sessionId">Session ID from excel_file 'open' action</param>
     /// <param name="measureName">Measure name (for read, export-measure, delete-measure, update-measure)</param>
-    /// <param name="tableName">Table name (for create-measure, read-table)</param>
+    /// <param name="tableName">Table name (for create-measure, read-table, delete-table)</param>
     /// <param name="daxFormula">DAX formula (for create-measure, update-measure)</param>
     /// <param name="description">Description (for create-measure, update-measure)</param>
     /// <param name="formatString">Format string (for create-measure, update-measure), e.g., '#,##0.00', '0.00%'</param>
