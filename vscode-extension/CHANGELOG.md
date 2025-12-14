@@ -2,7 +2,7 @@
 
 All notable changes to the ExcelMcp VS Code extension will be documented in this file.
 
-## [1.4.35] - 2025-12-13
+## [Unreleased] - 2025-12-14
 
 - **MCP SDK Upgrade** (#301): Upgraded ModelContextProtocol SDK from 0.4.1-preview.1 to 0.5.0-preview.1
   - Proper `isError` signaling for tool execution failures (MCP protocol compliance)

@@ -143,6 +143,110 @@ Ensures well-formed diagnostics for missing tool resources.
 
 ---
 
+## 9. UseStructuredContent for Tool Responses
+
+### Decision
+
+**Not adopted** for this project. Continue using serialized JSON in `TextContentBlock` responses.
+
+### Background
+
+SDK 0.5.0 introduces `UseStructuredContent` on `[McpServerTool]` attribute:
+- When enabled, `Tool.OutputSchema` is populated with JSON Schema for the return type
+- `CallToolResult.StructuredContent` contains typed JSON response (alongside `Content`)
+- Return descriptions move from tool description into the schema
+
+**Current approach (text-based JSON):**
+```json
+{
+  "content": [{"type": "text", "text": "{\"success\": true, \"tables\": [...]}"}]
+}
+```
+
+**With UseStructuredContent:**
+```json
+{
+  "content": [{"type": "text", "text": "Operation completed"}],
+  "structuredContent": {"success": true, "tables": [...]}
+}
+```
+
+### Rationale
+
+**Not suitable for action-based tool architecture:**
+
+| Issue | Impact |
+|-------|--------|
+| **Action polymorphism** | Each action returns different result types (List → array, Create → single item, Delete → success flag). SDK expects ONE return type per tool. |
+| **Return type mismatch** | Our tools return `Task<string>` with serialized JSON. UseStructuredContent expects actual typed objects. |
+| **Significant refactoring** | 12 tools × 5-15 actions each = ~100+ result type classes to define |
+| **Current JSON works** | LLMs parse our text JSON responses successfully |
+
+**LLM Benefit Assessment:**
+
+| Benefit | Assessment |
+|---------|------------|
+| Schema introspection | 🟡 Moderate - LLMs get schema upfront, but already handle our JSON well |
+| Response validation | 🟡 Moderate - SDK validates against schema, but responses are consistent |
+| Structured parsing | 🟢 Minor - `structuredContent` easier to parse, but clients handle text JSON |
+
+### Alternatives Considered
+
+1. **Split into single-action tools** - Would create 100+ tools, breaking clean API design. Rejected.
+2. **Complex union types per tool** - Would require `OneOf` schemas for each action's return type. High complexity, low benefit. Rejected.
+3. **Adopt for simple tools only** - Inconsistent API experience. Rejected.
+
+### Future Consideration
+
+UseStructuredContent is well-suited for single-purpose tools with consistent return types. If we ever split tools into individual operations (breaking change), this could be reconsidered.
+
+---
+
+## 10. Behavioral Hints (ReadOnly, Destructive, Idempotent, OpenWorld)
+
+### Decision
+
+**Not adopted** for this project due to action-based tool architecture.
+
+### Background
+
+SDK 0.5.0 adds behavioral hint properties on `[McpServerTool]`:
+- `ReadOnly` - Tool doesn't modify environment
+- `Destructive` - Tool can perform destructive updates
+- `Idempotent` - Repeated calls have no additional effect
+- `OpenWorld` - Tool interacts with external entities
+
+### Rationale
+
+These hints apply at **tool level**, but our tools have **mixed action behaviors**:
+
+| Tool | Example Actions | ReadOnly? | Destructive? |
+|------|-----------------|-----------|--------------|
+| excel_table | List | ✅ Yes | ❌ No |
+| excel_table | Delete | ❌ No | ✅ Yes |
+| excel_table | Create | ❌ No | ❌ No |
+
+Setting these at tool level would be **misleading to LLMs** - they'd assume all actions share the same behavior.
+
+### Alternatives Considered
+
+- Set to most conservative value (Destructive=true). Rejected: defeats purpose of hints.
+- Split into single-action tools. Rejected: excessive API surface (see #9).
+
+---
+
+## 11. IconSource and Visual Properties
+
+### Decision
+
+**Not adopted**. UI-focused feature not needed for CLI-based Excel automation.
+
+### Rationale
+
+Our tools are consumed programmatically by LLMs and automation scripts, not displayed in visual UIs.
+
+---
+
 ## Open Questions
 
 None remaining. All TBD items have been resolved through changelog analysis and user clarification.
