@@ -1,23 +1,24 @@
 <!--
 === SYNC IMPACT REPORT ===
-Version change: N/A (initial) → 1.0.0
-Added sections:
-  - Core Principles (18 principles in 5 categories)
-  - Technical Constraints
-  - Development Workflow
-  - Governance
-Templates requiring updates:
-  - plan-template.md: ✅ Compatible (Constitution Check section exists)
-  - spec-template.md: ✅ Compatible (requirements align with principles)
-  - tasks-template.md: ✅ Compatible (phase structure supports principles)
+Version change: 1.1.1 → 1.1.2
+Changes:
+  - PATCH update: Updated tsx loader for Mocha unit tests (Node 22 compatibility)
+  - Changed from ts-node to tsx for better ESM/CommonJS handling
+  - Unit tests: `mocha --ui tdd --require tsx tests/*.test.ts`
+  - Integration tests: unchanged (VS Code runner)
+  - Last amended date updated to 2025-12-14
+Templates verified:
+  - plan-template.md: ✅ Compatible
+  - spec-template.md: ✅ Compatible
+  - tasks-template.md: ✅ Compatible
+  - commands/*.md: ✅ Compatible
 Follow-up TODOs: None
-Source: .github/instructions/critical-rules.instructions.md (Rules 0-23)
 ===========================
 -->
 
 # ExcelMcp Constitution
 
-> **18 principles derived from critical-rules.instructions.md and architecture documentation**
+> **20 principles derived from critical-rules.instructions.md and architecture documentation**
 
 ## Core Principles
 
@@ -136,9 +137,33 @@ Source: .github/instructions/critical-rules.instructions.md (Rules 0-23)
 
 **Rationale**: Save operations slow down test suites significantly.
 
+#### XI. No Mocks—Real Integration Tests Only (NON-NEGOTIABLE)
+
+**All tests across all projects MUST use real integration tests—NEVER mocks.**
+
+- **NEVER** mock APIs, external services, or system interfaces
+- C# tests (Core, CLI, MCP Server): Run against real Excel instances via COM
+- TypeScript tests (VSCode Extension): Use `@vscode/test-electron` to run inside real VS Code
+- Tests execute against actual APIs and verify real behavior
+- Integration tests prove the system works; mocked tests prove nothing
+
+**Rationale**: Mocking proves nothing about real system behavior. Mocked tests pass but code fails in production. This project tests against real Excel COM and real VS Code APIs.
+
+#### XII. Mocha for TypeScript Testing (VSCode Extension)
+
+**The VSCode extension uses Mocha as its testing framework.**
+
+- Use Mocha for all TypeScript tests in `vscode-extension/`
+- VS Code integration tests require Mocha TDD interface (`suite`/`test`) - platform requirement
+- Unit tests also use Mocha for consistency across the extension
+- Integration tests run inside VS Code via `@vscode/test-electron`
+- Two test scripts: `test:unit` (Mocha, fast) and `test:integration` (VS Code, comprehensive)
+
+**Rationale**: VS Code's extension testing infrastructure requires Mocha with TDD interface. Using Mocha for all tests provides consistency.
+
 ### Category D: Development Workflow
 
-#### XI. Pull Request Workflow (NON-NEGOTIABLE)
+#### XIII. Pull Request Workflow (NON-NEGOTIABLE)
 
 **All changes MUST go through Pull Requests. Direct commits to main are prohibited.**
 
@@ -148,7 +173,7 @@ Source: .github/instructions/critical-rules.instructions.md (Rules 0-23)
 
 **Rationale**: PR workflow ensures code review, CI/CD validation, and version management.
 
-#### XII. Test Before Commit (NON-NEGOTIABLE)
+#### XIV. Test Before Commit (NON-NEGOTIABLE)
 
 **NEVER commit, push, or create PRs without first running tests for changed code.**
 
@@ -159,7 +184,7 @@ Source: .github/instructions/critical-rules.instructions.md (Rules 0-23)
 
 **Rationale**: Prevents breaking changes from reaching main, wastes team time debugging failures.
 
-#### XIII. Never Commit Automatically (NON-NEGOTIABLE)
+#### XV. Never Commit Automatically (NON-NEGOTIABLE)
 
 **All commits, pushes, and merges must require explicit user approval.**
 
@@ -169,7 +194,7 @@ Source: .github/instructions/critical-rules.instructions.md (Rules 0-23)
 
 **Rationale**: Prevents accidental changes, enforces review, ensures user control.
 
-#### XIV. Comprehensive Bug Fixes
+#### XVI. Comprehensive Bug Fixes
 
 **Every bug fix MUST include all 6 components.**
 
@@ -182,7 +207,7 @@ Source: .github/instructions/critical-rules.instructions.md (Rules 0-23)
 
 **Rationale**: Incomplete bug fixes lead to regressions and confusion.
 
-#### XV. Check PR Review Comments
+#### XVII. Check PR Review Comments
 
 **After creating PR, check and fix all automated review comments immediately.**
 
@@ -194,7 +219,7 @@ Source: .github/instructions/critical-rules.instructions.md (Rules 0-23)
 
 ### Category E: Code Quality
 
-#### XVI. Core-MCP Coverage Enforcement
+#### XVIII. Core-MCP Coverage Enforcement
 
 **Every Core Commands method MUST be exposed via MCP Server enum-based routing.**
 
@@ -204,7 +229,7 @@ Source: .github/instructions/critical-rules.instructions.md (Rules 0-23)
 
 **Rationale**: Prevents dead code and ensures all capabilities accessible to AI assistants.
 
-#### XVII. No Placeholders or TODO Markers
+#### XIX. No Placeholders or TODO Markers
 
 **Code must be complete before commit.**
 
@@ -215,7 +240,7 @@ Source: .github/instructions/critical-rules.instructions.md (Rules 0-23)
 
 **Rationale**: Placeholders accumulate and become permanent. Pre-commit hook blocks.
 
-#### XVIII. Trust IDE Warnings (NON-NEGOTIABLE)
+#### XX. Trust IDE Warnings (NON-NEGOTIABLE)
 
 **When VS Code, linters, or tooling shows errors, TRUST THEM.**
 
@@ -228,25 +253,46 @@ Source: .github/instructions/critical-rules.instructions.md (Rules 0-23)
 
 ## Technical Constraints
 
+### Project Deliverables
+
+The project produces **three main deliverables**, all dependent on the **Core** project:
+
+1. **MCP Server** (`src/ExcelMcp.McpServer`): Standalone executable providing Model Context Protocol interface for AI assistants (Claude, GitHub Copilot, etc.) to control Excel programmatically
+2. **VSCode Extension** (`vscode-extension/`): Visual Studio Code extension that packages and exposes the MCP Server within the VSCode environment
+3. **CLI** (`src/ExcelMcp.CLI`): Command-line interface for scripting and automation tasks without VSCode or MCP
+
+**Dependency Graph**:
+```
+ComInterop (base)
+    ↓
+   Core (shared foundation)
+    ├─→ MCP Server (deliverable #1)
+    ├─→ CLI (deliverable #3)
+    └─→ VSCode Extension (deliverable #2, wraps MCP Server)
+```
+
+All feature development must consider impact on **Core** library and cascade through dependent deliverables.
+
 ### Platform Requirements
 
 - **Windows Only**: COM interop is Windows-specific
 - **Excel Required**: Microsoft Excel 2016+ must be installed
 - **Desktop Environment**: Controls actual Excel process (not for server-side processing)
-- **.NET 8 SDK**: Required for build and development
+- **.NET 8 SDK**: SDK 8.0.416 or later required for build and development (currently on 8.0.416)
 
 ### Architecture Layers
 
-1. **ComInterop** (`src/ExcelMcp.ComInterop`): Reusable COM automation patterns (STA threading, session management, batch operations)
-2. **Core** (`src/ExcelMcp.Core`): Excel-specific business logic (Power Query, VBA, worksheets, etc.)
-3. **CLI** (`src/ExcelMcp.CLI`): Command-line interface for scripting
-4. **MCP Server** (`src/ExcelMcp.McpServer`): Model Context Protocol for AI assistants
+1. **ComInterop** (`src/ExcelMcp.ComInterop`): Reusable COM automation patterns (STA threading, session management, batch operations)—foundation for Core
+2. **Core** (`src/ExcelMcp.Core`): Excel-specific business logic (Power Query, VBA, worksheets, etc.)—dependency for all three deliverables
+3. **CLI** (`src/ExcelMcp.CLI`): Command-line interface for scripting (deliverable #3, depends on Core)
+4. **MCP Server** (`src/ExcelMcp.McpServer`): Model Context Protocol for AI assistants (deliverable #1, depends on Core)
+5. **VSCode Extension** (`vscode-extension/`): VSCode integration wrapper (deliverable #2, depends on MCP Server which depends on Core)
 
 ### Build Quality
 
 - `TreatWarningsAsErrors=true`: Zero warnings policy
 - Security analyzers enabled (CA2100, CA3003, CA3006, CA5389, CA5390, CA5394 are errors)
-- See Principle XVII for TODO/FIXME marker rules
+- See Principle XIX for TODO/FIXME marker rules
 
 ## Development Workflow
 
@@ -273,7 +319,7 @@ dotnet test --filter "Feature=PowerQuery&RunType!=OnDemand"
 
 ### Bug Fix Completeness
 
-See **Principle XIV** for the 6 required components. Detailed checklist: `.github/instructions/bug-fixing-checklist.instructions.md`
+See **Principle XVI** for the 6 required components. Detailed checklist: `.github/instructions/bug-fixing-checklist.instructions.md`
 
 ### Release Process
 
@@ -289,4 +335,4 @@ See **Principle XIV** for the 6 required components. Detailed checklist: `.githu
 - **Complexity justification**: Deviations from simplicity require documented rationale
 - **Runtime guidance**: See `.github/copilot-instructions.md` and `.github/instructions/` for implementation details
 
-**Version**: 1.0.0 | **Ratified**: 2025-12-09 | **Last Amended**: 2025-12-09
+**Version**: 1.1.2 | **Ratified**: 2025-12-09 | **Last Amended**: 2025-12-14
