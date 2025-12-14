@@ -14,16 +14,48 @@ echo "📁 Copying shared content files..."
 mkdir -p "$SCRIPT_DIR/_includes"
 
 # Copy FEATURES.md from root
-cp "$ROOT_DIR/FEATURES.md" "$SCRIPT_DIR/_includes/features.md"
-echo "   ✓ Copied FEATURES.md"
+# Strip top block (H1 title, bold subtitle, hr/blank) and convert remaining H1 to H2
+awk '
+    BEGIN { inheader=0; headerdone=0 }
+    {
+        if (headerdone==0 && /^# /) { inheader=1; next }                 # drop H1 title
+        if (inheader==1 && /^\*\*/) { next }                            # drop bold subtitle line
+        if (inheader==1 && /^---/) { inheader=0; headerdone=1; next }    # drop hr then end header
+        if (inheader==1 && /^$/) { next }                                # skip blank lines while in header
+        if (inheader==1) { next }                                        # drop any lingering header lines
+        if (/^$/ && headerdone==0) { next }                              # drop leading blanks before content
+        if (/^# /) { sub(/^# /, "## "); print; next }                   # convert any remaining H1 → H2
+        print
+    }
+' "$ROOT_DIR/FEATURES.md" > "$SCRIPT_DIR/_includes/features.md"
+echo "   ✓ Copied FEATURES.md (stripped top block, H1→H2)"
 
 # Copy CHANGELOG.md from vscode-extension
-cp "$ROOT_DIR/vscode-extension/CHANGELOG.md" "$SCRIPT_DIR/_includes/changelog.md"
-echo "   ✓ Copied CHANGELOG.md"
+# Strip top H1 block (title + paragraph) and convert remaining H1 to H2
+awk '
+    BEGIN { inheader=0; headerdone=0 }
+    {
+        if (headerdone==0 && /^# /) { inheader=1; next }                 # drop H1 title
+        if (inheader==1 && /^All notable/) { next }                      # drop description line
+        if (inheader==1 && /^$/) { inheader=0; headerdone=1; next }      # blank line ends header
+        if (/^# /) { sub(/^# /, "## "); print; next }                   # convert any remaining H1 → H2
+        print
+    }
+' "$ROOT_DIR/vscode-extension/CHANGELOG.md" > "$SCRIPT_DIR/_includes/changelog.md"
+echo "   ✓ Copied CHANGELOG.md (stripped top H1 block, H1→H2)"
 
 # Copy INSTALLATION.md from docs
-cp "$ROOT_DIR/docs/INSTALLATION.md" "$SCRIPT_DIR/_includes/installation.md"
-echo "   ✓ Copied INSTALLATION.md"
+# Strip top H1 block (title + paragraph)
+awk '
+    BEGIN { inheader=0; headerdone=0 }
+    {
+        if (headerdone==0 && /^# /) { inheader=1; next }                 # drop H1 title
+        if (inheader==1 && /^Complete installation/) { next }            # drop description line
+        if (inheader==1 && /^$/) { inheader=0; headerdone=1; next }      # blank line ends header
+        print
+    }
+' "$ROOT_DIR/docs/INSTALLATION.md" > "$SCRIPT_DIR/_includes/installation.md"
+echo "   ✓ Copied INSTALLATION.md (stripped top H1 block)"
 
 # Copy CONTRIBUTING.md from docs
 cp "$ROOT_DIR/docs/CONTRIBUTING.md" "$SCRIPT_DIR/_includes/contributing.md"
