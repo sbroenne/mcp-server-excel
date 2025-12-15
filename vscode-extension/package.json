@@ -49,7 +49,10 @@
   "activationEvents": [
     "onStartupFinished"
   ],
-  "main": "./out/src/extension.js",
+  "extensionDependencies": [
+    "ms-dotnettools.vscode-dotnet-runtime"
+  ],
+  "main": "./out/extension.js",
   "files": [
     "out/**",
     "bin/**",
@@ -59,24 +62,6 @@
     "icon.png"
   ],
   "contributes": {
-    "configuration": {
-      "title": "Excel MCP",
-      "properties": {
-        "excelMcp.pollIntervalMs": {
-          "type": "number",
-          "default": 3000,
-          "minimum": 1000,
-          "maximum": 60000,
-          "description": "Polling interval in milliseconds for status updates"
-        }
-      }
-    },
-    "commands": [
-      {
-        "command": "excelMcp.showSessions",
-        "title": "Excel MCP: Show Sessions"
-      }
-    ],
     "mcpServerDefinitionProviders": [
       {
         "id": "excel-mcp",
@@ -89,27 +74,18 @@
     "build:mcp-server": "npm run clean && cd .. && dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release --no-self-contained -o vscode-extension/bin --verbosity minimal",
     "vscode:prepublish": "npm run build:mcp-server && npm run compile",
     "compile": "tsc -p ./",
-    "test": "npm run test:unit",
-    "test:unit": "mocha --ui tdd --require tsx tests/*.test.ts",
-    "test:integration": "node ./out/tests/runTest.js",
     "watch": "tsc -watch -p ./",
     "package": "npm run build:mcp-server && vsce package",
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
-    "@types/glob": "^8.1.0",
-    "@types/mocha": "^10.0.10",
-    "@types/node": "^22.19.3",
-    "@types/vscode": "^1.106.0",
+    "@types/node": "^22.19.1",
+    "@types/vscode": "^1.106.1",
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
-    "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "^3.7.1",
-    "eslint": "^9.39.2",
-    "glob": "^13.0.0",
-    "mocha": "^11.7.5",
-    "tsx": "^4.21.0",
+    "eslint": "^9.39.1",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.49.0"
+    "typescript-eslint": "^8.48.0"
   }
 }

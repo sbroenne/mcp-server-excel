@@ -65,27 +65,6 @@ The Excel MCP Server provides **12 specialized tools with 180 operations** for c
 
 ➡️ **[Learn more and see examples](https://sbroenne.github.io/mcp-server-excel/)**
 
-## Status Bar Monitor
-
-The extension displays a **status bar item** labeled "Excel MCP" to show server connection status and manage sessions.
-
-**Status Indicators:**
-- ✅ `Excel MCP (N)` - Connected with N active sessions
-- ⚠️ `Excel MCP (Disconnected)` - Server not running or unreachable
-
-**Session Management:**
-- **Click the status bar** to view active sessions in a Quick Pick menu
-- **Select a session** to choose an action:
-  - **Close** - Terminate session without saving
-  - **Save & Close** - Save changes then close
-- **Hover** over the status bar to see session count and status summary
-
-**Command Palette:**
-- `Excel MCP: Show Sessions` - Open session manager (also via status bar click)
-
-**Configuration:**
-- `excelMcp.pollIntervalMs` - Status update interval in milliseconds (default: 3000, range: 1000-60000)
-
 ## Requirements
 
 - **Windows OS** - Excel COM automation requires Windows

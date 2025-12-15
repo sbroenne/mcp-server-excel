@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { StatusBarMcp, showSessionsQuickPick } from './statusBarMcp';
 
 /**
  * ExcelMcp VS Code Extension
@@ -11,36 +10,24 @@ import { StatusBarMcp, showSessionsQuickPick } from './statusBarMcp';
  */
 
 export async function activate(context: vscode.ExtensionContext) {
-	// Register command FIRST to ensure it's always available
-	// This must happen before any async operations that could fail
-	const showCmd = vscode.commands.registerCommand('excelMcp.showSessions', async () => {
-		await showSessionsQuickPick();
-	});
-	context.subscriptions.push(showCmd);
+	console.log('ExcelMcp extension is now active');
 
-	// Initialize status bar
-	const status = new StatusBarMcp();
-	status.show();
-	context.subscriptions.push(status);
-
-	// Ensure .NET runtime is available (optional - uses ms-dotnettools.vscode-dotnet-runtime if installed)
+	// Ensure .NET runtime is available (still needed for the bundled executable)
 	try {
 		await ensureDotNetRuntime();
 	} catch (error) {
-		// .NET runtime extension is optional - the MCP server requires .NET 8 on the system
 		const errorMessage = error instanceof Error ? error.message : String(error);
-		if (process.env.VSCODE_EXTENSION_TEST !== 'true') {
-			vscode.window.showErrorMessage(
-				`ExcelMcp: Failed to setup .NET environment: ${errorMessage}. ` +
-				`The extension may not work correctly.`
-			);
-		}
+		vscode.window.showErrorMessage(
+			`ExcelMcp: Failed to setup .NET environment: ${errorMessage}. ` +
+			`The extension may not work correctly.`
+		);
 	}
 
 	// Register MCP server definition provider
 	context.subscriptions.push(
 		vscode.lm.registerMcpServerDefinitionProvider('excel-mcp', {
 			provideMcpServerDefinitions: async () => {
+				// Return the MCP server definition for ExcelMcp
 				const extensionPath = context.extensionPath;
 				const mcpServerPath = path.join(extensionPath, 'bin', 'Sbroenne.ExcelMcp.McpServer.exe');
 
@@ -49,7 +36,9 @@ export async function activate(context: vscode.ExtensionContext) {
 						'Excel MCP Server',
 						mcpServerPath,
 						[],
-						{}
+						{
+							// Optional environment variables can be added here if needed
+						}
 					)
 				];
 			}
@@ -65,28 +54,38 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 async function ensureDotNetRuntime(): Promise<void> {
-	const dotnetExtension = vscode.extensions.getExtension('ms-dotnettools.vscode-dotnet-runtime');
+	try {
+		// Request .NET runtime acquisition via the .NET Install Tool extension
+		const dotnetExtension = vscode.extensions.getExtension('ms-dotnettools.vscode-dotnet-runtime');
 
-	if (!dotnetExtension) {
-		// Extension not installed - this is fine, user needs .NET 8 installed on system
-		return;
+		if (!dotnetExtension) {
+			throw new Error('.NET Install Tool extension not found. Please install ms-dotnettools.vscode-dotnet-runtime');
+		}
+
+		if (!dotnetExtension.isActive) {
+			await dotnetExtension.activate();
+		}
+
+		// Request .NET 8 runtime using the command-based API
+		// The extension uses commands, not direct exports
+		const requestingExtensionId = 'sbroenne.excel-mcp';
+
+		await vscode.commands.executeCommand('dotnet.showAcquisitionLog');
+		const result = await vscode.commands.executeCommand<{ dotnetPath: string }>('dotnet.acquire', {
+			version: '8.0',
+			requestingExtensionId
+		});
+
+		if (result?.dotnetPath) {
+			console.log(`ExcelMcp: .NET runtime available at ${result.dotnetPath}`);
+		}
+
+		console.log('ExcelMcp: .NET runtime setup completed (MCP server is bundled with extension)');
+	} catch (error) {
+		console.error('ExcelMcp: Error during .NET runtime setup:', error);
+		throw error;
 	}
-
-	if (!dotnetExtension.isActive) {
-		await dotnetExtension.activate();
-	}
-
-	// Request .NET 8 runtime using the command-based API
-	const requestingExtensionId = 'sbroenne.excel-mcp';
-
-	await vscode.commands.executeCommand('dotnet.showAcquisitionLog');
-	await vscode.commands.executeCommand<{ dotnetPath: string }>('dotnet.acquire', {
-		version: '8.0',
-		requestingExtensionId
-	});
-}
-
-function showWelcomeMessage() {
+}function showWelcomeMessage() {
 	const message = 'ExcelMcp extension activated! The Excel MCP server is now available for AI assistants.';
 	const learnMore = 'Learn More';
 
@@ -98,5 +97,5 @@ function showWelcomeMessage() {
 }
 
 export function deactivate() {
-	// Cleanup handled by disposables in context.subscriptions
+	console.log('ExcelMcp extension is now deactivated');
 }
