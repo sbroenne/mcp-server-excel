@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
-import { McpClient } from './mcpClient';
+import { ExcelStatusClient } from './excelStatusClient';
 import { Poller } from './utils/polling';
 
 export class StatusBarMcp {
   private readonly item: vscode.StatusBarItem;
-  private readonly client: McpClient;
+  private readonly client: ExcelStatusClient;
   private poller?: Poller<any>;
   private _isVisible = false;
 
@@ -18,7 +18,7 @@ export class StatusBarMcp {
     this.item.text = '$(graph) Excel MCP';
     this.item.tooltip = 'Excel MCP';
     this.item.command = 'excelMcp.showSessions';
-    this.client = new McpClient();
+    this.client = new ExcelStatusClient();
   }
 
   show() {
@@ -53,7 +53,7 @@ export class StatusBarMcp {
   }
 }
 
-export async function showSessionsQuickPick(client = new McpClient()) {
+export async function showSessionsQuickPick(client = new ExcelStatusClient()) {
   const res = await client.listSessions();
   if (!res.success) {
     void vscode.window.showErrorMessage(res.errorMessage ?? 'Failed to get sessions');

@@ -4,6 +4,7 @@ using Microsoft.ApplicationInsights.WorkerService;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Sbroenne.ExcelMcp.McpServer.Status;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 
 namespace Sbroenne.ExcelMcp.McpServer;
@@ -56,6 +57,13 @@ public class Program
 
         // Configure Application Insights
         ConfigureTelemetry(builder);
+
+        // Optional local IPC for VS Code extension status polling (named pipe).
+        // Enabled only when the extension passes EXCELMCP_STATUS_PIPE_NAME.
+        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(ExcelMcpStatusPipeService.PipeNameEnvVar)))
+        {
+            builder.Services.AddHostedService<ExcelMcpStatusPipeService>();
+        }
 
         // Configure MCP Server - use test transport if configured, otherwise stdio
         var mcpBuilder = builder.Services
