@@ -43,13 +43,17 @@ export async function activate(context: vscode.ExtensionContext) {
 			provideMcpServerDefinitions: async () => {
 				const extensionPath = context.extensionPath;
 				const mcpServerPath = path.join(extensionPath, 'bin', 'Sbroenne.ExcelMcp.McpServer.exe');
+				const statusPipeName = getStatusPipeName();
 
 				return [
 					new vscode.McpStdioServerDefinition(
 						'Excel MCP Server',
 						mcpServerPath,
 						[],
-						{}
+						{
+							// Used by the VS Code extension for status polling without LM tool invocation.
+							EXCELMCP_STATUS_PIPE_NAME: statusPipeName,
+						}
 					)
 				];
 			}
@@ -62,6 +66,14 @@ export async function activate(context: vscode.ExtensionContext) {
 		showWelcomeMessage();
 		context.globalState.update('excelmcp.hasShownWelcome', true);
 	}
+}
+
+function getStatusPipeName(): string {
+	// Per-window unique identifier provided by VS Code.
+	// We use this to avoid collisions when multiple VS Code windows are open.
+	const raw = vscode.env.sessionId || 'unknown';
+	const safe = raw.replace(/[^a-zA-Z0-9._-]/g, '-');
+	return `excelmcp-status-${safe}`;
 }
 
 async function ensureDotNetRuntime(): Promise<void> {

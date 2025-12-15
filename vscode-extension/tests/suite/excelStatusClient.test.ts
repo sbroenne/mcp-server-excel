@@ -1,8 +1,8 @@
 /**
- * MCP Client Integration Tests
+ * Excel Status Client Integration Tests
  *
- * These tests verify that the MCP client can communicate with the
- * Excel MCP server through VS Code's language model API.
+ * These tests verify that the extension can discover MCP tools (for normal
+ * usage) and can query session status using the named-pipe status endpoint.
  *
  * Note: These tests require the MCP server binary to be built.
  * The runTest.ts script ensures the MCP server is built before running tests.
@@ -10,6 +10,7 @@
 
 import * as assert from 'assert';
 import * as vscode from 'vscode';
+import { ExcelStatusClient } from '../../src/excelStatusClient';
 
 // Helper to wait for MCP tools to be registered
 async function waitForMcpTools(timeoutMs: number = 15000): Promise<vscode.LanguageModelToolInformation[]> {
@@ -33,7 +34,7 @@ async function waitForMcpTools(timeoutMs: number = 15000): Promise<vscode.Langua
   return [];
 }
 
-suite('MCP Client Integration', () => {
+suite('Excel Status Client Integration', () => {
   let excelTools: vscode.LanguageModelToolInformation[] = [];
 
   suiteSetup(async function() {
@@ -93,54 +94,20 @@ suite('MCP Client Integration', () => {
     }
   });
 
-  test('invoking excel_file List action should return session data', async function() {
-    // Increase timeout for tool invocation
+  test('listSessions should return session data when server is running', async function() {
     this.timeout(10000);
 
-    const excelFileTool = excelTools.find(t =>
-      t.name.includes('excel_file') || t.name.endsWith('_excel_file')
-    );
-
-    if (!excelFileTool) {
-      console.log('Skipping - excel_file tool not available');
+    if (excelTools.length === 0) {
+      console.log('Skipping - no MCP tools registered');
       this.skip();
       return;
     }
 
-    try {
-      // Create a minimal tool invocation token
-      const result = await vscode.lm.invokeTool(excelFileTool.name, {
-        input: { action: 'List' },
-        toolInvocationToken: undefined,
-      });
+    const client = new ExcelStatusClient();
+    const result = await client.listSessions();
 
-      // Result should have content array with text parts
-      assert.ok(result, 'Result should not be null');
-      assert.ok(result.content, 'Result should have content');
-      assert.ok(Array.isArray(result.content), 'Content should be an array');
-
-      // Find text content
-      const textPart = result.content.find((p: unknown) => {
-        const part = p as { value?: string };
-        return typeof part?.value === 'string';
-      });
-
-      if (textPart) {
-        const data = JSON.parse((textPart as { value: string }).value);
-        assert.ok('success' in data, 'Response should have success field');
-        console.log('List sessions result:', JSON.stringify(data, null, 2));
-
-        // Verify response structure
-        if (data.success) {
-          assert.ok('sessions' in data || 'activeSessions' in data || Array.isArray(data),
-            'Successful response should contain session data');
-        }
-      }
-    } catch (err) {
-      // Tool invocation may fail for various reasons
-      console.log('Tool invocation error:', err);
-      // Don't fail the test - document the error
-    }
+    assert.ok(typeof result.success === 'boolean', 'Response should have success field');
+    console.log('List sessions result:', JSON.stringify(result, null, 2));
   });
 
   test('excel_worksheet tool should be available', async function() {

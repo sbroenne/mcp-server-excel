@@ -1,15 +1,15 @@
 import * as assert from 'assert';
 
 /**
- * McpClient Type Contract Tests
+ * ExcelStatusClient Type Contract Tests
  *
- * These tests verify the expected type contracts for MCP client responses.
- * The actual McpClient class requires VS Code and is tested in integration tests.
+ * These tests verify the expected type contracts for status client responses.
+ * The actual ExcelStatusClient class requires VS Code and is tested in integration tests.
  *
  * These tests document the expected response shapes from the MCP server.
  */
 
-// Type definitions (mirrored from mcpClient.ts for unit testing)
+// Type definitions (mirrored from excelStatusClient.ts for unit testing)
 type ExcelSessionInfo = {
   sessionId: string;
   filePath: string;
@@ -23,7 +23,7 @@ type ListSessionsResult = {
   sessions?: ExcelSessionInfo[];
 };
 
-suite('McpClient Type Contracts', () => {
+suite('ExcelStatusClient Type Contracts', () => {
   suite('ListSessionsResult', () => {
     test('success result has correct shape', () => {
       const result: ListSessionsResult = {
