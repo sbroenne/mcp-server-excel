@@ -946,7 +946,9 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             {
                 _output.WriteLine($"Model.Name: {model?.Name ?? "(model is null)"}");
             }
+#pragma warning disable CA1031 // Intentional: diagnostic test logs all exceptions
             catch (Exception ex)
+#pragma warning restore CA1031
             {
                 _output.WriteLine($"  Error getting model name: {ex.Message}");
             }
@@ -1617,7 +1619,9 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 dataModelConnName = dataModelConn?.Name?.ToString() ?? "ThisWorkbookDataModel";
                 _output.WriteLine($"Model.DataModelConnection.Name: {dataModelConnName}");
             }
+#pragma warning disable CA1031 // Intentional: diagnostic test logs all exceptions
             catch (Exception ex)
+#pragma warning restore CA1031
             {
                 _output.WriteLine($"Could not get DataModelConnection: {ex.Message}");
             }
