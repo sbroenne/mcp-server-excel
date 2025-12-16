@@ -63,7 +63,7 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
 
     /// <summary>
     /// Handles rejected COM calls from Excel.
-    /// Implements automatic retry logic for busy/unavailable conditions.
+    /// Implements automatic retry logic with exponential backoff for busy/unavailable conditions.
     /// </summary>
     /// <param name="htaskCallee">Handle to the task that rejected the call</param>
     /// <param name="dwTickCount">Number of milliseconds since rejection occurred</param>
@@ -79,24 +79,31 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
         // SERVERCALL_RETRYLATER (2) = Server is busy, try again later
         // SERVERCALL_REJECTED (1) = Server rejected the call
 
-        // Early return pattern to reduce nesting
         const int SERVERCALL_RETRYLATER = 2;
         const int RETRY_TIMEOUT_MS = 30000;
-        const int RETRY_DELAY_MS = 100;
 
         if (dwRejectType != SERVERCALL_RETRYLATER)
         {
             return -1; // Cancel immediately for non-retry scenarios
         }
 
-        // Retry after 100ms for up to 30 seconds
-        if (dwTickCount < RETRY_TIMEOUT_MS)
+        if (dwTickCount >= RETRY_TIMEOUT_MS)
         {
-            return RETRY_DELAY_MS; // Retry after 100ms
+            return -1; // Cancel the call if timeout exceeded
         }
 
-        // Cancel the call if timeout exceeded
-        return -1;
+        // Exponential backoff based on elapsed time:
+        // 0-1s:   100ms delays (quick retries for brief busy states)
+        // 1-5s:   200ms delays
+        // 5-15s:  500ms delays
+        // 15-30s: 1000ms delays (Excel is seriously stuck)
+        return dwTickCount switch
+        {
+            < 1000 => 100,
+            < 5000 => 200,
+            < 15000 => 500,
+            _ => 1000
+        };
     }
 
     /// <summary>
