@@ -262,8 +262,9 @@ public sealed class DaxFormulaTranslator
             object? value = excelApp.International[index];
             return value?.ToString();
         }
-        catch
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
         {
+            // International property access failed for this index
             return null;
         }
     }

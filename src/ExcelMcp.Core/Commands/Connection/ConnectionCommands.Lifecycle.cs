@@ -49,9 +49,9 @@ public partial class ConnectionCommands
 
                         result.Connections.Add(connInfo);
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
-                        // Skip connections that can't be read
+                        // Skip connections that have COM access issues
                         continue;
                     }
                     finally
