@@ -352,9 +352,9 @@ public partial class PowerQueryCommands
                                     isQueryConnection = isPowerQuery && matchesQuery;
                                 }
                             }
-                            catch
+                            catch (Exception ex) when (ex is COMException or System.Reflection.TargetInvocationException)
                             {
-                                // Connection doesn't have OLEDBConnection
+                                // Connection type doesn't have OLEDBConnection property - skip
                             }
                         }
 
@@ -371,9 +371,9 @@ public partial class PowerQueryCommands
                                     hasDataModelConnection = true;
                                 }
                             }
-                            catch
+                            catch (Exception ex) when (ex is COMException or System.Reflection.TargetInvocationException)
                             {
-                                // InModel property not available
+                                // InModel property not available for this connection type
                             }
                         }
                     }
@@ -488,9 +488,9 @@ public partial class PowerQueryCommands
                                         }
                                     }
                                 }
-                                catch
+                                catch (Exception ex) when (ex is COMException or System.Reflection.TargetInvocationException)
                                 {
-                                    // Table might not have QueryTable - skip
+                                    // Table doesn't have QueryTable property - skip
                                 }
                             }
                             finally
@@ -551,9 +551,9 @@ public partial class PowerQueryCommands
                             connToDelete = connections.Item(connName);
                             connToDelete.Delete();
                         }
-                        catch
+                        catch (COMException)
                         {
-                            // Connection may have already been deleted
+                            // Connection may have already been deleted - safe to ignore
                         }
                         finally
                         {
@@ -694,9 +694,9 @@ public partial class PowerQueryCommands
                                         }
                                     }
                                 }
-                                catch
+                                catch (Exception ex) when (ex is COMException or System.Reflection.TargetInvocationException)
                                 {
-                                    // Table might not have QueryTable - skip
+                                    // Table doesn't have QueryTable property - skip
                                 }
                             }
                             finally
@@ -757,9 +757,9 @@ public partial class PowerQueryCommands
                             connToDelete = connections.Item(connName);
                             connToDelete.Delete();
                         }
-                        catch
+                        catch (COMException)
                         {
-                            // Connection may have already been deleted or is in use
+                            // Connection may have already been deleted or is in use - safe to ignore
                         }
                         finally
                         {

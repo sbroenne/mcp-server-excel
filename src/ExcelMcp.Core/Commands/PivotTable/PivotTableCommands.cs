@@ -109,8 +109,9 @@ public partial class PivotTableCommands : IPivotTableCommands
 
             return "Text";
         }
-        catch
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
         {
+            // PivotItems access failed - cannot determine data type
             return "Unknown";
         }
         finally
@@ -268,9 +269,9 @@ public partial class PivotTableCommands : IPivotTableCommands
                 }
             }
         }
-        catch
+        catch (System.Runtime.InteropServices.COMException)
         {
-            // Ignore errors getting items
+            // PivotItems access failed - return partial list
         }
         finally
         {
@@ -306,8 +307,9 @@ public partial class PivotTableCommands : IPivotTableCommands
                 cubeFields = pivot.CubeFields;
                 isOlap = cubeFields != null && cubeFields.Count > 0;
             }
-            catch
+            catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
             {
+                // CubeFields property not available - not an OLAP PivotTable
                 isOlap = false;
             }
 
@@ -324,7 +326,7 @@ public partial class PivotTableCommands : IPivotTableCommands
                     {
                         cubeField = cubeFields.Item(fieldName);
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
                         // Field not found by exact name
                         cubeField = null;

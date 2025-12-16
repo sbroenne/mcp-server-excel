@@ -25,8 +25,9 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             dynamic cubeFields = pivot.CubeFields;
             return cubeFields != null && cubeFields.Count > 0;
         }
-        catch
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
         {
+            // CubeFields property not available - not an OLAP PivotTable
             return false;
         }
     }
@@ -47,7 +48,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             {
                 cubeField = cubeFields.Item(fieldName);
             }
-            catch
+            catch (System.Runtime.InteropServices.COMException)
             {
                 // Field not found by exact name - return null to trigger error
                 cubeField = null;
@@ -67,7 +68,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             {
                 cubeField.CreatePivotFields();
             }
-            catch
+            catch (System.Runtime.InteropServices.COMException)
             {
                 // PivotFields may already exist (field already added to PivotTable)
             }
@@ -777,7 +778,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             {
                 appliedFormat = pivotField.NumberFormat?.ToString();
             }
-            catch
+            catch (System.Runtime.InteropServices.COMException)
             {
                 // If we can't read it back, use what we set
                 appliedFormat = numberFormat;
@@ -1155,9 +1156,9 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                                 }
                             }
                         }
-                        catch
+                        catch (System.Runtime.InteropServices.COMException)
                         {
-                            // SourceName might not be available, continue with fallback
+                            // SourceName property might not be available for this CubeField type
                         }
                     }
                 }
@@ -1301,7 +1302,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 currencyFormat.Symbol = "$";
                 return currencyFormat;
             }
-            catch
+            catch (System.Runtime.InteropServices.COMException)
             {
                 if (currencyFormat != null)
                     ComUtilities.Release(ref currencyFormat);
@@ -1335,7 +1336,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
                 return percentFormat;
             }
-            catch
+            catch (System.Runtime.InteropServices.COMException)
             {
                 if (percentFormat != null)
                     ComUtilities.Release(ref percentFormat);
@@ -1368,7 +1369,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
                 return decimalFormat;
             }
-            catch
+            catch (System.Runtime.InteropServices.COMException)
             {
                 if (decimalFormat != null)
                     ComUtilities.Release(ref decimalFormat);
@@ -1392,7 +1393,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
                 return wholeFormat;
             }
-            catch
+            catch (System.Runtime.InteropServices.COMException)
             {
                 if (wholeFormat != null)
                     ComUtilities.Release(ref wholeFormat);
@@ -1435,10 +1436,9 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 formatObject.Symbol = "$";
                 return;
             }
-            catch
+            catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
             {
-                // If format object doesn't support these properties, it's not a currency format
-                // Fall through to try other format types
+                // Format object doesn't support currency properties - fall through to try other types
             }
         }
 
@@ -1463,9 +1463,9 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 }
                 return;
             }
-            catch
+            catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
             {
-                // Not a percentage format
+                // Format object doesn't support percentage properties - fall through
             }
         }
 
@@ -1488,9 +1488,9 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 }
                 return;
             }
-            catch
+            catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
             {
-                // Not a decimal format
+                // Format object doesn't support decimal properties - fall through
             }
         }
 
@@ -1505,9 +1505,9 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 }
                 return;
             }
-            catch
+            catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
             {
-                // Not a whole number format
+                // Format object doesn't support whole number properties - fall through
             }
         }
 
