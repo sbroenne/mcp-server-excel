@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.Marshalling;
 
 namespace Sbroenne.ExcelMcp.ComInterop;
 
@@ -13,10 +14,13 @@ namespace Sbroenne.ExcelMcp.ComInterop;
 ///
 /// Register once per STA thread via Register(), revoke on thread shutdown via Revoke().
 /// </remarks>
-public sealed class OleMessageFilter : IOleMessageFilter
+[GeneratedComClass]
+public sealed partial class OleMessageFilter : IOleMessageFilter
 {
+    private static readonly StrategyBasedComWrappers s_comWrappers = new();
+
     [ThreadStatic]
-    private static IOleMessageFilter? _oldFilter;
+    private static nint _oldFilterPtr;
 
     /// <summary>
     /// Registers the OLE message filter for the current STA thread.
@@ -25,7 +29,9 @@ public sealed class OleMessageFilter : IOleMessageFilter
     public static void Register()
     {
         var newFilter = new OleMessageFilter();
-        int result = CoRegisterMessageFilter(newFilter, out _oldFilter);
+        nint newFilterPtr = s_comWrappers.GetOrCreateComInterfaceForObject(newFilter, CreateComInterfaceFlags.None);
+
+        int result = CoRegisterMessageFilter(newFilterPtr, out _oldFilterPtr);
         if (result != 0)
         {
             throw new InvalidOperationException($"Failed to register OLE message filter. HRESULT: 0x{result:X8}");
@@ -38,18 +44,18 @@ public sealed class OleMessageFilter : IOleMessageFilter
     /// </summary>
     public static void Revoke()
     {
-        int result = CoRegisterMessageFilter(_oldFilter, out _);
+        int result = CoRegisterMessageFilter(_oldFilterPtr, out _);
         if (result != 0)
         {
             throw new InvalidOperationException($"Failed to revoke OLE message filter. HRESULT: 0x{result:X8}");
         }
-        _oldFilter = null;
+        _oldFilterPtr = 0;
     }
 
     /// <summary>
     /// Handles incoming COM calls. Not used for Excel automation scenarios.
     /// </summary>
-    int IOleMessageFilter.HandleInComingCall(int dwCallType, IntPtr htaskCaller, int dwTickCount, IntPtr lpInterfaceInfo)
+    int IOleMessageFilter.HandleInComingCall(int dwCallType, nint htaskCaller, int dwTickCount, nint lpInterfaceInfo)
     {
         // SERVERCALL_ISHANDLED (0) - Accept the call
         return 0;
@@ -57,7 +63,7 @@ public sealed class OleMessageFilter : IOleMessageFilter
 
     /// <summary>
     /// Handles rejected COM calls from Excel.
-    /// Implements automatic retry logic for busy/unavailable conditions.
+    /// Implements automatic retry logic with exponential backoff for busy/unavailable conditions.
     /// </summary>
     /// <param name="htaskCallee">Handle to the task that rejected the call</param>
     /// <param name="dwTickCount">Number of milliseconds since rejection occurred</param>
@@ -67,36 +73,43 @@ public sealed class OleMessageFilter : IOleMessageFilter
     /// 0-99 = Cancel the call
     /// -1 = Cancel immediately
     /// </returns>
-    int IOleMessageFilter.RetryRejectedCall(IntPtr htaskCallee, int dwTickCount, int dwRejectType)
+    int IOleMessageFilter.RetryRejectedCall(nint htaskCallee, int dwTickCount, int dwRejectType)
     {
         // dwRejectType values:
         // SERVERCALL_RETRYLATER (2) = Server is busy, try again later
         // SERVERCALL_REJECTED (1) = Server rejected the call
 
-        // Early return pattern to reduce nesting
         const int SERVERCALL_RETRYLATER = 2;
         const int RETRY_TIMEOUT_MS = 30000;
-        const int RETRY_DELAY_MS = 100;
 
         if (dwRejectType != SERVERCALL_RETRYLATER)
         {
             return -1; // Cancel immediately for non-retry scenarios
         }
 
-        // Retry after 100ms for up to 30 seconds
-        if (dwTickCount < RETRY_TIMEOUT_MS)
+        if (dwTickCount >= RETRY_TIMEOUT_MS)
         {
-            return RETRY_DELAY_MS; // Retry after 100ms
+            return -1; // Cancel the call if timeout exceeded
         }
 
-        // Cancel the call if timeout exceeded
-        return -1;
+        // Exponential backoff based on elapsed time:
+        // 0-1s:   100ms delays (quick retries for brief busy states)
+        // 1-5s:   200ms delays
+        // 5-15s:  500ms delays
+        // 15-30s: 1000ms delays (Excel is seriously stuck)
+        return dwTickCount switch
+        {
+            < 1000 => 100,
+            < 5000 => 200,
+            < 15000 => 500,
+            _ => 1000
+        };
     }
 
     /// <summary>
     /// Handles pending message during a COM call.
     /// </summary>
-    int IOleMessageFilter.MessagePending(IntPtr htaskCallee, int dwTickCount, int dwPendingType)
+    int IOleMessageFilter.MessagePending(nint htaskCallee, int dwTickCount, int dwPendingType)
     {
         // PENDINGMSG_WAITDEFPROCESS (2) - Continue waiting for the call to complete
         return 2;
@@ -105,8 +118,8 @@ public sealed class OleMessageFilter : IOleMessageFilter
     /// <summary>
     /// Registers or revokes a message filter for the current apartment.
     /// </summary>
-    [DllImport("Ole32.dll")]
-    private static extern int CoRegisterMessageFilter(
-        IOleMessageFilter? lpMessageFilter,
-        out IOleMessageFilter? lplpMessageFilter);
+    [LibraryImport("Ole32.dll")]
+    private static partial int CoRegisterMessageFilter(
+        nint lpMessageFilter,
+        out nint lplpMessageFilter);
 }

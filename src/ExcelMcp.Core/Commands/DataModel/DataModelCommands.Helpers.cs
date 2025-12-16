@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -176,6 +177,71 @@ public partial class DataModelCommands
         catch
         {
             return model.ModelFormatGeneral;  // Safe fallback if format not available
+        }
+    }
+
+    /// <summary>
+    /// Extracts format information from a ModelFormat* COM object as a structured object.
+    /// FormatInformation returns one of: ModelFormatGeneral, ModelFormatCurrency,
+    /// ModelFormatDecimalNumber, ModelFormatPercentageNumber, ModelFormatWholeNumber,
+    /// ModelFormatScientificNumber, ModelFormatBoolean, ModelFormatDate.
+    /// These don't have a FormatString property - they have type-specific properties like DecimalPlaces, Symbol.
+    /// </summary>
+    /// <param name="formatInfo">The FormatInformation COM object from a ModelMeasure</param>
+    /// <returns>Structured format info with Type, Symbol, DecimalPlaces, UseThousandSeparator as applicable</returns>
+    private static MeasureFormatInfo GetFormatInfo(dynamic formatInfo)
+    {
+        var result = new MeasureFormatInfo { Type = "General" };
+
+        try
+        {
+            // Try to detect the format type by checking for type-specific properties
+            // Each ModelFormat* type has different properties available
+
+            // Check for Currency (has Symbol and DecimalPlaces)
+            try
+            {
+                string? symbol = formatInfo.Symbol?.ToString();
+                if (!string.IsNullOrEmpty(symbol))
+                {
+                    result.Type = "Currency";
+                    result.Symbol = symbol;
+                    result.DecimalPlaces = Convert.ToInt32(formatInfo.DecimalPlaces);
+                    return result;
+                }
+            }
+            catch { /* Not a currency format */ }
+
+            // Check for Percentage (has DecimalPlaces and UseThousandSeparator)
+            try
+            {
+                // Percentage format has UseThousandSeparator but no Symbol
+                bool useThousands = formatInfo.UseThousandSeparator;
+                int decimals = Convert.ToInt32(formatInfo.DecimalPlaces);
+                // If we got here without exception, it's likely Percentage or Decimal
+                result.Type = "Percentage";
+                result.DecimalPlaces = decimals;
+                result.UseThousandSeparator = useThousands;
+                return result;
+            }
+            catch { /* Not a percentage format */ }
+
+            // Check for DecimalNumber or WholeNumber (has DecimalPlaces)
+            try
+            {
+                int decimals = Convert.ToInt32(formatInfo.DecimalPlaces);
+                result.Type = decimals == 0 ? "WholeNumber" : "Decimal";
+                result.DecimalPlaces = decimals;
+                return result;
+            }
+            catch { /* Not a decimal format */ }
+
+            // Default to General if we can't determine the type
+            return result;
+        }
+        catch
+        {
+            return result;
         }
     }
 

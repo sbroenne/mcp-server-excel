@@ -9,19 +9,19 @@
     <PackageVersion Include="Spectre.Console" Version="0.54.0" />
     <PackageVersion Include="Spectre.Console.Cli" Version="0.53.1" />
     <!-- Microsoft Extensions for MCP Server -->
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.1" />
     <!-- Application Insights Worker Service SDK for telemetry (Users, Sessions, Funnels, User Flows) -->
     <!-- Worker Service SDK provides proper DI integration, auto-collection modules, and host lifetime awareness -->
     <PackageVersion Include="Microsoft.ApplicationInsights.WorkerService" Version="2.23.0" />
     <!-- Base SDK needed for tests that directly use TelemetryClient -->
     <PackageVersion Include="Microsoft.ApplicationInsights" Version="2.23.0" />
-    <PackageVersion Include="Microsoft.Extensions.Resilience" Version="10.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.0" />
-    <PackageVersion Include="System.Text.Json" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Resilience" Version="10.1.0" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.1" />
+    <PackageVersion Include="System.Text.Json" Version="10.0.1" />
     <!-- MCP SDK - Latest stable preview -->
     <PackageVersion Include="ModelContextProtocol" Version="0.5.0-preview.1" />
     <!-- Testing Framework -->
@@ -34,6 +34,6 @@
     <PackageVersion Include="MartinCostello.Logging.XUnit" Version="0.7.0" />
     <!-- Code Analysis and Security -->
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.5" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.100" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.101" />
   </ItemGroup>
 </Project>

@@ -77,14 +77,6 @@ dotnet_diagnostic.IDE0110.severity = warning     # Remove unnecessary discard
 # This allows optional timeout while keeping cancellationToken with default value
 dotnet_diagnostic.CA1068.severity = suggestion
 
-# Suppress SYSLIB1096 - GeneratedComInterface incompatible with legacy COM interop (IOleMessageFilter)
-# GeneratedComInterface causes COM marshalling issues with CoRegisterMessageFilter P/Invoke
-dotnet_diagnostic.SYSLIB1096.severity = none
-
-# Suppress SYSLIB1054 - LibraryImport incompatible with COM interface parameters
-# LibraryImport source generation fails with IOleMessageFilter COM interface marshalling
-dotnet_diagnostic.SYSLIB1054.severity = none
-
 # Suppress CA2016 for STA thread operations - CancellationToken cannot be used with Task.Run in STA context
 # COM operations require STA thread apartment and use timeout-based cancellation instead
 dotnet_diagnostic.CA2016.severity = suggestion

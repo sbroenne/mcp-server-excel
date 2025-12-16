@@ -22,7 +22,15 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsAsErrors />
-    <!-- Suppress warnings for Windows-only COM interop code -->
+
+    <!--
+      Suppressed warnings (cannot be fixed - see docs/DEVELOPMENT.md for details):
+      - CA1416: Windows-only APIs (this is a Windows-only COM automation project)
+      - CS8602: Dereference of possibly null reference (dynamic COM objects)
+      - SYSLIB1045: GeneratedRegexAttribute pattern (not applicable to our regex usage)
+      - IL2026: Reflection/dynamic code incompatible with trimming (Excel COM uses dynamic)
+      - IL3050: Code incompatible with Native AOT (Excel COM requires runtime COM activation)
+    -->
     <NoWarn>$(NoWarn);CA1416;CS8602;SYSLIB1045;IL2026;IL3050</NoWarn>
 
     <!-- Deterministic builds for reproducibility -->

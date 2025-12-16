@@ -168,14 +168,16 @@ public partial class DataModelCommands
                 result.CharacterCount = result.DaxFormula.Length;
                 result.TableName = GetMeasureTableName(model, measureName) ?? "";
 
-                // Try to get format information - use null-safe access
+                // Try to get format information - FormatInformation returns ModelFormat* objects
+                // (ModelFormatGeneral, ModelFormatCurrency, ModelFormatDecimalNumber, etc.)
+                // These don't have a FormatString property - they have type-specific properties
                 dynamic? formatInfo = null;
                 try
                 {
                     formatInfo = measure.FormatInformation;
                     if (formatInfo != null)
                     {
-                        result.FormatString = formatInfo.FormatString?.ToString();
+                        result.FormatInfo = GetFormatInfo(formatInfo);
                     }
                 }
                 finally
