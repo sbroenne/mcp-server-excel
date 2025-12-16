@@ -122,7 +122,6 @@ public partial class DataModelCommands
             {
                 dynamic? model = null;
                 dynamic? modelRelationships = null;
-                dynamic? relationship = null;
                 try
                 {
                     // Check if workbook has Data Model
@@ -134,16 +133,18 @@ public partial class DataModelCommands
                     model = ctx.Book.Model;
                     modelRelationships = model.ModelRelationships;
 
-                    // Find the relationship
+                    // Find and delete the relationship
                     bool found = false;
-                    for (int i = 1; i <= modelRelationships.Count; i++)
+                    int count = modelRelationships.Count;
+                    for (int i = 1; i <= count; i++)
                     {
+                        dynamic? currentRelationship = null;
                         try
                         {
-                            relationship = modelRelationships.Item(i);
+                            currentRelationship = modelRelationships.Item(i);
 
-                            dynamic? fkColumn = relationship.ForeignKeyColumn;
-                            dynamic? pkColumn = relationship.PrimaryKeyColumn;
+                            dynamic? fkColumn = currentRelationship.ForeignKeyColumn;
+                            dynamic? pkColumn = currentRelationship.PrimaryKeyColumn;
 
                             try
                             {
@@ -164,7 +165,7 @@ public partial class DataModelCommands
                                     currentToColumn.Equals(toColumn, StringComparison.OrdinalIgnoreCase))
                                 {
                                     // Delete the relationship
-                                    relationship.Delete();
+                                    currentRelationship.Delete();
                                     found = true;
                                     break;
                                 }
@@ -177,10 +178,7 @@ public partial class DataModelCommands
                         }
                         finally
                         {
-                            if (!found || i < modelRelationships.Count)
-                            {
-                                ComUtilities.Release(ref relationship);
-                            }
+                            ComUtilities.Release(ref currentRelationship);
                         }
                     }
 
@@ -191,7 +189,6 @@ public partial class DataModelCommands
                 }
                 finally
                 {
-                    ComUtilities.Release(ref relationship);
                     ComUtilities.Release(ref modelRelationships);
                     ComUtilities.Release(ref model);
                 }
@@ -483,10 +480,6 @@ public partial class DataModelCommands
                     // Update active state
                     // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.modelrelationship (Active property is Read/Write)
                     relationship.Active = active;
-
-                    string stateChange = wasActive == active
-                        ? $"remains {(active ? "active" : "inactive")}"
-                        : $"changed from {(wasActive ? "active" : "inactive")} to {(active ? "active" : "inactive")}";
                 }
                 finally
                 {

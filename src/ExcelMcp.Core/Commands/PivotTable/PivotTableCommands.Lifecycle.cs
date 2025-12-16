@@ -306,8 +306,9 @@ public partial class PivotTableCommands
                     {
                         fieldName = cubeField.Name?.ToString() ?? $"CubeField{i}";
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
+                        // Name property access failed - use fallback
                         fieldName = $"CubeField{i}";
                     }
 
@@ -322,8 +323,9 @@ public partial class PivotTableCommands
                             ComUtilities.Release(ref pivotField);
                         }
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
+                        // PivotField access failed - field may not be placed, use Hidden
                         orientation = XlPivotFieldOrientation.xlHidden;
                     }
 
@@ -345,9 +347,10 @@ public partial class PivotTableCommands
 
                     fields.Add(fieldInfo);
                 }
-                catch (Exception ex)
+                catch (System.Runtime.InteropServices.COMException)
                 {
-                    Console.Error.WriteLine($"Warning: Failed to read cube field {i}: {ex.Message}");
+                    // Individual field access failed - skip this field and continue
+                    // This can happen with certain OLAP cube field types
                 }
                 finally
                 {
@@ -355,9 +358,9 @@ public partial class PivotTableCommands
                 }
             }
         }
-        catch (Exception ex)
+        catch (System.Runtime.InteropServices.COMException)
         {
-            Console.Error.WriteLine($"Warning: Failed to enumerate cube fields: {ex.Message}");
+            // CubeFields collection access failed - return partial results
         }
 
         return fields;
@@ -407,9 +410,10 @@ public partial class PivotTableCommands
 
                     fields.Add(fieldInfo);
                 }
-                catch (Exception ex)
+                catch (System.Runtime.InteropServices.COMException)
                 {
-                    Console.Error.WriteLine($"Warning: Failed to read field {i}: {ex.Message}");
+                    // Individual field access failed - skip this field and continue
+                    // This can happen with calculated fields or special field types
                 }
                 finally
                 {
@@ -417,9 +421,9 @@ public partial class PivotTableCommands
                 }
             }
         }
-        catch (Exception ex)
+        catch (System.Runtime.InteropServices.COMException)
         {
-            Console.Error.WriteLine($"Warning: Failed to enumerate pivot fields: {ex.Message}");
+            // PivotFields collection access failed - return partial results
         }
 
         return fields;

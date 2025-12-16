@@ -122,10 +122,9 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
                     fields.Add(fieldInfo);
                 }
-                catch (Exception ex)
+                catch (System.Runtime.InteropServices.COMException)
                 {
-                    // Log but continue with other fields
-                    Console.Error.WriteLine($"Error reading OLAP field {i}: {ex.Message}");
+                    // Skip field if COM access fails - continue with other fields
                 }
                 finally
                 {

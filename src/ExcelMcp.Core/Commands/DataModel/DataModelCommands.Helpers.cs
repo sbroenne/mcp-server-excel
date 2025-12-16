@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+using Microsoft.CSharp.RuntimeBinder;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
 
@@ -174,9 +176,10 @@ public partial class DataModelCommands
                 _ => model.ModelFormatGeneral  // Fallback to General for unknown types
             };
         }
-        catch
+        catch (Exception ex) when (ex is COMException or RuntimeBinderException)
         {
-            return model.ModelFormatGeneral;  // Safe fallback if format not available
+            // COM format object not available - use General as safe fallback
+            return model.ModelFormatGeneral;
         }
     }
 
@@ -199,6 +202,7 @@ public partial class DataModelCommands
             // Each ModelFormat* type has different properties available
 
             // Check for Currency (has Symbol and DecimalPlaces)
+            // COM property probing: access throws COMException or RuntimeBinderException if property doesn't exist on this format type
             try
             {
                 string? symbol = formatInfo.Symbol?.ToString();
@@ -210,7 +214,7 @@ public partial class DataModelCommands
                     return result;
                 }
             }
-            catch { /* Not a currency format */ }
+            catch (Exception ex) when (ex is COMException or RuntimeBinderException) { /* Not a currency format - property doesn't exist */ }
 
             // Check for Percentage (has DecimalPlaces and UseThousandSeparator)
             try
@@ -224,7 +228,7 @@ public partial class DataModelCommands
                 result.UseThousandSeparator = useThousands;
                 return result;
             }
-            catch { /* Not a percentage format */ }
+            catch (Exception ex) when (ex is COMException or RuntimeBinderException) { /* Not a percentage format - property doesn't exist */ }
 
             // Check for DecimalNumber or WholeNumber (has DecimalPlaces)
             try
@@ -234,13 +238,14 @@ public partial class DataModelCommands
                 result.DecimalPlaces = decimals;
                 return result;
             }
-            catch { /* Not a decimal format */ }
+            catch (Exception ex) when (ex is COMException or RuntimeBinderException) { /* Not a decimal format - property doesn't exist */ }
 
             // Default to General if we can't determine the type
             return result;
         }
-        catch
+        catch (Exception ex) when (ex is COMException or RuntimeBinderException)
         {
+            // COM object access failed entirely - return default General format
             return result;
         }
     }

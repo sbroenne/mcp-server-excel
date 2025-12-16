@@ -81,7 +81,7 @@ public partial class PivotTableCommands
                     {
                         fieldName = cubeField.Name?.ToString() ?? $"CubeField{i}";
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
                         fieldName = $"CubeField{i}";
                     }
@@ -97,7 +97,7 @@ public partial class PivotTableCommands
                             ComUtilities.Release(ref pivotField);
                         }
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
                         orientation = XlPivotFieldOrientation.xlHidden;
                     }
@@ -120,9 +120,9 @@ public partial class PivotTableCommands
 
                     fields.Add(fieldInfo);
                 }
-                catch (Exception ex)
+                catch (System.Runtime.InteropServices.COMException)
                 {
-                    Console.Error.WriteLine($"Warning: Failed to read cube field {i}: {ex.Message}");
+                    // Skip field if COM access fails - continue with other fields
                 }
                 finally
                 {
@@ -137,7 +137,7 @@ public partial class PivotTableCommands
                 FilePath = filePath
             };
         }
-        catch (Exception ex)
+        catch (System.Runtime.InteropServices.COMException ex)
         {
             return new PivotFieldListResult
             {
@@ -185,7 +185,7 @@ public partial class PivotTableCommands
                     {
                         fieldName = field.SourceName?.ToString() ?? field.Name?.ToString() ?? $"Field{i}";
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
                         fieldName = $"Field{i}";
                     }
@@ -196,7 +196,7 @@ public partial class PivotTableCommands
                     {
                         orientation = Convert.ToInt32(field.Orientation);
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
                         orientation = XlPivotFieldOrientation.xlHidden;
                     }
@@ -219,7 +219,7 @@ public partial class PivotTableCommands
                     {
                         fieldInfo.CustomName = field.Caption?.ToString() ?? string.Empty;
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
                         fieldInfo.CustomName = string.Empty;
                     }
@@ -229,7 +229,7 @@ public partial class PivotTableCommands
                     {
                         fieldInfo.Position = orientation != XlPivotFieldOrientation.xlHidden ? Convert.ToInt32(field.Position) : 0;
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
                         fieldInfo.Position = 0;
                     }
@@ -239,7 +239,7 @@ public partial class PivotTableCommands
                     {
                         fieldInfo.DataType = DetectFieldDataType(field);
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
                         fieldInfo.DataType = "Unknown";
                     }
@@ -252,7 +252,7 @@ public partial class PivotTableCommands
                             int comFunction = Convert.ToInt32(field.Function);
                             fieldInfo.Function = GetAggregationFunctionFromCom(comFunction);
                         }
-                        catch
+                        catch (System.Runtime.InteropServices.COMException)
                         {
                             fieldInfo.Function = AggregationFunction.Sum; // Default
                         }
@@ -260,10 +260,9 @@ public partial class PivotTableCommands
 
                     fields.Add(fieldInfo);
                 }
-                catch (Exception ex)
+                catch (System.Runtime.InteropServices.COMException)
                 {
-                    // Log but continue - don't let one bad field break the entire list
-                    Console.Error.WriteLine($"Warning: Failed to read field {i}: {ex.Message}");
+                    // Skip field if COM access fails - continue with other fields
                 }
                 finally
                 {
@@ -278,7 +277,7 @@ public partial class PivotTableCommands
                 FilePath = filePath
             };
         }
-        catch (Exception ex)
+        catch (System.Runtime.InteropServices.COMException ex)
         {
             return new PivotFieldListResult
             {
