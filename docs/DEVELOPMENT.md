@@ -487,7 +487,80 @@ Runtime:
 | `infrastructure/azure/appinsights.bicep` | Azure resource definitions |
 | `infrastructure/azure/deploy-appinsights.ps1` | Deployment script |
 
-## 📞 **Need Help?**
+## � **Trimming and Native AOT Compatibility**
+
+### **Why Trimming Is Not Supported**
+
+ExcelMcp **cannot be trimmed** due to fundamental architectural constraints of Excel COM automation. The IL trimmer removes unused code at publish time, but Excel COM interop requires dynamic code paths that the trimmer cannot statically analyze.
+
+### **Technical Constraints**
+
+**1. Runtime COM Activation**
+```csharp
+// This code CANNOT be trimmed - Excel type comes from Windows Registry at runtime
+Type? excelType = Type.GetTypeFromProgID("Excel.Application");
+dynamic excel = Activator.CreateInstance(excelType)!;
+```
+
+The trimmer cannot know:
+- What types will be returned by `GetTypeFromProgID` (it's a Windows Registry lookup)
+- What members will be called on the `dynamic` object
+
+**2. Late-Bound COM Calls**
+```csharp
+// All Excel operations use dynamic dispatch - the trimmer can't trace these calls
+dynamic workbook = excel.Workbooks.Open(filePath);
+dynamic sheet = workbook.Worksheets.Item(1);
+sheet.Range["A1"].Value2 = "Hello";
+```
+
+**3. Excel is External**
+- Excel is not a .NET assembly - it's an out-of-process COM server
+- The .NET runtime uses the Dynamic Language Runtime (DLR) for all Excel calls
+- No static type information exists for the trimmer to analyze
+
+### **What We DID Modernize**
+
+While the Excel automation core cannot be trimmed, we modernized the OLE Message Filter to use .NET 8 source-generated COM interop:
+
+| Component | Before | After |
+|-----------|--------|-------|
+| `IOleMessageFilter` | `[ComImport]` | `[GeneratedComInterface]` |
+| `OleMessageFilter` | `class` | `[GeneratedComClass]` partial class |
+| `CoRegisterMessageFilter` | `[DllImport]` | `[LibraryImport]` |
+
+**Benefits:**
+- ✅ Compile-time marshalling code generation
+- ✅ No runtime IL stub generation for the message filter
+- ✅ Better diagnostics and debugging
+
+### **Suppressed Warnings**
+
+The following warnings are suppressed in `Directory.Build.props` because they cannot be fixed:
+
+| Warning | Reason |
+|---------|--------|
+| `IL2026` | Reflection/dynamic code incompatible with trimming |
+| `IL3050` | Code incompatible with Native AOT |
+| `CA1416` | Windows-only APIs (this is a Windows-only project) |
+
+### **Can We Ever Support Trimming?**
+
+**No**, unless one of these happens:
+1. **Excel exposes a .NET API** - Microsoft would need to create a managed Excel SDK
+2. **We abandon COM** - Would require a completely different architecture (file-based only, no live automation)
+3. **Excel is replaced** - Use a different spreadsheet engine with .NET bindings
+
+**The current architecture is the standard approach** for Excel automation in .NET and is used by thousands of applications. Trimming is simply not compatible with COM automation.
+
+### **Alternatives for Smaller Binaries**
+
+If deployment size is a concern:
+- Use **framework-dependent** deployment (default) - smallest option (~15 MB)
+- The .NET runtime is typically already installed on Windows machines with Excel
+- Self-contained deployment is only needed for isolated environments
+
+## �📞 **Need Help?**
 
 - **Read the docs**: [Contributing Guide](CONTRIBUTING.md)
 - **Ask questions**: Create a GitHub Issue with the `question` label
