@@ -5,6 +5,11 @@
 // These tests document the REAL behavior of Excel's Data Model/Power Pivot COM API
 // =============================================================================
 
+// Suppress invalid-dynamic-call warnings - this diagnostic test file intentionally uses
+// dynamic COM interop patterns to explore Excel's behavior. The Range[cell] pattern is
+// standard COM interop for Excel and cannot be statically analyzed.
+#pragma warning disable CS1061 // Member access on dynamic type - expected for COM interop exploration
+
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -1131,9 +1136,9 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 _output.WriteLine($"CalculateFullRebuild failed: {ex.Message}");
             }
 
-            // Step 12: Save and reopen workbook (nuclear option)
-            _output.WriteLine("\n--- Step 12: Save, close, and reopen workbook ---");
-            string tempPath = _workbook.FullName;
+            // Step 12: Save workbook
+            // NOTE: The "close and reopen" part was never implemented, so we just save
+            _output.WriteLine("\n--- Step 12: Save workbook ---");
             _workbook.Save();
             _output.WriteLine("Workbook saved");
 
@@ -1630,7 +1635,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 string cName = c?.Name?.ToString() ?? "(null)";
                 int cType = Convert.ToInt32(c?.Type ?? 0);
                 bool inModel = false;
-                try { inModel = c.InModel; } catch { }
+                try { inModel = c.InModel; } catch (COMException) { /* InModel property may not exist on all connection types */ }
                 _output.WriteLine($"  [{i}] Name: '{cName}', Type: {cType}, InModel: {inModel}");
                 ComUtilities.Release(ref c);
             }
@@ -1884,7 +1889,9 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 {
                     workbook.Close(false);
                 }
-                catch { /* Ignore cleanup errors */ }
+#pragma warning disable CA1031 // Intentional: cleanup code must not throw
+                catch (Exception) { /* Ignore cleanup errors */ }
+#pragma warning restore CA1031
                 ComUtilities.Release(ref workbook);
             }
 
@@ -1894,7 +1901,9 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 {
                     excel.Quit();
                 }
-                catch { /* Ignore cleanup errors */ }
+#pragma warning disable CA1031 // Intentional: cleanup code must not throw
+                catch (Exception) { /* Ignore cleanup errors */ }
+#pragma warning restore CA1031
                 ComUtilities.Release(ref excel);
             }
 
@@ -1904,7 +1913,9 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 if (File.Exists(testFile))
                     File.Delete(testFile);
             }
-            catch { /* Ignore */ }
+#pragma warning disable CA1031 // Intentional: cleanup code must not throw
+            catch (Exception) { /* Ignore file cleanup errors */ }
+#pragma warning restore CA1031
         }
 
         _output.WriteLine($"=== SCENARIO 13 ({visibilityLabel}) COMPLETE ===\n");

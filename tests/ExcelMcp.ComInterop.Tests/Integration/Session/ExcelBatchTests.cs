@@ -387,7 +387,9 @@ public class ExcelBatchTests : IAsyncLifetime
             // Cleanup parallel test files
             foreach (var testFile in testFileCopies.Where(File.Exists))
             {
-                try { File.Delete(testFile); } catch { /* Best effort cleanup */ }
+#pragma warning disable CA1031 // Intentional: best-effort test cleanup
+                try { File.Delete(testFile); } catch (Exception) { /* Best effort cleanup */ }
+#pragma warning restore CA1031
             }
         }
     }
@@ -430,7 +432,9 @@ public class ExcelBatchTests : IAsyncLifetime
             // Cleanup
             if (File.Exists(lockedTestFile))
             {
-                try { File.Delete(lockedTestFile); } catch { /* Best effort - file may be locked */ }
+#pragma warning disable CA1031 // Intentional: best-effort test cleanup
+                try { File.Delete(lockedTestFile); } catch (Exception) { /* Best effort - file may be locked */ }
+#pragma warning restore CA1031
             }
         }
     }

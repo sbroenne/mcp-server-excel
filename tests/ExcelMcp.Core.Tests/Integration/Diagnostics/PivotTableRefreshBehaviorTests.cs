@@ -493,7 +493,9 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
                 Marshal.ReleaseComObject(_workbook);
             }
         }
-        catch { }
+#pragma warning disable CA1031 // Intentional: cleanup code must not throw
+        catch (Exception) { /* Ignore cleanup errors */ }
+#pragma warning restore CA1031
 
         try
         {
@@ -503,7 +505,9 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
                 Marshal.ReleaseComObject(_excel);
             }
         }
-        catch { }
+#pragma warning disable CA1031 // Intentional: cleanup code must not throw
+        catch (Exception) { /* Ignore cleanup errors */ }
+#pragma warning restore CA1031
 
         // Clean up test file
         try
@@ -511,7 +515,9 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
             if (File.Exists(_testFile))
                 File.Delete(_testFile);
         }
-        catch { }
+#pragma warning disable CA1031 // Intentional: cleanup code must not throw
+        catch (Exception) { /* Ignore file cleanup errors */ }
+#pragma warning restore CA1031
 
         GC.Collect();
         GC.WaitForPendingFinalizers();

@@ -1139,7 +1139,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 if (qt != null)
                 {
                     string? connName = null;
-                    try { connName = qt.Connection?.ToString(); } catch { }
+                    try { connName = qt.Connection?.ToString(); } catch (COMException) { /* Connection property may not exist */ }
                     if (connName?.Contains("FullUnloadTest") == true)
                     {
                         _output.WriteLine($"  Unlisting table: {lo.Name}");

@@ -134,6 +134,7 @@ public class Program
             // This is expected behavior, not an error
             return 0;
         }
+#pragma warning disable CA1031 // Catch general exception - this is a top-level handler that must not crash
         catch (Exception ex)
         {
             // Track MCP SDK/transport errors (protocol errors, serialization errors, etc.)
@@ -144,6 +145,7 @@ public class Program
             // Do NOT re-throw - deterministic exit code is more important for callers
             return 1;
         }
+#pragma warning restore CA1031
     }
 
     /// <summary>

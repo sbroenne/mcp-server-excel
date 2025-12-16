@@ -85,10 +85,10 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
 
                     fields.Add(fieldInfo);
                 }
-                catch (Exception ex)
+                catch (System.Runtime.InteropServices.COMException)
                 {
-                    // Log but continue with other fields
-                    Console.Error.WriteLine($"Error reading field {i}: {ex.Message}");
+                    // Individual field access failed - skip this field and continue
+                    // This can happen with calculated fields or special field types
                 }
                 finally
                 {

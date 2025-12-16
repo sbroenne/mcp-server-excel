@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -51,9 +52,9 @@ public partial class PivotTableCommands
                             IsValid = member.IsValid
                         };
 
-                        // Try to get optional properties
-                        try { memberInfo.DisplayFolder = member.DisplayFolder?.ToString(); } catch { }
-                        try { memberInfo.NumberFormat = member.NumberFormat?.ToString(); } catch { }
+                        // Try to get optional properties (may not exist on all calculated member types)
+                        try { memberInfo.DisplayFolder = member.DisplayFolder?.ToString(); } catch (System.Runtime.InteropServices.COMException) { }
+                        try { memberInfo.NumberFormat = member.NumberFormat?.ToString(); } catch (System.Runtime.InteropServices.COMException) { }
 
                         result.CalculatedMembers.Add(memberInfo);
                     }
@@ -157,9 +158,9 @@ public partial class PivotTableCommands
                     WorkflowHint = $"Created calculated {type} '{memberName}'. Use add-value-field with fieldName='[Measures].[{memberName}]' to add it to the PivotTable values area."
                 };
 
-                // Try to get optional properties
-                try { result.DisplayFolder = newMember.DisplayFolder?.ToString(); } catch { }
-                try { result.NumberFormat = newMember.NumberFormat?.ToString(); } catch { }
+                // Try to get optional properties (may not exist on all calculated member types)
+                try { result.DisplayFolder = newMember.DisplayFolder?.ToString(); } catch (System.Runtime.InteropServices.COMException) { }
+                try { result.NumberFormat = newMember.NumberFormat?.ToString(); } catch (System.Runtime.InteropServices.COMException) { }
 
                 return result;
             }
@@ -202,7 +203,7 @@ public partial class PivotTableCommands
                 {
                     member = calculatedMembers.Item(memberName);
                 }
-                catch
+                catch (COMException)
                 {
                     return new OperationResult
                     {
@@ -238,8 +239,9 @@ public partial class PivotTableCommands
             cubeFields = pivot.CubeFields;
             return cubeFields != null && cubeFields.Count > 0;
         }
-        catch
+        catch (COMException)
         {
+            // CubeFields property doesn't exist or failed - not an OLAP PivotTable
             return false;
         }
         finally

@@ -37,14 +37,14 @@ public class SessionManagerOperationTrackingTests : IDisposable
         foreach (var file in _testFiles.Where(File.Exists))
         {
 #pragma warning disable CA1031 // Catch general exception - best effort cleanup in test disposal
-            try { File.Delete(file); } catch { /* best effort */ }
+            try { File.Delete(file); } catch (Exception) { /* best effort */ }
 #pragma warning restore CA1031
         }
 
         if (Directory.Exists(_tempDir))
         {
 #pragma warning disable CA1031 // Catch general exception - best effort cleanup in test disposal
-            try { Directory.Delete(_tempDir, recursive: true); } catch { /* best effort */ }
+            try { Directory.Delete(_tempDir, recursive: true); } catch (Exception) { /* best effort */ }
 #pragma warning restore CA1031
         }
 
