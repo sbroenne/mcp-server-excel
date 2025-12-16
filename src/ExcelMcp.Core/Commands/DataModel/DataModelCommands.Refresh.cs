@@ -64,6 +64,11 @@ public partial class DataModelCommands
                         throw new InvalidOperationException($"Model-level refresh not supported. Try refreshing tables individually. Error: {refreshEx.Message}", refreshEx);
                     }
                 }
+
+                // NOTE: CUBEVALUE formulas may still show #N/A after refresh.
+                // Application.Calculate() and CalculateFull() can throw COM errors (0x800AC472).
+                // This is a known Excel COM limitation - CUBE functions require interactive Excel.
+                // See: https://github.com/sbroenne/mcp-server-excel/issues/313
             }
             finally
             {

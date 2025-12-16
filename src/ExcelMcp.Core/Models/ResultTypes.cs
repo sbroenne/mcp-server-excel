@@ -1275,6 +1275,33 @@ public class DataModelMeasureInfo
 }
 
 /// <summary>
+/// Format information for a Data Model measure.
+/// Represents the polymorphic ModelFormat* COM objects as structured JSON.
+/// </summary>
+public class MeasureFormatInfo
+{
+    /// <summary>
+    /// Format type: General, Currency, Decimal, Percentage, WholeNumber, Scientific, Boolean, Date
+    /// </summary>
+    public string Type { get; set; } = "General";
+
+    /// <summary>
+    /// Currency symbol (e.g., "$", "€", "£"). Only present for Currency format.
+    /// </summary>
+    public string? Symbol { get; set; }
+
+    /// <summary>
+    /// Number of decimal places. Present for Currency, Decimal, Percentage formats.
+    /// </summary>
+    public int? DecimalPlaces { get; set; }
+
+    /// <summary>
+    /// Whether to use thousand separator (e.g., 1,000 vs 1000). Present for numeric formats.
+    /// </summary>
+    public bool? UseThousandSeparator { get; set; }
+}
+
+/// <summary>
 /// Result for viewing measure details
 /// </summary>
 public class DataModelMeasureViewResult : ResultBase
@@ -1300,9 +1327,10 @@ public class DataModelMeasureViewResult : ResultBase
     public string? Description { get; set; }
 
     /// <summary>
-    /// Format string (e.g., "$#,##0.00", "0.00%")
+    /// Format information extracted from ModelFormat* COM objects.
+    /// Contains Type, Symbol, DecimalPlaces, UseThousandSeparator as applicable.
     /// </summary>
-    public string? FormatString { get; set; }
+    public MeasureFormatInfo? FormatInfo { get; set; }
 
     /// <summary>
     /// Number of characters in DAX formula

@@ -9,6 +9,8 @@
 - `list-relationships` - See all relationships
 - `read-table` - Get table details
 - `read` - Get measure formula
+- `read-info` - Get Data Model summary (table count, measure count, etc.)
+- `refresh` - Refresh Data Model data from sources (NOTE: CUBEVALUE formulas may still show errors - use PivotTables instead)
 
 **Create/Update (non-destructive):**
 - `create-measure` - Add new DAX measure
@@ -20,6 +22,36 @@
 - `delete-measure` - Remove single measure (table preserved)
 - `delete-relationship` - Remove relationship (tables preserved)
 - `delete-table` - **DANGER: Removes table AND ALL its measures**
+
+---
+
+## Evaluating DAX Measures: Use PivotTables, Not CUBEVALUE
+
+**IMPORTANT:** CUBEVALUE/CUBEMEMBER formulas do NOT work reliably in COM automation mode. They return #N/A or #VALUE! errors even with correct syntax. This is a known Excel COM limitation.
+
+**To evaluate DAX measure results programmatically, use PivotTables:**
+
+1. Create a PivotTable from the Data Model:
+   ```
+   excel_pivottable action: CreateFromDataModel
+   dataModelTableName: "Sales"
+   destinationSheet: "Analysis"
+   ```
+
+2. Add the DAX measure as a value field:
+   ```
+   excel_pivottable action: AddValueField
+   pivotTableName: "PivotTable1"
+   fieldName: "TotalAmount"  # Your measure name
+   ```
+
+3. Read the PivotTable data to get measure values:
+   ```
+   excel_pivottable action: GetData
+   pivotTableName: "PivotTable1"
+   ```
+
+This works because PivotTables connect directly to the Data Model, while CUBE functions use an OLAP layer that requires interactive Excel.
 
 ---
 

@@ -485,9 +485,10 @@ foreach ($mapping in $enumMappings) {
     # This avoids false positives from references to other enum types in the same file
     $toolFiles = Get-ChildItem -Path $toolsPath -Filter "*.cs" | Where-Object {
         $content = Get-Content $_.FullName -Raw
-        # Match the enum type as 'action' parameter in a method signature (allow sync or async return types)
-        # Use singleline mode ((?s)) to match across lines, and look for the enum just before 'action,'
-        $content -match "(?s)public\s+static\s+(?:async\s+)?(?:Task<string>|string)\s+\w+\(.*?\b$($mapping.Enum)\s+action\s*,"
+        # Match the enum type as 'action' parameter in a method signature
+        # Simplified pattern: look for the enum type followed by 'action' parameter
+        # The method signature may span multiple lines and include 'partial' keyword
+        $content -match "(?s)\b$($mapping.Enum)\s+action\s*,"
     }
 
     if ($toolFiles.Count -eq 0) {

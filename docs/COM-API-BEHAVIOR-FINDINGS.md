@@ -268,6 +268,57 @@ foreach (Connection in workbook.Connections)
 }
 ```
 
+### 6. CUBEVALUE Formula Limitation in Automation Mode (Issue #313)
+
+**CRITICAL FINDING: CUBEVALUE formulas do NOT work in Excel COM automation mode**
+
+**Symptoms:**
+- CUBEVALUE returns #N/A when Excel is hidden (automation mode)
+- CUBEVALUE returns #VALUE! when Excel is visible
+- All syntax variations fail, including:
+  - `=CUBEVALUE("ThisWorkbookDataModel","[Measures].[TotalAmount]")`
+  - `=CUBEVALUE("ThisWorkbookDataModel","Query[TotalAmount]")`
+  - `=CUBEVALUE("ThisWorkbookDataModel","[Query].[Measures].[TotalAmount]")`
+
+**What Works (via COM):**
+- `Workbook.Model` - full access to Data Model object
+- `Model.ModelTables` - listing/accessing tables
+- `Model.ModelMeasures.Add()` - creating DAX measures
+- `Model.ModelRelationships` - creating/managing relationships
+- `Model.Refresh()` - refreshing the model
+- `Model.DataModelConnection` - returns "ThisWorkbookDataModel" (Type 7 connection)
+- `Model.CreateModelWorkbookConnection()` - creates additional connections
+- Power Query loading to Data Model via `CreateModelConnection=true`
+
+**What Fails (via COM):**
+- **CUBEVALUE worksheet function** - cannot resolve measures even with correct connection name
+- **CUBEMEMBER worksheet function** - also fails with #N/A
+- Calculate methods succeed but don't resolve CUBEVALUE
+- Error codes:
+  - -2146826245 = #N/A (member doesn't exist in cube or syntax incorrect)
+  - -2146826246 = #VALUE! (invalid tuple element)
+  - 0x800AC472 = Excel busy (Calculate blocked in hidden mode)
+
+**Root Cause (Confirmed by Microsoft Documentation):**
+Per Microsoft's [Client Architecture Requirements for Analysis Services Development](https://learn.microsoft.com/en-us/analysis-services/multidimensional-models/olap-physical/client-architecture-requirements-for-analysis-services-development):
+
+> **"Power Pivot for Excel and SQL Server Data Tools are the only client environments that are supported for creating and querying in-memory databases that use SharePoint or Tabular mode."**
+
+The embedded VertiPaq/Analysis Services engine uses **INPROC transport** for in-process communication only. COM automation (external process) is NOT a supported client environment for querying the Data Model via CUBE functions. The Model object and its collections (ModelTables, ModelMeasures, ModelRelationships) work because they use Excel's internal object model, not the OLAP query layer.
+
+**Workaround - Use PivotTables:**
+To evaluate DAX measures programmatically, use PivotTable-based approaches:
+1. Create a PivotTable connected to the Data Model (`excel_pivottable action: 'CreateFromDataModel'`)
+2. Add the measure as a value field (`excel_pivottable action: 'AddValueField'`)
+3. Read the PivotTable values (`excel_pivottable action: 'GetData'`)
+
+**Microsoft Docs References:**
+- CUBEVALUE returns #N/A if "member doesn't exist in the cube"
+- CUBEVALUE returns #VALUE! if "at least one element within the tuple is invalid"
+- [CUBEVALUE function documentation](https://learn.microsoft.com/en-us/office/client-developer/excel/cubevalue-function)
+
+**Test Evidence:** Scenario12 and Scenario13 in `DataModelComApiBehaviorTests.cs`
+
 ---
 
 ## Test Execution

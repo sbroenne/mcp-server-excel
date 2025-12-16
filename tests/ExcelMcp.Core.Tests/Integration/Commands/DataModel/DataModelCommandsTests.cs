@@ -151,6 +151,26 @@ public partial class DataModelCommandsTests
     }
 
     /// <summary>
+    /// Tests that Read returns structured FormatInfo with type and properties.
+    /// Regression test: FormatString was previously a string, now it's a structured FormatInfo object.
+    /// </summary>
+    [Fact]
+    public async Task Read_WithMeasure_ReturnsStructuredFormatInfo()
+    {
+        using var batch = ExcelSession.BeginBatch(_dataModelFile);
+        var result = await _dataModelCommands.Read(batch, "Total Sales");
+
+        Assert.True(result.Success, $"Read failed: {result.ErrorMessage}");
+
+        // FormatInfo should be populated (not null)
+        Assert.NotNull(result.FormatInfo);
+
+        // Type should be a known format type
+        var validTypes = new HashSet<string> { "General", "Currency", "Decimal", "Percentage", "WholeNumber" };
+        Assert.Contains(result.FormatInfo.Type, validTypes);
+    }
+
+    /// <summary>
     /// Tests creating a new DAX measure.
     /// LLM use case: "create a DAX measure"
     /// </summary>
