@@ -53,8 +53,8 @@ public partial class PivotTableCommands
                         };
 
                         // Try to get optional properties (may not exist on all calculated member types)
-                        try { memberInfo.DisplayFolder = member.DisplayFolder?.ToString(); } catch (System.Runtime.InteropServices.COMException) { }
-                        try { memberInfo.NumberFormat = member.NumberFormat?.ToString(); } catch (System.Runtime.InteropServices.COMException) { }
+                        try { memberInfo.DisplayFolder = member.DisplayFolder?.ToString(); } catch (System.Runtime.InteropServices.COMException) { /* Property not available */ }
+                        try { memberInfo.NumberFormat = member.NumberFormat?.ToString(); } catch (System.Runtime.InteropServices.COMException) { /* Property not available */ }
 
                         result.CalculatedMembers.Add(memberInfo);
                     }
@@ -159,8 +159,8 @@ public partial class PivotTableCommands
                 };
 
                 // Try to get optional properties (may not exist on all calculated member types)
-                try { result.DisplayFolder = newMember.DisplayFolder?.ToString(); } catch (System.Runtime.InteropServices.COMException) { }
-                try { result.NumberFormat = newMember.NumberFormat?.ToString(); } catch (System.Runtime.InteropServices.COMException) { }
+                try { result.DisplayFolder = newMember.DisplayFolder?.ToString(); } catch (System.Runtime.InteropServices.COMException) { /* Property not available */ }
+                try { result.NumberFormat = newMember.NumberFormat?.ToString(); } catch (System.Runtime.InteropServices.COMException) { /* Property not available */ }
 
                 return result;
             }

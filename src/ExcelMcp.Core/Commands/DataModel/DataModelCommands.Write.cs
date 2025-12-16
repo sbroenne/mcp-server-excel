@@ -474,9 +474,6 @@ public partial class DataModelCommands
                         throw new InvalidOperationException(DataModelErrorMessages.RelationshipNotFound(fromTable, fromColumn, toTable, toColumn));
                     }
 
-                    // Get current state
-                    bool wasActive = relationship.Active ?? false;
-
                     // Update active state
                     // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.modelrelationship (Active property is Read/Write)
                     relationship.Active = active;
