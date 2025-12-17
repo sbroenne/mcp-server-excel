@@ -1,4 +1,3 @@
-using Polly;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 
@@ -203,11 +202,10 @@ public partial class PowerQueryCommands
                     if (existingQueryTable != null) break;
                 }
 
-                // STEP 3: Update the M code with retry for Data Model-connected queries
-                // The 0x800A03EC error can occur when updating queries loaded to Data Model
-                // See GitHub Issue #316 for details
-                ResiliencePipeline pipeline = ResiliencePipelines.CreatePowerQueryPipeline();
-                pipeline.Execute(() => query.Formula = mCode);
+                // STEP 3: Update the M code
+                // Note: 0x800A03EC error can occur in certain workbook states (see Issue #323)
+                // Retry doesn't help - it's a workbook state issue, not transient
+                query.Formula = mCode;
 
                 // STEP 4: Refresh if requested
                 if (refresh)

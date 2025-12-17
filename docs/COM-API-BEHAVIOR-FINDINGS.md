@@ -131,7 +131,31 @@ foreach (Connection in workbook.Connections)
 
 **Implication:** `Unload` method in `PowerQueryCommands.Lifecycle.cs` needs to also remove Data Model connections.
 
-### Scenario 12: Query Renaming
+---
+
+### Scenario 15: Data Model State Blocks Formula Updates (UNRESOLVED)
+
+**FINDING: WorkbookQuery.Formula becomes read-only in certain workbook states**
+
+**Error Code:** `0x800A03EC` (-2146827284) - "Application-defined or object-defined error"
+
+**Symptoms:**
+- `query.Formula = mCode` fails with 0x800A03EC on some workbooks
+- Error affects ALL queries in the workbook, not just Data Model queries
+- Error is workbook-specific - same queries work fine in fresh workbooks
+
+**Attempted Solutions (Did NOT Work):**
+1. **Save-and-retry**: Saving workbook before retry did NOT clear the error state
+2. **Polly retry with backoff**: Error is NOT transient - retries don't help
+3. **File location**: Copying file from OneDrive to local drive did NOT help
+
+**Current Status:** Root cause unknown. The error appears to be related to internal Excel state that cannot be cleared programmatically via COM automation. Workaround: manually save and reopen the workbook in Excel UI.
+
+**See:** GitHub Issue #323
+
+---
+
+### Scenario 16: Query Renaming
 
 **FINDING: Renaming a query breaks the connection to the table**
 
