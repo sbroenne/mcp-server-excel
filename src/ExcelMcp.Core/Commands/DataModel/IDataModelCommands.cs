@@ -94,6 +94,19 @@ public interface IDataModelCommands
     void DeleteTable(IExcelBatch batch, string tableName);
 
     /// <summary>
+    /// Renames a table in the Data Model.
+    /// Names are trimmed before comparison; a no-op success is returned when
+    /// trimmed old and new names match (including case-only change no-op).
+    /// Case-only renames are allowed if new name differs only in casing.
+    /// Conflict detection is case-insensitive, excluding the target table.
+    /// </summary>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
+    /// <param name="oldName">Current name of the table</param>
+    /// <param name="newName">New name for the table</param>
+    /// <returns>RenameResult with ObjectType="data-model-table"</returns>
+    RenameResult RenameTable(IExcelBatch batch, string oldName, string newName);
+
+    /// <summary>
     /// Deletes a relationship from the Data Model
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>

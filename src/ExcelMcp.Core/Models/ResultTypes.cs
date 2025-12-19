@@ -35,6 +35,37 @@ public class OperationResult : ResultBase
 }
 
 /// <summary>
+/// Result for rename operations across Core features
+/// </summary>
+public class RenameResult : ResultBase
+{
+    /// <summary>
+    /// Type of object being renamed (power-query, data-model-table)
+    /// </summary>
+    public string ObjectType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Original name provided by the caller
+    /// </summary>
+    public string OldName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Desired new name provided by the caller
+    /// </summary>
+    public string NewName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Trimmed old name used for comparisons
+    /// </summary>
+    public string NormalizedOldName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Trimmed new name used for comparisons
+    /// </summary>
+    public string NormalizedNewName { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Result for listing worksheets
 /// </summary>
 public class WorksheetListResult : ResultBase

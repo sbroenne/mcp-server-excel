@@ -44,6 +44,7 @@ public enum PowerQueryAction
     // Atomic Operations
     Create,
     Update,       // Renamed from UpdateMCode, now auto-refreshes
+    Rename,
     RefreshAll,
     LoadTo
 }
@@ -220,6 +221,7 @@ public enum DataModelAction
     CreateMeasure,
     UpdateMeasure,
     DeleteMeasure,
+    RenameTable,
     DeleteTable,
     ListRelationships,
     ReadRelationship,
