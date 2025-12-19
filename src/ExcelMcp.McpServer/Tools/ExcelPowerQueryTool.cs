@@ -16,6 +16,7 @@ public static partial class ExcelPowerQueryTool
     /// Manage Power Query M code and data loading.
     /// INLINE M CODE: Provide raw M code via mCode parameter.
     /// TARGET SHEETS (Create and LoadTo actions): targetCellAddress works for BOTH create and load-to to place tables without clearing other content. If targetCellAddress is omitted and sheet already contains data, server returns guidance instead of deleting it. When re-using an existing QueryTable, LoadTo refreshes data in-place without recreating the table.
+    /// RENAME: Changes query name. Names are trimmed and compared case-insensitively. Case-only changes (e.g., 'query1' to 'Query1') are allowed. No auto-save.
     /// TIMEOUT SAFEGUARD: Long-running refresh/load operations auto-timeout after 5 minutes to prevent hanging.
     /// </summary>
     /// <param name="action">Action to perform</param>
@@ -26,6 +27,7 @@ public static partial class ExcelPowerQueryTool
     /// <param name="targetCellAddress">Top-left cell for create/load-to actions when placing data on an existing worksheet (e.g., 'B5'). Only used when load destination is 'worksheet' or 'both'.</param>
     /// <param name="loadDestination">Load destination for query: 'worksheet' (DEFAULT - load to worksheet as table), 'data-model' (load to Power Pivot), 'both' (load to both), 'connection-only' (don't load data)</param>
     /// <param name="refreshTimeoutSeconds">Timeout in seconds for refresh action (60-600 seconds / 1-10 minutes). Required when action is 'refresh'.</param>
+    /// <param name="newName">New name for query (required for rename action). Names are trimmed; case-insensitive uniqueness is enforced.</param>
     [McpServerTool(Name = "excel_powerquery", Title = "Excel Power Query Operations")]
     [McpMeta("category", "query")]
     [McpMeta("requiresSession", true)]
@@ -37,7 +39,8 @@ public static partial class ExcelPowerQueryTool
         [DefaultValue(null)] string? targetSheet,
         [DefaultValue(null)] string? targetCellAddress,
         [DefaultValue(null)] string? loadDestination,
-        [DefaultValue(null)] int? refreshTimeoutSeconds)
+        [DefaultValue(null)] int? refreshTimeoutSeconds,
+        [DefaultValue(null)] string? newName)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_powerquery",
@@ -54,6 +57,7 @@ public static partial class ExcelPowerQueryTool
                     PowerQueryAction.Refresh => RefreshPowerQueryAsync(powerQueryCommands, sessionId, queryName, refreshTimeoutSeconds),
                     PowerQueryAction.Delete => DeletePowerQueryAsync(powerQueryCommands, sessionId, queryName),
                     PowerQueryAction.GetLoadConfig => GetLoadConfigAsync(powerQueryCommands, sessionId, queryName),
+                    PowerQueryAction.Rename => RenamePowerQueryAsync(powerQueryCommands, sessionId, queryName, newName),
 
                     // Atomic Operations
                     PowerQueryAction.Create => CreatePowerQueryAsync(powerQueryCommands, sessionId, queryName, mCode, loadDestination, targetSheet, targetCellAddress),
@@ -149,6 +153,27 @@ public static partial class ExcelPowerQueryTool
                 isError = true
             }, ExcelToolsBase.JsonOptions);
         }
+    }
+
+    private static string RenamePowerQueryAsync(PowerQueryCommands commands, string sessionId, string? queryName, string? newName)
+    {
+        if (string.IsNullOrEmpty(queryName))
+            throw new ArgumentException("queryName is required for rename action", nameof(queryName));
+
+        if (string.IsNullOrEmpty(newName))
+            throw new ArgumentException("newName is required for rename action", nameof(newName));
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.Rename(batch, queryName, newName));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.ObjectType,
+            result.OldName,
+            result.NewName,
+            result.ErrorMessage
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static string GetLoadConfigAsync(PowerQueryCommands commands, string sessionId, string? queryName)
