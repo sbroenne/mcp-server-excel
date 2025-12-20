@@ -156,12 +156,13 @@ public static class ExcelShutdownService
                 int attemptNumber = 0;
                 Exception? lastException = null;
 
-                // Outer timeout (30s) catches truly hung Excel (modal dialogs, deadlocks)
-                using var quitTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                // Outer timeout (2 minutes) catches truly hung Excel (modal dialogs, deadlocks)
+                // Excel can take a long time to quit after saving large files or when antivirus is scanning
+                using var quitTimeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
 
                 try
                 {
-                    logger.LogDebug("Attempting to quit Excel for {FileName} with resilient retry (30s timeout)", fileName);
+                    logger.LogDebug("Attempting to quit Excel for {FileName} with resilient retry (2-minute timeout)", fileName);
 
                     // Inner retry pipeline handles transient COM busy errors within the timeout
                     _quitPipeline.Execute(cancellationToken =>
@@ -188,12 +189,12 @@ public static class ExcelShutdownService
                 }
                 catch (OperationCanceledException) when (quitTimeout.Token.IsCancellationRequested)
                 {
-                    // Overall 30s timeout reached - Excel is truly hung
+                    // Overall 2-minute timeout reached - Excel is truly hung
                     logger.LogError(
-                        "Excel quit TIMED OUT after 30 seconds for {FileName} (Attempts: {Attempts}). " +
+                        "Excel quit TIMED OUT after 2 minutes for {FileName} (Attempts: {Attempts}). " +
                         "Excel is likely hung (modal dialog or deadlock). Proceeding with forced COM cleanup.",
                         fileName, attemptNumber);
-                    lastException = new TimeoutException($"Excel.Quit() timed out after 30 seconds for {fileName}");
+                    lastException = new TimeoutException($"Excel.Quit() timed out after 2 minutes for {fileName}");
                 }
                 catch (COMException ex)
                 {
