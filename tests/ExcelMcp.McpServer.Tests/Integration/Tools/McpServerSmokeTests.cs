@@ -344,29 +344,7 @@ in
             ["sessionId"] = sessionId
         });
         AssertSuccess(listQueriesResult, "List Power Queries");
-
-        // Rename the query (US1: Power Query rename)
-        var renameQueryResult = await CallToolAsync("excel_powerquery", new Dictionary<string, object?>
-        {
-            ["action"] = "Rename",
-            ["sessionId"] = sessionId,
-            ["queryName"] = "CsvData",
-            ["newName"] = "ProductData"
-        });
-        AssertSuccess(renameQueryResult, "Rename Power Query");
-        Assert.Contains("ProductData", renameQueryResult);
-
-        // Verify rename by listing again
-        var listAfterRenameResult = await CallToolAsync("excel_powerquery", new Dictionary<string, object?>
-        {
-            ["action"] = "List",
-            ["sessionId"] = sessionId
-        });
-        AssertSuccess(listAfterRenameResult, "List Power Queries after rename");
-        Assert.Contains("ProductData", listAfterRenameResult);
-        Assert.DoesNotContain("CsvData", listAfterRenameResult);
-
-        _output.WriteLine("  ✓ excel_powerquery: Create, List, and Rename passed");
+        _output.WriteLine("  ✓ excel_powerquery: Create and List passed");
 
         // =====================================================================
         // STEP 8: CONNECTION OPERATIONS
@@ -451,52 +429,6 @@ in
             ["sessionId"] = sessionId
         });
         AssertSuccess(listDataModelResult, "List Data Model tables");
-
-        // Test rename-table returns expected failure due to Excel limitation (not a crash)
-        // First, we need a PQ-backed table in the Data Model
-        // The ProductData query was created above - load it to Data Model
-        var loadToDmResult = await CallToolAsync("excel_powerquery", new Dictionary<string, object?>
-        {
-            ["action"] = "LoadTo",
-            ["sessionId"] = sessionId,
-            ["queryName"] = "ProductData",
-            ["loadDestination"] = "data-model"
-        });
-        AssertSuccess(loadToDmResult, "Load Power Query to Data Model");
-
-        // Verify table exists
-        var listAfterLoadResult = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
-        {
-            ["action"] = "ListTables",
-            ["excelPath"] = _testExcelFile,
-            ["sessionId"] = sessionId
-        });
-        AssertSuccess(listAfterLoadResult, "List Data Model tables after load");
-        Assert.Contains("ProductData", listAfterLoadResult);
-
-        // Attempt rename-table - this will return success=false due to Excel limitation
-        var renameTableResult = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
-        {
-            ["action"] = "RenameTable",
-            ["excelPath"] = _testExcelFile,
-            ["sessionId"] = sessionId,
-            ["tableName"] = "ProductData",
-            ["newName"] = "RenamedProductData"
-        });
-        // Expect JSON with success=false (not a crash)
-        var renameJson = JsonDocument.Parse(renameTableResult);
-        Assert.True(renameJson.RootElement.TryGetProperty("success", out var renameSuccess));
-        Assert.False(renameSuccess.GetBoolean(), "Rename-table should fail due to Excel limitation");
-        Assert.True(renameJson.RootElement.TryGetProperty("errorMessage", out var renameError));
-        var renameErrorText = renameError.GetString() ?? "";
-        // Error could be "immutable", "cannot be renamed", or "not found" (Power Query issue)
-        Assert.True(
-            renameErrorText.Contains("immutable", StringComparison.OrdinalIgnoreCase) ||
-            renameErrorText.Contains("cannot be renamed", StringComparison.OrdinalIgnoreCase) ||
-            renameErrorText.Contains("not found", StringComparison.OrdinalIgnoreCase),
-            $"Expected error about rename limitation but got: {renameErrorText}");
-        _output.WriteLine("  ✓ excel_datamodel: RenameTable correctly returns error (Excel limitation)");
-
         _output.WriteLine("  ✓ excel_datamodel: ListTables passed");
 
         // =====================================================================

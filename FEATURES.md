@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**12 specialized tools with 182 operations for comprehensive Excel automation**
+**12 specialized tools with 180 operations for comprehensive Excel automation**
 
 ---
 
@@ -15,14 +15,13 @@
 
 ---
 
-## 🔄 Power Query & M Code (10 operations)
+## 🔄 Power Query & M Code (9 operations)
 
 **Atomic Operations** - Single-call workflows:
 - **List:** List all Power Query queries in workbook
 - **View:** View the M code of a Power Query
 - **Create:** Import + load in one operation (atomic workflow)
 - **Update:** Update M code and auto-refresh
-- **Rename:** Rename a Power Query (trim + case-insensitive uniqueness check)
 - **Refresh:** Refresh a Power Query with timeout detection
 - **Refresh All:** Batch refresh all queries in workbook
 - **Load To:** Configure load destination and refresh (atomic)
@@ -31,11 +30,10 @@
 
 ---
 
-## 📊 Data Model & DAX (Power Pivot) (17 operations)
+## 📊 Data Model & DAX (Power Pivot) (16 operations)
 
 - **List Tables:** Discover all tables in the Data Model
 - **Read Table:** Get specific table information
-- **Rename Table:** Rename a Data Model table (best-effort via Power Query; returns clear error if not supported)
 - **List Columns:** List columns for a table
 - **List Measures:** List all DAX measures
 - **Read Info:** Get comprehensive model information
@@ -328,8 +326,8 @@
 | Category | Operations |
 |----------|-----------|
 | File Operations | 6 |
-| Power Query | 10 |
-| Data Model/DAX | 17 |
+| Power Query | 9 |
+| Data Model/DAX | 16 |
 | Excel Tables | 24 |
 | PivotTables | 30 |
 | Charts | 14 |
@@ -339,7 +337,7 @@
 | Named Ranges | 6 |
 | VBA Macros | 6 |
 | Conditional Formatting | 2 |
-| **Total** | **182** |
+| **Total** | **180** |
 
 ---
 

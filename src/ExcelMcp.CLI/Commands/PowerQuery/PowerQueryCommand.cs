@@ -34,7 +34,7 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
         var action = settings.Action?.Trim().ToLowerInvariant();
         if (string.IsNullOrEmpty(action))
         {
-            _console.WriteError("Action is required (list, view, rename).");
+            _console.WriteError("Action is required (list, view).");
             return -1;
         }
 
@@ -53,7 +53,6 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
             "create" => ExecuteCreate(batch, settings),
             "update" => ExecuteUpdate(batch, settings),
             "delete" => ExecuteDelete(batch, settings),
-            "rename" => ExecuteRename(batch, settings),
             "refresh" => ExecuteRefresh(batch, settings),
             "get-load-config" => ExecuteGetLoadConfig(batch, settings),
             "refresh-all" => ExecuteRefreshAll(batch),
@@ -149,23 +148,6 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
         }
     }
 
-    private int ExecuteRename(IExcelBatch batch, Settings settings)
-    {
-        if (!TryGetQueryName(settings, out var queryName))
-        {
-            return -1;
-        }
-
-        var newName = settings.NewName?.Trim();
-        if (string.IsNullOrWhiteSpace(newName))
-        {
-            _console.WriteError("New name is required (--new-name).");
-            return -1;
-        }
-
-        return WriteResult(_powerQueryCommands.Rename(batch, queryName, newName));
-    }
-
     private int ExecuteRefresh(IExcelBatch batch, Settings settings)
     {
         if (!TryGetQueryName(settings, out var queryName))
@@ -248,7 +230,7 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
 
     private int ReportUnknown(string action)
     {
-        _console.WriteError($"Unknown action '{action}'. Supported actions: list, view, create, update, delete, rename, refresh, get-load-config, refresh-all, load-to.");
+        _console.WriteError($"Unknown action '{action}'. Supported actions: list, view, create, update, delete, refresh, get-load-config, refresh-all, load-to.");
         return -1;
     }
 
@@ -328,9 +310,6 @@ internal sealed class PowerQueryCommand : Command<PowerQueryCommand.Settings>
 
         [CommandOption("-q|--query <NAME>")]
         public string? QueryName { get; init; }
-
-        [CommandOption("--new-name <NAME>")]
-        public string? NewName { get; init; }
 
         [CommandOption("--m-file <PATH>")]
         public string? MCodeFile { get; init; }

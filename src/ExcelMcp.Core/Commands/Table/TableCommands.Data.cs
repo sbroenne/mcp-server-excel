@@ -64,36 +64,23 @@ public partial class TableCommands
                 int columnCount = table.ListColumns.Count;
                 int rowsToAdd = rows.Count;
 
-                // PERFORMANCE: Convert rows to 2D array for bulk write (single COM call)
-                // This is 100x+ faster than cell-by-cell writing for large datasets
-                object[,] arrayValues = (object[,])Array.CreateInstance(typeof(object), [rowsToAdd, columnCount], [1, 1]);
-
-                for (int i = 0; i < rowsToAdd; i++)
+                // Write data to cells below the table
+                for (int i = 0; i < rows.Count; i++)
                 {
                     var rowValues = rows[i];
-                    for (int j = 0; j < columnCount; j++)
+                    for (int j = 0; j < Math.Min(rowValues.Count, columnCount); j++)
                     {
-                        arrayValues[i + 1, j + 1] = j < rowValues.Count ? (rowValues[j] ?? string.Empty) : string.Empty;
+                        dynamic? cell = null;
+                        try
+                        {
+                            cell = sheet.Cells[currentRow + i, table.Range.Column + j];
+                            cell.Value2 = rowValues[j] ?? string.Empty;
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref cell);
+                        }
                     }
-                }
-
-                // Bulk write to range below the table (single COM call instead of N×M calls)
-                dynamic? startCell = null;
-                dynamic? endCell = null;
-                dynamic? targetRange = null;
-                try
-                {
-                    int startCol = Convert.ToInt32(table.Range.Column);
-                    startCell = sheet.Cells[currentRow, startCol];
-                    endCell = sheet.Cells[currentRow + rowsToAdd - 1, startCol + columnCount - 1];
-                    targetRange = sheet.Range[startCell, endCell];
-                    targetRange.Value2 = arrayValues;
-                }
-                finally
-                {
-                    ComUtilities.Release(ref targetRange);
-                    ComUtilities.Release(ref endCell);
-                    ComUtilities.Release(ref startCell);
                 }
 
                 // Resize table to include new rows

@@ -17,7 +17,7 @@
 
 **Automate Excel with AI - A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.**
 
-**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (12 tools with 182 operations).
+**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (12 tools with 180 operations).
 
 **🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
 
@@ -43,7 +43,7 @@ The extension opens automatically after installation with a quick start guide!
 
 ## 🎯 What You Can Do
 
-**12 specialized tools with 182 operations:**
+**12 specialized tools with 180 operations:**
 
 - 🔄 **Power Query** (9 ops) - Atomic workflows, M code management, load destinations
 - 📊 **Data Model/DAX** (16 ops) - Measures, relationships, model structure
@@ -58,7 +58,7 @@ The extension opens automatically after installation with a quick start guide!
 - 📁 **Files** (6 ops) - Session management and workbook creation
 - 🎨 **Conditional Formatting** (2 ops) - Rules and clearing
 
-📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 182 operations
+📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 180 operations
 
 
 ## 💬 Example Prompts

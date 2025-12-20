@@ -126,7 +126,7 @@ internal sealed class ExcelBatch : IExcelBatch
                 started.SetResult();
 
                 // Message pump - process work queue until completion or cancellation
-                // Uses async waiting to avoid busy-polling CPU usage
+                // Use polling to avoid blocking indefinitely
                 while (true)
                 {
                     // Check cancellation at start of each iteration
@@ -138,20 +138,8 @@ internal sealed class ExcelBatch : IExcelBatch
 
                     try
                     {
-                        // PERFORMANCE: Use async wait instead of Thread.Sleep polling
-                        // WaitToReadAsync blocks efficiently until work is available or cancellation
-                        var waitTask = _workQueue.Reader.WaitToReadAsync(_shutdownCts.Token);
-
-                        // Block synchronously on STA thread (required for COM)
-                        if (!waitTask.AsTask().GetAwaiter().GetResult())
-                        {
-                            // Channel completed, no more work
-                            _logger.LogDebug("Channel completed, exiting message pump for {FileName}", Path.GetFileName(_workbookPath));
-                            break;
-                        }
-
-                        // Process all available work items
-                        while (_workQueue.Reader.TryRead(out var work))
+                        // Try to read work items, with short timeout
+                        if (_workQueue.Reader.TryRead(out var work))
                         {
                             try
                             {
@@ -162,6 +150,18 @@ internal sealed class ExcelBatch : IExcelBatch
                                 // Individual work items may fail, but keep processing queue
                                 // The exception is already captured in the TaskCompletionSource
                             }
+                        }
+                        else
+                        {
+                            // No work available - check if channel is completed
+                            if (_workQueue.Reader.Completion.IsCompleted)
+                            {
+                                _logger.LogDebug("Channel completed, exiting message pump for {FileName}", Path.GetFileName(_workbookPath));
+                                break;
+                            }
+
+                            // Sleep briefly to avoid busy-waiting
+                            Thread.Sleep(10);
                         }
                     }
                     catch (OperationCanceledException)
