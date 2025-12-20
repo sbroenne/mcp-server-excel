@@ -90,19 +90,6 @@ public interface IPowerQueryCommands
     /// <param name="batch">Excel batch session</param>
     /// <exception cref="InvalidOperationException">Thrown when any Power Query fails to refresh</exception>
     void RefreshAll(IExcelBatch batch);
-
-    /// <summary>
-    /// Renames a Power Query using trim + case-insensitive uniqueness semantics.
-    /// - Names are normalized (trimmed) before comparison.
-    /// - No-op success when normalized names are equal.
-    /// - Case-only rename attempts COM rename (Excel decides outcome).
-    /// - No auto-save.
-    /// </summary>
-    /// <param name="batch">Excel batch session</param>
-    /// <param name="oldName">Existing query name</param>
-    /// <param name="newName">Desired new name</param>
-    /// <returns>Result with objectType=power-query and normalized names</returns>
-    RenameResult Rename(IExcelBatch batch, string oldName, string newName);
 }
 
 

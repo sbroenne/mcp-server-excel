@@ -48,7 +48,6 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
             "create-measure" => ExecuteCreateMeasure(batch, settings),
             "update-measure" => ExecuteUpdateMeasure(batch, settings),
             "delete-measure" => ExecuteDeleteMeasure(batch, settings),
-            "rename-table" => ExecuteRenameTable(batch, settings),
             "list-relationships" => WriteResult(_dataModelCommands.ListRelationships(batch)),
             "create-relationship" => ExecuteCreateRelationship(batch, settings),
             "update-relationship" => ExecuteUpdateRelationship(batch, settings),
@@ -76,23 +75,6 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
         }
 
         return WriteResult(_dataModelCommands.ReadTable(batch, table));
-    }
-
-    private int ExecuteRenameTable(IExcelBatch batch, Settings settings)
-    {
-        if (!TryGetTable(settings, out var table))
-        {
-            return -1;
-        }
-
-        var newName = settings.NewName?.Trim();
-        if (string.IsNullOrWhiteSpace(newName))
-        {
-            _console.WriteError("--new-name is required for rename-table.");
-            return -1;
-        }
-
-        return WriteResult(_dataModelCommands.RenameTable(batch, table, newName));
     }
 
     private int ExecuteListMeasures(IExcelBatch batch, Settings settings)
@@ -337,9 +319,6 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
 
         [CommandOption("--table <TABLE>")]
         public string? TableName { get; init; }
-
-        [CommandOption("--new-name <NAME>")]
-        public string? NewName { get; init; }
 
         [CommandOption("--measure <MEASURE>")]
         public string? MeasureName { get; init; }

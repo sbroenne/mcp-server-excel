@@ -20,10 +20,6 @@ public static partial class ExcelDataModelTool
     /// - delete-relationship: Removes relationship only (tables and measures preserved).
     /// - delete-measure: Removes single measure only (table preserved).
     ///
-    /// KNOWN LIMITATION - rename-table:
-    /// Excel Data Model table names are IMMUTABLE after creation. The rename-table action will return an error explaining this limitation.
-    /// To rename a table, you must delete the existing table and recreate it with the new name (which will also delete any measures on that table).
-    ///
     /// WHEN STUCK - DO NOT DELETE TABLES. Instead:
     /// 1. Use list-measures to see current state
     /// 2. Use update-measure to fix existing measures
@@ -44,7 +40,6 @@ public static partial class ExcelDataModelTool
     /// <param name="daxFormula">DAX formula (for create-measure, update-measure)</param>
     /// <param name="description">Description (for create-measure, update-measure)</param>
     /// <param name="formatString">Format string (for create-measure, update-measure), e.g., '#,##0.00', '0.00%'</param>
-    /// <param name="newName">New name for table (for rename-table)</param>
     /// <param name="fromTable">Source table name (for delete-relationship, create-relationship, update-relationship)</param>
     /// <param name="fromColumn">Source column name (for delete-relationship, create-relationship, update-relationship)</param>
     /// <param name="toTable">Target table name (for delete-relationship, create-relationship, update-relationship)</param>
@@ -59,7 +54,6 @@ public static partial class ExcelDataModelTool
         string sessionId,
         [DefaultValue(null)] string? measureName,
         [DefaultValue(null)] string? tableName,
-        [DefaultValue(null)] string? newName,
         [DefaultValue(null)] string? daxFormula,
         [DefaultValue(null)] string? description,
         [DefaultValue(null)] string? formatString,
@@ -90,7 +84,6 @@ public static partial class ExcelDataModelTool
                     DataModelAction.Refresh => RefreshAsync(dataModelCommands, sessionId),
                     DataModelAction.DeleteMeasure => DeleteMeasureAsync(dataModelCommands, sessionId, measureName),
                     DataModelAction.DeleteTable => DeleteTableAsync(dataModelCommands, sessionId, tableName),
-                    DataModelAction.RenameTable => RenameTableAsync(dataModelCommands, sessionId, tableName, newName),
                     DataModelAction.DeleteRelationship => DeleteRelationshipAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn),
                     DataModelAction.ReadTable => ReadTableAsync(dataModelCommands, sessionId, tableName),
                     DataModelAction.ListColumns => ListColumnsAsync(dataModelCommands, sessionId, tableName),
@@ -309,32 +302,6 @@ public static partial class ExcelDataModelTool
                 isError = true
             }, ExcelToolsBase.JsonOptions);
         }
-    }
-
-    private static string RenameTableAsync(DataModelCommands commands, string sessionId, string? tableName, string? newName)
-    {
-        if (string.IsNullOrWhiteSpace(tableName))
-        {
-            throw new ArgumentException("Parameter 'tableName' is required for rename-table action", nameof(tableName));
-        }
-
-        if (string.IsNullOrWhiteSpace(newName))
-        {
-            throw new ArgumentException("Parameter 'newName' is required for rename-table action", nameof(newName));
-        }
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.RenameTable(batch, tableName, newName));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.OldName,
-            result.NormalizedNewName,
-            result.ErrorMessage,
-            isError = !result.Success
-        }, ExcelToolsBase.JsonOptions);
     }
 
     private static string DeleteRelationshipAsync(DataModelCommands commands, string sessionId,

@@ -28,7 +28,6 @@ public static class ActionExtensions
         // Atomic Operations
         PowerQueryAction.Create => "create",
         PowerQueryAction.Update => "update",  // Renamed from update-mcode
-        PowerQueryAction.Rename => "rename",
         PowerQueryAction.RefreshAll => "refresh-all",
 
         _ => throw new ArgumentException($"Unknown PowerQueryAction: {action}")
@@ -155,7 +154,6 @@ public static class ActionExtensions
         DataModelAction.CreateMeasure => "create-measure",
         DataModelAction.UpdateMeasure => "update-measure",
         DataModelAction.DeleteMeasure => "delete-measure",
-        DataModelAction.RenameTable => "rename-table",
         DataModelAction.DeleteTable => "delete-table",
         DataModelAction.ListRelationships => "list-relationships",
         DataModelAction.ReadRelationship => "read-relationship",
