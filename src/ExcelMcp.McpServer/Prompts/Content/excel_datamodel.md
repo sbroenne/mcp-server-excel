@@ -17,11 +17,31 @@
 - `update-measure` - Modify existing measure formula/format
 - `create-relationship` - Link tables
 - `update-relationship` - Change relationship active state
+- `rename-table` - **NOT SUPPORTED** - Excel Data Model table names are immutable (see below)
 
 **Delete (DESTRUCTIVE - use with caution):**
 - `delete-measure` - Remove single measure (table preserved)
 - `delete-relationship` - Remove relationship (tables preserved)
 - `delete-table` - **DANGER: Removes table AND ALL its measures**
+
+---
+
+## IMPORTANT: Data Model Table Names Are Immutable
+
+**Excel Limitation:** Data Model table names CANNOT be changed after creation via the COM API. The `ModelTable.Name` property is read-only.
+
+**What happens when you call rename-table:**
+- The action returns `success: false` with an error message explaining this limitation
+- The original table name is preserved
+- No data is lost or changed
+
+**Workarounds:**
+1. **Delete and recreate** (loses all measures on that table - see warning below)
+2. **Use Power Query** - If the table was loaded from Power Query, rename the query first, then reload to create a new table with the desired name
+
+**Why not rename the underlying Power Query?** Even if you rename the Power Query source, existing Data Model tables retain their original names. The renamed query would create a *new* table while the old one remains.
+
+This is a fundamental Excel limitation, not a tool limitation.
 
 ---
 

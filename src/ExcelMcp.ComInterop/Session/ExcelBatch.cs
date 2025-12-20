@@ -396,18 +396,19 @@ internal sealed class ExcelBatch : IExcelBatch
         // Wait for STA thread to finish cleanup (with timeout)
         if (_staThread != null && _staThread.IsAlive)
         {
-            _logger.LogDebug("[Thread {CallingThread}] Calling Join() with 10s timeout on STA={STAThread}, file={FileName}", callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
+            _logger.LogDebug("[Thread {CallingThread}] Calling Join() with 2.5 minute timeout on STA={STAThread}, file={FileName}", callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
 
-            // Short timeout (10s) since ExcelShutdownService already handles Excel.Quit() timeout (30s)
-            // If we get here and thread doesn't exit, something is badly wrong, but we've done our best
-            if (!_staThread.Join(TimeSpan.FromSeconds(10)))
+            // CRITICAL: The join timeout MUST be longer than ExcelShutdownService.CloseAndQuit() timeout (2 minutes)
+            // Otherwise, Dispose() returns before Excel has finished closing, causing "file still open" issues.
+            // 2.5 min = 2 min quit timeout + 30s margin for workbook close and COM cleanup
+            if (!_staThread.Join(TimeSpan.FromMinutes(2.5)))
             {
                 // STA thread didn't exit - log error but don't throw
-                // The 30s quit timeout in ExcelShutdownService already tried to handle hung Excel
+                // This means even the 2-minute quit timeout + retries couldn't close Excel
                 _logger.LogError(
-                    "[Thread {CallingThread}] STA thread (Id={STAThread}) did NOT exit within 10 seconds for {FileName}. " +
-                    "This indicates Excel cleanup is severely stuck. Process will leak. " +
-                    "Note: ExcelShutdownService already attempted 30s quit timeout + retries.",
+                    "[Thread {CallingThread}] STA thread (Id={STAThread}) did NOT exit within 2.5 minutes for {FileName}. " +
+                    "This indicates Excel cleanup is severely stuck (exceeded 2-minute quit timeout + margin). " +
+                    "Process will leak.",
                     callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
 
                 // Don't throw - disposal should not fail. Log the leak and continue.
