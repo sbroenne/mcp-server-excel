@@ -4,9 +4,20 @@
 
 - create: Import NEW query using inline `mCode` (FAILS if query already exists - use update instead)
 - update: Update EXISTING query M code + refresh data (use this if query exists)
+- rename: Change query name (requires both `queryName` and `newName` parameters)
 - load-to: Loads to worksheet or data model or both (not just config change) - CHECKS for sheet conflicts
 - unload: Removes data from ALL destinations (worksheet AND Data Model) - keeps query definition
 - delete: Completely removes query AND all associated data (worksheet, Data Model connections)
+
+**Rename behavior**:
+
+- Names are trimmed and compared case-insensitively for uniqueness
+- Renaming "Query1" to "query1" is allowed (case-only change, no conflict)
+- Renaming "Query1" to " Query1 " is a no-op (trimmed names match)
+- No-op (same normalized name) → success with `oldName` = `newName`
+- Conflict with existing query → error with `errorMessage`
+- M code content is unchanged - only the name changes
+- No auto-save: workbook must be saved separately to persist the rename
 
 **When to use create vs update**:
 
@@ -39,6 +50,8 @@
 - Using update on new query → ERROR "Query 'X' not found" (should use create)
 - Calling LoadTo without checking if sheet exists (will error if sheet exists)
 - Assuming unload only removes worksheet data → Also removes Data Model connections
+- Calling rename without trimming newName → Server trims automatically, " Query " becomes "Query"
+- Renaming to conflicting name → Check list first if unsure about existing names
 
 **Server-specific quirks**:
 

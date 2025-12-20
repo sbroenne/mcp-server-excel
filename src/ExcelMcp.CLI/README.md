@@ -6,7 +6,7 @@
 
 **Optional command-line interface for Excel automation without AI assistance.**
 
-For advanced users who prefer direct scripting control, the CLI provides 13 command categories with 172 operations (the MCP Server has 12 tools with 180 operations). Perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
+For advanced users who prefer direct scripting control, the CLI provides 13 command categories with 174 operations (the MCP Server has 12 tools with 182 operations). Perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
 
 **Note:** Most users should use the [MCP Server with AI assistants](../ExcelMcp.McpServer/README.md) for natural language automation.
 
@@ -78,9 +78,9 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **172 operations** across 13 categories:
+ExcelMcp.CLI provides **174 operations** across 13 categories:
 
-📚 **[Complete Feature Reference →](../../FEATURES.md)** - Full MCP Server documentation (180 operations)
+📚 **[Complete Feature Reference →](../../FEATURES.md)** - Full MCP Server documentation (182 operations)
 
 **Quick Reference:**
 
@@ -88,13 +88,13 @@ ExcelMcp.CLI provides **172 operations** across 13 categories:
 |----------|-----------|----------|
 | **File & Session** | 5 | `create-empty`, `session open`, `session save`, `session close`, `session list` |
 | **Worksheets** | 16 | `sheet list`, `sheet create`, `sheet rename`, `sheet copy`, `sheet copy-to-file`, `sheet move-to-file`, `sheet set-tab-color` |
-| **Power Query** | 9 | `powerquery list`, `powerquery create`, `powerquery refresh`, `powerquery update` |
+| **Power Query** | 10 | `powerquery list`, `powerquery create`, `powerquery refresh`, `powerquery update`, `powerquery rename` |
 | **Ranges** | 42 | `range get-values`, `range set-values`, `range copy`, `range find`, `range merge-cells`, `range add-hyperlink` |
 | **Conditional Formatting** | 2 | `conditionalformat add-rule`, `conditionalformat clear-rules` |
 | **Excel Tables** | 24 | `table create`, `table apply-filter`, `table get-data`, `table sort`, `table add-column` |
 | **Charts** | 14 | `chart create-from-range`, `chart add-series`, `chart set-chart-type`, `chart show-legend` |
 | **PivotTables** | 25 | `pivottable create-from-range`, `pivottable add-row-field`, `pivottable refresh`, `pivottable delete` |
-| **Data Model** | 15 | `datamodel create-measure`, `datamodel create-relationship`, `datamodel refresh` |
+| **Data Model** | 16 | `datamodel create-measure`, `datamodel create-relationship`, `datamodel refresh`, `datamodel rename-table` |
 | **Connections** | 9 | `connection list`, `connection refresh`, `connection test` |
 | **Named Ranges** | 6 | `namedrange create`, `namedrange read`, `namedrange write`, `namedrange update` |
 | **VBA** | 6 | `vba list`, `vba import`, `vba run`, `vba update` |
@@ -152,6 +152,9 @@ excelcli powerquery create --session-id <SESSION> --query "Sales Data" --m-file 
 # Update existing query
 excelcli powerquery update --session-id <SESSION> --query "Sales Data" --m-file sales-query-optimized.pq
 
+# Rename a query
+excelcli powerquery rename --session-id <SESSION> --query "Sales Data" --new-name "Sales Data v2"
+
 # Refresh a query
 excelcli powerquery refresh --session-id <SESSION> --query "Sales Data"
 
@@ -195,6 +198,9 @@ excelcli datamodel create-measure --session-id <SESSION> --table Sales --name "T
 
 # Update a measure
 excelcli datamodel update-measure --session-id <SESSION> --table Sales --name "TotalRevenue" --formula "SUM(Sales[Amount])" --format Currency
+
+# Rename a Data Model table (Power Query-backed tables only)
+excelcli datamodel rename-table --session-id <SESSION> --table "Sales" --new-name "SalesData"
 
 # Create relationship between tables
 excelcli datamodel create-relationship --session-id <SESSION> --from-table Sales --from-column CustomerID --to-table Customers --to-column ID
