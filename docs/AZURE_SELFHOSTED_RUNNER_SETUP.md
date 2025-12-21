@@ -1,5 +1,7 @@
 # Azure Self-Hosted Runner Setup for Excel Integration Testing
 
+> **⚠️ STATUS: DISABLED** - The Azure self-hosted runner has been undeployed and the integration tests workflow is currently disabled. The workflows `integration-tests.yml` and `deploy-azure-runner.yml` have been renamed to `.disabled` extension. To re-enable, rename them back to `.yml` and redeploy the Azure runner infrastructure.
+
 > **Purpose:** Enable full Excel COM integration testing in CI/CD using Azure-hosted Windows VM with Microsoft Excel
 
 ## Quick Navigation

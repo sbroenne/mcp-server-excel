@@ -61,11 +61,14 @@ Quick reference:
 **Automated on Pull Requests:**
 - `build-mcp-server.yml` - Builds MCP Server on code changes
 - `build-cli.yml` - Builds CLI on code changes
-- `integration-tests.yml` - Runs Excel COM integration tests on Azure self-hosted runner
 - `codeql.yml` - Security analysis
 - `dependency-review.yml` - Dependency security scanning
 
-**Note:** Integration tests require Excel and run on Azure VM self-hosted runner (see `docs/AZURE_SELFHOSTED_RUNNER_SETUP.md`)
+**Disabled Workflows:**
+- `integration-tests.yml.disabled` - Excel COM integration tests (Azure runner undeployed)
+- `deploy-azure-runner.yml.disabled` - Azure runner deployment (infrastructure removed)
+
+**Note:** Integration tests are currently disabled. The Azure self-hosted runner has been undeployed. To re-enable, see `docs/AZURE_SELFHOSTED_RUNNER_SETUP.md`.
 
 ## Workflow Config Updates
 
