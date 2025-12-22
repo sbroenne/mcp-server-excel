@@ -34,22 +34,22 @@ public static class ExcelShutdownService
         logger ??= NullLogger.Instance;
         fileName ??= "unknown";
 
-        logger.LogDebug("Saving workbook {FileName} (5-minute timeout)", fileName);
+        logger.LogDebug("Saving workbook {FileName} ({Timeout} timeout)", fileName, ComInteropConstants.SaveOperationTimeout);
 
         try
         {
-            // Wrap Save() with 5-minute timeout to prevent indefinite blocking
+            // Wrap Save() with timeout to prevent indefinite blocking
             var saveTask = Task.Run(() => workbook.Save());
 
-            // Create combined timeout: user's cancellation token OR 5-minute timeout
+            // Create combined timeout: user's cancellation token OR configured timeout
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts.CancelAfter(TimeSpan.FromMinutes(5));
+            timeoutCts.CancelAfter(ComInteropConstants.SaveOperationTimeout);
 
-            if (!saveTask.Wait(TimeSpan.FromMinutes(5), timeoutCts.Token))
+            if (!saveTask.Wait(ComInteropConstants.SaveOperationTimeout, timeoutCts.Token))
             {
-                logger.LogError("Save operation for {FileName} timed out after 5 minutes", fileName);
+                logger.LogError("Save operation for {FileName} timed out after {Timeout}", fileName, ComInteropConstants.SaveOperationTimeout);
                 throw new TimeoutException(
-                    $"Save operation for '{fileName}' exceeded 5 minutes. " +
+                    $"Save operation for '{fileName}' exceeded {ComInteropConstants.SaveOperationTimeout.TotalMinutes} minutes. " +
                     "This may indicate a very large file, slow disk I/O, or antivirus interference. " +
                     "Check file size and disk performance, then retry.");
             }
@@ -156,13 +156,13 @@ public static class ExcelShutdownService
                 int attemptNumber = 0;
                 Exception? lastException = null;
 
-                // Outer timeout (2 minutes) catches truly hung Excel (modal dialogs, deadlocks)
+                // Outer timeout catches truly hung Excel (modal dialogs, deadlocks)
                 // Excel can take a long time to quit after saving large files or when antivirus is scanning
-                using var quitTimeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+                using var quitTimeout = new CancellationTokenSource(ComInteropConstants.ExcelQuitTimeout);
 
                 try
                 {
-                    logger.LogDebug("Attempting to quit Excel for {FileName} with resilient retry (2-minute timeout)", fileName);
+                    logger.LogDebug("Attempting to quit Excel for {FileName} with resilient retry ({Timeout} timeout)", fileName, ComInteropConstants.ExcelQuitTimeout);
 
                     // Inner retry pipeline handles transient COM busy errors within the timeout
                     _quitPipeline.Execute(cancellationToken =>

@@ -388,20 +388,20 @@ internal sealed class ExcelBatch : IExcelBatch
         _workQueue.Writer.Complete();
 
         // Give the thread a moment to notice the cancellation
-        _logger.LogDebug("[Thread {CallingThread}] Sleeping 100ms for {FileName}", callingThread, Path.GetFileName(_workbookPath));
-        Thread.Sleep(100);
+        _logger.LogDebug("[Thread {CallingThread}] Sleeping {DelayMs}ms for {FileName}", callingThread, ComInteropConstants.FileLockRetryDelayMs, Path.GetFileName(_workbookPath));
+        Thread.Sleep(ComInteropConstants.FileLockRetryDelayMs);
 
         _logger.LogDebug("[Thread {CallingThread}] Waiting for STA thread (Id={STAThread}) to exit for {FileName}", callingThread, _staThread?.ManagedThreadId ?? -1, Path.GetFileName(_workbookPath));
 
         // Wait for STA thread to finish cleanup (with timeout)
         if (_staThread != null && _staThread.IsAlive)
         {
-            _logger.LogDebug("[Thread {CallingThread}] Calling Join() with 2.5 minute timeout on STA={STAThread}, file={FileName}", callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
+            _logger.LogDebug("[Thread {CallingThread}] Calling Join() with {Timeout} timeout on STA={STAThread}, file={FileName}", callingThread, ComInteropConstants.StaThreadJoinTimeout, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
 
             // CRITICAL: The join timeout MUST be longer than ExcelShutdownService.CloseAndQuit() timeout (2 minutes)
             // Otherwise, Dispose() returns before Excel has finished closing, causing "file still open" issues.
             // 2.5 min = 2 min quit timeout + 30s margin for workbook close and COM cleanup
-            if (!_staThread.Join(TimeSpan.FromMinutes(2.5)))
+            if (!_staThread.Join(ComInteropConstants.StaThreadJoinTimeout))
             {
                 // STA thread didn't exit - log error but don't throw
                 // This means even the 2-minute quit timeout + retries couldn't close Excel
