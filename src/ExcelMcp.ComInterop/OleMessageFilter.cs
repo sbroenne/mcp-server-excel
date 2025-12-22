@@ -22,12 +22,21 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
     [ThreadStatic]
     private static nint _oldFilterPtr;
 
+    [ThreadStatic]
+    private static bool _isRegistered;
+
     /// <summary>
     /// Registers the OLE message filter for the current STA thread.
     /// Should be called once per STA thread before making COM calls.
     /// </summary>
+    /// <exception cref="InvalidOperationException">Filter already registered on this thread, or registration failed</exception>
     public static void Register()
     {
+        if (_isRegistered)
+        {
+            throw new InvalidOperationException("OLE message filter is already registered on this thread.");
+        }
+
         var newFilter = new OleMessageFilter();
         nint newFilterPtr = s_comWrappers.GetOrCreateComInterfaceForObject(newFilter, CreateComInterfaceFlags.None);
 
@@ -36,21 +45,40 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
         {
             throw new InvalidOperationException($"Failed to register OLE message filter. HRESULT: 0x{result:X8}");
         }
+
+        _isRegistered = true;
     }
 
     /// <summary>
     /// Revokes the OLE message filter and restores the previous filter.
     /// Should be called when STA thread is shutting down.
     /// </summary>
+    /// <remarks>
+    /// This method is safe to call even if Register() was not called - it will simply return.
+    /// This supports cleanup scenarios where the registration status is unknown.
+    /// </remarks>
     public static void Revoke()
     {
+        if (!_isRegistered)
+        {
+            // Safe to call without prior Register - just return silently
+            return;
+        }
+
         int result = CoRegisterMessageFilter(_oldFilterPtr, out _);
         if (result != 0)
         {
             throw new InvalidOperationException($"Failed to revoke OLE message filter. HRESULT: 0x{result:X8}");
         }
+
         _oldFilterPtr = 0;
+        _isRegistered = false;
     }
+
+    /// <summary>
+    /// Gets whether the OLE message filter is registered on the current thread.
+    /// </summary>
+    public static bool IsRegistered => _isRegistered;
 
     /// <summary>
     /// Handles incoming COM calls. Not used for Excel automation scenarios.

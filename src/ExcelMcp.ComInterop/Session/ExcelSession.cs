@@ -179,24 +179,24 @@ public static class ExcelSession
 
                 workbook = excel.Workbooks.Add();
 
-                // SaveAs with 5-minute timeout
+                // SaveAs with timeout
                 var saveAsTask = Task.Run(() =>
                 {
                     if (isMacroEnabled)
                     {
-                        workbook.SaveAs(fullPath, 52); // xlOpenXMLWorkbookMacroEnabled
+                        workbook.SaveAs(fullPath, ComInteropConstants.XlOpenXmlWorkbookMacroEnabled);
                     }
                     else
                     {
-                        workbook.SaveAs(fullPath, 51); // xlOpenXMLWorkbook
+                        workbook.SaveAs(fullPath, ComInteropConstants.XlOpenXmlWorkbook);
                     }
                 });
 
-                using var saveCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
-                if (!saveAsTask.Wait(TimeSpan.FromMinutes(5), saveCts.Token))
+                using var saveCts = new CancellationTokenSource(ComInteropConstants.SaveOperationTimeout);
+                if (!saveAsTask.Wait(ComInteropConstants.SaveOperationTimeout, saveCts.Token))
                 {
                     throw new TimeoutException(
-                        $"SaveAs operation for '{Path.GetFileName(fullPath)}' exceeded 5 minutes. " +
+                        $"SaveAs operation for '{Path.GetFileName(fullPath)}' exceeded {ComInteropConstants.SaveOperationTimeout.TotalMinutes} minutes. " +
                         "Check disk performance and antivirus settings.");
                 }
 

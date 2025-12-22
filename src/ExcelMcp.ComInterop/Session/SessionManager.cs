@@ -377,9 +377,9 @@ public sealed class SessionManager : IDisposable
                 // Without this delay, the second disposal can deadlock waiting for the first to complete
                 if (i < sessions.Count - 1) // Don't delay after the last one
                 {
-                    // Wait up to 5 seconds for any EXCEL processes to terminate
+                    // Wait for any EXCEL processes to terminate
                     var startWait = DateTime.UtcNow;
-                    var maxWait = TimeSpan.FromSeconds(5);
+                    var maxWait = ComInteropConstants.SessionFileLockTimeout;
 
                     while (DateTime.UtcNow - startWait < maxWait)
                     {
@@ -391,7 +391,7 @@ public sealed class SessionManager : IDisposable
                         }
 
                         // Still have Excel processes, wait a bit
-                        Thread.Sleep(200);
+                        Thread.Sleep(ComInteropConstants.SessionLockRetryDelayMs);
 
                         foreach (var p in excelProcesses)
                         {
