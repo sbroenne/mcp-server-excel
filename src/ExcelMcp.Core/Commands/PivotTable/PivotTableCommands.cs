@@ -11,62 +11,15 @@ public partial class PivotTableCommands : IPivotTableCommands
     #region Helper Methods
 
     /// <summary>
-    /// Finds a PivotTable by name in the workbook
+    /// Finds a PivotTable by name in the workbook.
+    /// Delegates to CoreLookupHelpers.FindPivotTable for the actual lookup.
     /// </summary>
     /// <param name="workbook">The workbook to search</param>
     /// <param name="pivotTableName">Name of the PivotTable to find</param>
     /// <returns>The PivotTable object if found</returns>
     /// <exception cref="InvalidOperationException">Thrown if PivotTable is not found</exception>
     private static dynamic FindPivotTable(dynamic workbook, string pivotTableName)
-    {
-        dynamic? sheets = null;
-        try
-        {
-            sheets = workbook.Worksheets;
-            for (int i = 1; i <= sheets.Count; i++)
-            {
-                dynamic? sheet = null;
-                dynamic? pivotTables = null;
-                try
-                {
-                    sheet = sheets.Item(i);
-                    pivotTables = sheet.PivotTables;
-
-                    for (int j = 1; j <= pivotTables.Count; j++)
-                    {
-                        dynamic? pivot = null;
-                        try
-                        {
-                            pivot = pivotTables.Item(j);
-                            if (pivot.Name == pivotTableName)
-                            {
-                                // Found it - return without releasing
-                                return pivot;
-                            }
-                        }
-                        finally
-                        {
-                            if (pivot != null && pivot.Name != pivotTableName)
-                            {
-                                ComUtilities.Release(ref pivot);
-                            }
-                        }
-                    }
-                }
-                finally
-                {
-                    ComUtilities.Release(ref pivotTables);
-                    ComUtilities.Release(ref sheet);
-                }
-            }
-        }
-        finally
-        {
-            ComUtilities.Release(ref sheets);
-        }
-
-        throw new InvalidOperationException($"PivotTable '{pivotTableName}' not found in workbook");
-    }
+        => CoreLookupHelpers.FindPivotTable(workbook, pivotTableName);
 
     /// <summary>
     /// Detects the data type of a field by sampling its values
@@ -344,8 +297,8 @@ public partial class PivotTableCommands : IPivotTableCommands
                     {
                         // No PivotField exists yet - field hasn't been added to PivotTable
                         // Call CreatePivotFields() to create the PivotFields collection
-                        // Per Microsoft docs: "In OLAP PivotTables, PivotFields do not exist until 
-                        // the corresponding CubeField is added to the PivotTable. The CreatePivotFields() 
+                        // Per Microsoft docs: "In OLAP PivotTables, PivotFields do not exist until
+                        // the corresponding CubeField is added to the PivotTable. The CreatePivotFields()
                         // method enables users to create all PivotFields of a CubeField."
                         ComUtilities.Release(ref pivotFields);
                         cubeField.CreatePivotFields(); // Create PivotFields before manipulation

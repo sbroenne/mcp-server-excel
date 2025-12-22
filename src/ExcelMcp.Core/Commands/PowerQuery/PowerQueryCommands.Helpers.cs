@@ -96,7 +96,7 @@ public partial class PowerQueryCommands
             dynamic query = ComUtilities.FindQuery(workbook, queryName);
             if (query == null)
             {
-                throw new InvalidOperationException($"Query '{queryName}' not found");
+                throw new InvalidOperationException($"Query '{queryName}' not found.");
             }
 
             // Get the QueryTables collection

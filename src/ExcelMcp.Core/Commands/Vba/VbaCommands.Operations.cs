@@ -97,7 +97,7 @@ public partial class VbaCommands
 
                 if (targetComponent == null)
                 {
-                    throw new InvalidOperationException($"Module '{moduleName}' not found");
+                    throw new InvalidOperationException($"Module '{moduleName}' not found.");
                 }
 
                 vbComponents.Remove(targetComponent);

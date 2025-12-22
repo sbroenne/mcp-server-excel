@@ -232,7 +232,7 @@ public partial class PowerQueryCommands
                 query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
-                    throw new InvalidOperationException($"Query '{queryName}' not found");
+                    throw new InvalidOperationException($"Query '{queryName}' not found.");
                 }
 
                 // Check for ListObjects first (Power Query loaded to table creates a ListObject)
@@ -436,7 +436,7 @@ public partial class PowerQueryCommands
                 query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
-                    throw new InvalidOperationException($"Query '{queryName}' not found");
+                    throw new InvalidOperationException($"Query '{queryName}' not found.");
                 }
 
                 // STEP 1: Clean up any ListObjects (tables) that reference this query
@@ -581,37 +581,6 @@ public partial class PowerQueryCommands
         });
     }
 
-    /// <summary>
-    /// Helper to get all query names
-    /// </summary>
-    private static List<string> GetQueryNames(dynamic workbook)
-    {
-        var names = new List<string>();
-        dynamic? queriesCollection = null;
-        try
-        {
-            queriesCollection = workbook.Queries;
-            for (int i = 1; i <= queriesCollection.Count; i++)
-            {
-                dynamic? query = null;
-                try
-                {
-                    query = queriesCollection.Item(i);
-                    names.Add(query.Name);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref query);
-                }
-            }
-        }
-        finally
-        {
-            ComUtilities.Release(ref queriesCollection);
-        }
-        return names;
-    }
-
 
     /// <summary>
     /// Converts query to connection-only (removes data load)
@@ -644,7 +613,7 @@ public partial class PowerQueryCommands
                 query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
-                    throw new InvalidOperationException($"Query '{queryName}' not found");
+                    throw new InvalidOperationException($"Query '{queryName}' not found.");
                 }
 
                 // Remove ListObjects (tables) that reference this query

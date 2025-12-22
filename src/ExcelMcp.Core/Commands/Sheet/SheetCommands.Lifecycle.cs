@@ -82,7 +82,7 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, oldName);
                 if (sheet == null)
                 {
-                    throw new InvalidOperationException($"Sheet '{oldName}' not found");
+                    throw new InvalidOperationException($"Sheet '{oldName}' not found.");
                 }
                 sheet.Name = newName;
                 return 0;
@@ -108,7 +108,7 @@ public partial class SheetCommands
                 sourceSheet = ComUtilities.FindSheet(ctx.Book, sourceName);
                 if (sourceSheet == null)
                 {
-                    throw new InvalidOperationException($"Sheet '{sourceName}' not found");
+                    throw new InvalidOperationException($"Sheet '{sourceName}' not found.");
                 }
                 sheets = ctx.Book.Worksheets;
                 lastSheet = sheets.Item(sheets.Count);
@@ -138,7 +138,7 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 }
                 sheet.Delete();
                 return 0;
@@ -170,7 +170,7 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 }
 
                 // If no position specified, move to end
@@ -187,7 +187,7 @@ public partial class SheetCommands
                     targetSheet = ComUtilities.FindSheet(ctx.Book, targetName);
                     if (targetSheet == null)
                     {
-                        throw new InvalidOperationException($"Target sheet '{targetName}' not found");
+                        throw new InvalidOperationException($"Target sheet '{targetName}' not found.");
                     }
 
                     // Move using Excel COM API

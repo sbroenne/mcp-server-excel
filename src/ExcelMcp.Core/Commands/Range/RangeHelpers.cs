@@ -30,46 +30,7 @@ public static class RangeHelpers
             }
             catch
             {
-                // List available named ranges for helpful error
-                List<string> availableRanges = [];
-                dynamic? names = null;
-                try
-                {
-                    names = book.Names;
-                    for (int i = 1; i <= Math.Min(names.Count, 10); i++)
-                    {
-                        dynamic? name = null;
-                        try
-                        {
-                            name = names.Item(i);
-                            availableRanges.Add(name.Name);
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref name);
-                        }
-                    }
-                }
-                finally
-                {
-                    ComUtilities.Release(ref names);
-                }
-
-                if (availableRanges.Count > 0)
-                {
-                    string rangeList = string.Join(", ", availableRanges);
-                    if (names?.Count > 10)
-                    {
-                        rangeList += $" ... ({names.Count - 10} more)";
-                    }
-                    specificError = $"Named range '{rangeAddress}' not found. Available named ranges: {rangeList}";
-                }
-                else
-                {
-                    specificError = $"Named range '{rangeAddress}' not found. No named ranges exist in this workbook.";
-                }
-
-                specificError += " Use excel_namedrange(action: 'list') to see all, or excel_namedrange(action: 'create') to create one.";
+                specificError = $"Named range '{rangeAddress}' not found.";
                 return null;
             }
         }
@@ -82,46 +43,7 @@ public static class RangeHelpers
             sheet = ComUtilities.FindSheet(book, sheetName);
             if (sheet == null)
             {
-                // List available sheets for helpful error
-                List<string> availableSheets = [];
-                dynamic? sheets = null;
-                try
-                {
-                    sheets = book.Worksheets;
-                    for (int i = 1; i <= Math.Min(sheets.Count, 10); i++)
-                    {
-                        dynamic? ws = null;
-                        try
-                        {
-                            ws = sheets.Item(i);
-                            availableSheets.Add(ws.Name);
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref ws);
-                        }
-                    }
-                }
-                finally
-                {
-                    ComUtilities.Release(ref sheets);
-                }
-
-                if (availableSheets.Count > 0)
-                {
-                    string sheetList = string.Join(", ", availableSheets);
-                    if (sheets?.Count > 10)
-                    {
-                        sheetList += $" ... ({sheets.Count - 10} more)";
-                    }
-                    specificError = $"Sheet '{sheetName}' not found. Available sheets: {sheetList}";
-                }
-                else
-                {
-                    specificError = $"Sheet '{sheetName}' not found. Workbook has no worksheets.";
-                }
-
-                specificError += " Use excel_worksheet(action: 'list') to see all sheets.";
+                specificError = $"Sheet '{sheetName}' not found.";
                 return null;
             }
 
@@ -161,13 +83,9 @@ public static class RangeHelpers
     {
         if (string.IsNullOrEmpty(sheetName))
         {
-            return $"Named range '{rangeAddress}' not found. " +
-                   $"Use excel_namedrange(action: 'list') to see available named ranges, " +
-                   $"or create it with excel_namedrange(action: 'create').";
+            return $"Named range '{rangeAddress}' not found.";
         }
-        return $"Sheet '{sheetName}' or range '{rangeAddress}' not found. " +
-               $"Use excel_worksheet(action: 'list') to see available sheets, " +
-               $"or verify the range address is correct (e.g., 'A1:E10').";
+        return $"Sheet '{sheetName}' or range '{rangeAddress}' not found.";
     }
 
     /// <summary>

@@ -25,7 +25,7 @@ public partial class ConnectionCommands
 
             if (conn == null)
             {
-                throw new InvalidOperationException($"Connection '{connectionName}' not found");
+                throw new InvalidOperationException($"Connection '{connectionName}' not found.");
             }
 
             result.BackgroundQuery = GetBackgroundQuerySetting(conn);
@@ -50,7 +50,7 @@ public partial class ConnectionCommands
 
             if (conn == null)
             {
-                throw new InvalidOperationException($"Connection '{connectionName}' not found");
+                throw new InvalidOperationException($"Connection '{connectionName}' not found.");
             }
 
             // Check if this is a Power Query connection
