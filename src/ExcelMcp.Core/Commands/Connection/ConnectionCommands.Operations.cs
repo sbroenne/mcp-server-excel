@@ -28,7 +28,7 @@ public partial class ConnectionCommands
 
                 if (conn == null)
                 {
-                    throw new InvalidOperationException($"Connection '{connectionName}' not found");
+                    throw new InvalidOperationException($"Connection '{connectionName}' not found.");
                 }
 
                 // Check if this is a Power Query connection
@@ -99,7 +99,7 @@ public partial class ConnectionCommands
 
             if (conn == null)
             {
-                throw new InvalidOperationException($"Connection '{connectionName}' not found");
+                throw new InvalidOperationException($"Connection '{connectionName}' not found.");
             }
 
             // Get connection type

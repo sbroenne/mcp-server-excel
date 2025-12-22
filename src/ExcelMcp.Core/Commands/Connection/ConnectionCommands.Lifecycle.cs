@@ -87,7 +87,7 @@ public partial class ConnectionCommands
 
             if (conn == null)
             {
-                throw new InvalidOperationException($"Connection '{connectionName}' not found");
+                throw new InvalidOperationException($"Connection '{connectionName}' not found.");
             }
 
             result.Type = ConnectionHelpers.GetConnectionTypeName(conn.Type);
@@ -168,7 +168,7 @@ public partial class ConnectionCommands
 
             if (conn == null)
             {
-                throw new InvalidOperationException($"Connection '{connectionName}' not found");
+                throw new InvalidOperationException($"Connection '{connectionName}' not found.");
             }
 
             // Check if this is a Power Query connection (handle separately)
@@ -199,7 +199,7 @@ public partial class ConnectionCommands
 
             if (conn == null)
             {
-                throw new InvalidOperationException($"Connection '{connectionName}' not found");
+                throw new InvalidOperationException($"Connection '{connectionName}' not found.");
             }
 
             // Check if this is a Power Query connection

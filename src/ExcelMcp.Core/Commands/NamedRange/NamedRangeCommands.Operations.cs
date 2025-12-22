@@ -99,7 +99,7 @@ public partial class NamedRangeCommands
                 nameObj = ComUtilities.FindName(ctx.Book, paramName);
                 if (nameObj == null)
                 {
-                    throw new InvalidOperationException($"Parameter '{paramName}' not found");
+                    throw new InvalidOperationException($"Parameter '{paramName}' not found.");
                 }
 
                 refersToRange = nameObj.RefersToRange;
@@ -140,7 +140,7 @@ public partial class NamedRangeCommands
                 nameObj = ComUtilities.FindName(ctx.Book, paramName);
                 if (nameObj == null)
                 {
-                    throw new InvalidOperationException($"Parameter '{paramName}' not found");
+                    throw new InvalidOperationException($"Parameter '{paramName}' not found.");
                 }
 
                 string refersTo = nameObj.RefersTo ?? "";
@@ -231,7 +231,7 @@ public partial class NamedRangeCommands
                 nameObj = ComUtilities.FindName(ctx.Book, paramName);
                 if (nameObj == null)
                 {
-                    throw new InvalidOperationException($"Parameter '{paramName}' not found");
+                    throw new InvalidOperationException($"Parameter '{paramName}' not found.");
                 }
 
                 // Remove any existing = prefix to avoid double ==
@@ -262,7 +262,7 @@ public partial class NamedRangeCommands
                 nameObj = ComUtilities.FindName(ctx.Book, paramName);
                 if (nameObj == null)
                 {
-                    throw new InvalidOperationException($"Parameter '{paramName}' not found");
+                    throw new InvalidOperationException($"Parameter '{paramName}' not found.");
                 }
 
                 nameObj.Delete();

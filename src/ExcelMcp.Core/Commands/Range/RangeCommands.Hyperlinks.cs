@@ -26,7 +26,7 @@ public partial class RangeCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 }
 
                 range = sheet.Range[cellAddress];
@@ -125,7 +125,7 @@ public partial class RangeCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 }
 
                 hyperlinks = sheet.Hyperlinks;
@@ -186,7 +186,7 @@ public partial class RangeCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 }
 
                 range = sheet.Range[cellAddress];

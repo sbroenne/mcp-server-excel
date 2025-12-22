@@ -276,8 +276,7 @@ internal sealed class ExcelBatch : IExcelBatch
             return workbook;
         }
 
-        throw new KeyNotFoundException($"Workbook '{filePath}' is not open in this batch. " +
-            $"Available workbooks: {string.Join(", ", _workbooks.Keys)}");
+        throw new KeyNotFoundException($"Workbook '{filePath}' is not open in this batch.");
     }
 
     /// <summary>

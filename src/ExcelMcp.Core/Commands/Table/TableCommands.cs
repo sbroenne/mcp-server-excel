@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using Sbroenne.ExcelMcp.ComInterop;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
@@ -68,61 +67,16 @@ public partial class TableCommands : ITableCommands
     #region Helper Methods
 
     /// <summary>
-    /// Finds a table by name in the workbook
+    /// Finds a table by name in the workbook.
+    /// Delegates to CoreLookupHelpers.TryFindTable for the actual lookup.
     /// </summary>
     /// <param name="workbook">The workbook to search</param>
     /// <param name="tableName">Name of the table to find</param>
     /// <returns>The table object if found, null otherwise</returns>
     private static dynamic? FindTable(dynamic workbook, string tableName)
     {
-        dynamic? sheets = null;
-        try
-        {
-            sheets = workbook.Worksheets;
-            for (int i = 1; i <= sheets.Count; i++)
-            {
-                dynamic? sheet = null;
-                dynamic? listObjects = null;
-                try
-                {
-                    sheet = sheets.Item(i);
-                    listObjects = sheet.ListObjects;
-
-                    for (int j = 1; j <= listObjects.Count; j++)
-                    {
-                        dynamic? table = null;
-                        try
-                        {
-                            table = listObjects.Item(j);
-                            if (table.Name == tableName)
-                            {
-                                // Found it - return without releasing
-                                return table;
-                            }
-                        }
-                        finally
-                        {
-                            if (table != null && table.Name != tableName)
-                            {
-                                // Only release if not returning this table
-                                ComUtilities.Release(ref table);
-                            }
-                        }
-                    }
-                }
-                finally
-                {
-                    ComUtilities.Release(ref listObjects);
-                    ComUtilities.Release(ref sheet);
-                }
-            }
-        }
-        finally
-        {
-            ComUtilities.Release(ref sheets);
-        }
-
-        return null;
+        CoreLookupHelpers.TryFindTable(workbook, tableName, out dynamic? table);
+        return table;
     }
 
     /// <summary>
@@ -132,12 +86,7 @@ public partial class TableCommands : ITableCommands
     /// <param name="tableName">Name of the table to check</param>
     /// <returns>True if table exists, false otherwise</returns>
     private static bool TableExists(dynamic workbook, string tableName)
-    {
-        dynamic? table = FindTable(workbook, tableName);
-        bool exists = table != null;
-        ComUtilities.Release(ref table);
-        return exists;
-    }
+        => CoreLookupHelpers.TableExists(workbook, tableName);
 
     #endregion
 }

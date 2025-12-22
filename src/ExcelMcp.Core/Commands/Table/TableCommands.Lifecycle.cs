@@ -143,7 +143,7 @@ public partial class TableCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 }
 
                 // Check if table name already exists
@@ -200,7 +200,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    throw new InvalidOperationException($"Table '{tableName}' not found");
+                    throw new InvalidOperationException($"Table '{tableName}' not found.");
                 }
 
                 // Check if new name already exists
@@ -234,7 +234,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    throw new InvalidOperationException($"Table '{tableName}' not found");
+                    throw new InvalidOperationException($"Table '{tableName}' not found.");
                 }
 
                 // SECURITY FIX: Store range info before Unlist() for proper cleanup
@@ -282,7 +282,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    throw new InvalidOperationException($"Table '{tableName}' not found");
+                    throw new InvalidOperationException($"Table '{tableName}' not found.");
                 }
 
                 sheet = table.Parent;

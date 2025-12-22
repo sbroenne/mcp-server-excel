@@ -71,7 +71,7 @@ public partial class PowerQueryCommands
 
                 if (query == null)
                 {
-                    throw new InvalidOperationException($"Query '{queryName}' not found");
+                    throw new InvalidOperationException($"Query '{queryName}' not found.");
                 }
 
                 // STEP 2: Read WorkbookQuery properties (per Microsoft docs)

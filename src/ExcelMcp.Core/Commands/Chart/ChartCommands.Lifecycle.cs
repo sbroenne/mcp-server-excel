@@ -488,56 +488,11 @@ public partial class ChartCommands : IChartCommands
 
     /// <summary>
     /// Finds a PivotTable by name across all worksheets.
+    /// Delegates to CoreLookupHelpers.TryFindPivotTable for the actual lookup.
     /// </summary>
     private static dynamic? FindPivotTable(dynamic workbook, string pivotTableName)
     {
-        dynamic worksheets = workbook.Worksheets;
-        int wsCount = Convert.ToInt32(worksheets.Count);
-
-        for (int i = 1; i <= wsCount; i++)
-        {
-            dynamic? worksheet = null;
-            dynamic? pivotTables = null;
-
-            try
-            {
-                worksheet = worksheets.Item(i);
-                pivotTables = worksheet.PivotTables();
-                int ptCount = Convert.ToInt32(pivotTables.Count);
-
-                for (int j = 1; j <= ptCount; j++)
-                {
-                    dynamic? pivotTable = null;
-
-                    try
-                    {
-                        pivotTable = pivotTables.Item(j);
-                        string ptName = pivotTable.Name?.ToString() ?? string.Empty;
-
-                        if (ptName.Equals(pivotTableName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            ComUtilities.Release(ref pivotTables!);
-                            ComUtilities.Release(ref worksheet!);
-                            ComUtilities.Release(ref worksheets!);
-                            return pivotTable; // Caller must release
-                        }
-
-                        ComUtilities.Release(ref pivotTable!);
-                    }
-                    catch
-                    {
-                        if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
-                    }
-                }
-            }
-            finally
-            {
-                if (pivotTables != null) ComUtilities.Release(ref pivotTables!);
-                if (worksheet != null) ComUtilities.Release(ref worksheet!);
-            }
-        }
-
-        ComUtilities.Release(ref worksheets!);
-        return null;
+        CoreLookupHelpers.TryFindPivotTable(workbook, pivotTableName, out dynamic? pivotTable);
+        return pivotTable;
     }
 }

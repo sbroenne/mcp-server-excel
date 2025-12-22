@@ -41,7 +41,7 @@ public partial class PivotTableCommands
                     return new OperationResult
                     {
                         Success = false,
-                        ErrorMessage = $"PivotTable '{pivotTableName}' not found",
+                        ErrorMessage = $"PivotTable '{pivotTableName}' not found.",
                         FilePath = batch.WorkbookPath
                     };
                 }

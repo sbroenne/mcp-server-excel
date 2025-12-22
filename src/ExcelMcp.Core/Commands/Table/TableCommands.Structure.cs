@@ -26,7 +26,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    throw new InvalidOperationException($"Table '{tableName}' not found");
+                    throw new InvalidOperationException($"Table '{tableName}' not found.");
                 }
 
                 sheet = table.Parent;
@@ -60,7 +60,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    throw new InvalidOperationException($"Table '{tableName}' not found");
+                    throw new InvalidOperationException($"Table '{tableName}' not found.");
                 }
 
                 table.ShowTotals = showTotals;
@@ -90,7 +90,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    throw new InvalidOperationException($"Table '{tableName}' not found");
+                    throw new InvalidOperationException($"Table '{tableName}' not found.");
                 }
 
                 // Ensure totals row is shown
@@ -173,7 +173,7 @@ public partial class TableCommands
                 table = FindTable(ctx.Book, tableName);
                 if (table == null)
                 {
-                    throw new InvalidOperationException($"Table '{tableName}' not found");
+                    throw new InvalidOperationException($"Table '{tableName}' not found.");
                 }
 
                 table.TableStyle = tableStyle;

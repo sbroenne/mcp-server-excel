@@ -27,7 +27,7 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 }
 
                 // Convert RGB to BGR format (Excel's color format)
@@ -61,7 +61,7 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 }
 
                 tab = sheet.Tab;
@@ -124,7 +124,7 @@ public partial class SheetCommands
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 if (sheet == null)
                 {
-                    throw new InvalidOperationException($"Sheet '{sheetName}' not found");
+                    throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 }
 
                 tab = sheet.Tab;

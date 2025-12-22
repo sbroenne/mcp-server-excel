@@ -41,15 +41,7 @@ public partial class PowerQueryCommands
                 query = ComUtilities.FindQuery(ctx.Book, queryName);
                 if (query == null)
                 {
-                    var queryNames = GetQueryNames(ctx.Book);
-                    string? suggestion = FindClosestMatch(queryName, queryNames);
-
-                    string errorMsg = $"Query '{queryName}' not found";
-                    if (suggestion != null)
-                    {
-                        errorMsg += $". Did you mean '{suggestion}'?";
-                    }
-                    throw new InvalidOperationException(errorMsg);
+                    throw new InvalidOperationException($"Query '{queryName}' not found.");
                 }
 
                 // Refresh the query - exceptions propagate naturally
