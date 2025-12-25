@@ -100,39 +100,4 @@ public static class ConnectionTestHelper
             }
         });
     }
-
-
-
-    /// <summary>
-    /// Creates multiple test connections of different types for multi-connection tests.
-    /// </summary>
-    public static void CreateMultipleConnections(string filePath, params (string name, string type, string connectionString)[] connections)
-    {
-        using var batch = ExcelSession.BeginBatch(filePath);
-        batch.Execute((ctx, ct) =>
-        {
-            try
-            {
-                dynamic connectionsCollection = ctx.Book.Connections;
-
-                foreach (var (name, type, connectionString) in connections)
-                {
-                    // Use positional parameters
-                    connectionsCollection.Add(
-                        name,
-                        $"Test {type} connection",
-                        connectionString,
-                        ""
-                    );
-                }
-
-                return 0; // Success
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Failed to create multiple connections: {ex.Message}", ex);
-            }
-        });
-        batch.Save();
-    }
 }

@@ -20,11 +20,6 @@ public partial class TableCommands : ITableCommands
     private const int MaxTableNameLength = 255;
 
     /// <summary>
-    /// Validates table name format
-    /// </summary>
-    private static bool IsValidTableName(string name) => TableNameRegex.IsMatch(name);
-
-    /// <summary>
     /// Validates a table name to prevent injection attacks and ensure Excel compatibility
     /// </summary>
     /// <param name="tableName">Table name to validate</param>
