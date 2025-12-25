@@ -3,7 +3,7 @@ using System.Reflection;
 namespace Sbroenne.ExcelMcp.McpServer.Prompts;
 
 /// <summary>
-/// Loads markdown content from embedded resources for MCP prompts, completions, and elicitations.
+/// Loads markdown content from embedded resources for MCP prompts and elicitations.
 /// Follows guidance from mcp-llm-guidance.instructions.md for markdown-based LLM guidance.
 /// </summary>
 public static class MarkdownLoader
@@ -19,31 +19,6 @@ public static class MarkdownLoader
     public static string LoadPrompt(string fileName)
     {
         return LoadMarkdownFile($"{_baseNamespace}.{fileName}");
-    }
-
-    /// <summary>
-    /// Load a completion markdown file from Content/Completions/ directory
-    /// </summary>
-    /// <param name="fileName">File name without path (e.g., "action_powerquery.md")</param>
-    /// <returns>Markdown content as newline-separated values</returns>
-    public static string LoadCompletion(string fileName)
-    {
-        return LoadMarkdownFile($"{_baseNamespace}.Completions.{fileName}");
-    }
-
-    /// <summary>
-    /// Load a completion as list of values (one per line)
-    /// </summary>
-    /// <param name="fileName">File name without path</param>
-    /// <returns>List of completion values</returns>
-    public static List<string> LoadCompletionValues(string fileName)
-    {
-        var content = LoadCompletion(fileName);
-        return content
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => line.Trim())
-            .Where(line => !string.IsNullOrWhiteSpace(line) && !line.StartsWith('#'))
-            .ToList();
     }
 
     /// <summary>
@@ -79,15 +54,5 @@ public static class MarkdownLoader
             throw new InvalidOperationException(
                 $"Failed to load markdown file: {resourceName}. Error: {ex.Message}", ex);
         }
-    }
-
-    /// <summary>
-    /// List all available embedded markdown resources (for debugging)
-    /// </summary>
-    public static List<string> ListEmbeddedResources()
-    {
-        return _assembly.GetManifestResourceNames()
-            .Where(name => name.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
-            .ToList();
     }
 }

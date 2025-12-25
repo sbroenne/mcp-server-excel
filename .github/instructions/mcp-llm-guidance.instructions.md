@@ -98,35 +98,11 @@ LLMs already know Excel, JSON, and MCP protocol. They need server-specific patte
 - ⭐ Server quirks (non-obvious behavior)
 - ⚠️ Common mistakes (server-specific pitfalls)
 
-## Completions (Autocomplete) - IMPLEMENTED
+## Completions (Autocomplete) - NOT IMPLEMENTED
 
-**Purpose**: Provide autocomplete suggestions for freeform string parameters (NOT enum parameters)
+**Status**: The MCP SDK supports completions but this feature is not currently implemented.
 
-**CRITICAL**: Only create completions for non-enum parameters! The MCP SDK auto-generates enum values in the tool schema.
-
-**Current State**: 
-- ✅ Completions stored as `.md` files in `Content/Completions/` directory
-- ✅ Loader implemented: `MarkdownLoader.LoadCompletionValues()`
-- ✅ Used in `ExcelCompletionHandler.cs`
-
-**What completions do**:
-- Suggest common format codes (e.g., `"0.00"`, `"mm/dd/yyyy"`)
-- Suggest hex color values (e.g., `"#FF0000"`, `"#00FF00"`)
-- Suggest parameter values that are freeform strings
-- **DO NOT** suggest enum values - SDK provides these!
-
-**File structure**:
-```markdown
-# Completions for [parameter-name]
-
-value1
-value2
-value3
-```
-
-**When to add completions**:
-- ✅ Freeform string parameters with common patterns
-- ❌ **NEVER for enum parameters** - SDK provides!
+**Alternative**: The MCP SDK auto-generates enum values in the tool schema, so LLMs already see valid action values. For freeform parameters like format codes or color values, document suggestions in tool XML documentation instead.
 
 ## Elicitations (Pre-flight Checklists) - IMPLEMENTED
 
@@ -200,7 +176,7 @@ A good prompt:
 | Guidance Type | Format | Why | Status |
 |---------------|--------|-----|--------|
 | **Prompts** | .md files | Static content, read once | ✅ Implemented |
-| **Completions** | .md files | Static value lists | ✅ Implemented |
+| **Completions** | N/A | SDK auto-generates enum values | ❌ Not implemented |
 | **Elicitations** | .md files | Static checklists | ✅ Implemented |
 | **Workflow Guidance** | C# static methods | Dynamic, runtime context | ✅ Keep as C# |
 
