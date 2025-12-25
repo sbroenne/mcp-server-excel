@@ -1,6 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
@@ -102,28 +101,6 @@ public partial class PivotTableCommands : IPivotTableCommands
         {
             ComUtilities.Release(ref pivotItems);
         }
-    }
-
-    /// <summary>
-    /// Converts Excel COM constant to AggregationFunction enum
-    /// </summary>
-    private static AggregationFunction GetAggregationFunctionFromCom(int comFunction)
-    {
-        return comFunction switch
-        {
-            XlConsolidationFunction.xlSum => AggregationFunction.Sum,
-            XlConsolidationFunction.xlCount => AggregationFunction.Count,
-            XlConsolidationFunction.xlAverage => AggregationFunction.Average,
-            XlConsolidationFunction.xlMax => AggregationFunction.Max,
-            XlConsolidationFunction.xlMin => AggregationFunction.Min,
-            XlConsolidationFunction.xlProduct => AggregationFunction.Product,
-            XlConsolidationFunction.xlCountNums => AggregationFunction.CountNumbers,
-            XlConsolidationFunction.xlStdDev => AggregationFunction.StdDev,
-            XlConsolidationFunction.xlStdDevP => AggregationFunction.StdDevP,
-            XlConsolidationFunction.xlVar => AggregationFunction.Var,
-            XlConsolidationFunction.xlVarP => AggregationFunction.VarP,
-            _ => throw new InvalidOperationException($"Unknown COM aggregation function: {comFunction}")
-        };
     }
 
     /// <summary>

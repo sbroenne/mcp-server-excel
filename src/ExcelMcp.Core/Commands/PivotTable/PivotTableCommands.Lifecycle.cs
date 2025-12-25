@@ -396,7 +396,7 @@ public partial class PivotTableCommands
                     if (orientation == XlPivotFieldOrientation.xlDataField)
                     {
                         int comFunction = Convert.ToInt32(field.Function);
-                        fieldInfo.Function = GetAggregationFunctionFromCom(comFunction);
+                        fieldInfo.Function = PivotTableHelpers.GetAggregationFunctionFromCom(comFunction);
                     }
 
                     fields.Add(fieldInfo);

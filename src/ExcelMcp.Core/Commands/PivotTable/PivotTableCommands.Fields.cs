@@ -241,7 +241,7 @@ public partial class PivotTableCommands
                         try
                         {
                             int comFunction = Convert.ToInt32(field.Function);
-                            fieldInfo.Function = GetAggregationFunctionFromCom(comFunction);
+                            fieldInfo.Function = PivotTableHelpers.GetAggregationFunctionFromCom(comFunction);
                         }
                         catch (System.Runtime.InteropServices.COMException)
                         {

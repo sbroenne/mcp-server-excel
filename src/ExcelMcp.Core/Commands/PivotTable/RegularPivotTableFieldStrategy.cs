@@ -78,7 +78,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                     if (orientation == XlPivotFieldOrientation.xlDataField)
                     {
                         int comFunction = Convert.ToInt32(field.Function);
-                        fieldInfo.Function = GetAggregationFunctionFromCom(comFunction);
+                        fieldInfo.Function = PivotTableHelpers.GetAggregationFunctionFromCom(comFunction);
                     }
 
                     fields.Add(fieldInfo);
@@ -697,25 +697,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             AggregationFunction.Var => XlConsolidationFunction.xlVar,
             AggregationFunction.VarP => XlConsolidationFunction.xlVarP,
             _ => throw new InvalidOperationException($"Unsupported aggregation function: {function}")
-        };
-    }
-
-    private static AggregationFunction GetAggregationFunctionFromCom(int comFunction)
-    {
-        return comFunction switch
-        {
-            XlConsolidationFunction.xlSum => AggregationFunction.Sum,
-            XlConsolidationFunction.xlCount => AggregationFunction.Count,
-            XlConsolidationFunction.xlAverage => AggregationFunction.Average,
-            XlConsolidationFunction.xlMax => AggregationFunction.Max,
-            XlConsolidationFunction.xlMin => AggregationFunction.Min,
-            XlConsolidationFunction.xlProduct => AggregationFunction.Product,
-            XlConsolidationFunction.xlCountNums => AggregationFunction.CountNumbers,
-            XlConsolidationFunction.xlStdDev => AggregationFunction.StdDev,
-            XlConsolidationFunction.xlStdDevP => AggregationFunction.StdDevP,
-            XlConsolidationFunction.xlVar => AggregationFunction.Var,
-            XlConsolidationFunction.xlVarP => AggregationFunction.VarP,
-            _ => throw new InvalidOperationException($"Unknown COM aggregation function: {comFunction}")
         };
     }
 

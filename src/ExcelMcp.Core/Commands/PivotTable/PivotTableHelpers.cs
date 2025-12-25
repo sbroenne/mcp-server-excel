@@ -86,4 +86,26 @@ internal static class PivotTableHelpers
             return false;
         }
     }
+
+    /// <summary>
+    /// Converts Excel COM constant to AggregationFunction enum.
+    /// </summary>
+    public static AggregationFunction GetAggregationFunctionFromCom(int comFunction)
+    {
+        return comFunction switch
+        {
+            XlConsolidationFunction.xlSum => AggregationFunction.Sum,
+            XlConsolidationFunction.xlCount => AggregationFunction.Count,
+            XlConsolidationFunction.xlAverage => AggregationFunction.Average,
+            XlConsolidationFunction.xlMax => AggregationFunction.Max,
+            XlConsolidationFunction.xlMin => AggregationFunction.Min,
+            XlConsolidationFunction.xlProduct => AggregationFunction.Product,
+            XlConsolidationFunction.xlCountNums => AggregationFunction.CountNumbers,
+            XlConsolidationFunction.xlStdDev => AggregationFunction.StdDev,
+            XlConsolidationFunction.xlStdDevP => AggregationFunction.StdDevP,
+            XlConsolidationFunction.xlVar => AggregationFunction.Var,
+            XlConsolidationFunction.xlVarP => AggregationFunction.VarP,
+            _ => throw new InvalidOperationException($"Unknown COM aggregation function: {comFunction}")
+        };
+    }
 }
