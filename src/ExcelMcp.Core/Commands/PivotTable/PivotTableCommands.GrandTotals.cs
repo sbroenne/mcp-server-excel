@@ -1,4 +1,3 @@
-using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 
@@ -28,31 +27,6 @@ public partial class PivotTableCommands
     /// - OLAP PivotTables: Full support (same COM properties)
     /// </remarks>
     public OperationResult SetGrandTotals(IExcelBatch batch, string pivotTableName, bool showRowGrandTotals, bool showColumnGrandTotals)
-    {
-        return batch.Execute((ctx, ct) =>
-        {
-            dynamic? pivot = null;
-            try
-            {
-                pivot = FindPivotTable(ctx.Book, pivotTableName);
-
-                if (pivot == null)
-                {
-                    return new OperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"PivotTable '{pivotTableName}' not found.",
-                        FilePath = batch.WorkbookPath
-                    };
-                }
-
-                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
-                return strategy.SetGrandTotals(pivot, showRowGrandTotals, showColumnGrandTotals, batch.WorkbookPath, batch.Logger);
-            }
-            finally
-            {
-                ComUtilities.Release(ref pivot);
-            }
-        });
-    }
+        => ExecuteWithStrategy<OperationResult>(batch, pivotTableName,
+            (strategy, pivot) => strategy.SetGrandTotals(pivot, showRowGrandTotals, showColumnGrandTotals, batch.WorkbookPath, batch.Logger));
 }

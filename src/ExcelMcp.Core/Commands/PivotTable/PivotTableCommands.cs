@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
@@ -20,6 +21,36 @@ public partial class PivotTableCommands : IPivotTableCommands
     /// <exception cref="InvalidOperationException">Thrown if PivotTable is not found</exception>
     private static dynamic FindPivotTable(dynamic workbook, string pivotTableName)
         => CoreLookupHelpers.FindPivotTable(workbook, pivotTableName);
+
+    /// <summary>
+    /// Executes a strategy-based operation on a PivotTable.
+    /// Centralizes the common pattern: find pivot → get strategy → execute → release.
+    /// </summary>
+    /// <typeparam name="TResult">The result type returned by the strategy operation</typeparam>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="operation">The strategy operation to execute (receives strategy and pivot)</param>
+    /// <returns>The result from the strategy operation</returns>
+    private static TResult ExecuteWithStrategy<TResult>(
+        IExcelBatch batch,
+        string pivotTableName,
+        Func<IPivotTableFieldStrategy, dynamic, TResult> operation)
+    {
+        return batch.Execute((ctx, ct) =>
+        {
+            dynamic? pivot = null;
+            try
+            {
+                pivot = FindPivotTable(ctx.Book, pivotTableName);
+                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
+                return operation(strategy, pivot);
+            }
+            finally
+            {
+                ComUtilities.Release(ref pivot);
+            }
+        });
+    }
 
     /// <summary>
     /// Detects the data type of a field by sampling its values

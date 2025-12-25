@@ -19,7 +19,7 @@ internal static class PivotTableHelpers
     /// This helper consolidates the duplicated pattern:
     ///   cubeFields = pivot.CubeFields;
     ///   isOlap = cubeFields != null &amp;&amp; cubeFields.Count > 0;
-    /// 
+    ///
     /// Note: Does NOT release cubeFields - caller may need them.
     /// Use TryGetCubeFields for patterns that need the COM object.
     /// </remarks>

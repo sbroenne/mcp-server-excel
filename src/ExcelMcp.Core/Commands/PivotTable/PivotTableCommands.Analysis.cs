@@ -62,49 +62,15 @@ public partial class PivotTableCommands
     /// </summary>
     public PivotFieldFilterResult SetFieldFilter(IExcelBatch batch, string pivotTableName,
         string fieldName, List<string> selectedValues)
-    {
-        return batch.Execute((ctx, ct) =>
-        {
-            dynamic? pivot = null;
-
-            try
-            {
-                pivot = FindPivotTable(ctx.Book, pivotTableName);
-
-                // Use Strategy Pattern to delegate to appropriate implementation
-                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
-                return strategy.SetFieldFilter(pivot, fieldName, selectedValues, batch.WorkbookPath);
-            }
-            finally
-            {
-                ComUtilities.Release(ref pivot);
-            }
-        });
-    }
+        => ExecuteWithStrategy<PivotFieldFilterResult>(batch, pivotTableName,
+            (strategy, pivot) => strategy.SetFieldFilter(pivot, fieldName, selectedValues, batch.WorkbookPath));
 
     /// <summary>
     /// Sorts a field
     /// </summary>
     public PivotFieldResult SortField(IExcelBatch batch, string pivotTableName,
         string fieldName, SortDirection direction = SortDirection.Ascending)
-    {
-        return batch.Execute((ctx, ct) =>
-        {
-            dynamic? pivot = null;
-
-            try
-            {
-                pivot = FindPivotTable(ctx.Book, pivotTableName);
-
-                // Use Strategy Pattern to delegate to appropriate implementation
-                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
-                return strategy.SortField(pivot, fieldName, direction, batch.WorkbookPath);
-            }
-            finally
-            {
-                ComUtilities.Release(ref pivot);
-            }
-        });
-    }
+        => ExecuteWithStrategy<PivotFieldResult>(batch, pivotTableName,
+            (strategy, pivot) => strategy.SortField(pivot, fieldName, direction, batch.WorkbookPath));
 }
 
