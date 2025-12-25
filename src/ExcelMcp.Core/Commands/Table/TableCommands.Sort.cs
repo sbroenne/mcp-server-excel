@@ -37,10 +37,6 @@ public partial class TableCommands
             try
             {
                 table = FindTable(ctx.Book, tableName);
-                if (table == null)
-                {
-                    throw new InvalidOperationException($"Table '{tableName}' not found.");
-                }
 
                 // Find column
                 columns = table.ListColumns;
@@ -104,10 +100,6 @@ public partial class TableCommands
             try
             {
                 table = FindTable(ctx.Book, tableName);
-                if (table == null)
-                {
-                    throw new InvalidOperationException($"Table '{tableName}' not found.");
-                }
 
                 sortRange = table.Range;
                 dynamic? columns = null;

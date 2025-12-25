@@ -24,10 +24,6 @@ public partial class TableCommands
             try
             {
                 table = FindTable(ctx.Book, tableName);
-                if (table == null)
-                {
-                    throw new InvalidOperationException($"Table '{tableName}' not found.");
-                }
 
                 // Check if column already exists
                 listColumns = table.ListColumns;
@@ -85,10 +81,6 @@ public partial class TableCommands
             try
             {
                 table = FindTable(ctx.Book, tableName);
-                if (table == null)
-                {
-                    throw new InvalidOperationException($"Table '{tableName}' not found.");
-                }
 
                 // Find column
                 listColumns = table.ListColumns;
@@ -146,10 +138,6 @@ public partial class TableCommands
             try
             {
                 table = FindTable(ctx.Book, tableName);
-                if (table == null)
-                {
-                    throw new InvalidOperationException($"Table '{tableName}' not found.");
-                }
 
                 // Find column
                 listColumns = table.ListColumns;

@@ -26,10 +26,6 @@ public partial class TableCommands
             try
             {
                 table = FindTable(ctx.Book, tableName);
-                if (table == null)
-                {
-                    throw new InvalidOperationException($"Table '{tableName}' not found.");
-                }
 
                 sheet = table.Parent;
 
@@ -131,10 +127,6 @@ public partial class TableCommands
             try
             {
                 table = FindTable(ctx.Book, tableName);
-                if (table == null)
-                {
-                    throw new InvalidOperationException($"Table '{tableName}' not found.");
-                }
 
                 listColumns = table.ListColumns;
                 int columnCount = listColumns.Count;
