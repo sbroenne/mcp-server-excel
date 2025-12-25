@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
@@ -8,6 +9,23 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// </summary>
 internal static class PivotTableHelpers
 {
+    /// <summary>
+    /// Gets the area name for display purposes from a pivot field orientation.
+    /// </summary>
+    public static string GetAreaName(dynamic orientation)
+    {
+        int orientationValue = Convert.ToInt32(orientation);
+        return orientationValue switch
+        {
+            XlPivotFieldOrientation.xlHidden => "Hidden",
+            XlPivotFieldOrientation.xlRowField => "Row",
+            XlPivotFieldOrientation.xlColumnField => "Column",
+            XlPivotFieldOrientation.xlPageField => "Filter",
+            XlPivotFieldOrientation.xlDataField => "Value",
+            _ => $"Unknown({orientationValue})"
+        };
+    }
+
     /// <summary>
     /// Determines if a PivotTable is OLAP-based (Data Model/PowerPivot).
     /// OLAP PivotTables use CubeFields for field manipulation, while regular

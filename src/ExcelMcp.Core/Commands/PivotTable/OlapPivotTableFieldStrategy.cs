@@ -149,7 +149,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             int currentOrientation = Convert.ToInt32(cubeField.Orientation);
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
-                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
             // CRITICAL: Set Orientation on CubeField, NOT on PivotField
@@ -206,7 +206,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             int currentOrientation = Convert.ToInt32(cubeField.Orientation);
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
-                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
             cubeField.Orientation = XlPivotFieldOrientation.xlColumnField;
@@ -517,7 +517,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             int currentOrientation = Convert.ToInt32(cubeField.Orientation);
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
-                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
             cubeField.Orientation = XlPivotFieldOrientation.xlPageField;
@@ -1502,20 +1502,6 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
 
         // If we get here, it's probably ModelFormatGeneral which has no configurable properties
-    }
-
-    private static string GetAreaName(dynamic orientation)
-    {
-        int orientationValue = Convert.ToInt32(orientation);
-        return orientationValue switch
-        {
-            XlPivotFieldOrientation.xlHidden => "Hidden",
-            XlPivotFieldOrientation.xlRowField => "Row",
-            XlPivotFieldOrientation.xlColumnField => "Column",
-            XlPivotFieldOrientation.xlPageField => "Filter",
-            XlPivotFieldOrientation.xlDataField => "Value",
-            _ => $"Unknown({orientationValue})"
-        };
     }
 
     /// <summary>

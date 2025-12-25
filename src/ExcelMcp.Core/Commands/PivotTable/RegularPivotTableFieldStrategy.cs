@@ -119,7 +119,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             int currentOrientation = Convert.ToInt32(field.Orientation);
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
-                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
             // Add to Row area
@@ -166,7 +166,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             int currentOrientation = Convert.ToInt32(field.Orientation);
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
-                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
             field.Orientation = XlPivotFieldOrientation.xlColumnField;
@@ -219,7 +219,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             int currentOrientation = Convert.ToInt32(field.Orientation);
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
-                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
             field.Orientation = XlPivotFieldOrientation.xlDataField;
@@ -261,7 +261,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             int currentOrientation = Convert.ToInt32(field.Orientation);
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
-                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
             field.Orientation = XlPivotFieldOrientation.xlPageField;
@@ -382,7 +382,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 int orientation = Convert.ToInt32(field.Orientation);
                 if (orientation != XlPivotFieldOrientation.xlDataField)
                 {
-                    throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. It is in {GetAreaName(orientation)} area.");
+                    throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. It is in {PivotTableHelpers.GetAreaName(orientation)} area.");
                 }
             }
 
@@ -716,20 +716,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             XlConsolidationFunction.xlVar => AggregationFunction.Var,
             XlConsolidationFunction.xlVarP => AggregationFunction.VarP,
             _ => throw new InvalidOperationException($"Unknown COM aggregation function: {comFunction}")
-        };
-    }
-
-    private static string GetAreaName(dynamic orientation)
-    {
-        int orientationValue = Convert.ToInt32(orientation);
-        return orientationValue switch
-        {
-            XlPivotFieldOrientation.xlHidden => "Hidden",
-            XlPivotFieldOrientation.xlRowField => "Row",
-            XlPivotFieldOrientation.xlColumnField => "Column",
-            XlPivotFieldOrientation.xlPageField => "Filter",
-            XlPivotFieldOrientation.xlDataField => "Value",
-            _ => $"Unknown({orientationValue})"
         };
     }
 
