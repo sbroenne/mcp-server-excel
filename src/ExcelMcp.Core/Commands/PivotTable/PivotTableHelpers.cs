@@ -49,11 +49,13 @@ internal static class PivotTableHelpers
             cubeFields = pivot.CubeFields;
             return cubeFields != null && cubeFields.Count > 0;
         }
+#pragma warning disable CA1031 // COM interop: CubeFields property doesn't exist on non-OLAP PivotTables
         catch
         {
             // CubeFields property not available or failed - not an OLAP PivotTable
             return false;
         }
+#pragma warning restore CA1031
         finally
         {
             ComUtilities.Release(ref cubeFields);
@@ -79,12 +81,14 @@ internal static class PivotTableHelpers
             cubeFields = pivot.CubeFields;
             return cubeFields != null && cubeFields.Count > 0;
         }
+#pragma warning disable CA1031 // COM interop: CubeFields property doesn't exist on non-OLAP PivotTables
         catch
         {
             // CubeFields property not available - not an OLAP PivotTable
             // cubeFields already null from initialization
             return false;
         }
+#pragma warning restore CA1031
     }
 
     /// <summary>
@@ -152,11 +156,13 @@ internal static class PivotTableHelpers
 
             return "Text";
         }
+#pragma warning disable CA1031 // COM interop: PivotItems may not be accessible on all field types
         catch
         {
             // PivotItems access failed - cannot determine data type
             return "Unknown";
         }
+#pragma warning restore CA1031
         finally
         {
             ComUtilities.Release(ref pivotItems);
@@ -192,10 +198,12 @@ internal static class PivotTableHelpers
                 }
             }
         }
+#pragma warning disable CA1031 // COM interop: PivotItems may not be accessible on all field types
         catch
         {
             // PivotItems access failed - return partial list
         }
+#pragma warning restore CA1031
         finally
         {
             ComUtilities.Release(ref pivotItems);
