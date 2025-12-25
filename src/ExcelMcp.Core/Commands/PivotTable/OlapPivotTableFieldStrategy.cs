@@ -1504,25 +1504,6 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         // If we get here, it's probably ModelFormatGeneral which has no configurable properties
     }
 
-    private static int GetComAggregationFunction(AggregationFunction function)
-    {
-        return function switch
-        {
-            AggregationFunction.Sum => XlConsolidationFunction.xlSum,
-            AggregationFunction.Count => XlConsolidationFunction.xlCount,
-            AggregationFunction.Average => XlConsolidationFunction.xlAverage,
-            AggregationFunction.Max => XlConsolidationFunction.xlMax,
-            AggregationFunction.Min => XlConsolidationFunction.xlMin,
-            AggregationFunction.Product => XlConsolidationFunction.xlProduct,
-            AggregationFunction.CountNumbers => XlConsolidationFunction.xlCountNums,
-            AggregationFunction.StdDev => XlConsolidationFunction.xlStdDev,
-            AggregationFunction.StdDevP => XlConsolidationFunction.xlStdDevP,
-            AggregationFunction.Var => XlConsolidationFunction.xlVar,
-            AggregationFunction.VarP => XlConsolidationFunction.xlVarP,
-            _ => throw new InvalidOperationException($"Unsupported aggregation function: {function}")
-        };
-    }
-
     private static string GetAreaName(dynamic orientation)
     {
         int orientationValue = Convert.ToInt32(orientation);

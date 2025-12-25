@@ -105,59 +105,6 @@ public partial class PivotTableCommands : IPivotTableCommands
     }
 
     /// <summary>
-    /// Validates if an aggregation function is appropriate for a data type
-    /// </summary>
-    private static bool IsValidAggregationForDataType(AggregationFunction function, string dataType)
-    {
-        return dataType switch
-        {
-            "Number" => true, // All functions valid for numbers
-            "Date" => function is AggregationFunction.Count or AggregationFunction.CountNumbers or
-                      AggregationFunction.Max or AggregationFunction.Min,
-            "Text" => function == AggregationFunction.Count,
-            "Boolean" => function is AggregationFunction.Count or AggregationFunction.Sum,
-            _ => function == AggregationFunction.Count
-        };
-    }
-
-    /// <summary>
-    /// Gets the list of valid aggregation functions for a data type
-    /// </summary>
-    private static List<string> GetValidAggregationsForDataType(string dataType)
-    {
-        return dataType switch
-        {
-            "Number" => ["Sum", "Count", "Average", "Max", "Min", "Product", "CountNumbers", "StdDev", "StdDevP", "Var", "VarP"],
-            "Date" => ["Count", "CountNumbers", "Max", "Min"],
-            "Text" => ["Count"],
-            "Boolean" => ["Count", "Sum"],
-            _ => ["Count"]
-        };
-    }
-
-    /// <summary>
-    /// Converts AggregationFunction enum to Excel COM constant
-    /// </summary>
-    private static int GetComAggregationFunction(AggregationFunction function)
-    {
-        return function switch
-        {
-            AggregationFunction.Sum => XlConsolidationFunction.xlSum,
-            AggregationFunction.Count => XlConsolidationFunction.xlCount,
-            AggregationFunction.Average => XlConsolidationFunction.xlAverage,
-            AggregationFunction.Max => XlConsolidationFunction.xlMax,
-            AggregationFunction.Min => XlConsolidationFunction.xlMin,
-            AggregationFunction.Product => XlConsolidationFunction.xlProduct,
-            AggregationFunction.CountNumbers => XlConsolidationFunction.xlCountNums,
-            AggregationFunction.StdDev => XlConsolidationFunction.xlStdDev,
-            AggregationFunction.StdDevP => XlConsolidationFunction.xlStdDevP,
-            AggregationFunction.Var => XlConsolidationFunction.xlVar,
-            AggregationFunction.VarP => XlConsolidationFunction.xlVarP,
-            _ => throw new InvalidOperationException($"Unsupported aggregation function: {function}")
-        };
-    }
-
-    /// <summary>
     /// Converts Excel COM constant to AggregationFunction enum
     /// </summary>
     private static AggregationFunction GetAggregationFunctionFromCom(int comFunction)

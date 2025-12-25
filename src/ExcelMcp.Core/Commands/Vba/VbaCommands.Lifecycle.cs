@@ -49,14 +49,7 @@ public partial class VbaCommands
                         string name = component.Name;
                         int type = component.Type;
 
-                        string typeStr = type switch
-                        {
-                            1 => "Module",
-                            2 => "Class",
-                            3 => "Form",
-                            100 => "Document",
-                            _ => $"Type{type}"
-                        };
+                        string typeStr = GetVbaModuleTypeName(type);
 
                         var procedures = new List<string>();
                         codeModule = component.CodeModule;
@@ -158,14 +151,7 @@ public partial class VbaCommands
                     {
                         found = true;
                         int type = component.Type;
-                        result.ModuleType = type switch
-                        {
-                            1 => "Module",
-                            2 => "Class",
-                            3 => "Form",
-                            100 => "Document",
-                            _ => $"Type{type}"
-                        };
+                        result.ModuleType = GetVbaModuleTypeName(type);
 
                         codeModule = component.CodeModule;
                         result.LineCount = codeModule.CountOfLines;

@@ -79,4 +79,19 @@ public partial class VbaCommands : IVbaCommands
         }
         return string.Empty;
     }
+
+    /// <summary>
+    /// Converts VBA component type constant to display name
+    /// </summary>
+    private static string GetVbaModuleTypeName(int componentType)
+    {
+        return componentType switch
+        {
+            1 => "Module",
+            2 => "Class",
+            3 => "Form",
+            100 => "Document",
+            _ => $"Type{componentType}"
+        };
+    }
 }
