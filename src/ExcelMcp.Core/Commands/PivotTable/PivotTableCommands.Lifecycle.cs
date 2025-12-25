@@ -240,16 +240,7 @@ public partial class PivotTableCommands
 
             // Get field details - use OLAP detection
             List<PivotFieldInfo> fields;
-            bool isOlap = false;
-            try
-            {
-                cubeFields = pivot.CubeFields;
-                isOlap = cubeFields != null && cubeFields.Count > 0;
-            }
-            catch
-            {
-                isOlap = false;
-            }
+            bool isOlap = PivotTableHelpers.TryGetCubeFields(pivot, out cubeFields);
 
             try
             {

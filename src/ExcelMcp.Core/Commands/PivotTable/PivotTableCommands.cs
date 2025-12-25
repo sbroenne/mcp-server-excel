@@ -255,16 +255,7 @@ public partial class PivotTableCommands : IPivotTableCommands
         try
         {
             // Check if this is an OLAP/Data Model PivotTable
-            try
-            {
-                cubeFields = pivot.CubeFields;
-                isOlap = cubeFields != null && cubeFields.Count > 0;
-            }
-            catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
-            {
-                // CubeFields property not available - not an OLAP PivotTable
-                isOlap = false;
-            }
+            isOlap = PivotTableHelpers.TryGetCubeFields(pivot, out cubeFields);
 
             if (isOlap)
             {

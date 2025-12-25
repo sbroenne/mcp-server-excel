@@ -13,14 +13,12 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// <inheritdoc/>
     public bool CanHandle(dynamic pivot)
     {
+        // Regular PivotTables are NOT OLAP and have PivotFields
+        if (PivotTableHelpers.IsOlapPivotTable(pivot))
+            return false; // This is OLAP, not regular
+
         try
         {
-            // Regular PivotTables have PivotFields and no CubeFields (or empty CubeFields)
-            // Note: Don't release COM objects here - PivotTable keeps them alive
-            dynamic cubeFields = pivot.CubeFields;
-            if (cubeFields != null && cubeFields.Count > 0)
-                return false; // This is OLAP
-
             dynamic pivotFields = pivot.PivotFields;
             return pivotFields != null;
         }

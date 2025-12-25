@@ -25,7 +25,7 @@ public partial class PivotTableCommands
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
                 // Check if this is an OLAP PivotTable
-                if (!IsOlapPivotTable(pivot))
+                if (!PivotTableHelpers.IsOlapPivotTable(pivot))
                 {
                     return new CalculatedMemberListResult
                     {
@@ -90,7 +90,7 @@ public partial class PivotTableCommands
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
                 // Check if this is an OLAP PivotTable
-                if (!IsOlapPivotTable(pivot))
+                if (!PivotTableHelpers.IsOlapPivotTable(pivot))
                 {
                     return new CalculatedMemberResult
                     {
@@ -187,7 +187,7 @@ public partial class PivotTableCommands
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
                 // Check if this is an OLAP PivotTable
-                if (!IsOlapPivotTable(pivot))
+                if (!PivotTableHelpers.IsOlapPivotTable(pivot))
                 {
                     return new OperationResult
                     {
@@ -226,28 +226,6 @@ public partial class PivotTableCommands
                 ComUtilities.Release(ref pivot);
             }
         });
-    }
-
-    /// <summary>
-    /// Checks if a PivotTable is OLAP-based (Data Model)
-    /// </summary>
-    private static bool IsOlapPivotTable(dynamic pivot)
-    {
-        dynamic? cubeFields = null;
-        try
-        {
-            cubeFields = pivot.CubeFields;
-            return cubeFields != null && cubeFields.Count > 0;
-        }
-        catch (COMException)
-        {
-            // CubeFields property doesn't exist or failed - not an OLAP PivotTable
-            return false;
-        }
-        finally
-        {
-            ComUtilities.Release(ref cubeFields);
-        }
     }
 
     /// <summary>

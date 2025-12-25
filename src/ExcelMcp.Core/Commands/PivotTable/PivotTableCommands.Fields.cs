@@ -23,16 +23,7 @@ public partial class PivotTableCommands
             pivot = FindPivotTable(ctx.Book, pivotTableName);
 
             // Check if this is an OLAP/Data Model PivotTable
-            bool isOlap = false;
-            try
-            {
-                cubeFields = pivot.CubeFields;
-                isOlap = cubeFields != null && cubeFields.Count > 0;
-            }
-            catch
-            {
-                isOlap = false;
-            }
+            bool isOlap = PivotTableHelpers.TryGetCubeFields(pivot, out cubeFields);
 
             try
             {

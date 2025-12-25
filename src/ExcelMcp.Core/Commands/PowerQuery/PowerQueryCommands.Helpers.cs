@@ -56,7 +56,7 @@ public partial class PowerQueryCommands
                         try
                         {
                             queryTable = queryTables.Item(qt);
-                            if (queryTable.Name?.ToString()?.Contains(queryName.Replace(" ", "_")) == true)
+                            if (queryTable.Name?.ToString()?.Contains(queryName.Replace(" ", "_")) is true)
                             {
                                 queryTable.Delete();
                             }

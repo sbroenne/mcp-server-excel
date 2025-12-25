@@ -18,18 +18,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// <inheritdoc/>
     public bool CanHandle(dynamic pivot)
     {
-        try
-        {
-            // OLAP/Data Model PivotTables have CubeFields collection
-            // Note: Don't release COM objects here - PivotTable keeps them alive
-            dynamic cubeFields = pivot.CubeFields;
-            return cubeFields != null && cubeFields.Count > 0;
-        }
-        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
-        {
-            // CubeFields property not available - not an OLAP PivotTable
-            return false;
-        }
+        // OLAP/Data Model PivotTables have CubeFields collection
+        return PivotTableHelpers.IsOlapPivotTable(pivot);
     }
 
     /// <inheritdoc/>
@@ -1006,7 +996,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
         // NOTE: No RefreshTable() needed - Layout is a visual-only property
 
-        if (logger?.IsEnabled(LogLevel.Information) == true)
+        if (logger?.IsEnabled(LogLevel.Information) is true)
         {
             logger.LogInformation("Set OLAP PivotTable layout to {LayoutType}", layoutType);
         }
@@ -1041,7 +1031,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
             // NOTE: No RefreshTable() needed - Subtotals is a visual-only property
 
-            if (logger?.IsEnabled(LogLevel.Information) == true)
+            if (logger?.IsEnabled(LogLevel.Information) is true)
             {
                 logger.LogInformation("Set OLAP subtotals for field {FieldName} to {ShowSubtotals}", fieldName, showSubtotals);
             }
@@ -1058,7 +1048,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
         catch (Exception ex)
         {
-            if (logger?.IsEnabled(LogLevel.Error) == true)
+            if (logger?.IsEnabled(LogLevel.Error) is true)
             {
                 logger.LogError(ex, "SetSubtotals failed for OLAP field {FieldName}", fieldName);
             }

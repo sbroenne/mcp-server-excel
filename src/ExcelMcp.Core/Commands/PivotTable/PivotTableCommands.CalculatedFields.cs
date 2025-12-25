@@ -49,7 +49,7 @@ public partial class PivotTableCommands
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
                 // Check if this is an OLAP PivotTable - they don't support calculated fields
-                if (IsOlapPivotTable(pivot))
+                if (PivotTableHelpers.IsOlapPivotTable(pivot))
                 {
                     return new CalculatedFieldListResult
                     {
@@ -113,7 +113,7 @@ public partial class PivotTableCommands
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
                 // Check if this is an OLAP PivotTable - they don't support calculated fields
-                if (IsOlapPivotTable(pivot))
+                if (PivotTableHelpers.IsOlapPivotTable(pivot))
                 {
                     return new OperationResult
                     {
