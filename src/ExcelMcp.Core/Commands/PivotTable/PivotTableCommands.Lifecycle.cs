@@ -389,7 +389,7 @@ public partial class PivotTableCommands
                             _ => PivotFieldArea.Hidden
                         },
                         Position = orientation != XlPivotFieldOrientation.xlHidden ? Convert.ToInt32(field.Position) : 0,
-                        DataType = DetectFieldDataType(field)
+                        DataType = PivotTableHelpers.DetectFieldDataType(field)
                     };
 
                     // Get function for value fields

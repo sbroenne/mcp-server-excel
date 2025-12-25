@@ -228,7 +228,7 @@ public partial class PivotTableCommands
                     // DataType - defensive
                     try
                     {
-                        fieldInfo.DataType = DetectFieldDataType(field);
+                        fieldInfo.DataType = PivotTableHelpers.DetectFieldDataType(field);
                     }
                     catch (System.Runtime.InteropServices.COMException)
                     {

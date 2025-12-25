@@ -71,7 +71,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                         Name = field.SourceName?.ToString() ?? field.Name?.ToString() ?? $"Field{i}",
                         CustomName = field.Caption?.ToString() ?? "",
                         Area = (PivotFieldArea)orientation,
-                        DataType = DetectFieldDataType(field)
+                        DataType = PivotTableHelpers.DetectFieldDataType(field)
                     };
 
                     // For value fields, get function from DataFields
@@ -144,7 +144,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 CustomName = field.Caption?.ToString() ?? fieldName,
                 Area = PivotFieldArea.Row,
                 Position = Convert.ToInt32(field.Position),
-                DataType = DetectFieldDataType(field),
+                DataType = PivotTableHelpers.DetectFieldDataType(field),
                 AvailableValues = GetFieldUniqueValues(field),
                 FilePath = workbookPath
             };
@@ -189,7 +189,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 CustomName = field.Caption?.ToString() ?? fieldName,
                 Area = PivotFieldArea.Column,
                 Position = Convert.ToInt32(field.Position),
-                DataType = DetectFieldDataType(field),
+                DataType = PivotTableHelpers.DetectFieldDataType(field),
                 AvailableValues = GetFieldUniqueValues(field),
                 FilePath = workbookPath
             };
@@ -209,7 +209,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             field = GetFieldForManipulation(pivot, fieldName);
 
             // Validate aggregation function for field data type
-            string dataType = DetectFieldDataType(field);
+            string dataType = PivotTableHelpers.DetectFieldDataType(field);
             if (!IsValidAggregationForDataType(aggregationFunction, dataType))
             {
                 var validFunctions = GetValidAggregationsForDataType(dataType);
@@ -279,7 +279,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 CustomName = field.Caption?.ToString() ?? fieldName,
                 Area = PivotFieldArea.Filter,
                 Position = Convert.ToInt32(field.Position),
-                DataType = DetectFieldDataType(field),
+                DataType = PivotTableHelpers.DetectFieldDataType(field),
                 AvailableValues = GetFieldUniqueValues(field),
                 FilePath = workbookPath
             };
@@ -388,7 +388,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
 
             // Get source field for data type detection
             dynamic? sourceField = GetFieldForManipulation(pivot, fieldName);
-            string dataType = DetectFieldDataType(sourceField);
+            string dataType = PivotTableHelpers.DetectFieldDataType(sourceField);
             ComUtilities.Release(ref sourceField);
 
             if (!IsValidAggregationForDataType(aggregationFunction, dataType))
@@ -574,53 +574,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     #region Helper Methods
-
-    private static string DetectFieldDataType(dynamic field)
-    {
-        dynamic? pivotItems = null;
-        try
-        {
-            pivotItems = field.PivotItems;
-            var sampleValues = new List<object?>();
-
-            int sampleCount = Math.Min(10, pivotItems.Count);
-            for (int i = 1; i <= sampleCount; i++)
-            {
-                dynamic? item = null;
-                try
-                {
-                    item = pivotItems.Item(i);
-                    var value = item.Value;
-                    if (value != null)
-                        sampleValues.Add(value);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref item);
-                }
-            }
-
-            if (sampleValues.Count == 0)
-                return "Unknown";
-
-            if (sampleValues.All(v => DateTime.TryParse(v?.ToString(), out _)))
-                return "Date";
-            if (sampleValues.All(v => double.TryParse(v?.ToString(), out _)))
-                return "Number";
-            if (sampleValues.All(v => bool.TryParse(v?.ToString(), out _)))
-                return "Boolean";
-
-            return "Text";
-        }
-        catch
-        {
-            return "Unknown";
-        }
-        finally
-        {
-            ComUtilities.Release(ref pivotItems);
-        }
-    }
 
     private static List<string> GetFieldUniqueValues(dynamic field)
     {

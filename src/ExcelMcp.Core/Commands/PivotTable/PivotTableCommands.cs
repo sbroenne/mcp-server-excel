@@ -52,58 +52,6 @@ public partial class PivotTableCommands : IPivotTableCommands
     }
 
     /// <summary>
-    /// Detects the data type of a field by sampling its values
-    /// </summary>
-    private static string DetectFieldDataType(dynamic field)
-    {
-        dynamic? pivotItems = null;
-        try
-        {
-            pivotItems = field.PivotItems;
-            var sampleValues = new List<object?>();
-
-            int sampleCount = Math.Min(10, pivotItems.Count);
-            for (int i = 1; i <= sampleCount; i++)
-            {
-                dynamic? item = null;
-                try
-                {
-                    item = pivotItems.Item(i);
-                    var value = item.Value;
-                    if (value != null)
-                        sampleValues.Add(value);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref item);
-                }
-            }
-
-            // Analyze sample values
-            if (sampleValues.Count == 0)
-                return "Unknown";
-
-            if (sampleValues.All(v => DateTime.TryParse(v?.ToString(), out _)))
-                return "Date";
-            if (sampleValues.All(v => double.TryParse(v?.ToString(), out _)))
-                return "Number";
-            if (sampleValues.All(v => bool.TryParse(v?.ToString(), out _)))
-                return "Boolean";
-
-            return "Text";
-        }
-        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
-        {
-            // PivotItems access failed - cannot determine data type
-            return "Unknown";
-        }
-        finally
-        {
-            ComUtilities.Release(ref pivotItems);
-        }
-    }
-
-    /// <summary>
     /// Gets all field names from a PivotTable
     /// </summary>
     private static List<string> GetFieldNames(dynamic pivotTable)
