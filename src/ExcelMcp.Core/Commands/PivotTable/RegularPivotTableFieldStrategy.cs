@@ -145,7 +145,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 Area = PivotFieldArea.Row,
                 Position = Convert.ToInt32(field.Position),
                 DataType = PivotTableHelpers.DetectFieldDataType(field),
-                AvailableValues = GetFieldUniqueValues(field),
+                AvailableValues = PivotTableHelpers.GetFieldUniqueValues(field),
                 FilePath = workbookPath
             };
         }
@@ -190,7 +190,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 Area = PivotFieldArea.Column,
                 Position = Convert.ToInt32(field.Position),
                 DataType = PivotTableHelpers.DetectFieldDataType(field),
-                AvailableValues = GetFieldUniqueValues(field),
+                AvailableValues = PivotTableHelpers.GetFieldUniqueValues(field),
                 FilePath = workbookPath
             };
         }
@@ -280,7 +280,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 Area = PivotFieldArea.Filter,
                 Position = Convert.ToInt32(field.Position),
                 DataType = PivotTableHelpers.DetectFieldDataType(field),
-                AvailableValues = GetFieldUniqueValues(field),
+                AvailableValues = PivotTableHelpers.GetFieldUniqueValues(field),
                 FilePath = workbookPath
             };
         }
@@ -574,40 +574,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     #region Helper Methods
-
-    private static List<string> GetFieldUniqueValues(dynamic field)
-    {
-        var values = new List<string>();
-        dynamic? pivotItems = null;
-        try
-        {
-            pivotItems = field.PivotItems;
-            for (int i = 1; i <= pivotItems.Count; i++)
-            {
-                dynamic? item = null;
-                try
-                {
-                    item = pivotItems.Item(i);
-                    string itemName = item.Name?.ToString() ?? string.Empty;
-                    if (!string.IsNullOrEmpty(itemName))
-                        values.Add(itemName);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref item);
-                }
-            }
-        }
-        catch
-        {
-            // Ignore errors
-        }
-        finally
-        {
-            ComUtilities.Release(ref pivotItems);
-        }
-        return values;
-    }
 
     private static bool IsValidAggregationForDataType(AggregationFunction function, string dataType)
     {

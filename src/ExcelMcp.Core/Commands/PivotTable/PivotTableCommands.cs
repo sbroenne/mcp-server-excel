@@ -83,43 +83,6 @@ public partial class PivotTableCommands : IPivotTableCommands
     }
 
     /// <summary>
-    /// Gets unique values from a field for filtering purposes
-    /// </summary>
-    private static List<string> GetFieldUniqueValues(dynamic field)
-    {
-        var values = new List<string>();
-        dynamic? pivotItems = null;
-        try
-        {
-            pivotItems = field.PivotItems;
-            for (int i = 1; i <= pivotItems.Count; i++)
-            {
-                dynamic? item = null;
-                try
-                {
-                    item = pivotItems.Item(i);
-                    string itemName = item.Name?.ToString() ?? string.Empty;
-                    if (!string.IsNullOrEmpty(itemName))
-                        values.Add(itemName);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref item);
-                }
-            }
-        }
-        catch (System.Runtime.InteropServices.COMException)
-        {
-            // PivotItems access failed - return partial list
-        }
-        finally
-        {
-            ComUtilities.Release(ref pivotItems);
-        }
-        return values;
-    }
-
-    /// <summary>
     /// Gets a field for manipulation, handling both OLAP and regular PivotTables.
     /// For OLAP PivotTables, accesses via CubeFields and returns the corresponding PivotField.
     /// For regular PivotTables, accesses via PivotFields directly.

@@ -162,4 +162,44 @@ internal static class PivotTableHelpers
             ComUtilities.Release(ref pivotItems);
         }
     }
+
+    /// <summary>
+    /// Gets unique values from a PivotField for filtering purposes.
+    /// Iterates through PivotItems to collect available values.
+    /// </summary>
+    /// <param name="field">The PivotField COM object</param>
+    /// <returns>List of unique value strings from the field</returns>
+    public static List<string> GetFieldUniqueValues(dynamic field)
+    {
+        var values = new List<string>();
+        dynamic? pivotItems = null;
+        try
+        {
+            pivotItems = field.PivotItems;
+            for (int i = 1; i <= pivotItems.Count; i++)
+            {
+                dynamic? item = null;
+                try
+                {
+                    item = pivotItems.Item(i);
+                    string itemName = item.Name?.ToString() ?? string.Empty;
+                    if (!string.IsNullOrEmpty(itemName))
+                        values.Add(itemName);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref item);
+                }
+            }
+        }
+        catch
+        {
+            // PivotItems access failed - return partial list
+        }
+        finally
+        {
+            ComUtilities.Release(ref pivotItems);
+        }
+        return values;
+    }
 }
