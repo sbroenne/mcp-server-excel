@@ -64,7 +64,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 {
                     interior = formatCondition.Interior;
                     if (!string.IsNullOrEmpty(interiorColor))
-                        interior.Color = ParseColor(interiorColor);
+                        interior.Color = FormattingHelpers.ParseColor(interiorColor);
                     if (!string.IsNullOrEmpty(interiorPattern))
                         interior.Pattern = ParseInteriorPattern(interiorPattern);
                 }
@@ -74,7 +74,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 {
                     font = formatCondition.Font;
                     if (!string.IsNullOrEmpty(fontColor))
-                        font.Color = ParseColor(fontColor);
+                        font.Color = FormattingHelpers.ParseColor(fontColor);
                     if (fontBold.HasValue)
                         font.Bold = fontBold.Value;
                     if (fontItalic.HasValue)
@@ -87,7 +87,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                     borders = formatCondition.Borders;
                     if (!string.IsNullOrEmpty(borderStyle))
                     {
-                        var xlBorderStyle = ParseBorderStyle(borderStyle);
+                        var xlBorderStyle = FormattingHelpers.ParseBorderStyle(borderStyle);
                         // Apply to all four borders
                         borders.Item(7).LineStyle = xlBorderStyle;  // xlEdgeLeft
                         borders.Item(8).LineStyle = xlBorderStyle;  // xlEdgeTop
@@ -96,7 +96,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                     }
                     if (!string.IsNullOrEmpty(borderColor))
                     {
-                        var color = ParseColor(borderColor);
+                        var color = FormattingHelpers.ParseColor(borderColor);
                         borders.Item(7).Color = color;  // xlEdgeLeft
                         borders.Item(8).Color = color;  // xlEdgeTop
                         borders.Item(9).Color = color;  // xlEdgeBottom
@@ -208,39 +208,6 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
             "gray75" => 10, // xlPatternGray75
             "gray25" => 11, // xlPatternGray25
             _ => throw new ArgumentException($"Unknown interior pattern: {pattern}. Use pattern constant or: none, solid, gray50, gray75, gray25")
-        };
-    }
-
-    private static int ParseColor(string color)
-    {
-        // Support #RRGGBB format or color index
-        if (color.StartsWith('#') && color.Length == 7)
-        {
-            var r = Convert.ToInt32(color.Substring(1, 2), 16);
-            var g = Convert.ToInt32(color.Substring(3, 2), 16);
-            var b = Convert.ToInt32(color.Substring(5, 2), 16);
-            return r + (g << 8) + (b << 16); // Excel RGB format
-        }
-        else if (int.TryParse(color, out var index))
-        {
-            return index;
-        }
-        throw new ArgumentException($"Invalid color format: {color}. Use #RRGGBB or color index.");
-    }
-
-    private static int ParseBorderStyle(string style)
-    {
-        return style.ToLowerInvariant() switch
-        {
-            "none" => -4142, // xlNone
-            "continuous" => 1, // xlContinuous
-            "dash" => -4115, // xlDash
-            "dashdot" => 4, // xlDashDot
-            "dashdotdot" => 5, // xlDashDotDot
-            "dot" => -4118, // xlDot
-            "double" => -4119, // xlDouble
-            "slantdashdot" => 13, // xlSlantDashDot
-            _ => throw new ArgumentException($"Invalid border style: {style}")
         };
     }
 }
