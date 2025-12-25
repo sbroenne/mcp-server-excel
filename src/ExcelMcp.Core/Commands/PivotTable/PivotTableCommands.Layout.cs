@@ -1,4 +1,3 @@
-using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 
@@ -27,20 +26,6 @@ public partial class PivotTableCommands
     /// - OLAP PivotTables: Full support for all three forms
     /// </remarks>
     public OperationResult SetLayout(IExcelBatch batch, string pivotTableName, int layoutType)
-    {
-        return batch.Execute((ctx, ct) =>
-        {
-            dynamic? pivot = null;
-            try
-            {
-                pivot = FindPivotTable(ctx.Book, pivotTableName);
-                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
-                return strategy.SetLayout(pivot, layoutType, batch.WorkbookPath, batch.Logger);
-            }
-            finally
-            {
-                ComUtilities.Release(ref pivot);
-            }
-        });
-    }
+        => ExecuteWithStrategy<OperationResult>(batch, pivotTableName,
+            (strategy, pivot) => strategy.SetLayout(pivot, layoutType, batch.WorkbookPath, batch.Logger));
 }

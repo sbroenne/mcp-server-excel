@@ -164,51 +164,6 @@ public static class PowerQueryHelpers
     }
 
     /// <summary>
-    /// Removes QueryTables associated with a query name from a specific worksheet
-    /// </summary>
-    /// <param name="worksheet">Excel worksheet COM object</param>
-    /// <param name="name">Name of the query (spaces will be replaced with underscores for QueryTable names)</param>
-    public static void RemoveQueryTablesFromSheet(dynamic worksheet, string name)
-    {
-        dynamic? queryTables = null;
-
-        try
-        {
-            queryTables = worksheet.QueryTables;
-            string normalizedName = name.Replace(" ", "_");
-
-            // Iterate backwards to safely delete items
-            for (int qt = queryTables.Count; qt >= 1; qt--)
-            {
-                dynamic? queryTable = null;
-                try
-                {
-                    queryTable = queryTables.Item(qt);
-                    string queryTableName = queryTable.Name?.ToString() ?? "";
-
-                    // Match QueryTable names that contain the normalized name
-                    if (queryTableName.Contains(normalizedName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        queryTable.Delete();
-                    }
-                }
-                finally
-                {
-                    ComUtilities.Release(ref queryTable);
-                }
-            }
-        }
-        catch
-        {
-            // Ignore errors when removing QueryTables - they may not exist
-        }
-        finally
-        {
-            ComUtilities.Release(ref queryTables);
-        }
-    }
-
-    /// <summary>
     /// Options for creating QueryTable connections
     /// </summary>
     public class QueryTableOptions
@@ -254,55 +209,5 @@ public static class PowerQueryHelpers
         /// Whether to refresh immediately after creation
         /// </summary>
         public bool RefreshImmediately { get; init; }
-    }
-
-    /// <summary>
-    /// Creates a QueryTable connection that loads data from a Power Query to a worksheet
-    /// </summary>
-    /// <param name="targetSheet">Target worksheet COM object</param>
-    /// <param name="queryName">Name of the Power Query</param>
-    /// <param name="options">QueryTable configuration options</param>
-    public static void CreateQueryTable(dynamic targetSheet, string queryName, QueryTableOptions? options = null)
-    {
-        options ??= new QueryTableOptions { Name = queryName };
-
-        dynamic? queryTables = null;
-        dynamic? queryTable = null;
-        dynamic? range = null;
-
-        try
-        {
-            queryTables = targetSheet.QueryTables;
-
-            // Connection string for Power Query (uses Microsoft.Mashup.OleDb provider)
-            string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
-            string commandText = $"SELECT * FROM [{queryName}]";
-
-            // Create QueryTable at cell A1
-            range = targetSheet.Range["A1"];
-            queryTable = queryTables.Add(connectionString, range, commandText);
-
-            // Configure QueryTable properties
-            queryTable.Name = options.Name.Replace(" ", "_");
-            queryTable.RefreshStyle = 1; // xlInsertDeleteCells
-            queryTable.BackgroundQuery = options.BackgroundQuery;
-            queryTable.RefreshOnFileOpen = options.RefreshOnFileOpen;
-            queryTable.SavePassword = options.SavePassword;
-            queryTable.PreserveColumnInfo = options.PreserveColumnInfo;
-            queryTable.PreserveFormatting = options.PreserveFormatting;
-            queryTable.AdjustColumnWidth = options.AdjustColumnWidth;
-
-            // Refresh immediately if requested
-            if (options.RefreshImmediately)
-            {
-                queryTable.Refresh(false);
-            }
-        }
-        finally
-        {
-            ComUtilities.Release(ref range);
-            ComUtilities.Release(ref queryTable);
-            ComUtilities.Release(ref queryTables);
-        }
     }
 }

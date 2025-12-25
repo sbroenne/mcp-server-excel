@@ -25,19 +25,9 @@ public static class PivotTableFieldStrategyFactory
             throw new InvalidOperationException("PivotTable object is null");
 
         // Try OLAP first (more specific)
-        try
+        if (PivotTableHelpers.IsOlapPivotTable(pivot))
         {
-            dynamic? cubeFields = pivot.CubeFields;
-            if (cubeFields != null && cubeFields.Count > 0)
-            {
-                ComUtilities.Release(ref cubeFields);
-                return _strategies[0]; // OlapPivotTableFieldStrategy
-            }
-            ComUtilities.Release(ref cubeFields);
-        }
-        catch
-        {
-            // Not OLAP
+            return _strategies[0]; // OlapPivotTableFieldStrategy
         }
 
         // Fall back to Regular

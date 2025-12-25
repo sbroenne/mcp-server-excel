@@ -24,10 +24,6 @@ public partial class TableCommands
             try
             {
                 table = FindTable(ctx.Book, tableName);
-                if (table == null)
-                {
-                    throw new InvalidOperationException($"Table '{tableName}' not found.");
-                }
 
                 sheet = table.Parent;
                 newRangeObj = sheet.Range[newRange];
@@ -58,10 +54,6 @@ public partial class TableCommands
             try
             {
                 table = FindTable(ctx.Book, tableName);
-                if (table == null)
-                {
-                    throw new InvalidOperationException($"Table '{tableName}' not found.");
-                }
 
                 table.ShowTotals = showTotals;
 
@@ -88,10 +80,6 @@ public partial class TableCommands
             try
             {
                 table = FindTable(ctx.Book, tableName);
-                if (table == null)
-                {
-                    throw new InvalidOperationException($"Table '{tableName}' not found.");
-                }
 
                 // Ensure totals row is shown
                 if (!table.ShowTotals)
@@ -171,10 +159,6 @@ public partial class TableCommands
             try
             {
                 table = FindTable(ctx.Book, tableName);
-                if (table == null)
-                {
-                    throw new InvalidOperationException($"Table '{tableName}' not found.");
-                }
 
                 table.TableStyle = tableStyle;
 

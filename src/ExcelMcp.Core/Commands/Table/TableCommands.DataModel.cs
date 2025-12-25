@@ -24,10 +24,6 @@ public partial class TableCommands
             try
             {
                 table = FindTable(ctx.Book, tableName);
-                if (table == null)
-                {
-                    throw new InvalidOperationException($"Table '{tableName}' not found.");
-                }
 
                 // Data Model is always available in Excel 2013+ (no need to check)
                 model = ctx.Book.Model;

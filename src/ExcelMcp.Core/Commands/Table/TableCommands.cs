@@ -20,11 +20,6 @@ public partial class TableCommands : ITableCommands
     private const int MaxTableNameLength = 255;
 
     /// <summary>
-    /// Validates table name format
-    /// </summary>
-    private static bool IsValidTableName(string name) => TableNameRegex.IsMatch(name);
-
-    /// <summary>
     /// Validates a table name to prevent injection attacks and ensure Excel compatibility
     /// </summary>
     /// <param name="tableName">Table name to validate</param>
@@ -67,17 +62,15 @@ public partial class TableCommands : ITableCommands
     #region Helper Methods
 
     /// <summary>
-    /// Finds a table by name in the workbook.
-    /// Delegates to CoreLookupHelpers.TryFindTable for the actual lookup.
+    /// Finds a table by name in the workbook, throwing if not found.
+    /// Delegates to CoreLookupHelpers.FindTable for the actual lookup.
     /// </summary>
     /// <param name="workbook">The workbook to search</param>
     /// <param name="tableName">Name of the table to find</param>
-    /// <returns>The table object if found, null otherwise</returns>
-    private static dynamic? FindTable(dynamic workbook, string tableName)
-    {
-        CoreLookupHelpers.TryFindTable(workbook, tableName, out dynamic? table);
-        return table;
-    }
+    /// <returns>The table object (caller must release)</returns>
+    /// <exception cref="InvalidOperationException">Thrown if table is not found</exception>
+    private static dynamic FindTable(dynamic workbook, string tableName)
+        => CoreLookupHelpers.FindTable(workbook, tableName);
 
     /// <summary>
     /// Checks if a table with the given name exists in the workbook

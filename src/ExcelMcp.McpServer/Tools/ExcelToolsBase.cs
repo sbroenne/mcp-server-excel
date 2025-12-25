@@ -87,56 +87,6 @@ public static class ExcelToolsBase
     }
 
     /// <summary>
-    /// Executes an async Core command with session management.
-    /// Uses the provided sessionId to retrieve an active session from SessionManager.
-    /// This is the new session-based pattern that replaces batch-of-one operations.
-    /// </summary>
-    /// <typeparam name="T">Return type of the command</typeparam>
-    /// <param name="sessionId">Required session ID from excel_file 'open' action</param>
-    /// <param name="action">Async action that takes IExcelBatch and returns Task&lt;T&gt;</param>
-    /// <returns>Result of the command</returns>
-    /// <exception cref="McpException">Session not found or command execution failed</exception>
-    public static async Task<T> WithSessionAsync<T>(
-        string sessionId,
-        Func<IExcelBatch, Task<T>> action)
-    {
-        if (string.IsNullOrWhiteSpace(sessionId))
-        {
-            throw new ArgumentException("sessionId is required. Use excel_file 'open' action to start a session.", nameof(sessionId));
-        }
-
-        var batch = SessionManager.GetSession(sessionId);
-        if (batch == null)
-        {
-            var activeSessionIds = SessionManager.ActiveSessionIds.ToList();
-            var sessionCount = activeSessionIds.Count;
-            var errorMessage = sessionCount switch
-            {
-                0 => $"Session '{sessionId}' not found. No active sessions exist. " +
-                     "Possible causes: (1) Session was closed prematurely before completing operations, " +
-                     "(2) Session never created. " +
-                     "Recovery: Use excel_file(action='open') to create a new session.",
-                1 => $"Session '{sessionId}' not found. Active session: {activeSessionIds[0]}. " +
-                     "Did you close the session before completing all operations? Use the active sessionId shown above.",
-                _ => $"Session '{sessionId}' not found. {sessionCount} active sessions exist. " +
-                     "Verify you're using the correct sessionId from excel_file 'open' action."
-            };
-            throw new InvalidOperationException(errorMessage);
-        }
-
-        // Track operation start/end to prevent premature session close
-        SessionManager.BeginOperation(sessionId);
-        try
-        {
-            return await action(batch);
-        }
-        finally
-        {
-            SessionManager.EndOperation(sessionId);
-        }
-    }
-
-    /// <summary>
     /// Throws exception for missing required parameters.
     /// </summary>
     /// <param name="parameterName">Name of the missing parameter</param>

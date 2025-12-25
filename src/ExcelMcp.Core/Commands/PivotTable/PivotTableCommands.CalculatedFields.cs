@@ -14,27 +14,8 @@ public partial class PivotTableCommands
     /// <inheritdoc/>
     public PivotFieldResult CreateCalculatedField(IExcelBatch batch, string pivotTableName,
         string fieldName, string formula)
-    {
-        return batch.Execute((ctx, ct) =>
-        {
-            dynamic? pivot = null;
-
-            try
-            {
-                pivot = FindPivotTable(ctx.Book, pivotTableName);
-
-                // Determine strategy (OLAP vs Regular)
-                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
-
-                // Delegate to strategy with logger
-                return strategy.CreateCalculatedField(pivot, fieldName, formula, batch.WorkbookPath, batch.Logger);
-            }
-            finally
-            {
-                ComUtilities.Release(ref pivot);
-            }
-        });
-    }
+        => ExecuteWithStrategy<PivotFieldResult>(batch, pivotTableName,
+            (strategy, pivot) => strategy.CreateCalculatedField(pivot, fieldName, formula, batch.WorkbookPath, batch.Logger));
 
     /// <inheritdoc/>
     public CalculatedFieldListResult ListCalculatedFields(IExcelBatch batch, string pivotTableName)
@@ -49,7 +30,7 @@ public partial class PivotTableCommands
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
                 // Check if this is an OLAP PivotTable - they don't support calculated fields
-                if (IsOlapPivotTable(pivot))
+                if (PivotTableHelpers.IsOlapPivotTable(pivot))
                 {
                     return new CalculatedFieldListResult
                     {
@@ -113,7 +94,7 @@ public partial class PivotTableCommands
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
 
                 // Check if this is an OLAP PivotTable - they don't support calculated fields
-                if (IsOlapPivotTable(pivot))
+                if (PivotTableHelpers.IsOlapPivotTable(pivot))
                 {
                     return new OperationResult
                     {

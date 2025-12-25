@@ -1,5 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
-using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
@@ -22,147 +22,33 @@ public partial class PivotTableCommands : IPivotTableCommands
         => CoreLookupHelpers.FindPivotTable(workbook, pivotTableName);
 
     /// <summary>
-    /// Detects the data type of a field by sampling its values
+    /// Executes a strategy-based operation on a PivotTable.
+    /// Centralizes the common pattern: find pivot → get strategy → execute → release.
     /// </summary>
-    private static string DetectFieldDataType(dynamic field)
+    /// <typeparam name="TResult">The result type returned by the strategy operation</typeparam>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="operation">The strategy operation to execute (receives strategy and pivot)</param>
+    /// <returns>The result from the strategy operation</returns>
+    private static TResult ExecuteWithStrategy<TResult>(
+        IExcelBatch batch,
+        string pivotTableName,
+        Func<IPivotTableFieldStrategy, dynamic, TResult> operation)
     {
-        dynamic? pivotItems = null;
-        try
+        return batch.Execute((ctx, ct) =>
         {
-            pivotItems = field.PivotItems;
-            var sampleValues = new List<object?>();
-
-            int sampleCount = Math.Min(10, pivotItems.Count);
-            for (int i = 1; i <= sampleCount; i++)
+            dynamic? pivot = null;
+            try
             {
-                dynamic? item = null;
-                try
-                {
-                    item = pivotItems.Item(i);
-                    var value = item.Value;
-                    if (value != null)
-                        sampleValues.Add(value);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref item);
-                }
+                pivot = FindPivotTable(ctx.Book, pivotTableName);
+                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
+                return operation(strategy, pivot);
             }
-
-            // Analyze sample values
-            if (sampleValues.Count == 0)
-                return "Unknown";
-
-            if (sampleValues.All(v => DateTime.TryParse(v?.ToString(), out _)))
-                return "Date";
-            if (sampleValues.All(v => double.TryParse(v?.ToString(), out _)))
-                return "Number";
-            if (sampleValues.All(v => bool.TryParse(v?.ToString(), out _)))
-                return "Boolean";
-
-            return "Text";
-        }
-        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
-        {
-            // PivotItems access failed - cannot determine data type
-            return "Unknown";
-        }
-        finally
-        {
-            ComUtilities.Release(ref pivotItems);
-        }
-    }
-
-    /// <summary>
-    /// Validates if an aggregation function is appropriate for a data type
-    /// </summary>
-    private static bool IsValidAggregationForDataType(AggregationFunction function, string dataType)
-    {
-        return dataType switch
-        {
-            "Number" => true, // All functions valid for numbers
-            "Date" => function is AggregationFunction.Count or AggregationFunction.CountNumbers or
-                      AggregationFunction.Max or AggregationFunction.Min,
-            "Text" => function == AggregationFunction.Count,
-            "Boolean" => function is AggregationFunction.Count or AggregationFunction.Sum,
-            _ => function == AggregationFunction.Count
-        };
-    }
-
-    /// <summary>
-    /// Gets the list of valid aggregation functions for a data type
-    /// </summary>
-    private static List<string> GetValidAggregationsForDataType(string dataType)
-    {
-        return dataType switch
-        {
-            "Number" => ["Sum", "Count", "Average", "Max", "Min", "Product", "CountNumbers", "StdDev", "StdDevP", "Var", "VarP"],
-            "Date" => ["Count", "CountNumbers", "Max", "Min"],
-            "Text" => ["Count"],
-            "Boolean" => ["Count", "Sum"],
-            _ => ["Count"]
-        };
-    }
-
-    /// <summary>
-    /// Converts AggregationFunction enum to Excel COM constant
-    /// </summary>
-    private static int GetComAggregationFunction(AggregationFunction function)
-    {
-        return function switch
-        {
-            AggregationFunction.Sum => XlConsolidationFunction.xlSum,
-            AggregationFunction.Count => XlConsolidationFunction.xlCount,
-            AggregationFunction.Average => XlConsolidationFunction.xlAverage,
-            AggregationFunction.Max => XlConsolidationFunction.xlMax,
-            AggregationFunction.Min => XlConsolidationFunction.xlMin,
-            AggregationFunction.Product => XlConsolidationFunction.xlProduct,
-            AggregationFunction.CountNumbers => XlConsolidationFunction.xlCountNums,
-            AggregationFunction.StdDev => XlConsolidationFunction.xlStdDev,
-            AggregationFunction.StdDevP => XlConsolidationFunction.xlStdDevP,
-            AggregationFunction.Var => XlConsolidationFunction.xlVar,
-            AggregationFunction.VarP => XlConsolidationFunction.xlVarP,
-            _ => throw new InvalidOperationException($"Unsupported aggregation function: {function}")
-        };
-    }
-
-    /// <summary>
-    /// Converts Excel COM constant to AggregationFunction enum
-    /// </summary>
-    private static AggregationFunction GetAggregationFunctionFromCom(int comFunction)
-    {
-        return comFunction switch
-        {
-            XlConsolidationFunction.xlSum => AggregationFunction.Sum,
-            XlConsolidationFunction.xlCount => AggregationFunction.Count,
-            XlConsolidationFunction.xlAverage => AggregationFunction.Average,
-            XlConsolidationFunction.xlMax => AggregationFunction.Max,
-            XlConsolidationFunction.xlMin => AggregationFunction.Min,
-            XlConsolidationFunction.xlProduct => AggregationFunction.Product,
-            XlConsolidationFunction.xlCountNums => AggregationFunction.CountNumbers,
-            XlConsolidationFunction.xlStdDev => AggregationFunction.StdDev,
-            XlConsolidationFunction.xlStdDevP => AggregationFunction.StdDevP,
-            XlConsolidationFunction.xlVar => AggregationFunction.Var,
-            XlConsolidationFunction.xlVarP => AggregationFunction.VarP,
-            _ => throw new InvalidOperationException($"Unknown COM aggregation function: {comFunction}")
-        };
-    }
-
-    /// <summary>
-    /// Gets the area name for display purposes
-    /// </summary>
-    private static string GetAreaName(dynamic orientation)
-    {
-        int orientationValue = Convert.ToInt32(orientation);
-        return orientationValue switch
-        {
-            XlPivotFieldOrientation.xlHidden => "Hidden",
-            XlPivotFieldOrientation.xlRowField => "Row",
-            XlPivotFieldOrientation.xlColumnField => "Column",
-            XlPivotFieldOrientation.xlPageField => "Filter",
-            XlPivotFieldOrientation.xlDataField => "Value",
-            _ => $"Unknown({orientationValue})"
-        };
+            finally
+            {
+                ComUtilities.Release(ref pivot);
+            }
+        });
     }
 
     /// <summary>
@@ -197,43 +83,6 @@ public partial class PivotTableCommands : IPivotTableCommands
     }
 
     /// <summary>
-    /// Gets unique values from a field for filtering purposes
-    /// </summary>
-    private static List<string> GetFieldUniqueValues(dynamic field)
-    {
-        var values = new List<string>();
-        dynamic? pivotItems = null;
-        try
-        {
-            pivotItems = field.PivotItems;
-            for (int i = 1; i <= pivotItems.Count; i++)
-            {
-                dynamic? item = null;
-                try
-                {
-                    item = pivotItems.Item(i);
-                    string itemName = item.Name?.ToString() ?? string.Empty;
-                    if (!string.IsNullOrEmpty(itemName))
-                        values.Add(itemName);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref item);
-                }
-            }
-        }
-        catch (System.Runtime.InteropServices.COMException)
-        {
-            // PivotItems access failed - return partial list
-        }
-        finally
-        {
-            ComUtilities.Release(ref pivotItems);
-        }
-        return values;
-    }
-
-    /// <summary>
     /// Gets a field for manipulation, handling both OLAP and regular PivotTables.
     /// For OLAP PivotTables, accesses via CubeFields and returns the corresponding PivotField.
     /// For regular PivotTables, accesses via PivotFields directly.
@@ -255,16 +104,7 @@ public partial class PivotTableCommands : IPivotTableCommands
         try
         {
             // Check if this is an OLAP/Data Model PivotTable
-            try
-            {
-                cubeFields = pivot.CubeFields;
-                isOlap = cubeFields != null && cubeFields.Count > 0;
-            }
-            catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
-            {
-                // CubeFields property not available - not an OLAP PivotTable
-                isOlap = false;
-            }
+            isOlap = PivotTableHelpers.TryGetCubeFields(pivot, out cubeFields);
 
             if (isOlap)
             {

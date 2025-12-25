@@ -23,16 +23,7 @@ public partial class PivotTableCommands
             pivot = FindPivotTable(ctx.Book, pivotTableName);
 
             // Check if this is an OLAP/Data Model PivotTable
-            bool isOlap = false;
-            try
-            {
-                cubeFields = pivot.CubeFields;
-                isOlap = cubeFields != null && cubeFields.Count > 0;
-            }
-            catch
-            {
-                isOlap = false;
-            }
+            bool isOlap = PivotTableHelpers.TryGetCubeFields(pivot, out cubeFields);
 
             try
             {
@@ -237,7 +228,7 @@ public partial class PivotTableCommands
                     // DataType - defensive
                     try
                     {
-                        fieldInfo.DataType = DetectFieldDataType(field);
+                        fieldInfo.DataType = PivotTableHelpers.DetectFieldDataType(field);
                     }
                     catch (System.Runtime.InteropServices.COMException)
                     {
@@ -250,7 +241,7 @@ public partial class PivotTableCommands
                         try
                         {
                             int comFunction = Convert.ToInt32(field.Function);
-                            fieldInfo.Function = GetAggregationFunctionFromCom(comFunction);
+                            fieldInfo.Function = PivotTableHelpers.GetAggregationFunctionFromCom(comFunction);
                         }
                         catch (System.Runtime.InteropServices.COMException)
                         {
@@ -293,50 +284,16 @@ public partial class PivotTableCommands
     /// </summary>
     public PivotFieldResult AddRowField(IExcelBatch batch, string pivotTableName,
         string fieldName, int? position = null)
-    {
-        return batch.Execute((ctx, ct) =>
-        {
-            dynamic? pivot = null;
-
-            pivot = FindPivotTable(ctx.Book, pivotTableName);
-
-            try
-            {
-                // Use Strategy Pattern to delegate to appropriate implementation
-                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
-                return strategy.AddRowField(pivot, fieldName, position, batch.WorkbookPath);
-            }
-            finally
-            {
-                ComUtilities.Release(ref pivot);
-            }
-        });
-    }
+        => ExecuteWithStrategy<PivotFieldResult>(batch, pivotTableName,
+            (strategy, pivot) => strategy.AddRowField(pivot, fieldName, position, batch.WorkbookPath));
 
     /// <summary>
     /// Adds a field to the Column area
     /// </summary>
     public PivotFieldResult AddColumnField(IExcelBatch batch, string pivotTableName,
         string fieldName, int? position = null)
-    {
-        return batch.Execute((ctx, ct) =>
-        {
-            dynamic? pivot = null;
-
-            pivot = FindPivotTable(ctx.Book, pivotTableName);
-
-            try
-            {
-                // Use Strategy Pattern to delegate to appropriate implementation
-                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
-                return strategy.AddColumnField(pivot, fieldName, position, batch.WorkbookPath);
-            }
-            finally
-            {
-                ComUtilities.Release(ref pivot);
-            }
-        });
-    }
+        => ExecuteWithStrategy<PivotFieldResult>(batch, pivotTableName,
+            (strategy, pivot) => strategy.AddColumnField(pivot, fieldName, position, batch.WorkbookPath));
 
     /// <summary>
     /// Adds a field to the Values area with aggregation
@@ -344,125 +301,40 @@ public partial class PivotTableCommands
     public PivotFieldResult AddValueField(IExcelBatch batch, string pivotTableName,
         string fieldName, AggregationFunction aggregationFunction = AggregationFunction.Sum,
         string? customName = null)
-    {
-        return batch.Execute((ctx, ct) =>
-        {
-            dynamic? pivot = null;
-
-            pivot = FindPivotTable(ctx.Book, pivotTableName);
-
-            try
-            {
-                // Use Strategy Pattern to delegate to appropriate implementation
-                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
-                return strategy.AddValueField(pivot, fieldName, aggregationFunction, customName, batch.WorkbookPath);
-            }
-            finally
-            {
-                ComUtilities.Release(ref pivot);
-            }
-        });
-    }
+        => ExecuteWithStrategy<PivotFieldResult>(batch, pivotTableName,
+            (strategy, pivot) => strategy.AddValueField(pivot, fieldName, aggregationFunction, customName, batch.WorkbookPath));
 
     /// <summary>
     /// Adds a field to the Filter area
     /// </summary>
     public PivotFieldResult AddFilterField(IExcelBatch batch, string pivotTableName,
         string fieldName)
-    {
-        return batch.Execute((ctx, ct) =>
-        {
-            dynamic? pivot = null;
-
-            pivot = FindPivotTable(ctx.Book, pivotTableName);
-
-            try
-            {
-                // Use Strategy Pattern to delegate to appropriate implementation
-                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
-                return strategy.AddFilterField(pivot, fieldName, batch.WorkbookPath);
-            }
-            finally
-            {
-                ComUtilities.Release(ref pivot);
-            }
-        });
-    }
+        => ExecuteWithStrategy<PivotFieldResult>(batch, pivotTableName,
+            (strategy, pivot) => strategy.AddFilterField(pivot, fieldName, batch.WorkbookPath));
 
     /// <summary>
     /// Removes a field from any area
     /// </summary>
     public PivotFieldResult RemoveField(IExcelBatch batch, string pivotTableName,
         string fieldName)
-    {
-        return batch.Execute((ctx, ct) =>
-        {
-            dynamic? pivot = null;
-
-            pivot = FindPivotTable(ctx.Book, pivotTableName);
-
-            try
-            {
-                // Use Strategy Pattern to delegate to appropriate implementation
-                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
-                return strategy.RemoveField(pivot, fieldName, batch.WorkbookPath);
-            }
-            finally
-            {
-                ComUtilities.Release(ref pivot);
-            }
-        });
-    }
+        => ExecuteWithStrategy<PivotFieldResult>(batch, pivotTableName,
+            (strategy, pivot) => strategy.RemoveField(pivot, fieldName, batch.WorkbookPath));
 
     /// <summary>
     /// Sets the aggregation function for a value field
     /// </summary>
     public PivotFieldResult SetFieldFunction(IExcelBatch batch, string pivotTableName,
         string fieldName, AggregationFunction aggregationFunction)
-    {
-        return batch.Execute((ctx, ct) =>
-        {
-            dynamic? pivot = null;
-
-            pivot = FindPivotTable(ctx.Book, pivotTableName);
-
-            try
-            {
-                // Use Strategy Pattern to delegate to appropriate implementation
-                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
-                return strategy.SetFieldFunction(pivot, fieldName, aggregationFunction, batch.WorkbookPath);
-            }
-            finally
-            {
-                ComUtilities.Release(ref pivot);
-            }
-        });
-    }
+        => ExecuteWithStrategy<PivotFieldResult>(batch, pivotTableName,
+            (strategy, pivot) => strategy.SetFieldFunction(pivot, fieldName, aggregationFunction, batch.WorkbookPath));
 
     /// <summary>
     /// Sets custom name for a field
     /// </summary>
     public PivotFieldResult SetFieldName(IExcelBatch batch, string pivotTableName,
         string fieldName, string customName)
-    {
-        return batch.Execute((ctx, ct) =>
-        {
-            dynamic? pivot = null;
-
-            pivot = FindPivotTable(ctx.Book, pivotTableName);
-
-            try
-            {
-                // Use Strategy Pattern to delegate to appropriate implementation
-                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
-                return strategy.SetFieldName(pivot, fieldName, customName, batch.WorkbookPath);
-            }
-            finally
-            {
-                ComUtilities.Release(ref pivot);
-            }
-        });
-    }
+        => ExecuteWithStrategy<PivotFieldResult>(batch, pivotTableName,
+            (strategy, pivot) => strategy.SetFieldName(pivot, fieldName, customName, batch.WorkbookPath));
 
     /// <summary>
     /// Sets number format for a value field

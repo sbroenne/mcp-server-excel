@@ -1,4 +1,3 @@
-using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 
@@ -27,20 +26,6 @@ public partial class PivotTableCommands
     /// - Regular PivotTables can choose Sum, Count, Average, etc. (future enhancement)
     /// </remarks>
     public PivotFieldResult SetSubtotals(IExcelBatch batch, string pivotTableName, string fieldName, bool showSubtotals)
-    {
-        return batch.Execute((ctx, ct) =>
-        {
-            dynamic? pivot = null;
-            try
-            {
-                pivot = FindPivotTable(ctx.Book, pivotTableName);
-                var strategy = PivotTableFieldStrategyFactory.GetStrategy(pivot);
-                return strategy.SetSubtotals(pivot, fieldName, showSubtotals, batch.WorkbookPath, batch.Logger);
-            }
-            finally
-            {
-                ComUtilities.Release(ref pivot);
-            }
-        });
-    }
+        => ExecuteWithStrategy<PivotFieldResult>(batch, pivotTableName,
+            (strategy, pivot) => strategy.SetSubtotals(pivot, fieldName, showSubtotals, batch.WorkbookPath, batch.Logger));
 }

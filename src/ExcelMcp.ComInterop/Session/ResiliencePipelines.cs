@@ -27,12 +27,6 @@ public static class ResiliencePipelines
     /// </summary>
     public const int DATA_MODEL_BUSY = unchecked((int)0x800AC472);              // -2146827150
 
-    /// <summary>
-    /// Power Query specific error - failure when updating queries loaded to Data Model.
-    /// See GitHub Issue #316.
-    /// </summary>
-    public const int POWER_QUERY_DATA_MODEL_ERROR = unchecked((int)0x800A03EC);  // -2146827284
-
     #endregion
 
     #region Pipeline Configuration
@@ -52,14 +46,6 @@ public static class ResiliencePipelines
         MaxRetryAttempts: 5,
         DelayMs: 1000,
         AdditionalHResults: [DATA_MODEL_BUSY]);
-
-    /// <summary>
-    /// Retry configuration for Power Query operations.
-    /// </summary>
-    private static readonly PipelineConfig PowerQueryConfig = new(
-        MaxRetryAttempts: 5,
-        DelayMs: 1000,
-        AdditionalHResults: [POWER_QUERY_DATA_MODEL_ERROR]);
 
     #endregion
 
@@ -83,18 +69,6 @@ public static class ResiliencePipelines
     /// </remarks>
     /// <returns>Configured resilience pipeline</returns>
     public static ResiliencePipeline CreateDataModelPipeline() => CreatePipeline(DataModelConfig);
-
-    /// <summary>
-    /// Creates a retry pipeline for Power Query update operations.
-    /// Handles 0x800A03EC errors that can occur when updating queries loaded to Data Model.
-    /// </summary>
-    /// <remarks>
-    /// The 0x800A03EC error can occur when updating Power Query M code for queries
-    /// that are loaded to the Data Model. The error may be transient in some scenarios.
-    /// See GitHub Issue #316 for details.
-    /// </remarks>
-    /// <returns>Configured resilience pipeline</returns>
-    public static ResiliencePipeline CreatePowerQueryPipeline() => CreatePipeline(PowerQueryConfig);
 
     #endregion
 

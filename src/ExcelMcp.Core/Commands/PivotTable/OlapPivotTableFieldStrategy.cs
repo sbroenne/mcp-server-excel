@@ -18,18 +18,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// <inheritdoc/>
     public bool CanHandle(dynamic pivot)
     {
-        try
-        {
-            // OLAP/Data Model PivotTables have CubeFields collection
-            // Note: Don't release COM objects here - PivotTable keeps them alive
-            dynamic cubeFields = pivot.CubeFields;
-            return cubeFields != null && cubeFields.Count > 0;
-        }
-        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
-        {
-            // CubeFields property not available - not an OLAP PivotTable
-            return false;
-        }
+        // OLAP/Data Model PivotTables have CubeFields collection
+        return PivotTableHelpers.IsOlapPivotTable(pivot);
     }
 
     /// <inheritdoc/>
@@ -159,7 +149,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             int currentOrientation = Convert.ToInt32(cubeField.Orientation);
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
-                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
             // CRITICAL: Set Orientation on CubeField, NOT on PivotField
@@ -216,7 +206,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             int currentOrientation = Convert.ToInt32(cubeField.Orientation);
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
-                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
             cubeField.Orientation = XlPivotFieldOrientation.xlColumnField;
@@ -527,7 +517,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             int currentOrientation = Convert.ToInt32(cubeField.Orientation);
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
-                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
             cubeField.Orientation = XlPivotFieldOrientation.xlPageField;
@@ -1006,7 +996,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
         // NOTE: No RefreshTable() needed - Layout is a visual-only property
 
-        if (logger?.IsEnabled(LogLevel.Information) == true)
+        if (logger?.IsEnabled(LogLevel.Information) is true)
         {
             logger.LogInformation("Set OLAP PivotTable layout to {LayoutType}", layoutType);
         }
@@ -1041,7 +1031,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
             // NOTE: No RefreshTable() needed - Subtotals is a visual-only property
 
-            if (logger?.IsEnabled(LogLevel.Information) == true)
+            if (logger?.IsEnabled(LogLevel.Information) is true)
             {
                 logger.LogInformation("Set OLAP subtotals for field {FieldName} to {ShowSubtotals}", fieldName, showSubtotals);
             }
@@ -1058,7 +1048,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
         catch (Exception ex)
         {
-            if (logger?.IsEnabled(LogLevel.Error) == true)
+            if (logger?.IsEnabled(LogLevel.Error) is true)
             {
                 logger.LogError(ex, "SetSubtotals failed for OLAP field {FieldName}", fieldName);
             }
@@ -1512,39 +1502,6 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
 
         // If we get here, it's probably ModelFormatGeneral which has no configurable properties
-    }
-
-    private static int GetComAggregationFunction(AggregationFunction function)
-    {
-        return function switch
-        {
-            AggregationFunction.Sum => XlConsolidationFunction.xlSum,
-            AggregationFunction.Count => XlConsolidationFunction.xlCount,
-            AggregationFunction.Average => XlConsolidationFunction.xlAverage,
-            AggregationFunction.Max => XlConsolidationFunction.xlMax,
-            AggregationFunction.Min => XlConsolidationFunction.xlMin,
-            AggregationFunction.Product => XlConsolidationFunction.xlProduct,
-            AggregationFunction.CountNumbers => XlConsolidationFunction.xlCountNums,
-            AggregationFunction.StdDev => XlConsolidationFunction.xlStdDev,
-            AggregationFunction.StdDevP => XlConsolidationFunction.xlStdDevP,
-            AggregationFunction.Var => XlConsolidationFunction.xlVar,
-            AggregationFunction.VarP => XlConsolidationFunction.xlVarP,
-            _ => throw new InvalidOperationException($"Unsupported aggregation function: {function}")
-        };
-    }
-
-    private static string GetAreaName(dynamic orientation)
-    {
-        int orientationValue = Convert.ToInt32(orientation);
-        return orientationValue switch
-        {
-            XlPivotFieldOrientation.xlHidden => "Hidden",
-            XlPivotFieldOrientation.xlRowField => "Row",
-            XlPivotFieldOrientation.xlColumnField => "Column",
-            XlPivotFieldOrientation.xlPageField => "Filter",
-            XlPivotFieldOrientation.xlDataField => "Value",
-            _ => $"Unknown({orientationValue})"
-        };
     }
 
     /// <summary>

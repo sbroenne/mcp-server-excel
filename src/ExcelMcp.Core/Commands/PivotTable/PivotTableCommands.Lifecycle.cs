@@ -240,16 +240,7 @@ public partial class PivotTableCommands
 
             // Get field details - use OLAP detection
             List<PivotFieldInfo> fields;
-            bool isOlap = false;
-            try
-            {
-                cubeFields = pivot.CubeFields;
-                isOlap = cubeFields != null && cubeFields.Count > 0;
-            }
-            catch
-            {
-                isOlap = false;
-            }
+            bool isOlap = PivotTableHelpers.TryGetCubeFields(pivot, out cubeFields);
 
             try
             {
@@ -398,14 +389,14 @@ public partial class PivotTableCommands
                             _ => PivotFieldArea.Hidden
                         },
                         Position = orientation != XlPivotFieldOrientation.xlHidden ? Convert.ToInt32(field.Position) : 0,
-                        DataType = DetectFieldDataType(field)
+                        DataType = PivotTableHelpers.DetectFieldDataType(field)
                     };
 
                     // Get function for value fields
                     if (orientation == XlPivotFieldOrientation.xlDataField)
                     {
                         int comFunction = Convert.ToInt32(field.Function);
-                        fieldInfo.Function = GetAggregationFunctionFromCom(comFunction);
+                        fieldInfo.Function = PivotTableHelpers.GetAggregationFunctionFromCom(comFunction);
                     }
 
                     fields.Add(fieldInfo);

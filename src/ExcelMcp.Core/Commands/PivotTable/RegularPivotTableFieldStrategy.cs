@@ -13,14 +13,12 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// <inheritdoc/>
     public bool CanHandle(dynamic pivot)
     {
+        // Regular PivotTables are NOT OLAP and have PivotFields
+        if (PivotTableHelpers.IsOlapPivotTable(pivot))
+            return false; // This is OLAP, not regular
+
         try
         {
-            // Regular PivotTables have PivotFields and no CubeFields (or empty CubeFields)
-            // Note: Don't release COM objects here - PivotTable keeps them alive
-            dynamic cubeFields = pivot.CubeFields;
-            if (cubeFields != null && cubeFields.Count > 0)
-                return false; // This is OLAP
-
             dynamic pivotFields = pivot.PivotFields;
             return pivotFields != null;
         }
@@ -73,14 +71,14 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                         Name = field.SourceName?.ToString() ?? field.Name?.ToString() ?? $"Field{i}",
                         CustomName = field.Caption?.ToString() ?? "",
                         Area = (PivotFieldArea)orientation,
-                        DataType = DetectFieldDataType(field)
+                        DataType = PivotTableHelpers.DetectFieldDataType(field)
                     };
 
                     // For value fields, get function from DataFields
                     if (orientation == XlPivotFieldOrientation.xlDataField)
                     {
                         int comFunction = Convert.ToInt32(field.Function);
-                        fieldInfo.Function = GetAggregationFunctionFromCom(comFunction);
+                        fieldInfo.Function = PivotTableHelpers.GetAggregationFunctionFromCom(comFunction);
                     }
 
                     fields.Add(fieldInfo);
@@ -121,7 +119,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             int currentOrientation = Convert.ToInt32(field.Orientation);
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
-                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
             // Add to Row area
@@ -146,8 +144,8 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 CustomName = field.Caption?.ToString() ?? fieldName,
                 Area = PivotFieldArea.Row,
                 Position = Convert.ToInt32(field.Position),
-                DataType = DetectFieldDataType(field),
-                AvailableValues = GetFieldUniqueValues(field),
+                DataType = PivotTableHelpers.DetectFieldDataType(field),
+                AvailableValues = PivotTableHelpers.GetFieldUniqueValues(field),
                 FilePath = workbookPath
             };
         }
@@ -168,7 +166,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             int currentOrientation = Convert.ToInt32(field.Orientation);
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
-                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
             field.Orientation = XlPivotFieldOrientation.xlColumnField;
@@ -191,8 +189,8 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 CustomName = field.Caption?.ToString() ?? fieldName,
                 Area = PivotFieldArea.Column,
                 Position = Convert.ToInt32(field.Position),
-                DataType = DetectFieldDataType(field),
-                AvailableValues = GetFieldUniqueValues(field),
+                DataType = PivotTableHelpers.DetectFieldDataType(field),
+                AvailableValues = PivotTableHelpers.GetFieldUniqueValues(field),
                 FilePath = workbookPath
             };
         }
@@ -211,7 +209,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             field = GetFieldForManipulation(pivot, fieldName);
 
             // Validate aggregation function for field data type
-            string dataType = DetectFieldDataType(field);
+            string dataType = PivotTableHelpers.DetectFieldDataType(field);
             if (!IsValidAggregationForDataType(aggregationFunction, dataType))
             {
                 var validFunctions = GetValidAggregationsForDataType(dataType);
@@ -221,7 +219,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             int currentOrientation = Convert.ToInt32(field.Orientation);
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
-                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
             field.Orientation = XlPivotFieldOrientation.xlDataField;
@@ -263,7 +261,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             int currentOrientation = Convert.ToInt32(field.Orientation);
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
-                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {GetAreaName(currentOrientation)} area. Remove it first.");
+                throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
             field.Orientation = XlPivotFieldOrientation.xlPageField;
@@ -281,8 +279,8 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 CustomName = field.Caption?.ToString() ?? fieldName,
                 Area = PivotFieldArea.Filter,
                 Position = Convert.ToInt32(field.Position),
-                DataType = DetectFieldDataType(field),
-                AvailableValues = GetFieldUniqueValues(field),
+                DataType = PivotTableHelpers.DetectFieldDataType(field),
+                AvailableValues = PivotTableHelpers.GetFieldUniqueValues(field),
                 FilePath = workbookPath
             };
         }
@@ -384,13 +382,13 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 int orientation = Convert.ToInt32(field.Orientation);
                 if (orientation != XlPivotFieldOrientation.xlDataField)
                 {
-                    throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. It is in {GetAreaName(orientation)} area.");
+                    throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. It is in {PivotTableHelpers.GetAreaName(orientation)} area.");
                 }
             }
 
             // Get source field for data type detection
             dynamic? sourceField = GetFieldForManipulation(pivot, fieldName);
-            string dataType = DetectFieldDataType(sourceField);
+            string dataType = PivotTableHelpers.DetectFieldDataType(sourceField);
             ComUtilities.Release(ref sourceField);
 
             if (!IsValidAggregationForDataType(aggregationFunction, dataType))
@@ -577,87 +575,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
 
     #region Helper Methods
 
-    private static string DetectFieldDataType(dynamic field)
-    {
-        dynamic? pivotItems = null;
-        try
-        {
-            pivotItems = field.PivotItems;
-            var sampleValues = new List<object?>();
-
-            int sampleCount = Math.Min(10, pivotItems.Count);
-            for (int i = 1; i <= sampleCount; i++)
-            {
-                dynamic? item = null;
-                try
-                {
-                    item = pivotItems.Item(i);
-                    var value = item.Value;
-                    if (value != null)
-                        sampleValues.Add(value);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref item);
-                }
-            }
-
-            if (sampleValues.Count == 0)
-                return "Unknown";
-
-            if (sampleValues.All(v => DateTime.TryParse(v?.ToString(), out _)))
-                return "Date";
-            if (sampleValues.All(v => double.TryParse(v?.ToString(), out _)))
-                return "Number";
-            if (sampleValues.All(v => bool.TryParse(v?.ToString(), out _)))
-                return "Boolean";
-
-            return "Text";
-        }
-        catch
-        {
-            return "Unknown";
-        }
-        finally
-        {
-            ComUtilities.Release(ref pivotItems);
-        }
-    }
-
-    private static List<string> GetFieldUniqueValues(dynamic field)
-    {
-        var values = new List<string>();
-        dynamic? pivotItems = null;
-        try
-        {
-            pivotItems = field.PivotItems;
-            for (int i = 1; i <= pivotItems.Count; i++)
-            {
-                dynamic? item = null;
-                try
-                {
-                    item = pivotItems.Item(i);
-                    string itemName = item.Name?.ToString() ?? string.Empty;
-                    if (!string.IsNullOrEmpty(itemName))
-                        values.Add(itemName);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref item);
-                }
-            }
-        }
-        catch
-        {
-            // Ignore errors
-        }
-        finally
-        {
-            ComUtilities.Release(ref pivotItems);
-        }
-        return values;
-    }
-
     private static bool IsValidAggregationForDataType(AggregationFunction function, string dataType)
     {
         return dataType switch
@@ -699,39 +616,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             AggregationFunction.Var => XlConsolidationFunction.xlVar,
             AggregationFunction.VarP => XlConsolidationFunction.xlVarP,
             _ => throw new InvalidOperationException($"Unsupported aggregation function: {function}")
-        };
-    }
-
-    private static AggregationFunction GetAggregationFunctionFromCom(int comFunction)
-    {
-        return comFunction switch
-        {
-            XlConsolidationFunction.xlSum => AggregationFunction.Sum,
-            XlConsolidationFunction.xlCount => AggregationFunction.Count,
-            XlConsolidationFunction.xlAverage => AggregationFunction.Average,
-            XlConsolidationFunction.xlMax => AggregationFunction.Max,
-            XlConsolidationFunction.xlMin => AggregationFunction.Min,
-            XlConsolidationFunction.xlProduct => AggregationFunction.Product,
-            XlConsolidationFunction.xlCountNums => AggregationFunction.CountNumbers,
-            XlConsolidationFunction.xlStdDev => AggregationFunction.StdDev,
-            XlConsolidationFunction.xlStdDevP => AggregationFunction.StdDevP,
-            XlConsolidationFunction.xlVar => AggregationFunction.Var,
-            XlConsolidationFunction.xlVarP => AggregationFunction.VarP,
-            _ => throw new InvalidOperationException($"Unknown COM aggregation function: {comFunction}")
-        };
-    }
-
-    private static string GetAreaName(dynamic orientation)
-    {
-        int orientationValue = Convert.ToInt32(orientation);
-        return orientationValue switch
-        {
-            XlPivotFieldOrientation.xlHidden => "Hidden",
-            XlPivotFieldOrientation.xlRowField => "Row",
-            XlPivotFieldOrientation.xlColumnField => "Column",
-            XlPivotFieldOrientation.xlPageField => "Filter",
-            XlPivotFieldOrientation.xlDataField => "Value",
-            _ => $"Unknown({orientationValue})"
         };
     }
 

@@ -65,7 +65,7 @@ public partial class RangeCommands
                     Formula2: formula2 ?? "");
 
                 // Configure input message
-                if (showInputMessage == true)
+                if (showInputMessage is true)
                 {
                     validation.ShowInput = true;  // MUST set ShowInput=true BEFORE setting title/message
                     validation.InputTitle = inputTitle ?? "";
@@ -73,7 +73,7 @@ public partial class RangeCommands
                 }
 
                 // Configure error alert
-                if (showErrorAlert == true)
+                if (showErrorAlert is true)
                 {
                     validation.ErrorTitle = errorTitle ?? "";
                     validation.ErrorMessage = errorMessage ?? "";

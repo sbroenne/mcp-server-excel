@@ -34,11 +34,6 @@ public static class ComInteropConstants
     #region Sleep Intervals
 
     /// <summary>
-    /// Small delay for thread spin-wait loops (10ms).
-    /// </summary>
-    public const int SpinWaitDelayMs = 10;
-
-    /// <summary>
     /// Delay between file lock acquisition retries (100ms).
     /// </summary>
     public const int FileLockRetryDelayMs = 100;
@@ -63,12 +58,6 @@ public static class ComInteropConstants
     /// XlFileFormat.xlOpenXMLWorkbookMacroEnabled = 52
     /// </summary>
     public const int XlOpenXmlWorkbookMacroEnabled = 52;
-
-    /// <summary>
-    /// Excel Binary Workbook format code (.xlsb).
-    /// XlFileFormat.xlExcel12 = 50
-    /// </summary>
-    public const int XlExcel12Binary = 50;
 
     #endregion
 }
