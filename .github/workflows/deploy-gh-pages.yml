@@ -58,3 +58,20 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Notify IndexNow (Bing/Yandex)
+        run: |
+          # Get list of all HTML pages from the built site
+          cd gh-pages/_site
+          URLS=$(find . -name "*.html" -type f | sed 's|^\./||' | sed 's|index\.html$||' | sed 's|^|https://excelmcpserver.dev/|' | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          
+          # Submit to IndexNow API
+          curl -X POST "https://api.indexnow.org/IndexNow" \
+            -H "Content-Type: application/json; charset=utf-8" \
+            -d "{
+              \"host\": \"excelmcpserver.dev\",
+              \"key\": \"2049c837880704706739672b0ca752f9\",
+              \"keyLocation\": \"https://excelmcpserver.dev/2049c837880704706739672b0ca752f9.txt\",
+              \"urlList\": $URLS
+            }" \
+            --fail-with-body || echo "IndexNow notification failed (non-critical)"

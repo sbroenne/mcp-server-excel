@@ -388,8 +388,8 @@
 
 ## 📚 Documentation
 
-- **[Installation Guide](docs/INSTALLATION.md)** - Setup for all AI assistants
-- **[MCP Server Guide](src/ExcelMcp.McpServer/README.md)** - Tool documentation and examples
-- **[CLI Guide](src/ExcelMcp.CLI/README.md)** - Command-line reference
-- **[Contributing](docs/CONTRIBUTING.md)** - Development guidelines
+- **[Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md)** - Setup for all AI assistants
+- **[MCP Server Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.McpServer/README.md)** - Tool documentation and examples
+- **[CLI Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** - Command-line reference
+- **[Contributing](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/CONTRIBUTING.md)** - Development guidelines
 - **[Releases](https://github.com/sbroenne/mcp-server-excel/releases)** - Latest updates and features

@@ -26,6 +26,22 @@ body {
   font-size: 16px;
 }
 
+/* Site Title (header navigation) - styled like H1 but semantic div */
+.site-title {
+  font-size: 2em;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.site-title a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.site-title a:hover {
+  text-decoration: underline;
+}
+
 .container {
   max-width: 1200px;
   margin: 0 auto;

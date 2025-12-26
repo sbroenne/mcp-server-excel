@@ -187,7 +187,7 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 
 4. Save and restart Windsurf
 
-**Quick Copy:** Ready-to-use config files for all clients are available in [`examples/mcp-configs/`](../examples/mcp-configs/)
+**Quick Copy:** Ready-to-use config files for all clients are available in [`examples/mcp-configs/`](https://github.com/sbroenne/mcp-server-excel/tree/main/examples/mcp-configs/)
 
 #### Step 4: Test the Installation
 
@@ -230,7 +230,7 @@ excel-mcp file-create --file "test.xlsx"
 excel-mcp sheet-list --file "test.xlsx"
 ```
 
-**CLI Documentation:** [CLI Guide](../src/ExcelMcp.CLI/README.md)
+**CLI Documentation:** [CLI Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)
 
 ---
 
@@ -265,16 +265,7 @@ Verify PATH includes .NET:
 $env:PATH -split ';' | Select-String "dotnet"
 ```
 
-#### 2. "Excel is not installed"
-
-**Solution:** Install Microsoft Excel Desktop (2016+)
-
-Check Excel installation:
-```powershell
-Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\App` Paths\excel.exe
-```
-
-#### 3. MCP Server Not Responding
+#### 2. MCP Server Not Responding
 
 **Check if tool is installed:**
 ```powershell
@@ -287,13 +278,13 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
 dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 ```
 
-#### 4. "Workbook is locked" or "Cannot open file"
+#### 3. "Workbook is locked" or "Cannot open file"
 
 **Solution:** Close all Excel windows before running ExcelMcp
 
 ExcelMcp requires exclusive access to workbooks (Excel COM limitation).
 
-#### 5. GitHub Copilot Not Finding Server
+#### 4. GitHub Copilot Not Finding Server
 
 **Check configuration file exists:**
 ```powershell
@@ -306,7 +297,7 @@ Test-Path ".mcp.json"
 
 **Restart VS Code/Visual Studio** after creating configuration.
 
-#### 6. Permission Errors on CI/CD
+#### 5. Permission Errors on CI/CD
 
 **Solution:** Run with appropriate permissions
 
@@ -331,18 +322,6 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer --add-source https://yo
 # Download .nupkg file
 dotnet tool install --global --add-source ./nupkg Sbroenne.ExcelMcp.McpServer
 ```
-
-### CI/CD Pipelines
-
-See [Azure Self-Hosted Runner Setup](AZURE_SELFHOSTED_RUNNER_SETUP.md) for complete CI/CD integration guide.
-
-**Key requirements:**
-- Windows agent
-- Excel Desktop installed
-- .NET 8 SDK
-- Service account with Excel permissions
-
----
 
 ## Uninstallation
 
@@ -373,7 +352,7 @@ Remove-Item "$env:USERPROFILE\.mcp.json" -ErrorAction SilentlyContinue
 
 - **Documentation:** [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)
 - **Issues:** [GitHub Issues](https://github.com/sbroenne/mcp-server-excel/issues)
-- **Contributing:** [Contributing Guide](CONTRIBUTING.md)
+- **Contributing:** [Contributing Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/CONTRIBUTING.md)
 
 ---
 
@@ -382,10 +361,10 @@ Remove-Item "$env:USERPROFILE\.mcp.json" -ErrorAction SilentlyContinue
 After installation:
 
 1. **Learn the basics:** Try simple commands like creating worksheets, setting values
-2. **Explore features:** See [README](../README.md) for complete feature list
+2. **Explore features:** See [README](https://github.com/sbroenne/mcp-server-excel#readme) for complete feature list
 3. **Read the guides:**
-   - [MCP Server Guide](../src/ExcelMcp.McpServer/README.md)
-   - [CLI Guide](../src/ExcelMcp.CLI/README.md)
+   - [MCP Server Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.McpServer/README.md)
+   - [CLI Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)
 4. **Join the community:** Star the repo, report issues, contribute improvements
 
 **Happy automating! 🚀**
