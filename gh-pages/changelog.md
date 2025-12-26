@@ -1,6 +1,6 @@
 ---
 layout: default
-title: "Changelog - Excel MCP Server"
+title: "Changelog"
 description: "Release notes and changelog for ExcelMcp VS Code extension and MCP Server. Track new features, bug fixes, and improvements."
 keywords: "Excel MCP changelog, release notes, version history, updates"
 permalink: /changelog/
