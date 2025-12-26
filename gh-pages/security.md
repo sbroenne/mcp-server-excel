@@ -1,6 +1,6 @@
 ---
 layout: default
-title: "Security Policy - Excel MCP Server"
+title: "Security Policy"
 description: "Security policy for Excel MCP Server. How to report vulnerabilities, supported versions, and security features."
 permalink: /security/
 ---
