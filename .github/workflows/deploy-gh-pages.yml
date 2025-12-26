@@ -61,9 +61,9 @@ jobs:
 
       - name: Notify IndexNow (Bing/Yandex)
         run: |
-          # Get list of all HTML pages from the built site
+          # Get list of all HTML pages from the built site (excluding 404.html which should not be indexed)
           cd gh-pages/_site
-          URLS=$(find . -name "*.html" -type f | sed 's|^\./||' | sed 's|index\.html$||' | sed 's|^|https://excelmcpserver.dev/|' | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          URLS=$(find . -name "*.html" -type f ! -name "404.html" | sed 's|^\./||' | sed 's|index\.html$||' | sed 's|^|https://excelmcpserver.dev/|' | jq -R -s -c 'split("\n") | map(select(length > 0))')
           
           # Submit to IndexNow API
           curl -X POST "https://api.indexnow.org/IndexNow" \
