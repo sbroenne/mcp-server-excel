@@ -1,17 +1,18 @@
 <!--
 === SYNC IMPACT REPORT ===
-Version change: N/A (initial) → 1.0.0
-Added sections:
-  - Core Principles (18 principles in 5 categories)
-  - Technical Constraints
-  - Development Workflow
-  - Governance
+Version change: 1.0.0 → 1.1.0
+Modified sections:
+  - Technical Constraints → Platform Requirements: .NET 8 → .NET 10
 Templates requiring updates:
-  - plan-template.md: ✅ Compatible (Constitution Check section exists)
-  - spec-template.md: ✅ Compatible (requirements align with principles)
-  - tasks-template.md: ✅ Compatible (phase structure supports principles)
-Follow-up TODOs: None
-Source: .github/instructions/critical-rules.instructions.md (Rules 0-23)
+  - plan-template.md: ✅ Compatible (no .NET version reference)
+  - spec-template.md: ✅ Compatible (technology-agnostic)
+  - tasks-template.md: ✅ Compatible (no .NET version reference)
+Follow-up TODOs:
+  - global.json: Update SDK version to .NET 10 SDK
+  - README.md: Update .NET badge from 8.0 to 10
+  - Directory.Build.props: Update TargetFramework to net10.0
+  - GitHub workflows: Update .NET version in CI/CD
+Bump rationale: MINOR - Technical constraint updated (target framework)
 ===========================
 -->
 
@@ -233,7 +234,7 @@ Source: .github/instructions/critical-rules.instructions.md (Rules 0-23)
 - **Windows Only**: COM interop is Windows-specific
 - **Excel Required**: Microsoft Excel 2016+ must be installed
 - **Desktop Environment**: Controls actual Excel process (not for server-side processing)
-- **.NET 8 SDK**: Required for build and development
+- **.NET 10 SDK**: Required for build and development
 
 ### Architecture Layers
 
@@ -289,4 +290,4 @@ See **Principle XIV** for the 6 required components. Detailed checklist: `.githu
 - **Complexity justification**: Deviations from simplicity require documented rationale
 - **Runtime guidance**: See `.github/copilot-instructions.md` and `.github/instructions/` for implementation details
 
-**Version**: 1.0.0 | **Ratified**: 2025-12-09 | **Last Amended**: 2025-12-09
+**Version**: 1.1.0 | **Ratified**: 2025-12-09 | **Last Amended**: 2025-12-28
