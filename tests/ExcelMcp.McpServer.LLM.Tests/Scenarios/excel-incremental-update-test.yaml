@@ -1,0 +1,273 @@
+# =============================================================================
+# Incremental Update Test - Validates LLM Uses Updates Instead of Rebuild
+# =============================================================================
+#
+# Purpose: Validates that LLM chooses incremental operations (set-values)
+# instead of delete-and-rebuild patterns when modifying existing data.
+#
+# Background: User review on VS Code Marketplace noted:
+# "It would work more smoothly if it made small, step-by-step changes
+# instead of frequently deleting and rebuild..."
+#
+# Key Validation:
+#   - LLM uses set-values to modify existing cells (not delete worksheet)
+#   - LLM updates specific cells without recreating entire data ranges
+#   - LLM maintains existing data when making targeted changes
+#
+# If these tests fail, it indicates tool descriptions may need improvement
+# to better guide LLMs toward incremental operations.
+#
+# Prerequisites:
+#   - Windows 10/11 with Excel installed
+#   - Excel MCP Server
+#   - Environment: AZURE_OPENAI_ENDPOINT
+#
+# =============================================================================
+
+criteria:
+  success_rate: 1  # 100% required
+
+providers:
+  - name: azure-openai-gpt41
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+    retry:
+      retry_on_429: true
+      max_retries: 5
+
+servers:
+  - name: excel-mcp
+    type: stdio
+    command: "{{SERVER_COMMAND}}"
+    server_delay: 10s
+
+agents:
+  - name: gpt41-agent
+    servers:
+      - name: excel-mcp
+    provider: azure-openai-gpt41
+    system_prompt: |
+      You are {{AGENT_NAME}}, an autonomous Excel automation agent using {{PROVIDER_NAME}}.
+      Session: {{SESSION_NAME}}
+
+      CRITICAL RULES:
+      - Execute all tasks IMMEDIATELY without asking for confirmation
+      - NEVER ask "Would you like me to...", "Should I proceed...", or similar questions
+      - NEVER request clarification - make reasonable assumptions and proceed
+      - Use available tools directly to complete the requested tasks
+      - Report results after completion, not before starting
+      - For temp files, use C:/temp/ directory with unique descriptive names
+      - When modifying existing data, update only the cells that need to change
+    clarification_detection:
+      enabled: true
+      level: warning
+      use_builtin_patterns: true
+
+settings:
+  verbose: true
+  max_iterations: 15
+
+
+sessions:
+  # ==========================================================================
+  # Session 1: Single Cell Modification
+  # Tests that LLM updates a single cell without recreating the entire range
+  # ==========================================================================
+  - name: "Single Cell Modification"
+    tests:
+      - name: "Create and open Excel file"
+        prompt: |
+          Create a new empty Excel file at C:/temp/llm-test-incremental.xlsx and open it.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+
+      - name: "Create initial data"
+        prompt: |
+          Put the following data in A1:B3:
+          Row 1: Item, Value
+          Row 2: Alpha, 100
+          Row 3: Beta, 200
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_range
+          - type: tool_param_equals
+            tool: excel_range
+            params:
+              action: "set-values"
+
+      - name: "Update single cell value"
+        prompt: |
+          Change the value in cell B2 from 100 to 150.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_range
+          - type: tool_param_equals
+            tool: excel_range
+            params:
+              action: "set-values"
+          # Should target B2, not recreate entire range
+          - type: output_regex
+            pattern: "(?i)(updated|changed|set|success)"
+
+      - name: "Verify all data preserved"
+        prompt: |
+          Read all data from A1:B3 to verify the change.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_range
+          - type: tool_param_equals
+            tool: excel_range
+            params:
+              action: "get-values"
+          # Should contain the updated value AND preserved values
+          - type: output_regex
+            pattern: "(?i)(150)"
+          - type: output_regex
+            pattern: "(?i)(alpha|beta)"
+
+      - name: "Close without saving"
+        prompt: |
+          Close the Excel file without saving.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+
+  # ==========================================================================
+  # Session 2: Multiple Sequential Updates
+  # Tests that LLM makes targeted updates without rebuilding
+  # ==========================================================================
+  - name: "Multiple Sequential Updates"
+    tests:
+      - name: "Create and open Excel file"
+        prompt: |
+          Create a new empty Excel file at C:/temp/llm-test-sequential.xlsx and open it.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+
+      - name: "Create initial spreadsheet"
+        prompt: |
+          Set up a simple budget in A1:C4:
+          Row 1: Category, Budget, Actual
+          Row 2: Rent, 1000, 1000
+          Row 3: Food, 500, 450
+          Row 4: Transport, 200, 180
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_range
+
+      - name: "First update - change Food actual"
+        prompt: |
+          Update the Food actual amount (cell C3) to 480.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_range
+          - type: tool_param_equals
+            tool: excel_range
+            params:
+              action: "set-values"
+
+      - name: "Second update - change Transport actual"
+        prompt: |
+          Update the Transport actual amount (cell C4) to 195.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_range
+          - type: tool_param_equals
+            tool: excel_range
+            params:
+              action: "set-values"
+
+      - name: "Verify all updates preserved"
+        prompt: |
+          Read the entire budget data from A1:C4.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_range
+          # Verify both updates applied and original data preserved
+          - type: output_regex
+            pattern: "(?i)(480)"
+          - type: output_regex
+            pattern: "(?i)(195)"
+          - type: output_regex
+            pattern: "(?i)(rent|1000)"
+
+      - name: "Close without saving"
+        prompt: |
+          Close the Excel file without saving.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+
+  # ==========================================================================
+  # Session 3: Add Row Without Rebuild
+  # Tests that LLM adds new data without recreating existing content
+  # ==========================================================================
+  - name: "Add Row Without Rebuild"
+    tests:
+      - name: "Create and open Excel file"
+        prompt: |
+          Create a new empty Excel file at C:/temp/llm-test-addrow.xlsx and open it.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+
+      - name: "Create initial list"
+        prompt: |
+          Create a list in A1:B3:
+          Row 1: Task, Status
+          Row 2: Review code, Done
+          Row 3: Write tests, Pending
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_range
+
+      - name: "Add new row"
+        prompt: |
+          Add a new task in row 4: "Deploy app" with status "Not Started"
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_range
+          - type: tool_param_equals
+            tool: excel_range
+            params:
+              action: "set-values"
+
+      - name: "Verify existing data unchanged"
+        prompt: |
+          Read all data from A1:B4 to verify the list.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_range
+          # Should have both old and new data
+          - type: output_regex
+            pattern: "(?i)(review code|done)"
+          - type: output_regex
+            pattern: "(?i)(deploy app|not started)"
+
+      - name: "Close without saving"
+        prompt: |
+          Close the Excel file without saving.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file

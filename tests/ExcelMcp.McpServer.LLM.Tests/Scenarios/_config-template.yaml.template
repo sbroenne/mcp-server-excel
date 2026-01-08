@@ -1,0 +1,147 @@
+# =============================================================================
+# Configuration Template for Excel MCP Server LLM Tool Coverage Tests
+# =============================================================================
+#
+# This file is a REFERENCE TEMPLATE showing the standard configuration pattern
+# for all LLM test files in this project. It is NOT a runnable test file.
+#
+# Copy the providers, servers, agents, and settings blocks to your test files.
+#
+# Rate Limits (from Azure Portal):
+#   - gpt-4.1:      150 RPM,   150,000 TPM
+#   - gpt-5.2-chat: 1,500 RPM, 150,000 TPM
+#
+# =============================================================================
+
+criteria:
+  success_rate: 1  # 100% required - all tests must pass
+
+providers:
+  # GPT-4.1 Provider - Lower RPM, good for complex reasoning
+  - name: azure-openai-gpt41
+    type: AZURE
+    auth_type: entra_id  # Uses DefaultAzureCredential - no API key needed
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+    rate_limits:
+      tpm: 150000  # Tokens per minute (proactive throttling)
+      rpm: 150     # Requests per minute (gpt-4.1 actual from Azure)
+
+  # GPT-5.2-chat Provider - Higher RPM, faster throughput
+  - name: azure-openai-gpt5-chat
+    type: AZURE
+    auth_type: entra_id  # Uses DefaultAzureCredential - no API key needed
+    model: gpt-5.2-chat
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+    rate_limits:
+      tpm: 150000  # Tokens per minute (proactive throttling)
+      rpm: 1500    # Requests per minute (gpt-5.2-chat has 10x higher RPM)
+
+servers:
+  # Excel MCP Server - Primary test target
+  - name: excel-mcp
+    type: stdio
+    command: "{{SERVER_COMMAND}}"
+    server_delay: 10s  # Wait for server initialization
+
+agents:
+  # GPT-4.1 Agent
+  - name: gpt41-agent
+    servers:
+      - name: excel-mcp
+    provider: azure-openai-gpt41
+    system_prompt: |
+      You are {{AGENT_NAME}}, an autonomous Excel automation agent using {{PROVIDER_NAME}}.
+      Session: {{SESSION_NAME}}
+
+      CRITICAL RULES:
+      - Execute all tasks IMMEDIATELY without asking for confirmation
+      - NEVER ask "Would you like me to...", "Should I proceed...", or similar questions
+      - NEVER request clarification - make reasonable assumptions and proceed
+      - Use available tools directly to complete the requested tasks
+      - Report results after completion, not before starting
+      - For file paths, use temp directory with unique names when not specified
+    clarification_detection:
+      enabled: true
+      level: warning
+      use_builtin_patterns: true
+
+  # GPT-5.2-chat Agent
+  - name: gpt5-chat-agent
+    servers:
+      - name: excel-mcp
+    provider: azure-openai-gpt5-chat
+    system_prompt: |
+      You are {{AGENT_NAME}}, an autonomous Excel automation agent using {{PROVIDER_NAME}}.
+      Session: {{SESSION_NAME}}
+
+      CRITICAL RULES:
+      - Execute all tasks IMMEDIATELY without asking for confirmation
+      - NEVER ask "Would you like me to...", "Should I proceed...", or similar questions
+      - NEVER request clarification - make reasonable assumptions and proceed
+      - Use available tools directly to complete the requested tasks
+      - Report results after completion, not before starting
+      - For file paths, use temp directory with unique names when not specified
+    clarification_detection:
+      enabled: true
+      level: warning
+      use_builtin_patterns: true
+
+settings:
+  verbose: true
+  max_iterations: 15    # Enough for complex multi-step workflows
+
+
+# =============================================================================
+# Standard Assertion Patterns
+# =============================================================================
+#
+# Pattern 1: Tool Called
+#   - type: tool_called
+#     tool: excel_file
+#
+# Pattern 2: No Hallucinated Tools
+#   - type: no_hallucinated_tools
+#
+# Pattern 3: Max Latency
+#   - type: max_latency_ms
+#     value: 30000
+#
+# Pattern 4: Flexible Tool Acceptance (anyOf)
+#   - anyOf:
+#       - type: tool_called
+#         tool: excel_range
+#       - type: tool_called
+#         tool: excel_table
+#
+# Pattern 5: Tool Parameter Validation
+#   - type: tool_param_equals
+#     tool: excel_file
+#     params:
+#       action: "create-empty"
+#
+# Pattern 6: Output Pattern Matching
+#   - type: output_regex
+#     pattern: "(?i)(success|created|opened)"
+#
+# =============================================================================
+# Session Template
+# =============================================================================
+#
+# sessions:
+#   - name: "Session Name"
+#     tests:
+#       - name: "Test Description"
+#         prompt: |
+#           Plain English prompt describing the task.
+#           No tool names or technical syntax.
+#         assertions:
+#           - type: no_hallucinated_tools
+#           - type: tool_called
+#             tool: expected_tool
+#           - type: max_latency_ms
+#             value: 30000
+#
+# =============================================================================

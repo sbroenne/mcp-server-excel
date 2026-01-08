@@ -1,0 +1,6 @@
+{
+  "$schema": "./llm-tests.config.schema.json",
+  "agentBenchmarkPath": null,
+  "verbose": false,
+  "build": true
+}

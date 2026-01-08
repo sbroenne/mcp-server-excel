@@ -1,0 +1,227 @@
+# =============================================================================
+# Excel Table Test - excel_table Tool
+# =============================================================================
+#
+# Tests: excel_table tool for structured data operations
+#
+# Tools Covered:
+#   - excel_table with actions:
+#     - create: Create table from range
+#     - list: List all tables
+#     - get-data: Get table data
+#     - delete: Delete table
+#
+# Key Validation:
+#   - LLM creates tables from existing data ranges
+#   - LLM understands table naming conventions
+#   - LLM uses table operations for structured data
+#
+# Prerequisites:
+#   - Windows 10/11 with Excel installed
+#   - Excel MCP Server
+#   - Environment: AZURE_OPENAI_ENDPOINT
+#
+# =============================================================================
+
+criteria:
+  success_rate: 1  # 100% required
+
+providers:
+  - name: azure-openai-gpt41
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+    retry:
+      retry_on_429: true
+      max_retries: 5
+
+servers:
+  - name: excel-mcp
+    type: stdio
+    command: "{{SERVER_COMMAND}}"
+    server_delay: 10s
+
+agents:
+  - name: gpt41-agent
+    servers:
+      - name: excel-mcp
+    provider: azure-openai-gpt41
+    system_prompt: |
+      You are {{AGENT_NAME}}, an autonomous Excel automation agent using {{PROVIDER_NAME}}.
+      Session: {{SESSION_NAME}}
+
+      CRITICAL RULES:
+      - Execute all tasks IMMEDIATELY without asking for confirmation
+      - NEVER ask "Would you like me to...", "Should I proceed...", or similar questions
+      - NEVER request clarification - make reasonable assumptions and proceed
+      - Use available tools directly to complete the requested tasks
+      - Report results after completion, not before starting
+      - For temp files, use C:/temp/ directory with unique descriptive names
+    clarification_detection:
+      enabled: true
+      level: warning
+      use_builtin_patterns: true
+
+settings:
+  verbose: true
+  max_iterations: 15
+
+
+sessions:
+  # ==========================================================================
+  # Session 1: Table Creation and Query
+  # ==========================================================================
+  - name: "Table Creation and Query"
+    tests:
+      - name: "Create and open Excel file"
+        prompt: |
+          Create a new empty Excel file at C:/temp/llm-test-table.xlsx and open it.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+
+      - name: "Add data for table"
+        prompt: |
+          Put the following sales data in cells A1:D4:
+          Row 1: Product, Quantity, Price, Total
+          Row 2: Widget, 10, 5.99, 59.90
+          Row 3: Gadget, 5, 12.99, 64.95
+          Row 4: Gizmo, 8, 8.50, 68.00
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_range
+          - type: tool_param_equals
+            tool: excel_range
+            params:
+              action: "set-values"
+
+      - name: "Create table from data"
+        prompt: |
+          Create an Excel table from the data in A1:D4 and name it "SalesData".
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_table
+          - type: tool_param_equals
+            tool: excel_table
+            params:
+              action: "create"
+          - type: output_regex
+            pattern: "(?i)(created|salesdata|table|success)"
+
+      - name: "List all tables"
+        prompt: |
+          List all tables in the workbook.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_table
+          - type: tool_param_equals
+            tool: excel_table
+            params:
+              action: "list"
+          - type: output_regex
+            pattern: "(?i)(salesdata|table)"
+
+      - name: "Get table data"
+        prompt: |
+          Get the data from the SalesData table.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_table
+          - type: tool_param_equals
+            tool: excel_table
+            params:
+              action: "get-data"
+          - type: output_regex
+            pattern: "(?i)(widget|gadget|gizmo)"
+
+      - name: "Close without saving"
+        prompt: |
+          Close the Excel file without saving.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+
+  # ==========================================================================
+  # Session 2: Table Lifecycle
+  # ==========================================================================
+  - name: "Table Lifecycle"
+    tests:
+      - name: "Create and open Excel file"
+        prompt: |
+          Create a new empty Excel file at C:/temp/llm-test-table-lifecycle.xlsx and open it.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+
+      - name: "Add header row"
+        prompt: |
+          Put these column headers in A1:C1: ID, Name, Status
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_range
+
+      - name: "Add data rows"
+        prompt: |
+          Add data in A2:C3:
+          Row 2: 1, Task One, Active
+          Row 3: 2, Task Two, Complete
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_range
+
+      - name: "Create table"
+        prompt: |
+          Create a table from A1:C3 called "TaskList".
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_table
+          - type: tool_param_equals
+            tool: excel_table
+            params:
+              action: "create"
+
+      - name: "Verify table exists"
+        prompt: |
+          List all tables to verify TaskList was created.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_table
+          - type: tool_param_equals
+            tool: excel_table
+            params:
+              action: "list"
+          - type: output_regex
+            pattern: "(?i)tasklist"
+
+      - name: "Delete the table"
+        prompt: |
+          Delete the TaskList table.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_table
+          - type: tool_param_equals
+            tool: excel_table
+            params:
+              action: "delete"
+
+      - name: "Close without saving"
+        prompt: |
+          Close the Excel file without saving.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file

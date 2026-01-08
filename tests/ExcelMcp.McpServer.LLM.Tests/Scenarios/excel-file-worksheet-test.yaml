@@ -1,0 +1,247 @@
+# =============================================================================
+# Excel File and Worksheet Test - excel_file and excel_worksheet Tools
+# =============================================================================
+#
+# Tests: excel_file and excel_worksheet tools for basic Excel automation
+#
+# Tools Covered:
+#   - excel_file with actions:
+#     - create-empty: Create new empty Excel file
+#     - open: Open Excel file and start session
+#     - close: Close Excel file session
+#     - list: List active sessions
+#
+#   - excel_worksheet with actions:
+#     - list: List all worksheets
+#     - create: Create new worksheet
+#     - rename: Rename worksheet
+#     - delete: Delete worksheet
+#
+# Prerequisites:
+#   - Windows 10/11 with Excel installed
+#   - Excel MCP Server
+#   - Environment: AZURE_OPENAI_ENDPOINT
+#
+# Test Isolation:
+#   - Each test uses unique temp file paths
+#   - No file cleanup needed between tests
+#
+# =============================================================================
+
+criteria:
+  success_rate: 1  # 100% required
+
+providers:
+  # GPT-4.1 Provider - Lower RPM, good for complex reasoning
+  - name: azure-openai-gpt41
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+    rate_limits:
+      tpm: 150000  # Tokens per minute (proactive throttling)
+      rpm: 150     # Requests per minute
+    retry:
+      retry_on_429: true
+      max_retries: 5
+  # GPT-5.2-chat Provider - Higher RPM, faster throughput
+  - name: azure-openai-gpt5-chat
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-5.2-chat
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+    rate_limits:
+      tpm: 150000  # Tokens per minute (proactive throttling)
+      rpm: 1500    # Requests per minute (10x higher than gpt-4.1)
+    retry:
+      retry_on_429: true
+      max_retries: 5
+
+servers:
+  - name: excel-mcp
+    type: stdio
+    command: "{{SERVER_COMMAND}}"
+    server_delay: 10s
+
+agents:
+  - name: gpt41-agent
+    servers:
+      - name: excel-mcp
+    provider: azure-openai-gpt41
+    system_prompt: |
+      You are {{AGENT_NAME}}, an autonomous Excel automation agent using {{PROVIDER_NAME}}.
+      Session: {{SESSION_NAME}}
+
+      CRITICAL RULES:
+      - Execute all tasks IMMEDIATELY without asking for confirmation
+      - NEVER ask "Would you like me to...", "Should I proceed...", or similar questions
+      - NEVER request clarification - make reasonable assumptions and proceed
+      - Use available tools directly to complete the requested tasks
+      - Report results after completion, not before starting
+      - For temp files, use C:/temp/ directory with unique descriptive names
+    clarification_detection:
+      enabled: true
+      level: warning
+      use_builtin_patterns: true
+
+  - name: gpt5-chat-agent
+    servers:
+      - name: excel-mcp
+    provider: azure-openai-gpt5-chat
+    system_prompt: |
+      You are {{AGENT_NAME}}, an autonomous Excel automation agent using {{PROVIDER_NAME}}.
+      Session: {{SESSION_NAME}}
+
+      CRITICAL RULES:
+      - Execute all tasks IMMEDIATELY without asking for confirmation
+      - NEVER ask "Would you like me to...", "Should I proceed...", or similar questions
+      - NEVER request clarification - make reasonable assumptions and proceed
+      - Use available tools directly to complete the requested tasks
+      - Report results after completion, not before starting
+      - For temp files, use C:/temp/ directory with unique descriptive names
+    clarification_detection:
+      enabled: true
+      level: warning
+      use_builtin_patterns: true
+
+settings:
+  verbose: true
+  max_iterations: 15
+
+
+sessions:
+  # ==========================================================================
+  # Session 1: File Lifecycle - create, open, list, close
+  # ==========================================================================
+  - name: "File Lifecycle"
+    tests:
+      - name: "Create empty Excel file"
+        prompt: |
+          Create a new empty Excel file at C:/temp/llm-test-file-lifecycle.xlsx
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+          - type: tool_param_equals
+            tool: excel_file
+            params:
+              action: "CreateEmpty"
+          - type: output_regex
+            pattern: "(?i)(created|success)"
+
+      - name: "Open the Excel file"
+        prompt: |
+          Open the Excel file at C:/temp/llm-test-file-lifecycle.xlsx
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+          - type: tool_param_equals
+            tool: excel_file
+            params:
+              action: "Open"
+          - type: output_regex
+            pattern: "(?i)(opened|session|success)"
+
+      - name: "List active sessions"
+        prompt: |
+          List all currently active Excel sessions.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+          - type: tool_param_equals
+            tool: excel_file
+            params:
+              action: "List"
+
+      - name: "Close the Excel file"
+        prompt: |
+          Close the Excel file without saving changes.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+          - type: tool_param_equals
+            tool: excel_file
+            params:
+              action: "Close"
+
+  # ==========================================================================
+  # Session 2: Worksheet Operations - list, create, rename
+  # ==========================================================================
+  - name: "Worksheet Operations"
+    tests:
+      - name: "Create and open a new Excel file"
+        prompt: |
+          Create a new empty Excel file at C:/temp/llm-test-worksheets.xlsx and open it.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+
+      - name: "List worksheets"
+        prompt: |
+          List all the worksheets in the currently open workbook.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_worksheet
+          - type: tool_param_equals
+            tool: excel_worksheet
+            params:
+              action: "List"
+          - type: output_regex
+            pattern: "(?i)(sheet|worksheet)"
+
+      - name: "Create a new worksheet"
+        prompt: |
+          Create a new worksheet called "SalesData".
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_worksheet
+          - type: tool_param_equals
+            tool: excel_worksheet
+            params:
+              action: "Create"
+          - type: output_regex
+            pattern: "(?i)(created|salesdata|success)"
+
+      - name: "Rename the worksheet"
+        prompt: |
+          Rename the "SalesData" worksheet to "Q1Sales".
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_worksheet
+          - type: tool_param_equals
+            tool: excel_worksheet
+            params:
+              action: "Rename"
+          - type: output_regex
+            pattern: "(?i)(renamed|q1sales|success)"
+
+      - name: "Verify worksheet exists"
+        prompt: |
+          List all worksheets to verify Q1Sales exists.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_worksheet
+          - type: tool_param_equals
+            tool: excel_worksheet
+            params:
+              action: "List"
+          - type: output_regex
+            pattern: "(?i)q1sales"
+
+      - name: "Close without saving"
+        prompt: |
+          Close the Excel file without saving.
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
