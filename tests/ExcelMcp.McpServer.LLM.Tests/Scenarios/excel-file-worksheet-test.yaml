@@ -23,8 +23,9 @@
 #   - Environment: AZURE_OPENAI_ENDPOINT
 #
 # Test Isolation:
-#   - Each test uses unique temp file paths
+#   - Each test uses unique temp file paths with GUIDs
 #   - No file cleanup needed between tests
+#   - UUIDs generated per test run via {{randomValue type='UUID'}}
 #
 # =============================================================================
 
@@ -119,7 +120,7 @@ sessions:
     tests:
       - name: "Create empty Excel file"
         prompt: |
-          Create a new empty Excel file at C:/temp/llm-test-file-lifecycle.xlsx
+          Create a new empty Excel file at C:/temp/llm-test-file-lifecycle-{{randomValue type='UUID'}}.xlsx
         assertions:
           - type: no_hallucinated_tools
           - type: tool_called
@@ -133,7 +134,7 @@ sessions:
 
       - name: "Open the Excel file"
         prompt: |
-          Open the Excel file at C:/temp/llm-test-file-lifecycle.xlsx
+          Open the Excel file that was just created.
         assertions:
           - type: no_hallucinated_tools
           - type: tool_called
@@ -176,7 +177,7 @@ sessions:
     tests:
       - name: "Create and open a new Excel file"
         prompt: |
-          Create a new empty Excel file at C:/temp/llm-test-worksheets.xlsx and open it.
+          Create a new empty Excel file at C:/temp/llm-test-worksheets-{{randomValue type='UUID'}}.xlsx and open it.
         assertions:
           - type: no_hallucinated_tools
           - type: tool_called

@@ -1,25 +1,38 @@
+using System.Text.Json.Serialization;
+
 namespace Sbroenne.ExcelMcp.Core.Models;
 
 /// <summary>
-/// Base result type for all Core operations
+/// Base result type for all Core operations.
 /// NOTE: Core commands should NOT set SuggestedNextActions (workflow guidance is MCP/CLI layer responsibility).
 /// Exceptions propagate naturally to batch.Execute() which converts them to OperationResult { Success = false }.
 /// </summary>
+/// <remarks>
+/// Property names are intentionally short to minimize JSON token count for LLM efficiency:
+/// - ok: Success
+/// - err: ErrorMessage
+/// - fp: FilePath
+/// </remarks>
 public abstract class ResultBase
 {
     /// <summary>
     /// Indicates whether the operation was successful
     /// </summary>
+    [JsonPropertyName("ok")]
     public bool Success { get; set; }
 
     /// <summary>
     /// Error message if operation failed
     /// </summary>
+    [JsonPropertyName("err")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ErrorMessage { get; set; }
 
     /// <summary>
     /// File path of the Excel file
     /// </summary>
+    [JsonPropertyName("fp")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? FilePath { get; set; }
 }
 
@@ -31,69 +44,91 @@ public class OperationResult : ResultBase
     /// <summary>
     /// Action that was performed
     /// </summary>
+    [JsonPropertyName("act")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Action { get; set; }
 }
 
 /// <summary>
 /// Result for rename operations across Core features
 /// </summary>
+/// <remarks>
+/// Property names: ot=ObjectType, on=OldName, nn=NewName, non=NormalizedOldName, nnn=NormalizedNewName
+/// </remarks>
 public class RenameResult : ResultBase
 {
     /// <summary>
     /// Type of object being renamed (power-query, data-model-table)
     /// </summary>
+    [JsonPropertyName("ot")]
     public string ObjectType { get; set; } = string.Empty;
 
     /// <summary>
     /// Original name provided by the caller
     /// </summary>
+    [JsonPropertyName("on")]
     public string OldName { get; set; } = string.Empty;
 
     /// <summary>
     /// Desired new name provided by the caller
     /// </summary>
+    [JsonPropertyName("nn")]
     public string NewName { get; set; } = string.Empty;
 
     /// <summary>
     /// Trimmed old name used for comparisons
     /// </summary>
+    [JsonPropertyName("non")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string NormalizedOldName { get; set; } = string.Empty;
 
     /// <summary>
     /// Trimmed new name used for comparisons
     /// </summary>
+    [JsonPropertyName("nnn")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string NormalizedNewName { get; set; } = string.Empty;
 }
 
 /// <summary>
 /// Result for listing worksheets
 /// </summary>
+/// <remarks>
+/// Property names: ws=Worksheets
+/// </remarks>
 public class WorksheetListResult : ResultBase
 {
     /// <summary>
     /// List of worksheets in the workbook
     /// </summary>
+    [JsonPropertyName("ws")]
     public List<WorksheetInfo> Worksheets { get; set; } = [];
 }
 
 /// <summary>
 /// Information about a worksheet
 /// </summary>
+/// <remarks>
+/// Property names: n=Name, i=Index, v=Visible
+/// </remarks>
 public class WorksheetInfo
 {
     /// <summary>
     /// Name of the worksheet
     /// </summary>
+    [JsonPropertyName("n")]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
     /// Index of the worksheet (1-based)
     /// </summary>
+    [JsonPropertyName("i")]
     public int Index { get; set; }
 
     /// <summary>
     /// Whether the worksheet is visible
     /// </summary>
+    [JsonPropertyName("v")]
     public bool Visible { get; set; }
 }
 
@@ -780,83 +815,105 @@ public class CellValueResult : ResultBase
 /// <summary>
 /// Result for Excel range value operations
 /// </summary>
+/// <remarks>
+/// Property names: sn=SheetName, ra=RangeAddress, d=Values (data), r=RowCount, c=ColumnCount
+/// </remarks>
 public class RangeValueResult : ResultBase
 {
     /// <summary>
     /// Sheet name
     /// </summary>
+    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Range address (e.g., A1:D10)
     /// </summary>
+    [JsonPropertyName("ra")]
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
     /// 2D array of cell values (row-major order)
     /// </summary>
+    [JsonPropertyName("d")]
     public List<List<object?>> Values { get; set; } = [];
 
     /// <summary>
     /// Number of rows in the range
     /// </summary>
+    [JsonPropertyName("r")]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns in the range
     /// </summary>
+    [JsonPropertyName("c")]
     public int ColumnCount { get; set; }
 }
 
 /// <summary>
 /// Result for Excel range formula operations
 /// </summary>
+/// <remarks>
+/// Property names: sn=SheetName, ra=RangeAddress, f=Formulas, d=Values, r=RowCount, c=ColumnCount
+/// </remarks>
 public class RangeFormulaResult : ResultBase
 {
     /// <summary>
     /// Sheet name
     /// </summary>
+    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Range address (e.g., A1:D10)
     /// </summary>
+    [JsonPropertyName("ra")]
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
     /// 2D array of cell formulas (row-major order, empty string if no formula)
     /// </summary>
+    [JsonPropertyName("f")]
     public List<List<string>> Formulas { get; set; } = [];
 
     /// <summary>
     /// 2D array of cell values (calculated results)
     /// </summary>
+    [JsonPropertyName("d")]
     public List<List<object?>> Values { get; set; } = [];
 
     /// <summary>
     /// Number of rows in the range
     /// </summary>
+    [JsonPropertyName("r")]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns in the range
     /// </summary>
+    [JsonPropertyName("c")]
     public int ColumnCount { get; set; }
 }
 
 /// <summary>
 /// Result for range find operations
 /// </summary>
+/// <remarks>
+/// Property names: sn=SheetName, ra=RangeAddress
+/// </remarks>
 public class RangeFindResult : ResultBase
 {
     /// <summary>
     /// Sheet name
     /// </summary>
+    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Range address that was searched
     /// </summary>
+    [JsonPropertyName("ra")]
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
@@ -1528,99 +1585,128 @@ public class DataModelCalculatedColumnViewResult : ResultBase
 /// <summary>
 /// Result for listing Excel Tables
 /// </summary>
+/// <remarks>
+/// Property names: ts=Tables
+/// </remarks>
 public class TableListResult : ResultBase
 {
     /// <summary>
     /// List of Excel Tables in the workbook
     /// </summary>
+    [JsonPropertyName("ts")]
     public List<TableInfo> Tables { get; set; } = [];
 }
 
 /// <summary>
 /// Result for getting detailed information about an Excel Table
 /// </summary>
+/// <remarks>
+/// Property names: t=Table
+/// </remarks>
 public class TableInfoResult : ResultBase
 {
     /// <summary>
     /// Detailed information about the Excel Table
     /// </summary>
+    [JsonPropertyName("t")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public TableInfo? Table { get; set; }
 }
 
 /// <summary>
 /// Information about an Excel Table (ListObject)
 /// </summary>
+/// <remarks>
+/// Property names: n=Name, sn=SheetName, ra=Range, hh=HasHeaders, st=TableStyle, r=RowCount, c=ColumnCount, cols=Columns, tot=ShowTotals
+/// </remarks>
 public class TableInfo
 {
     /// <summary>
     /// Name of the table
     /// </summary>
+    [JsonPropertyName("n")]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
     /// Worksheet containing the table
     /// </summary>
+    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Range address of the table (e.g., "A1:D10")
     /// </summary>
+    [JsonPropertyName("ra")]
     public string Range { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether the table has headers
     /// </summary>
+    [JsonPropertyName("hh")]
     public bool HasHeaders { get; set; } = true;
 
     /// <summary>
     /// Table style name (e.g., "TableStyleMedium2")
     /// </summary>
+    [JsonPropertyName("st")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? TableStyle { get; set; }
 
     /// <summary>
     /// Number of rows (excluding header)
     /// </summary>
+    [JsonPropertyName("r")]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns
     /// </summary>
+    [JsonPropertyName("c")]
     public int ColumnCount { get; set; }
 
     /// <summary>
     /// Column names (if table has headers)
     /// </summary>
+    [JsonPropertyName("cols")]
     public List<string> Columns { get; set; } = [];
 
     /// <summary>
     /// Whether the table has a total row
     /// </summary>
+    [JsonPropertyName("tot")]
     public bool ShowTotals { get; set; }
 }
 
 /// <summary>
 /// Result for reading Excel Table data
 /// </summary>
+/// <remarks>
+/// Property names: tn=TableName, h=Headers, d=Data, r=RowCount, c=ColumnCount
+/// </remarks>
 public class TableDataResult : ResultBase
 {
     /// <summary>
     /// Name of the table
     /// </summary>
+    [JsonPropertyName("tn")]
     public string TableName { get; set; } = string.Empty;
 
     /// <summary>
     /// Column headers
     /// </summary>
+    [JsonPropertyName("h")]
     public List<string> Headers { get; set; } = [];
 
     /// <summary>
     /// Data rows (each row is a list of cell values)
     /// </summary>
+    [JsonPropertyName("d")]
     public List<List<object?>> Data { get; set; } = [];
 
     /// <summary>
     /// Number of rows (excluding header)
     /// </summary>
+    [JsonPropertyName("r")]
     public int RowCount { get; set; }
 
     /// <summary>

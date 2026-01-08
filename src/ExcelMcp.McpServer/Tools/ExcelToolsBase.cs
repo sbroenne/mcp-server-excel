@@ -21,12 +21,26 @@ public static class ExcelToolsBase
     private static readonly SessionManager SessionManager = new();
 
     /// <summary>
-    /// JSON serializer options with enum string conversion for user-friendly API responses.
-    /// Used by all Excel tools for consistent JSON formatting.
+    /// JSON serializer options optimized for LLM token efficiency.
+    /// Uses compact formatting and short property names to reduce token consumption.
     /// </summary>
+    /// <remarks>
+    /// Token optimization settings:
+    /// - WriteIndented = false: Removes whitespace (saves ~20% tokens)
+    /// - DefaultIgnoreCondition = WhenWritingNull: Omits null properties
+    /// - PropertyNamingPolicy = CamelCase: Consistent naming
+    /// - JsonStringEnumConverter: Human-readable enum values
+    /// 
+    /// Property names use [JsonPropertyName] attributes on result types:
+    /// - ok: Success
+    /// - err: ErrorMessage  
+    /// - fp: FilePath
+    /// - act: Action
+    /// </remarks>
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
-        WriteIndented = true,
+        WriteIndented = false,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         Converters = { new JsonStringEnumConverter() }
     };
@@ -190,6 +204,7 @@ public static class ExcelToolsBase
 
     /// <summary>
     /// Serializes a tool error response with consistent structure.
+    /// Uses short property names for token efficiency: ok=success, err=errorMessage, ie=isError
     /// </summary>
     /// <param name="actionName">Action string (kebab-case) included in message.</param>
     /// <param name="excelPath">Optional Excel path context.</param>
@@ -203,9 +218,9 @@ public static class ExcelToolsBase
 
         var payload = new
         {
-            success = false,
-            errorMessage,
-            isError = true
+            ok = false,
+            err = errorMessage,
+            ie = true
         };
 
         return JsonSerializer.Serialize(payload, JsonOptions);
