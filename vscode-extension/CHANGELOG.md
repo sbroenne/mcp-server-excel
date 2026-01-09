@@ -18,6 +18,11 @@ All notable changes to the ExcelMcp VS Code extension will be documented in this
   - Validates that LLMs correctly understand and use MCP tools
   - Tests incremental update patterns vs rebuild behavior
   - Ensures tool descriptions guide LLMs effectively
+- **.NET 10 Upgrade**: Full compatibility with .NET 10.0
+  - Updated SDK version from 8.0.416 to 10.0.100
+  - All projects (Core, CLI, MCP Server) now target net10.0
+  - Updated package dependencies to latest stable versions
+  - GitHub Actions workflows updated to use .NET 10 SDK
 
 ## [1.4.42] - 2025-12-15
 
