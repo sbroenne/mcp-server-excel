@@ -17,16 +17,12 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 [Collection("Sequential")]
 public class SessionManagerOperationTrackingTests : IDisposable
 {
-    private readonly ITestOutputHelper _output;
     private readonly string _tempDir;
     private readonly List<string> _testFiles = [];
 
-    public SessionManagerOperationTrackingTests(ITestOutputHelper output)
+    public SessionManagerOperationTrackingTests(ITestOutputHelper _ /* injected by xUnit */)
     {
-        _output = output;
-#pragma warning disable CA3003 // Path.Combine is safe here - test code with controlled inputs
         _tempDir = Path.Combine(Path.GetTempPath(), $"SessionManagerOpTrackingTests_{Guid.NewGuid():N}");
-#pragma warning restore CA3003
         Directory.CreateDirectory(_tempDir);
     }
 
