@@ -12,11 +12,9 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 public static partial class ExcelConditionalFormatTool
 {
     /// <summary>
-    /// Manage Excel conditional formatting - visual formatting based on cell values.
-    /// RULE TYPES: 'cell-value' (format based on cell value comparison, requires operatorType and formula1) or 'expression' (format based on formula result, requires formula1 only).
-    /// OPERATORS for cell-value type: 'equal', 'not-equal', 'greater', 'less', 'greater-equal', 'less-equal', 'between', 'not-between' (between/not-between require both formula1 and formula2).
-    /// FORMATTING: Interior (interiorColor #RRGGBB, interiorPattern), Font (fontColor #RRGGBB, fontBold, fontItalic), Borders (borderStyle, borderColor).
-    /// Example: Highlight cells greater than 100 in red: ruleType='cell-value', operatorType='greater', formula1='100', interiorColor='#FF0000'.
+    /// Conditional formatting - visual rules based on cell values.
+    /// TYPES: cell-value (requires operatorType+formula1), expression (formula only).
+    /// FORMAT: interiorColor/fontColor #RRGGBB, fontBold/Italic, borderStyle/Color.
     /// </summary>
     /// <param name="action">Action to perform</param>
     /// <param name="excelPath">Excel file path (.xlsx or .xlsm)</param>

@@ -45,21 +45,37 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
 
     /// <summary>
     /// Expected tool names from our assembly - the source of truth.
+    /// After token optimization split (issue #341):
+    /// - excel_range split into 4 tools (excel_range, excel_range_edit, excel_range_format, excel_range_link)
+    /// - excel_table split into 2 tools (excel_table, excel_table_column)
+    /// - excel_pivottable split into 3 tools (excel_pivottable, excel_pivottable_field, excel_pivottable_calc)
+    /// - excel_datamodel split into 2 tools (excel_datamodel, excel_datamodel_rel)
+    /// - excel_chart split into 2 tools (excel_chart, excel_chart_config)
+    /// - excel_worksheet split into 2 tools (excel_worksheet, excel_worksheet_style)
     /// </summary>
     private static readonly HashSet<string> ExpectedToolNames =
     [
         "excel_chart",
+        "excel_chart_config",
         "excel_conditionalformat",
         "excel_connection",
         "excel_datamodel",
+        "excel_datamodel_rel",
         "excel_file",
         "excel_namedrange",
         "excel_pivottable",
+        "excel_pivottable_calc",
+        "excel_pivottable_field",
         "excel_powerquery",
         "excel_range",
+        "excel_range_edit",
+        "excel_range_format",
+        "excel_range_link",
         "excel_table",
+        "excel_table_column",
         "excel_vba",
-        "excel_worksheet"
+        "excel_worksheet",
+        "excel_worksheet_style"
     ];
 
     /// <summary>
@@ -166,7 +182,15 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     }
 
     /// <summary>
-    /// Tests that all 12 expected tools are discoverable via the MCP protocol.
+    /// Tests that all 21 expected tools are discoverable via the MCP protocol.
+    /// After token optimization (issue #341):
+    /// - Original 12 tools split into focused tools for better token efficiency
+    /// - excel_range → excel_range, excel_range_edit, excel_range_format, excel_range_link
+    /// - excel_table → excel_table, excel_table_column
+    /// - excel_pivottable → excel_pivottable, excel_pivottable_field, excel_pivottable_calc
+    /// - excel_datamodel → excel_datamodel, excel_datamodel_rel
+    /// - excel_chart → excel_chart, excel_chart_config
+    /// - excel_worksheet → excel_worksheet, excel_worksheet_style
     /// This is THE definitive test - it uses client.ListToolsAsync() which exercises:
     /// - DI pipeline
     /// - WithToolsFromAssembly() discovery
@@ -174,7 +198,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     /// - Tool schema generation
     /// </summary>
     [Fact]
-    public async Task ListTools_ReturnsAll12ExpectedTools()
+    public async Task ListTools_ReturnsAll21ExpectedTools()
     {
         output.WriteLine("=== TOOL DISCOVERY VIA MCP PROTOCOL ===\n");
 
@@ -249,10 +273,11 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         output.WriteLine("=== TOOL INVOCATION VIA MCP PROTOCOL ===\n");
 
         // Arrange - Test action doesn't require an actual file
+        // Parameter names shortened for token optimization: excelPath -> path
         var arguments = new Dictionary<string, object?>
         {
             ["action"] = "Test",
-            ["excelPath"] = "C:\\fake\\test.xlsx"
+            ["path"] = "C:\\fake\\test.xlsx"
         };
 
         // Act - Call tool via MCP protocol
@@ -273,7 +298,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         var textPreview = textBlock.Text.Length > 200 ? textBlock.Text[..200] + "..." : textBlock.Text;
         output.WriteLine($"Tool response: {textPreview}");
 
-        // The test action should return success
+        // The test action should return success (property name is "success" in success responses)
         Assert.Contains("success", textBlock.Text.ToLowerInvariant());
 
         output.WriteLine("\n✓ excel_file Test action executed successfully via MCP protocol");

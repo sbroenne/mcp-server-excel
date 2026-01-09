@@ -50,7 +50,7 @@ public enum PowerQueryAction
 }
 
 /// <summary>
-/// Actions available for excel_worksheet tool
+/// Actions available for excel_worksheet tool (lifecycle)
 /// </summary>
 /// <remarks>
 /// ATOMIC CROSS-FILE OPERATIONS:
@@ -69,8 +69,14 @@ public enum WorksheetAction
 
     // Atomic cross-file operations
     CopyToFile,
-    MoveToFile,
+    MoveToFile
+}
 
+/// <summary>
+/// Actions available for excel_worksheet_style tool (tab colors + visibility)
+/// </summary>
+public enum WorksheetStyleAction
+{
     SetTabColor,
     GetTabColor,
     ClearTabColor,
@@ -82,7 +88,7 @@ public enum WorksheetAction
 }
 
 /// <summary>
-/// Actions available for excel_range tool
+/// Actions available for excel_range tool (core data operations)
 /// </summary>
 public enum RangeAction
 {
@@ -107,6 +113,17 @@ public enum RangeAction
     CopyValues,
     CopyFormulas,
 
+    // Discovery Operations
+    GetUsedRange,
+    GetCurrentRegion,
+    GetInfo
+}
+
+/// <summary>
+/// Actions available for excel_range_edit tool (insert/delete/search/sort)
+/// </summary>
+public enum RangeEditAction
+{
     // Insert/Delete Cell Operations
     InsertCells,
     DeleteCells,
@@ -122,19 +139,14 @@ public enum RangeAction
     // Search & Sort
     Find,
     Replace,
-    Sort,
+    Sort
+}
 
-    // Discovery Operations
-    GetUsedRange,
-    GetCurrentRegion,
-    GetInfo,
-
-    // Hyperlink Operations
-    AddHyperlink,
-    RemoveHyperlink,
-    ListHyperlinks,
-    GetHyperlink,
-
+/// <summary>
+/// Actions available for excel_range_format tool (styling/validation/merge)
+/// </summary>
+public enum RangeFormatAction
+{
     // Formatting & Validation
     GetStyle,
     SetStyle,
@@ -150,7 +162,19 @@ public enum RangeAction
     // Merge Operations
     MergeCells,
     UnmergeCells,
-    GetMergeInfo,
+    GetMergeInfo
+}
+
+/// <summary>
+/// Actions available for excel_range_link tool (hyperlinks/protection)
+/// </summary>
+public enum RangeLinkAction
+{
+    // Hyperlink Operations
+    AddHyperlink,
+    RemoveHyperlink,
+    ListHyperlinks,
+    GetHyperlink,
 
     // Cell Protection
     SetCellLock,
@@ -209,7 +233,7 @@ public enum ConnectionAction
 }
 
 /// <summary>
-/// Actions available for excel_datamodel tool
+/// Actions available for excel_datamodel tool (tables + measures)
 /// </summary>
 public enum DataModelAction
 {
@@ -223,17 +247,24 @@ public enum DataModelAction
     DeleteMeasure,
     RenameTable,
     DeleteTable,
-    ListRelationships,
-    ReadRelationship,
-    CreateRelationship,
-    UpdateRelationship,
-    DeleteRelationship,
     ReadInfo,
     Refresh
 }
 
 /// <summary>
-/// Actions available for excel_table tool
+/// Actions available for excel_datamodel_rel tool (relationships)
+/// </summary>
+public enum DataModelRelAction
+{
+    ListRelationships,
+    ReadRelationship,
+    CreateRelationship,
+    UpdateRelationship,
+    DeleteRelationship
+}
+
+/// <summary>
+/// Actions available for excel_table tool (core lifecycle/data)
 /// </summary>
 public enum TableAction
 {
@@ -255,8 +286,14 @@ public enum TableAction
     GetData,
 
     // Data Model
-    AddToDataModel,
+    AddToDataModel
+}
 
+/// <summary>
+/// Actions available for excel_table_column tool (filter/column/sort)
+/// </summary>
+public enum TableColumnAction
+{
     // Filter Operations
     ApplyFilter,
     ApplyFilterValues,
@@ -281,7 +318,7 @@ public enum TableAction
 }
 
 /// <summary>
-/// Actions available for excel_pivottable tool
+/// Actions available for excel_pivottable tool (lifecycle operations)
 /// </summary>
 public enum PivotTableAction
 {
@@ -292,8 +329,14 @@ public enum PivotTableAction
     CreateFromTable,
     CreateFromDataModel,
     Delete,
-    Refresh,
+    Refresh
+}
 
+/// <summary>
+/// Actions available for excel_pivottable_field tool (field management)
+/// </summary>
+public enum PivotTableFieldAction
+{
     // Field Management
     ListFields,
     AddRowField,
@@ -311,8 +354,14 @@ public enum PivotTableAction
 
     // Grouping Operations
     GroupByDate,
-    GroupByNumeric,
+    GroupByNumeric
+}
 
+/// <summary>
+/// Actions available for excel_pivottable_calc tool (calculated fields/members + layout + data)
+/// </summary>
+public enum PivotTableCalcAction
+{
     // Calculated Fields (for regular PivotTables)
     ListCalculatedFields,
     CreateCalculatedField,
@@ -333,7 +382,7 @@ public enum PivotTableAction
 }
 
 /// <summary>
-/// Actions available for excel_chart tool
+/// Actions available for excel_chart tool (lifecycle)
 /// </summary>
 public enum ChartAction
 {
@@ -343,8 +392,14 @@ public enum ChartAction
     CreateFromRange,
     CreateFromPivotTable,
     Delete,
-    Move,
+    Move
+}
 
+/// <summary>
+/// Actions available for excel_chart_config tool (data source + appearance)
+/// </summary>
+public enum ChartConfigAction
+{
     // Data Source Operations
     SetSourceRange,
     AddSeries,

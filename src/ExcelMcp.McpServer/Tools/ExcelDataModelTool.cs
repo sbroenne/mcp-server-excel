@@ -7,70 +7,39 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
-/// MCP tool for Excel Data Model (Power Pivot) operations - DAX measures, relationships, and data refresh.
+/// MCP tool for Excel Data Model (Power Pivot) - tables and DAX measures.
+/// Use excel_datamodel_rel for relationships.
 /// </summary>
 [McpServerToolType]
 public static partial class ExcelDataModelTool
 {
     /// <summary>
-    /// Manage Excel Power Pivot (Data Model) - DAX measures, relationships, analytical model.
-    ///
-    /// DESTRUCTIVE OPERATIONS WARNING:
-    /// - delete-table: DELETES TABLE AND ALL ITS MEASURES. Measures cannot be recovered. Use list-measures first to see what will be lost.
-    /// - delete-relationship: Removes relationship only (tables and measures preserved).
-    /// - delete-measure: Removes single measure only (table preserved).
-    ///
-    /// KNOWN LIMITATION - rename-table:
-    /// Excel Data Model table names are IMMUTABLE after creation. The rename-table action will return an error explaining this limitation.
-    /// To rename a table, you must delete the existing table and recreate it with the new name (which will also delete any measures on that table).
-    ///
-    /// WHEN STUCK - DO NOT DELETE TABLES. Instead:
-    /// 1. Use list-measures to see current state
-    /// 2. Use update-measure to fix existing measures
-    /// 3. Check DAX formula syntax (common: missing quotes, wrong column references)
-    /// 4. Use list-tables and list-columns to verify names
-    ///
-    /// HIDDEN OBJECTS: Objects marked "Hidden from client tools" in Power Pivot are NOT visible via list-columns, list-relationships, or list-measures. If user reports missing items, ask them to unhide in Power Pivot.
-    ///
-    /// CALCULATED COLUMNS: NOT supported via automation. Suggest using DAX measures instead (measures ARE automated and usually better for aggregations).
-    ///
-    /// TIMEOUT: Operations auto-timeout after 2 minutes to prevent hangs.
+    /// Data Model tables and DAX measures.
+    /// DESTRUCTIVE: DeleteTable removes table AND all measures.
+    /// TIMEOUT: 2 min auto-timeout.
+    /// Related: excel_datamodel_rel (relationships)
     /// </summary>
-    /// <param name="action">Action to perform</param>
-    /// <param name="excelPath">Excel file path (.xlsx or .xlsm)</param>
-    /// <param name="sessionId">Session ID from excel_file 'open' action</param>
-    /// <param name="measureName">Measure name (for read, export-measure, delete-measure, update-measure)</param>
-    /// <param name="tableName">Table name (for create-measure, read-table, delete-table)</param>
-    /// <param name="daxFormula">DAX formula (for create-measure, update-measure)</param>
-    /// <param name="description">Description (for create-measure, update-measure)</param>
-    /// <param name="formatString">Format string (for create-measure, update-measure), e.g., '#,##0.00', '0.00%'</param>
-    /// <param name="newName">New name for table (for rename-table)</param>
-    /// <param name="fromTable">Source table name (for delete-relationship, create-relationship, update-relationship)</param>
-    /// <param name="fromColumn">Source column name (for delete-relationship, create-relationship, update-relationship)</param>
-    /// <param name="toTable">Target table name (for delete-relationship, create-relationship, update-relationship)</param>
-    /// <param name="toColumn">Target column name (for delete-relationship, create-relationship, update-relationship)</param>
-    /// <param name="isActive">Whether relationship is active (for create-relationship, update-relationship), default: true</param>
+    /// <param name="action">Action</param>
+    /// <param name="sid">Session ID</param>
+    /// <param name="mn">Measure name</param>
+    /// <param name="tn">Table name</param>
+    /// <param name="nn">New name (rename-table)</param>
+    /// <param name="dax">DAX formula</param>
+    /// <param name="desc">Description</param>
+    /// <param name="fmt">Format string (#,##0.00)</param>
     [McpServerTool(Name = "excel_datamodel", Title = "Excel Data Model Operations")]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelDataModel(
         DataModelAction action,
-        string excelPath,
-        string sessionId,
-        [DefaultValue(null)] string? measureName,
-        [DefaultValue(null)] string? tableName,
-        [DefaultValue(null)] string? newName,
-        [DefaultValue(null)] string? daxFormula,
-        [DefaultValue(null)] string? description,
-        [DefaultValue(null)] string? formatString,
-        [DefaultValue(null)] string? fromTable,
-        [DefaultValue(null)] string? fromColumn,
-        [DefaultValue(null)] string? toTable,
-        [DefaultValue(null)] string? toColumn,
-        [DefaultValue(null)] bool? isActive)
+        string sid,
+        [DefaultValue(null)] string? mn,
+        [DefaultValue(null)] string? tn,
+        [DefaultValue(null)] string? nn,
+        [DefaultValue(null)] string? dax,
+        [DefaultValue(null)] string? desc,
+        [DefaultValue(null)] string? fmt)
     {
-        _ = excelPath; // retained for schema compatibility (operations require open session)
-
         return ExcelToolsBase.ExecuteToolAction(
             "excel_datamodel",
             action.ToActionString(),
@@ -78,32 +47,20 @@ public static partial class ExcelDataModelTool
             {
                 var dataModelCommands = new DataModelCommands();
 
-                // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
                 return action switch
                 {
-                    // Discovery operations
-                    DataModelAction.ListTables => ListTablesAsync(dataModelCommands, sessionId),
-                    DataModelAction.ListMeasures => ListMeasuresAsync(dataModelCommands, sessionId),
-                    DataModelAction.Read => ReadMeasureAsync(dataModelCommands, sessionId, measureName),
-                    DataModelAction.ListRelationships => ListRelationshipsAsync(dataModelCommands, sessionId),
-                    DataModelAction.ReadRelationship => ReadRelationshipAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn),
-                    DataModelAction.Refresh => RefreshAsync(dataModelCommands, sessionId),
-                    DataModelAction.DeleteMeasure => DeleteMeasureAsync(dataModelCommands, sessionId, measureName),
-                    DataModelAction.DeleteTable => DeleteTableAsync(dataModelCommands, sessionId, tableName),
-                    DataModelAction.RenameTable => RenameTableAsync(dataModelCommands, sessionId, tableName, newName),
-                    DataModelAction.DeleteRelationship => DeleteRelationshipAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn),
-                    DataModelAction.ReadTable => ReadTableAsync(dataModelCommands, sessionId, tableName),
-                    DataModelAction.ListColumns => ListColumnsAsync(dataModelCommands, sessionId, tableName),
-                    DataModelAction.ReadInfo => ReadModelInfoAsync(dataModelCommands, sessionId),
-
-                    // DAX measures (requires Office 2016+)
-                    DataModelAction.CreateMeasure => CreateMeasureComAsync(dataModelCommands, sessionId, tableName, measureName, daxFormula, formatString, description),
-                    DataModelAction.UpdateMeasure => UpdateMeasureComAsync(dataModelCommands, sessionId, measureName, daxFormula, formatString, description),
-
-                    // Relationships (requires Office 2016+)
-                    DataModelAction.CreateRelationship => CreateRelationshipComAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn, isActive),
-                    DataModelAction.UpdateRelationship => UpdateRelationshipComAsync(dataModelCommands, sessionId, fromTable, fromColumn, toTable, toColumn, isActive),
-
+                    DataModelAction.ListTables => ListTablesAsync(dataModelCommands, sid),
+                    DataModelAction.ListMeasures => ListMeasuresAsync(dataModelCommands, sid),
+                    DataModelAction.Read => ReadMeasureAsync(dataModelCommands, sid, mn),
+                    DataModelAction.Refresh => RefreshAsync(dataModelCommands, sid),
+                    DataModelAction.DeleteMeasure => DeleteMeasureAsync(dataModelCommands, sid, mn),
+                    DataModelAction.DeleteTable => DeleteTableAsync(dataModelCommands, sid, tn),
+                    DataModelAction.RenameTable => RenameTableAsync(dataModelCommands, sid, tn, nn),
+                    DataModelAction.ReadTable => ReadTableAsync(dataModelCommands, sid, tn),
+                    DataModelAction.ListColumns => ListColumnsAsync(dataModelCommands, sid, tn),
+                    DataModelAction.ReadInfo => ReadModelInfoAsync(dataModelCommands, sid),
+                    DataModelAction.CreateMeasure => CreateMeasureComAsync(dataModelCommands, sid, tn, mn, dax, fmt, desc),
+                    DataModelAction.UpdateMeasure => UpdateMeasureComAsync(dataModelCommands, sid, mn, dax, fmt, desc),
                     _ => throw new ArgumentException(
                         $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
@@ -181,47 +138,6 @@ public static partial class ExcelDataModelTool
             result.MeasureName,
             result.DaxFormula,
             result.TableName,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string ListRelationshipsAsync(DataModelCommands commands, string sessionId)
-    {
-        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.ListRelationships(batch));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.Relationships,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string ReadRelationshipAsync(DataModelCommands commands, string sessionId, string? fromTable, string? fromColumn, string? toTable, string? toColumn)
-    {
-        if (string.IsNullOrWhiteSpace(fromTable))
-        {
-            throw new ArgumentException("Parameter 'fromTable' is required for read-relationship action", nameof(fromTable));
-        }
-        if (string.IsNullOrWhiteSpace(fromColumn))
-        {
-            throw new ArgumentException("Parameter 'fromColumn' is required for read-relationship action", nameof(fromColumn));
-        }
-        if (string.IsNullOrWhiteSpace(toTable))
-        {
-            throw new ArgumentException("Parameter 'toTable' is required for read-relationship action", nameof(toTable));
-        }
-        if (string.IsNullOrWhiteSpace(toColumn))
-        {
-            throw new ArgumentException("Parameter 'toColumn' is required for read-relationship action", nameof(toColumn));
-        }
-
-        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.ReadRelationship(batch, fromTable, fromColumn, toTable, toColumn));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.Relationship,
             result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }
@@ -335,52 +251,6 @@ public static partial class ExcelDataModelTool
             result.ErrorMessage,
             isError = !result.Success
         }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string DeleteRelationshipAsync(DataModelCommands commands, string sessionId,
-        string? fromTable, string? fromColumn, string? toTable, string? toColumn)
-    {
-        if (string.IsNullOrWhiteSpace(fromTable))
-        {
-            throw new ArgumentException("Parameter 'fromTable' is required for delete-relationship action", nameof(fromTable));
-        }
-
-        if (string.IsNullOrWhiteSpace(fromColumn))
-        {
-            throw new ArgumentException("Parameter 'fromColumn' is required for delete-relationship action", nameof(fromColumn));
-        }
-
-        if (string.IsNullOrWhiteSpace(toTable))
-        {
-            throw new ArgumentException("Parameter 'toTable' is required for delete-relationship action", nameof(toTable));
-        }
-
-        if (string.IsNullOrWhiteSpace(toColumn))
-        {
-            throw new ArgumentException("Parameter 'toColumn' is required for delete-relationship action", nameof(toColumn));
-        }
-
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch => { commands.DeleteRelationship(batch, fromTable, fromColumn, toTable, toColumn); return 0; });
-
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                message = $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} deleted successfully"
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string ReadTableAsync(DataModelCommands commands, string sessionId,
@@ -532,101 +402,4 @@ public static partial class ExcelDataModelTool
         }
     }
 
-    private static string CreateRelationshipComAsync(DataModelCommands commands,
-        string sessionId, string? fromTable, string? fromColumn, string? toTable, string? toColumn, bool? isActive)
-    {
-        if (string.IsNullOrWhiteSpace(fromTable))
-        {
-            throw new ArgumentException("Parameter 'fromTable' is required for create-relationship action", nameof(fromTable));
-        }
-
-        if (string.IsNullOrWhiteSpace(fromColumn))
-        {
-            throw new ArgumentException("Parameter 'fromColumn' is required for create-relationship action", nameof(fromColumn));
-        }
-
-        if (string.IsNullOrWhiteSpace(toTable))
-        {
-            throw new ArgumentException("Parameter 'toTable' is required for create-relationship action", nameof(toTable));
-        }
-
-        if (string.IsNullOrWhiteSpace(toColumn))
-        {
-            throw new ArgumentException("Parameter 'toColumn' is required for create-relationship action", nameof(toColumn));
-        }
-
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch => { commands.CreateRelationship(batch, fromTable, fromColumn, toTable, toColumn, isActive ?? true); return 0; });
-
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                message = $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} created successfully"
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
-    }
-
-    private static string UpdateRelationshipComAsync(DataModelCommands commands,
-        string sessionId, string? fromTable, string? fromColumn, string? toTable, string? toColumn, bool? isActive)
-    {
-        if (string.IsNullOrWhiteSpace(fromTable))
-        {
-            throw new ArgumentException("Parameter 'fromTable' is required for update-relationship action", nameof(fromTable));
-        }
-
-        if (string.IsNullOrWhiteSpace(fromColumn))
-        {
-            throw new ArgumentException("Parameter 'fromColumn' is required for update-relationship action", nameof(fromColumn));
-        }
-
-        if (string.IsNullOrWhiteSpace(toTable))
-        {
-            throw new ArgumentException("Parameter 'toTable' is required for update-relationship action", nameof(toTable));
-        }
-
-        if (string.IsNullOrWhiteSpace(toColumn))
-        {
-            throw new ArgumentException("Parameter 'toColumn' is required for update-relationship action", nameof(toColumn));
-        }
-
-        if (!isActive.HasValue)
-        {
-            throw new ArgumentException("Parameter 'isActive' is required for update-relationship action", nameof(isActive));
-        }
-
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch => { commands.UpdateRelationship(batch, fromTable, fromColumn, toTable, toColumn, isActive.Value); return 0; });
-
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                message = $"Relationship from {fromTable}.{fromColumn} to {toTable}.{toColumn} updated successfully"
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
-    }
 }
-

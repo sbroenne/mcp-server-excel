@@ -30,10 +30,10 @@ public static class ExcelToolsBase
     /// - DefaultIgnoreCondition = WhenWritingNull: Omits null properties
     /// - PropertyNamingPolicy = CamelCase: Consistent naming
     /// - JsonStringEnumConverter: Human-readable enum values
-    /// 
+    ///
     /// Property names use [JsonPropertyName] attributes on result types:
     /// - ok: Success
-    /// - err: ErrorMessage  
+    /// - err: ErrorMessage
     /// - fp: FilePath
     /// - act: Action
     /// </remarks>

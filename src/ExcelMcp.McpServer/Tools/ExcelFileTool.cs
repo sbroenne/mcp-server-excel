@@ -12,61 +12,29 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 public static partial class ExcelFileTool
 {
     /// <summary>
-    /// Manage Excel files and sessions.
-    ///
-    /// SESSION VERIFICATION (use instead of calling other tools):
-    /// - LIST - Returns all active sessions with status (activeOperations, canClose, isExcelVisible)
-    /// - Use to check if operations are still running before attempting close
-    /// - Use to recover sessionId if lost
-    ///
-    /// SESSION LIFECYCLE:
-    /// 1. OPEN - Start session, get sessionId
-    /// 2. OPERATE - Use sessionId with other tools
-    /// 3. CLOSE - End session (use save:true parameter to persist changes)
-    ///
-    /// IMPORTANT: NO 'SAVE' ACTION - Use action='close' with save:true to persist changes
-    ///
-    /// OPERATION TRACKING (automatic protection):
-    /// - Server tracks active operations per session
-    /// - Close is BLOCKED if operations are still running
-    /// - Use LIST to check activeOperations count before closing
-    /// - Wait for canClose=true before closing
-    ///
-    /// WHEN showExcel=true - ASK BEFORE CLOSING:
-    /// - If Excel is visible (isExcelVisible=true in LIST), the user is actively watching
-    /// - ALWAYS ask user before closing: "Would you like me to save and close, or keep it open?"
-    /// - User may want to inspect results, make manual changes, or continue working
-    /// - Do NOT auto-close visible Excel sessions
-    ///
-    /// WORKFLOWS:
-    /// - Verify session: list → check sessionId exists
-    /// - Check before close: list → verify canClose=true → close
-    /// - Persist changes: open → operations(sessionId) → close(save: true)
-    /// - Discard changes: open → operations(sessionId) → close(save: false)
-    ///
-    /// FILE FORMATS:
-    /// - .xlsx: Standard Excel workbook
-    /// - .xlsm: Macro-enabled workbook
+    /// File/session management. Lifecycle: Open→sid→use with other tools→Close(save:true).
+    /// List returns activeOperations - wait for canClose=true before closing.
+    /// If show=true, ask user before closing visible sessions.
     /// </summary>
-    /// <param name="action">Action to perform</param>
-    /// <param name="excelPath">Excel file path (.xlsx or .xlsm) - required for open/create-empty, not used for close</param>
-    /// <param name="sessionId">Session ID from 'open' action - required for close</param>
-    /// <param name="save">Save changes before closing (default: false)</param>
-    /// <param name="showExcel">Show Excel window during operations. DEFAULT: false (hidden, faster). Only set true if user explicitly requests to watch changes.</param>
+    /// <param name="action">Action</param>
+    /// <param name="path">File path (.xlsx/.xlsm)</param>
+    /// <param name="sid">Session ID from open</param>
+    /// <param name="save">Save on close</param>
+    /// <param name="show">Show Excel window</param>
     [McpServerTool(Name = "excel_file", Title = "Excel File Operations")]
     [McpMeta("category", "session")]
     [McpMeta("requiresSession", false)]
     public static partial string ExcelFile(
         FileAction action,
-        [DefaultValue(null)] string? excelPath,
-        [DefaultValue(null)] string? sessionId,
+        [DefaultValue(null)] string? path,
+        [DefaultValue(null)] string? sid,
         [DefaultValue(false)] bool save,
-        [DefaultValue(false)] bool showExcel)
+        [DefaultValue(false)] bool show)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_file",
             action.ToActionString(),
-            excelPath,
+            path,
             () =>
             {
                 var fileCommands = new FileCommands();
@@ -75,12 +43,12 @@ public static partial class ExcelFileTool
                 return action switch
                 {
                     FileAction.List => ListSessions(),
-                    FileAction.Open => OpenSessionAsync(excelPath!, showExcel),
-                    FileAction.Close => CloseSessionAsync(sessionId!, save),
-                    FileAction.CreateEmpty => CreateEmptyFileAsync(fileCommands, excelPath!,
-                        excelPath!.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase)),
-                    FileAction.CloseWorkbook => CloseWorkbook(excelPath!),
-                    FileAction.Test => TestFileAsync(fileCommands, excelPath!),
+                    FileAction.Open => OpenSessionAsync(path!, show),
+                    FileAction.Close => CloseSessionAsync(sid!, save),
+                    FileAction.CreateEmpty => CreateEmptyFileAsync(fileCommands, path!,
+                        path!.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase)),
+                    FileAction.CloseWorkbook => CloseWorkbook(path!),
+                    FileAction.Test => TestFileAsync(fileCommands, path!),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });

@@ -73,7 +73,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         _ = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
             ["action"] = "CreateEmpty",
-            ["excelPath"] = _testExcelFile
+            ["path"] = _testExcelFile
         });
         _output.WriteLine($"Created test file: {_testExcelFile}");
     }
@@ -169,8 +169,8 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         var openResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
             ["action"] = "Open",
-            ["excelPath"] = _testExcelFile,
-            ["showExcel"] = false
+            ["path"] = _testExcelFile,
+            ["show"] = false
         });
 
         Assert.True(openResult.GetProperty("success").GetBoolean());
@@ -205,7 +205,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
             await CallToolAsync("excel_file", new Dictionary<string, object?>
             {
                 ["action"] = "Close",
-                ["sessionId"] = sessionId,
+                ["sid"] = sessionId,
                 ["save"] = false
             });
         }
@@ -214,12 +214,12 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
     [Fact]
     public async Task List_SessionWithShowExcelTrue_ReturnsIsExcelVisibleTrue()
     {
-        // Open a session with showExcel=true
+        // Open a session with show=true
         var openResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
             ["action"] = "Open",
-            ["excelPath"] = _testExcelFile,
-            ["showExcel"] = true
+            ["path"] = _testExcelFile,
+            ["show"] = true
         });
 
         Assert.True(openResult.GetProperty("success").GetBoolean());
@@ -242,7 +242,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
             await CallToolAsync("excel_file", new Dictionary<string, object?>
             {
                 ["action"] = "Close",
-                ["sessionId"] = sessionId,
+                ["sid"] = sessionId,
                 ["save"] = false
             });
         }
@@ -259,8 +259,8 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         var openResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
             ["action"] = "Open",
-            ["excelPath"] = _testExcelFile,
-            ["showExcel"] = false
+            ["path"] = _testExcelFile,
+            ["show"] = false
         });
 
         var sessionId = openResult.GetProperty("sessionId").GetString();
@@ -269,7 +269,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         var closeResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
             ["action"] = "Close",
-            ["sessionId"] = sessionId,
+            ["sid"] = sessionId,
             ["save"] = false
         });
 
@@ -290,7 +290,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         var closeResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
             ["action"] = "Close",
-            ["sessionId"] = "nonexistent-session-id",
+            ["sid"] = "nonexistent-session-id",
             ["save"] = false
         });
 

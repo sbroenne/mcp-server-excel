@@ -12,10 +12,10 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 public static partial class ExcelNamedRangeTool
 {
     /// <summary>
-    /// Manage Excel named ranges - named cell references for reusable formulas and parameters.
-    /// CREATE/UPDATE: value is a cell reference (e.g., 'Sheet1!A1' or 'Sheet1!$A$1:$B$10'). Use $ for absolute references that won't shift when copied.
-    /// WRITE: value is the actual data to store in the named range's cell(s).
-    /// TIP: Use excel_range with rangeAddress=namedRangeName for bulk data operations on named ranges.
+    /// Named ranges for formulas/parameters.
+    /// CREATE/UPDATE: value is cell reference (e.g., 'Sheet1!$A$1').
+    /// WRITE: value is data to store.
+    /// TIP: excel_range(rangeAddress=namedRangeName) for bulk data.
     /// </summary>
     /// <param name="action">Action to perform</param>
     /// <param name="excelPath">Excel file path (.xlsx or .xlsm)</param>

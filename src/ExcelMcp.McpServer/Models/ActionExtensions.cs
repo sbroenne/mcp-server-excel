@@ -44,15 +44,20 @@ public static class ActionExtensions
         WorksheetAction.Move => "move",
         WorksheetAction.CopyToFile => "copy-to-file",
         WorksheetAction.MoveToFile => "move-to-file",
-        WorksheetAction.SetTabColor => "set-tab-color",
-        WorksheetAction.GetTabColor => "get-tab-color",
-        WorksheetAction.ClearTabColor => "clear-tab-color",
-        WorksheetAction.Hide => "hide",
-        WorksheetAction.VeryHide => "very-hide",
-        WorksheetAction.Show => "show",
-        WorksheetAction.GetVisibility => "get-visibility",
-        WorksheetAction.SetVisibility => "set-visibility",
         _ => throw new ArgumentException($"Unknown WorksheetAction: {action}")
+    };
+
+    public static string ToActionString(this WorksheetStyleAction action) => action switch
+    {
+        WorksheetStyleAction.SetTabColor => "set-tab-color",
+        WorksheetStyleAction.GetTabColor => "get-tab-color",
+        WorksheetStyleAction.ClearTabColor => "clear-tab-color",
+        WorksheetStyleAction.Hide => "hide",
+        WorksheetStyleAction.VeryHide => "very-hide",
+        WorksheetStyleAction.Show => "show",
+        WorksheetStyleAction.GetVisibility => "get-visibility",
+        WorksheetStyleAction.SetVisibility => "set-visibility",
+        _ => throw new ArgumentException($"Unknown WorksheetStyleAction: {action}")
     };
 
     public static string ToActionString(this RangeAction action) => action switch
@@ -70,36 +75,51 @@ public static class ActionExtensions
         RangeAction.Copy => "copy",
         RangeAction.CopyValues => "copy-values",
         RangeAction.CopyFormulas => "copy-formulas",
-        RangeAction.InsertCells => "insert-cells",
-        RangeAction.DeleteCells => "delete-cells",
-        RangeAction.InsertRows => "insert-rows",
-        RangeAction.DeleteRows => "delete-rows",
-        RangeAction.InsertColumns => "insert-columns",
-        RangeAction.DeleteColumns => "delete-columns",
-        RangeAction.Find => "find",
-        RangeAction.Replace => "replace",
-        RangeAction.Sort => "sort",
         RangeAction.GetUsedRange => "get-used-range",
         RangeAction.GetCurrentRegion => "get-current-region",
         RangeAction.GetInfo => "get-info",
-        RangeAction.AddHyperlink => "add-hyperlink",
-        RangeAction.RemoveHyperlink => "remove-hyperlink",
-        RangeAction.ListHyperlinks => "list-hyperlinks",
-        RangeAction.GetHyperlink => "get-hyperlink",
-        RangeAction.GetStyle => "get-style",
-        RangeAction.SetStyle => "set-style",
-        RangeAction.FormatRange => "format-range",
-        RangeAction.ValidateRange => "validate-range",
-        RangeAction.GetValidation => "get-validation",
-        RangeAction.RemoveValidation => "remove-validation",
-        RangeAction.AutoFitColumns => "auto-fit-columns",
-        RangeAction.AutoFitRows => "auto-fit-rows",
-        RangeAction.MergeCells => "merge-cells",
-        RangeAction.UnmergeCells => "unmerge-cells",
-        RangeAction.GetMergeInfo => "get-merge-info",
-        RangeAction.SetCellLock => "set-cell-lock",
-        RangeAction.GetCellLock => "get-cell-lock",
         _ => throw new ArgumentException($"Unknown RangeAction: {action}")
+    };
+
+    public static string ToActionString(this RangeEditAction action) => action switch
+    {
+        RangeEditAction.InsertCells => "insert-cells",
+        RangeEditAction.DeleteCells => "delete-cells",
+        RangeEditAction.InsertRows => "insert-rows",
+        RangeEditAction.DeleteRows => "delete-rows",
+        RangeEditAction.InsertColumns => "insert-columns",
+        RangeEditAction.DeleteColumns => "delete-columns",
+        RangeEditAction.Find => "find",
+        RangeEditAction.Replace => "replace",
+        RangeEditAction.Sort => "sort",
+        _ => throw new ArgumentException($"Unknown RangeEditAction: {action}")
+    };
+
+    public static string ToActionString(this RangeFormatAction action) => action switch
+    {
+        RangeFormatAction.GetStyle => "get-style",
+        RangeFormatAction.SetStyle => "set-style",
+        RangeFormatAction.FormatRange => "format-range",
+        RangeFormatAction.ValidateRange => "validate-range",
+        RangeFormatAction.GetValidation => "get-validation",
+        RangeFormatAction.RemoveValidation => "remove-validation",
+        RangeFormatAction.AutoFitColumns => "auto-fit-columns",
+        RangeFormatAction.AutoFitRows => "auto-fit-rows",
+        RangeFormatAction.MergeCells => "merge-cells",
+        RangeFormatAction.UnmergeCells => "unmerge-cells",
+        RangeFormatAction.GetMergeInfo => "get-merge-info",
+        _ => throw new ArgumentException($"Unknown RangeFormatAction: {action}")
+    };
+
+    public static string ToActionString(this RangeLinkAction action) => action switch
+    {
+        RangeLinkAction.AddHyperlink => "add-hyperlink",
+        RangeLinkAction.RemoveHyperlink => "remove-hyperlink",
+        RangeLinkAction.ListHyperlinks => "list-hyperlinks",
+        RangeLinkAction.GetHyperlink => "get-hyperlink",
+        RangeLinkAction.SetCellLock => "set-cell-lock",
+        RangeLinkAction.GetCellLock => "get-cell-lock",
+        _ => throw new ArgumentException($"Unknown RangeLinkAction: {action}")
     };
 
     public static string ToActionString(this NamedRangeAction action) => action switch
@@ -157,14 +177,19 @@ public static class ActionExtensions
         DataModelAction.DeleteMeasure => "delete-measure",
         DataModelAction.RenameTable => "rename-table",
         DataModelAction.DeleteTable => "delete-table",
-        DataModelAction.ListRelationships => "list-relationships",
-        DataModelAction.ReadRelationship => "read-relationship",
-        DataModelAction.CreateRelationship => "create-relationship",
-        DataModelAction.UpdateRelationship => "update-relationship",
-        DataModelAction.DeleteRelationship => "delete-relationship",
         DataModelAction.ReadInfo => "read-info",
         DataModelAction.Refresh => "refresh",
         _ => throw new ArgumentException($"Unknown DataModelAction: {action}")
+    };
+
+    public static string ToActionString(this DataModelRelAction action) => action switch
+    {
+        DataModelRelAction.ListRelationships => "list-relationships",
+        DataModelRelAction.ReadRelationship => "read-relationship",
+        DataModelRelAction.CreateRelationship => "create-relationship",
+        DataModelRelAction.UpdateRelationship => "update-relationship",
+        DataModelRelAction.DeleteRelationship => "delete-relationship",
+        _ => throw new ArgumentException($"Unknown DataModelRelAction: {action}")
     };
 
     public static string ToActionString(this TableAction action) => action switch
@@ -181,19 +206,24 @@ public static class ActionExtensions
         TableAction.Append => "append",
         TableAction.GetData => "get-data",
         TableAction.AddToDataModel => "add-to-datamodel",
-        TableAction.ApplyFilter => "apply-filter",
-        TableAction.ApplyFilterValues => "apply-filter-values",
-        TableAction.ClearFilters => "clear-filters",
-        TableAction.GetFilters => "get-filters",
-        TableAction.AddColumn => "add-column",
-        TableAction.RemoveColumn => "remove-column",
-        TableAction.RenameColumn => "rename-column",
-        TableAction.GetStructuredReference => "get-structured-reference",
-        TableAction.Sort => "sort",
-        TableAction.SortMulti => "sort-multi",
-        TableAction.GetColumnNumberFormat => "get-column-number-format",
-        TableAction.SetColumnNumberFormat => "set-column-number-format",
         _ => throw new ArgumentException($"Unknown TableAction: {action}")
+    };
+
+    public static string ToActionString(this TableColumnAction action) => action switch
+    {
+        TableColumnAction.ApplyFilter => "apply-filter",
+        TableColumnAction.ApplyFilterValues => "apply-filter-values",
+        TableColumnAction.ClearFilters => "clear-filters",
+        TableColumnAction.GetFilters => "get-filters",
+        TableColumnAction.AddColumn => "add-column",
+        TableColumnAction.RemoveColumn => "remove-column",
+        TableColumnAction.RenameColumn => "rename-column",
+        TableColumnAction.GetStructuredReference => "get-structured-reference",
+        TableColumnAction.Sort => "sort",
+        TableColumnAction.SortMulti => "sort-multi",
+        TableColumnAction.GetColumnNumberFormat => "get-column-number-format",
+        TableColumnAction.SetColumnNumberFormat => "set-column-number-format",
+        _ => throw new ArgumentException($"Unknown TableColumnAction: {action}")
     };
 
     public static string ToActionString(this PivotTableAction action) => action switch
@@ -205,30 +235,40 @@ public static class ActionExtensions
         PivotTableAction.CreateFromDataModel => "create-from-datamodel",
         PivotTableAction.Delete => "delete",
         PivotTableAction.Refresh => "refresh",
-        PivotTableAction.ListFields => "list-fields",
-        PivotTableAction.AddRowField => "add-row-field",
-        PivotTableAction.AddColumnField => "add-column-field",
-        PivotTableAction.AddValueField => "add-value-field",
-        PivotTableAction.AddFilterField => "add-filter-field",
-        PivotTableAction.RemoveField => "remove-field",
-        PivotTableAction.SetFieldFunction => "set-field-function",
-        PivotTableAction.SetFieldName => "set-field-name",
-        PivotTableAction.SetFieldFormat => "set-field-format",
-        PivotTableAction.SetFieldFilter => "set-field-filter",
-        PivotTableAction.SortField => "sort-field",
-        PivotTableAction.GroupByDate => "group-by-date",
-        PivotTableAction.GroupByNumeric => "group-by-numeric",
-        PivotTableAction.ListCalculatedFields => "list-calculated-fields",
-        PivotTableAction.CreateCalculatedField => "create-calculated-field",
-        PivotTableAction.DeleteCalculatedField => "delete-calculated-field",
-        PivotTableAction.ListCalculatedMembers => "list-calculated-members",
-        PivotTableAction.CreateCalculatedMember => "create-calculated-member",
-        PivotTableAction.DeleteCalculatedMember => "delete-calculated-member",
-        PivotTableAction.SetLayout => "set-layout",
-        PivotTableAction.SetSubtotals => "set-subtotals",
-        PivotTableAction.SetGrandTotals => "set-grand-totals",
-        PivotTableAction.GetData => "get-data",
         _ => throw new ArgumentException($"Unknown PivotTableAction: {action}")
+    };
+
+    public static string ToActionString(this PivotTableFieldAction action) => action switch
+    {
+        PivotTableFieldAction.ListFields => "list-fields",
+        PivotTableFieldAction.AddRowField => "add-row-field",
+        PivotTableFieldAction.AddColumnField => "add-column-field",
+        PivotTableFieldAction.AddValueField => "add-value-field",
+        PivotTableFieldAction.AddFilterField => "add-filter-field",
+        PivotTableFieldAction.RemoveField => "remove-field",
+        PivotTableFieldAction.SetFieldFunction => "set-field-function",
+        PivotTableFieldAction.SetFieldName => "set-field-name",
+        PivotTableFieldAction.SetFieldFormat => "set-field-format",
+        PivotTableFieldAction.SetFieldFilter => "set-field-filter",
+        PivotTableFieldAction.SortField => "sort-field",
+        PivotTableFieldAction.GroupByDate => "group-by-date",
+        PivotTableFieldAction.GroupByNumeric => "group-by-numeric",
+        _ => throw new ArgumentException($"Unknown PivotTableFieldAction: {action}")
+    };
+
+    public static string ToActionString(this PivotTableCalcAction action) => action switch
+    {
+        PivotTableCalcAction.ListCalculatedFields => "list-calculated-fields",
+        PivotTableCalcAction.CreateCalculatedField => "create-calculated-field",
+        PivotTableCalcAction.DeleteCalculatedField => "delete-calculated-field",
+        PivotTableCalcAction.ListCalculatedMembers => "list-calculated-members",
+        PivotTableCalcAction.CreateCalculatedMember => "create-calculated-member",
+        PivotTableCalcAction.DeleteCalculatedMember => "delete-calculated-member",
+        PivotTableCalcAction.SetLayout => "set-layout",
+        PivotTableCalcAction.SetSubtotals => "set-subtotals",
+        PivotTableCalcAction.SetGrandTotals => "set-grand-totals",
+        PivotTableCalcAction.GetData => "get-data",
+        _ => throw new ArgumentException($"Unknown PivotTableCalcAction: {action}")
     };
 
     public static string ToActionString(this ChartAction action) => action switch
@@ -239,15 +279,20 @@ public static class ActionExtensions
         ChartAction.CreateFromPivotTable => "create-from-pivottable",
         ChartAction.Delete => "delete",
         ChartAction.Move => "move",
-        ChartAction.SetSourceRange => "set-source-range",
-        ChartAction.AddSeries => "add-series",
-        ChartAction.RemoveSeries => "remove-series",
-        ChartAction.SetChartType => "set-chart-type",
-        ChartAction.SetTitle => "set-title",
-        ChartAction.SetAxisTitle => "set-axis-title",
-        ChartAction.ShowLegend => "show-legend",
-        ChartAction.SetStyle => "set-style",
         _ => throw new ArgumentException($"Unknown ChartAction: {action}")
+    };
+
+    public static string ToActionString(this ChartConfigAction action) => action switch
+    {
+        ChartConfigAction.SetSourceRange => "set-source-range",
+        ChartConfigAction.AddSeries => "add-series",
+        ChartConfigAction.RemoveSeries => "remove-series",
+        ChartConfigAction.SetChartType => "set-chart-type",
+        ChartConfigAction.SetTitle => "set-title",
+        ChartConfigAction.SetAxisTitle => "set-axis-title",
+        ChartConfigAction.ShowLegend => "show-legend",
+        ChartConfigAction.SetStyle => "set-style",
+        _ => throw new ArgumentException($"Unknown ChartConfigAction: {action}")
     };
 }
 
