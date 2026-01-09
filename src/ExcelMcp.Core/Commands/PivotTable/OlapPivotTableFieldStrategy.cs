@@ -175,7 +175,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 Area = PivotFieldArea.Row,
                 Position = Convert.ToInt32(cubeField.Position),
                 DataType = "Cube",
-                AvailableValues = new List<string>(), // OLAP doesn't provide unique values like Regular
+                AvailableValues = [],
                 FilePath = workbookPath
             };
         }
@@ -230,7 +230,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 Area = PivotFieldArea.Column,
                 Position = Convert.ToInt32(cubeField.Position),
                 DataType = "Cube",
-                AvailableValues = new List<string>(),
+                AvailableValues = [],
                 FilePath = workbookPath
             };
         }
@@ -536,7 +536,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 Area = PivotFieldArea.Filter,
                 Position = Convert.ToInt32(cubeField.Position),
                 DataType = "Cube",
-                AvailableValues = new List<string>(),
+                AvailableValues = [],
                 FilePath = workbookPath
             };
         }

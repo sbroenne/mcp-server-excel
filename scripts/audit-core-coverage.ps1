@@ -184,11 +184,34 @@ function Find-InterfaceForEnum {
 
     # Map enum type to expected interface name
     # Pattern: PowerQueryAction -> IPowerQueryCommands
-    # Special case: WorksheetAction -> ISheetCommands
+    # Special cases and sub-tool mappings
 
     $enumToInterface = @{
-        "WorksheetAction" = "ISheetCommands"  # Known exception
+        # Known naming exceptions
+        "WorksheetAction" = "ISheetCommands"
         "ConditionalFormatAction" = "IConditionalFormattingCommands"
+        
+        # Sub-tool enums that map to parent interfaces
+        # Range sub-tools (all map to IRangeCommands)
+        "RangeEditAction" = "IRangeCommands"
+        "RangeFormatAction" = "IRangeCommands"
+        "RangeLinkAction" = "IRangeCommands"
+        
+        # Worksheet sub-tools (all map to ISheetCommands)
+        "WorksheetStyleAction" = "ISheetCommands"
+        
+        # DataModel sub-tools (all map to IDataModelCommands)
+        "DataModelRelAction" = "IDataModelCommands"
+        
+        # Table sub-tools (all map to ITableCommands)
+        "TableColumnAction" = "ITableCommands"
+        
+        # PivotTable sub-tools (all map to IPivotTableCommands)
+        "PivotTableFieldAction" = "IPivotTableCommands"
+        "PivotTableCalcAction" = "IPivotTableCommands"
+        
+        # Chart sub-tools (all map to IChartCommands)
+        "ChartConfigAction" = "IChartCommands"
     }
 
     if ($enumToInterface.ContainsKey($EnumType)) {
@@ -230,37 +253,61 @@ foreach ($enumType in $enumTypes) {
     }
 }
 
+# Group interfaces by interface name (multiple enums can map to same interface)
+$groupedInterfaces = @{}
+foreach ($interface in $interfaces) {
+    $key = $interface.Name
+    if (-not $groupedInterfaces.ContainsKey($key)) {
+        $groupedInterfaces[$key] = @{
+            Name = $interface.Name
+            Path = $interface.Path
+            Enums = @()
+        }
+    }
+    $groupedInterfaces[$key].Enums += $interface.Enum
+}
+
 # Track results
 $results = @()
 $totalCoreMethods = 0
 $totalEnumValues = 0
 $hasGaps = $false
 
-# Audit each interface
-foreach ($interface in $interfaces) {
-    $coreMethods = Count-CoreMethods -InterfacePath $interface.Path -InterfaceName $interface.Name
-    $enumValues = Count-EnumValues -EnumName $interface.Enum -ToolActionsPath $toolActionsPath
+# Audit each interface (aggregating all related enums)
+foreach ($key in $groupedInterfaces.Keys) {
+    $interfaceGroup = $groupedInterfaces[$key]
+    $coreMethods = Count-CoreMethods -InterfacePath $interfaceGroup.Path -InterfaceName $interfaceGroup.Name
+    
+    # Sum enum values across ALL enums that map to this interface
+    $totalEnumValuesForInterface = 0
+    $enumNames = @()
+    foreach ($enumName in $interfaceGroup.Enums) {
+        $enumCount = Count-EnumValues -EnumName $enumName -ToolActionsPath $toolActionsPath
+        $totalEnumValuesForInterface += $enumCount
+        $enumNames += "$enumName($enumCount)"
+    }
 
     $totalCoreMethods += $coreMethods
-    $totalEnumValues += $enumValues
+    $totalEnumValues += $totalEnumValuesForInterface
 
     $status = "✅"
     $statusText = "OK"
 
-    if ($enumValues -lt $coreMethods) {
+    if ($totalEnumValuesForInterface -lt $coreMethods) {
         $status = "❌"
         $statusText = "GAP"
         $hasGaps = $true
-    } elseif ($enumValues -gt $coreMethods) {
+    } elseif ($totalEnumValuesForInterface -gt $coreMethods) {
         $status = "⚠️"
         $statusText = "EXTRA"
     }
 
     $result = [PSCustomObject]@{
-        Interface = $interface.Name
+        Interface = $interfaceGroup.Name
         CoreMethods = $coreMethods
-        EnumValues = $enumValues
-        Gap = $coreMethods - $enumValues
+        EnumValues = $totalEnumValuesForInterface
+        Enums = ($interfaceGroup.Enums -join ", ")
+        Gap = $coreMethods - $totalEnumValuesForInterface
         Status = $status
         StatusText = $statusText
     }
@@ -268,9 +315,9 @@ foreach ($interface in $interfaces) {
     $results += $result
 
     if ($Verbose) {
-        Write-Host "Checking $($interface.Name)..." -ForegroundColor Gray
+        Write-Host "Checking $($interfaceGroup.Name)..." -ForegroundColor Gray
         Write-Host "  Core Methods: $coreMethods" -ForegroundColor Gray
-        Write-Host "  Enum Values: $enumValues" -ForegroundColor Gray
+        Write-Host "  Enum Values: $totalEnumValuesForInterface (from: $($enumNames -join ', '))" -ForegroundColor Gray
         Write-Host "  Status: $status $statusText" -ForegroundColor $(if ($statusText -eq "OK") { "Green" } elseif ($statusText -eq "GAP") { "Red" } else { "Yellow" })
         Write-Host ""
     }
@@ -280,7 +327,7 @@ foreach ($interface in $interfaces) {
 Write-Host ""
 Write-Host "Audit Results:" -ForegroundColor Cyan
 Write-Host ""
-$results | Format-Table -Property Interface, CoreMethods, EnumValues, Gap, Status -AutoSize
+$results | Format-Table -Property Interface, CoreMethods, EnumValues, Enums, Gap, Status -AutoSize
 
 # Summary
 Write-Host ""
@@ -349,16 +396,53 @@ if ($CheckNaming) {
     Write-Host "===========================" -ForegroundColor Cyan
     Write-Host ""
 
+    # Sub-tool enums are intentionally subsets of parent interface - skip naming check
+    # These enums only contain a subset of the parent interface methods by design
+    $subToolEnums = @(
+        "RangeEditAction", "RangeFormatAction", "RangeLinkAction",  # IRangeCommands sub-tools
+        "WorksheetStyleAction",  # ISheetCommands sub-tools
+        "DataModelRelAction",  # IDataModelCommands sub-tools
+        "TableColumnAction",  # ITableCommands sub-tools
+        "PivotTableFieldAction", "PivotTableCalcAction",  # IPivotTableCommands sub-tools
+        "ChartConfigAction"  # IChartCommands sub-tools
+    )
+
     # Known intentional exceptions (documented in CORE-METHOD-RENAMING-SUMMARY.md)
+    # Also includes methods that moved to sub-tool enums
     $knownExceptions = @{
-        "TableAction" = @("ApplyFilterValues", "SortMulti")  # Method overloads
+        "TableAction" = @("ApplyFilterValues", "SortMulti", "ApplyFilter", "ClearFilters", "GetFilters", 
+                          "AddColumn", "RemoveColumn", "RenameColumn", "GetStructuredReference", "Sort",
+                          "GetColumnNumberFormat", "SetColumnNumberFormat")  # Methods moved to TableColumnAction
         "FileAction" = @("CloseWorkbook", "Open", "Save", "Close", "List")  # MCP-specific session actions
-        "RangeAction" = @("SetNumberFormatCustom")  # MCP action name differs: SetNumberFormatCustom → SetNumberFormat (Core)
+        "RangeAction" = @("SetNumberFormatCustom", "InsertCells", "DeleteCells", "InsertRows", "DeleteRows",
+                          "InsertColumns", "DeleteColumns", "Find", "Replace", "Sort",
+                          "AddHyperlink", "RemoveHyperlink", "ListHyperlinks", "GetHyperlink",
+                          "SetStyle", "GetStyle", "FormatRange", "ValidateRange", "GetValidation", "RemoveValidation",
+                          "AutoFitColumns", "AutoFitRows", "MergeCells", "UnmergeCells", "GetMergeInfo",
+                          "SetCellLock", "GetCellLock")  # Methods moved to RangeEdit/RangeFormat/RangeLink tools
+        "WorksheetAction" = @("SetTabColor", "GetTabColor", "ClearTabColor", "SetVisibility", "GetVisibility",
+                              "Show", "Hide", "VeryHide")  # Methods moved to WorksheetStyleAction
+        "DataModelAction" = @("ListRelationships", "ReadRelationship", "DeleteRelationship", 
+                              "CreateRelationship", "UpdateRelationship")  # Methods moved to DataModelRelAction
+        "PivotTableAction" = @("ListFields", "AddRowField", "AddColumnField", "AddValueField", "AddFilterField",
+                               "RemoveField", "SetFieldFunction", "SetFieldName", "SetFieldFormat", "GetData",
+                               "SetFieldFilter", "SortField", "GroupByDate", "GroupByNumeric",
+                               "CreateCalculatedField", "ListCalculatedFields", "DeleteCalculatedField",
+                               "SetLayout", "SetSubtotals", "SetGrandTotals",
+                               "ListCalculatedMembers", "CreateCalculatedMember", "DeleteCalculatedMember")  # Methods moved to PivotTableField/PivotTableCalc
+        "ChartAction" = @("SetSourceRange", "AddSeries", "RemoveSeries", "SetChartType", "SetTitle",
+                          "SetAxisTitle", "ShowLegend", "SetStyle")  # Methods moved to ChartConfigAction
     }
 
     $hasNamingIssues = $false
 
     foreach ($interface in $interfaces) {
+        # Skip sub-tool enums - they are intentionally subsets
+        if ($subToolEnums -contains $interface.Enum) {
+            Write-Host "⏭️  $($interface.Name) → $($interface.Enum): Skipped (sub-tool enum)" -ForegroundColor Gray
+            continue
+        }
+
         $mismatches = Check-NamingConsistency `
             -InterfaceName $interface.Name `
             -InterfacePath $interface.Path `
@@ -370,7 +454,8 @@ if ($CheckNaming) {
             $exceptions = $knownExceptions[$interface.Enum]
             $mismatches = $mismatches | Where-Object {
                 $mismatch = $_
-                -not ($exceptions | Where-Object { $mismatch -like "*Enum '$_'*" })
+                # Match both "Method 'X' has no matching..." and "Enum 'X' has no matching..."
+                -not ($exceptions | Where-Object { $mismatch -like "*'$_'*" })
             }
         }
 

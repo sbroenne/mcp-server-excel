@@ -6,7 +6,7 @@
 
 **Optional command-line interface for Excel automation without AI assistance.**
 
-For advanced users who prefer direct scripting control, the CLI provides 13 command categories with 174 operations (the MCP Server has 12 tools with 182 operations). Perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
+For advanced users who prefer direct scripting control, the CLI provides 13 command categories with 174 operations (the MCP Server has 21 tools with 182 operations). Perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
 
 **Note:** Most users should use the [MCP Server with AI assistants](../ExcelMcp.McpServer/README.md) for natural language automation.
 
@@ -19,7 +19,7 @@ For advanced users who prefer direct scripting control, the CLI provides 13 comm
 ### Installation (.NET Global Tool - Recommended)
 
 ```bash
-# Install globally (requires .NET 8 SDK)
+# Install globally (requires .NET 10 SDK)
 dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 # Verify installation
@@ -373,7 +373,7 @@ excelcli conditionalformat clear-rules --session-id <SESSION> --sheet Sheet1 --r
 |-------------|---------|--------------|
 | **Windows OS** | Windows 10/11 or Server 2016+ | COM interop is Windows-specific |
 | **Microsoft Excel** | Excel 2016 or later | CLI controls actual Excel application |
-| **.NET 8 Runtime** | [Download](https://dotnet.microsoft.com/download/dotnet/8.0) | Required to run .NET global tools |
+| **.NET 10 Runtime** | [Download](https://dotnet.microsoft.com/download/dotnet/10.0) | Required to run .NET global tools |
 
 > **Note:** ExcelMcp.CLI controls the actual Excel application via COM interop, not just file formats. This provides access to Power Query, VBA runtime, formula engine, and all Excel features, but requires Excel to be installed.
 

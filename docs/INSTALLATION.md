@@ -7,7 +7,7 @@ Complete installation instructions for the ExcelMcp MCP Server and CLI tool.
 ### Required
 - **Windows OS** (Windows 10 or later)
 - **Microsoft Excel 2016 or later** (Desktop version - Office 365, Professional Plus, or Standalone)
-- **.NET 8.0 Runtime or SDK**
+- **.NET 10 Runtime or SDK**
 
 ### Recommended
 - Windows 11 for best performance
@@ -29,7 +29,7 @@ Complete installation instructions for the ExcelMcp MCP Server and CLI tool.
    - Click **Install**
 
 2. **That's It!**
-   - Extension automatically installs .NET 8 runtime
+   - Extension automatically installs .NET 10 runtime
    - Bundles MCP server (no separate installation needed)
    - Auto-configures GitHub Copilot
    - Shows quick start guide on first launch
@@ -42,27 +42,27 @@ Complete installation instructions for the ExcelMcp MCP Server and CLI tool.
 
 **Best for:** Claude Desktop users, other MCP clients, advanced users
 
-#### Step 1: Install .NET 8
+#### Step 1: Install .NET 10
 
 **Check if already installed:**
 ```powershell
 dotnet --version
-# Should show 8.0.x or higher
+# Should show 10.0.x or higher
 ```
 
 **If not installed, choose one:**
 
 **Option A: SDK (Recommended for developers)**
 ```powershell
-winget install Microsoft.DotNet.SDK.8
+winget install Microsoft.DotNet.SDK.10
 ```
 
 **Option B: Runtime Only (Smaller download)**
 ```powershell
-winget install Microsoft.DotNet.Runtime.8
+winget install Microsoft.DotNet.Runtime.10
 ```
 
-**Manual Download:** [.NET 8 Downloads](https://dotnet.microsoft.com/download/dotnet/8.0)
+**Manual Download:** [.NET 10 Downloads](https://dotnet.microsoft.com/download/dotnet/10.0)
 
 #### Step 2: Install ExcelMcp MCP Server
 

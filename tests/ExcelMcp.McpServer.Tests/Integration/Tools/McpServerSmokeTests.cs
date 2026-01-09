@@ -176,7 +176,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
     public async Task SmokeTest_AllTools_E2EWorkflow()
     {
         _output.WriteLine("=== MCP SERVER E2E SMOKE TEST (SDK CLIENT) ===");
-        _output.WriteLine("Testing all 12 tools via MCP protocol with real Excel...\n");
+        _output.WriteLine("Testing all 21 tools via MCP protocol with real Excel...\n");
 
         // =====================================================================
         // STEP 1: FILE CREATION
@@ -186,7 +186,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var createResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
             ["action"] = "CreateEmpty",
-            ["excelPath"] = _testExcelFile
+            ["path"] = _testExcelFile
         });
         AssertSuccess(createResult, "File creation");
         Assert.True(File.Exists(_testExcelFile), "Excel file should exist");
@@ -200,7 +200,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var openResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
             ["action"] = "Open",
-            ["excelPath"] = _testExcelFile
+            ["path"] = _testExcelFile
         });
         AssertSuccess(openResult, "Open session");
         var sessionId = GetJsonProperty(openResult, "sessionId");
@@ -215,15 +215,15 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var listSheetsResult = await CallToolAsync("excel_worksheet", new Dictionary<string, object?>
         {
             ["action"] = "List",
-            ["sessionId"] = sessionId
+            ["sid"] = sessionId
         });
         AssertSuccess(listSheetsResult, "List worksheets");
 
         var createSheetResult = await CallToolAsync("excel_worksheet", new Dictionary<string, object?>
         {
             ["action"] = "Create",
-            ["sessionId"] = sessionId,
-            ["sheetName"] = "Data"
+            ["sid"] = sessionId,
+            ["sn"] = "Data"
         });
         AssertSuccess(createSheetResult, "Create worksheet");
         _output.WriteLine("  ✓ excel_worksheet: List and Create passed");
@@ -243,21 +243,21 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var setValuesResult = await CallToolAsync("excel_range", new Dictionary<string, object?>
         {
             ["action"] = "SetValues",
-            ["excelPath"] = _testExcelFile,
-            ["sessionId"] = sessionId,
-            ["sheetName"] = "Data",
-            ["rangeAddress"] = "A1:C3",
-            ["values"] = values
+            ["path"] = _testExcelFile,
+            ["sid"] = sessionId,
+            ["sn"] = "Data",
+            ["addr"] = "A1:C3",
+            ["vals"] = values
         });
         AssertSuccess(setValuesResult, "Set values");
 
         var getValuesResult = await CallToolAsync("excel_range", new Dictionary<string, object?>
         {
             ["action"] = "GetValues",
-            ["excelPath"] = _testExcelFile,
-            ["sessionId"] = sessionId,
-            ["sheetName"] = "Data",
-            ["rangeAddress"] = "A1:C3"
+            ["path"] = _testExcelFile,
+            ["sid"] = sessionId,
+            ["sn"] = "Data",
+            ["addr"] = "A1:C3"
         });
         AssertSuccess(getValuesResult, "Get values");
         _output.WriteLine("  ✓ excel_range: SetValues and GetValues passed");
@@ -270,20 +270,20 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var createTableResult = await CallToolAsync("excel_table", new Dictionary<string, object?>
         {
             ["action"] = "Create",
-            ["excelPath"] = _testExcelFile,
-            ["sessionId"] = sessionId,
-            ["tableName"] = "DataTable",
-            ["sheetName"] = "Data",
-            ["range"] = "A1:C3",
-            ["hasHeaders"] = true
+            ["path"] = _testExcelFile,
+            ["sid"] = sessionId,
+            ["tn"] = "DataTable",
+            ["sn"] = "Data",
+            ["rng"] = "A1:C3",
+            ["hdr"] = true
         });
         AssertSuccess(createTableResult, "Create table");
 
         var listTablesResult = await CallToolAsync("excel_table", new Dictionary<string, object?>
         {
             ["action"] = "List",
-            ["excelPath"] = _testExcelFile,
-            ["sessionId"] = sessionId
+            ["path"] = _testExcelFile,
+            ["sid"] = sessionId
         });
         AssertSuccess(listTablesResult, "List tables");
         _output.WriteLine("  ✓ excel_table: Create and List passed");
@@ -390,20 +390,18 @@ in
         var createPivotResult = await CallToolAsync("excel_pivottable", new Dictionary<string, object?>
         {
             ["action"] = "CreateFromTable",
-            ["excelPath"] = _testExcelFile,
-            ["sessionId"] = sessionId,
-            ["tableName"] = "DataTable",
-            ["destinationSheet"] = "Data",
-            ["destinationCell"] = "E1",
-            ["pivotTableName"] = "SalesPivot"
+            ["sid"] = sessionId,
+            ["tn"] = "DataTable",
+            ["ds"] = "Data",
+            ["dc"] = "E1",
+            ["ptn"] = "SalesPivot"
         });
         AssertSuccess(createPivotResult, "Create PivotTable");
 
         var listPivotsResult = await CallToolAsync("excel_pivottable", new Dictionary<string, object?>
         {
             ["action"] = "List",
-            ["excelPath"] = _testExcelFile,
-            ["sessionId"] = sessionId
+            ["sid"] = sessionId
         });
         AssertSuccess(listPivotsResult, "List PivotTables");
         _output.WriteLine("  ✓ excel_pivottable: Create and List passed");
@@ -416,24 +414,22 @@ in
         var createChartResult = await CallToolAsync("excel_chart", new Dictionary<string, object?>
         {
             ["action"] = "CreateFromRange",
-            ["excelPath"] = _testExcelFile,
-            ["sessionId"] = sessionId,
-            ["sheetName"] = "Data",
-            ["sourceRange"] = "A1:C3",
-            ["chartType"] = "ColumnClustered",
+            ["sid"] = sessionId,
+            ["sn"] = "Data",
+            ["sr"] = "A1:C3",
+            ["ct"] = "ColumnClustered",
             ["left"] = 50,
             ["top"] = 50,
             ["width"] = 400,
             ["height"] = 300,
-            ["chartName"] = "DataChart"
+            ["cn"] = "DataChart"
         });
         AssertSuccess(createChartResult, "Create Chart");
 
         var listChartsResult = await CallToolAsync("excel_chart", new Dictionary<string, object?>
         {
             ["action"] = "List",
-            ["excelPath"] = _testExcelFile,
-            ["sessionId"] = sessionId
+            ["sid"] = sessionId
         });
         // Chart List returns array directly
         Assert.NotNull(listChartsResult);
@@ -447,8 +443,7 @@ in
         var listDataModelResult = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
         {
             ["action"] = "ListTables",
-            ["excelPath"] = _testExcelFile,
-            ["sessionId"] = sessionId
+            ["sid"] = sessionId
         });
         AssertSuccess(listDataModelResult, "List Data Model tables");
 
@@ -468,8 +463,7 @@ in
         var listAfterLoadResult = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
         {
             ["action"] = "ListTables",
-            ["excelPath"] = _testExcelFile,
-            ["sessionId"] = sessionId
+            ["sid"] = sessionId
         });
         AssertSuccess(listAfterLoadResult, "List Data Model tables after load");
         Assert.Contains("ProductData", listAfterLoadResult);
@@ -478,10 +472,9 @@ in
         var renameTableResult = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
         {
             ["action"] = "RenameTable",
-            ["excelPath"] = _testExcelFile,
-            ["sessionId"] = sessionId,
-            ["tableName"] = "ProductData",
-            ["newName"] = "RenamedProductData"
+            ["sid"] = sessionId,
+            ["tn"] = "ProductData",
+            ["nn"] = "RenamedProductData"
         });
         // Expect JSON with success=false (not a crash)
         var renameJson = JsonDocument.Parse(renameTableResult);
@@ -541,7 +534,7 @@ in
         var closeResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
             ["action"] = "Close",
-            ["sessionId"] = sessionId,
+            ["sid"] = sessionId,
             ["save"] = true
         });
         AssertSuccess(closeResult, "Close session");
@@ -555,7 +548,7 @@ in
         var verifyOpenResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
             ["action"] = "Open",
-            ["excelPath"] = _testExcelFile
+            ["path"] = _testExcelFile
         });
         AssertSuccess(verifyOpenResult, "Re-open for verification");
         var verifySessionId = GetJsonProperty(verifyOpenResult, "sessionId");
@@ -565,7 +558,7 @@ in
             var finalSheetsResult = await CallToolAsync("excel_worksheet", new Dictionary<string, object?>
             {
                 ["action"] = "List",
-                ["sessionId"] = verifySessionId
+                ["sid"] = verifySessionId
             });
             AssertSuccess(finalSheetsResult, "Final worksheet list");
 
@@ -578,7 +571,7 @@ in
             await CallToolAsync("excel_file", new Dictionary<string, object?>
             {
                 ["action"] = "Close",
-                ["sessionId"] = verifySessionId,
+                ["sid"] = verifySessionId,
                 ["save"] = false
             });
         }
@@ -606,7 +599,7 @@ in
         var result = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
             ["action"] = "Close",
-            ["sessionId"] = "nonexistent-session-id"
+            ["sid"] = "nonexistent-session-id"
         });
 
         _output.WriteLine($"Result: {result[..Math.Min(300, result.Length)]}...");

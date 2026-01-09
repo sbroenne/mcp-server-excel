@@ -87,19 +87,9 @@ public partial class DataModelCommands
                     return result;
                 }
 
-                // Try direct COM rename first (documented as read-only, but attempt for future-proofing)
-                try
-                {
-                    table.Name = result.NormalizedNewName;
-                    // If we get here without exception, direct rename worked
-                    result.Success = true;
-                    return result;
-                }
-                catch
-                {
-                    // COM rename failed (expected - ModelTable.Name is read-only)
-                    // Fall back to Power Query rename for PQ-backed tables
-                }
+                // ModelTable.Name is read-only per Microsoft documentation.
+                // Direct rename is not possible - must use Power Query rename for PQ-backed tables.
+                // See: https://learn.microsoft.com/en-us/office/vba/excel/concepts/about-the-powerpivot-model-object-in-excel
 
                 // Get the source connection to check if this is a PQ-backed table
                 sourceConnection = table.SourceWorkbookConnection;
@@ -187,10 +177,13 @@ public partial class DataModelCommands
                     {
                         model.Refresh();
                     }
-                    catch
+#pragma warning disable CA1031 // Catch more specific exception - Model.Refresh() can throw many COM exception types
+                    catch (Exception)
                     {
                         // Model refresh may fail for various reasons (data source issues, etc.)
+                        // This is best-effort and not critical to the operation
                     }
+#pragma warning restore CA1031
 
                     // Step 5: Verify the table name actually updated using CASE-SENSITIVE comparison
                     // Excel's Data Model table names are immutable after creation.
@@ -240,10 +233,12 @@ public partial class DataModelCommands
                             }
                         }
                     }
-                    catch
+#pragma warning disable CA1031 // Catch more specific exception - Rollback is best-effort, must not throw
+                    catch (Exception)
                     {
-                        // Rollback failed - best effort
+                        // Rollback failed - best effort cleanup, cannot propagate
                     }
+#pragma warning restore CA1031
 
                     result.Success = false;
                     result.ErrorMessage = $"Cannot rename Data Model table '{result.NormalizedOldName}': " +

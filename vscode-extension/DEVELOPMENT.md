@@ -337,7 +337,7 @@ When VS Code releases new API features:
 
 **MCP server not found**
 - Ensure bundled executable exists in `bin/` directory
-- Check .NET 8 Runtime is installed
+- Check .NET 10 Runtime is installed
 - Verify bundled executable has all required dependencies
 
 ## Extension Size 

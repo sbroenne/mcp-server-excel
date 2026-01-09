@@ -1,0 +1,112 @@
+# =============================================================================
+# Excel File and Worksheet Test - excel_file and excel_worksheet Tools
+# =============================================================================
+#
+# Tests: excel_file and excel_worksheet tools for basic Excel automation
+#
+# Tools Covered:
+#   - excel_file with actions:
+#     - create-empty: Create new empty Excel file
+#     - open: Open Excel file and start session
+#     - close: Close Excel file session
+#     - list: List active sessions
+#
+#   - excel_worksheet with actions:
+#     - list: List all worksheets
+#     - create: Create new worksheet
+#     - rename: Rename worksheet
+#     - delete: Delete worksheet
+#
+# Prerequisites:
+#   - Windows 10/11 with Excel installed
+#   - Excel MCP Server
+#   - Environment: AZURE_OPENAI_ENDPOINT
+#
+# Test Isolation:
+#   - Each test uses unique temp file paths with GUIDs
+#   - No file cleanup needed between tests
+#   - UUIDs generated per test run via {{randomValue type='UUID'}}
+#
+# =============================================================================
+
+criteria:
+  success_rate: 1  # 100% required
+
+providers:
+  # GPT-4.1 Provider - Lower RPM, good for complex reasoning
+  - name: azure-openai-gpt41
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+    retry:
+      retry_on_429: true
+      max_retries: 5
+  # GPT-5.2-chat Provider - Higher RPM, faster throughput
+  - name: azure-openai-gpt5-chat
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-5.2-chat
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+    retry:
+      retry_on_429: true
+      max_retries: 5
+
+servers:
+  - name: excel-mcp
+    type: stdio
+    command: "{{SERVER_COMMAND}}"
+    server_delay: 30s
+
+agents:
+  - name: gpt41-agent
+    servers:
+      - name: excel-mcp
+    provider: azure-openai-gpt41
+
+settings:
+  verbose: true
+  max_iterations: 15
+
+
+sessions:
+  # ==========================================================================
+  # Session 1: File Lifecycle - create, open, list, close (combined)
+  # ==========================================================================
+  - name: "File Lifecycle"
+    tests:
+      - name: "Complete file lifecycle"
+        prompt: |
+          1. Create a new empty Excel file at C:/temp/llm-test-file-lifecycle-{{randomValue type='UUID'}}.xlsx
+          2. Open the file
+          3. List all active Excel sessions
+          4. Close the file without saving
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+          - type: output_regex
+            pattern: "(?i)(closed|complete|success)"
+
+  # ==========================================================================
+  # Session 2: Worksheet Operations - create, rename, verify (combined)
+  # ==========================================================================
+  - name: "Worksheet Operations"
+    tests:
+      - name: "Create file and worksheet operations"
+        prompt: |
+          1. Create a new empty Excel file at C:/temp/llm-test-worksheets-{{randomValue type='UUID'}}.xlsx and open it
+          2. Create a new worksheet called "SalesData"
+          3. Rename the "SalesData" worksheet to "Q1Sales"
+          4. List all worksheets to confirm Q1Sales exists
+          5. Close the file without saving
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+          - type: tool_called
+            tool: excel_worksheet
+          - type: output_regex
+            pattern: "(?i)q1sales"

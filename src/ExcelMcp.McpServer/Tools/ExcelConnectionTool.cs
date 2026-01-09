@@ -15,11 +15,10 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 public static partial class ExcelConnectionTool
 {
     /// <summary>
-    /// Manage Excel data connections (OLEDB, ODBC).
-    /// CONNECTION TYPES: OLEDB (SQL Server, Access/Excel ACE, Oracle - provider must be installed), ODBC data sources, DataFeed/Model (existing Power Query/Power Pivot connections - list/view/refresh/delete only, creation routes to excel_powerquery).
-    /// TEXT/WEB: Not supported via create - use excel_powerquery for CSV/text/web imports.
-    /// POWER QUERY: Connections auto-redirect to excel_powerquery tool.
-    /// TIMEOUT: Refresh and load-to auto-timeout after 5 minutes to prevent hanging.
+    /// Data connections (OLEDB, ODBC, ODC import).
+    /// TEXT/WEB/CSV: Use excel_powerquery instead.
+    /// Power Query connections auto-redirect to excel_powerquery.
+    /// TIMEOUT: 5 min auto-timeout for refresh/loadto.
     /// </summary>
     /// <param name="action">Action to perform (enum displayed as dropdown in MCP clients)</param>
     /// <param name="excelPath">Excel file path (.xlsx or .xlsm)</param>

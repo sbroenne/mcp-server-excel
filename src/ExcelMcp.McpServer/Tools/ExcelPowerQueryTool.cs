@@ -13,11 +13,10 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 public static partial class ExcelPowerQueryTool
 {
     /// <summary>
-    /// Manage Power Query M code and data loading.
-    /// INLINE M CODE: Provide raw M code via mCode parameter.
-    /// TARGET SHEETS (Create and LoadTo actions): targetCellAddress works for BOTH create and load-to to place tables without clearing other content. If targetCellAddress is omitted and sheet already contains data, server returns guidance instead of deleting it. When re-using an existing QueryTable, LoadTo refreshes data in-place without recreating the table.
-    /// RENAME: Changes query name. Names are trimmed and compared case-insensitively. Case-only changes (e.g., 'query1' to 'Query1') are allowed. No auto-save.
-    /// TIMEOUT SAFEGUARD: Long-running refresh/load operations auto-timeout after 5 minutes to prevent hanging.
+    /// Power Query M code and data loading.
+    /// DESTINATIONS: worksheet (default), datamodel (for DAX), both, connection-only.
+    /// TARGET CELL: targetCellAddress places tables without clearing sheet.
+    /// TIMEOUT: 5 min auto-timeout for refresh/load.
     /// </summary>
     /// <param name="action">Action to perform</param>
     /// <param name="sessionId">Session ID from excel_file 'open' action. Required for all Power Query operations.</param>

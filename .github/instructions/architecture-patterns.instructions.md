@@ -195,7 +195,7 @@ SavePassword = false  // Never export credentials by default
 1. **WithExcel() for everything** - See excel-com-interop.instructions.md
 2. **Release intermediate objects** - Prevents Excel hanging
 3. **Batch/Session for MCP** - Multiple operations in single session
-4. **Resource-based tools** - 12 tools, not 33+ operations
+4. **Resource-based tools** - 21 tools, not 33+ operations
 5. **DRY utilities** - Share common patterns
 6. **Security defaults** - Never expose credentials
 7. **Bulk operations** - Minimize COM round-trips

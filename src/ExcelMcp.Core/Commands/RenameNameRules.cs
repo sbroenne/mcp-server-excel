@@ -34,20 +34,9 @@ public static class RenameNameRules
     /// </summary>
     public static bool HasConflict(IEnumerable<string> existingNames, string normalizedNewName, string normalizedTargetName)
     {
-        foreach (var name in existingNames)
-        {
-            var normalizedExisting = Normalize(name);
-            if (string.Equals(normalizedExisting, normalizedTargetName, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            if (string.Equals(normalizedExisting, normalizedNewName, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return existingNames
+            .Select(Normalize)
+            .Where(normalizedExisting => !string.Equals(normalizedExisting, normalizedTargetName, StringComparison.OrdinalIgnoreCase))
+            .Any(normalizedExisting => string.Equals(normalizedExisting, normalizedNewName, StringComparison.OrdinalIgnoreCase));
     }
 }

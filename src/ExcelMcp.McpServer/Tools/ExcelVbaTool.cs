@@ -17,8 +17,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 public static partial class ExcelVbaTool
 {
     /// <summary>
-    /// Manage Excel VBA scripts and macros (requires .xlsm files).
-    /// REQUIREMENTS: File format must be .xlsm (macro-enabled) only. VBA trust must be enabled in Excel settings (one-time setup).
+    /// VBA scripts (requires .xlsm and VBA trust enabled).
     /// </summary>
     /// <param name="action">Action to perform</param>
     /// <param name="excelPath">Excel file path (must be .xlsm for VBA operations)</param>

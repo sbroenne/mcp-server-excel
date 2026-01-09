@@ -82,9 +82,14 @@ It works with any MCP-compatible AI assistant like GitHub Copilot, Claude Deskto
 <h3>Worksheets & Connections</h3>
 <p>Manage sheets, named ranges, data connections. Copy/move sheets between workbooks.</p>
 </div>
+
+<div class="feature-card">
+<h3>🧪 LLM-Tested Quality</h3>
+<p>Tool behavior validated with real AI agents using <a href="https://github.com/mykhaliev/agent-benchmark">agent-benchmark</a>. We test that LLMs correctly understand and use our tools.</p>
+</div>
 </div>
 
-<p><a href="/features/">See all 12 tools and 182 operations →</a></p>
+<p><a href="/features/">See all 21 tools and 182 operations →</a></p>
 
 ## What Can You Do With It?
 
@@ -144,7 +149,7 @@ The CLI provides 172 operations across 13 command groups, sharing the same Core 
 
 ## Documentation
 
-📖 **[Complete Feature Reference](/features/)** — All 12 tools and 182 operations
+📖 **[Complete Feature Reference](/features/)** — All 21 tools and 182 operations
 
 📥 **[Installation Guide](/installation/)** — Setup for VS Code, Claude Desktop, other MCP clients, and CLI
 

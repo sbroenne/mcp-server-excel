@@ -15,7 +15,7 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time.
 
-**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. CLI has 13 command categories with 174 operations (MCP Server has 12 tools with 182 operations).
+**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. CLI has 13 command categories with 174 operations (MCP Server has 21 tools with 182 operations).
 
 **Requirements:** Windows OS + Excel 2016+
 
@@ -28,6 +28,8 @@ Unlike third-party libraries that manipulate `.xlsx` files (risking corruption),
 3. **MCP Registry** - Find us at [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel)
 
 **Manual Installation (All MCP Clients):**
+
+Requires .NET 10 Runtime or SDK
 
 ```powershell
 # Install MCP Server
@@ -51,20 +53,20 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 ## 🛠️ What You Can Do
 
-**12 specialized tools with 182 operations:**
+**21 specialized tools with 182 operations:**
 
-- 🔄 **Power Query** (9 ops) - Atomic workflows, M code management, load destinations
-- 📊 **Data Model/DAX** (16 ops) - Measures, relationships, model structure
-- 🎨 **Excel Tables** (24 ops) - Lifecycle, filtering, sorting, structured references
-- 📈 **PivotTables** (30 ops) - Creation, fields, aggregations, calculated members/fields
-- 📉 **Charts** (14 ops) - Create, configure, manage series and formatting
-- 📝 **VBA** (6 ops) - Modules, execution, version control
-- 📋 **Ranges** (42 ops) - Values, formulas, formatting, validation, protection
-- 📄 **Worksheets** (16 ops) - Lifecycle, colors, visibility, cross-workbook moves
-- 🔌 **Connections** (9 ops) - OLEDB/ODBC management and refresh
-- 🏷️ **Named Ranges** (6 ops) - Parameters and configuration
-- 📁 **Files** (6 ops) - Session management and workbook creation
-- 🎨 **Conditional Formatting** (2 ops) - Rules and clearing
+- 🔄 **Power Query** (1 tool, 10 ops) - Atomic workflows, M code management, load destinations
+- 📊 **Data Model/DAX** (2 tools, 17 ops) - Measures, relationships, model structure
+- 🎨 **Excel Tables** (2 tools, 24 ops) - Lifecycle, filtering, sorting, structured references
+- 📈 **PivotTables** (3 tools, 30 ops) - Creation, fields, aggregations, calculated members/fields
+- 📉 **Charts** (2 tools, 14 ops) - Create, configure, manage series and formatting
+- 📝 **VBA** (1 tool, 6 ops) - Modules, execution, version control
+- 📋 **Ranges** (4 tools, 42 ops) - Values, formulas, formatting, validation, protection
+- 📄 **Worksheets** (2 tools, 16 ops) - Lifecycle, colors, visibility, cross-workbook moves
+- 🔌 **Connections** (1 tool, 9 ops) - OLEDB/ODBC management and refresh
+- 🏷️ **Named Ranges** (1 tool, 6 ops) - Parameters and configuration
+- 📁 **Files** (1 tool, 6 ops) - Session management and workbook creation
+- 🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
 
 📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 182 operations
 

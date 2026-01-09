@@ -279,3 +279,52 @@ Assert.DoesNotContain(file1Content, viewResult.Content);  // ✅ file1 content g
 5. Verify Excel state (not just success flag?)
 
 **Full checklist**: See CRITICAL-RULES.md Rule 12
+
+---
+
+## LLM Integration Tests
+
+**Location**: `tests/ExcelMcp.McpServer.LLM.Tests/`
+
+**Purpose**: Validate that AI agents correctly use Excel MCP Server tools using [agent-benchmark](https://github.com/mykhaliev/agent-benchmark).
+
+### When to Run
+
+- **Manual/on-demand only** - Not part of CI/CD
+- After changing tool descriptions or adding new tools
+- To validate LLM behavior patterns (e.g., incremental updates vs rebuild)
+
+### Running LLM Tests
+
+```powershell
+# From tests/ExcelMcp.McpServer.LLM.Tests/
+.\Run-LLMTests.ps1 -Build
+
+# Run specific scenario
+.\Run-LLMTests.ps1 -Scenario excel-file-worksheet-test.yaml
+```
+
+### Prerequisites
+
+- `AZURE_OPENAI_ENDPOINT` environment variable (same as mcp-windows)
+- Windows desktop with Excel installed
+- agent-benchmark (auto-downloaded on first run)
+
+### Test Scenarios
+
+| Scenario | Tools | Purpose |
+|----------|-------|---------|
+| `excel-file-worksheet-test.yaml` | excel_file, excel_worksheet | File lifecycle, worksheet operations |
+| `excel-range-test.yaml` | excel_range | 2D array format, get/set values |
+| `excel-table-test.yaml` | excel_table | Table creation, structured data |
+| `excel-incremental-update-test.yaml` | excel_range | Validates incremental updates over rebuild |
+
+### Writing LLM Tests
+
+- Use natural language prompts (don't mention tool names)
+- Consolidate multiple steps into single prompts for token optimization
+- Each test uses `{{randomValue type='UUID'}}` in file paths for isolation
+- Assert tool_called, tool_param_equals, and output_regex
+- Use simplified agent configuration (no custom system_prompt needed)
+
+See `tests/ExcelMcp.McpServer.LLM.Tests/README.md` for complete documentation.

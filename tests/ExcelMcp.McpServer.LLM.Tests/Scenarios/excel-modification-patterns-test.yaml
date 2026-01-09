@@ -1,0 +1,215 @@
+# =============================================================================
+# Modification Patterns Test - Validates LLM Uses Targeted Operations
+# =============================================================================
+#
+# Purpose: Validates that LLMs use targeted modification operations instead of
+# delete-and-rebuild patterns when working with Excel data.
+#
+# Background: User review on VS Code Marketplace noted:
+# "It would work more smoothly if it made small, step-by-step changes
+# instead of frequently deleting and rebuild..."
+#
+# Each test includes "canary" verification:
+#   - Formula cells that would break if secretly rewritten
+#   - Object counts to detect delete-and-recreate patterns
+#   - Output regex patterns to verify data integrity
+#
+# Prerequisites:
+#   - Windows 10/11 with Excel installed
+#   - Excel MCP Server
+#   - Environment: AZURE_OPENAI_ENDPOINT
+#
+# =============================================================================
+
+criteria:
+  success_rate: 1  # 100% required
+
+providers:
+  - name: azure-openai-gpt41
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+    retry:
+      retry_on_429: true
+      max_retries: 5
+
+servers:
+  - name: excel-mcp
+    type: stdio
+    command: "{{SERVER_COMMAND}}"
+    server_delay: 30s
+
+agents:
+  - name: gpt41-agent
+    servers:
+      - name: excel-mcp
+    provider: azure-openai-gpt41
+
+settings:
+  verbose: true
+  max_iterations: 15
+
+
+sessions:
+  # ==========================================================================
+  # Session 1: Range Updates with Formula Canary
+  # Tests targeted cell modifications; formula in D1 proves no full rewrite
+  # ==========================================================================
+  - name: "Range Updates"
+    tests:
+      - name: "Modify specific cells without touching formula canary"
+        prompt: |
+          1. Create a new empty Excel file at C:/temp/llm-test-range-{{randomValue type='UUID'}}.xlsx and open it
+          2. Set up a budget in A1:C4 on Sheet1:
+             Row 1: Category, Budget, Actual
+             Row 2: Rent, 1000, 1000
+             Row 3: Food, 500, 450
+             Row 4: Transport, 200, 180
+          3. Put a canary formula =ROW()*1000+COLUMN() in cell D1 (will show 1004)
+          4. Update Food actual (C3) to 480
+          5. Update Transport actual (C4) to 195
+          6. Add a new row 5: Utilities, 150, 145
+          7. Read D1 to verify the canary formula still shows 1004 (proves row 1 wasn't rewritten)
+          8. Read all data from A1:C5 to verify the updates
+          9. Close the file without saving
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+          - type: tool_called
+            tool: excel_range
+          # Canary: Formula preserved (1004 = ROW(1)*1000 + COLUMN(4))
+          - type: output_regex
+            pattern: "(?i)(1004)"
+          # Verify updates applied
+          - type: output_regex
+            pattern: "(?i)(480)"
+          - type: output_regex
+            pattern: "(?i)(195)"
+          # Verify new row added
+          - type: output_regex
+            pattern: "(?i)(utilities|145)"
+          # Verify original data preserved
+          - type: output_regex
+            pattern: "(?i)(rent|1000)"
+
+  # ==========================================================================
+  # Session 2: Table Modification with Table Count Canary
+  # Tests modifying cell in table; table list confirms no delete/recreate
+  # ==========================================================================
+  - name: "Table Operations"
+    tests:
+      - name: "Modify table cell without recreating table"
+        prompt: |
+          1. Create a new empty Excel file at C:/temp/llm-test-table-{{randomValue type='UUID'}}.xlsx and open it
+          2. Put sales data in A1:C4 on Sheet1:
+             Row 1: Product, Price, Quantity
+             Row 2: Widget, 25, 3
+             Row 3: Gadget, 50, 2
+             Row 4: Device, 75, 1
+          3. Convert range A1:C4 into an Excel Table named "SalesTable"
+          4. Add column header "Total" in D1, then formulas =B2*C2 in D2, =B3*C3 in D3, =B4*C4 in D4
+          5. Update Widget quantity (C2) from 3 to 5 - this should NOT delete the table
+          6. List tables to confirm exactly 1 table named "SalesTable" exists (proves no delete/recreate)
+          7. Read D2 to verify formula recalculated (should be 125)
+          8. Close the file without saving
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+          - type: tool_called
+            tool: excel_table
+          - type: tool_called
+            tool: excel_range
+          # Canary: Table still exists with same name (proves no delete/recreate)
+          - type: output_regex
+            pattern: "(?i)(salestable)"
+          # Verify formula result (25*5=125)
+          - type: output_regex
+            pattern: "(?i)(125)"
+          # Verify data preserved
+          - type: output_regex
+            pattern: "(?i)(widget|gadget|device)"
+
+  # ==========================================================================
+  # Session 3: Chart Modification with Chart Count Canary
+  # Tests changing chart title; chart list confirms no delete/recreate
+  # ==========================================================================
+  - name: "Chart Modifications"
+    tests:
+      - name: "Change chart title without recreating chart"
+        prompt: |
+          1. Create a new empty Excel file at C:/temp/llm-test-chart-{{randomValue type='UUID'}}.xlsx and open it
+          2. Put chart data in A1:B4 on Sheet1:
+             Row 1: Month, Sales
+             Row 2: Jan, 100
+             Row 3: Feb, 150
+             Row 4: Mar, 200
+          3. Create a column chart from A1:B4 with title "Monthly Sales"
+          4. Note the chart name (usually "Chart 1")
+          5. Change ONLY the chart title to "Q1 Sales Report" - do NOT delete and recreate the chart
+          6. List charts to confirm exactly 1 chart exists (proves no delete/recreate)
+          7. Read chart info to verify the title is now "Q1 Sales Report"
+          8. Close the file without saving
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+          - type: tool_called
+            tool: excel_chart
+          # Canary: Only 1 chart exists (if deleted/recreated, might show in list differently)
+          - type: output_regex
+            pattern: "(?i)(chart 1|1 chart)"
+          # Verify new title applied
+          - type: output_regex
+            pattern: "(?i)(q1 sales report)"
+          # Verify source data preserved
+          - type: output_regex
+            pattern: "(?i)(jan|feb|mar)"
+
+  # ==========================================================================
+  # Session 4: Sheet Modification with Formula Canary
+  # Tests structural changes; formula witness proves untouched rows preserved
+  # ==========================================================================
+  - name: "Sheet Structural Changes"
+    tests:
+      - name: "Delete row and rename header without rebuilding sheet"
+        prompt: |
+          1. Create a new empty Excel file at C:/temp/llm-test-struct-{{randomValue type='UUID'}}.xlsx and open it
+          2. Put employee data in A1:C5 on Sheet1:
+             Row 1: Name, Department, ID
+             Row 2: Alice, Engineering, =ROW()*100 (formula shows 200)
+             Row 3: Bob, Marketing, =ROW()*100 (formula shows 300)
+             Row 4: Carol, Sales, =ROW()*100 (formula shows 400)
+             Row 5: Dave, Support, =ROW()*100 (formula shows 500)
+          3. Delete the row with "Bob" (row 3), shifting remaining rows up
+          4. Rename the "Department" header (B1) to "Team"
+          5. Read all data including column C to verify:
+             - Alice's ID formula now shows 200 (was row 2, still row 2)
+             - Carol's ID formula now shows 300 (was row 4, shifted to row 3)
+             - Dave's ID formula now shows 400 (was row 5, shifted to row 4)
+             - Bob is gone
+             - Header B1 says "Team"
+          6. Close the file without saving
+        assertions:
+          - type: no_hallucinated_tools
+          - type: tool_called
+            tool: excel_file
+          - type: tool_called
+            tool: excel_range
+          # Canary: Formula results prove rows shifted properly (not cleared and rewritten)
+          # After delete: Alice=200 (row 2), Carol=300 (row 3), Dave=400 (row 4)
+          - type: output_regex
+            pattern: "(?i)(200)"
+          - type: output_regex
+            pattern: "(?i)(300)"
+          - type: output_regex
+            pattern: "(?i)(400)"
+          # Verify Bob deleted
+          - type: output_regex
+            pattern: "(?i)(alice|carol|dave)"
+          # Verify header renamed
+          - type: output_regex
+            pattern: "(?i)(team)"

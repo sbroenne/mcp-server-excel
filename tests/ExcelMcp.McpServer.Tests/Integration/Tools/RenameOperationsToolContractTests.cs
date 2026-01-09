@@ -75,7 +75,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         var createJson = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
             ["action"] = "CreateEmpty",
-            ["excelPath"] = _testExcelFile
+            ["path"] = _testExcelFile
         });
 
         var createDoc = JsonDocument.Parse(createJson);
@@ -88,7 +88,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         var openJson = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
             ["action"] = "Open",
-            ["excelPath"] = _testExcelFile
+            ["path"] = _testExcelFile
         });
 
         var openDoc = JsonDocument.Parse(openJson);
@@ -273,10 +273,9 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         var json = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
         {
             ["action"] = "RenameTable",
-            ["excelPath"] = _testExcelFile,
-            ["sessionId"] = _sessionId,
-            ["tableName"] = "NonExistentTable",
-            ["newName"] = "NewTableName"
+            ["sid"] = _sessionId,
+            ["tn"] = "NonExistentTable",
+            ["nn"] = "NewTableName"
         });
         _output.WriteLine($"Response: {json}");
 
@@ -305,10 +304,9 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         var json = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
         {
             ["action"] = "RenameTable",
-            ["excelPath"] = _testExcelFile,
-            ["sessionId"] = _sessionId,
-            ["tableName"] = "TestData",
-            ["newName"] = "NewTableName"
+            ["sid"] = _sessionId,
+            ["tn"] = "TestData",
+            ["nn"] = "NewTableName"
         });
         _output.WriteLine($"Response: {json}");
 
@@ -345,19 +343,21 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         var json = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
         {
             ["action"] = "RenameTable",
-            ["excelPath"] = _testExcelFile,
-            ["sessionId"] = _sessionId,
-            ["tableName"] = "DataTable",
-            ["newName"] = "   " // Empty after trim
+            ["sid"] = _sessionId,
+            ["tn"] = "DataTable",
+            ["nn"] = "   " // Empty after trim
         });
         _output.WriteLine($"Response: {json}");
 
-        // Assert - should return JSON with success=false, NOT throw exception
+        // Assert - should return JSON with success=false or ok=false, NOT throw exception
         var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
-        Assert.False(root.GetProperty("success").GetBoolean(), "Expected success=false for empty name");
-        Assert.True(root.TryGetProperty("errorMessage", out _), "Expected errorMessage property");
+        // Check for either "success" or "ok" property (tool responses use different formats)
+        bool isFailed = (root.TryGetProperty("success", out var successProp) && !successProp.GetBoolean())
+                     || (root.TryGetProperty("ok", out var okProp) && !okProp.GetBoolean());
+        Assert.True(isFailed, "Expected success=false or ok=false for empty name");
+        Assert.True(root.TryGetProperty("errorMessage", out _) || root.TryGetProperty("err", out _), "Expected errorMessage or err property");
     }
 
     #endregion
@@ -436,7 +436,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
                 await CallToolAsync("excel_file", new Dictionary<string, object?>
                 {
                     ["action"] = "Close",
-                    ["sessionId"] = _sessionId,
+                    ["sid"] = _sessionId,
                     ["save"] = false
                 });
                 _output.WriteLine("✓ Session closed during cleanup");

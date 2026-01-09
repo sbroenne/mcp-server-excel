@@ -142,7 +142,7 @@ Create an Excel file called "test.xlsx"
 2. **Check .NET is installed:**
    ```powershell
    dotnet --version
-   # Should show 8.0.x or higher
+   # Should show 10.0.x or higher
    ```
 
 3. **Reinstall if needed:**

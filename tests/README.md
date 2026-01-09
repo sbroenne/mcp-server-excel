@@ -29,19 +29,20 @@ dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
 
 ```
 tests/
-├── ExcelMcp.Core.Tests/      # Core business logic (Unit + Integration)
-├── ExcelMcp.McpServer.Tests/ # MCP protocol layer (Unit + Integration)
-├── ExcelMcp.CLI.Tests/        # CLI wrapper (Unit + Integration)
-└── ExcelMcp.ComInterop.Tests/ # COM utilities (Unit + OnDemand)
+├── ExcelMcp.Core.Tests/           # Core business logic (Integration)
+├── ExcelMcp.McpServer.Tests/      # MCP protocol layer (Integration)
+├── ExcelMcp.McpServer.LLM.Tests/  # LLM agent behavior validation (Manual)
+├── ExcelMcp.CLI.Tests/            # CLI wrapper (Integration)
+└── ExcelMcp.ComInterop.Tests/     # COM utilities (OnDemand)
 ```
 
 ## Test Categories
 
 | Category | Speed | Requirements | Run By Default |
 |----------|-------|--------------|----------------|
-| **Unit** | Fast (2-5 sec) | None | ✅ Yes (CI/CD) |
 | **Integration** | Medium (10-20 min) | Excel + Windows | ✅ Yes (local) |
 | **OnDemand** | Slow (3-5 min) | Excel + Windows | ❌ No (explicit only) |
+| **LLM Tests** | Slow (varies) | Excel + Azure OpenAI | ❌ No (manual only) |
 
 ## Feature-Specific Tests
 
@@ -63,6 +64,35 @@ dotnet test --filter "Feature=Connections&RunType!=OnDemand"
 | **Before commit** | `dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA"` |
 | **Modified session/batch code** | `dotnet test --filter "RunType=OnDemand"` (see [Rule 3](../.github/instructions/critical-rules.instructions.md#rule-3-session-cleanup-tests)) |
 | **VBA development** | `dotnet test --filter "(Feature=VBA\|Feature=VBATrust)&RunType!=OnDemand"` |
+| **LLM behavior validation** | See [LLM Tests](#llm-tests) section below |
+
+## LLM Tests
+
+The `ExcelMcp.McpServer.LLM.Tests` project validates that AI agents correctly use Excel MCP Server tools using [agent-benchmark](https://github.com/mykhaliev/agent-benchmark).
+
+### When to Run LLM Tests
+
+- **Manual/on-demand only** - Not part of CI/CD
+- After changing tool descriptions or adding new tools
+- To validate LLM behavior patterns (e.g., incremental updates vs rebuild)
+
+### Running LLM Tests
+
+```powershell
+# From tests/ExcelMcp.McpServer.LLM.Tests/
+.\Run-LLMTests.ps1 -Build
+
+# Run specific scenario
+.\Run-LLMTests.ps1 -Scenario excel-file-worksheet-test.yaml
+```
+
+### Prerequisites
+
+- `AZURE_OPENAI_ENDPOINT` environment variable
+- Windows desktop with Excel installed
+- agent-benchmark (auto-downloaded on first run)
+
+**See [LLM Tests README](ExcelMcp.McpServer.LLM.Tests/README.md) for complete documentation.**
 
 ## VBA Testing
 
