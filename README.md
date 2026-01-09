@@ -17,11 +17,13 @@
 
 **Automate Excel with AI - A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.**
 
-**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (12 tools with 182 operations).
+**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (21 tools with 182 operations).
 
 **🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
 
 **💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
+
+**🧪 LLM-Tested Quality** - Tool behavior validated with real AI agents using [agent-benchmark](https://github.com/mykhaliev/agent-benchmark). We test that LLMs correctly understand and use our tools.
 
 **Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. 
 
@@ -43,20 +45,20 @@ The extension opens automatically after installation with a quick start guide!
 
 ## 🎯 What You Can Do
 
-**12 specialized tools with 182 operations:**
+**21 specialized tools with 182 operations:**
 
-- 🔄 **Power Query** (9 ops) - Atomic workflows, M code management, load destinations
-- 📊 **Data Model/DAX** (16 ops) - Measures, relationships, model structure
-- 🎨 **Excel Tables** (24 ops) - Lifecycle, filtering, sorting, structured references
-- 📈 **PivotTables** (30 ops) - Creation, fields, aggregations, calculated members/fields
-- 📉 **Charts** (14 ops) - Create, configure, manage series and formatting
-- 📝 **VBA** (6 ops) - Modules, execution, version control
-- 📋 **Ranges** (42 ops) - Values, formulas, formatting, validation, protection
-- 📄 **Worksheets** (16 ops) - Lifecycle, colors, visibility, cross-workbook moves
-- 🔌 **Connections** (9 ops) - OLEDB/ODBC management and refresh
-- 🏷️ **Named Ranges** (6 ops) - Parameters and configuration
-- 📁 **Files** (6 ops) - Session management and workbook creation
-- 🎨 **Conditional Formatting** (2 ops) - Rules and clearing
+- 🔄 **Power Query** (1 tool, 10 ops) - Atomic workflows, M code management, load destinations
+- 📊 **Data Model/DAX** (2 tools, 17 ops) - Measures, relationships, model structure
+- 🎨 **Excel Tables** (2 tools, 24 ops) - Lifecycle, filtering, sorting, structured references
+- 📈 **PivotTables** (3 tools, 30 ops) - Creation, fields, aggregations, calculated members/fields
+- 📉 **Charts** (2 tools, 14 ops) - Create, configure, manage series and formatting
+- 📝 **VBA** (1 tool, 6 ops) - Modules, execution, version control
+- 📋 **Ranges** (4 tools, 42 ops) - Values, formulas, formatting, validation, protection
+- 📄 **Worksheets** (2 tools, 16 ops) - Lifecycle, colors, visibility, cross-workbook moves
+- 🔌 **Connections** (1 tool, 9 ops) - OLEDB/ODBC management and refresh
+- 🏷️ **Named Ranges** (1 tool, 6 ops) - Parameters and configuration
+- 📁 **Files** (1 tool, 6 ops) - Session management and workbook creation
+- 🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
 
 📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 182 operations
 

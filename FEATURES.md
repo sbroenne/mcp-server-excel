@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**12 specialized tools with 182 operations for comprehensive Excel automation**
+**21 specialized tools with 182 operations for comprehensive Excel automation**
 
 ---
 

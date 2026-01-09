@@ -24,9 +24,6 @@ providers:
     model: gpt-4.1
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
-    rate_limits:
-      tpm: 150000  # Tokens per minute (proactive throttling)
-      rpm: 150     # Requests per minute (gpt-4.1 actual from Azure)
 
   # GPT-5.2-chat Provider - Higher RPM, faster throughput
   - name: azure-openai-gpt5-chat
@@ -35,16 +32,13 @@ providers:
     model: gpt-5.2-chat
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
-    rate_limits:
-      tpm: 150000  # Tokens per minute (proactive throttling)
-      rpm: 1500    # Requests per minute (gpt-5.2-chat has 10x higher RPM)
 
 servers:
   # Excel MCP Server - Primary test target
   - name: excel-mcp
     type: stdio
     command: "{{SERVER_COMMAND}}"
-    server_delay: 10s  # Wait for server initialization
+    server_delay: 30s  # Wait for server initialization
 
 agents:
   # GPT-4.1 Agent
@@ -52,42 +46,6 @@ agents:
     servers:
       - name: excel-mcp
     provider: azure-openai-gpt41
-    system_prompt: |
-      You are {{AGENT_NAME}}, an autonomous Excel automation agent using {{PROVIDER_NAME}}.
-      Session: {{SESSION_NAME}}
-
-      CRITICAL RULES:
-      - Execute all tasks IMMEDIATELY without asking for confirmation
-      - NEVER ask "Would you like me to...", "Should I proceed...", or similar questions
-      - NEVER request clarification - make reasonable assumptions and proceed
-      - Use available tools directly to complete the requested tasks
-      - Report results after completion, not before starting
-      - For file paths, use temp directory with unique names when not specified
-    clarification_detection:
-      enabled: true
-      level: warning
-      use_builtin_patterns: true
-
-  # GPT-5.2-chat Agent
-  - name: gpt5-chat-agent
-    servers:
-      - name: excel-mcp
-    provider: azure-openai-gpt5-chat
-    system_prompt: |
-      You are {{AGENT_NAME}}, an autonomous Excel automation agent using {{PROVIDER_NAME}}.
-      Session: {{SESSION_NAME}}
-
-      CRITICAL RULES:
-      - Execute all tasks IMMEDIATELY without asking for confirmation
-      - NEVER ask "Would you like me to...", "Should I proceed...", or similar questions
-      - NEVER request clarification - make reasonable assumptions and proceed
-      - Use available tools directly to complete the requested tasks
-      - Report results after completion, not before starting
-      - For file paths, use temp directory with unique names when not specified
-    clarification_detection:
-      enabled: true
-      level: warning
-      use_builtin_patterns: true
 
 settings:
   verbose: true

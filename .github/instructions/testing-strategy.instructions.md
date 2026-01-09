@@ -322,7 +322,9 @@ Assert.DoesNotContain(file1Content, viewResult.Content);  // ✅ file1 content g
 ### Writing LLM Tests
 
 - Use natural language prompts (don't mention tool names)
-- Each test uses unique temp file paths for isolation
+- Consolidate multiple steps into single prompts for token optimization
+- Each test uses `{{randomValue type='UUID'}}` in file paths for isolation
 - Assert tool_called, tool_param_equals, and output_regex
+- Use simplified agent configuration (no custom system_prompt needed)
 
 See `tests/ExcelMcp.McpServer.LLM.Tests/README.md` for complete documentation.

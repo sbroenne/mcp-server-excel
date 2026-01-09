@@ -1,6 +1,7 @@
 {
   "$schema": "./llm-tests.config.schema.json",
-  "agentBenchmarkPath": null,
+  "agentBenchmarkPath": "D:/source/agent-benchmark",
+  "agentBenchmarkMode": "go-run",
   "verbose": false,
   "build": true
 }

@@ -66,6 +66,41 @@ Create `llm-tests.config.local.json` for your personal settings:
 | `verbose` | boolean | `false` | Show detailed output |
 | `build` | boolean | `false` | Build MCP server before tests |
 
+### YAML Scenario Configuration
+
+Test scenarios use minimal configuration with sensible defaults:
+
+```yaml
+providers:
+  - name: azure-openai-gpt41
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+    retry:
+      retry_on_429: true
+      max_retries: 5
+
+servers:
+  - name: excel-mcp
+    type: stdio
+    command: "{{SERVER_COMMAND}}"
+    server_delay: 30s  # Allow server initialization
+
+agents:
+  - name: gpt41-agent
+    servers:
+      - name: excel-mcp
+    provider: azure-openai-gpt41
+```
+
+**Simplified Configuration:**
+- No `rate_limits` needed - handled by agent-benchmark retry logic
+- No custom `system_prompt` - defaults work well for tool calling
+- No `clarification_detection` - simplified agent configuration
+- Uses `server_delay: 30s` for reliable server initialization
+
 ## Running the Tests
 
 ### Using PowerShell Runner (Recommended)
@@ -100,7 +135,8 @@ ExcelMcp.McpServer.LLM.Tests/
 │   ├── _config-template.yaml.template     # Reference configuration template
 │   ├── excel-file-worksheet-test.yaml     # File and worksheet lifecycle
 │   ├── excel-range-test.yaml              # Range data operations
-│   └── excel-table-test.yaml              # Table operations
+│   ├── excel-table-test.yaml              # Table operations
+│   └── excel-incremental-update-test.yaml # Incremental update validation
 ├── output/                                # Test artifacts (git-ignored)
 ├── Run-LLMTests.ps1                       # PowerShell test runner
 ├── llm-tests.config.json                  # Shared configuration defaults
@@ -117,15 +153,47 @@ ExcelMcp.McpServer.LLM.Tests/
 | `excel-file-worksheet-test.yaml` | excel_file, excel_worksheet | File lifecycle and worksheet operations |
 | `excel-range-test.yaml` | excel_range | Get/set values, 2D array format |
 | `excel-table-test.yaml` | excel_table | Table creation and data operations |
+| `excel-incremental-update-test.yaml` | excel_range | Validates LLM uses incremental updates |
 
 ## Test Isolation
 
 Each test uses unique temporary file paths to ensure isolation:
-- Files are created in `%TEMP%` with unique names
+- Files use `{{randomValue type='UUID'}}` placeholders for unique names per run
+- Tests create files in `C:/temp/` with descriptive names + UUID suffix
 - No cleanup scenarios required - temp files are naturally isolated
 - Each test session operates on its own file
 
 ## Writing Test Scenarios
+
+### Test Consolidation for Token Optimization
+
+Tests are consolidated into multi-step prompts to reduce token overhead:
+
+**BEFORE (multiple tests):**
+```yaml
+- name: "Create Excel file"
+  prompt: "Create a new Excel file..."
+- name: "Open the file"
+  prompt: "Open the file..."
+- name: "List worksheets"
+  prompt: "List worksheets..."
+```
+
+**AFTER (consolidated):**
+```yaml
+- name: "Complete file lifecycle"
+  prompt: |
+    1. Create a new empty Excel file at C:/temp/test-{{randomValue type='UUID'}}.xlsx
+    2. Open the file
+    3. List all active Excel sessions
+    4. Close the file without saving
+```
+
+**Benefits:**
+- Reduced token consumption per test run
+- Fewer round-trips to the LLM
+- More realistic multi-step workflows
+- File path UUIDs ensure test isolation
 
 ### User Prompts: Use Natural Language
 

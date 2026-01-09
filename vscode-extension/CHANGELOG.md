@@ -2,13 +2,92 @@
 
 All notable changes to the ExcelMcp VS Code extension will be documented in this file.
 
-## [Unreleased] - 2025-12-14
+## [Unreleased]
+
+- **JSON Token Optimization** (#341): Reduced token consumption for AI assistants
+  - Shortened JSON property names (e.g., `sessionId` → `sid`, `sheetName` → `sn`, `address` → `addr`)
+  - Split 12 monolithic tools into 21 focused tools for smaller tool schemas
+  - Same 182 operations, better organized for AI assistants
+  - Ranges: 4 tools (excel_range, excel_range_edit, excel_range_format, excel_range_link)
+  - PivotTables: 3 tools (excel_pivottable, excel_pivottable_field, excel_pivottable_calc)
+  - Tables: 2 tools (excel_table, excel_table_column)
+  - Data Model: 2 tools (excel_datamodel, excel_datamodel_rel)
+  - Charts: 2 tools (excel_chart, excel_chart_config)
+  - Worksheets: 2 tools (excel_worksheet, excel_worksheet_style)
+- **LLM Integration Testing** (#341): Added real AI agent testing using [agent-benchmark](https://github.com/mykhaliev/agent-benchmark)
+  - Validates that LLMs correctly understand and use MCP tools
+  - Tests incremental update patterns vs rebuild behavior
+  - Ensures tool descriptions guide LLMs effectively
+
+## [1.4.49] - 2025-12-25
+
+- Maintenance release with stability improvements
+
+## [1.4.48] - 2025-12-22
+
+- Maintenance release with stability improvements
+
+## [1.4.47] - 2025-12-22
+
+- Maintenance release with stability improvements
+
+## [1.4.46] - 2025-12-20
+
+- **SEO Improvements** (#336, #337): Fixed duplicate site name in page titles, excluded 404 page from search indexing
+
+## [1.4.45] - 2025-12-20
+
+- Maintenance release with stability improvements
+
+## [1.4.44] - 2025-12-20
+
+- Maintenance release with stability improvements
+
+## [1.4.43] - 2025-12-16
+
+- Maintenance release with stability improvements
+
+## [1.4.42] - 2025-12-15
+
+- **Power Query Rename** (#326, #327): New `rename` action for Power Query queries
+- **Data Model Table Rename** (#326, #327): New `rename-table` action for Data Model tables (best-effort via Power Query)
+- Performance optimizations for rename operations
+
+## [1.4.41] - 2025-12-14
+
+- **Power Query Data Model Fix** (#324): Fixed "0x800A03EC" error when updating Power Query in workbooks with Data Model present
+
+## [1.4.40] - 2025-12-14
 
 - **MCP SDK Upgrade** (#301): Upgraded ModelContextProtocol SDK from 0.4.1-preview.1 to 0.5.0-preview.1
   - Proper `isError` signaling for tool execution failures (MCP protocol compliance)
   - Deterministic exit codes (0 = success/graceful shutdown, 1 = fatal error)
   - `IAsyncDisposable` for proper async resource cleanup
 
+## [1.4.39] - 2025-12-13
+
+- Internal improvements and bug fixes
+
+## [1.4.38] - 2025-12-08
+
+- **GitHub Pages Enhancements** (#294, #297): Added RSS feed, Contributing page, Security page, and custom 404 page
+- **Orphaned Connection Fix** (#299): Prevented orphaned Power Query connections during worksheet loading
+
+## [1.4.37] - 2025-12-06
+
+- **PivotTable Performance** (#286): Optimized `RefreshTable()` calls for faster PivotTable operations
+- **Data Model Members** (#288): Added support for Data Model table members
+
+## [1.4.36] - 2025-12-06
+
+- **Documentation Updates** (#290): Updated tool/operation counts and lists to match code
+- **SEO Fix** (#292): Fixed robots.txt sitemap URL and added Bing verification
+
+## [1.4.35] - 2025-12-05
+
+- **Data Model Relationships** (#278): Full support for creating, updating, and deleting relationships between Data Model tables
+- **Custom Domain** (#276): Configured gh-pages for custom domain excelmcpserver.dev
+  
 ## [1.4.34] - 2025-12-05
 
 - **DAX Formula Locale Handling** (#281): DAX formulas with US comma separators now work correctly on European locales (German, French, etc.)

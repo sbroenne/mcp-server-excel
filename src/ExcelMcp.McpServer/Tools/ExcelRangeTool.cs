@@ -15,11 +15,12 @@ public static partial class ExcelRangeTool
     /// <summary>
     /// Core range ops: get/set values/formulas, copy, clear, discovery.
     /// DATA FORMAT: vals/fmls are 2D JSON arrays [[r1c1,r1c2],[r2c1,r2c2]].
+    /// REQUIRED: sn (sheet name) + addr (e.g., 'A1:D10') for cell operations.
     /// </summary>
     /// <param name="action">Action</param>
     /// <param name="path">File path</param>
     /// <param name="sid">Session ID</param>
-    /// <param name="sn">Sheet name (empty for named ranges)</param>
+    /// <param name="sn">Sheet name (REQUIRED for cell addresses, empty only for named ranges)</param>
     /// <param name="addr">Range address (e.g., 'A1:D10') or named range</param>
     /// <param name="vals">2D values [[1,2],[3,4]]</param>
     /// <param name="fmls">2D formulas [["=A1+B1"]]</param>
