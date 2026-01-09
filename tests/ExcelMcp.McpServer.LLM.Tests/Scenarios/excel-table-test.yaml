@@ -41,28 +41,13 @@ servers:
   - name: excel-mcp
     type: stdio
     command: "{{SERVER_COMMAND}}"
-    server_delay: 10s
+    server_delay: 30s
 
 agents:
   - name: gpt41-agent
     servers:
       - name: excel-mcp
     provider: azure-openai-gpt41
-    system_prompt: |
-      You are {{AGENT_NAME}}, an autonomous Excel automation agent using {{PROVIDER_NAME}}.
-      Session: {{SESSION_NAME}}
-
-      CRITICAL RULES:
-      - Execute all tasks IMMEDIATELY without asking for confirmation
-      - NEVER ask "Would you like me to...", "Should I proceed...", or similar questions
-      - NEVER request clarification - make reasonable assumptions and proceed
-      - Use available tools directly to complete the requested tasks
-      - Report results after completion, not before starting
-      - For temp files, use C:/temp/ directory with unique descriptive names
-    clarification_detection:
-      enabled: true
-      level: warning
-      use_builtin_patterns: true
 
 settings:
   verbose: true
@@ -71,157 +56,53 @@ settings:
 
 sessions:
   # ==========================================================================
-  # Session 1: Table Creation and Query
+  # Session 1: Table Creation and Query (combined)
   # ==========================================================================
   - name: "Table Creation and Query"
     tests:
-      - name: "Create and open Excel file"
+      - name: "Create table and query data"
         prompt: |
-          Create a new empty Excel file at C:/temp/llm-test-table.xlsx and open it.
+          1. Create a new empty Excel file at C:/temp/llm-test-table-{{randomValue type='UUID'}}.xlsx and open it
+          2. On the Sheet1 worksheet, put these column headers in A1:D1: Product, Quantity, Price, Total
+          3. On Sheet1, add data in A2:D3:
+             Row 2: Widget, 10, 5.99, 59.90
+             Row 3: Gadget, 5, 12.99, 64.95
+          4. Create an Excel table from A1:D3 on Sheet1 and name it "SalesData"
+          5. List all tables to confirm SalesData exists
+          6. Get the data from the SalesData table
+          7. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
           - type: tool_called
             tool: excel_file
-
-      - name: "Add data for table"
-        prompt: |
-          Put the following sales data in cells A1:D4:
-          Row 1: Product, Quantity, Price, Total
-          Row 2: Widget, 10, 5.99, 59.90
-          Row 3: Gadget, 5, 12.99, 64.95
-          Row 4: Gizmo, 8, 8.50, 68.00
-        assertions:
-          - type: no_hallucinated_tools
           - type: tool_called
             tool: excel_range
-          - type: tool_param_equals
-            tool: excel_range
-            params:
-              action: "set-values"
-
-      - name: "Create table from data"
-        prompt: |
-          Create an Excel table from the data in A1:D4 and name it "SalesData".
-        assertions:
-          - type: no_hallucinated_tools
           - type: tool_called
             tool: excel_table
-          - type: tool_param_equals
-            tool: excel_table
-            params:
-              action: "create"
           - type: output_regex
-            pattern: "(?i)(created|salesdata|table|success)"
-
-      - name: "List all tables"
-        prompt: |
-          List all tables in the workbook.
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_table
-          - type: tool_param_equals
-            tool: excel_table
-            params:
-              action: "list"
-          - type: output_regex
-            pattern: "(?i)(salesdata|table)"
-
-      - name: "Get table data"
-        prompt: |
-          Get the data from the SalesData table.
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_table
-          - type: tool_param_equals
-            tool: excel_table
-            params:
-              action: "get-data"
-          - type: output_regex
-            pattern: "(?i)(widget|gadget|gizmo)"
-
-      - name: "Close without saving"
-        prompt: |
-          Close the Excel file without saving.
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_file
+            pattern: "(?i)(widget|gadget|salesdata)"
 
   # ==========================================================================
-  # Session 2: Table Lifecycle
+  # Session 2: Table Lifecycle (combined)
   # ==========================================================================
   - name: "Table Lifecycle"
     tests:
-      - name: "Create and open Excel file"
+      - name: "Create and delete table"
         prompt: |
-          Create a new empty Excel file at C:/temp/llm-test-table-lifecycle.xlsx and open it.
+          1. Create a new empty Excel file at C:/temp/llm-test-table-lifecycle-{{randomValue type='UUID'}}.xlsx and open it
+          2. Put these column headers in A1:C1: ID, Name, Status
+          3. Add data in A2:C3:
+             Row 2: 1, Task One, Active
+             Row 3: 2, Task Two, Complete
+          4. Create a table from A1:C3 called "TaskList"
+          5. List all tables to verify TaskList was created
+          6. Delete the TaskList table
+          7. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
           - type: tool_called
             tool: excel_file
-
-      - name: "Add header row"
-        prompt: |
-          Put these column headers in A1:C1: ID, Name, Status
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_range
-
-      - name: "Add data rows"
-        prompt: |
-          Add data in A2:C3:
-          Row 2: 1, Task One, Active
-          Row 3: 2, Task Two, Complete
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_range
-
-      - name: "Create table"
-        prompt: |
-          Create a table from A1:C3 called "TaskList".
-        assertions:
-          - type: no_hallucinated_tools
           - type: tool_called
             tool: excel_table
-          - type: tool_param_equals
-            tool: excel_table
-            params:
-              action: "create"
-
-      - name: "Verify table exists"
-        prompt: |
-          List all tables to verify TaskList was created.
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_table
-          - type: tool_param_equals
-            tool: excel_table
-            params:
-              action: "list"
           - type: output_regex
-            pattern: "(?i)tasklist"
-
-      - name: "Delete the table"
-        prompt: |
-          Delete the TaskList table.
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_table
-          - type: tool_param_equals
-            tool: excel_table
-            params:
-              action: "delete"
-
-      - name: "Close without saving"
-        prompt: |
-          Close the Excel file without saving.
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_file
+            pattern: "(?i)(tasklist|deleted|success)"

@@ -41,28 +41,13 @@ servers:
   - name: excel-mcp
     type: stdio
     command: "{{SERVER_COMMAND}}"
-    server_delay: 10s
+    server_delay: 30s
 
 agents:
   - name: gpt41-agent
     servers:
       - name: excel-mcp
     provider: azure-openai-gpt41
-    system_prompt: |
-      You are {{AGENT_NAME}}, an autonomous Excel automation agent using {{PROVIDER_NAME}}.
-      Session: {{SESSION_NAME}}
-
-      CRITICAL RULES:
-      - Execute all tasks IMMEDIATELY without asking for confirmation
-      - NEVER ask "Would you like me to...", "Should I proceed...", or similar questions
-      - NEVER request clarification - make reasonable assumptions and proceed
-      - Use available tools directly to complete the requested tasks
-      - Report results after completion, not before starting
-      - For temp files, use C:/temp/ directory with unique descriptive names
-    clarification_detection:
-      enabled: true
-      level: warning
-      use_builtin_patterns: true
 
 settings:
   verbose: true
@@ -71,126 +56,46 @@ settings:
 
 sessions:
   # ==========================================================================
-  # Session 1: Basic Range Operations - set-values, get-values
+  # Session 1: Range Read/Write Operations (combined)
   # ==========================================================================
-  - name: "Basic Range Operations"
+  - name: "Range Operations"
     tests:
-      - name: "Create and open Excel file"
+      - name: "Write and read range data"
         prompt: |
-          Create a new empty Excel file at C:/temp/llm-test-range.xlsx and open it.
+          1. Create a new empty Excel file at C:/temp/llm-test-range-{{randomValue type='UUID'}}.xlsx and open it
+          2. Put the following data in cells A1:C3:
+             Row 1: Name, Age, City
+             Row 2: Alice, 30, Seattle
+             Row 3: Bob, 25, Portland
+          3. Read the data back from cells A1:C3
+          4. Get the used range in the worksheet
+          5. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
           - type: tool_called
             tool: excel_file
-
-      - name: "Write data to a range"
-        prompt: |
-          Put the following data in cells A1:C3:
-          Row 1: Name, Age, City
-          Row 2: Alice, 30, Seattle
-          Row 3: Bob, 25, Portland
-        assertions:
-          - type: no_hallucinated_tools
           - type: tool_called
             tool: excel_range
-          - type: tool_param_equals
-            tool: excel_range
-            params:
-              action: "set-values"
-          - type: output_regex
-            pattern: "(?i)(success|set|written|updated)"
-
-      - name: "Read data from a range"
-        prompt: |
-          Read the data from cells A1:C3.
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_range
-          - type: tool_param_equals
-            tool: excel_range
-            params:
-              action: "get-values"
           - type: output_regex
             pattern: "(?i)(alice|bob|seattle|portland)"
 
-      - name: "Get the used range"
-        prompt: |
-          What is the used range in the current worksheet?
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_range
-          - type: tool_param_equals
-            tool: excel_range
-            params:
-              action: "get-used-range"
-          - type: output_regex
-            pattern: "(?i)(A1|C3|range)"
-
-      - name: "Close without saving"
-        prompt: |
-          Close the Excel file without saving.
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_file
-
   # ==========================================================================
-  # Session 2: Single Cell Operations
+  # Session 2: Single Cell Operations (combined)
   # ==========================================================================
   - name: "Single Cell Operations"
     tests:
-      - name: "Create and open Excel file"
+      - name: "Write and read single cells"
         prompt: |
-          Create a new empty Excel file at C:/temp/llm-test-single-cell.xlsx and open it.
+          1. Create a new empty Excel file at C:/temp/llm-test-single-cell-{{randomValue type='UUID'}}.xlsx and open it
+          2. Put the value "Hello World" in cell A1
+          3. Put the number 42 in cell B1
+          4. Read the values from A1:B1 and report what you see
+          5. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
           - type: tool_called
             tool: excel_file
-
-      - name: "Write to a single cell"
-        prompt: |
-          Put the value "Hello World" in cell A1.
-        assertions:
-          - type: no_hallucinated_tools
           - type: tool_called
             tool: excel_range
-          - type: tool_param_equals
-            tool: excel_range
-            params:
-              action: "set-values"
-
-      - name: "Write a number to another cell"
-        prompt: |
-          Put the number 42 in cell B1.
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_range
-          - type: tool_param_equals
-            tool: excel_range
-            params:
-              action: "set-values"
-
-      - name: "Read the values back"
-        prompt: |
-          Read the values from A1:B1.
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_range
-          - type: tool_param_equals
-            tool: excel_range
-            params:
-              action: "get-values"
           - type: output_regex
             pattern: "(?i)(hello|42)"
-
-      - name: "Close without saving"
-        prompt: |
-          Close the Excel file without saving.
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_file

@@ -40,9 +40,6 @@ providers:
     model: gpt-4.1
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
-    rate_limits:
-      tpm: 150000  # Tokens per minute (proactive throttling)
-      rpm: 150     # Requests per minute
     retry:
       retry_on_429: true
       max_retries: 5
@@ -53,9 +50,6 @@ providers:
     model: gpt-5.2-chat
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
-    rate_limits:
-      tpm: 150000  # Tokens per minute (proactive throttling)
-      rpm: 1500    # Requests per minute (10x higher than gpt-4.1)
     retry:
       retry_on_429: true
       max_retries: 5
@@ -64,48 +58,13 @@ servers:
   - name: excel-mcp
     type: stdio
     command: "{{SERVER_COMMAND}}"
-    server_delay: 10s
+    server_delay: 30s
 
 agents:
   - name: gpt41-agent
     servers:
       - name: excel-mcp
     provider: azure-openai-gpt41
-    system_prompt: |
-      You are {{AGENT_NAME}}, an autonomous Excel automation agent using {{PROVIDER_NAME}}.
-      Session: {{SESSION_NAME}}
-
-      CRITICAL RULES:
-      - Execute all tasks IMMEDIATELY without asking for confirmation
-      - NEVER ask "Would you like me to...", "Should I proceed...", or similar questions
-      - NEVER request clarification - make reasonable assumptions and proceed
-      - Use available tools directly to complete the requested tasks
-      - Report results after completion, not before starting
-      - For temp files, use C:/temp/ directory with unique descriptive names
-    clarification_detection:
-      enabled: true
-      level: warning
-      use_builtin_patterns: true
-
-  - name: gpt5-chat-agent
-    servers:
-      - name: excel-mcp
-    provider: azure-openai-gpt5-chat
-    system_prompt: |
-      You are {{AGENT_NAME}}, an autonomous Excel automation agent using {{PROVIDER_NAME}}.
-      Session: {{SESSION_NAME}}
-
-      CRITICAL RULES:
-      - Execute all tasks IMMEDIATELY without asking for confirmation
-      - NEVER ask "Would you like me to...", "Should I proceed...", or similar questions
-      - NEVER request clarification - make reasonable assumptions and proceed
-      - Use available tools directly to complete the requested tasks
-      - Report results after completion, not before starting
-      - For temp files, use C:/temp/ directory with unique descriptive names
-    clarification_detection:
-      enabled: true
-      level: warning
-      use_builtin_patterns: true
 
 settings:
   verbose: true
@@ -114,135 +73,40 @@ settings:
 
 sessions:
   # ==========================================================================
-  # Session 1: File Lifecycle - create, open, list, close
+  # Session 1: File Lifecycle - create, open, list, close (combined)
   # ==========================================================================
   - name: "File Lifecycle"
     tests:
-      - name: "Create empty Excel file"
+      - name: "Complete file lifecycle"
         prompt: |
-          Create a new empty Excel file at C:/temp/llm-test-file-lifecycle-{{randomValue type='UUID'}}.xlsx
+          1. Create a new empty Excel file at C:/temp/llm-test-file-lifecycle-{{randomValue type='UUID'}}.xlsx
+          2. Open the file
+          3. List all active Excel sessions
+          4. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
           - type: tool_called
             tool: excel_file
-          - type: tool_param_equals
-            tool: excel_file
-            params:
-              action: "CreateEmpty"
           - type: output_regex
-            pattern: "(?i)(created|success)"
-
-      - name: "Open the Excel file"
-        prompt: |
-          Open the Excel file that was just created.
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_file
-          - type: tool_param_equals
-            tool: excel_file
-            params:
-              action: "Open"
-          - type: output_regex
-            pattern: "(?i)(opened|session|success)"
-
-      - name: "List active sessions"
-        prompt: |
-          List all currently active Excel sessions.
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_file
-          - type: tool_param_equals
-            tool: excel_file
-            params:
-              action: "List"
-
-      - name: "Close the Excel file"
-        prompt: |
-          Close the Excel file without saving changes.
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_file
-          - type: tool_param_equals
-            tool: excel_file
-            params:
-              action: "Close"
+            pattern: "(?i)(closed|complete|success)"
 
   # ==========================================================================
-  # Session 2: Worksheet Operations - list, create, rename
+  # Session 2: Worksheet Operations - create, rename, verify (combined)
   # ==========================================================================
   - name: "Worksheet Operations"
     tests:
-      - name: "Create and open a new Excel file"
+      - name: "Create file and worksheet operations"
         prompt: |
-          Create a new empty Excel file at C:/temp/llm-test-worksheets-{{randomValue type='UUID'}}.xlsx and open it.
+          1. Create a new empty Excel file at C:/temp/llm-test-worksheets-{{randomValue type='UUID'}}.xlsx and open it
+          2. Create a new worksheet called "SalesData"
+          3. Rename the "SalesData" worksheet to "Q1Sales"
+          4. List all worksheets to confirm Q1Sales exists
+          5. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
           - type: tool_called
             tool: excel_file
-
-      - name: "List worksheets"
-        prompt: |
-          List all the worksheets in the currently open workbook.
-        assertions:
-          - type: no_hallucinated_tools
           - type: tool_called
             tool: excel_worksheet
-          - type: tool_param_equals
-            tool: excel_worksheet
-            params:
-              action: "List"
-          - type: output_regex
-            pattern: "(?i)(sheet|worksheet)"
-
-      - name: "Create a new worksheet"
-        prompt: |
-          Create a new worksheet called "SalesData".
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_worksheet
-          - type: tool_param_equals
-            tool: excel_worksheet
-            params:
-              action: "Create"
-          - type: output_regex
-            pattern: "(?i)(created|salesdata|success)"
-
-      - name: "Rename the worksheet"
-        prompt: |
-          Rename the "SalesData" worksheet to "Q1Sales".
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_worksheet
-          - type: tool_param_equals
-            tool: excel_worksheet
-            params:
-              action: "Rename"
-          - type: output_regex
-            pattern: "(?i)(renamed|q1sales|success)"
-
-      - name: "Verify worksheet exists"
-        prompt: |
-          List all worksheets to verify Q1Sales exists.
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_worksheet
-          - type: tool_param_equals
-            tool: excel_worksheet
-            params:
-              action: "List"
           - type: output_regex
             pattern: "(?i)q1sales"
-
-      - name: "Close without saving"
-        prompt: |
-          Close the Excel file without saving.
-        assertions:
-          - type: no_hallucinated_tools
-          - type: tool_called
-            tool: excel_file

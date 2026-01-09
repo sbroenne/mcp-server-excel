@@ -19,34 +19,6 @@ All notable changes to the ExcelMcp VS Code extension will be documented in this
   - Tests incremental update patterns vs rebuild behavior
   - Ensures tool descriptions guide LLMs effectively
 
-## [1.4.49] - 2025-12-25
-
-- Maintenance release with stability improvements
-
-## [1.4.48] - 2025-12-22
-
-- Maintenance release with stability improvements
-
-## [1.4.47] - 2025-12-22
-
-- Maintenance release with stability improvements
-
-## [1.4.46] - 2025-12-20
-
-- **SEO Improvements** (#336, #337): Fixed duplicate site name in page titles, excluded 404 page from search indexing
-
-## [1.4.45] - 2025-12-20
-
-- Maintenance release with stability improvements
-
-## [1.4.44] - 2025-12-20
-
-- Maintenance release with stability improvements
-
-## [1.4.43] - 2025-12-16
-
-- Maintenance release with stability improvements
-
 ## [1.4.42] - 2025-12-15
 
 - **Power Query Rename** (#326, #327): New `rename` action for Power Query queries
@@ -63,15 +35,6 @@ All notable changes to the ExcelMcp VS Code extension will be documented in this
   - Proper `isError` signaling for tool execution failures (MCP protocol compliance)
   - Deterministic exit codes (0 = success/graceful shutdown, 1 = fatal error)
   - `IAsyncDisposable` for proper async resource cleanup
-
-## [1.4.39] - 2025-12-13
-
-- Internal improvements and bug fixes
-
-## [1.4.38] - 2025-12-08
-
-- **GitHub Pages Enhancements** (#294, #297): Added RSS feed, Contributing page, Security page, and custom 404 page
-- **Orphaned Connection Fix** (#299): Prevented orphaned Power Query connections during worksheet loading
 
 ## [1.4.37] - 2025-12-06
 
