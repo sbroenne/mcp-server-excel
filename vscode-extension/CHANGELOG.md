@@ -19,11 +19,7 @@ All notable changes to the ExcelMcp VS Code extension will be documented in this
   - Tests incremental update patterns vs rebuild behavior
   - Ensures tool descriptions guide LLMs effectively
 - **.NET 10 Upgrade**: Full compatibility with .NET 10.0
-  - Updated SDK version from 8.0.416 to 10.0.100
-  - All projects (Core, CLI, MCP Server) now target net10.0
-  - Updated package dependencies to latest stable versions
-  - GitHub Actions workflows updated to use .NET 10 SDK
-
+  
 ## [1.4.42] - 2025-12-15
 
 - **Power Query Rename** (#326, #327): New `rename` action for Power Query queries
@@ -84,7 +80,7 @@ All notable changes to the ExcelMcp VS Code extension will be documented in this
 
 ## [1.4.25] - 2025-12-01
 
-- **89% Smaller Extension Size** (#250): Switched to framework-dependent deployment (requires .NET 8.0 runtime)
+- **89% Smaller Extension Size** (#250): Switched to framework-dependent deployment (requires .NET 10 runtime)
 
 ## [1.4.24] - 2025-12-01
 

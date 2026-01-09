@@ -29,6 +29,8 @@ Unlike third-party libraries that manipulate `.xlsx` files (risking corruption),
 
 **Manual Installation (All MCP Clients):**
 
+Requires .NET 10 Runtime or SDK
+
 ```powershell
 # Install MCP Server
 dotnet tool install --global Sbroenne.ExcelMcp.McpServer

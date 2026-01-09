@@ -200,7 +200,7 @@ public partial class TableCommands
                     bool includeRow = !visibleOnly || IsListRowVisible(listRows, listRowCount, 1);
                     if (includeRow)
                     {
-                        result.Data.Add(new List<object?> { rawValues });
+                        result.Data.Add([rawValues]);
                     }
                 }
 

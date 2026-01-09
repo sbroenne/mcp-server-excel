@@ -47,7 +47,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 10.0.x
 
     - name: Update Versions (MCP Server & CLI)
       run: |
@@ -163,8 +163,7 @@ jobs:
         New-Item -ItemType Directory -Path "release" -Force
         New-Item -ItemType Directory -Path "release/ExcelMcp-MCP-Server-$version" -Force
 
-        # Copy MCP Server files
-        Copy-Item "src/ExcelMcp.McpServer/bin/Release/net8.0/*" "release/ExcelMcp-MCP-Server-$version/" -Recurse
+        Copy-Item "src/ExcelMcp.McpServer/bin/Release/net10.0/*" "release/ExcelMcp-MCP-Server-$version/" -Recurse
 
         # Copy documentation
         Copy-Item "README.md" "release/ExcelMcp-MCP-Server-$version/"
@@ -194,7 +193,7 @@ jobs:
         $readmeContent += "- Excel Development Focus - Power Query, VBA, Data Model, tables, ranges, worksheets`n`n"
         $readmeContent += "## Requirements`n`n"
         $readmeContent += "- Windows OS with Microsoft Excel installed`n"
-        $readmeContent += "- .NET 8.0 runtime`n"
+        $readmeContent += "- .NET 10 runtime`n"
         $readmeContent += "- Excel 2016+ (for COM interop)`n`n"
         $readmeContent += "## License`n`n"
         $readmeContent += "MIT License - see LICENSE file for details.`n"
@@ -214,8 +213,7 @@ jobs:
         # Create CLI release directory
         New-Item -ItemType Directory -Path "release/ExcelMcp-CLI-$version" -Force
 
-        # Copy CLI files
-        Copy-Item "src/ExcelMcp.CLI/bin/Release/net8.0/*" "release/ExcelMcp-CLI-$version/" -Recurse
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net10.0/*" "release/ExcelMcp-CLI-$version/" -Recurse
 
         # Copy documentation
         Copy-Item "README.md" "release/ExcelMcp-CLI-$version/"
@@ -240,7 +238,7 @@ jobs:
         $cliReadme += "``````n`n"
         $cliReadme += "## Requirements`n`n"
         $cliReadme += "- Windows OS with Microsoft Excel installed`n"
-        $cliReadme += "- .NET 8.0 runtime`n"
+        $cliReadme += "- .NET 10 runtime`n"
         $cliReadme += "- Excel 2016+ (for COM interop)`n`n"
         $cliReadme += "## License`n`n"
         $cliReadme += "MIT License - see LICENSE file for details.`n"
@@ -270,7 +268,7 @@ jobs:
         $releaseNotes += "For complete documentation, see the [main README](https://github.com/sbroenne/mcp-server-excel#readme).`n`n"
         $releaseNotes += "### Requirements`n"
         $releaseNotes += "- Windows OS with Microsoft Excel installed`n"
-        $releaseNotes += "- .NET 8.0 runtime`n"
+        $releaseNotes += "- .NET 10 runtime`n"
         $releaseNotes += "- Excel 2016+ (for COM interop)`n`n"
         $releaseNotes += "### Documentation`n"
         $releaseNotes += "- GitHub Repository: https://github.com/sbroenne/mcp-server-excel`n"

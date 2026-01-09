@@ -19,8 +19,8 @@
 
 **Purpose**: Ensure prerequisites are met before making changes
 
-- [ ] T001 Verify .NET 10 SDK is installed locally by running `dotnet --list-sdks`
-- [ ] T002 Create feature branch `006-dotnet10-upgrade` from main (if not already on branch)
+- [x] T001 Verify .NET 10 SDK is installed locally by running `dotnet --list-sdks`
+- [x] T002 Create feature branch `006-dotnet10-upgrade` from main (if not already on branch)
 
 ---
 
@@ -32,18 +32,18 @@
 
 ### Implementation for User Story 1
 
-- [ ] T003 [US1] Update SDK version in global.json from `8.0.416` to `10.0.100`
-- [ ] T004 [P] [US1] Update TargetFramework to net10.0 in src/ExcelMcp.ComInterop/ExcelMcp.ComInterop.csproj
-- [ ] T005 [P] [US1] Update TargetFramework to net10.0 in src/ExcelMcp.Core/ExcelMcp.Core.csproj
-- [ ] T006 [P] [US1] Update TargetFramework to net10.0 in src/ExcelMcp.CLI/ExcelMcp.CLI.csproj
-- [ ] T007 [P] [US1] Update TargetFramework to net10.0 in src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
-- [ ] T008 [P] [US1] Update TargetFramework to net10.0 in tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj
-- [ ] T009 [P] [US1] Update TargetFramework to net10.0 in tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj
-- [ ] T010 [P] [US1] Update TargetFramework to net10.0 in tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj
-- [ ] T011 [P] [US1] Update TargetFramework to net10.0 in tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj
-- [ ] T012 [US1] Run `dotnet restore` to verify all NuGet packages resolve correctly
-- [ ] T013 [US1] Run `dotnet build --configuration Release` and verify 0 warnings, 0 errors
-- [ ] T014 [US1] Run integration tests: `dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA"`
+- [x] T003 [US1] Update SDK version in global.json from `8.0.416` to `10.0.100`
+- [x] T004 [P] [US1] Update TargetFramework to net10.0 in src/ExcelMcp.ComInterop/ExcelMcp.ComInterop.csproj
+- [x] T005 [P] [US1] Update TargetFramework to net10.0 in src/ExcelMcp.Core/ExcelMcp.Core.csproj
+- [x] T006 [P] [US1] Update TargetFramework to net10.0 in src/ExcelMcp.CLI/ExcelMcp.CLI.csproj
+- [x] T007 [P] [US1] Update TargetFramework to net10.0 in src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
+- [x] T008 [P] [US1] Update TargetFramework to net10.0 in tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj
+- [x] T009 [P] [US1] Update TargetFramework to net10.0 in tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj
+- [x] T010 [P] [US1] Update TargetFramework to net10.0 in tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj
+- [x] T011 [P] [US1] Update TargetFramework to net10.0 in tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj
+- [x] T012 [US1] Run `dotnet restore` to verify all NuGet packages resolve correctly
+- [x] T013 [US1] Run `dotnet build --configuration Release` and verify 0 warnings, 0 errors
+- [x] T014 [US1] Run integration tests: `dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA"`
 
 **Checkpoint**: User Story 1 complete - project builds and tests pass on .NET 10
 
@@ -57,13 +57,13 @@
 
 ### Implementation for User Story 2
 
-- [ ] T015 [P] [US2] Update dotnet-version from 8.0.x to 10.0.x in .github/workflows/build-mcp-server.yml
-- [ ] T016 [P] [US2] Update artifact paths from net8.0 to net10.0 in .github/workflows/build-mcp-server.yml
-- [ ] T017 [P] [US2] Update dotnet-version from 8.0.x to 10.0.x in .github/workflows/build-cli.yml
-- [ ] T018 [P] [US2] Update artifact paths from net8.0 to net10.0 in .github/workflows/build-cli.yml
-- [ ] T019 [P] [US2] Update dotnet-version from 8.0.x to 10.0.x in .github/workflows/release-mcp-server.yml
-- [ ] T020 [P] [US2] Update dotnet-version from 8.0.x to 10.0.x in .github/workflows/release-vscode-extension.yml (if applicable)
-- [ ] T021 [P] [US2] Update dotnet-version from 8.0.x to 10.0.x in .github/workflows/codeql.yml
+- [x] T015 [P] [US2] Update dotnet-version from 8.0.x to 10.0.x in .github/workflows/build-mcp-server.yml
+- [x] T016 [P] [US2] Update artifact paths from net8.0 to net10.0 in .github/workflows/build-mcp-server.yml
+- [x] T017 [P] [US2] Update dotnet-version from 8.0.x to 10.0.x in .github/workflows/build-cli.yml
+- [x] T018 [P] [US2] Update artifact paths from net8.0 to net10.0 in .github/workflows/build-cli.yml
+- [x] T019 [P] [US2] Update dotnet-version from 8.0.x to 10.0.x in .github/workflows/release-mcp-server.yml
+- [x] T020 [P] [US2] Update dotnet-version from 8.0.x to 10.0.x in .github/workflows/release-vscode-extension.yml (if applicable)
+- [x] T021 [P] [US2] Update dotnet-version from 8.0.x to 10.0.x in .github/workflows/codeql.yml
 
 **Checkpoint**: User Story 2 complete - CI/CD workflows configured for .NET 10
 
@@ -77,16 +77,16 @@
 
 ### Container Update
 
-- [ ] T022 [US3] Update Dockerfile FROM statements: sdk:8.0 → sdk:10.0, runtime:8.0 → runtime:10.0
+- [x] T022 [US3] Update Dockerfile FROM statements: sdk:8.0 → sdk:10.0, runtime:8.0 → runtime:10.0
 
 ### Documentation Updates
 
-- [ ] T023 [P] [US3] Update .NET version badge from ".NET 8.0" to ".NET 10" in README.md
-- [ ] T024 [P] [US3] Update requirements section to state ".NET 10 runtime" in README.md
-- [ ] T025 [P] [US3] Update .NET version requirements in src/ExcelMcp.McpServer/README.md
-- [ ] T026 [P] [US3] Update .NET version requirements in src/ExcelMcp.CLI/README.md
-- [ ] T027 [P] [US3] Update .NET 10 requirement in gh-pages/index.md
-- [ ] T028 [P] [US3] Update .NET 10 requirement in gh-pages/installation.md
+- [x] T023 [P] [US3] Update .NET version badge from ".NET 8.0" to ".NET 10" in README.md
+- [x] T024 [P] [US3] Update requirements section to state ".NET 10 runtime" in README.md
+- [x] T025 [P] [US3] Update .NET version requirements in src/ExcelMcp.McpServer/README.md
+- [x] T026 [P] [US3] Update .NET version requirements in src/ExcelMcp.CLI/README.md
+- [x] T027 [P] [US3] Update .NET 10 requirement in gh-pages/index.md
+- [x] T028 [P] [US3] Update .NET 10 requirement in gh-pages/installation.md
 
 **Checkpoint**: User Story 3 complete - container and documentation updated
 
@@ -100,9 +100,9 @@
 
 ### Implementation for User Story 4
 
-- [ ] T029 [US4] Update docs/INSTALLATION.md with .NET 10 requirement and winget command: `winget install Microsoft.DotNet.Runtime.10`
-- [ ] T030 [US4] Add winget installation instructions to gh-pages/installation.md
-- [ ] T031 [US4] Add entry to vscode-extension/CHANGELOG.md documenting .NET 10 runtime requirement change
+- [x] T029 [US4] Update docs/INSTALLATION.md with .NET 10 requirement and winget command: `winget install Microsoft.DotNet.Runtime.10`
+- [x] T030 [US4] Add winget installation instructions to gh-pages/installation.md
+- [x] T031 [US4] Add entry to vscode-extension/CHANGELOG.md documenting .NET 10 runtime requirement change
 
 **Checkpoint**: User Story 4 complete - upgrade path documented
 
@@ -112,10 +112,10 @@
 
 **Purpose**: Final validation before creating pull request
 
-- [ ] T032 Run `dotnet build --configuration Release` and confirm 0 warnings, 0 errors
-- [ ] T033 Run integration tests: `dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA"`
-- [ ] T034 Verify Docker build (optional): `docker build -t excelmcp-test .`
-- [ ] T035 Review all modified files for accuracy and completeness
+- [x] T032 Run `dotnet build --configuration Release` and confirm 0 warnings, 0 errors
+- [x] T033 Run integration tests: `dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA"`
+- [x] T034 Verify Docker build (optional): `docker build -t excelmcp-test .`
+- [x] T035 Review all modified files for accuracy and completeness
 - [ ] T036 Create pull request with comprehensive description
 - [ ] T037 Check and fix any automated PR review comments (Copilot, GitHub Security)
 - [ ] T038 Verify all GitHub Actions workflows pass on PR

@@ -66,8 +66,8 @@ public static class ExcelMcpTelemetry
 
         _telemetryClient.TrackEvent("SessionStart", new Dictionary<string, string>
         {
-            { "SessionId", SessionId },
-            { "AppVersion", GetVersion() }
+            ["SessionId"] = SessionId,
+            ["AppVersion"] = GetVersion()
         });
     }
 
@@ -128,9 +128,9 @@ public static class ExcelMcpTelemetry
 
         var properties = new Dictionary<string, string>
         {
-            { "Tool", toolName },
-            { "Action", action },
-            { "Success", success.ToString() }
+            ["Tool"] = toolName,
+            ["Action"] = action,
+            ["Success"] = success.ToString()
         };
 
         // Add hashed file path for grouping (if provided)
@@ -141,7 +141,7 @@ public static class ExcelMcpTelemetry
 
         var metrics = new Dictionary<string, double>
         {
-            { "DurationMs", durationMs }
+            ["DurationMs"] = durationMs
         };
 
         // Track as customEvent for analytics (tool usage, parameters, success/failure)
@@ -182,9 +182,9 @@ public static class ExcelMcpTelemetry
         // Track as exception in Application Insights (for Failures blade)
         _telemetryClient.TrackException(exception, new Dictionary<string, string>
         {
-            { "Source", source },
-            { "ExceptionType", type },
-            { "AppVersion", GetVersion() }
+            ["Source"] = source,
+            ["ExceptionType"] = type,
+            ["AppVersion"] = GetVersion()
         });
     }
 

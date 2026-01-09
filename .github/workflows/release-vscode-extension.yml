@@ -27,7 +27,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 10.0.x
 
     - name: Update MCP Server Version
       run: |
@@ -120,18 +120,18 @@ jobs:
       run: |
         $version = "${{ env.PACKAGE_VERSION }}"
         $changelogPath = "vscode-extension/CHANGELOG.md"
-        
+
         Write-Output "Extracting changelog entries for version $version..."
-        
+
         # Read the changelog file
         $content = Get-Content $changelogPath -Raw
-        
+
         # Extract the section for this version (from ## [version] to next ## or end)
         $pattern = "(?s)## \[$version\][^\n]*\n(.*?)(?=\n## \[|$)"
         if ($content -match $pattern) {
           $versionChanges = $matches[1].Trim()
           Write-Output "Found changelog entry for $version"
-          
+
           # Save to environment file for next step
           # Use a delimiter for multiline content
           $delimiter = "EOF_CHANGELOG"
@@ -157,11 +157,11 @@ jobs:
         }
 
         $notes = "## ExcelMcp VS Code Extension $tagName`n`n"
-        
+
         # Add changelog content at the top
         $notes += "### What's New`n`n"
         $notes += "$changelogContent`n`n"
-        
+
         $notes += "### One-Click Excel MCP Server Installation for VS Code`n`n"
         $notes += "This extension automatically registers the ExcelMcp MCP server with VS Code.`n`n"
         $notes += "### Installation Options`n`n"
