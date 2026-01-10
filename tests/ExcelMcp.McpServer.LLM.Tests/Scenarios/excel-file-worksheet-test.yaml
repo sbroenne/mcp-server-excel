@@ -40,19 +40,13 @@ providers:
     model: gpt-4.1
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
-    retry:
-      retry_on_429: true
-      max_retries: 5
-  # GPT-5.2-chat Provider - Higher RPM, faster throughput
+  # GPT-5-chat Provider - Higher RPM, faster throughput
   - name: azure-openai-gpt5-chat
     type: AZURE
-    auth_type: entra_id
+    auth_type: entra_id  # Uses DefaultAzureCredential - no API key needed
     model: gpt-5.2-chat
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
-    retry:
-      retry_on_429: true
-      max_retries: 5
 
 servers:
   - name: excel-mcp
@@ -65,6 +59,14 @@ agents:
     servers:
       - name: excel-mcp
     provider: azure-openai-gpt41
+    clarification_detection:
+      enabled: true
+  - name: gpt5-chat-agent
+    servers:
+      - name: excel-mcp
+    provider: azure-openai-gpt5-chat
+    clarification_detection:
+      enabled: true
 
 settings:
   verbose: true
@@ -79,12 +81,14 @@ sessions:
     tests:
       - name: "Complete file lifecycle"
         prompt: |
-          1. Create a new empty Excel file at C:/temp/llm-test-file-lifecycle-{{randomValue type='UUID'}}.xlsx
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-file-lifecycle-{{randomValue type='UUID'}}.xlsx
           2. Open the file
           3. List all active Excel sessions
           4. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
+          - type: no_rate_limit_errors
+          - type: no_clarification_questions
           - type: tool_called
             tool: excel_file
           - type: output_regex
@@ -97,13 +101,15 @@ sessions:
     tests:
       - name: "Create file and worksheet operations"
         prompt: |
-          1. Create a new empty Excel file at C:/temp/llm-test-worksheets-{{randomValue type='UUID'}}.xlsx and open it
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-worksheets-{{randomValue type='UUID'}}.xlsx and open it
           2. Create a new worksheet called "SalesData"
           3. Rename the "SalesData" worksheet to "Q1Sales"
           4. List all worksheets to confirm Q1Sales exists
           5. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
+          - type: no_rate_limit_errors
+          - type: no_clarification_questions
           - type: tool_called
             tool: excel_file
           - type: tool_called

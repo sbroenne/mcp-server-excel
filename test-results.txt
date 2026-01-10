@@ -1,0 +1,5 @@
+Test run for D:\source\mcp-server-excel\tests\ExcelMcp.McpServer.Tests\bin\Debug\net10.0\Sbroenne.ExcelMcp.McpServer.Tests.dll (.NETCoreApp,Version=v10.0)
+VSTest version 18.0.1 (arm64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.

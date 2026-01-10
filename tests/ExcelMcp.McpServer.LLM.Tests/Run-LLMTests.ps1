@@ -247,19 +247,16 @@ foreach ($ScenarioFile in $ScenarioFiles) {
     Write-Host "`nRunning: $($ScenarioFile.Name)" -ForegroundColor Cyan
     Write-Host ("-" * 50)
 
-    # Create temp file with substituted variables
-    $TempFile = Join-Path $env:TEMP "excel-mcp-test-$($ScenarioFile.BaseName).yaml"
-    $Content = Get-Content $ScenarioFile.FullName -Raw
-    $Content = $Content -replace '\{\{SERVER_COMMAND\}\}', $ServerCommand
-    $ReportsDirForYaml = $ReportsDir -replace '\\', '/'
-    $Content = $Content -replace '\{\{TEST_RESULTS_PATH\}\}', $ReportsDirForYaml
-    $Content | Set-Content $TempFile -Encoding UTF8
+    # Set environment variables for template substitution
+    # agent-benchmark automatically picks up all env vars as template variables
+    $env:SERVER_COMMAND = $ServerCommand
+    $env:TEST_RESULTS_PATH = $ReportsDir -replace '\\', '/'
 
-    # Run agent-benchmark
+    # Run agent-benchmark directly on the original file
     $ReportFile = Join-Path $ReportsDir "$($ScenarioFile.BaseName)-report"
 
     $Args = @(
-        "-f", $TempFile,
+        "-f", $ScenarioFile.FullName,
         "-o", $ReportFile,
         "-reportType", "html,json",
         "-verbose"
@@ -282,9 +279,6 @@ foreach ($ScenarioFile in $ScenarioFiles) {
         & $ResolvedAgentBenchmarkPath @Args
         $ExitCode = $LASTEXITCODE
     }
-
-    # Clean up temp file
-    Remove-Item $TempFile -Force -ErrorAction SilentlyContinue
 
     if ($ExitCode -eq 0) {
         Write-Host "PASSED" -ForegroundColor Green

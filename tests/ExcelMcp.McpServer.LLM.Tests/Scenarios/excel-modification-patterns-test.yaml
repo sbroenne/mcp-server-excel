@@ -31,9 +31,12 @@ providers:
     model: gpt-4.1
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
-    retry:
-      retry_on_429: true
-      max_retries: 5
+  - name: azure-openai-gpt5-chat
+    type: AZURE
+    auth_type: entra_id  # Uses DefaultAzureCredential - no API key needed
+    model: gpt-5.2-chat
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
 
 servers:
   - name: excel-mcp
@@ -46,6 +49,14 @@ agents:
     servers:
       - name: excel-mcp
     provider: azure-openai-gpt41
+    clarification_detection:
+      enabled: true
+  - name: gpt5-chat-agent
+    servers:
+      - name: excel-mcp
+    provider: azure-openai-gpt5-chat
+    clarification_detection:
+      enabled: true
 
 settings:
   verbose: true
@@ -61,7 +72,7 @@ sessions:
     tests:
       - name: "Modify specific cells without touching formula canary"
         prompt: |
-          1. Create a new empty Excel file at C:/temp/llm-test-range-{{randomValue type='UUID'}}.xlsx and open it
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-range-{{randomValue type='UUID'}}.xlsx and open it
           2. Set up a budget in A1:C4 on Sheet1:
              Row 1: Category, Budget, Actual
              Row 2: Rent, 1000, 1000
@@ -76,6 +87,8 @@ sessions:
           9. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
+          - type: no_rate_limit_errors
+          - type: no_clarification_questions
           - type: tool_called
             tool: excel_file
           - type: tool_called
@@ -103,7 +116,7 @@ sessions:
     tests:
       - name: "Modify table cell without recreating table"
         prompt: |
-          1. Create a new empty Excel file at C:/temp/llm-test-table-{{randomValue type='UUID'}}.xlsx and open it
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-table-{{randomValue type='UUID'}}.xlsx and open it
           2. Put sales data in A1:C4 on Sheet1:
              Row 1: Product, Price, Quantity
              Row 2: Widget, 25, 3
@@ -117,6 +130,8 @@ sessions:
           8. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
+          - type: no_rate_limit_errors
+          - type: no_clarification_questions
           - type: tool_called
             tool: excel_file
           - type: tool_called
@@ -141,7 +156,7 @@ sessions:
     tests:
       - name: "Change chart title without recreating chart"
         prompt: |
-          1. Create a new empty Excel file at C:/temp/llm-test-chart-{{randomValue type='UUID'}}.xlsx and open it
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-chart-{{randomValue type='UUID'}}.xlsx and open it
           2. Put chart data in A1:B4 on Sheet1:
              Row 1: Month, Sales
              Row 2: Jan, 100
@@ -155,6 +170,8 @@ sessions:
           8. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
+          - type: no_rate_limit_errors
+          - type: no_clarification_questions
           - type: tool_called
             tool: excel_file
           - type: tool_called
@@ -177,7 +194,7 @@ sessions:
     tests:
       - name: "Delete row and rename header without rebuilding sheet"
         prompt: |
-          1. Create a new empty Excel file at C:/temp/llm-test-struct-{{randomValue type='UUID'}}.xlsx and open it
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-struct-{{randomValue type='UUID'}}.xlsx and open it
           2. Put employee data in A1:C5 on Sheet1:
              Row 1: Name, Department, ID
              Row 2: Alice, Engineering, =ROW()*100 (formula shows 200)
@@ -195,6 +212,8 @@ sessions:
           6. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
+          - type: no_rate_limit_errors
+          - type: no_clarification_questions
           - type: tool_called
             tool: excel_file
           - type: tool_called

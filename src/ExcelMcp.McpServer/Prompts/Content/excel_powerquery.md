@@ -1,5 +1,21 @@
 # excel_powerquery - Server Quirks
 
+**Data Model workflow**:
+
+Power Query can load data to different destinations:
+- `worksheet` (default): Creates an Excel Table on a worksheet
+- `data-model`: Loads directly to Power Pivot for DAX analysis
+- `both`: Loads to worksheet AND Power Pivot
+- `connection-only`: Imports query definition without loading data
+
+To create DAX measures on Power Query data:
+1. Use excel_powerquery create/load-to with `loadDestination='data-model'`
+2. Then use excel_datamodel to create DAX measures
+
+Alternative path (for existing worksheet tables):
+1. Use excel_table with `add-to-datamodel` action
+2. Then use excel_datamodel to create DAX measures
+
 **Action disambiguation**:
 
 - create: Import NEW query using inline `mCode` (FAILS if query already exists - use update instead)

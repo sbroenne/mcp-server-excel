@@ -33,9 +33,12 @@ providers:
     model: gpt-4.1
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
-    retry:
-      retry_on_429: true
-      max_retries: 5
+  - name: azure-openai-gpt5-chat
+    type: AZURE
+    auth_type: entra_id  # Uses DefaultAzureCredential - no API key needed
+    model: gpt-5.2-chat
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
 
 servers:
   - name: excel-mcp
@@ -48,6 +51,14 @@ agents:
     servers:
       - name: excel-mcp
     provider: azure-openai-gpt41
+    clarification_detection:
+      enabled: true
+  - name: gpt5-chat-agent
+    servers:
+      - name: excel-mcp
+    provider: azure-openai-gpt5-chat
+    clarification_detection:
+      enabled: true
 
 settings:
   verbose: true
@@ -62,7 +73,7 @@ sessions:
     tests:
       - name: "Write and read range data"
         prompt: |
-          1. Create a new empty Excel file at C:/temp/llm-test-range-{{randomValue type='UUID'}}.xlsx and open it
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-range-{{randomValue type='UUID'}}.xlsx and open it
           2. Put the following data in cells A1:C3:
              Row 1: Name, Age, City
              Row 2: Alice, 30, Seattle
@@ -72,6 +83,8 @@ sessions:
           5. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
+          - type: no_rate_limit_errors
+          - type: no_clarification_questions
           - type: tool_called
             tool: excel_file
           - type: tool_called
@@ -86,13 +99,15 @@ sessions:
     tests:
       - name: "Write and read single cells"
         prompt: |
-          1. Create a new empty Excel file at C:/temp/llm-test-single-cell-{{randomValue type='UUID'}}.xlsx and open it
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-single-cell-{{randomValue type='UUID'}}.xlsx and open it
           2. Put the value "Hello World" in cell A1
           3. Put the number 42 in cell B1
           4. Read the values from A1:B1 and report what you see
           5. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
+          - type: no_rate_limit_errors
+          - type: no_clarification_questions
           - type: tool_called
             tool: excel_file
           - type: tool_called

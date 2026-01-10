@@ -14,7 +14,13 @@ public static partial class TableTool
 {
     /// <summary>
     /// Excel Tables - lifecycle and data.
-    /// Related: excel_table_column (filter/sort/columns)
+    ///
+    /// DATA MODEL WORKFLOW: To analyze worksheet data with DAX/Power Pivot:
+    /// 1. Create or identify an Excel Table on a worksheet
+    /// 2. Use add-to-datamodel action to add the table to Power Pivot
+    /// 3. Then use excel_datamodel to create DAX measures on it
+    ///
+    /// Related: excel_table_column (filter/sort/columns), excel_datamodel (DAX measures)
     /// </summary>
     /// <param name="action">Action</param>
     /// <param name="path">File path</param>
