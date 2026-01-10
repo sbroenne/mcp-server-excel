@@ -13,30 +13,35 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 public static partial class ExcelWorksheetTool
 {
     /// <summary>
-    /// Worksheet lifecycle. CopyToFile/MoveToFile are atomic (no session).
-    /// Other actions need sid. Position: before OR after (not both).
-    /// Related: excel_worksheet_style (colors/visibility)
+    /// Worksheet lifecycle management: create, rename, copy, delete, move sheets.
+    ///
+    /// ATOMIC OPERATIONS: 'copy-to-file' and 'move-to-file' don't require a session - they open/close files automatically.
+    /// SESSION OPERATIONS: All other actions require a sessionId from excel_file 'open'.
+    ///
+    /// POSITIONING: Use 'before' OR 'after' (not both) to position the sheet relative to another.
+    ///
+    /// Related: Use excel_worksheet_style for tab colors and visibility settings.
     /// </summary>
-    /// <param name="action">Action</param>
-    /// <param name="sid">Session ID</param>
-    /// <param name="src">Source file (copy-to-file/move-to-file)</param>
-    /// <param name="sn">Sheet name</param>
-    /// <param name="tgt">Target file</param>
-    /// <param name="tn">New name (rename/copy)</param>
-    /// <param name="before">Position before sheet</param>
-    /// <param name="after">Position after sheet</param>
+    /// <param name="action">The worksheet operation to perform</param>
+    /// <param name="sessionId">Session ID from excel_file 'open'. Required for: list, create, delete, rename, copy, move</param>
+    /// <param name="sourceFile">Full path to source Excel file. Required for: copy-to-file, move-to-file</param>
+    /// <param name="sheetName">Name of the worksheet to operate on. Required for: create, delete, rename, copy, move, copy-to-file, move-to-file</param>
+    /// <param name="targetFile">Full path to destination Excel file. Required for: copy-to-file, move-to-file</param>
+    /// <param name="targetName">New name for the worksheet. Required for: rename. Optional for: copy, copy-to-file (defaults to sheetName)</param>
+    /// <param name="beforeSheet">Position the sheet before this sheet name. Optional for: move, copy-to-file, move-to-file</param>
+    /// <param name="afterSheet">Position the sheet after this sheet name. Optional for: move, copy-to-file, move-to-file</param>
     [McpServerTool(Name = "excel_worksheet", Title = "Excel Worksheet Operations")]
     [McpMeta("category", "structure")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelWorksheet(
         WorksheetAction action,
-        [DefaultValue(null)] string? sid,
-        [DefaultValue(null)] string? src,
-        [DefaultValue(null)] string? sn,
-        [DefaultValue(null)] string? tgt,
-        [DefaultValue(null)] string? tn,
-        [DefaultValue(null)] string? before,
-        [DefaultValue(null)] string? after)
+        [DefaultValue(null)] string? sessionId,
+        [DefaultValue(null)] string? sourceFile,
+        [DefaultValue(null)] string? sheetName,
+        [DefaultValue(null)] string? targetFile,
+        [DefaultValue(null)] string? targetName,
+        [DefaultValue(null)] string? beforeSheet,
+        [DefaultValue(null)] string? afterSheet)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_worksheet",
@@ -49,16 +54,16 @@ public static partial class ExcelWorksheetTool
                 return action switch
                 {
                     // Atomic cross-file operations (no session required)
-                    WorksheetAction.CopyToFile => CopyToFileHandler(sheetCommands, src, sn, tgt, tn, before, after),
-                    WorksheetAction.MoveToFile => MoveToFileHandler(sheetCommands, src, sn, tgt, before, after),
+                    WorksheetAction.CopyToFile => CopyToFileHandler(sheetCommands, sourceFile, sheetName, targetFile, targetName, beforeSheet, afterSheet),
+                    WorksheetAction.MoveToFile => MoveToFileHandler(sheetCommands, sourceFile, sheetName, targetFile, beforeSheet, afterSheet),
 
                     // Session-based operations
-                    WorksheetAction.List => ListAsync(sheetCommands, sid!),
-                    WorksheetAction.Create => CreateAsync(sheetCommands, sid!, sn),
-                    WorksheetAction.Delete => DeleteAsync(sheetCommands, sid!, sn),
-                    WorksheetAction.Rename => RenameAsync(sheetCommands, sid!, sn, tn),
-                    WorksheetAction.Copy => CopyAsync(sheetCommands, sid!, sn, tn),
-                    WorksheetAction.Move => MoveAsync(sheetCommands, sid!, sn, before, after),
+                    WorksheetAction.List => ListAsync(sheetCommands, sessionId!),
+                    WorksheetAction.Create => CreateAsync(sheetCommands, sessionId!, sheetName),
+                    WorksheetAction.Delete => DeleteAsync(sheetCommands, sessionId!, sheetName),
+                    WorksheetAction.Rename => RenameAsync(sheetCommands, sessionId!, sheetName, targetName),
+                    WorksheetAction.Copy => CopyAsync(sheetCommands, sessionId!, sheetName, targetName),
+                    WorksheetAction.Move => MoveAsync(sheetCommands, sessionId!, sheetName, beforeSheet, afterSheet),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });

@@ -12,29 +12,32 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 public static partial class ExcelFileTool
 {
     /// <summary>
-    /// File/session management. Lifecycle: Open→sid→use with other tools→Close(save:true).
-    /// List returns activeOperations - wait for canClose=true before closing.
-    /// If show=true, ask user before closing visible sessions.
+    /// File and session management for Excel automation.
+    ///
+    /// WORKFLOW: open → use sessionId with other tools → close (save=true to persist changes).
+    ///
+    /// IMPORTANT: Before closing, check 'list' action - wait for canClose=true (no active operations).
+    /// If showExcel=true was used, confirm with user before closing visible Excel windows.
     /// </summary>
-    /// <param name="action">Action</param>
-    /// <param name="path">File path (.xlsx/.xlsm)</param>
-    /// <param name="sid">Session ID from open</param>
-    /// <param name="save">Save on close</param>
-    /// <param name="show">Show Excel window</param>
+    /// <param name="action">The file operation to perform</param>
+    /// <param name="excelPath">Full path to Excel file (.xlsx or .xlsm). Required for: open, create-empty, test</param>
+    /// <param name="sessionId">Session ID returned from 'open' action. Required for: close. Used by all other tools.</param>
+    /// <param name="save">Whether to save changes when closing. Default: false (discard changes)</param>
+    /// <param name="showExcel">Whether to make Excel window visible. Default: false (hidden automation)</param>
     [McpServerTool(Name = "excel_file", Title = "Excel File Operations")]
     [McpMeta("category", "session")]
     [McpMeta("requiresSession", false)]
     public static partial string ExcelFile(
         FileAction action,
-        [DefaultValue(null)] string? path,
-        [DefaultValue(null)] string? sid,
+        [DefaultValue(null)] string? excelPath,
+        [DefaultValue(null)] string? sessionId,
         [DefaultValue(false)] bool save,
-        [DefaultValue(false)] bool show)
+        [DefaultValue(false)] bool showExcel)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_file",
             action.ToActionString(),
-            path,
+            excelPath,
             () =>
             {
                 var fileCommands = new FileCommands();
@@ -43,12 +46,12 @@ public static partial class ExcelFileTool
                 return action switch
                 {
                     FileAction.List => ListSessions(),
-                    FileAction.Open => OpenSessionAsync(path!, show),
-                    FileAction.Close => CloseSessionAsync(sid!, save),
-                    FileAction.CreateEmpty => CreateEmptyFileAsync(fileCommands, path!,
-                        path!.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase)),
-                    FileAction.CloseWorkbook => CloseWorkbook(path!),
-                    FileAction.Test => TestFileAsync(fileCommands, path!),
+                    FileAction.Open => OpenSessionAsync(excelPath!, showExcel),
+                    FileAction.Close => CloseSessionAsync(sessionId!, save),
+                    FileAction.CreateEmpty => CreateEmptyFileAsync(fileCommands, excelPath!,
+                        excelPath!.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase)),
+                    FileAction.CloseWorkbook => CloseWorkbook(excelPath!),
+                    FileAction.Test => TestFileAsync(fileCommands, excelPath!),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });

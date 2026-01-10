@@ -15,31 +15,41 @@ public static partial class ExcelPivotTableTool
     private static readonly JsonSerializerOptions JsonOptions = ExcelToolsBase.JsonOptions;
 
     /// <summary>
-    /// PivotTable lifecycle. TIMEOUT: CreateFromDataModel auto-timeouts after 5 min.
-    /// Related: excel_pivottable_field (fields), excel_pivottable_calc (calculated/layout)
+    /// PivotTable lifecycle management: create from various sources, list, read details, refresh, and delete.
+    ///
+    /// CREATE OPTIONS:
+    /// - create-from-range: Use sourceSheetName and sourceRangeAddress for data range
+    /// - create-from-table: Use sourceTableName for an Excel Table (ListObject)
+    /// - create-from-datamodel: Use dataModelTableName for Power Pivot Data Model table
+    ///
+    /// TIMEOUT: CreateFromDataModel auto-timeouts after 5 minutes for large Data Models.
+    ///
+    /// RELATED TOOLS:
+    /// - excel_pivottable_field: Add/remove/configure fields, filtering, sorting, grouping
+    /// - excel_pivottable_calc: Calculated fields, layout options, subtotals
     /// </summary>
-    /// <param name="action">Action</param>
-    /// <param name="sid">Session ID</param>
-    /// <param name="ptn">PivotTable name</param>
-    /// <param name="sn">Source sheet (create-from-range)</param>
-    /// <param name="rng">Source range (create-from-range)</param>
-    /// <param name="tn">Table name (create-from-table)</param>
-    /// <param name="dmt">Data Model table (create-from-datamodel)</param>
-    /// <param name="ds">Destination sheet</param>
-    /// <param name="dc">Destination cell</param>
+    /// <param name="action">The PivotTable operation to perform</param>
+    /// <param name="sessionId">Session identifier returned from excel_file open action - required for all operations</param>
+    /// <param name="pivotTableName">Name of the PivotTable - required for read, delete, refresh; used as name for create operations</param>
+    /// <param name="sourceSheetName">Worksheet name containing source data (for create-from-range)</param>
+    /// <param name="sourceRangeAddress">Range address of source data, e.g., 'A1:D100' (for create-from-range)</param>
+    /// <param name="sourceTableName">Name of source Excel Table/ListObject (for create-from-table)</param>
+    /// <param name="dataModelTableName">Name of Data Model table from Power Pivot (for create-from-datamodel)</param>
+    /// <param name="destinationSheetName">Worksheet name where PivotTable will be placed</param>
+    /// <param name="destinationCellAddress">Cell address for top-left corner of PivotTable, e.g., 'A3'</param>
     [McpServerTool(Name = "excel_pivottable", Title = "Excel PivotTable Operations")]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelPivotTable(
         PivotTableAction action,
-        string sid,
-        [DefaultValue(null)] string? ptn,
-        [DefaultValue(null)] string? sn,
-        [DefaultValue(null)] string? rng,
-        [DefaultValue(null)] string? tn,
-        [DefaultValue(null)] string? dmt,
-        [DefaultValue(null)] string? ds,
-        [DefaultValue(null)] string? dc)
+        string sessionId,
+        [DefaultValue(null)] string? pivotTableName,
+        [DefaultValue(null)] string? sourceSheetName,
+        [DefaultValue(null)] string? sourceRangeAddress,
+        [DefaultValue(null)] string? sourceTableName,
+        [DefaultValue(null)] string? dataModelTableName,
+        [DefaultValue(null)] string? destinationSheetName,
+        [DefaultValue(null)] string? destinationCellAddress)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_pivottable",
@@ -50,13 +60,13 @@ public static partial class ExcelPivotTableTool
 
                 return action switch
                 {
-                    PivotTableAction.List => List(commands, sid),
-                    PivotTableAction.Read => Read(commands, sid, ptn),
-                    PivotTableAction.CreateFromRange => CreateFromRange(commands, sid, sn, rng, ds, dc, ptn),
-                    PivotTableAction.CreateFromTable => CreateFromTable(commands, sid, tn, ds, dc, ptn),
-                    PivotTableAction.CreateFromDataModel => CreateFromDataModel(commands, sid, dmt, ds, dc, ptn),
-                    PivotTableAction.Delete => Delete(commands, sid, ptn),
-                    PivotTableAction.Refresh => Refresh(commands, sid, ptn),
+                    PivotTableAction.List => List(commands, sessionId),
+                    PivotTableAction.Read => Read(commands, sessionId, pivotTableName),
+                    PivotTableAction.CreateFromRange => CreateFromRange(commands, sessionId, sourceSheetName, sourceRangeAddress, destinationSheetName, destinationCellAddress, pivotTableName),
+                    PivotTableAction.CreateFromTable => CreateFromTable(commands, sessionId, sourceTableName, destinationSheetName, destinationCellAddress, pivotTableName),
+                    PivotTableAction.CreateFromDataModel => CreateFromDataModel(commands, sessionId, dataModelTableName, destinationSheetName, destinationCellAddress, pivotTableName),
+                    PivotTableAction.Delete => Delete(commands, sessionId, pivotTableName),
+                    PivotTableAction.Refresh => Refresh(commands, sessionId, pivotTableName),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });
@@ -82,7 +92,7 @@ public static partial class ExcelPivotTableTool
         string? pivotTableName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "read");
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "read");
 
         var result = ExcelToolsBase.WithSession(sessionId,
             batch => commands.Read(batch, pivotTableName!));
@@ -99,26 +109,26 @@ public static partial class ExcelPivotTableTool
     private static string CreateFromRange(
         PivotTableCommands commands,
         string sessionId,
-        string? sheetName,
-        string? range,
-        string? destinationSheet,
-        string? destinationCell,
+        string? sourceSheetName,
+        string? sourceRangeAddress,
+        string? destinationSheetName,
+        string? destinationCellAddress,
         string? pivotTableName)
     {
-        if (string.IsNullOrWhiteSpace(sheetName))
-            ExcelToolsBase.ThrowMissingParameter(nameof(sheetName), "create-from-range");
-        if (string.IsNullOrWhiteSpace(range))
-            ExcelToolsBase.ThrowMissingParameter(nameof(range), "create-from-range");
-        if (string.IsNullOrWhiteSpace(destinationSheet))
-            ExcelToolsBase.ThrowMissingParameter(nameof(destinationSheet), "create-from-range");
-        if (string.IsNullOrWhiteSpace(destinationCell))
-            ExcelToolsBase.ThrowMissingParameter(nameof(destinationCell), "create-from-range");
+        if (string.IsNullOrWhiteSpace(sourceSheetName))
+            ExcelToolsBase.ThrowMissingParameter("sourceSheetName", "create-from-range");
+        if (string.IsNullOrWhiteSpace(sourceRangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("sourceRangeAddress", "create-from-range");
+        if (string.IsNullOrWhiteSpace(destinationSheetName))
+            ExcelToolsBase.ThrowMissingParameter("destinationSheetName", "create-from-range");
+        if (string.IsNullOrWhiteSpace(destinationCellAddress))
+            ExcelToolsBase.ThrowMissingParameter("destinationCellAddress", "create-from-range");
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "create-from-range");
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "create-from-range");
 
         var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.CreateFromRange(batch, sheetName!, range!,
-                destinationSheet!, destinationCell!, pivotTableName!));
+            batch => commands.CreateFromRange(batch, sourceSheetName!, sourceRangeAddress!,
+                destinationSheetName!, destinationCellAddress!, pivotTableName!));
 
         return JsonSerializer.Serialize(new
         {
@@ -136,23 +146,23 @@ public static partial class ExcelPivotTableTool
     private static string CreateFromTable(
         PivotTableCommands commands,
         string sessionId,
-        string? tableName,
-        string? destinationSheet,
-        string? destinationCell,
+        string? sourceTableName,
+        string? destinationSheetName,
+        string? destinationCellAddress,
         string? pivotTableName)
     {
-        if (string.IsNullOrWhiteSpace(tableName))
-            ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "create-from-table");
-        if (string.IsNullOrWhiteSpace(destinationSheet))
-            ExcelToolsBase.ThrowMissingParameter(nameof(destinationSheet), "create-from-table");
-        if (string.IsNullOrWhiteSpace(destinationCell))
-            ExcelToolsBase.ThrowMissingParameter(nameof(destinationCell), "create-from-table");
+        if (string.IsNullOrWhiteSpace(sourceTableName))
+            ExcelToolsBase.ThrowMissingParameter("sourceTableName", "create-from-table");
+        if (string.IsNullOrWhiteSpace(destinationSheetName))
+            ExcelToolsBase.ThrowMissingParameter("destinationSheetName", "create-from-table");
+        if (string.IsNullOrWhiteSpace(destinationCellAddress))
+            ExcelToolsBase.ThrowMissingParameter("destinationCellAddress", "create-from-table");
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "create-from-table");
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "create-from-table");
 
         var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.CreateFromTable(batch, tableName!,
-                destinationSheet!, destinationCell!, pivotTableName!));
+            batch => commands.CreateFromTable(batch, sourceTableName!,
+                destinationSheetName!, destinationCellAddress!, pivotTableName!));
 
         return JsonSerializer.Serialize(new
         {
@@ -171,18 +181,18 @@ public static partial class ExcelPivotTableTool
         PivotTableCommands commands,
         string sessionId,
         string? dataModelTableName,
-        string? destinationSheet,
-        string? destinationCell,
+        string? destinationSheetName,
+        string? destinationCellAddress,
         string? pivotTableName)
     {
         if (string.IsNullOrWhiteSpace(dataModelTableName))
-            ExcelToolsBase.ThrowMissingParameter(nameof(dataModelTableName), "create-from-datamodel");
-        if (string.IsNullOrWhiteSpace(destinationSheet))
-            ExcelToolsBase.ThrowMissingParameter(nameof(destinationSheet), "create-from-datamodel");
-        if (string.IsNullOrWhiteSpace(destinationCell))
-            ExcelToolsBase.ThrowMissingParameter(nameof(destinationCell), "create-from-datamodel");
+            ExcelToolsBase.ThrowMissingParameter("dataModelTableName", "create-from-datamodel");
+        if (string.IsNullOrWhiteSpace(destinationSheetName))
+            ExcelToolsBase.ThrowMissingParameter("destinationSheetName", "create-from-datamodel");
+        if (string.IsNullOrWhiteSpace(destinationCellAddress))
+            ExcelToolsBase.ThrowMissingParameter("destinationCellAddress", "create-from-datamodel");
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "create-from-datamodel");
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "create-from-datamodel");
 
         PivotTableCreateResult result;
 
@@ -190,7 +200,7 @@ public static partial class ExcelPivotTableTool
         {
             result = ExcelToolsBase.WithSession(sessionId,
                 batch => commands.CreateFromDataModel(batch, dataModelTableName!,
-                    destinationSheet!, destinationCell!, pivotTableName!));
+                    destinationSheetName!, destinationCellAddress!, pivotTableName!));
         }
         catch (TimeoutException ex)
         {
@@ -199,7 +209,7 @@ public static partial class ExcelPivotTableTool
                 Success = false,
                 ErrorMessage = ex.Message,
                 PivotTableName = pivotTableName!,
-                SheetName = destinationSheet!,
+                SheetName = destinationSheetName!,
                 Range = string.Empty,
                 SourceData = dataModelTableName!,
                 SourceRowCount = 0,
@@ -227,7 +237,7 @@ public static partial class ExcelPivotTableTool
         string? pivotTableName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "delete");
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "delete");
 
         var result = ExcelToolsBase.WithSession(sessionId,
             batch => commands.Delete(batch, pivotTableName!));
@@ -245,7 +255,7 @@ public static partial class ExcelPivotTableTool
         string? pivotTableName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "refresh");
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "refresh");
 
         var result = ExcelToolsBase.WithSession(sessionId,
             batch => commands.Refresh(batch, pivotTableName!));

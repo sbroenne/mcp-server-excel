@@ -15,31 +15,48 @@ public static partial class ExcelChartTool
     private static readonly JsonSerializerOptions JsonOptions = ExcelToolsBase.JsonOptions;
 
     /// <summary>
-    /// Chart lifecycle. CHART TYPES: 70+ (Column, Line, Pie, Bar, Area, XYScatter, etc.)
-    /// Related: excel_chart_config (series/titles/legends/styles)
+    /// Chart lifecycle - create, read, move, and delete embedded charts.
+    ///
+    /// CHART TYPES: 70+ types available including:
+    /// - Column: ColumnClustered, ColumnStacked, ColumnStacked100, Column3D
+    /// - Line: Line, LineMarkers, LineStacked, LineMarkerStacked
+    /// - Pie: Pie, Pie3D, PieExploded, Doughnut
+    /// - Bar: BarClustered, BarStacked, BarStacked100
+    /// - Area: Area, AreaStacked, AreaStacked100
+    /// - XY Scatter: XYScatter, XYScatterLines, XYScatterSmooth
+    ///
+    /// POSITIONING: Use left/top in points (1 inch = 72 points).
+    /// Default size is 400x300 points.
+    ///
+    /// PIVOTCHART: Use create-from-pivottable to link chart to PivotTable.
+    /// Changes to PivotTable filters automatically update the chart.
+    ///
+    /// RELATED TOOLS:
+    /// - excel_chart_config: Series, titles, legends, styles
+    /// - excel_pivottable: Create PivotTables for PivotCharts
     /// </summary>
-    /// <param name="action">Action</param>
-    /// <param name="sid">Session ID</param>
-    /// <param name="cn">Chart name</param>
-    /// <param name="sn">Sheet name</param>
-    /// <param name="sr">Source data range (A1:D10)</param>
-    /// <param name="ct">Chart type (ColumnClustered, Line, Pie, etc.)</param>
-    /// <param name="ptn">PivotTable name (create-from-pivottable)</param>
-    /// <param name="left">Left position (points)</param>
-    /// <param name="top">Top position (points)</param>
-    /// <param name="width">Width (points, default 400)</param>
-    /// <param name="height">Height (points, default 300)</param>
+    /// <param name="action">The chart operation to perform</param>
+    /// <param name="sessionId">Session identifier returned from excel_file open action</param>
+    /// <param name="chartName">Name of the chart - optional for create (auto-generated), required for other actions</param>
+    /// <param name="sheetName">Worksheet name where chart will be placed (required for create actions)</param>
+    /// <param name="sourceRange">Data range for chart like 'A1:D10' (required for create-from-range)</param>
+    /// <param name="chartType">Chart type enum like ColumnClustered, Line, Pie</param>
+    /// <param name="pivotTableName">PivotTable name (required for create-from-pivottable action)</param>
+    /// <param name="left">Left position in points (72 points = 1 inch)</param>
+    /// <param name="top">Top position in points (72 points = 1 inch)</param>
+    /// <param name="width">Chart width in points (default 400)</param>
+    /// <param name="height">Chart height in points (default 300)</param>
     [McpServerTool(Name = "excel_chart", Title = "Excel Chart Operations")]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelChart(
         ChartAction action,
-        string sid,
-        [DefaultValue(null)] string? cn,
-        [DefaultValue(null)] string? sn,
-        [DefaultValue(null)] string? sr,
-        [DefaultValue(null)] ChartType? ct,
-        [DefaultValue(null)] string? ptn,
+        string sessionId,
+        [DefaultValue(null)] string? chartName,
+        [DefaultValue(null)] string? sheetName,
+        [DefaultValue(null)] string? sourceRange,
+        [DefaultValue(null)] ChartType? chartType,
+        [DefaultValue(null)] string? pivotTableName,
         [DefaultValue(null)] double? left,
         [DefaultValue(null)] double? top,
         [DefaultValue(null)] double? width,
@@ -54,18 +71,18 @@ public static partial class ExcelChartTool
 
                 return action switch
                 {
-                    ChartAction.List => List(commands, sid),
-                    ChartAction.Read => Read(commands, sid, cn),
-                    ChartAction.CreateFromRange => CreateFromRange(commands, sid, sn, sr, ct, left, top, width, height, cn),
-                    ChartAction.CreateFromPivotTable => CreateFromPivotTable(commands, sid, ptn, sn, ct, left, top, width, height, cn),
-                    ChartAction.Delete => Delete(commands, sid, cn),
-                    ChartAction.Move => Move(commands, sid, cn, left, top, width, height),
+                    ChartAction.List => ListAction(commands, sessionId),
+                    ChartAction.Read => ReadAction(commands, sessionId, chartName),
+                    ChartAction.CreateFromRange => CreateFromRangeAction(commands, sessionId, sheetName, sourceRange, chartType, left, top, width, height, chartName),
+                    ChartAction.CreateFromPivotTable => CreateFromPivotTableAction(commands, sessionId, pivotTableName, sheetName, chartType, left, top, width, height, chartName),
+                    ChartAction.Delete => DeleteAction(commands, sessionId, chartName),
+                    ChartAction.Move => MoveAction(commands, sessionId, chartName, left, top, width, height),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });
     }
 
-    private static string List(
+    private static string ListAction(
         ChartCommands commands,
         string sessionId)
     {
@@ -73,7 +90,7 @@ public static partial class ExcelChartTool
         return JsonSerializer.Serialize(charts, JsonOptions);
     }
 
-    private static string Read(
+    private static string ReadAction(
         ChartCommands commands,
         string sessionId,
         string? chartName)
@@ -87,7 +104,7 @@ public static partial class ExcelChartTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static string CreateFromRange(
+    private static string CreateFromRangeAction(
         ChartCommands commands,
         string sessionId,
         string? sheetName,
@@ -117,7 +134,7 @@ public static partial class ExcelChartTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static string CreateFromPivotTable(
+    private static string CreateFromPivotTableAction(
         ChartCommands commands,
         string sessionId,
         string? pivotTableName,
@@ -147,7 +164,7 @@ public static partial class ExcelChartTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static string Delete(
+    private static string DeleteAction(
         ChartCommands commands,
         string sessionId,
         string? chartName)
@@ -164,7 +181,7 @@ public static partial class ExcelChartTool
         return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' deleted successfully" }, JsonOptions);
     }
 
-    private static string Move(
+    private static string MoveAction(
         ChartCommands commands,
         string sessionId,
         string? chartName,

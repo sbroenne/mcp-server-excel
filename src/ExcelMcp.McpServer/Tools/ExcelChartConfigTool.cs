@@ -6,7 +6,8 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
-/// MCP tool for Excel Chart configuration operations
+/// MCP tool for Excel Chart configuration operations.
+/// Use excel_chart for chart lifecycle (create, delete, move).
 /// </summary>
 [McpServerToolType]
 public static partial class ExcelChartConfigTool
@@ -14,42 +15,58 @@ public static partial class ExcelChartConfigTool
     private static readonly JsonSerializerOptions JsonOptions = ExcelToolsBase.JsonOptions;
 
     /// <summary>
-    /// Chart configuration - data source, series, type, title, axis, legend, style.
-    /// CHART TYPES: 70+ (Column, Line, Pie, Bar, Area, XYScatter, etc.)
-    /// Related: excel_chart (lifecycle)
+    /// Chart configuration - data source, series, type, title, axis labels, legend, and styling.
+    ///
+    /// CHART TYPES: 70+ types available (ColumnClustered, Line, Pie, Bar, Area, XYScatter, etc.)
+    ///
+    /// SERIES MANAGEMENT:
+    /// - add-series: Add a new data series with valuesRange (required) and optional categoryRange
+    /// - remove-series: Remove series by 1-based index
+    /// - set-source-range: Replace entire chart data source
+    ///
+    /// TITLES AND LABELS:
+    /// - set-title: Set chart title (empty string hides title)
+    /// - set-axis-title: Set axis labels (Category, Value, CategorySecondary, ValueSecondary)
+    ///
+    /// LEGEND POSITIONS: Bottom, Corner, Top, Right, Left
+    ///
+    /// CHART STYLES: 1-48 (built-in Excel styles with different color schemes)
+    ///
+    /// RELATED TOOLS:
+    /// - excel_chart: Create, delete, and move charts
     /// </summary>
-    /// <param name="action">Action</param>
-    /// <param name="sid">Session ID</param>
-    /// <param name="cn">Chart name</param>
-    /// <param name="sr">Source range (e.g., 'A1:D10')</param>
-    /// <param name="ct">Chart type enum</param>
-    /// <param name="title">Title text (empty string hides)</param>
-    /// <param name="axis">Axis: Category, Value, CategorySecondary, ValueSecondary</param>
-    /// <param name="sn">Series name</param>
-    /// <param name="vr">Values range (e.g., 'Sheet1!B2:B10')</param>
-    /// <param name="cr">Category range (optional)</param>
-    /// <param name="si">Series index (1-based)</param>
-    /// <param name="vis">Show legend (true/false)</param>
-    /// <param name="lp">Legend position: Bottom, Corner, Top, Right, Left</param>
-    /// <param name="style">Chart style ID (1-48)</param>
+    /// <param name="action">The chart configuration action to perform</param>
+    /// <param name="sessionId">Session identifier returned from excel_file open action</param>
+    /// <param name="chartName">Name of the chart to configure (required for all actions)</param>
+    /// <param name="sourceRange">Data range like 'A1:D10' or 'Sheet1!A1:D10' for set-source-range</param>
+    /// <param name="chartType">Chart type enum for set-chart-type action</param>
+    /// <param name="title">Title text for set-title and set-axis-title (empty string hides)</param>
+    /// <param name="axis">Axis type: Category, Value, CategorySecondary, ValueSecondary</param>
+    /// <param name="seriesName">Name for new series in add-series action</param>
+    /// <param name="valuesRange">Data range for series values like 'Sheet1!B2:B10' (required for add-series)</param>
+    /// <param name="categoryRange">Optional category range for series X-axis labels</param>
+    /// <param name="seriesIndex">1-based series index for remove-series action</param>
+    /// <param name="visible">Show or hide legend in show-legend action</param>
+    /// <param name="legendPosition">Legend position: Bottom, Corner, Top, Right, Left</param>
+    /// <param name="styleId">Chart style ID from 1-48 for set-style action</param>
     [McpServerTool(Name = "excel_chart_config", Title = "Excel Chart Configuration")]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelChartConfig(
         ChartConfigAction action,
-        string sid,
-        string cn,
-        [DefaultValue(null)] string? sr,
-        [DefaultValue(null)] ChartType? ct,
+        string sessionId,
+        string chartName,
+        [DefaultValue(null)] string? sourceRange,
+        [DefaultValue(null)] ChartType? chartType,
         [DefaultValue(null)] string? title,
         [DefaultValue(null)] ChartAxisType? axis,
-        [DefaultValue(null)] string? sn,
-        [DefaultValue(null)] string? vr,
-        [DefaultValue(null)] string? cr,
-        [DefaultValue(null)] int? si,
-        [DefaultValue(null)] bool? vis,
-        [DefaultValue(null)] LegendPosition? lp,
-        [DefaultValue(null)] int? style)
+        [DefaultValue(null)] string? seriesName,
+        [DefaultValue(null)] string? valuesRange,
+        [DefaultValue(null)] string? categoryRange,
+        [DefaultValue(null)] int? seriesIndex,
+        [DefaultValue(null)] bool? visible,
+        [DefaultValue(null)] LegendPosition? legendPosition,
+        [DefaultValue(null)] int? styleId)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_chart_config",
@@ -60,25 +77,25 @@ public static partial class ExcelChartConfigTool
 
                 return action switch
                 {
-                    ChartConfigAction.SetSourceRange => SetSourceRange(commands, sid, cn, sr),
-                    ChartConfigAction.AddSeries => AddSeries(commands, sid, cn, sn, vr, cr),
-                    ChartConfigAction.RemoveSeries => RemoveSeries(commands, sid, cn, si),
-                    ChartConfigAction.SetChartType => SetChartType(commands, sid, cn, ct),
-                    ChartConfigAction.SetTitle => SetTitle(commands, sid, cn, title),
-                    ChartConfigAction.SetAxisTitle => SetAxisTitle(commands, sid, cn, axis, title),
-                    ChartConfigAction.ShowLegend => ShowLegend(commands, sid, cn, vis, lp),
-                    ChartConfigAction.SetStyle => SetStyle(commands, sid, cn, style),
+                    ChartConfigAction.SetSourceRange => SetSourceRangeAction(commands, sessionId, chartName, sourceRange),
+                    ChartConfigAction.AddSeries => AddSeriesAction(commands, sessionId, chartName, seriesName, valuesRange, categoryRange),
+                    ChartConfigAction.RemoveSeries => RemoveSeriesAction(commands, sessionId, chartName, seriesIndex),
+                    ChartConfigAction.SetChartType => SetChartTypeAction(commands, sessionId, chartName, chartType),
+                    ChartConfigAction.SetTitle => SetTitleAction(commands, sessionId, chartName, title),
+                    ChartConfigAction.SetAxisTitle => SetAxisTitleAction(commands, sessionId, chartName, axis, title),
+                    ChartConfigAction.ShowLegend => ShowLegendAction(commands, sessionId, chartName, visible, legendPosition),
+                    ChartConfigAction.SetStyle => SetStyleAction(commands, sessionId, chartName, styleId),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });
     }
 
-    private static string SetSourceRange(ChartCommands commands, string sessionId, string? chartName, string? sourceRange)
+    private static string SetSourceRangeAction(ChartCommands commands, string sessionId, string? chartName, string? sourceRange)
     {
         if (string.IsNullOrWhiteSpace(chartName))
-            ExcelToolsBase.ThrowMissingParameter("cn", "set-source-range");
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-source-range");
         if (string.IsNullOrWhiteSpace(sourceRange))
-            ExcelToolsBase.ThrowMissingParameter("sr", "set-source-range");
+            ExcelToolsBase.ThrowMissingParameter(nameof(sourceRange), "set-source-range");
 
         ExcelToolsBase.WithSession(sessionId, batch =>
         {
@@ -89,14 +106,14 @@ public static partial class ExcelChartConfigTool
         return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' source range set to '{sourceRange}'" }, JsonOptions);
     }
 
-    private static string AddSeries(ChartCommands commands, string sessionId, string? chartName, string? seriesName, string? valuesRange, string? categoryRange)
+    private static string AddSeriesAction(ChartCommands commands, string sessionId, string? chartName, string? seriesName, string? valuesRange, string? categoryRange)
     {
         if (string.IsNullOrWhiteSpace(chartName))
-            ExcelToolsBase.ThrowMissingParameter("cn", "add-series");
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "add-series");
         if (string.IsNullOrWhiteSpace(seriesName))
-            ExcelToolsBase.ThrowMissingParameter("sn", "add-series");
+            ExcelToolsBase.ThrowMissingParameter(nameof(seriesName), "add-series");
         if (string.IsNullOrWhiteSpace(valuesRange))
-            ExcelToolsBase.ThrowMissingParameter("vr", "add-series");
+            ExcelToolsBase.ThrowMissingParameter(nameof(valuesRange), "add-series");
 
         var result = ExcelToolsBase.WithSession(sessionId,
             batch => commands.AddSeries(batch, chartName!, seriesName!, valuesRange!, categoryRange));
@@ -104,12 +121,12 @@ public static partial class ExcelChartConfigTool
         return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static string RemoveSeries(ChartCommands commands, string sessionId, string? chartName, int? seriesIndex)
+    private static string RemoveSeriesAction(ChartCommands commands, string sessionId, string? chartName, int? seriesIndex)
     {
         if (string.IsNullOrWhiteSpace(chartName))
-            ExcelToolsBase.ThrowMissingParameter("cn", "remove-series");
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "remove-series");
         if (!seriesIndex.HasValue)
-            ExcelToolsBase.ThrowMissingParameter("si", "remove-series");
+            ExcelToolsBase.ThrowMissingParameter(nameof(seriesIndex), "remove-series");
 
         ExcelToolsBase.WithSession(sessionId, batch =>
         {
@@ -120,12 +137,12 @@ public static partial class ExcelChartConfigTool
         return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Series {seriesIndex!.Value} removed from chart '{chartName}'" }, JsonOptions);
     }
 
-    private static string SetChartType(ChartCommands commands, string sessionId, string? chartName, ChartType? chartType)
+    private static string SetChartTypeAction(ChartCommands commands, string sessionId, string? chartName, ChartType? chartType)
     {
         if (string.IsNullOrWhiteSpace(chartName))
-            ExcelToolsBase.ThrowMissingParameter("cn", "set-chart-type");
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-chart-type");
         if (!chartType.HasValue)
-            ExcelToolsBase.ThrowMissingParameter("ct", "set-chart-type");
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartType), "set-chart-type");
 
         ExcelToolsBase.WithSession(sessionId, batch =>
         {
@@ -136,12 +153,12 @@ public static partial class ExcelChartConfigTool
         return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' type changed to {chartType!.Value}" }, JsonOptions);
     }
 
-    private static string SetTitle(ChartCommands commands, string sessionId, string? chartName, string? title)
+    private static string SetTitleAction(ChartCommands commands, string sessionId, string? chartName, string? title)
     {
         if (string.IsNullOrWhiteSpace(chartName))
-            ExcelToolsBase.ThrowMissingParameter("cn", "set-title");
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-title");
         if (title == null)
-            ExcelToolsBase.ThrowMissingParameter("title", "set-title");
+            ExcelToolsBase.ThrowMissingParameter(nameof(title), "set-title");
 
         ExcelToolsBase.WithSession(sessionId, batch =>
         {
@@ -152,14 +169,14 @@ public static partial class ExcelChartConfigTool
         return JsonSerializer.Serialize(new OperationResult { Success = true, Message = string.IsNullOrEmpty(title) ? $"Chart '{chartName}' title hidden" : $"Chart '{chartName}' title set" }, JsonOptions);
     }
 
-    private static string SetAxisTitle(ChartCommands commands, string sessionId, string? chartName, ChartAxisType? axis, string? title)
+    private static string SetAxisTitleAction(ChartCommands commands, string sessionId, string? chartName, ChartAxisType? axis, string? title)
     {
         if (string.IsNullOrWhiteSpace(chartName))
-            ExcelToolsBase.ThrowMissingParameter("cn", "set-axis-title");
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-axis-title");
         if (!axis.HasValue)
-            ExcelToolsBase.ThrowMissingParameter("axis", "set-axis-title");
+            ExcelToolsBase.ThrowMissingParameter(nameof(axis), "set-axis-title");
         if (title == null)
-            ExcelToolsBase.ThrowMissingParameter("title", "set-axis-title");
+            ExcelToolsBase.ThrowMissingParameter(nameof(title), "set-axis-title");
 
         ExcelToolsBase.WithSession(sessionId, batch =>
         {
@@ -170,12 +187,12 @@ public static partial class ExcelChartConfigTool
         return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' {axis!.Value} axis title set" }, JsonOptions);
     }
 
-    private static string ShowLegend(ChartCommands commands, string sessionId, string? chartName, bool? visible, LegendPosition? legendPosition)
+    private static string ShowLegendAction(ChartCommands commands, string sessionId, string? chartName, bool? visible, LegendPosition? legendPosition)
     {
         if (string.IsNullOrWhiteSpace(chartName))
-            ExcelToolsBase.ThrowMissingParameter("cn", "show-legend");
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "show-legend");
         if (!visible.HasValue)
-            ExcelToolsBase.ThrowMissingParameter("vis", "show-legend");
+            ExcelToolsBase.ThrowMissingParameter(nameof(visible), "show-legend");
 
         ExcelToolsBase.WithSession(sessionId, batch =>
         {
@@ -186,12 +203,12 @@ public static partial class ExcelChartConfigTool
         return JsonSerializer.Serialize(new OperationResult { Success = true, Message = visible!.Value ? $"Chart '{chartName}' legend shown" : $"Chart '{chartName}' legend hidden" }, JsonOptions);
     }
 
-    private static string SetStyle(ChartCommands commands, string sessionId, string? chartName, int? styleId)
+    private static string SetStyleAction(ChartCommands commands, string sessionId, string? chartName, int? styleId)
     {
         if (string.IsNullOrWhiteSpace(chartName))
-            ExcelToolsBase.ThrowMissingParameter("cn", "set-style");
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-style");
         if (!styleId.HasValue)
-            ExcelToolsBase.ThrowMissingParameter("style", "set-style");
+            ExcelToolsBase.ThrowMissingParameter(nameof(styleId), "set-style");
 
         ExcelToolsBase.WithSession(sessionId, batch =>
         {

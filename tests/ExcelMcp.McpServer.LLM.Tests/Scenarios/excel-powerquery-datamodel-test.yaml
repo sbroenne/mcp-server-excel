@@ -44,6 +44,13 @@ providers:
     retry:
       retry_on_429: true
       max_retries: 5
+  # Provider for clarification detection judge (using gpt-4.1 for better accuracy)
+  - name: azure-openai-judge
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
 
 servers:
   - name: excel-mcp
@@ -68,22 +75,24 @@ agents:
       - Report results after completion
     clarification_detection:
       enabled: true
-  # - name: gpt52-chat-agent
-  #   servers:
-  #     - name: excel-mcp
-  #   provider: azure-openai-gpt52-chat
-  #   system_prompt: |
-  #     You are {{AGENT_NAME}}, an Excel automation agent using {{PROVIDER_NAME}}.
+      judge_provider: azure-openai-judge
+  - name: gpt52-chat-agent
+    servers:
+      - name: excel-mcp
+    provider: azure-openai-gpt52-chat
+    system_prompt: |
+      You are {{AGENT_NAME}}, an Excel automation agent using {{PROVIDER_NAME}}.
 
-  #     RULES:
-  #     - Execute tasks immediately without asking for confirmation
-  #     - Never ask clarifying questions - make reasonable assumptions and proceed
-  #     - Never show Excel to the user - keep it hidden
-  #     - Format Excel files professionally (proper column widths, headers, number formats, cell styles)
-  #     - Always format data ranges as Excel Tables (not plain ranges)
-  #     - Report results after completion
-  #   clarification_detection:
-  #     enabled: true
+      RULES:
+      - Execute tasks immediately without asking for confirmation
+      - Never ask clarifying questions - make reasonable assumptions and proceed
+      - Never show Excel to the user - keep it hidden
+      - Format Excel files professionally (proper column widths, headers, number formats, cell styles)
+      - Always format data ranges as Excel Tables (not plain ranges)
+      - Report results after completion
+    clarification_detection:
+      enabled: true
+      judge_provider: azure-openai-judge
 
 settings:
   verbose: true

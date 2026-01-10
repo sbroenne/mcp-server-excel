@@ -13,77 +13,93 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 public static partial class TableColumnTool
 {
     /// <summary>
-    /// Table column/filter/sort operations.
-    /// Related: excel_table (lifecycle/data)
+    /// Table column, filtering, and sorting operations for Excel Tables (ListObjects).
+    ///
+    /// FILTERING:
+    /// - 'apply-filter': Simple criteria filter (e.g., ">100", "=Active", "&lt;>Closed")
+    /// - 'apply-filter-values': Filter by exact values (provide JSON array of values to include)
+    /// - 'clear-filters': Remove all active filters
+    /// - 'get-filters': See current filter state
+    ///
+    /// SORTING:
+    /// - 'sort': Single column sort (ascending/descending)
+    /// - 'sort-multi': Multi-column sort (provide JSON array of {columnName, ascending} objects)
+    ///
+    /// COLUMN MANAGEMENT:
+    /// - 'add-column'/'remove-column'/'rename-column': Modify table structure
+    ///
+    /// NUMBER FORMATS: Use US locale format codes (e.g., "#,##0.00", "0%", "yyyy-mm-dd")
+    ///
+    /// Related: excel_table (table lifecycle and data operations)
     /// </summary>
-    /// <param name="action">Action</param>
-    /// <param name="path">File path</param>
-    /// <param name="sid">Session ID</param>
-    /// <param name="tn">Table name</param>
-    /// <param name="col">Column name</param>
-    /// <param name="nn">New column name</param>
-    /// <param name="crit">Filter criteria or region</param>
-    /// <param name="fv">Filter values or sort columns JSON</param>
-    /// <param name="fmt">Format code (US locale)</param>
-    /// <param name="pos">Column position (1-based)</param>
-    /// <param name="asc">Ascending order</param>
+    /// <param name="action">The column/filter/sort operation to perform</param>
+    /// <param name="excelPath">Full path to Excel file (for reference/logging)</param>
+    /// <param name="sessionId">Session ID from excel_file 'open'. Required for all actions.</param>
+    /// <param name="tableName">Name of the table to operate on. Required for all actions.</param>
+    /// <param name="columnName">Column name to operate on. Required for: apply-filter, apply-filter-values, add-column, remove-column, rename-column, sort, get/set-column-number-format</param>
+    /// <param name="newColumnName">New name for the column. Required for: rename-column</param>
+    /// <param name="criteria">Filter criteria string (e.g., ">100", "=Active"). Required for: apply-filter. Table region for: get-structured-reference (All, Data, Headers, Totals, ThisRow)</param>
+    /// <param name="filterValuesJson">JSON array for filtering or sorting. For 'apply-filter-values': ["value1","value2"]. For 'sort-multi': [{"columnName":"Col1","ascending":true}]</param>
+    /// <param name="formatCode">Number format code in US locale (e.g., "#,##0.00", "0%"). Required for: set-column-number-format</param>
+    /// <param name="columnPosition">1-based column position for 'add-column' (optional, defaults to end of table)</param>
+    /// <param name="ascending">Sort order for 'sort' action. true=ascending (A-Z, 0-9), false=descending. Default: true</param>
     [McpServerTool(Name = "excel_table_column", Title = "Excel Table Column Operations")]
     [McpMeta("category", "data")]
     [McpMeta("requiresSession", true)]
     public static partial string TableColumn(
         TableColumnAction action,
-        string path,
-        string sid,
-        [DefaultValue(null)] string? tn,
-        [DefaultValue(null)] string? col,
-        [DefaultValue(null)] string? nn,
-        [DefaultValue(null)] string? crit,
-        [DefaultValue(null)] string? fv,
-        [DefaultValue(null)] string? fmt,
-        [DefaultValue(null)] string? pos,
-        [DefaultValue(true)] bool asc)
+        string excelPath,
+        string sessionId,
+        [DefaultValue(null)] string? tableName,
+        [DefaultValue(null)] string? columnName,
+        [DefaultValue(null)] string? newColumnName,
+        [DefaultValue(null)] string? criteria,
+        [DefaultValue(null)] string? filterValuesJson,
+        [DefaultValue(null)] string? formatCode,
+        [DefaultValue(null)] string? columnPosition,
+        [DefaultValue(true)] bool ascending)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_table_column",
             action.ToActionString(),
-            path,
+            excelPath,
             () =>
             {
                 var tableCommands = new TableCommands();
 
                 return action switch
                 {
-                    TableColumnAction.ApplyFilter => ApplyFilter(tableCommands, sid, tn, col, crit),
-                    TableColumnAction.ApplyFilterValues => ApplyFilterValues(tableCommands, sid, tn, col, fv),
-                    TableColumnAction.ClearFilters => ClearFilters(tableCommands, sid, tn),
-                    TableColumnAction.GetFilters => GetFilters(tableCommands, sid, tn),
-                    TableColumnAction.AddColumn => AddColumn(tableCommands, sid, tn, col, pos),
-                    TableColumnAction.RemoveColumn => RemoveColumn(tableCommands, sid, tn, col),
-                    TableColumnAction.RenameColumn => RenameColumn(tableCommands, sid, tn, col, nn),
-                    TableColumnAction.GetStructuredReference => GetStructuredReference(tableCommands, sid, tn, crit, col),
-                    TableColumnAction.Sort => SortTable(tableCommands, sid, tn, col, asc),
-                    TableColumnAction.SortMulti => SortTableMulti(tableCommands, sid, tn, fv),
-                    TableColumnAction.GetColumnNumberFormat => GetColumnNumberFormat(tableCommands, sid, tn, col),
-                    TableColumnAction.SetColumnNumberFormat => SetColumnNumberFormat(tableCommands, sid, tn, col, fmt),
+                    TableColumnAction.ApplyFilter => ApplyFilter(tableCommands, sessionId, tableName, columnName, criteria),
+                    TableColumnAction.ApplyFilterValues => ApplyFilterValues(tableCommands, sessionId, tableName, columnName, filterValuesJson),
+                    TableColumnAction.ClearFilters => ClearFilters(tableCommands, sessionId, tableName),
+                    TableColumnAction.GetFilters => GetFilters(tableCommands, sessionId, tableName),
+                    TableColumnAction.AddColumn => AddColumn(tableCommands, sessionId, tableName, columnName, columnPosition),
+                    TableColumnAction.RemoveColumn => RemoveColumn(tableCommands, sessionId, tableName, columnName),
+                    TableColumnAction.RenameColumn => RenameColumn(tableCommands, sessionId, tableName, columnName, newColumnName),
+                    TableColumnAction.GetStructuredReference => GetStructuredReference(tableCommands, sessionId, tableName, criteria, columnName),
+                    TableColumnAction.Sort => SortTable(tableCommands, sessionId, tableName, columnName, ascending),
+                    TableColumnAction.SortMulti => SortTableMulti(tableCommands, sessionId, tableName, filterValuesJson),
+                    TableColumnAction.GetColumnNumberFormat => GetColumnNumberFormat(tableCommands, sessionId, tableName, columnName),
+                    TableColumnAction.SetColumnNumberFormat => SetColumnNumberFormat(tableCommands, sessionId, tableName, columnName, formatCode),
                     _ => throw new ArgumentException(
                         $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });
     }
 
-    private static string ApplyFilter(TableCommands commands, string sid, string? tn, string? col, string? crit)
+    private static string ApplyFilter(TableCommands commands, string sessionId, string? tableName, string? columnName, string? criteria)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "apply-filter");
-        if (string.IsNullOrWhiteSpace(col)) ExcelToolsBase.ThrowMissingParameter(nameof(col), "apply-filter");
-        if (string.IsNullOrWhiteSpace(crit)) ExcelToolsBase.ThrowMissingParameter(nameof(crit), "apply-filter");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "apply-filter");
+        if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "apply-filter");
+        if (string.IsNullOrWhiteSpace(criteria)) ExcelToolsBase.ThrowMissingParameter(nameof(criteria), "apply-filter");
 
         try
         {
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.ApplyFilter(batch, tn!, col!, crit!);
+                    commands.ApplyFilter(batch, tableName!, columnName!, criteria!);
                     return 0;
                 });
 
@@ -95,29 +111,29 @@ public static partial class TableColumnTool
         }
     }
 
-    private static string ApplyFilterValues(TableCommands commands, string sid, string? tn, string? col, string? fvJson)
+    private static string ApplyFilterValues(TableCommands commands, string sessionId, string? tableName, string? columnName, string? filterValuesJson)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "apply-filter-values");
-        if (string.IsNullOrWhiteSpace(col)) ExcelToolsBase.ThrowMissingParameter(nameof(col), "apply-filter-values");
-        if (string.IsNullOrWhiteSpace(fvJson)) ExcelToolsBase.ThrowMissingParameter(nameof(fvJson), "apply-filter-values");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "apply-filter-values");
+        if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "apply-filter-values");
+        if (string.IsNullOrWhiteSpace(filterValuesJson)) ExcelToolsBase.ThrowMissingParameter(nameof(filterValuesJson), "apply-filter-values");
 
         List<string> filterValues;
         try
         {
-            filterValues = JsonSerializer.Deserialize<List<string>>(fvJson!) ?? [];
+            filterValues = JsonSerializer.Deserialize<List<string>>(filterValuesJson!) ?? [];
         }
         catch (JsonException ex)
         {
-            throw new ArgumentException($"Invalid JSON array for filterValues: {ex.Message}", nameof(fvJson));
+            throw new ArgumentException($"Invalid JSON array for filterValuesJson: {ex.Message}", nameof(filterValuesJson));
         }
 
         try
         {
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.ApplyFilter(batch, tn!, col!, filterValues);
+                    commands.ApplyFilter(batch, tableName!, columnName!, filterValues);
                     return 0;
                 });
 
@@ -129,17 +145,17 @@ public static partial class TableColumnTool
         }
     }
 
-    private static string ClearFilters(TableCommands commands, string sid, string? tn)
+    private static string ClearFilters(TableCommands commands, string sessionId, string? tableName)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "clear-filters");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "clear-filters");
 
         try
         {
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.ClearFilters(batch, tn!);
+                    commands.ClearFilters(batch, tableName!);
                     return 0;
                 });
 
@@ -151,42 +167,42 @@ public static partial class TableColumnTool
         }
     }
 
-    private static string GetFilters(TableCommands commands, string sid, string? tn)
+    private static string GetFilters(TableCommands commands, string sessionId, string? tableName)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "get-filters");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "get-filters");
 
         var result = ExcelToolsBase.WithSession(
-            sid,
-            batch => commands.GetFilters(batch, tn!));
+            sessionId,
+            batch => commands.GetFilters(batch, tableName!));
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string AddColumn(TableCommands commands, string sid, string? tn, string? col, string? pos)
+    private static string AddColumn(TableCommands commands, string sessionId, string? tableName, string? columnName, string? columnPosition)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "add-column");
-        if (string.IsNullOrWhiteSpace(col)) ExcelToolsBase.ThrowMissingParameter(nameof(col), "add-column");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "add-column");
+        if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "add-column");
 
         int? position = null;
-        if (!string.IsNullOrWhiteSpace(pos))
+        if (!string.IsNullOrWhiteSpace(columnPosition))
         {
-            if (int.TryParse(pos, out int posVal))
+            if (int.TryParse(columnPosition, out int posVal))
             {
                 position = posVal;
             }
             else
             {
-                throw new ArgumentException($"Invalid position value: '{pos}'. Must be a number.", nameof(pos));
+                throw new ArgumentException($"Invalid columnPosition value: '{columnPosition}'. Must be a number.", nameof(columnPosition));
             }
         }
 
         try
         {
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.AddColumn(batch, tn!, col!, position);
+                    commands.AddColumn(batch, tableName!, columnName!, position);
                     return 0;
                 });
 
@@ -198,18 +214,18 @@ public static partial class TableColumnTool
         }
     }
 
-    private static string RemoveColumn(TableCommands commands, string sid, string? tn, string? col)
+    private static string RemoveColumn(TableCommands commands, string sessionId, string? tableName, string? columnName)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "remove-column");
-        if (string.IsNullOrWhiteSpace(col)) ExcelToolsBase.ThrowMissingParameter(nameof(col), "remove-column");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "remove-column");
+        if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "remove-column");
 
         try
         {
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.RemoveColumn(batch, tn!, col!);
+                    commands.RemoveColumn(batch, tableName!, columnName!);
                     return 0;
                 });
 
@@ -221,19 +237,19 @@ public static partial class TableColumnTool
         }
     }
 
-    private static string RenameColumn(TableCommands commands, string sid, string? tn, string? col, string? nn)
+    private static string RenameColumn(TableCommands commands, string sessionId, string? tableName, string? columnName, string? newColumnName)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "rename-column");
-        if (string.IsNullOrWhiteSpace(col)) ExcelToolsBase.ThrowMissingParameter(nameof(col), "rename-column");
-        if (string.IsNullOrWhiteSpace(nn)) ExcelToolsBase.ThrowMissingParameter(nameof(nn), "rename-column");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "rename-column");
+        if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "rename-column");
+        if (string.IsNullOrWhiteSpace(newColumnName)) ExcelToolsBase.ThrowMissingParameter(nameof(newColumnName), "rename-column");
 
         try
         {
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.RenameColumn(batch, tn!, col!, nn!);
+                    commands.RenameColumn(batch, tableName!, columnName!, newColumnName!);
                     return 0;
                 });
 
@@ -245,9 +261,9 @@ public static partial class TableColumnTool
         }
     }
 
-    private static string GetStructuredReference(TableCommands commands, string sid, string? tn, string? region, string? col)
+    private static string GetStructuredReference(TableCommands commands, string sessionId, string? tableName, string? region, string? columnName)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "get-structured-reference");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "get-structured-reference");
 
         var tableRegion = TableRegion.Data;
         if (!string.IsNullOrWhiteSpace(region) && !Enum.TryParse(region, true, out tableRegion))
@@ -256,24 +272,24 @@ public static partial class TableColumnTool
         }
 
         var result = ExcelToolsBase.WithSession(
-            sid,
-            batch => commands.GetStructuredReference(batch, tn!, tableRegion, col));
+            sessionId,
+            batch => commands.GetStructuredReference(batch, tableName!, tableRegion, columnName));
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string SortTable(TableCommands commands, string sid, string? tn, string? col, bool asc)
+    private static string SortTable(TableCommands commands, string sessionId, string? tableName, string? columnName, bool ascending)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "sort");
-        if (string.IsNullOrWhiteSpace(col)) ExcelToolsBase.ThrowMissingParameter(nameof(col), "sort");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "sort");
+        if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "sort");
 
         try
         {
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.Sort(batch, tn!, col!, asc);
+                    commands.Sort(batch, tableName!, columnName!, ascending);
                     return 0;
                 });
 
@@ -285,32 +301,32 @@ public static partial class TableColumnTool
         }
     }
 
-    private static string SortTableMulti(TableCommands commands, string sid, string? tn, string? sortJson)
+    private static string SortTableMulti(TableCommands commands, string sessionId, string? tableName, string? sortColumnsJson)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "sort-multi");
-        if (string.IsNullOrWhiteSpace(sortJson)) ExcelToolsBase.ThrowMissingParameter(nameof(sortJson), "sort-multi");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "sort-multi");
+        if (string.IsNullOrWhiteSpace(sortColumnsJson)) ExcelToolsBase.ThrowMissingParameter(nameof(sortColumnsJson), "sort-multi");
 
         List<TableSortColumn>? sortColumns;
         try
         {
-            sortColumns = JsonSerializer.Deserialize<List<TableSortColumn>>(sortJson!);
+            sortColumns = JsonSerializer.Deserialize<List<TableSortColumn>>(sortColumnsJson!);
             if (sortColumns == null || sortColumns.Count == 0)
             {
-                throw new ArgumentException("sortColumns JSON must be a non-empty array", nameof(sortJson));
+                throw new ArgumentException("sortColumnsJson must be a non-empty array", nameof(sortColumnsJson));
             }
         }
         catch (JsonException ex)
         {
-            throw new ArgumentException($"Invalid sortColumns JSON: {ex.Message}", nameof(sortJson));
+            throw new ArgumentException($"Invalid sortColumnsJson: {ex.Message}", nameof(sortColumnsJson));
         }
 
         try
         {
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.Sort(batch, tn!, sortColumns);
+                    commands.Sort(batch, tableName!, sortColumns);
                     return 0;
                 });
 
@@ -322,36 +338,36 @@ public static partial class TableColumnTool
         }
     }
 
-    private static string GetColumnNumberFormat(TableCommands commands, string sid, string? tn, string? col)
+    private static string GetColumnNumberFormat(TableCommands commands, string sessionId, string? tableName, string? columnName)
     {
-        if (string.IsNullOrEmpty(tn))
-            ExcelToolsBase.ThrowMissingParameter("tn", "get-column-number-format");
-        if (string.IsNullOrEmpty(col))
-            ExcelToolsBase.ThrowMissingParameter("col", "get-column-number-format");
+        if (string.IsNullOrEmpty(tableName))
+            ExcelToolsBase.ThrowMissingParameter("tableName", "get-column-number-format");
+        if (string.IsNullOrEmpty(columnName))
+            ExcelToolsBase.ThrowMissingParameter("columnName", "get-column-number-format");
 
         var result = ExcelToolsBase.WithSession(
-            sid,
-            batch => commands.GetColumnNumberFormat(batch, tn!, col!));
+            sessionId,
+            batch => commands.GetColumnNumberFormat(batch, tableName!, columnName!));
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string SetColumnNumberFormat(TableCommands commands, string sid, string? tn, string? col, string? fmt)
+    private static string SetColumnNumberFormat(TableCommands commands, string sessionId, string? tableName, string? columnName, string? formatCode)
     {
-        if (string.IsNullOrEmpty(tn))
-            ExcelToolsBase.ThrowMissingParameter("tn", "set-column-number-format");
-        if (string.IsNullOrEmpty(col))
-            ExcelToolsBase.ThrowMissingParameter("col", "set-column-number-format");
-        if (string.IsNullOrEmpty(fmt))
-            ExcelToolsBase.ThrowMissingParameter("fmt", "set-column-number-format");
+        if (string.IsNullOrEmpty(tableName))
+            ExcelToolsBase.ThrowMissingParameter("tableName", "set-column-number-format");
+        if (string.IsNullOrEmpty(columnName))
+            ExcelToolsBase.ThrowMissingParameter("columnName", "set-column-number-format");
+        if (string.IsNullOrEmpty(formatCode))
+            ExcelToolsBase.ThrowMissingParameter("formatCode", "set-column-number-format");
 
         try
         {
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.SetColumnNumberFormat(batch, tn!, col!, fmt!);
+                    commands.SetColumnNumberFormat(batch, tableName!, columnName!, formatCode!);
                     return 0;
                 });
 
