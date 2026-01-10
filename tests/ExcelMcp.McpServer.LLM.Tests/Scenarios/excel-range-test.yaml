@@ -39,11 +39,11 @@ providers:
     model: gpt-5.2-chat
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
-  # Nano provider for clarification detection judge (fast, cheap)
-  - name: azure-openai-nano
+  # Provider for clarification detection judge (using gpt-4.1 for better accuracy)
+  - name: azure-openai-judge
     type: AZURE
     auth_type: entra_id
-    model: gpt-4.1-nano
+    model: gpt-4.1
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
 
@@ -60,14 +60,14 @@ agents:
     provider: azure-openai-gpt41
     clarification_detection:
       enabled: true
-      judge_provider: azure-openai-nano
+      judge_provider: azure-openai-judge
   - name: gpt5-chat-agent
     servers:
       - name: excel-mcp
     provider: azure-openai-gpt5-chat
     clarification_detection:
       enabled: true
-      judge_provider: azure-openai-nano
+      judge_provider: azure-openai-judge
 
 settings:
   verbose: true
