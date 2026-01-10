@@ -79,7 +79,7 @@ sessions:
     tests:
       - name: "Complete file lifecycle"
         prompt: |
-          1. Create a new empty Excel file at C:/temp/llm-test-file-lifecycle-{{randomValue type='UUID'}}.xlsx
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-file-lifecycle-{{randomValue type='UUID'}}.xlsx
           2. Open the file
           3. List all active Excel sessions
           4. Close the file without saving
@@ -97,7 +97,7 @@ sessions:
     tests:
       - name: "Create file and worksheet operations"
         prompt: |
-          1. Create a new empty Excel file at C:/temp/llm-test-worksheets-{{randomValue type='UUID'}}.xlsx and open it
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-worksheets-{{randomValue type='UUID'}}.xlsx and open it
           2. Create a new worksheet called "SalesData"
           3. Rename the "SalesData" worksheet to "Q1Sales"
           4. List all worksheets to confirm Q1Sales exists
