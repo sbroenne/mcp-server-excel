@@ -31,9 +31,12 @@ providers:
     model: gpt-4.1
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
-    retry:
-      retry_on_429: true
-      max_retries: 5
+  - name: azure-openai-gpt5-chat
+    type: AZURE
+    auth_type: entra_id  # Uses DefaultAzureCredential - no API key needed
+    model: gpt-5.2-chat
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
 
 servers:
   - name: excel-mcp
@@ -46,6 +49,14 @@ agents:
     servers:
       - name: excel-mcp
     provider: azure-openai-gpt41
+    clarification_detection:
+      enabled: true
+  - name: gpt5-chat-agent
+    servers:
+      - name: excel-mcp
+    provider: azure-openai-gpt5-chat
+    clarification_detection:
+      enabled: true
 
 settings:
   verbose: true
@@ -76,6 +87,8 @@ sessions:
           9. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
+          - type: no_rate_limit_errors
+          - type: no_clarification_questions
           - type: tool_called
             tool: excel_file
           - type: tool_called
@@ -117,6 +130,8 @@ sessions:
           8. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
+          - type: no_rate_limit_errors
+          - type: no_clarification_questions
           - type: tool_called
             tool: excel_file
           - type: tool_called
@@ -155,6 +170,8 @@ sessions:
           8. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
+          - type: no_rate_limit_errors
+          - type: no_clarification_questions
           - type: tool_called
             tool: excel_file
           - type: tool_called
@@ -195,6 +212,8 @@ sessions:
           6. Close the file without saving
         assertions:
           - type: no_hallucinated_tools
+          - type: no_rate_limit_errors
+          - type: no_clarification_questions
           - type: tool_called
             tool: excel_file
           - type: tool_called

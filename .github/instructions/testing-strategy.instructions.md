@@ -297,18 +297,61 @@ Assert.DoesNotContain(file1Content, viewResult.Content);  // ✅ file1 content g
 ### Running LLM Tests
 
 ```powershell
-# From tests/ExcelMcp.McpServer.LLM.Tests/
-.\Run-LLMTests.ps1 -Build
+# Navigate to the LLM tests directory first
+cd d:\source\mcp-server-excel\tests\ExcelMcp.McpServer.LLM.Tests
 
-# Run specific scenario
-.\Run-LLMTests.ps1 -Scenario excel-file-worksheet-test.yaml
+# Run specific scenario (most common)
+.\Run-LLMTests.ps1 -Scenario excel-powerquery-datamodel-test.yaml -Verbose
+
+# Build MCP server first, then run tests
+.\Run-LLMTests.ps1 -Scenario excel-file-worksheet-test.yaml -Build
+
+# Run all scenarios in Scenarios folder
+.\Run-LLMTests.ps1 -Build
 ```
+
+**Important:** Always `cd` to the LLM tests directory first, then run `.\Run-LLMTests.ps1`.
 
 ### Prerequisites
 
-- `AZURE_OPENAI_ENDPOINT` environment variable (same as mcp-windows)
+- `AZURE_OPENAI_ENDPOINT` environment variable
 - Windows desktop with Excel installed
-- agent-benchmark (auto-downloaded on first run)
+- agent-benchmark (auto-downloaded on first run, or use go-run mode)
+
+### Configuration
+
+The test runner uses `llm-tests.config.json` for defaults. Create `llm-tests.config.local.json` (git-ignored) for personal settings:
+
+```json
+{
+  "$schema": "./llm-tests.config.schema.json",
+  "agentBenchmarkPath": "../../../../agent-benchmark",
+  "agentBenchmarkMode": "go-run",
+  "verbose": false,
+  "build": false
+}
+```
+
+**Modes:**
+- `"executable"` - Uses pre-built `agent-benchmark.exe`
+- `"go-run"` - Uses `go run .` from agent-benchmark source (recommended for development)
+
+### Template Variables
+
+Test YAML files support these template variables (substituted by Run-LLMTests.ps1):
+
+| Variable | Description |
+|----------|-------------|
+| `{{TEST_DIR}}` | Directory containing the test YAML file (Scenarios folder) |
+| `{{TEST_RESULTS_PATH}}` | Path to TestResults folder for output files |
+| `{{TEMP_DIR}}` | System temp directory |
+| `{{SERVER_COMMAND}}` | Full path to MCP server executable |
+| `{{AZURE_OPENAI_ENDPOINT}}` | Azure OpenAI endpoint from environment |
+| `{{randomValue type='UUID'}}` | Generates unique UUID (handled by agent-benchmark) |
+
+**Path Notes:**
+- Use `{{TEST_DIR}}/../Fixtures/` to access test data files in Fixtures folder
+- Use `{{TEST_RESULTS_PATH}}/filename.xlsx` to save Excel files alongside reports
 
 ### Test Scenarios
 
@@ -317,14 +360,70 @@ Assert.DoesNotContain(file1Content, viewResult.Content);  // ✅ file1 content g
 | `excel-file-worksheet-test.yaml` | excel_file, excel_worksheet | File lifecycle, worksheet operations |
 | `excel-range-test.yaml` | excel_range | 2D array format, get/set values |
 | `excel-table-test.yaml` | excel_table | Table creation, structured data |
-| `excel-incremental-update-test.yaml` | excel_range | Validates incremental updates over rebuild |
+| `excel-powerquery-datamodel-test.yaml` | excel_powerquery, excel_datamodel, excel_pivottable | Full BI workflow |
 
 ### Writing LLM Tests
 
 - Use natural language prompts (don't mention tool names)
 - Consolidate multiple steps into single prompts for token optimization
 - Each test uses `{{randomValue type='UUID'}}` in file paths for isolation
-- Assert tool_called, tool_param_equals, and output_regex
-- Use simplified agent configuration (no custom system_prompt needed)
+- Enable `clarification_detection: enabled: true` on agents
+- Assert `no_clarification_questions` to verify agent doesn't ask questions
+
+**Assertion Types:**
+- `no_hallucinated_tools` - Agent only uses available tools
+- `no_clarification_questions` - Agent acts without asking questions (requires clarification_detection)
+- `tool_called` - Verifies specific tool was called
+- `tool_param_equals` - Verifies tool parameter value
+- `output_regex` - Matches pattern in final output
+
+### Test Results
+
+Reports are generated in `TestResults/`:
+- `<scenario-name>-report.html` - Visual HTML report
+- `<scenario-name>-report.json` - Machine-readable JSON
+- `*.xlsx` - Generated Excel files (when using TEST_RESULTS_PATH)
+
+---
+
+## Agent-Benchmark Development
+
+**Location**: `d:\source\agent-benchmark` (separate repository)
+
+When developing agent-benchmark alongside mcp-server-excel tests:
+
+### Running Agent-Benchmark Tests
+
+```powershell
+# Run all agent-benchmark tests
+cd d:\source\agent-benchmark
+go test ./... -v
+
+# Run specific test
+go test ./test -run "TestGenerateContentWithConfig" -v
+
+# Run tests matching pattern
+go test ./test -run "TestClarification" -v
+```
+
+### Building After Changes
+
+```powershell
+# Rebuild executable (if using executable mode)
+cd d:\source\agent-benchmark
+go build .
+
+# Or just use go-run mode (auto-rebuilds)
+# Set in llm-tests.config.local.json: "agentBenchmarkMode": "go-run"
+```
+
+### Key Test Files
+
+| File | Purpose |
+|------|---------|
+| `test/agent_test.go` | Agent execution tests (GenerateContentWithConfig) |
+| `test/model_test.go` | Assertion evaluator tests |
+| `test/engine_test.go` | Test engine/orchestration tests |
+| `test/httpclient_test.go` | HTTP client and rate limiting tests |
 
 See `tests/ExcelMcp.McpServer.LLM.Tests/README.md` for complete documentation.

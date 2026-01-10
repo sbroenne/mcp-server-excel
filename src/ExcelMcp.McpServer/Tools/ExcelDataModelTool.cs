@@ -14,10 +14,15 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 public static partial class ExcelDataModelTool
 {
     /// <summary>
-    /// Data Model tables and DAX measures.
-    /// DESTRUCTIVE: DeleteTable removes table AND all measures.
+    /// Data Model (Power Pivot) - DAX measures and table management.
+    ///
+    /// PREREQUISITE: Tables must be added to the Data Model first.
+    /// Use excel_table with add-to-datamodel action to add worksheet tables,
+    /// or excel_powerquery to import and load data directly to the Data Model.
+    ///
+    /// DESTRUCTIVE: DeleteTable removes table AND all its measures.
     /// TIMEOUT: 2 min auto-timeout.
-    /// Related: excel_datamodel_rel (relationships)
+    /// Related: excel_table (add-to-datamodel), excel_datamodel_rel (relationships)
     /// </summary>
     /// <param name="action">Action</param>
     /// <param name="sid">Session ID</param>

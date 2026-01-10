@@ -14,7 +14,10 @@ public static partial class ExcelPowerQueryTool
 {
     /// <summary>
     /// Power Query M code and data loading.
-    /// DESTINATIONS: worksheet (default), datamodel (for DAX), both, connection-only.
+    ///
+    /// DESTINATIONS: worksheet (default), data-model (for DAX), both, connection-only.
+    /// Use 'data-model' to load directly to Power Pivot, then use excel_datamodel to create DAX measures.
+    ///
     /// TARGET CELL: targetCellAddress places tables without clearing sheet.
     /// TIMEOUT: 5 min auto-timeout for refresh/load.
     /// </summary>
