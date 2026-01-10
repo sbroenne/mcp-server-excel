@@ -15,41 +15,59 @@ public static partial class ExcelPivotTableFieldTool
     private static readonly JsonSerializerOptions JsonOptions = ExcelToolsBase.JsonOptions;
 
     /// <summary>
-    /// PivotTable field management - add/remove/configure fields, filtering, sorting, grouping.
-    /// Related: excel_pivottable (lifecycle), excel_pivottable_calc (calculated/layout)
+    /// PivotTable field management: add/remove/configure fields, filtering, sorting, and grouping.
+    ///
+    /// FIELD AREAS:
+    /// - Row fields: Group data by categories (add-row-field)
+    /// - Column fields: Create column headers (add-column-field)
+    /// - Value fields: Aggregate numeric data with Sum, Count, Average, etc. (add-value-field)
+    /// - Filter fields: Add report-level filters (add-filter-field)
+    ///
+    /// AGGREGATION FUNCTIONS:
+    /// Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP
+    ///
+    /// GROUPING:
+    /// - Date fields: Group by Days, Months, Quarters, Years (group-by-date)
+    /// - Numeric fields: Group by ranges with start/end/interval (group-by-numeric)
+    ///
+    /// NUMBER FORMAT: Use US format codes like '#,##0.00' for currency or '0.00%' for percentages.
+    ///
+    /// RELATED TOOLS:
+    /// - excel_pivottable: Create/delete/refresh PivotTables
+    /// - excel_pivottable_calc: Calculated fields, layout options, subtotals
     /// </summary>
-    /// <param name="action">Action</param>
-    /// <param name="sid">Session ID</param>
-    /// <param name="ptn">PivotTable name</param>
-    /// <param name="fn">Field name</param>
-    /// <param name="agg">Aggregation: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP</param>
-    /// <param name="cn">Custom display name</param>
-    /// <param name="nf">Number format (US format: '#,##0.00', '0.00%')</param>
-    /// <param name="pos">Position (1-based)</param>
-    /// <param name="fv">Filter values JSON array: '["val1","val2"]'</param>
-    /// <param name="sd">Sort direction: Ascending, Descending</param>
-    /// <param name="dgi">Date grouping: Days, Months, Quarters, Years</param>
-    /// <param name="ngs">Numeric grouping start</param>
-    /// <param name="nge">Numeric grouping end</param>
-    /// <param name="ngi">Numeric grouping interval</param>
+    /// <param name="action">The field operation to perform</param>
+    /// <param name="sessionId">Session identifier returned from excel_file open action</param>
+    /// <param name="pivotTableName">Name of the PivotTable to modify</param>
+    /// <param name="fieldName">Name of the field to add, remove, or configure</param>
+    /// <param name="aggregationFunction">Aggregation function for value fields: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP</param>
+    /// <param name="customName">Custom display name for the field in the PivotTable</param>
+    /// <param name="numberFormat">Number format code in US format, e.g., '#,##0.00' for currency, '0.00%' for percentage</param>
+    /// <param name="position">1-based position for row/column field ordering</param>
+    /// <param name="filterValues">JSON array of values to filter by, e.g., '["North","South"]' to show only those items</param>
+    /// <param name="sortDirection">Sort direction for field items: Ascending or Descending</param>
+    /// <param name="dateGroupingInterval">Date grouping interval: Days, Months, Quarters, or Years</param>
+    /// <param name="numericGroupingStart">Starting value for numeric grouping ranges</param>
+    /// <param name="numericGroupingEnd">Ending value for numeric grouping ranges</param>
+    /// <param name="numericGroupingInterval">Interval size for numeric grouping (must be greater than 0)</param>
     [McpServerTool(Name = "excel_pivottable_field", Title = "Excel PivotTable Field Operations")]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelPivotTableField(
         PivotTableFieldAction action,
-        string sid,
-        string ptn,
-        [DefaultValue(null)] string? fn,
-        [DefaultValue(null)] string? agg,
-        [DefaultValue(null)] string? cn,
-        [DefaultValue(null)] string? nf,
-        [DefaultValue(null)] int? pos,
-        [DefaultValue(null)] string? fv,
-        [DefaultValue(null)] string? sd,
-        [DefaultValue(null)] string? dgi,
-        [DefaultValue(null)] double? ngs,
-        [DefaultValue(null)] double? nge,
-        [DefaultValue(null)] double? ngi)
+        string sessionId,
+        string pivotTableName,
+        [DefaultValue(null)] string? fieldName,
+        [DefaultValue(null)] string? aggregationFunction,
+        [DefaultValue(null)] string? customName,
+        [DefaultValue(null)] string? numberFormat,
+        [DefaultValue(null)] int? position,
+        [DefaultValue(null)] string? filterValues,
+        [DefaultValue(null)] string? sortDirection,
+        [DefaultValue(null)] string? dateGroupingInterval,
+        [DefaultValue(null)] double? numericGroupingStart,
+        [DefaultValue(null)] double? numericGroupingEnd,
+        [DefaultValue(null)] double? numericGroupingInterval)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_pivottable_field",
@@ -60,19 +78,19 @@ public static partial class ExcelPivotTableFieldTool
 
                 return action switch
                 {
-                    PivotTableFieldAction.ListFields => ListFields(commands, sid, ptn),
-                    PivotTableFieldAction.AddRowField => AddRowField(commands, sid, ptn, fn, pos),
-                    PivotTableFieldAction.AddColumnField => AddColumnField(commands, sid, ptn, fn, pos),
-                    PivotTableFieldAction.AddValueField => AddValueField(commands, sid, ptn, fn, agg, cn),
-                    PivotTableFieldAction.AddFilterField => AddFilterField(commands, sid, ptn, fn),
-                    PivotTableFieldAction.RemoveField => RemoveField(commands, sid, ptn, fn),
-                    PivotTableFieldAction.SetFieldFunction => SetFieldFunction(commands, sid, ptn, fn, agg),
-                    PivotTableFieldAction.SetFieldName => SetFieldName(commands, sid, ptn, fn, cn),
-                    PivotTableFieldAction.SetFieldFormat => SetFieldFormat(commands, sid, ptn, fn, nf),
-                    PivotTableFieldAction.SetFieldFilter => SetFieldFilter(commands, sid, ptn, fn, fv),
-                    PivotTableFieldAction.SortField => SortField(commands, sid, ptn, fn, sd),
-                    PivotTableFieldAction.GroupByDate => GroupByDate(commands, sid, ptn, fn, dgi),
-                    PivotTableFieldAction.GroupByNumeric => GroupByNumeric(commands, sid, ptn, fn, ngs, nge, ngi),
+                    PivotTableFieldAction.ListFields => ListFields(commands, sessionId, pivotTableName),
+                    PivotTableFieldAction.AddRowField => AddRowField(commands, sessionId, pivotTableName, fieldName, position),
+                    PivotTableFieldAction.AddColumnField => AddColumnField(commands, sessionId, pivotTableName, fieldName, position),
+                    PivotTableFieldAction.AddValueField => AddValueField(commands, sessionId, pivotTableName, fieldName, aggregationFunction, customName),
+                    PivotTableFieldAction.AddFilterField => AddFilterField(commands, sessionId, pivotTableName, fieldName),
+                    PivotTableFieldAction.RemoveField => RemoveField(commands, sessionId, pivotTableName, fieldName),
+                    PivotTableFieldAction.SetFieldFunction => SetFieldFunction(commands, sessionId, pivotTableName, fieldName, aggregationFunction),
+                    PivotTableFieldAction.SetFieldName => SetFieldName(commands, sessionId, pivotTableName, fieldName, customName),
+                    PivotTableFieldAction.SetFieldFormat => SetFieldFormat(commands, sessionId, pivotTableName, fieldName, numberFormat),
+                    PivotTableFieldAction.SetFieldFilter => SetFieldFilter(commands, sessionId, pivotTableName, fieldName, filterValues),
+                    PivotTableFieldAction.SortField => SortField(commands, sessionId, pivotTableName, fieldName, sortDirection),
+                    PivotTableFieldAction.GroupByDate => GroupByDate(commands, sessionId, pivotTableName, fieldName, dateGroupingInterval),
+                    PivotTableFieldAction.GroupByNumeric => GroupByNumeric(commands, sessionId, pivotTableName, fieldName, numericGroupingStart, numericGroupingEnd, numericGroupingInterval),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });
@@ -81,7 +99,7 @@ public static partial class ExcelPivotTableFieldTool
     private static string ListFields(PivotTableCommands commands, string sessionId, string? pivotTableName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter("ptn", "list-fields");
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "list-fields");
 
         var result = ExcelToolsBase.WithSession(sessionId,
             batch => commands.ListFields(batch, pivotTableName!));
@@ -92,9 +110,9 @@ public static partial class ExcelPivotTableFieldTool
     private static string AddRowField(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, int? position)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter("ptn", "add-row-field");
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "add-row-field");
         if (string.IsNullOrWhiteSpace(fieldName))
-            ExcelToolsBase.ThrowMissingParameter("fn", "add-row-field");
+            ExcelToolsBase.ThrowMissingParameter("fieldName", "add-row-field");
 
         var result = ExcelToolsBase.WithSession(sessionId,
             batch => commands.AddRowField(batch, pivotTableName!, fieldName!, position));
@@ -118,9 +136,9 @@ public static partial class ExcelPivotTableFieldTool
     private static string AddColumnField(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, int? position)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter("ptn", "add-column-field");
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "add-column-field");
         if (string.IsNullOrWhiteSpace(fieldName))
-            ExcelToolsBase.ThrowMissingParameter("fn", "add-column-field");
+            ExcelToolsBase.ThrowMissingParameter("fieldName", "add-column-field");
 
         var result = ExcelToolsBase.WithSession(sessionId,
             batch => commands.AddColumnField(batch, pivotTableName!, fieldName!, position));
@@ -144,15 +162,15 @@ public static partial class ExcelPivotTableFieldTool
     private static string AddValueField(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, string? aggregationFunction, string? customName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter("ptn", "add-value-field");
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "add-value-field");
         if (string.IsNullOrWhiteSpace(fieldName))
-            ExcelToolsBase.ThrowMissingParameter("fn", "add-value-field");
+            ExcelToolsBase.ThrowMissingParameter("fieldName", "add-value-field");
 
         AggregationFunction function = AggregationFunction.Sum;
         if (!string.IsNullOrEmpty(aggregationFunction) &&
             !Enum.TryParse(aggregationFunction, true, out function))
         {
-            throw new ArgumentException($"Invalid aggregation '{aggregationFunction}'. Valid: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP", nameof(aggregationFunction));
+            throw new ArgumentException($"Invalid aggregationFunction '{aggregationFunction}'. Valid: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP", nameof(aggregationFunction));
         }
 
         var result = ExcelToolsBase.WithSession(sessionId,
@@ -177,9 +195,9 @@ public static partial class ExcelPivotTableFieldTool
     private static string AddFilterField(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter("ptn", "add-filter-field");
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "add-filter-field");
         if (string.IsNullOrWhiteSpace(fieldName))
-            ExcelToolsBase.ThrowMissingParameter("fn", "add-filter-field");
+            ExcelToolsBase.ThrowMissingParameter("fieldName", "add-filter-field");
 
         var result = ExcelToolsBase.WithSession(sessionId,
             batch => commands.AddFilterField(batch, pivotTableName!, fieldName!));
@@ -203,9 +221,9 @@ public static partial class ExcelPivotTableFieldTool
     private static string RemoveField(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter("ptn", "remove-field");
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "remove-field");
         if (string.IsNullOrWhiteSpace(fieldName))
-            ExcelToolsBase.ThrowMissingParameter("fn", "remove-field");
+            ExcelToolsBase.ThrowMissingParameter("fieldName", "remove-field");
 
         var result = ExcelToolsBase.WithSession(sessionId,
             batch => commands.RemoveField(batch, pivotTableName!, fieldName!));
@@ -229,15 +247,15 @@ public static partial class ExcelPivotTableFieldTool
     private static string SetFieldFunction(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, string? aggregationFunction)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter("ptn", "set-field-function");
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "set-field-function");
         if (string.IsNullOrWhiteSpace(fieldName))
-            ExcelToolsBase.ThrowMissingParameter("fn", "set-field-function");
+            ExcelToolsBase.ThrowMissingParameter("fieldName", "set-field-function");
         if (string.IsNullOrWhiteSpace(aggregationFunction))
-            ExcelToolsBase.ThrowMissingParameter("agg", "set-field-function");
+            ExcelToolsBase.ThrowMissingParameter("aggregationFunction", "set-field-function");
 
         if (!Enum.TryParse<AggregationFunction>(aggregationFunction!, true, out var function))
         {
-            throw new ArgumentException($"Invalid aggregation '{aggregationFunction}'. Valid: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP", nameof(aggregationFunction));
+            throw new ArgumentException($"Invalid aggregationFunction '{aggregationFunction}'. Valid: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP", nameof(aggregationFunction));
         }
 
         var result = ExcelToolsBase.WithSession(sessionId,
@@ -262,11 +280,11 @@ public static partial class ExcelPivotTableFieldTool
     private static string SetFieldName(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, string? customName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter("ptn", "set-field-name");
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "set-field-name");
         if (string.IsNullOrWhiteSpace(fieldName))
-            ExcelToolsBase.ThrowMissingParameter("fn", "set-field-name");
+            ExcelToolsBase.ThrowMissingParameter("fieldName", "set-field-name");
         if (string.IsNullOrWhiteSpace(customName))
-            ExcelToolsBase.ThrowMissingParameter("cn", "set-field-name");
+            ExcelToolsBase.ThrowMissingParameter("customName", "set-field-name");
 
         var result = ExcelToolsBase.WithSession(sessionId,
             batch => commands.SetFieldName(batch, pivotTableName!, fieldName!, customName!));
@@ -290,11 +308,11 @@ public static partial class ExcelPivotTableFieldTool
     private static string SetFieldFormat(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, string? numberFormat)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter("ptn", "set-field-format");
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "set-field-format");
         if (string.IsNullOrWhiteSpace(fieldName))
-            ExcelToolsBase.ThrowMissingParameter("fn", "set-field-format");
+            ExcelToolsBase.ThrowMissingParameter("fieldName", "set-field-format");
         if (string.IsNullOrWhiteSpace(numberFormat))
-            ExcelToolsBase.ThrowMissingParameter("nf", "set-field-format");
+            ExcelToolsBase.ThrowMissingParameter("numberFormat", "set-field-format");
 
         var result = ExcelToolsBase.WithSession(sessionId,
             batch => commands.SetFieldFormat(batch, pivotTableName!, fieldName!, numberFormat!));
@@ -318,11 +336,11 @@ public static partial class ExcelPivotTableFieldTool
     private static string SetFieldFilter(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, string? filterValues)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter("ptn", "set-field-filter");
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "set-field-filter");
         if (string.IsNullOrWhiteSpace(fieldName))
-            ExcelToolsBase.ThrowMissingParameter("fn", "set-field-filter");
+            ExcelToolsBase.ThrowMissingParameter("fieldName", "set-field-filter");
         if (string.IsNullOrWhiteSpace(filterValues))
-            ExcelToolsBase.ThrowMissingParameter("fv", "set-field-filter");
+            ExcelToolsBase.ThrowMissingParameter("filterValues", "set-field-filter");
 
         List<string> values;
         try
@@ -331,7 +349,7 @@ public static partial class ExcelPivotTableFieldTool
         }
         catch (JsonException ex)
         {
-            throw new ArgumentException($"Invalid fv JSON: {ex.Message}. Expected: '[\"value1\",\"value2\"]'", nameof(filterValues));
+            throw new ArgumentException($"Invalid filterValues JSON: {ex.Message}. Expected: '[\"value1\",\"value2\"]'", nameof(filterValues));
         }
 
         var result = ExcelToolsBase.WithSession(sessionId,
@@ -353,15 +371,15 @@ public static partial class ExcelPivotTableFieldTool
     private static string SortField(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, string? sortDirection)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
-            ExcelToolsBase.ThrowMissingParameter("ptn", "sort-field");
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "sort-field");
         if (string.IsNullOrWhiteSpace(fieldName))
-            ExcelToolsBase.ThrowMissingParameter("fn", "sort-field");
+            ExcelToolsBase.ThrowMissingParameter("fieldName", "sort-field");
 
         SortDirection direction = SortDirection.Ascending;
         if (!string.IsNullOrEmpty(sortDirection) &&
             !Enum.TryParse(sortDirection, true, out direction))
         {
-            throw new ArgumentException($"Invalid sort direction '{sortDirection}'. Valid: Ascending, Descending", nameof(sortDirection));
+            throw new ArgumentException($"Invalid sortDirection '{sortDirection}'. Valid: Ascending, Descending", nameof(sortDirection));
         }
 
         var result = ExcelToolsBase.WithSession(sessionId,
@@ -386,15 +404,15 @@ public static partial class ExcelPivotTableFieldTool
     private static string GroupByDate(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, string? dateGroupingInterval)
     {
         if (string.IsNullOrEmpty(pivotTableName))
-            throw new ArgumentException("ptn is required for group-by-date action", nameof(pivotTableName));
+            throw new ArgumentException("pivotTableName is required for group-by-date action", nameof(pivotTableName));
         if (string.IsNullOrEmpty(fieldName))
-            throw new ArgumentException("fn is required for group-by-date action", nameof(fieldName));
+            throw new ArgumentException("fieldName is required for group-by-date action", nameof(fieldName));
         if (string.IsNullOrEmpty(dateGroupingInterval))
-            throw new ArgumentException("dgi is required for group-by-date action", nameof(dateGroupingInterval));
+            throw new ArgumentException("dateGroupingInterval is required for group-by-date action", nameof(dateGroupingInterval));
 
         if (!Enum.TryParse<DateGroupingInterval>(dateGroupingInterval, true, out var interval))
         {
-            throw new ArgumentException($"Invalid date grouping '{dateGroupingInterval}'. Valid: Days, Months, Quarters, Years", nameof(dateGroupingInterval));
+            throw new ArgumentException($"Invalid dateGroupingInterval '{dateGroupingInterval}'. Valid: Days, Months, Quarters, Years", nameof(dateGroupingInterval));
         }
 
         var result = ExcelToolsBase.WithSession(sessionId,
@@ -411,17 +429,17 @@ public static partial class ExcelPivotTableFieldTool
         }, JsonOptions);
     }
 
-    private static string GroupByNumeric(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, double? start, double? end, double? interval)
+    private static string GroupByNumeric(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, double? numericGroupingStart, double? numericGroupingEnd, double? numericGroupingInterval)
     {
         if (string.IsNullOrEmpty(pivotTableName))
-            throw new ArgumentException("ptn is required for group-by-numeric action", nameof(pivotTableName));
+            throw new ArgumentException("pivotTableName is required for group-by-numeric action", nameof(pivotTableName));
         if (string.IsNullOrEmpty(fieldName))
-            throw new ArgumentException("fn is required for group-by-numeric action", nameof(fieldName));
-        if (!interval.HasValue || interval.Value <= 0)
-            throw new ArgumentException("ngi is required and must be > 0 for group-by-numeric action", nameof(interval));
+            throw new ArgumentException("fieldName is required for group-by-numeric action", nameof(fieldName));
+        if (!numericGroupingInterval.HasValue || numericGroupingInterval.Value <= 0)
+            throw new ArgumentException("numericGroupingInterval is required and must be > 0 for group-by-numeric action", nameof(numericGroupingInterval));
 
         var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.GroupByNumeric(batch, pivotTableName!, fieldName!, start, end, interval.Value));
+            batch => commands.GroupByNumeric(batch, pivotTableName!, fieldName!, numericGroupingStart, numericGroupingEnd, numericGroupingInterval.Value));
 
         return JsonSerializer.Serialize(new
         {

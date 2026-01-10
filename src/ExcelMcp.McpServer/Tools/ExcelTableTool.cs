@@ -13,71 +13,75 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 public static partial class TableTool
 {
     /// <summary>
-    /// Excel Tables - lifecycle and data.
+    /// Excel Tables (ListObjects) - lifecycle and data operations.
+    ///
+    /// CREATING TABLES: Specify sheetName, tableName, and rangeAddress. Set hasHeaders=true if first row contains headers.
     ///
     /// DATA MODEL WORKFLOW: To analyze worksheet data with DAX/Power Pivot:
     /// 1. Create or identify an Excel Table on a worksheet
-    /// 2. Use add-to-datamodel action to add the table to Power Pivot
+    /// 2. Use 'add-to-datamodel' action to add the table to Power Pivot
     /// 3. Then use excel_datamodel to create DAX measures on it
+    ///
+    /// APPENDING DATA: Use 'append' action with csvData in simple CSV format (comma-separated, newline-separated rows).
     ///
     /// Related: excel_table_column (filter/sort/columns), excel_datamodel (DAX measures)
     /// </summary>
-    /// <param name="action">Action</param>
-    /// <param name="path">File path</param>
-    /// <param name="sid">Session ID</param>
-    /// <param name="tn">Table name</param>
-    /// <param name="sn">Sheet name</param>
-    /// <param name="rng">Range (A1:D10)</param>
-    /// <param name="nn">New name</param>
-    /// <param name="hdr">Has headers or show totals</param>
-    /// <param name="style">Style name or total function or CSV data</param>
-    /// <param name="vo">Visible rows only</param>
+    /// <param name="action">The table operation to perform</param>
+    /// <param name="excelPath">Full path to Excel file (for reference/logging)</param>
+    /// <param name="sessionId">Session ID from excel_file 'open'. Required for all actions.</param>
+    /// <param name="tableName">Name of the table to operate on. Required for: read, rename, delete, resize, toggle-totals, set-column-total, append, get-data, set-style, add-to-datamodel. Used as new table name for: create</param>
+    /// <param name="sheetName">Name of the worksheet containing the table. Required for: create</param>
+    /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10'). Required for: create, resize</param>
+    /// <param name="newName">New name for the table. Required for: rename. Column name for: set-column-total</param>
+    /// <param name="hasHeaders">For 'create': true if first row contains column headers (default: true). For 'toggle-totals': true to show totals row, false to hide.</param>
+    /// <param name="styleName">Multi-purpose string parameter: Table style name for 'create'/'set-style' (e.g., 'TableStyleMedium2'). Total function for 'set-column-total' (Sum, Average, Count, etc.). CSV data for 'append'.</param>
+    /// <param name="visibleOnly">For 'get-data': true to return only visible (non-filtered) rows. Default: false (all rows)</param>
     [McpServerTool(Name = "excel_table", Title = "Excel Table Operations")]
     [McpMeta("category", "data")]
     [McpMeta("requiresSession", true)]
     public static partial string Table(
         TableAction action,
-        string path,
-        string sid,
-        [DefaultValue(null)] string? tn,
-        [DefaultValue(null)] string? sn,
-        [DefaultValue(null)] string? rng,
-        [DefaultValue(null)] string? nn,
-        [DefaultValue(true)] bool hdr,
-        [DefaultValue(null)] string? style,
-        [DefaultValue(false)] bool vo)
+        string excelPath,
+        string sessionId,
+        [DefaultValue(null)] string? tableName,
+        [DefaultValue(null)] string? sheetName,
+        [DefaultValue(null)] string? rangeAddress,
+        [DefaultValue(null)] string? newName,
+        [DefaultValue(true)] bool hasHeaders,
+        [DefaultValue(null)] string? styleName,
+        [DefaultValue(false)] bool visibleOnly)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_table",
             action.ToActionString(),
-            path,
+            excelPath,
             () =>
             {
                 var tableCommands = new TableCommands();
 
                 return action switch
                 {
-                    TableAction.List => ListTables(tableCommands, sid),
-                    TableAction.Create => CreateTable(tableCommands, sid, sn, tn, rng, hdr, style),
-                    TableAction.Read => ReadTable(tableCommands, sid, tn),
-                    TableAction.Rename => RenameTable(tableCommands, sid, tn, nn),
-                    TableAction.Delete => DeleteTable(tableCommands, sid, tn),
-                    TableAction.Resize => ResizeTable(tableCommands, sid, tn, rng),
-                    TableAction.ToggleTotals => ToggleTotals(tableCommands, sid, tn, hdr),
-                    TableAction.SetColumnTotal => SetColumnTotal(tableCommands, sid, tn, nn, style),
-                    TableAction.Append => AppendRows(tableCommands, sid, tn, style),
-                    TableAction.GetData => GetData(tableCommands, sid, tn, vo),
-                    TableAction.SetStyle => SetTableStyle(tableCommands, sid, tn, style),
-                    TableAction.AddToDataModel => AddToDataModel(tableCommands, sid, tn),
+                    TableAction.List => ListTables(tableCommands, sessionId),
+                    TableAction.Create => CreateTable(tableCommands, sessionId, sheetName, tableName, rangeAddress, hasHeaders, styleName),
+                    TableAction.Read => ReadTable(tableCommands, sessionId, tableName),
+                    TableAction.Rename => RenameTable(tableCommands, sessionId, tableName, newName),
+                    TableAction.Delete => DeleteTable(tableCommands, sessionId, tableName),
+                    TableAction.Resize => ResizeTable(tableCommands, sessionId, tableName, rangeAddress),
+                    TableAction.ToggleTotals => ToggleTotals(tableCommands, sessionId, tableName, hasHeaders),
+                    TableAction.SetColumnTotal => SetColumnTotal(tableCommands, sessionId, tableName, newName, styleName),
+                    TableAction.Append => AppendRows(tableCommands, sessionId, tableName, styleName),
+                    TableAction.GetData => GetData(tableCommands, sessionId, tableName, visibleOnly),
+                    TableAction.SetStyle => SetTableStyle(tableCommands, sessionId, tableName, styleName),
+                    TableAction.AddToDataModel => AddToDataModel(tableCommands, sessionId, tableName),
                     _ => throw new ArgumentException(
                         $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });
     }
 
-    private static string ListTables(TableCommands commands, string sid)
+    private static string ListTables(TableCommands commands, string sessionId)
     {
-        var result = ExcelToolsBase.WithSession(sid, batch => commands.List(batch));
+        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.List(batch));
 
         return JsonSerializer.Serialize(new
         {
@@ -87,19 +91,19 @@ public static partial class TableTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string CreateTable(TableCommands commands, string sid, string? sn, string? tn, string? rng, bool hdr, string? style)
+    private static string CreateTable(TableCommands commands, string sessionId, string? sheetName, string? tableName, string? rangeAddress, bool hasHeaders, string? styleName)
     {
-        if (string.IsNullOrWhiteSpace(sn)) ExcelToolsBase.ThrowMissingParameter(nameof(sn), "create");
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "create");
-        if (string.IsNullOrWhiteSpace(rng)) ExcelToolsBase.ThrowMissingParameter(nameof(rng), "create");
+        if (string.IsNullOrWhiteSpace(sheetName)) ExcelToolsBase.ThrowMissingParameter(nameof(sheetName), "create");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "create");
+        if (string.IsNullOrWhiteSpace(rangeAddress)) ExcelToolsBase.ThrowMissingParameter(nameof(rangeAddress), "create");
 
         try
         {
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.Create(batch, sn!, tn!, rng!, hdr, style);
+                    commands.Create(batch, sheetName!, tableName!, rangeAddress!, hasHeaders, styleName);
                     return 0;
                 });
 
@@ -111,40 +115,40 @@ public static partial class TableTool
         }
     }
 
-    private static string ReadTable(TableCommands commands, string sid, string? tn)
+    private static string ReadTable(TableCommands commands, string sessionId, string? tableName)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "read");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "read");
 
         var result = ExcelToolsBase.WithSession(
-            sid,
-            batch => commands.Read(batch, tn!));
+            sessionId,
+            batch => commands.Read(batch, tableName!));
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string GetData(TableCommands commands, string sid, string? tn, bool vo)
+    private static string GetData(TableCommands commands, string sessionId, string? tableName, bool visibleOnly)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "get-data");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "get-data");
 
         var result = ExcelToolsBase.WithSession(
-            sid,
-            batch => commands.GetData(batch, tn!, vo));
+            sessionId,
+            batch => commands.GetData(batch, tableName!, visibleOnly));
 
         return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 
-    private static string RenameTable(TableCommands commands, string sid, string? tn, string? nn)
+    private static string RenameTable(TableCommands commands, string sessionId, string? tableName, string? newName)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "rename");
-        if (string.IsNullOrWhiteSpace(nn)) ExcelToolsBase.ThrowMissingParameter(nameof(nn), "rename");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "rename");
+        if (string.IsNullOrWhiteSpace(newName)) ExcelToolsBase.ThrowMissingParameter(nameof(newName), "rename");
 
         try
         {
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.Rename(batch, tn!, nn!);
+                    commands.Rename(batch, tableName!, newName!);
                     return 0;
                 });
 
@@ -156,17 +160,17 @@ public static partial class TableTool
         }
     }
 
-    private static string DeleteTable(TableCommands commands, string sid, string? tn)
+    private static string DeleteTable(TableCommands commands, string sessionId, string? tableName)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "delete");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "delete");
 
         try
         {
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.Delete(batch, tn!);
+                    commands.Delete(batch, tableName!);
                     return 0;
                 });
 
@@ -178,18 +182,18 @@ public static partial class TableTool
         }
     }
 
-    private static string ResizeTable(TableCommands commands, string sid, string? tn, string? rng)
+    private static string ResizeTable(TableCommands commands, string sessionId, string? tableName, string? rangeAddress)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "resize");
-        if (string.IsNullOrWhiteSpace(rng)) ExcelToolsBase.ThrowMissingParameter(nameof(rng), "resize");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "resize");
+        if (string.IsNullOrWhiteSpace(rangeAddress)) ExcelToolsBase.ThrowMissingParameter(nameof(rangeAddress), "resize");
 
         try
         {
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.Resize(batch, tn!, rng!);
+                    commands.Resize(batch, tableName!, rangeAddress!);
                     return 0;
                 });
 
@@ -201,17 +205,17 @@ public static partial class TableTool
         }
     }
 
-    private static string ToggleTotals(TableCommands commands, string sid, string? tn, bool showTotals)
+    private static string ToggleTotals(TableCommands commands, string sessionId, string? tableName, bool showTotals)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "toggle-totals");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "toggle-totals");
 
         try
         {
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.ToggleTotals(batch, tn!, showTotals);
+                    commands.ToggleTotals(batch, tableName!, showTotals);
                     return 0;
                 });
 
@@ -223,19 +227,19 @@ public static partial class TableTool
         }
     }
 
-    private static string SetColumnTotal(TableCommands commands, string sid, string? tn, string? col, string? func)
+    private static string SetColumnTotal(TableCommands commands, string sessionId, string? tableName, string? columnName, string? totalFunction)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "set-column-total");
-        if (string.IsNullOrWhiteSpace(col)) ExcelToolsBase.ThrowMissingParameter(nameof(col), "set-column-total");
-        if (string.IsNullOrWhiteSpace(func)) ExcelToolsBase.ThrowMissingParameter(nameof(func), "set-column-total");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "set-column-total");
+        if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "set-column-total");
+        if (string.IsNullOrWhiteSpace(totalFunction)) ExcelToolsBase.ThrowMissingParameter(nameof(totalFunction), "set-column-total");
 
         try
         {
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.SetColumnTotal(batch, tn!, col!, func!);
+                    commands.SetColumnTotal(batch, tableName!, columnName!, totalFunction!);
                     return 0;
                 });
 
@@ -247,21 +251,21 @@ public static partial class TableTool
         }
     }
 
-    private static string AppendRows(TableCommands commands, string sid, string? tn, string? csv)
+    private static string AppendRows(TableCommands commands, string sessionId, string? tableName, string? csvData)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "append");
-        if (string.IsNullOrWhiteSpace(csv)) ExcelToolsBase.ThrowMissingParameter(nameof(csv), "append");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "append");
+        if (string.IsNullOrWhiteSpace(csvData)) ExcelToolsBase.ThrowMissingParameter(nameof(csvData), "append");
 
         try
         {
             // Parse CSV data to List<List<object?>>
-            var rows = ParseCsvToRows(csv!);
+            var rows = ParseCsvToRows(csvData!);
 
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.Append(batch, tn!, rows);
+                    commands.Append(batch, tableName!, rows);
                     return 0;
                 });
 
@@ -294,18 +298,18 @@ public static partial class TableTool
         return rows;
     }
 
-    private static string SetTableStyle(TableCommands commands, string sid, string? tn, string? style)
+    private static string SetTableStyle(TableCommands commands, string sessionId, string? tableName, string? styleName)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "set-style");
-        if (string.IsNullOrWhiteSpace(style)) ExcelToolsBase.ThrowMissingParameter(nameof(style), "set-style");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "set-style");
+        if (string.IsNullOrWhiteSpace(styleName)) ExcelToolsBase.ThrowMissingParameter(nameof(styleName), "set-style");
 
         try
         {
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.SetStyle(batch, tn!, style!);
+                    commands.SetStyle(batch, tableName!, styleName!);
                     return 0;
                 });
 
@@ -317,17 +321,17 @@ public static partial class TableTool
         }
     }
 
-    private static string AddToDataModel(TableCommands commands, string sid, string? tn)
+    private static string AddToDataModel(TableCommands commands, string sessionId, string? tableName)
     {
-        if (string.IsNullOrWhiteSpace(tn)) ExcelToolsBase.ThrowMissingParameter(nameof(tn), "add-to-datamodel");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "add-to-datamodel");
 
         try
         {
             ExcelToolsBase.WithSession(
-                sid,
+                sessionId,
                 batch =>
                 {
-                    commands.AddToDataModel(batch, tn!);
+                    commands.AddToDataModel(batch, tableName!);
                     return 0;
                 });
 

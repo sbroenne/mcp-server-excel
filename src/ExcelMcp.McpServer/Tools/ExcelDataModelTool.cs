@@ -20,30 +20,40 @@ public static partial class ExcelDataModelTool
     /// Use excel_table with add-to-datamodel action to add worksheet tables,
     /// or excel_powerquery to import and load data directly to the Data Model.
     ///
-    /// DESTRUCTIVE: DeleteTable removes table AND all its measures.
-    /// TIMEOUT: 2 min auto-timeout.
-    /// Related: excel_table (add-to-datamodel), excel_datamodel_rel (relationships)
+    /// DAX MEASURES:
+    /// - Create measures with DAX formulas like 'SUM(Sales[Amount])'
+    /// - Measures can reference columns, other measures, and use DAX functions
+    /// - Format string uses US format codes like '#,##0.00' for currency
+    ///
+    /// DESTRUCTIVE OPERATIONS:
+    /// - delete-table: Removes table AND all its measures - cannot be undone
+    ///
+    /// TIMEOUT: Operations auto-timeout after 2 minutes for large Data Models.
+    ///
+    /// RELATED TOOLS:
+    /// - excel_table: Add worksheet tables to Data Model (add-to-datamodel action)
+    /// - excel_datamodel_rel: Manage relationships between tables
     /// </summary>
-    /// <param name="action">Action</param>
-    /// <param name="sid">Session ID</param>
-    /// <param name="mn">Measure name</param>
-    /// <param name="tn">Table name</param>
-    /// <param name="nn">New name (rename-table)</param>
-    /// <param name="dax">DAX formula</param>
-    /// <param name="desc">Description</param>
-    /// <param name="fmt">Format string (#,##0.00)</param>
+    /// <param name="action">The Data Model operation to perform</param>
+    /// <param name="sessionId">Session identifier returned from excel_file open action</param>
+    /// <param name="measureName">Name of the DAX measure - required for measure operations</param>
+    /// <param name="tableName">Name of the table in the Data Model - required for table operations and create-measure</param>
+    /// <param name="newTableName">New name for rename-table action</param>
+    /// <param name="daxFormula">DAX formula for the measure, e.g., 'SUM(Sales[Amount])'</param>
+    /// <param name="description">Optional description for the measure</param>
+    /// <param name="formatString">Number format code in US format, e.g., '#,##0.00' for currency</param>
     [McpServerTool(Name = "excel_datamodel", Title = "Excel Data Model Operations")]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelDataModel(
         DataModelAction action,
-        string sid,
-        [DefaultValue(null)] string? mn,
-        [DefaultValue(null)] string? tn,
-        [DefaultValue(null)] string? nn,
-        [DefaultValue(null)] string? dax,
-        [DefaultValue(null)] string? desc,
-        [DefaultValue(null)] string? fmt)
+        string sessionId,
+        [DefaultValue(null)] string? measureName,
+        [DefaultValue(null)] string? tableName,
+        [DefaultValue(null)] string? newTableName,
+        [DefaultValue(null)] string? daxFormula,
+        [DefaultValue(null)] string? description,
+        [DefaultValue(null)] string? formatString)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_datamodel",
@@ -54,25 +64,25 @@ public static partial class ExcelDataModelTool
 
                 return action switch
                 {
-                    DataModelAction.ListTables => ListTablesAsync(dataModelCommands, sid),
-                    DataModelAction.ListMeasures => ListMeasuresAsync(dataModelCommands, sid),
-                    DataModelAction.Read => ReadMeasureAsync(dataModelCommands, sid, mn),
-                    DataModelAction.Refresh => RefreshAsync(dataModelCommands, sid),
-                    DataModelAction.DeleteMeasure => DeleteMeasureAsync(dataModelCommands, sid, mn),
-                    DataModelAction.DeleteTable => DeleteTableAsync(dataModelCommands, sid, tn),
-                    DataModelAction.RenameTable => RenameTableAsync(dataModelCommands, sid, tn, nn),
-                    DataModelAction.ReadTable => ReadTableAsync(dataModelCommands, sid, tn),
-                    DataModelAction.ListColumns => ListColumnsAsync(dataModelCommands, sid, tn),
-                    DataModelAction.ReadInfo => ReadModelInfoAsync(dataModelCommands, sid),
-                    DataModelAction.CreateMeasure => CreateMeasureComAsync(dataModelCommands, sid, tn, mn, dax, fmt, desc),
-                    DataModelAction.UpdateMeasure => UpdateMeasureComAsync(dataModelCommands, sid, mn, dax, fmt, desc),
+                    DataModelAction.ListTables => ListTablesAction(dataModelCommands, sessionId),
+                    DataModelAction.ListMeasures => ListMeasuresAction(dataModelCommands, sessionId),
+                    DataModelAction.Read => ReadMeasureAction(dataModelCommands, sessionId, measureName),
+                    DataModelAction.Refresh => RefreshAction(dataModelCommands, sessionId),
+                    DataModelAction.DeleteMeasure => DeleteMeasureAction(dataModelCommands, sessionId, measureName),
+                    DataModelAction.DeleteTable => DeleteTableAction(dataModelCommands, sessionId, tableName),
+                    DataModelAction.RenameTable => RenameTableAction(dataModelCommands, sessionId, tableName, newTableName),
+                    DataModelAction.ReadTable => ReadTableAction(dataModelCommands, sessionId, tableName),
+                    DataModelAction.ListColumns => ListColumnsAction(dataModelCommands, sessionId, tableName),
+                    DataModelAction.ReadInfo => ReadModelInfoAction(dataModelCommands, sessionId),
+                    DataModelAction.CreateMeasure => CreateMeasureAction(dataModelCommands, sessionId, tableName, measureName, daxFormula, formatString, description),
+                    DataModelAction.UpdateMeasure => UpdateMeasureAction(dataModelCommands, sessionId, measureName, daxFormula, formatString, description),
                     _ => throw new ArgumentException(
                         $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });
     }
 
-    private static string ListTablesAsync(DataModelCommands commands, string sessionId)
+    private static string ListTablesAction(DataModelCommands commands, string sessionId)
     {
         DataModelTableListResult result;
 
@@ -99,7 +109,7 @@ public static partial class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ListMeasuresAsync(DataModelCommands commands, string sessionId)
+    private static string ListMeasuresAction(DataModelCommands commands, string sessionId)
     {
         DataModelMeasureListResult result;
 
@@ -128,7 +138,7 @@ public static partial class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ReadMeasureAsync(DataModelCommands commands, string sessionId, string? measureName)
+    private static string ReadMeasureAction(DataModelCommands commands, string sessionId, string? measureName)
     {
         if (string.IsNullOrEmpty(measureName))
             throw new ArgumentException("measureName is required for read action", nameof(measureName));
@@ -147,7 +157,7 @@ public static partial class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string RefreshAsync(DataModelCommands commands, string sessionId)
+    private static string RefreshAction(DataModelCommands commands, string sessionId)
     {
         try
         {
@@ -172,11 +182,11 @@ public static partial class ExcelDataModelTool
         }
     }
 
-    private static string DeleteMeasureAsync(DataModelCommands commands, string sessionId, string? measureName)
+    private static string DeleteMeasureAction(DataModelCommands commands, string sessionId, string? measureName)
     {
         if (string.IsNullOrWhiteSpace(measureName))
         {
-            throw new ArgumentException("Parameter 'measureName' is required for delete-measure action", nameof(measureName));
+            throw new ArgumentException("measureName is required for delete-measure action", nameof(measureName));
         }
 
         try
@@ -202,11 +212,11 @@ public static partial class ExcelDataModelTool
         }
     }
 
-    private static string DeleteTableAsync(DataModelCommands commands, string sessionId, string? tableName)
+    private static string DeleteTableAction(DataModelCommands commands, string sessionId, string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName))
         {
-            throw new ArgumentException("Parameter 'tableName' is required for delete-table action", nameof(tableName));
+            throw new ArgumentException("tableName is required for delete-table action", nameof(tableName));
         }
 
         try
@@ -232,21 +242,21 @@ public static partial class ExcelDataModelTool
         }
     }
 
-    private static string RenameTableAsync(DataModelCommands commands, string sessionId, string? tableName, string? newName)
+    private static string RenameTableAction(DataModelCommands commands, string sessionId, string? tableName, string? newTableName)
     {
         if (string.IsNullOrWhiteSpace(tableName))
         {
-            throw new ArgumentException("Parameter 'tableName' is required for rename-table action", nameof(tableName));
+            throw new ArgumentException("tableName is required for rename-table action", nameof(tableName));
         }
 
-        if (string.IsNullOrWhiteSpace(newName))
+        if (string.IsNullOrWhiteSpace(newTableName))
         {
-            throw new ArgumentException("Parameter 'newName' is required for rename-table action", nameof(newName));
+            throw new ArgumentException("newTableName is required for rename-table action", nameof(newTableName));
         }
 
         var result = ExcelToolsBase.WithSession(
             sessionId,
-            batch => commands.RenameTable(batch, tableName, newName));
+            batch => commands.RenameTable(batch, tableName, newTableName));
 
         return JsonSerializer.Serialize(new
         {
@@ -258,12 +268,12 @@ public static partial class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ReadTableAsync(DataModelCommands commands, string sessionId,
+    private static string ReadTableAction(DataModelCommands commands, string sessionId,
         string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName))
         {
-            throw new ArgumentException("Parameter 'tableName' is required for read-table action", nameof(tableName));
+            throw new ArgumentException("tableName is required for read-table action", nameof(tableName));
         }
 
         var result = ExcelToolsBase.WithSession(
@@ -282,12 +292,12 @@ public static partial class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ListColumnsAsync(DataModelCommands commands, string sessionId,
+    private static string ListColumnsAction(DataModelCommands commands, string sessionId,
         string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName))
         {
-            throw new ArgumentException("Parameter 'tableName' is required for list-columns action", nameof(tableName));
+            throw new ArgumentException("tableName is required for list-columns action", nameof(tableName));
         }
 
         var result = ExcelToolsBase.WithSession(
@@ -303,7 +313,7 @@ public static partial class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string ReadModelInfoAsync(DataModelCommands commands, string sessionId)
+    private static string ReadModelInfoAction(DataModelCommands commands, string sessionId)
     {
         DataModelInfoResult result;
 
@@ -334,23 +344,23 @@ public static partial class ExcelDataModelTool
         }, ExcelToolsBase.JsonOptions);
     }
 
-    private static string CreateMeasureComAsync(DataModelCommands commands,
+    private static string CreateMeasureAction(DataModelCommands commands,
         string sessionId, string? tableName, string? measureName, string? daxFormula, string? formatString,
         string? description)
     {
         if (string.IsNullOrWhiteSpace(tableName))
         {
-            throw new ArgumentException("Parameter 'tableName' is required for create-measure action", nameof(tableName));
+            throw new ArgumentException("tableName is required for create-measure action", nameof(tableName));
         }
 
         if (string.IsNullOrWhiteSpace(measureName))
         {
-            throw new ArgumentException("Parameter 'measureName' is required for create-measure action", nameof(measureName));
+            throw new ArgumentException("measureName is required for create-measure action", nameof(measureName));
         }
 
         if (string.IsNullOrWhiteSpace(daxFormula))
         {
-            throw new ArgumentException("Parameter 'daxFormula' is required for create-measure action", nameof(daxFormula));
+            throw new ArgumentException("daxFormula is required for create-measure action", nameof(daxFormula));
         }
 
         try
@@ -376,12 +386,12 @@ public static partial class ExcelDataModelTool
         }
     }
 
-    private static string UpdateMeasureComAsync(DataModelCommands commands,
+    private static string UpdateMeasureAction(DataModelCommands commands,
         string sessionId, string? measureName, string? daxFormula, string? formatString, string? description)
     {
         if (string.IsNullOrWhiteSpace(measureName))
         {
-            throw new ArgumentException("Parameter 'measureName' is required for update-measure action", nameof(measureName));
+            throw new ArgumentException("measureName is required for update-measure action", nameof(measureName));
         }
 
         try
