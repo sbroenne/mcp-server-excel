@@ -40,7 +40,7 @@ ExcelMcp requires Microsoft Excel for integration testing. GitHub-hosted runners
 │  ┌──────────────────────────────────────────┐          │
 │  │ GitHub Actions Runner Service            │          │
 │  │ - Windows Server 2022                    │          │
-│  │ - .NET 8 SDK                             │          │
+│  │ - .NET 10 SDK                            │          │
 │  │ - Microsoft Excel (Office 365)           │          │
 │  │ - Self-hosted runner agent               │          │
 │  └──────────────────────────────────────────┘          │
@@ -55,7 +55,7 @@ ExcelMcp requires Microsoft Excel for integration testing. GitHub-hosted runners
 
 **What gets automated:**
 - ✅ VM provisioning (Standard_B2s, 4GB RAM - cheapest suitable option)
-- ✅ .NET 8 SDK installation
+- ✅ .NET 10 SDK installation
 - ✅ GitHub Actions runner installation & configuration
 - ✅ Network security configuration
 - ⏭️ **Manual:** Office 365 Excel installation (you must do this via RDP)
@@ -91,13 +91,13 @@ Username: Your admin username
 Password: Your admin password
 ```
 
-#### 2. Install .NET 8 SDK
+#### 2. Install .NET 10 SDK
 
 Open PowerShell as Administrator:
 
 ```powershell
-# Download .NET 8 SDK
-Invoke-WebRequest -Uri "https://aka.ms/dotnet/8.0/dotnet-sdk-win-x64.exe" -OutFile "$env:TEMP\dotnet-sdk.exe"
+# Download .NET 10 SDK
+Invoke-WebRequest -Uri "https://aka.ms/dotnet/10.0/dotnet-sdk-win-x64.exe" -OutFile "$env:TEMP\dotnet-sdk.exe"
 
 # Install silently
 Start-Process "$env:TEMP\dotnet-sdk.exe" -ArgumentList '/quiet' -Wait

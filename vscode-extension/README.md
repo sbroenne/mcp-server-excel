@@ -63,7 +63,7 @@ The Excel MCP Server provides **21 specialized tools with 182 operations** for c
    - "Create a DAX measure for year-over-year revenue growth"
    - "Export all Powere Queires and VBA modules to .vba files for version control"
 
-**That's it!** The extension automatically installs .NET 8 runtime and includes a bundled MCP server.
+**That's it!** The extension automatically installs .NET 10 runtime and includes a bundled MCP server.
 
 ➡️ **[Learn more and see examples](https://sbroenne.github.io/mcp-server-excel/)**
 
@@ -71,7 +71,7 @@ The Excel MCP Server provides **21 specialized tools with 182 operations** for c
 
 - **Windows OS** - Excel COM automation requires Windows
 - **Microsoft Excel 2016+** - Must be installed on your system
-- **.NET 8 Runtime** - **Automatically installed** by the extension
+- **.NET 10 Runtime** - **Automatically installed** by the extension
 
 ## Potential Issues
 

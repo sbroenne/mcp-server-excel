@@ -346,7 +346,7 @@ Current size: **~41 MB** (includes bundled MCP server executable)
 
 The extension includes:
 - Main extension code (~10 KB)
-- Bundled .NET 8 self-contained MCP server (~41 MB)
+- Bundled .NET 10 self-contained MCP server (~41 MB)
 
 Benefits of bundled approach:
 - ✅ Zero-setup installation (no separate tool download required)

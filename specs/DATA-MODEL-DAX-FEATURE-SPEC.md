@@ -1515,7 +1515,7 @@ This design ensures **incremental value delivery** while maintaining the high qu
 
 **TOM API Package:**
 - Microsoft.AnalysisServices.NetCore.retail.amd64 v19.84.1
-- Full .NET 8.0 compatibility
+- Full .NET 10.0 compatibility
 - Cross-platform .NET Core support
 
 **Key Architecture Patterns:**

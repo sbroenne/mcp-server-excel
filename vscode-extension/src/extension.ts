@@ -66,13 +66,13 @@ async function ensureDotNetRuntime(): Promise<void> {
 			await dotnetExtension.activate();
 		}
 
-		// Request .NET 8 runtime using the command-based API
+		// Request .NET 10 runtime using the command-based API
 		// The extension uses commands, not direct exports
 		const requestingExtensionId = 'sbroenne.excel-mcp';
 
 		await vscode.commands.executeCommand('dotnet.showAcquisitionLog');
 		const result = await vscode.commands.executeCommand<{ dotnetPath: string }>('dotnet.acquire', {
-			version: '8.0',
+			version: '10.0',
 			requestingExtensionId
 		});
 

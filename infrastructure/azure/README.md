@@ -65,7 +65,7 @@ This directory contains Infrastructure as Code (IaC) for automating the deployme
 
 ### Software Installed Automatically
 
-1. **.NET 8 SDK** - For building and testing
+1. **.NET 10 SDK** - For building and testing
 2. **GitHub Actions Runner** - Registered with `self-hosted`, `windows`, `excel` labels
 3. **Auto-start service** - Runner starts on VM boot
 

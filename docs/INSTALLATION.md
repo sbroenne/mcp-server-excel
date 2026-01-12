@@ -258,7 +258,7 @@ dotnet tool update --global Sbroenne.ExcelMcp.CLI
 
 #### 1. "dotnet command not found"
 
-**Solution:** Install .NET 8 SDK or Runtime (see Step 1 above)
+**Solution:** Install .NET 10 SDK or Runtime (see Step 1 above)
 
 Verify PATH includes .NET:
 ```powershell

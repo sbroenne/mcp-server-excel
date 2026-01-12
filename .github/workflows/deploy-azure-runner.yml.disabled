@@ -24,24 +24,24 @@ on:
 jobs:
   deploy-infrastructure:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Azure Login (OIDC)
       uses: azure/login@v1
       with:
         client-id: ${{ secrets.AZURE_CLIENT_ID }}
         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-    
+
     - name: Create Resource Group
       run: |
         az group create \
           --name ${{ inputs.resource_group }} \
           --location swedencentral
-    
+
     - name: Deploy Bicep Template
       id: deploy
       run: |
@@ -51,7 +51,7 @@ jobs:
           --parameters \
             location=swedencentral \
             adminPassword='${{ inputs.admin_password }}'
-    
+
     - name: Get Deployment Outputs
       id: outputs
       run: |
@@ -73,7 +73,7 @@ jobs:
         echo "vm_name=$VM_NAME" >> $GITHUB_OUTPUT
         echo "vm_private_ip=$VM_PRIVATE_IP" >> $GITHUB_OUTPUT
         echo "bastion_name=$BASTION_NAME" >> $GITHUB_OUTPUT
-    
+
     - name: Display Next Steps
       run: |
         echo "✅ Deployment complete!"
@@ -88,7 +88,7 @@ jobs:
         echo ""
         echo "2. Install software manually (in order):"
         echo "   a) Office 365 Excel (https://portal.office.com)"
-        echo "   b) .NET 8 SDK (https://dotnet.microsoft.com/download)"
+        echo "   b) .NET 10 SDK (https://dotnet.microsoft.com/download)"
         echo "   c) GitHub Actions Runner:"
         echo "      - Go to: https://github.com/${{ github.repository }}/settings/actions/runners"
         echo "      - Click 'New self-hosted runner' → Windows"
