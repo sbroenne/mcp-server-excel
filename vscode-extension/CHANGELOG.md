@@ -4,9 +4,8 @@ All notable changes to the ExcelMcp VS Code extension will be documented in this
 
 ## [Unreleased]
 
-- **JSON Token Optimization** (#341): Reduced token consumption for AI assistants
-  - Shortened JSON property names (e.g., `sessionId` → `sid`, `sheetName` → `sn`, `address` → `addr`)
-  - Split 12 monolithic tools into 21 focused tools for smaller tool schemas
+- **Tool Reorganization** (#341): Split large tools into focused, smaller tools for better LLM comprehension
+  - Split 12 monolithic tools into 21 focused tools with smaller schemas
   - Same 182 operations, better organized for AI assistants
   - Ranges: 4 tools (excel_range, excel_range_edit, excel_range_format, excel_range_link)
   - PivotTables: 3 tools (excel_pivottable, excel_pivottable_field, excel_pivottable_calc)
@@ -18,7 +17,7 @@ All notable changes to the ExcelMcp VS Code extension will be documented in this
   - Validates that LLMs correctly understand and use MCP tools
   - Tests incremental update patterns vs rebuild behavior
   - Ensures tool descriptions guide LLMs effectively
-- **.NET 10 Upgrade**: Full compatibility with .NET 10.0
+- **.NET 10 Upgrade**: Requires .NET 10.0 instead of .NET 8.0.
   
 ## [1.4.42] - 2025-12-15
 
