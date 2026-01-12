@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 
-var templatePath = Path.Combine(Directory.GetCurrentDirectory(), "tests", "ExcelMcp.Core.Tests", "bin", "Debug", "net8.0", "TestAssets", "DataModelTemplate.xlsx");
+var templatePath = Path.Combine(Directory.GetCurrentDirectory(), "tests", "ExcelMcp.Core.Tests", "bin", "Debug", "net10.0", "TestAssets", "DataModelTemplate.xlsx");
 
 if (!File.Exists(templatePath))
 {
@@ -25,7 +25,7 @@ foreach (var table in tablesResult.Tables)
     Console.WriteLine($"  - {table.Name}");
 }
 
-// List measures  
+// List measures
 var measuresResult = await dataModelCommands.ListMeasuresAsync(batch);
 Console.WriteLine($"\nMeasures ({measuresResult.Measures.Count}):");
 foreach (var measure in measuresResult.Measures)

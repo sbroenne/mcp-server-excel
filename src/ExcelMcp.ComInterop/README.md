@@ -50,7 +50,7 @@ await batch.Save();
 ## Requirements
 
 - Windows OS
-- .NET 8.0 or later
+- .NET 10.0 or later
 - Microsoft Excel 2016+ installed
 
 ## Platform Support

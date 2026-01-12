@@ -521,7 +521,7 @@ sheet.Range["A1"].Value2 = "Hello";
 
 ### **What We DID Modernize**
 
-While the Excel automation core cannot be trimmed, we modernized the OLE Message Filter to use .NET 8 source-generated COM interop:
+While the Excel automation core cannot be trimmed, we modernized the OLE Message Filter to use .NET source-generated COM interop:
 
 | Component | Before | After |
 |-----------|--------|-------|
