@@ -50,14 +50,8 @@ dotnet --version
 # Should show 10.0.x or higher
 ```
 
-**If not installed, choose one:**
+**If not installed:**
 
-**Option A: SDK (Recommended for developers)**
-```powershell
-winget install Microsoft.DotNet.SDK.10
-```
-
-**Option B: Runtime Only (Smaller download)**
 ```powershell
 winget install Microsoft.DotNet.Runtime.10
 ```
@@ -76,6 +70,8 @@ dotnet tool list --global | Select-String "ExcelMcp"
 
 #### Step 3: Configure Your MCP Client
 
+**Quick Start:** Ready-to-use config files for all clients are available in [`examples/mcp-configs/`](https://github.com/sbroenne/mcp-server-excel/tree/main/examples/mcp-configs/)
+
 **For GitHub Copilot (VS Code):**
 
 Create `.vscode/mcp.json` in your workspace:
@@ -84,8 +80,7 @@ Create `.vscode/mcp.json` in your workspace:
 {
   "servers": {
     "excel": {
-      "command": "dotnet",
-      "args": ["tool", "run", "mcp-excel"]
+      "command": "mcp-excel"
     }
   }
 }
@@ -99,8 +94,7 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 {
   "servers": {
     "excel": {
-      "command": "dotnet",
-      "args": ["tool", "run", "mcp-excel"]
+      "command": "mcp-excel"
     }
   }
 }
@@ -116,8 +110,8 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 {
   "mcpServers": {
     "excel": {
-      "command": "dotnet",
-      "args": ["tool", "run", "mcp-excel"],
+      "command": "mcp-excel",
+      "args": [],
       "env": {}
     }
   }
@@ -137,8 +131,8 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 {
   "mcpServers": {
     "excel": {
-      "command": "dotnet",
-      "args": ["tool", "run", "mcp-excel"],
+      "command": "mcp-excel",
+      "args": [],
       "env": {}
     }
   }
@@ -157,8 +151,8 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 {
   "mcpServers": {
     "excel": {
-      "command": "dotnet",
-      "args": ["tool", "run", "mcp-excel"],
+      "command": "mcp-excel",
+      "args": [],
       "env": {}
     }
   }
@@ -177,8 +171,8 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 {
   "mcpServers": {
     "excel": {
-      "command": "dotnet",
-      "args": ["tool", "run", "mcp-excel"],
+      "command": "mcp-excel",
+      "args": [],
       "env": {}
     }
   }
@@ -186,8 +180,6 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 ```
 
 4. Save and restart Windsurf
-
-**Quick Copy:** Ready-to-use config files for all clients are available in [`examples/mcp-configs/`](https://github.com/sbroenne/mcp-server-excel/tree/main/examples/mcp-configs/)
 
 #### Step 4: Test the Installation
 
@@ -236,19 +228,93 @@ excel-mcp sheet-list --file "test.xlsx"
 
 ## Updating ExcelMcp
 
+### Check Installed Version
+
+**MCP Server:**
+```powershell
+dotnet tool list --global | Select-String "ExcelMcp"
+```
+
+**CLI:**
+```powershell
+excel-mcp --version
+```
+
 ### Update MCP Server
+
+**Step 1: Update the tool**
 ```powershell
 dotnet tool update --global Sbroenne.ExcelMcp.McpServer
 ```
 
-### Update CLI
+**Step 2: Verify update**
 ```powershell
-dotnet tool update --global Sbroenne.ExcelMcp.CLI
+dotnet tool list --global | Select-String "ExcelMcp"
+# Should show the new version number
 ```
 
-### Update VS Code Extension
-- VS Code automatically notifies you of updates
-- Or manually: Extensions → ExcelMcp → Update
+**Step 3: Restart your MCP client**
+- Restart VS Code, Claude Desktop, Cursor, or whichever client you're using
+- The new version will be used automatically
+
+### Update CLI
+
+```powershell
+dotnet tool update --global Sbroenne.ExcelMcp.CLI
+
+# Verify
+excel-mcp --version
+```
+### Troubleshooting Updates
+
+#### Update Command Fails
+
+**Error: "Tool not found"**
+```powershell
+# The tool may need to be reinstalled
+dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+```
+
+**Error: "Access denied"**
+- Run PowerShell as Administrator
+- Or install in user directory (not global):
+```powershell
+dotnet tool update --global Sbroenne.ExcelMcp.McpServer --install-dir ~/.dotnet/tools
+```
+
+#### MCP Server Still Running Old Version
+
+**Solution:** Fully restart your MCP client
+- Close VS Code completely (including terminal windows)
+- Close Claude Desktop completely
+- Reopen the application
+
+**Still not working?**
+```powershell
+# Reinstall the tool
+dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+```
+
+### Rollback to Previous Version
+
+If an update causes issues, you can downgrade:
+
+```powershell
+# Uninstall current version
+dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
+
+# Install specific version
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer --version 1.2.3
+# Replace 1.2.3 with the version you want
+```
+
+### Check What's New
+
+Before updating, check the release notes:
+- **GitHub Releases:** https://github.com/sbroenne/mcp-server-excel/releases
+- **Changelog:** https://github.com/sbroenne/mcp-server-excel/blob/main/vscode-extension/CHANGELOG.md
 
 ---
 
@@ -259,11 +325,6 @@ dotnet tool update --global Sbroenne.ExcelMcp.CLI
 #### 1. "dotnet command not found"
 
 **Solution:** Install .NET 10 SDK or Runtime (see Step 1 above)
-
-Verify PATH includes .NET:
-```powershell
-$env:PATH -split ';' | Select-String "dotnet"
-```
 
 #### 2. MCP Server Not Responding
 
@@ -284,45 +345,6 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 ExcelMcp requires exclusive access to workbooks (Excel COM limitation).
 
-#### 4. GitHub Copilot Not Finding Server
-
-**Check configuration file exists:**
-```powershell
-# VS Code
-Test-Path ".vscode/mcp.json"
-
-# Visual Studio
-Test-Path ".mcp.json"
-```
-
-**Restart VS Code/Visual Studio** after creating configuration.
-
-#### 5. Permission Errors on CI/CD
-
-**Solution:** Run with appropriate permissions
-
-```powershell
-# Azure DevOps / GitHub Actions
-# Ensure runner has Excel installed and user has Excel permissions
-```
-
----
-
-## Advanced Installation Scenarios
-
-### Corporate Environments
-
-**Using internal NuGet feed:**
-```powershell
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer --add-source https://your-feed.com/v3/index.json
-```
-
-**Offline installation:**
-```powershell
-# Download .nupkg file
-dotnet tool install --global --add-source ./nupkg Sbroenne.ExcelMcp.McpServer
-```
-
 ## Uninstallation
 
 ### Uninstall MCP Server
@@ -333,17 +355,6 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
 ### Uninstall CLI
 ```powershell
 dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
-```
-
-### Remove VS Code Extension
-- Extensions → ExcelMcp → Uninstall
-
-### Clean Up Configuration Files
-```powershell
-# Remove MCP configuration
-Remove-Item ".vscode/mcp.json" -ErrorAction SilentlyContinue
-Remove-Item ".mcp.json" -ErrorAction SilentlyContinue
-Remove-Item "$env:USERPROFILE\.mcp.json" -ErrorAction SilentlyContinue
 ```
 
 ---
