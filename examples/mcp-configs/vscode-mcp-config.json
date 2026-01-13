@@ -1,8 +1,7 @@
 {
   "servers": {
     "excel": {
-      "command": "dotnet",
-      "args": ["tool", "run", "mcp-excel"]
+      "command": "mcp-excel"
     }
   }
 }
