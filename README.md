@@ -137,6 +137,8 @@ The AI will display the Excel window so you can watch every operation happen liv
 
 **License:** MIT License - see [LICENSE](LICENSE) file
 
+**Privacy:** See [PRIVACY.md](PRIVACY.md) for our privacy policy
+
 **Contributing:** See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines
 
 **Built With:** This entire project was developed using GitHub Copilot AI assistance - mainly with Claude but lately with Auto-mode.

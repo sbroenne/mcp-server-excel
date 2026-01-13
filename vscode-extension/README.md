@@ -95,9 +95,11 @@ The Excel MCP Server provides **21 specialized tools with 182 operations** for c
 - **[Complete Documentation](https://github.com/sbroenne/mcp-server-excel)** - Full guides and examples
 - **[Report Issues](https://github.com/sbroenne/mcp-server-excel/issues)** - Bug reports and feature requests
 
-## License
+## License & Privacy
 
 MIT License - see [LICENSE](https://github.com/sbroenne/mcp-server-excel/blob/main/LICENSE)
+
+Privacy Policy - see [PRIVACY.md](https://github.com/sbroenne/mcp-server-excel/blob/main/PRIVACY.md)
 
 ---
 
