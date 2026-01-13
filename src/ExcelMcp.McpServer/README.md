@@ -107,5 +107,6 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 - **[CLI Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** - Comprehensive commands for RPA and CI/CD automation
 
 **License:** MIT  
+**Privacy:** [PRIVACY.md](https://github.com/sbroenne/mcp-server-excel/blob/main/PRIVACY.md)  
 **Platform:** Windows only (requires Excel 2016+)  
 **Support:** [GitHub Issues](https://github.com/sbroenne/mcp-server-excel/issues)
