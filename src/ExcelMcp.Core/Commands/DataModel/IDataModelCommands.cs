@@ -40,19 +40,21 @@ public interface IDataModelCommands
     DataModelInfoResult ReadInfo(IExcelBatch batch);
 
     /// <summary>
-    /// Lists all DAX measures in the model
+    /// Lists all DAX measures in the model.
+    /// DAX formula previews are automatically formatted with proper indentation.
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Optional: Filter measures by table name</param>
-    /// <returns>Result containing list of measures with formulas</returns>
+    /// <returns>Result containing list of measures with formatted formula previews</returns>
     DataModelMeasureListResult ListMeasures(IExcelBatch batch, string? tableName = null);
 
     /// <summary>
-    /// Gets complete measure details and DAX formula
+    /// Gets complete measure details and DAX formula.
+    /// DAX formula is automatically formatted with proper indentation.
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="measureName">Name of the measure to get</param>
-    /// <returns>Result containing complete measure information</returns>
+    /// <returns>Result containing complete measure information with formatted DAX</returns>
     DataModelMeasureViewResult Read(IExcelBatch batch, string measureName);
 
     /// <summary>
@@ -138,13 +140,14 @@ public interface IDataModelCommands
     void Refresh(IExcelBatch batch, string? tableName, TimeSpan? timeout);
 
     /// <summary>
-    /// Creates a new DAX measure in the Data Model
+    /// Creates a new DAX measure in the Data Model.
+    /// DAX formula is automatically formatted with proper indentation before saving.
     /// Uses Excel COM API: ModelMeasures.Add method (Office 2016+)
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Name of the table to add the measure to</param>
     /// <param name="measureName">Name of the new measure</param>
-    /// <param name="daxFormula">DAX formula for the measure</param>
+    /// <param name="daxFormula">DAX formula for the measure (will be auto-formatted)</param>
     /// <param name="formatType">Optional: Format type (Currency, Decimal, Percentage, General)</param>
     /// <param name="description">Optional: Description of the measure</param>
     /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
@@ -154,12 +157,13 @@ public interface IDataModelCommands
                        string? description = null);
 
     /// <summary>
-    /// Updates an existing DAX measure in the Data Model
+    /// Updates an existing DAX measure in the Data Model.
+    /// DAX formula is automatically formatted with proper indentation before saving.
     /// Uses Excel COM API: ModelMeasure properties (Formula, Description, FormatInformation - all Read/Write)
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="measureName">Name of the measure to update</param>
-    /// <param name="daxFormula">Optional: New DAX formula (null to keep existing)</param>
+    /// <param name="daxFormula">Optional: New DAX formula (null to keep existing, will be auto-formatted if provided)</param>
     /// <param name="formatType">Optional: New format type (null to keep existing)</param>
     /// <param name="description">Optional: New description (null to keep existing)</param>
     /// <exception cref="ArgumentException">Thrown when measureName is invalid or all parameters are null</exception>
