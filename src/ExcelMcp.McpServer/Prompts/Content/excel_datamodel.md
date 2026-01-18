@@ -13,12 +13,16 @@ You CANNOT create DAX measures on tables that aren't in the Data Model.
 | External file (CSV, etc.) | excel_powerquery with loadDestination='data-model' |
 | Database/web source | excel_powerquery with loadDestination='data-model' |
 
+**Automatic DAX Formatting**:
+
+All DAX formulas are automatically formatted with proper indentation using the official Dax.Formatter library (SQLBI). This improves readability significantly. Formatting adds ~100-500ms network latency per operation but ensures consistent, professional code formatting. If formatting fails (network issues, API errors), the original DAX is returned unchanged - operations never fail due to formatting.
+
 **Action disambiguation**:
 
 - list-tables: List all tables currently in the Data Model
-- list-measures: List all DAX measures in the Data Model
-- create-measure: Create a new DAX measure (requires tableName, measureName, daxFormula)
-- update-measure: Modify existing measure's formula/format/description
+- list-measures: List all DAX measures (formulas auto-formatted)
+- create-measure: Create a new DAX measure (DAX auto-formatted before saving)
+- update-measure: Modify existing measure's formula/format/description (DAX auto-formatted)
 - delete-measure: Remove a measure
 - delete-table: Remove table AND ALL its measures (DESTRUCTIVE!)
 - read-info: Get Data Model metadata (culture, compatibility level)
