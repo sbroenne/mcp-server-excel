@@ -41,20 +41,19 @@ public interface IDataModelCommands
 
     /// <summary>
     /// Lists all DAX measures in the model.
-    /// DAX formula previews are automatically formatted with proper indentation.
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Optional: Filter measures by table name</param>
-    /// <returns>Result containing list of measures with formatted formula previews</returns>
+    /// <returns>Result containing list of measures with formula previews</returns>
     DataModelMeasureListResult ListMeasures(IExcelBatch batch, string? tableName = null);
 
     /// <summary>
     /// Gets complete measure details and DAX formula.
-    /// DAX formula is automatically formatted with proper indentation.
+    /// Returns the raw DAX formula as stored in the Data Model.
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="measureName">Name of the measure to get</param>
-    /// <returns>Result containing complete measure information with formatted DAX</returns>
+    /// <returns>Result containing complete measure information with DAX formula</returns>
     DataModelMeasureViewResult Read(IExcelBatch batch, string measureName);
 
     /// <summary>

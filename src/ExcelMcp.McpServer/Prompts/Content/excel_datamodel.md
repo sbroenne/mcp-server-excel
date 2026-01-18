@@ -15,14 +15,14 @@ You CANNOT create DAX measures on tables that aren't in the Data Model.
 
 **Automatic DAX Formatting**:
 
-All DAX formulas are automatically formatted with proper indentation using the official Dax.Formatter library (SQLBI). This improves readability significantly. Formatting adds ~100-500ms network latency per operation but ensures consistent, professional code formatting. If formatting fails (network issues, API errors), the original DAX is returned unchanged - operations never fail due to formatting.
+DAX formulas are automatically formatted on WRITE operations only (create-measure, update-measure) using the official Dax.Formatter library (SQLBI). Read operations (list-measures, read) return raw DAX as stored in Excel. Formatting adds ~100-500ms network latency per write operation but ensures consistent, professional code formatting. If formatting fails (network issues, API errors), the original DAX is saved unchanged - operations never fail due to formatting.
 
 **Action disambiguation**:
 
 - list-tables: List all tables currently in the Data Model
-- list-measures: List all DAX measures (formulas auto-formatted)
+- list-measures: List all DAX measures (returns raw DAX from Excel)
 - create-measure: Create a new DAX measure (DAX auto-formatted before saving)
-- update-measure: Modify existing measure's formula/format/description (DAX auto-formatted)
+- update-measure: Modify existing measure's formula/format/description (DAX auto-formatted before saving)
 - delete-measure: Remove a measure
 - delete-table: Remove table AND ALL its measures (DESTRUCTIVE!)
 - read-info: Get Data Model metadata (culture, compatibility level)

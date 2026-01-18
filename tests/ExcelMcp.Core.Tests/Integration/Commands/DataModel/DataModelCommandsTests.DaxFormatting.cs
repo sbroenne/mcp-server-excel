@@ -7,8 +7,9 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.DataModel;
 
 /// <summary>
 /// Integration tests for DAX formatting feature.
-/// Tests verify that DAX formulas are automatically formatted using daxformatter.com API.
-/// Tests cover: ListMeasures (formatted previews), Read (formatted formulas), CreateMeasure, UpdateMeasure.
+/// Tests verify that DAX formulas are automatically formatted on write operations.
+/// Write operations (CreateMeasure, UpdateMeasure) format DAX via daxformatter.com API.
+/// Read operations (ListMeasures, Read) return raw DAX as stored in the Data Model.
 /// </summary>
 [Collection("DataModel")]
 [Trait("Layer", "Core")]
@@ -28,11 +29,11 @@ public class DataModelCommandsTests_DaxFormatting
     }
 
     /// <summary>
-    /// Tests that ListMeasures returns formatted DAX previews.
-    /// Verifies that formula previews contain newlines (indicating formatting).
+    /// Tests that ListMeasures returns raw DAX previews (no formatting on read).
+    /// Verifies that formula previews are returned as stored in the Data Model.
     /// </summary>
     [Fact]
-    public async Task ListMeasures_WithMeasures_ReturnsFormattedPreviews()
+    public async Task ListMeasures_WithMeasures_ReturnsRawPreviews()
     {
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
         var result = await _dataModelCommands.ListMeasures(batch);
@@ -40,11 +41,7 @@ public class DataModelCommandsTests_DaxFormatting
         Assert.True(result.Success, $"ListMeasures failed: {result.ErrorMessage}");
         Assert.NotEmpty(result.Measures);
 
-        // Check if at least one measure has a formatted preview
-        // Formatted DAX typically contains newlines or multiple spaces for indentation
-        // Since we're checking the "Total Sales" measure which uses SUM() function,
-        // it should be simple and might not contain newlines when formatted
-        // Instead, we check that the preview is not empty and contains expected keywords
+        // Check that previews are returned (raw DAX, not formatted)
         var totalSalesMeasure = result.Measures.FirstOrDefault(m => m.Name == "Total Sales");
         Assert.NotNull(totalSalesMeasure);
         Assert.NotEmpty(totalSalesMeasure.FormulaPreview);
@@ -52,11 +49,11 @@ public class DataModelCommandsTests_DaxFormatting
     }
 
     /// <summary>
-    /// Tests that Read returns formatted full DAX formula.
-    /// Verifies that formatting doesn't break the formula.
+    /// Tests that Read returns raw DAX formula as stored (no formatting on read).
+    /// Verifies that the formula is returned intact.
     /// </summary>
     [Fact]
-    public async Task Read_WithMeasure_ReturnsFormattedFormula()
+    public async Task Read_WithMeasure_ReturnsRawFormula()
     {
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
         var result = await _dataModelCommands.Read(batch, "Total Sales");
@@ -65,8 +62,7 @@ public class DataModelCommandsTests_DaxFormatting
         Assert.NotEmpty(result.DaxFormula);
         Assert.Contains("SUM", result.DaxFormula, StringComparison.OrdinalIgnoreCase);
 
-        // Formatted DAX should still be valid (no syntax errors)
-        // CharacterCount should reflect the formatted length
+        // CharacterCount should reflect the formula length
         Assert.True(result.CharacterCount > 0);
         Assert.Equal(result.DaxFormula.Length, result.CharacterCount);
     }
