@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**21 specialized tools with 182 operations for comprehensive Excel automation**
+**21 specialized tools with 186 operations for comprehensive Excel automation**
 
 ---
 
@@ -33,7 +33,7 @@
 
 ---
 
-## 📊 Data Model & DAX (Power Pivot) (17 operations)
+## 📊 Data Model & DAX (Power Pivot) (18 operations)
 
 - **List Tables:** Discover all tables in the Data Model
 - **Read Table:** Get specific table information
@@ -52,6 +52,7 @@
 - **Delete Relationship:** Remove relationship
 - **Refresh:** Refresh entire Data Model
 - **List Workbook Connections:** List Power Query sources available for integration
+- **Evaluate:** Execute DAX EVALUATE queries and return tabular results (for ad-hoc analysis)
 
 **Automatic DAX Formatting:** DAX formulas are automatically formatted on write operations (CreateMeasure, UpdateMeasure) using the official Dax.Formatter library (SQLBI). Read operations return raw DAX as stored in Excel. Formatting adds ~100-500ms network latency but dramatically improves readability. Graceful fallback returns original DAX if formatting fails.
 
@@ -59,7 +60,7 @@
 
 ---
 
-## 🎨 Excel Tables (ListObjects) (24 operations)
+## 🎨 Excel Tables (ListObjects) (27 operations)
 
 **Lifecycle:**
 - List, read, create, rename, resize, delete tables
@@ -73,6 +74,11 @@
 - Append rows
 - Get table data (with optional visible-only filtering)
 - Add to Data Model
+
+**DAX-Backed Tables:**
+- Create from DAX (create Excel Table populated by DAX EVALUATE query)
+- Update DAX (change the DAX query of an existing DAX-backed table)
+- Get DAX (retrieve DAX query info from a table)
 
 **Filter Operations:**
 - Apply filter (criteria)
@@ -333,8 +339,8 @@
 |----------|-----------|
 | File Operations | 6 |
 | Power Query | 10 |
-| Data Model/DAX | 17 |
-| Excel Tables | 24 |
+| Data Model/DAX | 18 |
+| Excel Tables | 27 |
 | PivotTables | 30 |
 | Charts | 14 |
 | Ranges | 42 |
@@ -343,7 +349,7 @@
 | Named Ranges | 6 |
 | VBA Macros | 6 |
 | Conditional Formatting | 2 |
-| **Total** | **182** |
+| **Total** | **186** |
 
 ---
 

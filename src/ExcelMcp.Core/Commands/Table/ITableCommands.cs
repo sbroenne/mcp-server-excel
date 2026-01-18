@@ -168,5 +168,43 @@ public interface ITableCommands
     /// <param name="formatCode">Excel format code (e.g., "$#,##0.00", "0.00%")</param>
     /// <exception cref="InvalidOperationException">Table or column not found, or format code invalid</exception>
     void SetColumnNumberFormat(IExcelBatch batch, string tableName, string columnName, string formatCode);
+
+    // === DAX-BACKED TABLE OPERATIONS ===
+
+    /// <summary>
+    /// Creates a new Excel Table backed by a DAX EVALUATE query.
+    /// The table will be connected to the Data Model and refresh when the model refreshes.
+    /// Uses Model.CreateModelWorkbookConnection + xlCmdDAX + ListObjects.Add pattern.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Target worksheet name</param>
+    /// <param name="tableName">Name for the new table</param>
+    /// <param name="daxQuery">DAX EVALUATE query (e.g., "EVALUATE 'TableName'" or "EVALUATE SUMMARIZE(...)")</param>
+    /// <param name="targetCell">Target cell address for table placement (default: "A1")</param>
+    /// <exception cref="ArgumentException">Thrown when required parameters are missing</exception>
+    /// <exception cref="InvalidOperationException">Sheet not found, table name exists, or no Data Model</exception>
+    void CreateFromDax(IExcelBatch batch, string sheetName, string tableName, string daxQuery, string? targetCell = null);
+
+    /// <summary>
+    /// Updates the DAX query for an existing DAX-backed Excel Table.
+    /// The table must have been created with CreateFromDax or manually connected to a DAX query.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="tableName">Name of the DAX-backed table to update</param>
+    /// <param name="daxQuery">New DAX EVALUATE query</param>
+    /// <exception cref="ArgumentException">Thrown when required parameters are missing</exception>
+    /// <exception cref="InvalidOperationException">Table not found or table is not DAX-backed</exception>
+    void UpdateDax(IExcelBatch batch, string tableName, string daxQuery);
+
+    /// <summary>
+    /// Gets the DAX query and connection information for a DAX-backed Excel Table.
+    /// Returns empty query info if table is not backed by a DAX query.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="tableName">Name of the table</param>
+    /// <returns>Result containing DAX query info (if any)</returns>
+    /// <exception cref="ArgumentException">Thrown when tableName is missing</exception>
+    /// <exception cref="InvalidOperationException">Table not found</exception>
+    TableDaxInfoResult GetDax(IExcelBatch batch, string tableName);
 }
 

@@ -202,5 +202,17 @@ public interface IDataModelCommands
     void UpdateRelationship(IExcelBatch batch, string fromTable,
                             string fromColumn, string toTable,
                             string toColumn, bool active);
+
+    /// <summary>
+    /// Executes a DAX EVALUATE query against the Data Model and returns the results.
+    /// Uses ADOConnection.Execute for direct DAX query execution via MSOLAP provider.
+    /// The query should start with EVALUATE and return a table result.
+    /// </summary>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
+    /// <param name="daxQuery">DAX EVALUATE query (e.g., "EVALUATE 'TableName'" or "EVALUATE SUMMARIZE(...)")</param>
+    /// <returns>Result containing column names and data rows from the DAX query</returns>
+    /// <exception cref="ArgumentException">Thrown when daxQuery is empty</exception>
+    /// <exception cref="InvalidOperationException">Thrown when workbook has no Data Model or query execution fails</exception>
+    DaxEvaluateResult Evaluate(IExcelBatch batch, string daxQuery);
 }
 

@@ -69,6 +69,9 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
             "sort-multi" => ExecuteSortMulti(batch, settings),
             "get-column-number-format" or "get-column-format" => ExecuteGetColumnFormat(batch, settings),
             "set-column-number-format" or "set-column-format" => ExecuteSetColumnFormat(batch, settings),
+            "create-from-dax" => ExecuteCreateFromDax(batch, settings),
+            "update-dax" => ExecuteUpdateDax(batch, settings),
+            "get-dax" => ExecuteGetDax(batch, settings),
             _ => ReportUnknown(action)
         };
     }
@@ -635,6 +638,73 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
         }
     }
 
+    private int ExecuteCreateFromDax(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.SheetName) ||
+            string.IsNullOrWhiteSpace(settings.TableName) ||
+            string.IsNullOrWhiteSpace(settings.DaxQuery))
+        {
+            _console.WriteError("--sheet, --table-name, and --dax-query are required for create-from-dax.");
+            return -1;
+        }
+
+        var targetCell = settings.Range ?? "A1";
+        try
+        {
+            _tableCommands.CreateFromDax(batch, settings.SheetName, settings.TableName, settings.DaxQuery, targetCell);
+            _console.WriteInfo($"DAX-backed table '{settings.TableName}' created successfully.");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private int ExecuteUpdateDax(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.TableName) ||
+            string.IsNullOrWhiteSpace(settings.DaxQuery))
+        {
+            _console.WriteError("--table-name and --dax-query are required for update-dax.");
+            return -1;
+        }
+
+        try
+        {
+            _tableCommands.UpdateDax(batch, settings.TableName, settings.DaxQuery);
+            _console.WriteInfo($"DAX query for table '{settings.TableName}' updated successfully.");
+            return 0;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _console.WriteError($"Error: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Unexpected error: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private int ExecuteGetDax(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.TableName))
+        {
+            _console.WriteError("--table-name is required for get-dax.");
+            return -1;
+        }
+
+        return WriteResult(_tableCommands.GetDax(batch, settings.TableName));
+    }
+
     private List<List<object?>>? LoadRows(Settings settings)
     {
         if (!string.IsNullOrWhiteSpace(settings.RowsJson))
@@ -863,5 +933,8 @@ internal sealed class TableCommand : Command<TableCommand.Settings>
 
         [CommandOption("--visible-only <BOOL>")]
         public bool? VisibleOnly { get; init; }
+
+        [CommandOption("--dax-query <QUERY>")]
+        public string? DaxQuery { get; init; }
     }
 }

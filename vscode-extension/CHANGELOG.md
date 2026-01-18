@@ -4,9 +4,19 @@ All notable changes to the ExcelMcp VS Code extension will be documented in this
 
 ## [Unreleased]
 
-- **Tool Reorganization** (#341): Split large tools into focused, smaller tools for better LLM comprehension
+- **DAX EVALUATE Query Execution** (#356): Execute DAX queries against the Data Model and return tabular results
+  - New `evaluate` action on `excel_datamodel` tool for ad-hoc DAX queries
+  - Supports all DAX table expressions: EVALUATE, SUMMARIZE, FILTER, TOPN, etc.
+  - Returns column names and data rows as JSON for LLM processing
+- **DAX-Backed Excel Tables** (#356): Create worksheet tables populated by DAX queries
+  - New `create-from-dax` action creates tables from DAX EVALUATE queries
+  - New `update-dax` action updates the DAX query for existing tables
+  - New `get-dax` action retrieves DAX query info for tables
+  
+## [1.5.0] - 2025-01-10
+  - **Tool Reorganization** (#341): Split large tools into focused, smaller tools for better LLM comprehension
   - Split 12 monolithic tools into 21 focused tools with smaller schemas
-  - Same 182 operations, better organized for AI assistants
+  - 186 operations total, better organized for AI assistants
   - Ranges: 4 tools (excel_range, excel_range_edit, excel_range_format, excel_range_link)
   - PivotTables: 3 tools (excel_pivottable, excel_pivottable_field, excel_pivottable_calc)
   - Tables: 2 tools (excel_table, excel_table_column)

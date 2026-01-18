@@ -248,7 +248,8 @@ public enum DataModelAction
     RenameTable,
     DeleteTable,
     ReadInfo,
-    Refresh
+    Refresh,
+    Evaluate
 }
 
 /// <summary>
@@ -286,7 +287,12 @@ public enum TableAction
     GetData,
 
     // Data Model
-    AddToDataModel
+    AddToDataModel,
+
+    // DAX-Backed Tables
+    CreateFromDax,
+    UpdateDax,
+    GetDax
 }
 
 /// <summary>

@@ -1817,6 +1817,80 @@ public class DataModelCalculatedColumnViewResult : ResultBase
     public int CharacterCount { get; set; }
 }
 
+/// <summary>
+/// Result for DAX EVALUATE query execution
+/// </summary>
+/// <remarks>
+/// Property names: dq=DaxQuery, cols=Columns, rows=Rows, rc=RowCount, cc=ColumnCount
+/// </remarks>
+public class DaxEvaluateResult : ResultBase
+{
+    /// <summary>
+    /// The DAX EVALUATE query that was executed
+    /// </summary>
+    [JsonPropertyName("dq")]
+    public string DaxQuery { get; set; } = "";
+
+    /// <summary>
+    /// Column names from the query result (fully qualified: Table[Column])
+    /// </summary>
+    [JsonPropertyName("cols")]
+    public List<string> Columns { get; set; } = [];
+
+    /// <summary>
+    /// Data rows from the query result (2D array matching Columns order)
+    /// </summary>
+    [JsonPropertyName("rows")]
+    public List<List<object?>> Rows { get; set; } = [];
+
+    /// <summary>
+    /// Number of rows returned
+    /// </summary>
+    [JsonPropertyName("rc")]
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns returned
+    /// </summary>
+    [JsonPropertyName("cc")]
+    public int ColumnCount { get; set; }
+}
+
+/// <summary>
+/// Result for getting DAX query information from a table
+/// </summary>
+/// <remarks>
+/// Property names: tn=TableName, dq=DaxQuery, hdc=HasDaxConnection
+/// </remarks>
+public class TableDaxInfoResult : ResultBase
+{
+    /// <summary>
+    /// Name of the Excel Table
+    /// </summary>
+    [JsonPropertyName("tn")]
+    public string TableName { get; set; } = "";
+
+    /// <summary>
+    /// DAX EVALUATE query backing this table (if any)
+    /// </summary>
+    [JsonPropertyName("dq")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DaxQuery { get; set; }
+
+    /// <summary>
+    /// Whether this table is backed by a DAX query
+    /// </summary>
+    [JsonPropertyName("hdc")]
+    public bool HasDaxConnection { get; set; }
+
+    /// <summary>
+    /// Name of the model connection (if DAX-backed)
+    /// </summary>
+    [JsonPropertyName("mcn")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ModelConnectionName { get; set; }
+}
+
 #endregion
 
 #region Table (ListObject) Results
