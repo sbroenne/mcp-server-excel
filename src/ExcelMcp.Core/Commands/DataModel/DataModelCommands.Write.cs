@@ -203,6 +203,11 @@ public partial class DataModelCommands
                               string daxFormula, string? formatType = null,
                               string? description = null)
     {
+        // Format DAX before saving (outside ExecuteWithRetry for async operation)
+        // Formatting is done synchronously to maintain method signature compatibility
+        // Falls back to original if formatting fails
+        string formattedDax = DaxFormatter.FormatAsync(daxFormula).GetAwaiter().GetResult();
+
         ExecuteWithRetry(() =>
         {
             batch.Execute((ctx, ct) =>
@@ -240,8 +245,9 @@ public partial class DataModelCommands
                     // Translate DAX formula separators from US format (comma) to locale-specific format
                     // This fixes issues on European locales where semicolon is the list separator
                     // Example: DATEADD(Date[Date], -1, MONTH) → DATEADD(Date[Date]; -1; MONTH) on German Excel
+                    // NOTE: Translation is done on the FORMATTED DAX
                     var daxTranslator = new DaxFormulaTranslator(ctx.App);
-                    string localizedFormula = daxTranslator.TranslateToLocale(daxFormula);
+                    string localizedFormula = daxTranslator.TranslateToLocale(formattedDax);
 
                     // Get ModelMeasures collection from MODEL (not from table!)
                     // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
@@ -258,7 +264,7 @@ public partial class DataModelCommands
                     newMeasure = measures.Add(
                         measureName,                                        // MeasureName (required)
                         table,                                              // AssociatedTable (required)
-                        localizedFormula,                                   // Formula (required) - must be valid DAX, translated for locale
+                        localizedFormula,                                   // Formula (required) - must be valid DAX, formatted and translated for locale
                         formatObject,                                       // FormatInformation (required) - NEVER null/Type.Missing
                         string.IsNullOrEmpty(description) ? Type.Missing : description  // Description (optional)
                     );
@@ -283,6 +289,16 @@ public partial class DataModelCommands
                               string? daxFormula = null, string? formatType = null,
                               string? description = null)
     {
+        // Format DAX before saving (outside ExecuteWithRetry for async operation)
+        // Only format if daxFormula is provided
+        // Formatting is done synchronously to maintain method signature compatibility
+        // Falls back to original if formatting fails
+        string? formattedDax = null;
+        if (!string.IsNullOrEmpty(daxFormula))
+        {
+            formattedDax = DaxFormatter.FormatAsync(daxFormula).GetAwaiter().GetResult();
+        }
+
         ExecuteWithRetry(() =>
         {
             batch.Execute((ctx, ct) =>
@@ -311,12 +327,13 @@ public partial class DataModelCommands
 
                     // Update formula if provided
                     // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.modelmeasure (Formula property is Read/Write)
-                    if (!string.IsNullOrEmpty(daxFormula))
+                    if (!string.IsNullOrEmpty(formattedDax))
                     {
                         // Translate DAX formula separators from US format (comma) to locale-specific format
                         // This fixes issues on European locales where semicolon is the list separator
+                        // NOTE: Translation is done on the FORMATTED DAX
                         var daxTranslator = new DaxFormulaTranslator(ctx.App);
-                        string localizedFormula = daxTranslator.TranslateToLocale(daxFormula);
+                        string localizedFormula = daxTranslator.TranslateToLocale(formattedDax);
                         measure.Formula = localizedFormula;
                         updates.Add("Formula updated");
                     }
