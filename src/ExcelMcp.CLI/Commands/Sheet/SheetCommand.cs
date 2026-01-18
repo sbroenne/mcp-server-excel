@@ -44,10 +44,14 @@ internal sealed class SheetCommand : Command<SheetCommand.Settings>
             "rename" => ExecuteRename(batch, settings),
             "copy" => ExecuteCopy(batch, settings),
             "delete" => ExecuteDelete(batch, settings),
+            "move" => ExecuteMove(batch, settings),
+            "copy-to-file" => ExecuteCopyToFile(settings),
+            "move-to-file" => ExecuteMoveToFile(settings),
             "set-tab-color" => ExecuteSetTabColor(batch, settings),
             "get-tab-color" => ExecuteGetTabColor(batch, settings),
             "clear-tab-color" => ExecuteClearTabColor(batch, settings),
             "set-visibility" => ExecuteSetVisibility(batch, settings),
+            "get-visibility" => ExecuteGetVisibility(batch, settings),
             "show" => ExecuteShow(batch, settings),
             "hide" => ExecuteHide(batch, settings),
             "very-hide" => ExecuteVeryHide(batch, settings),
@@ -139,6 +143,73 @@ internal sealed class SheetCommand : Command<SheetCommand.Settings>
         }
     }
 
+    private int ExecuteMove(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.SheetName))
+        {
+            _console.WriteError("--sheet is required for move.");
+            return -1;
+        }
+
+        try
+        {
+            _sheetCommands.Move(batch, settings.SheetName, settings.BeforeSheet, settings.AfterSheet);
+            _console.WriteJson(new { success = true, message = $"Sheet '{settings.SheetName}' moved successfully" });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteJson(new { success = false, message = $"Failed to move sheet '{settings.SheetName}': {ex.Message}" });
+            return 1;
+        }
+    }
+
+    private int ExecuteCopyToFile(Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.SourceFile) ||
+            string.IsNullOrWhiteSpace(settings.SourceSheet) ||
+            string.IsNullOrWhiteSpace(settings.TargetFile))
+        {
+            _console.WriteError("--source-file, --source-sheet, and --target-file are required for copy-to-file.");
+            return -1;
+        }
+
+        try
+        {
+            _sheetCommands.CopyToFile(settings.SourceFile, settings.SourceSheet, settings.TargetFile, settings.TargetSheet, settings.BeforeSheet, settings.AfterSheet);
+            _console.WriteJson(new { success = true, message = $"Sheet '{settings.SourceSheet}' copied to '{settings.TargetFile}' successfully" });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteJson(new { success = false, message = $"Failed to copy sheet to file: {ex.Message}" });
+            return 1;
+        }
+    }
+
+    private int ExecuteMoveToFile(Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.SourceFile) ||
+            string.IsNullOrWhiteSpace(settings.SourceSheet) ||
+            string.IsNullOrWhiteSpace(settings.TargetFile))
+        {
+            _console.WriteError("--source-file, --source-sheet, and --target-file are required for move-to-file.");
+            return -1;
+        }
+
+        try
+        {
+            _sheetCommands.MoveToFile(settings.SourceFile, settings.SourceSheet, settings.TargetFile, settings.BeforeSheet, settings.AfterSheet);
+            _console.WriteJson(new { success = true, message = $"Sheet '{settings.SourceSheet}' moved to '{settings.TargetFile}' successfully" });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteJson(new { success = false, message = $"Failed to move sheet to file: {ex.Message}" });
+            return 1;
+        }
+    }
+
     private int ExecuteSetTabColor(IExcelBatch batch, Settings settings)
     {
         if (string.IsNullOrWhiteSpace(settings.SheetName))
@@ -223,6 +294,17 @@ internal sealed class SheetCommand : Command<SheetCommand.Settings>
             _console.WriteJson(new { success = false, message = $"Failed to set visibility for sheet '{settings.SheetName}': {ex.Message}" });
             return 1;
         }
+    }
+
+    private int ExecuteGetVisibility(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.SheetName))
+        {
+            _console.WriteError("--sheet is required for get-visibility.");
+            return -1;
+        }
+
+        return WriteResult(_sheetCommands.GetVisibility(batch, settings.SheetName));
     }
 
     private int ExecuteShow(IExcelBatch batch, Settings settings)
@@ -343,6 +425,18 @@ internal sealed class SheetCommand : Command<SheetCommand.Settings>
 
         [CommandOption("--target-sheet <NAME>")]
         public string? TargetSheet { get; init; }
+
+        [CommandOption("--source-file <PATH>")]
+        public string? SourceFile { get; init; }
+
+        [CommandOption("--target-file <PATH>")]
+        public string? TargetFile { get; init; }
+
+        [CommandOption("--before-sheet <NAME>")]
+        public string? BeforeSheet { get; init; }
+
+        [CommandOption("--after-sheet <NAME>")]
+        public string? AfterSheet { get; init; }
 
         [CommandOption("--red <VALUE>")]
         public int? Red { get; init; }

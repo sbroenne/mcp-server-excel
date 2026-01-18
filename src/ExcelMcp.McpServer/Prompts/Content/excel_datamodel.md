@@ -27,6 +27,21 @@ DAX formulas are automatically formatted on WRITE operations only (create-measur
 - delete-table: Remove table AND ALL its measures (DESTRUCTIVE!)
 - read-info: Get Data Model metadata (culture, compatibility level)
 - refresh: Refresh all Data Model data from sources
+- **evaluate**: Execute DAX EVALUATE queries and return tabular results (read-only, no side effects)
+
+**evaluate action** (NEW):
+
+Execute any DAX EVALUATE query against the Data Model and return results as JSON.
+Useful for ad-hoc analysis, testing DAX expressions, or extracting aggregated data.
+
+```dax
+// Examples of valid EVALUATE queries:
+EVALUATE 'SalesTable'                    // Return entire table
+EVALUATE TOPN(10, 'Sales', 'Sales'[Amount], DESC)  // Top 10 by amount
+EVALUATE SUMMARIZE('Sales', 'Sales'[Region], "Total", SUM('Sales'[Amount]))  // Aggregation
+EVALUATE FILTER('Products', 'Products'[Category] = "Electronics")  // Filtered
+EVALUATE ROW("TotalRevenue", SUM('Sales'[Amount]))  // Single row result
+```
 
 **DAX measure creation**:
 

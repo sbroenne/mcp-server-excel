@@ -61,6 +61,11 @@ internal sealed class PivotTableCommand : Command<PivotTableCommand.Settings>
             "group-by-date" => ExecuteGroupByDate(batch, settings),
             "group-by-numeric" => ExecuteGroupByNumeric(batch, settings),
             "create-calculated-field" => ExecuteCreateCalculatedField(batch, settings),
+            "list-calculated-fields" => ExecuteListCalculatedFields(batch, settings),
+            "delete-calculated-field" => ExecuteDeleteCalculatedField(batch, settings),
+            "list-calculated-members" => ExecuteListCalculatedMembers(batch, settings),
+            "create-calculated-member" => ExecuteCreateCalculatedMember(batch, settings),
+            "delete-calculated-member" => ExecuteDeleteCalculatedMember(batch, settings),
             "set-layout" => ExecuteSetLayout(batch, settings),
             "set-subtotals" => ExecuteSetSubtotals(batch, settings),
             "set-grand-totals" => ExecuteSetGrandTotals(batch, settings),
@@ -380,6 +385,108 @@ internal sealed class PivotTableCommand : Command<PivotTableCommand.Settings>
         return WriteResult(_pivotTableCommands.CreateCalculatedField(batch, settings.PivotTableName!, settings.FieldName!, settings.Formula));
     }
 
+    private int ExecuteListCalculatedFields(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.PivotTableName))
+        {
+            _console.WriteError("--pivot-name is required for list-calculated-fields.");
+            return -1;
+        }
+
+        return WriteResult(_pivotTableCommands.ListCalculatedFields(batch, settings.PivotTableName));
+    }
+
+    private int ExecuteDeleteCalculatedField(IExcelBatch batch, Settings settings)
+    {
+        if (!ValidateFieldOperation(settings, "delete-calculated-field"))
+        {
+            return -1;
+        }
+
+        return WriteResult(_pivotTableCommands.DeleteCalculatedField(batch, settings.PivotTableName!, settings.FieldName!));
+    }
+
+    private int ExecuteListCalculatedMembers(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.PivotTableName))
+        {
+            _console.WriteError("--pivot-name is required for list-calculated-members.");
+            return -1;
+        }
+
+        return WriteResult(_pivotTableCommands.ListCalculatedMembers(batch, settings.PivotTableName));
+    }
+
+    private int ExecuteCreateCalculatedMember(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.PivotTableName))
+        {
+            _console.WriteError("--pivot-name is required for create-calculated-member.");
+            return -1;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.MemberName))
+        {
+            _console.WriteError("--member-name is required for create-calculated-member.");
+            return -1;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.Formula))
+        {
+            _console.WriteError("--formula is required for create-calculated-member.");
+            return -1;
+        }
+
+        if (!TryParseCalculatedMemberType(settings.MemberType, out var memberType))
+        {
+            return -1;
+        }
+
+        return WriteResult(_pivotTableCommands.CreateCalculatedMember(
+            batch,
+            settings.PivotTableName,
+            settings.MemberName,
+            settings.Formula,
+            memberType,
+            settings.SolveOrder ?? 0,
+            settings.DisplayFolder,
+            settings.NumberFormat));
+    }
+
+    private int ExecuteDeleteCalculatedMember(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.PivotTableName))
+        {
+            _console.WriteError("--pivot-name is required for delete-calculated-member.");
+            return -1;
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.MemberName))
+        {
+            _console.WriteError("--member-name is required for delete-calculated-member.");
+            return -1;
+        }
+
+        return WriteResult(_pivotTableCommands.DeleteCalculatedMember(batch, settings.PivotTableName, settings.MemberName));
+    }
+
+    private bool TryParseCalculatedMemberType(string? value, out CalculatedMemberType memberType)
+    {
+        memberType = CalculatedMemberType.Measure;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;  // Default to Measure
+        }
+
+        if (Enum.TryParse(value, true, out memberType))
+        {
+            return true;
+        }
+
+        _console.WriteError("Invalid member type. Valid values: Member, Set, Measure.");
+        return false;
+    }
+
     private int ExecuteSetLayout(IExcelBatch batch, Settings settings)
     {
         if (string.IsNullOrWhiteSpace(settings.PivotTableName))
@@ -682,5 +789,17 @@ internal sealed class PivotTableCommand : Command<PivotTableCommand.Settings>
 
         [CommandOption("--show-column-grand-totals <BOOL>")]
         public bool? ShowColumnGrandTotals { get; init; }
+
+        [CommandOption("--member-name <NAME>")]
+        public string? MemberName { get; init; }
+
+        [CommandOption("--member-type <TYPE>")]
+        public string? MemberType { get; init; }
+
+        [CommandOption("--solve-order <ORDER>")]
+        public int? SolveOrder { get; init; }
+
+        [CommandOption("--display-folder <PATH>")]
+        public string? DisplayFolder { get; init; }
     }
 }
