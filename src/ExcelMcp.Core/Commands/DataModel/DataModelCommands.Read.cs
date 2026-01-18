@@ -1,5 +1,4 @@
 using Sbroenne.ExcelMcp.ComInterop;
-using Sbroenne.ExcelMcp.ComInterop.Formatting;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.DataModel;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -129,30 +128,6 @@ public partial class DataModelCommands
             return result;
         }, timeoutCts.Token);
 
-        // Format DAX formulas after retrieval (outside batch.Execute for async operation)
-        // Formatting is done synchronously to maintain method signature compatibility
-        // Create new instances with formatted previews
-        for (int i = 0; i < result.Measures.Count; i++)
-        {
-            var measure = result.Measures[i];
-            if (!string.IsNullOrWhiteSpace(measure.FormulaPreview))
-            {
-                // Format the formula (falls back to original on error)
-                string formatted = DaxFormatter.FormatAsync(measure.FormulaPreview).GetAwaiter().GetResult();
-                // Create preview from formatted version (truncate if needed)
-                string formattedPreview = formatted.Length > 80 ? formatted[..77] + "..." : formatted;
-
-                // Replace with new instance (init-only properties)
-                result.Measures[i] = new DataModelMeasureInfo
-                {
-                    Name = measure.Name,
-                    Table = measure.Table,
-                    FormulaPreview = formattedPreview,
-                    Description = measure.Description
-                };
-            }
-        }
-
         return result;
     }
 
@@ -221,16 +196,6 @@ public partial class DataModelCommands
 
             return result;
         });
-
-        // Format DAX formula after retrieval (outside batch.Execute for async operation)
-        // Formatting is done synchronously to maintain method signature compatibility
-        if (result.Success && !string.IsNullOrWhiteSpace(result.DaxFormula))
-        {
-            // Format the formula (falls back to original on error)
-            result.DaxFormula = DaxFormatter.FormatAsync(result.DaxFormula).GetAwaiter().GetResult();
-            // Update character count to reflect formatted length
-            result.CharacterCount = result.DaxFormula.Length;
-        }
 
         return result;
     }
