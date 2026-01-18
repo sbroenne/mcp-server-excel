@@ -345,6 +345,136 @@ To evaluate DAX measures programmatically, use PivotTable-based approaches:
 
 ---
 
+### Scenario 14-15: DAX EVALUATE Query Execution (Issue #356)
+
+**CRITICAL FINDING: DAX EVALUATE queries CAN be executed via COM automation**
+
+Despite CUBEVALUE/CUBEMEMBER worksheet functions failing (see above), DAX EVALUATE queries **DO WORK** through alternative COM APIs:
+
+**What FAILED (Scenario 14):**
+- `ListObjects.Add(xlSrcModel, ...)` - Returns "Value does not fall within expected range"
+- `Connections.Add2(..., xlCmdDAX, ...)` - Same error
+
+**What WORKS (Scenario 15):**
+
+1. **Model.CreateModelWorkbookConnection + xlCmdDAX:**
+   ```csharp
+   // Create a model connection for a table
+   dynamic modelWbConn = model.CreateModelWorkbookConnection("TableName");
+   dynamic modelConnection = modelWbConn.ModelConnection;
+   
+   // Change command type to xlCmdDAX (8)
+   modelConnection.CommandType = 8;  // xlCmdDAX
+   modelConnection.CommandText = "EVALUATE 'TableName'";
+   
+   // Refresh executes the DAX query
+   modelWbConn.Refresh();  // ✅ SUCCESS!
+   ```
+
+2. **ModelConnection.ADOConnection.Execute (BEST APPROACH):**
+   ```csharp
+   // Get DataModelConnection and its ModelConnection
+   dynamic dataModelConn = model.DataModelConnection;
+   dynamic modelConn = dataModelConn.ModelConnection;
+   
+   // Get ADO connection - this is a live MSOLAP connection!
+   dynamic adoConnection = modelConn.ADOConnection;
+   // ConnectionString: Provider=MSOLAP.8;...Data Source=$Embedded$...
+   
+   // Execute DAX EVALUATE query directly
+   dynamic recordset = adoConnection.Execute("EVALUATE 'TableName'");
+   
+   // Read results from recordset
+   while (!recordset.EOF)
+   {
+       // recordset.Fields.Item(0).Value, etc.
+       recordset.MoveNext();
+   }
+   ```
+
+**ADOConnection Details:**
+- Provider: `MSOLAP.8` (Analysis Services OLE DB Provider)
+- Data Source: `$Embedded$` (in-process connection to Excel's Data Model)
+- Returns: Standard ADO Recordset with DAX query results
+- Fields include fully qualified column names: `TableName[ColumnName]`
+
+**This is DIFFERENT from CUBEVALUE:** 
+- CUBEVALUE uses the worksheet function evaluation layer → blocked by INPROC transport limitation
+- ADOConnection.Execute uses the MSOLAP provider directly → works!
+
+**Implication for Issue #356:**
+An `evaluate` action can be added to `excel_datamodel` tool using the ADOConnection approach:
+1. Get `Workbook.Model.DataModelConnection.ModelConnection.ADOConnection`
+2. Execute DAX EVALUATE query via `adoConnection.Execute(daxQuery)`
+3. Convert ADO Recordset to JSON result
+
+**Test Evidence:** Scenario14 and Scenario15 in `DataModelComApiBehaviorTests.cs`
+
+---
+
+### DAX-Backed Excel Tables (Scenario 16)
+
+**FINDING: Excel Tables (ListObjects) can be backed by DAX queries!**
+
+This extends the Scenario 15 discovery - not only can DAX queries be executed, but the results can be materialized as Excel Tables that automatically update when the Data Model changes.
+
+**What WORKS (Scenario 16):**
+
+```csharp
+// 1. Create a model workbook connection for a table
+dynamic modelWbConn = model.CreateModelWorkbookConnection("TableName");
+dynamic modelConnection = modelWbConn.ModelConnection;
+
+// 2. Configure for DAX EVALUATE query
+modelConnection.CommandType = 8;  // xlCmdDAX
+modelConnection.CommandText = @"
+    EVALUATE 
+    SUMMARIZECOLUMNS(
+        'Query'[Region],
+        ""TotalAmount"", SUM('Query'[Amount]),
+        ""TotalQty"", SUM('Query'[Qty])
+    )";
+
+// 3. Refresh to execute the DAX query
+modelWbConn.Refresh();
+
+// 4. Create Excel Table (ListObject) backed by the DAX query!
+dynamic listObjects = targetSheet.ListObjects;
+dynamic listObject = listObjects.Add(
+    4,              // xlSrcModel = 4 (PowerPivot Model source)
+    modelWbConn,    // The ModelWorkbookConnection with DAX
+    true,           // HasHeaders
+    1,              // xlYes = 1
+    destRange       // Target range
+);
+
+// 5. Refresh the table to populate data
+listObject.Refresh();
+
+// Result: Excel Table with DAX-aggregated data!
+// Headers: Region, TotalAmount, TotalQty
+// Data: Aggregated rows from the DAX SUMMARIZECOLUMNS query
+```
+
+**Key Constants:**
+- `xlSrcModel = 4` - ListObject source type for PowerPivot/Data Model
+- `xlCmdDAX = 8` - Command type for DAX queries
+
+**Capabilities Unlocked:**
+1. **DAX Aggregation Tables** - Create summary tables with SUMMARIZE, SUMMARIZECOLUMNS, TOPN, etc.
+2. **Filtered Data Tables** - Use FILTER, CALCULATETABLE to create subsets
+3. **Cross-Table Analysis** - Join/aggregate data across multiple Data Model tables
+4. **Auto-Refreshable** - Tables update when underlying Data Model refreshes
+
+**Potential New Features for Issue #356:**
+- Add `create-table-from-dax` action to `excel_table` tool
+- Allow users to create Excel Tables populated by arbitrary DAX EVALUATE queries
+- Tables stay linked to Data Model and can be refreshed
+
+**Test Evidence:** Scenario16 in `DataModelComApiBehaviorTests.cs`
+
+---
+
 ## Test Execution
 
 Run diagnostic tests on demand:

@@ -27,6 +27,12 @@ public static partial class ExcelDataModelTool
     /// - DAX formulas are auto-formatted on CREATE/UPDATE via Dax.Formatter library (SQLBI)
     /// - Read operations (list-measures, read) return raw DAX as stored
     ///
+    /// DAX EVALUATE QUERIES:
+    /// - Use 'evaluate' action to execute DAX EVALUATE queries against the Data Model
+    /// - Returns tabular results (columns and rows) from queries like 'EVALUATE TableName'
+    /// - Supports complex DAX: SUMMARIZE, FILTER, CALCULATETABLE, TOPN, etc.
+    /// - Results can be used for analysis or to create DAX-backed tables via excel_table
+    ///
     /// PERFORMANCE:
     /// - Formatting adds ~100-500ms network latency per operation (daxformatter.com API)
     /// - Graceful fallback: returns original DAX if formatting fails (no operation failures)
@@ -38,6 +44,7 @@ public static partial class ExcelDataModelTool
     ///
     /// RELATED TOOLS:
     /// - excel_table: Add worksheet tables to Data Model (add-to-datamodel action)
+    /// - excel_table: Create DAX-backed tables (create-from-dax action)
     /// - excel_datamodel_rel: Manage relationships between tables
     /// </summary>
     /// <param name="action">The Data Model operation to perform</param>
@@ -46,6 +53,7 @@ public static partial class ExcelDataModelTool
     /// <param name="tableName">Name of the table in the Data Model - required for table operations and create-measure</param>
     /// <param name="newTableName">New name for rename-table action</param>
     /// <param name="daxFormula">DAX formula for the measure, e.g., 'SUM(Sales[Amount])'</param>
+    /// <param name="daxQuery">DAX EVALUATE query for evaluate action, e.g., 'EVALUATE TableName'</param>
     /// <param name="description">Optional description for the measure</param>
     /// <param name="formatString">Number format code in US format, e.g., '#,##0.00' for currency</param>
     [McpServerTool(Name = "excel_datamodel", Title = "Excel Data Model Operations")]
@@ -58,6 +66,7 @@ public static partial class ExcelDataModelTool
         [DefaultValue(null)] string? tableName,
         [DefaultValue(null)] string? newTableName,
         [DefaultValue(null)] string? daxFormula,
+        [DefaultValue(null)] string? daxQuery,
         [DefaultValue(null)] string? description,
         [DefaultValue(null)] string? formatString)
     {
@@ -82,6 +91,7 @@ public static partial class ExcelDataModelTool
                     DataModelAction.ReadInfo => ReadModelInfoAction(dataModelCommands, sessionId),
                     DataModelAction.CreateMeasure => CreateMeasureAction(dataModelCommands, sessionId, tableName, measureName, daxFormula, formatString, description),
                     DataModelAction.UpdateMeasure => UpdateMeasureAction(dataModelCommands, sessionId, measureName, daxFormula, formatString, description),
+                    DataModelAction.Evaluate => EvaluateAction(dataModelCommands, sessionId, daxQuery),
                     _ => throw new ArgumentException(
                         $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
@@ -421,6 +431,42 @@ public static partial class ExcelDataModelTool
                 isError = true
             }, ExcelToolsBase.JsonOptions);
         }
+    }
+
+    private static string EvaluateAction(DataModelCommands commands, string sessionId, string? daxQuery)
+    {
+        if (string.IsNullOrWhiteSpace(daxQuery))
+        {
+            throw new ArgumentException("daxQuery is required for evaluate action", nameof(daxQuery));
+        }
+
+        DaxEvaluateResult result;
+
+        try
+        {
+            result = ExcelToolsBase.WithSession(sessionId, batch => commands.Evaluate(batch, daxQuery));
+        }
+        catch (TimeoutException ex)
+        {
+            result = new DaxEvaluateResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message,
+                DaxQuery = daxQuery
+            };
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.DaxQuery,
+            result.Columns,
+            result.Rows,
+            result.RowCount,
+            result.ColumnCount,
+            result.ErrorMessage,
+            isError = !result.Success
+        }, ExcelToolsBase.JsonOptions);
     }
 
 }

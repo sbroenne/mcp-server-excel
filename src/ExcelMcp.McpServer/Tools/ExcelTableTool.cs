@@ -22,20 +22,26 @@ public static partial class TableTool
     /// 2. Use 'add-to-datamodel' action to add the table to Power Pivot
     /// 3. Then use excel_datamodel to create DAX measures on it
     ///
+    /// DAX-BACKED TABLES: Create tables populated by DAX EVALUATE queries:
+    /// - 'create-from-dax': Create a new table backed by a DAX query (e.g., SUMMARIZE, FILTER)
+    /// - 'update-dax': Update the DAX query for an existing DAX-backed table
+    /// - 'get-dax': Get the DAX query info for a table (check if it's DAX-backed)
+    ///
     /// APPENDING DATA: Use 'append' action with csvData in simple CSV format (comma-separated, newline-separated rows).
     ///
-    /// Related: excel_table_column (filter/sort/columns), excel_datamodel (DAX measures)
+    /// Related: excel_table_column (filter/sort/columns), excel_datamodel (DAX measures, evaluate queries)
     /// </summary>
     /// <param name="action">The table operation to perform</param>
     /// <param name="excelPath">Full path to Excel file (for reference/logging)</param>
     /// <param name="sessionId">Session ID from excel_file 'open'. Required for all actions.</param>
-    /// <param name="tableName">Name of the table to operate on. Required for: read, rename, delete, resize, toggle-totals, set-column-total, append, get-data, set-style, add-to-datamodel. Used as new table name for: create</param>
-    /// <param name="sheetName">Name of the worksheet containing the table. Required for: create</param>
-    /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10'). Required for: create, resize</param>
+    /// <param name="tableName">Name of the table to operate on. Required for: read, rename, delete, resize, toggle-totals, set-column-total, append, get-data, set-style, add-to-datamodel, update-dax, get-dax. Used as new table name for: create, create-from-dax</param>
+    /// <param name="sheetName">Name of the worksheet containing the table. Required for: create, create-from-dax</param>
+    /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10'). Required for: create, resize. Optional targetCell for: create-from-dax (default: 'A1')</param>
     /// <param name="newName">New name for the table. Required for: rename. Column name for: set-column-total</param>
     /// <param name="hasHeaders">For 'create': true if first row contains column headers (default: true). For 'toggle-totals': true to show totals row, false to hide.</param>
     /// <param name="styleName">Multi-purpose string parameter: Table style name for 'create'/'set-style' (e.g., 'TableStyleMedium2'). Total function for 'set-column-total' (Sum, Average, Count, etc.). CSV data for 'append'.</param>
     /// <param name="visibleOnly">For 'get-data': true to return only visible (non-filtered) rows. Default: false (all rows)</param>
+    /// <param name="daxQuery">DAX EVALUATE query for 'create-from-dax' and 'update-dax' actions (e.g., 'EVALUATE SUMMARIZE(...))'</param>
     [McpServerTool(Name = "excel_table", Title = "Excel Table Operations")]
     [McpMeta("category", "data")]
     [McpMeta("requiresSession", true)]
@@ -49,7 +55,8 @@ public static partial class TableTool
         [DefaultValue(null)] string? newName,
         [DefaultValue(true)] bool hasHeaders,
         [DefaultValue(null)] string? styleName,
-        [DefaultValue(false)] bool visibleOnly)
+        [DefaultValue(false)] bool visibleOnly,
+        [DefaultValue(null)] string? daxQuery)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_table",
@@ -73,6 +80,9 @@ public static partial class TableTool
                     TableAction.GetData => GetData(tableCommands, sessionId, tableName, visibleOnly),
                     TableAction.SetStyle => SetTableStyle(tableCommands, sessionId, tableName, styleName),
                     TableAction.AddToDataModel => AddToDataModel(tableCommands, sessionId, tableName),
+                    TableAction.CreateFromDax => CreateFromDaxAction(tableCommands, sessionId, sheetName, tableName, daxQuery, rangeAddress),
+                    TableAction.UpdateDax => UpdateDaxAction(tableCommands, sessionId, tableName, daxQuery),
+                    TableAction.GetDax => GetDaxAction(tableCommands, sessionId, tableName),
                     _ => throw new ArgumentException(
                         $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
@@ -341,6 +351,67 @@ public static partial class TableTool
         {
             return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
         }
+    }
+
+    private static string CreateFromDaxAction(TableCommands commands, string sessionId, string? sheetName, string? tableName, string? daxQuery, string? targetCell)
+    {
+        if (string.IsNullOrWhiteSpace(sheetName)) ExcelToolsBase.ThrowMissingParameter(nameof(sheetName), "create-from-dax");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "create-from-dax");
+        if (string.IsNullOrWhiteSpace(daxQuery)) ExcelToolsBase.ThrowMissingParameter(nameof(daxQuery), "create-from-dax");
+
+        // Use targetCell if provided, otherwise default to "A1"
+        var cellAddress = string.IsNullOrWhiteSpace(targetCell) ? "A1" : targetCell;
+
+        try
+        {
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.CreateFromDax(batch, sheetName!, tableName!, daxQuery!, cellAddress);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"DAX-backed table '{tableName}' created successfully." }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
+        }
+    }
+
+    private static string UpdateDaxAction(TableCommands commands, string sessionId, string? tableName, string? daxQuery)
+    {
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "update-dax");
+        if (string.IsNullOrWhiteSpace(daxQuery)) ExcelToolsBase.ThrowMissingParameter(nameof(daxQuery), "update-dax");
+
+        try
+        {
+            ExcelToolsBase.WithSession(
+                sessionId,
+                batch =>
+                {
+                    commands.UpdateDax(batch, tableName!, daxQuery!);
+                    return 0;
+                });
+
+            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"DAX query updated for table '{tableName}'." }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
+        }
+    }
+
+    private static string GetDaxAction(TableCommands commands, string sessionId, string? tableName)
+    {
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "get-dax");
+
+        var result = ExcelToolsBase.WithSession(
+            sessionId,
+            batch => commands.GetDax(batch, tableName!));
+
+        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
     }
 }
 

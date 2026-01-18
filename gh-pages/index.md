@@ -89,7 +89,7 @@ It works with any MCP-compatible AI assistant like GitHub Copilot, Claude Deskto
 </div>
 </div>
 
-<p><a href="/features/">See all 21 tools and 182 operations →</a></p>
+<p><a href="/features/">See all 21 tools and 186 operations →</a></p>
 
 ## What Can You Do With It?
 
@@ -149,7 +149,7 @@ The CLI provides 172 operations across 13 command groups, sharing the same Core 
 
 ## Documentation
 
-📖 **[Complete Feature Reference](/features/)** — All 21 tools and 182 operations
+📖 **[Complete Feature Reference](/features/)** — All 21 tools and 186 operations
 
 📥 **[Installation Guide](/installation/)** — Setup for VS Code, Claude Desktop, other MCP clients, and CLI
 
