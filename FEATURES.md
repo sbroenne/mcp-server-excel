@@ -20,14 +20,16 @@
 **Atomic Operations** - Single-call workflows:
 - **List:** List all Power Query queries in workbook
 - **View:** View the M code of a Power Query
-- **Create:** Import + load in one operation (atomic workflow)
-- **Update:** Update M code and auto-refresh
+- **Create:** Import + load in one operation (atomic workflow) with automatic formatting
+- **Update:** Update M code with automatic formatting and auto-refresh
 - **Rename:** Rename a Power Query (trim + case-insensitive uniqueness check)
 - **Refresh:** Refresh a Power Query with timeout detection
 - **Refresh All:** Batch refresh all queries in workbook
 - **Load To:** Configure load destination and refresh (atomic)
 - **Get Load Config:** Get current load configuration
 - **Delete:** Remove Power Query from workbook
+
+**Automatic M-Code Formatting:** M code is automatically formatted on write operations (Create, Update) using the powerqueryformatter.com API (by mogularGmbH, MIT License). Read operations return M code as stored in Excel. Formatting adds ~100-500ms network latency but dramatically improves readability with proper indentation, spacing, and line breaks. Graceful fallback returns original M code if formatting fails.
 
 ---
 

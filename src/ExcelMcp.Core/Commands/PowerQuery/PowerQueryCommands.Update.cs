@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Formatting;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -12,6 +13,7 @@ public partial class PowerQueryCommands
 {
     /// <summary>
     /// Update Power Query M code. Preserves load configuration (worksheet/data model).
+    /// M code is automatically formatted using the powerqueryformatter.com API before saving.
     /// - Worksheet queries: Uses QueryTable.Refresh(false) for synchronous refresh with column propagation
     /// - Data Model queries: Uses connection.Refresh() to update the Data Model
     /// </summary>
@@ -32,6 +34,11 @@ public partial class PowerQueryCommands
         {
             throw new ArgumentException("M code cannot be empty", nameof(mCode));
         }
+
+        // Format M code before saving (outside batch.Execute for async operation)
+        // Formatting is done synchronously to maintain method signature compatibility
+        // Falls back to original if formatting fails
+        string formattedMCode = MCodeFormatter.FormatAsync(mCode).GetAwaiter().GetResult();
 
         batch.Execute((ctx, ct) =>
         {
@@ -202,10 +209,10 @@ public partial class PowerQueryCommands
                     if (existingQueryTable != null) break;
                 }
 
-                // STEP 3: Update the M code
+                // STEP 3: Update the M code with formatted version
                 // Note: 0x800A03EC error can occur in certain workbook states (see Issue #323)
                 // Retry doesn't help - it's a workbook state issue, not transient
-                query.Formula = mCode;
+                query.Formula = formattedMCode;
 
                 // STEP 4: Refresh if requested
                 if (refresh)

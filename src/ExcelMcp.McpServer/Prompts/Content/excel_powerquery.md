@@ -1,5 +1,13 @@
 # excel_powerquery - Server Quirks
 
+**Automatic M-Code Formatting**:
+
+- Create and Update operations automatically format M code using powerqueryformatter.com API
+- Formatting adds ~100-500ms network latency per call
+- Graceful fallback: returns original M code if formatting service unavailable
+- Read operations (List, View) return M code as stored (no formatting on read)
+- Formatting improves readability with proper indentation, spacing, and line breaks
+
 **Data Model workflow**:
 
 Power Query can load data to different destinations:
