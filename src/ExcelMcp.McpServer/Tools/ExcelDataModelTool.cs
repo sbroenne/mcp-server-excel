@@ -24,6 +24,12 @@ public static partial class ExcelDataModelTool
     /// - Create measures with DAX formulas like 'SUM(Sales[Amount])'
     /// - Measures can reference columns, other measures, and use DAX functions
     /// - Format string uses US format codes like '#,##0.00' for currency
+    /// - DAX formulas are auto-formatted on CREATE/UPDATE via Dax.Formatter library (SQLBI)
+    /// - Read operations (list-measures, read) return raw DAX as stored
+    ///
+    /// PERFORMANCE:
+    /// - Formatting adds ~100-500ms network latency per operation (daxformatter.com API)
+    /// - Graceful fallback: returns original DAX if formatting fails (no operation failures)
     ///
     /// DESTRUCTIVE OPERATIONS:
     /// - delete-table: Removes table AND all its measures - cannot be undone

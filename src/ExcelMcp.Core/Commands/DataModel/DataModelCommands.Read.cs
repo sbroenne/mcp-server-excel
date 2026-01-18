@@ -64,7 +64,7 @@ public partial class DataModelCommands
 
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
 
-        return batch.Execute((ctx, ct) =>
+        result = batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             try
@@ -100,13 +100,12 @@ public partial class DataModelCommands
                     }
 
                     string formula = ComUtilities.SafeGetString(measure, "Formula");
-                    string preview = formula.Length > 80 ? formula[..77] + "..." : formula;
 
                     var measureInfo = new DataModelMeasureInfo
                     {
                         Name = ComUtilities.SafeGetString(measure, "Name"),
                         Table = measureTableName,
-                        FormulaPreview = preview,
+                        FormulaPreview = formula, // Will be formatted after retrieval
                         Description = ComUtilities.SafeGetString(measure, "Description")
                     };
 
@@ -128,6 +127,8 @@ public partial class DataModelCommands
 
             return result;
         }, timeoutCts.Token);
+
+        return result;
     }
 
     /// <inheritdoc />
@@ -141,7 +142,7 @@ public partial class DataModelCommands
 
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
 
-        return batch.Execute((ctx, ct) =>
+        result = batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? measure = null;
@@ -195,6 +196,8 @@ public partial class DataModelCommands
 
             return result;
         });
+
+        return result;
     }
 
     /// <inheritdoc />

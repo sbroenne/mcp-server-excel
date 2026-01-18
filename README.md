@@ -48,7 +48,7 @@ The extension opens automatically after installation with a quick start guide!
 **21 specialized tools with 182 operations:**
 
 - 🔄 **Power Query** (1 tool, 10 ops) - Atomic workflows, M code management, load destinations
-- 📊 **Data Model/DAX** (2 tools, 17 ops) - Measures, relationships, model structure
+- 📊 **Data Model/DAX** (2 tools, 17 ops) - Measures with auto-formatted DAX, relationships, model structure
 - 🎨 **Excel Tables** (2 tools, 24 ops) - Lifecycle, filtering, sorting, structured references
 - 📈 **PivotTables** (3 tools, 30 ops) - Creation, fields, aggregations, calculated members/fields
 - 📉 **Charts** (2 tools, 14 ops) - Create, configure, manage series and formatting

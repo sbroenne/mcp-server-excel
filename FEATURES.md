@@ -37,10 +37,10 @@
 - **Read Table:** Get specific table information
 - **Rename Table:** Rename a Data Model table (best-effort via Power Query; returns clear error if not supported)
 - **List Columns:** List columns for a table
-- **List Measures:** List all DAX measures
+- **List Measures:** List all DAX measures with formula previews
 - **Read Info:** Get comprehensive model information
-- **Create Measure:** Create new DAX measure (with format types: Currency, Percentage, Decimal, General)
-- **Update Measure:** Modify existing measure
+- **Create Measure:** Create new DAX measure with automatic formatting (format types: Currency, Percentage, Decimal, General)
+- **Update Measure:** Modify existing measure with automatic formatting
 - **Delete Measure:** Remove measure from model
 - **Delete Table:** Remove table from Data Model
 - **List Relationships:** View all table relationships
@@ -50,6 +50,8 @@
 - **Delete Relationship:** Remove relationship
 - **Refresh:** Refresh entire Data Model
 - **List Workbook Connections:** List Power Query sources available for integration
+
+**Automatic DAX Formatting:** DAX formulas are automatically formatted on write operations (CreateMeasure, UpdateMeasure) using the official Dax.Formatter library (SQLBI). Read operations return raw DAX as stored in Excel. Formatting adds ~100-500ms network latency but dramatically improves readability. Graceful fallback returns original DAX if formatting fails.
 
 **Note:** DAX calculated columns not supported - use Excel UI for calculated columns
 

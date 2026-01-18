@@ -1065,10 +1065,11 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             ComUtilities.Release(ref field);
         }
     }
+
 #pragma warning restore CA1848
 
-    /// <inheritdoc/>
 #pragma warning disable CA1848
+    /// <inheritdoc/>
     public OperationResult SetGrandTotals(dynamic pivot, bool showRowGrandTotals, bool showColumnGrandTotals, string workbookPath, ILogger? logger = null)
     {
         pivot.RowGrand = showRowGrandTotals;
