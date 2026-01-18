@@ -1,17 +1,16 @@
-using System.Net.Http.Json;
-using System.Text.Json.Serialization;
+using Dax.Formatter;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Formatting;
 
 /// <summary>
-/// Formats DAX (Data Analysis Expressions) code using the daxformatter.com API.
+/// Formats DAX (Data Analysis Expressions) code using the official Dax.Formatter library.
 /// Provides automatic pretty-printing with proper indentation and line breaks.
 /// </summary>
 /// <remarks>
 /// <para><b>Design Principles:</b></para>
 /// <list type="bullet">
 /// <item>Never throws exceptions - returns original DAX on any failure</item>
-/// <item>Uses HttpClient for API calls to daxformatter.com</item>
+/// <item>Uses official Dax.Formatter NuGet package (by SQLBI)</item>
 /// <item>Gracefully handles network failures, API errors, and rate limiting</item>
 /// <item>Formatting is best-effort - original DAX is always preserved if formatting fails</item>
 /// </list>
@@ -20,18 +19,21 @@ namespace Sbroenne.ExcelMcp.ComInterop.Formatting;
 /// string formatted = await DaxFormatter.FormatAsync("CALCULATE(SUM(Sales[Amount]),FILTER(ALL(Calendar),Calendar[Year]=2024))");
 /// // Returns formatted DAX with indentation, or original if formatting fails
 /// </code>
+/// <para><b>Performance:</b></para>
+/// <list type="bullet">
+/// <item>Network latency: Typically 100-500ms per API call</item>
+/// <item>Singleton client instance shared across all calls for efficiency</item>
+/// <item>10-second timeout prevents indefinite blocking</item>
+/// <item>Graceful fallback ensures operations never fail due to formatting</item>
+/// </list>
 /// </remarks>
 public static class DaxFormatter
 {
-    private static readonly HttpClient _httpClient = new()
-    {
-        Timeout = TimeSpan.FromSeconds(10) // 10 second timeout for API calls
-    };
-
-    private const string DaxFormatterApiUrl = "https://www.daxformatter.com/api/daxformatter/DaxFormat";
+    // Singleton instance - reused across all calls for better performance
+    private static readonly DaxFormatterClient _formatterClient = new();
 
     /// <summary>
-    /// Formats DAX code using the daxformatter.com API.
+    /// Formats DAX code using the official Dax.Formatter library.
     /// </summary>
     /// <param name="daxCode">The DAX code to format</param>
     /// <param name="cancellationToken">Cancellation token for the HTTP request</param>
@@ -48,54 +50,24 @@ public static class DaxFormatter
 
         try
         {
-            // Prepare request payload
-            var request = new DaxFormatterRequest { Dax = daxCode };
+            // Use timeout wrapper for 10 second limit
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(10));
 
-            // Call daxformatter.com API
-            var response = await _httpClient.PostAsJsonAsync(
-                DaxFormatterApiUrl,
-                request,
-                cancellationToken).ConfigureAwait(false);
-
-            // Check if request was successful
-            if (!response.IsSuccessStatusCode)
-            {
-                // API returned error - return original DAX
-                return daxCode;
-            }
-
-            // Parse response
-            var result = await response.Content.ReadFromJsonAsync<DaxFormatterResponse>(
-                cancellationToken: cancellationToken).ConfigureAwait(false);
+            // Call official Dax.Formatter library
+            var response = await _formatterClient.FormatAsync(daxCode, timeoutCts.Token)
+                .ConfigureAwait(false);
 
             // Return formatted DAX if available, otherwise original
-            return !string.IsNullOrWhiteSpace(result?.Formatted)
-                ? result.Formatted
+            return !string.IsNullOrWhiteSpace(response?.Formatted)
+                ? response.Formatted
                 : daxCode;
         }
         catch
         {
             // Any error (network, timeout, parsing, etc.) - return original DAX
-            // This includes: HttpRequestException, TaskCanceledException, JsonException, etc.
+            // This includes: HttpRequestException, TaskCanceledException, OperationCanceledException, etc.
             return daxCode;
         }
-    }
-
-    /// <summary>
-    /// Request payload for daxformatter.com API
-    /// </summary>
-    private sealed class DaxFormatterRequest
-    {
-        [JsonPropertyName("Dax")]
-        public string Dax { get; set; } = string.Empty;
-    }
-
-    /// <summary>
-    /// Response from daxformatter.com API
-    /// </summary>
-    private sealed class DaxFormatterResponse
-    {
-        [JsonPropertyName("formatted")]
-        public string? Formatted { get; set; }
     }
 }

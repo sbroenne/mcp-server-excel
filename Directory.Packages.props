@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- UI Framework -->
+    <PackageVersion Include="Dax.Formatter" Version="1.2.0" />
     <PackageVersion Include="Spectre.Console" Version="0.54.0" />
     <PackageVersion Include="Spectre.Console.Cli" Version="0.53.1" />
     <!-- Microsoft Extensions for MCP Server -->
