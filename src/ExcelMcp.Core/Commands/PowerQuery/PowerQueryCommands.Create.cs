@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Formatting;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 
@@ -11,6 +12,7 @@ public partial class PowerQueryCommands
 {
     /// <summary>
     /// Creates new Power Query from M code with specified load destination.
+    /// M code is automatically formatted using the powerqueryformatter.com API before saving.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name for the new query</param>
@@ -39,6 +41,11 @@ public partial class PowerQueryCommands
             throw new ArgumentException("M code cannot be empty", nameof(mCode));
         }
 
+        // Format M code before saving (outside batch.Execute for async operation)
+        // Formatting is done synchronously to maintain method signature compatibility
+        // Falls back to original if formatting fails
+        string formattedMCode = MCodeFormatter.FormatAsync(mCode).GetAwaiter().GetResult();
+
         // Resolve target sheet name (default to query name)
         if (loadMode == PowerQueryLoadMode.LoadToTable || loadMode == PowerQueryLoadMode.LoadToBoth)
         {
@@ -66,7 +73,8 @@ public partial class PowerQueryCommands
                 }
 
                 // Step 1: Create the query (always creates in ConnectionOnly mode initially)
-                query = queries.Add(queryName, mCode);
+                // Uses formatted M code for better readability
+                query = queries.Add(queryName, formattedMCode);
 
                 // Step 2: Apply load destination based on mode
                 var result = new PowerQueryCreateResult

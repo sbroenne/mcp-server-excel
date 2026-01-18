@@ -15,6 +15,9 @@ public static partial class ExcelPowerQueryTool
     /// <summary>
     /// Power Query M code and data loading.
     ///
+    /// M-CODE FORMATTING: Create and Update automatically format M code using powerqueryformatter.com API.
+    /// Formatting adds ~100-500ms latency but improves readability. Graceful fallback on API failure.
+    ///
     /// DESTINATIONS: worksheet (default), data-model (for DAX), both, connection-only.
     /// Use 'data-model' to load directly to Power Pivot, then use excel_datamodel to create DAX measures.
     ///
