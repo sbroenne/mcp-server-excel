@@ -15,6 +15,12 @@ public static partial class ExcelDataModelRelTool
     /// <summary>
     /// Data Model relationships - link tables for cross-table DAX calculations.
     ///
+    /// CRITICAL: Deleting or recreating tables (via excel_datamodel delete-table or excel_table delete)
+    /// removes ALL their relationships. Use 'list-relationships' before table operations to backup,
+    /// then recreate relationships after schema changes.
+    ///
+    /// BEST PRACTICE: Use 'list-relationships' to check existing relationships before creating.
+    ///
     /// RELATIONSHIP REQUIREMENTS:
     /// - Both tables must exist in the Data Model first
     /// - Columns must have compatible data types

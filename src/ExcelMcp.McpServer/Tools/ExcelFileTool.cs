@@ -16,6 +16,9 @@ public static partial class ExcelFileTool
     ///
     /// WORKFLOW: open → use sessionId with other tools → close (save=true to persist changes).
     ///
+    /// SESSION REUSE: Call 'list' first to check for existing sessions.
+    /// If file is already open, reuse existing sessionId instead of opening again.
+    ///
     /// IMPORTANT: Before closing, check 'list' action - wait for canClose=true (no active operations).
     /// If showExcel=true was used, confirm with user before closing visible Excel windows.
     /// </summary>

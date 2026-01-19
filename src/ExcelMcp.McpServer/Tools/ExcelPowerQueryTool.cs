@@ -15,6 +15,12 @@ public static partial class ExcelPowerQueryTool
     /// <summary>
     /// Power Query M code and data loading.
     ///
+    /// BEST PRACTICE: Use 'list' before creating. Prefer 'update' over delete+recreate to preserve load settings.
+    ///
+    /// DATETIME COLUMNS: Always include Table.TransformColumnTypes() in M code to set column types explicitly.
+    /// Without explicit types, dates may be stored as numbers and Data Model relationships may fail.
+    /// Example: Table.TransformColumnTypes(Source, {{"OrderDate", type datetime}, {"Amount", type number}})
+    ///
     /// M-CODE FORMATTING: Create and Update automatically format M code using powerqueryformatter.com API.
     /// Formatting adds ~100-500ms latency but improves readability. Graceful fallback on API failure.
     ///
