@@ -258,6 +258,20 @@ public class CoreCommandsCoverageTests
     }
 
     /// <summary>
+    /// Verifies all SlicerAction enum values have ToActionString mappings
+    /// </summary>
+    [Fact]
+    public void SlicerAction_AllEnumValuesHaveMappings()
+    {
+        foreach (var action in Enum.GetValues<SlicerAction>())
+        {
+            var exception = Record.Exception(() => action.ToActionString());
+            Assert.Null(exception);
+            Assert.NotEmpty(action.ToActionString());
+        }
+    }
+
+    /// <summary>
     /// Helper: Counts public async methods in an interface (excludes properties, events, etc.)
     /// </summary>
     private static int GetAsyncMethodCount(Type interfaceType)

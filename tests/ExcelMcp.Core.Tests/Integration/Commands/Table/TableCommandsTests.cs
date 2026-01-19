@@ -18,7 +18,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Table;
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "Tables")]
 [Trait("Speed", "Medium")]
-public class TableCommandsTests : IClassFixture<TableTestsFixture>
+public partial class TableCommandsTests : IClassFixture<TableTestsFixture>
 {
     private readonly TableCommands _tableCommands;
     private readonly IRangeCommands _rangeCommands;

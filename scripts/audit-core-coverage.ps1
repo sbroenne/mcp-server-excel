@@ -209,10 +209,21 @@ function Find-InterfaceForEnum {
         # PivotTable sub-tools (all map to IPivotTableCommands)
         "PivotTableFieldAction" = "IPivotTableCommands"
         "PivotTableCalcAction" = "IPivotTableCommands"
+        
+        # Cross-interface enums (cover methods from multiple interfaces)
+        # SlicerAction covers methods from BOTH IPivotTableCommands AND ITableCommands
+        # We map to IPivotTableCommands as primary, and add ITableCommands below in additionalEnumMappings
         "SlicerAction" = "IPivotTableCommands"
         
         # Chart sub-tools (all map to IChartCommands)
         "ChartConfigAction" = "IChartCommands"
+    }
+    
+    # Additional interface mappings for cross-interface enums
+    # These enums have methods implemented in multiple Core interfaces
+    # Format: "InterfaceName" = @("EnumName1", "EnumName2", ...)
+    $Script:additionalEnumMappings = @{
+        "ITableCommands" = @("SlicerAction")  # Table slicer methods exposed via SlicerAction
     }
 
     if ($enumToInterface.ContainsKey($EnumType)) {
@@ -266,6 +277,21 @@ foreach ($interface in $interfaces) {
         }
     }
     $groupedInterfaces[$key].Enums += $interface.Enum
+}
+
+# Add additional enum mappings for cross-interface enums
+# This handles cases like SlicerAction which covers methods from both IPivotTableCommands and ITableCommands
+if ($Script:additionalEnumMappings) {
+    foreach ($interfaceName in $Script:additionalEnumMappings.Keys) {
+        if ($groupedInterfaces.ContainsKey($interfaceName)) {
+            $additionalEnums = $Script:additionalEnumMappings[$interfaceName]
+            foreach ($enumName in $additionalEnums) {
+                if ($groupedInterfaces[$interfaceName].Enums -notcontains $enumName) {
+                    $groupedInterfaces[$interfaceName].Enums += $enumName
+                }
+            }
+        }
+    }
 }
 
 # Track results
@@ -413,7 +439,9 @@ if ($CheckNaming) {
     $knownExceptions = @{
         "TableAction" = @("ApplyFilterValues", "SortMulti", "ApplyFilter", "ClearFilters", "GetFilters", 
                           "AddColumn", "RemoveColumn", "RenameColumn", "GetStructuredReference", "Sort",
-                          "GetColumnNumberFormat", "SetColumnNumberFormat")  # Methods moved to TableColumnAction
+                          "GetColumnNumberFormat", "SetColumnNumberFormat",
+                          # Table slicer methods exposed via SlicerAction (cross-interface enum)
+                          "CreateTableSlicer", "ListTableSlicers", "SetTableSlicerSelection", "DeleteTableSlicer")
         "FileAction" = @("CloseWorkbook", "Open", "Save", "Close", "List")  # MCP-specific session actions
         "RangeAction" = @("SetNumberFormatCustom", "InsertCells", "DeleteCells", "InsertRows", "DeleteRows",
                           "InsertColumns", "DeleteColumns", "Find", "Replace", "Sort",

@@ -951,10 +951,24 @@ public class SlicerInfo
     public int ColumnCount { get; set; }
 
     /// <summary>
-    /// Names of PivotTables connected to this slicer
+    /// Names of PivotTables connected to this slicer (for PivotTable slicers)
     /// </summary>
     [JsonPropertyName("pt")]
     public List<string> ConnectedPivotTables { get; set; } = [];
+
+    /// <summary>
+    /// Name of the Table connected to this slicer (for Table slicers)
+    /// </summary>
+    [JsonPropertyName("tbl")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ConnectedTable { get; set; }
+
+    /// <summary>
+    /// Type of source: "PivotTable" or "Table"
+    /// </summary>
+    [JsonPropertyName("srcType")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SourceType { get; set; }
 }
 
 /// <summary>
@@ -1017,10 +1031,24 @@ public class SlicerResult : ResultBase
     public List<string> AvailableItems { get; set; } = [];
 
     /// <summary>
-    /// Names of PivotTables connected to this slicer
+    /// Names of PivotTables connected to this slicer (for PivotTable slicers)
     /// </summary>
     [JsonPropertyName("pt")]
     public List<string> ConnectedPivotTables { get; set; } = [];
+
+    /// <summary>
+    /// Name of the Table connected to this slicer (for Table slicers)
+    /// </summary>
+    [JsonPropertyName("tbl")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ConnectedTable { get; set; }
+
+    /// <summary>
+    /// Type of source: "PivotTable" or "Table"
+    /// </summary>
+    [JsonPropertyName("srcType")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SourceType { get; set; }
 
     /// <summary>
     /// Workflow hint describing what happened and suggested next steps
