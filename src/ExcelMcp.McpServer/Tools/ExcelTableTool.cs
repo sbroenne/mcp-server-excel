@@ -119,7 +119,9 @@ public static partial class TableTool
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table created successfully." }, ExcelToolsBase.JsonOptions);
         }
+#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
         }
@@ -164,7 +166,9 @@ public static partial class TableTool
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table renamed successfully." }, ExcelToolsBase.JsonOptions);
         }
+#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
         }
@@ -186,7 +190,9 @@ public static partial class TableTool
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table deleted successfully." }, ExcelToolsBase.JsonOptions);
         }
+#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
         }
@@ -209,7 +215,9 @@ public static partial class TableTool
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table resized successfully." }, ExcelToolsBase.JsonOptions);
         }
+#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
         }
@@ -231,7 +239,9 @@ public static partial class TableTool
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Totals toggled successfully." }, ExcelToolsBase.JsonOptions);
         }
+#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
         }
@@ -255,7 +265,9 @@ public static partial class TableTool
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Column total set successfully." }, ExcelToolsBase.JsonOptions);
         }
+#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
         }
@@ -281,7 +293,9 @@ public static partial class TableTool
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Rows appended successfully." }, ExcelToolsBase.JsonOptions);
         }
+#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
         }
@@ -325,7 +339,9 @@ public static partial class TableTool
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table style set successfully." }, ExcelToolsBase.JsonOptions);
         }
+#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
         }
@@ -347,7 +363,9 @@ public static partial class TableTool
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table added to data model successfully." }, ExcelToolsBase.JsonOptions);
         }
+#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
         }
@@ -374,7 +392,9 @@ public static partial class TableTool
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"DAX-backed table '{tableName}' created successfully." }, ExcelToolsBase.JsonOptions);
         }
+#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
         }
@@ -397,7 +417,9 @@ public static partial class TableTool
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"DAX query updated for table '{tableName}'." }, ExcelToolsBase.JsonOptions);
         }
+#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
         }

@@ -115,7 +115,9 @@ public static partial class ExcelDataModelRelTool
                 message = $"Relationship from {fromTableName}.{fromColumnName} to {toTableName}.{toColumnName} created successfully"
             }, ExcelToolsBase.JsonOptions);
         }
+#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
         }
@@ -145,7 +147,9 @@ public static partial class ExcelDataModelRelTool
                 message = $"Relationship from {fromTableName}.{fromColumnName} to {toTableName}.{toColumnName} updated successfully"
             }, ExcelToolsBase.JsonOptions);
         }
+#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
         }
@@ -173,7 +177,9 @@ public static partial class ExcelDataModelRelTool
                 message = $"Relationship from {fromTableName}.{fromColumnName} to {toTableName}.{toColumnName} deleted successfully"
             }, ExcelToolsBase.JsonOptions);
         }
+#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
         }
