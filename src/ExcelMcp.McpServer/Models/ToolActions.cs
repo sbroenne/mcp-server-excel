@@ -420,4 +420,26 @@ public enum ChartConfigAction
     SetStyle
 }
 
+/// <summary>
+/// Actions available for excel_slicer tool
+/// </summary>
+/// <remarks>
+/// Slicers provide visual filtering controls for PivotTables and Tables.
+/// A slicer can be connected to multiple PivotTables sharing the same SlicerCache.
+/// </remarks>
+public enum SlicerAction
+{
+    /// <summary>Create a slicer for a PivotTable field</summary>
+    CreateSlicer,
+
+    /// <summary>List all slicers in workbook, optionally filtered by PivotTable</summary>
+    ListSlicers,
+
+    /// <summary>Set or clear slicer selection (filter)</summary>
+    SetSlicerSelection,
+
+    /// <summary>Delete a slicer from the workbook</summary>
+    DeleteSlicer
+}
+
 

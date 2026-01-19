@@ -424,4 +424,76 @@ public interface IPivotTableCommands
     /// OLAP ONLY: Works only with OLAP PivotTables (Data Model-based).
     /// </remarks>
     OperationResult DeleteCalculatedMember(IExcelBatch batch, string pivotTableName, string memberName);
+
+    // === SLICER OPERATIONS ===
+
+    /// <summary>
+    /// Creates a slicer for a PivotTable field.
+    /// Slicers provide visual filtering for PivotTable data.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Name of the PivotTable to create slicer for</param>
+    /// <param name="fieldName">Name of the field to use for the slicer</param>
+    /// <param name="slicerName">Name for the new slicer</param>
+    /// <param name="destinationSheet">Worksheet where slicer will be placed</param>
+    /// <param name="position">Top-left cell position for the slicer (e.g., "H2")</param>
+    /// <returns>Created slicer details with available items</returns>
+    /// <remarks>
+    /// SLICER BEHAVIOR:
+    /// - Slicers are visual filter controls that can filter one or more PivotTables
+    /// - One SlicerCache is created per field, which can have multiple visual Slicers
+    /// - Multiple PivotTables can be connected to the same SlicerCache
+    /// 
+    /// SUPPORTED:
+    /// - Regular PivotTables: Full support
+    /// - OLAP PivotTables: Full support (Data Model-based)
+    /// </remarks>
+    SlicerResult CreateSlicer(IExcelBatch batch, string pivotTableName,
+        string fieldName, string slicerName, string destinationSheet, string position);
+
+    /// <summary>
+    /// Lists all slicers in the workbook, optionally filtered by PivotTable.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Optional PivotTable name to filter slicers (null = all slicers)</param>
+    /// <returns>List of slicers with names, fields, positions, and selections</returns>
+    /// <remarks>
+    /// Returns slicers from all SlicerCaches in the workbook.
+    /// When pivotTableName is specified, only slicers connected to that PivotTable are returned.
+    /// </remarks>
+    SlicerListResult ListSlicers(IExcelBatch batch, string? pivotTableName = null);
+
+    /// <summary>
+    /// Sets the selection for a slicer, filtering the connected PivotTable(s).
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="slicerName">Name of the slicer to modify</param>
+    /// <param name="selectedItems">Items to select (show in PivotTable)</param>
+    /// <param name="clearFirst">If true, clears existing selection before setting new items (default: true)</param>
+    /// <returns>Updated slicer state with current selection</returns>
+    /// <remarks>
+    /// SELECTION BEHAVIOR:
+    /// - Only selected items are visible in connected PivotTable(s)
+    /// - Empty selectedItems list shows all items (clears filter)
+    /// - Invalid item names are ignored with a warning
+    /// 
+    /// MULTI-PIVOTTABLE:
+    /// - Selection change affects ALL PivotTables connected to this slicer
+    /// </remarks>
+    SlicerResult SetSlicerSelection(IExcelBatch batch, string slicerName,
+        List<string> selectedItems, bool clearFirst = true);
+
+    /// <summary>
+    /// Deletes a slicer from the workbook.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="slicerName">Name of the slicer to delete</param>
+    /// <returns>Operation result indicating success or failure</returns>
+    /// <remarks>
+    /// DELETION BEHAVIOR:
+    /// - Deletes the visual Slicer object
+    /// - If this is the last Slicer using the SlicerCache, the cache is also deleted
+    /// - Connected PivotTable filters are cleared when slicer is deleted
+    /// </remarks>
+    OperationResult DeleteSlicer(IExcelBatch batch, string slicerName);
 }

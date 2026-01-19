@@ -299,6 +299,14 @@ public static class ActionExtensions
         ChartConfigAction.SetStyle => "set-style",
         _ => throw new ArgumentException($"Unknown ChartConfigAction: {action}")
     };
-}
 
+    public static string ToActionString(this SlicerAction action) => action switch
+    {
+        SlicerAction.CreateSlicer => "create-slicer",
+        SlicerAction.ListSlicers => "list-slicers",
+        SlicerAction.SetSlicerSelection => "set-slicer-selection",
+        SlicerAction.DeleteSlicer => "delete-slicer",
+        _ => throw new ArgumentException($"Unknown SlicerAction: {action}")
+    };
+}
 

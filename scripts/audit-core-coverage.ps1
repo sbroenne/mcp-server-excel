@@ -209,6 +209,7 @@ function Find-InterfaceForEnum {
         # PivotTable sub-tools (all map to IPivotTableCommands)
         "PivotTableFieldAction" = "IPivotTableCommands"
         "PivotTableCalcAction" = "IPivotTableCommands"
+        "SlicerAction" = "IPivotTableCommands"
         
         # Chart sub-tools (all map to IChartCommands)
         "ChartConfigAction" = "IChartCommands"
@@ -403,7 +404,7 @@ if ($CheckNaming) {
         "WorksheetStyleAction",  # ISheetCommands sub-tools
         "DataModelRelAction",  # IDataModelCommands sub-tools
         "TableColumnAction",  # ITableCommands sub-tools
-        "PivotTableFieldAction", "PivotTableCalcAction",  # IPivotTableCommands sub-tools
+        "PivotTableFieldAction", "PivotTableCalcAction", "SlicerAction",  # IPivotTableCommands sub-tools
         "ChartConfigAction"  # IChartCommands sub-tools
     )
 
@@ -429,7 +430,8 @@ if ($CheckNaming) {
                                "SetFieldFilter", "SortField", "GroupByDate", "GroupByNumeric",
                                "CreateCalculatedField", "ListCalculatedFields", "DeleteCalculatedField",
                                "SetLayout", "SetSubtotals", "SetGrandTotals",
-                               "ListCalculatedMembers", "CreateCalculatedMember", "DeleteCalculatedMember")  # Methods moved to PivotTableField/PivotTableCalc
+                               "ListCalculatedMembers", "CreateCalculatedMember", "DeleteCalculatedMember",
+                               "CreateSlicer", "ListSlicers", "SetSlicerSelection", "DeleteSlicer")  # Methods moved to PivotTableField/PivotTableCalc/Slicer
         "ChartAction" = @("SetSourceRange", "AddSeries", "RemoveSeries", "SetChartType", "SetTitle",
                           "SetAxisTitle", "ShowLegend", "SetStyle")  # Methods moved to ChartConfigAction
     }
