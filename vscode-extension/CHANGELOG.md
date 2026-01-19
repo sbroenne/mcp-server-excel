@@ -4,6 +4,14 @@ All notable changes to the ExcelMcp VS Code extension will be documented in this
 
 ## [Unreleased]
 
+- **DMV Query Execution** (#353): Query Data Model metadata using Dynamic Management Views
+  - New `execute-dmv` action on `excel_datamodel` tool for DMV queries
+  - Query TMSCHEMA_MEASURES, TMSCHEMA_RELATIONSHIPS, DISCOVER_CALC_DEPENDENCY, etc.
+  - Returns column names and data rows as JSON
+  - Comprehensive LLM documentation with [Microsoft DMV reference](https://learn.microsoft.com/en-us/analysis-services/instances/use-dynamic-management-views-dmvs-to-monitor-analysis-services)
+
+## [1.5.4] - 2025-01-19
+
 - **DAX EVALUATE Query Execution** (#356): Execute DAX queries against the Data Model and return tabular results
   - New `evaluate` action on `excel_datamodel` tool for ad-hoc DAX queries
   - Supports all DAX table expressions: EVALUATE, SUMMARIZE, FILTER, TOPN, etc.

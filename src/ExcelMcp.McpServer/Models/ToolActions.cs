@@ -249,7 +249,8 @@ public enum DataModelAction
     DeleteTable,
     ReadInfo,
     Refresh,
-    Evaluate
+    Evaluate,
+    ExecuteDmv
 }
 
 /// <summary>

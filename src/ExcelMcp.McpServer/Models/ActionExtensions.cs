@@ -180,6 +180,7 @@ public static class ActionExtensions
         DataModelAction.ReadInfo => "read-info",
         DataModelAction.Refresh => "refresh",
         DataModelAction.Evaluate => "evaluate",
+        DataModelAction.ExecuteDmv => "execute-dmv",
         _ => throw new ArgumentException($"Unknown DataModelAction: {action}")
     };
 
