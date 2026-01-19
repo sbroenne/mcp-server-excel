@@ -2144,7 +2144,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                         dynamic? dataRange = listObject.DataBodyRange;
                         if (dataRange != null)
                         {
-                            object[,]? values = dataRange.Value2 as object[,];
+                            object[,]? values = dataRange.Value2;
                             if (values != null)
                             {
                                 int rows = values.GetLength(0);
@@ -2642,9 +2642,6 @@ in
                 const int xlExternal = 2;
                 const int xlPivotTableVersion15 = 5; // Excel 2013+
 
-                // Use connection to Data Model
-                string pivotConnString = $"Data Model;DSN=Excel Data Model;Provider=MSDASQL;";
-
                 try
                 {
                     pivotCache = pivotCaches.Create(
@@ -2985,7 +2982,7 @@ in
                 dynamic? headerRange = listObject.HeaderRowRange;
                 if (headerRange != null)
                 {
-                    object[,]? headers = headerRange.Value2 as object[,];
+                    object[,]? headers = headerRange.Value2;
                     if (headers != null)
                     {
                         var headerList = new List<string>();
@@ -3001,7 +2998,7 @@ in
                 dynamic? dataRange = listObject.DataBodyRange;
                 if (dataRange != null)
                 {
-                    object[,]? data = dataRange.Value2 as object[,];
+                    object[,]? data = dataRange.Value2;
                     if (data != null)
                     {
                         int rows = data.GetLength(0);
@@ -3115,7 +3112,7 @@ in
                         dynamic? body = newListObject.DataBodyRange;
                         if (body != null)
                         {
-                            object[,]? data = body.Value2 as object[,];
+                            object[,]? data = body.Value2;
                             if (data != null)
                             {
                                 _output.WriteLine($"Table has {data.GetLength(0)} data rows");

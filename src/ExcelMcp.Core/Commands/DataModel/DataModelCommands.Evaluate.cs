@@ -91,7 +91,7 @@ public partial class DataModelCommands
                 }
 
                 // Read all rows from the recordset
-                while (!(bool)recordset.EOF)
+                while (!recordset.EOF)
                 {
                     var row = new List<object?>();
 
