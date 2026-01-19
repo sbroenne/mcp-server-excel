@@ -49,11 +49,14 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
             "update-measure" => ExecuteUpdateMeasure(batch, settings),
             "delete-measure" => ExecuteDeleteMeasure(batch, settings),
             "rename-table" => ExecuteRenameTable(batch, settings),
+            "delete-table" => ExecuteDeleteTable(batch, settings),
             "list-relationships" => WriteResult(_dataModelCommands.ListRelationships(batch)),
+            "read-relationship" or "get-relationship" => ExecuteReadRelationship(batch, settings),
             "create-relationship" => ExecuteCreateRelationship(batch, settings),
             "update-relationship" => ExecuteUpdateRelationship(batch, settings),
             "delete-relationship" => ExecuteDeleteRelationship(batch, settings),
             "refresh" => ExecuteRefresh(batch, settings),
+            "evaluate" => ExecuteEvaluate(batch, settings),
             _ => ReportUnknown(action)
         };
     }
@@ -93,6 +96,26 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
         }
 
         return WriteResult(_dataModelCommands.RenameTable(batch, table, newName));
+    }
+
+    private int ExecuteDeleteTable(IExcelBatch batch, Settings settings)
+    {
+        if (!TryGetTable(settings, out var table))
+        {
+            return -1;
+        }
+
+        try
+        {
+            _dataModelCommands.DeleteTable(batch, table);
+            _console.WriteJson(new { success = true, message = $"Table '{table}' deleted successfully" });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Error deleting table: {ex.Message}");
+            return -1;
+        }
     }
 
     private int ExecuteListMeasures(IExcelBatch batch, Settings settings)
@@ -189,6 +212,16 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
         }
     }
 
+    private int ExecuteReadRelationship(IExcelBatch batch, Settings settings)
+    {
+        if (!TryGetRelationshipEndpoints(settings, out var fromTable, out var fromColumn, out var toTable, out var toColumn))
+        {
+            return -1;
+        }
+
+        return WriteResult(_dataModelCommands.ReadRelationship(batch, fromTable, fromColumn, toTable, toColumn));
+    }
+
     private int ExecuteCreateRelationship(IExcelBatch batch, Settings settings)
     {
         if (!TryGetRelationshipEndpoints(settings, out var fromTable, out var fromColumn, out var toTable, out var toColumn))
@@ -270,6 +303,17 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
             _console.WriteError($"Error refreshing Data Model: {ex.Message}");
             return -1;
         }
+    }
+
+    private int ExecuteEvaluate(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.DaxQuery))
+        {
+            _console.WriteError("--dax-query is required for evaluate.");
+            return -1;
+        }
+
+        return WriteResult(_dataModelCommands.Evaluate(batch, settings.DaxQuery));
     }
 
     private bool TryGetTable(Settings settings, out string tableName)
@@ -373,5 +417,8 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
 
         [CommandOption("--timeout-seconds <SECONDS>")]
         public int? TimeoutSeconds { get; init; }
+
+        [CommandOption("--dax-query <QUERY>")]
+        public string? DaxQuery { get; init; }
     }
 }

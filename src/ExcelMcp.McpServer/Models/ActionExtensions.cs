@@ -179,6 +179,7 @@ public static class ActionExtensions
         DataModelAction.DeleteTable => "delete-table",
         DataModelAction.ReadInfo => "read-info",
         DataModelAction.Refresh => "refresh",
+        DataModelAction.Evaluate => "evaluate",
         _ => throw new ArgumentException($"Unknown DataModelAction: {action}")
     };
 
@@ -206,6 +207,9 @@ public static class ActionExtensions
         TableAction.Append => "append",
         TableAction.GetData => "get-data",
         TableAction.AddToDataModel => "add-to-datamodel",
+        TableAction.CreateFromDax => "create-from-dax",
+        TableAction.UpdateDax => "update-dax",
+        TableAction.GetDax => "get-dax",
         _ => throw new ArgumentException($"Unknown TableAction: {action}")
     };
 

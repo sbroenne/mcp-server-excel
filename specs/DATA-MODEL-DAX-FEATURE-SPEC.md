@@ -1638,3 +1638,238 @@ All Phase 4.1-4.3 success criteria met:
 
 **Conclusion:** Phase 4 TOM API implementation successfully delivers advanced Data Model CRUD operations while maintaining architectural consistency, security standards, and LLM-optimized workflows established in the ExcelMcp codebase.
 
+---
+
+## Phase 5: DAX EVALUATE Query Execution (RESEARCH COMPLETE)
+
+### Research Summary (January 2026)
+
+**Status:** Research complete. Implementation approach validated via diagnostic tests. Ready for implementation.
+
+**Issue Reference:** [#356 - Add DAX EVALUATE query execution to excel_datamodel tool](https://github.com/sbroenne/mcp-server-excel/issues/356)
+
+### Background
+
+Previously, DAX query execution was believed to be blocked due to Excel COM API limitations. CUBEVALUE/CUBEMEMBER worksheet functions fail with "Unable to connect to the server" errors because Excel's INPROC transport for embedded Analysis Services rejects connections from the same process.
+
+**Research Breakthrough:** Diagnostic tests (Scenarios 14-16 in `DataModelComApiBehaviorTests.cs`) discovered that DAX queries CAN be executed through alternative COM APIs that bypass the CUBEVALUE limitation.
+
+### Validated Approaches
+
+#### Approach 1: ADOConnection.Execute (Best for Pure Query Results)
+
+```csharp
+// Get the Data Model's ADO connection
+dynamic model = workbook.Model;
+dynamic dataModelConn = model.DataModelConnection;
+dynamic modelConn = dataModelConn.ModelConnection;
+dynamic adoConnection = modelConn.ADOConnection;
+
+// Execute DAX EVALUATE query
+string daxQuery = "EVALUATE TOPN(10, 'Sales', 'Sales'[Amount], DESC)";
+dynamic recordset = adoConnection.Execute(daxQuery);
+
+// Read results from ADO Recordset
+var results = new List<Dictionary<string, object>>();
+while (!recordset.EOF)
+{
+    var row = new Dictionary<string, object>();
+    for (int i = 0; i < recordset.Fields.Count; i++)
+    {
+        row[recordset.Fields.Item(i).Name] = recordset.Fields.Item(i).Value;
+    }
+    results.Add(row);
+    recordset.MoveNext();
+}
+```
+
+**Characteristics:**
+- Returns data directly without creating worksheet objects
+- Best for read-only query execution
+- Results include fully-qualified column names: `TableName[ColumnName]`
+- Provider: `MSOLAP.8` (Analysis Services OLE DB)
+- Data Source: `$Embedded$` (in-process model)
+
+#### Approach 2: DAX-Backed Excel Tables (Best for Persistent Results)
+
+```csharp
+// Create model workbook connection
+dynamic modelWbConn = model.CreateModelWorkbookConnection("TableName");
+dynamic modelConnection = modelWbConn.ModelConnection;
+
+// Configure for DAX query
+modelConnection.CommandType = 8;  // xlCmdDAX
+modelConnection.CommandText = "EVALUATE SUMMARIZECOLUMNS(...)";
+modelWbConn.Refresh();
+
+// Create Excel Table backed by DAX query
+dynamic listObject = sheet.ListObjects.Add(
+    4,              // xlSrcModel
+    modelWbConn,
+    true,           // HasHeaders
+    1,              // xlYes
+    destRange
+);
+listObject.Refresh();
+```
+
+**Characteristics:**
+- Creates persistent Excel Table linked to Data Model
+- Table refreshes when Data Model refreshes
+- Best for dashboards, reports, analysis sheets
+- Data stays synchronized with underlying model
+
+### Proposed Feature Design
+
+#### New `excel_datamodel` Action: `evaluate`
+
+**Purpose:** Execute DAX EVALUATE queries and return results as JSON
+
+**Parameters:**
+- `daxQuery` (required): The DAX EVALUATE expression
+- `maxRows` (optional): Maximum rows to return (default: 1000)
+
+**Example:**
+```json
+{
+  "action": "evaluate",
+  "sessionId": "abc123",
+  "daxQuery": "EVALUATE TOPN(100, 'Sales', 'Sales'[Amount], DESC)",
+  "maxRows": 100
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "columns": ["Sales[Date]", "Sales[Amount]", "Sales[Customer]"],
+  "rows": [
+    {"Sales[Date]": "2024-01-15", "Sales[Amount]": 9999.99, "Sales[Customer]": "Acme Corp"},
+    ...
+  ],
+  "rowCount": 100,
+  "truncated": false
+}
+```
+
+#### New `excel_table` Action: `create-from-dax`
+
+**Purpose:** Create an Excel Table populated by a DAX EVALUATE query
+
+**Parameters:**
+- `daxQuery` (required): The DAX EVALUATE expression
+- `tableName` (required): Name for the new Excel Table
+- `sheetName` (optional): Target worksheet (default: new sheet)
+- `targetCellAddress` (optional): Starting cell (default: A1)
+
+**Example:**
+```json
+{
+  "action": "create-from-dax",
+  "sessionId": "abc123",
+  "daxQuery": "EVALUATE SUMMARIZECOLUMNS('Sales'[Region], \"Total\", SUM('Sales'[Amount]))",
+  "tableName": "SalesByRegion",
+  "sheetName": "Summary"
+}
+```
+
+#### New `excel_table` Action: `update-dax`
+
+**Purpose:** Update the DAX query for an existing DAX-backed Excel Table
+
+**Parameters:**
+- `tableName` (required): Name of the existing DAX-backed table
+- `daxQuery` (required): The new DAX EVALUATE expression
+
+**Example:**
+```json
+{
+  "action": "update-dax",
+  "sessionId": "abc123",
+  "tableName": "SalesByRegion",
+  "daxQuery": "EVALUATE SUMMARIZECOLUMNS('Sales'[Region], 'Sales'[Year], \"Total\", SUM('Sales'[Amount]))"
+}
+```
+
+**Implementation:**
+```csharp
+// Get the table's underlying connection
+dynamic listObject = FindTable(sheet, tableName);
+dynamic tableObject = listObject.TableObject;
+dynamic workbookConnection = tableObject.WorkbookConnection;
+dynamic modelConnection = workbookConnection.ModelConnection;
+
+// Update the DAX query
+modelConnection.CommandText = daxQuery;
+
+// Refresh to apply the new query
+workbookConnection.Refresh();
+listObject.Refresh();
+```
+
+#### New `excel_table` Action: `get-dax`
+
+**Purpose:** Get the DAX query backing an existing DAX-backed Excel Table
+
+**Parameters:**
+- `tableName` (required): Name of the DAX-backed table
+
+**Example:**
+```json
+{
+  "action": "get-dax",
+  "sessionId": "abc123",
+  "tableName": "SalesByRegion"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "tableName": "SalesByRegion",
+  "daxQuery": "EVALUATE SUMMARIZECOLUMNS('Sales'[Region], \"Total\", SUM('Sales'[Amount]))",
+  "commandType": "xlCmdDAX",
+  "lastRefreshed": "2026-01-18T10:30:00Z"
+}
+```
+
+### Key API Constants
+
+```csharp
+// XlListObjectSourceType enumeration
+const int xlSrcModel = 4;        // PowerPivot Data Model source
+
+// XlCmdType enumeration  
+const int xlCmdDAX = 8;          // DAX command type (Excel 2013+)
+const int xlCmdTable = 3;        // Table command type
+```
+
+### Implementation Notes
+
+1. **Error Handling:** DAX syntax errors come from MSOLAP provider - parse error messages for user-friendly feedback
+2. **Large Results:** Implement pagination or maxRows limit to prevent memory issues
+3. **Column Names:** ADO Recordset returns `TableName[ColumnName]` format - consider offering simplified names option
+4. **Connection Cleanup:** ADO Recordset and connection must be properly released (COM objects)
+5. **Thread Safety:** Use existing batch/session pattern for STA thread management
+
+### Test Evidence
+
+- `Scenario14_XlSrcModelDirectListObjectAdd_ExpectToFail` - Proves direct approach fails
+- `Scenario15_CreateModelWorkbookConnectionDAXQuery_ExpectSuccess` - Validates ADOConnection approach
+- `Scenario16_DaxBackedExcelTable_ExpectSuccess` - Validates ListObjects.Add with DAX
+
+### Related Documentation
+
+- [COM-API-BEHAVIOR-FINDINGS.md](../docs/COM-API-BEHAVIOR-FINDINGS.md) - Detailed test findings
+- [Issue #356](https://github.com/sbroenne/mcp-server-excel/issues/356) - Feature request
+
+### Implementation Priority: HIGH
+
+This feature enables powerful BI workflows:
+- Ad-hoc DAX queries for data exploration
+- Automated report generation with DAX aggregations
+- Creating summary tables from complex Data Model calculations
+- AI-assisted data analysis with natural language → DAX → results
+

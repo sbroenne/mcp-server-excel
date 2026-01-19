@@ -154,12 +154,9 @@ public static partial class ExcelPivotTableCalcTool
             throw new ArgumentException("formula is required for create-calculated-member action", nameof(formula));
 
         CalculatedMemberType type = CalculatedMemberType.Measure;
-        if (!string.IsNullOrEmpty(memberType))
+        if (!string.IsNullOrEmpty(memberType) && !Enum.TryParse(memberType, true, out type))
         {
-            if (!Enum.TryParse(memberType, true, out type))
-            {
-                throw new ArgumentException($"Invalid memberType '{memberType}'. Valid: Member, Set, Measure", nameof(memberType));
-            }
+            throw new ArgumentException($"Invalid memberType '{memberType}'. Valid: Member, Set, Measure", nameof(memberType));
         }
 
         var result = ExcelToolsBase.WithSession(sessionId,

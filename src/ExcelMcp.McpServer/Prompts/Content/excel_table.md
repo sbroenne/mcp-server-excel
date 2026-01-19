@@ -18,6 +18,27 @@ To analyze worksheet data with DAX measures:
 - append: Add rows to existing table (CSV format via style parameter)
 - resize: Change table range (expand/contract)
 - delete: Remove table (keeps data, removes table formatting)
+- **create-from-dax**: Create table populated by a DAX EVALUATE query from Data Model
+- **update-dax**: Update an existing DAX-backed table's query
+- **get-dax**: Get the DAX query behind a DAX-backed table
+
+**DAX-backed tables** (NEW):
+
+Create worksheet tables populated by DAX EVALUATE queries against the Data Model.
+Perfect for creating summary/report tables with aggregated data.
+
+```
+Workflow:
+1. Have data in Data Model (via excel_table add-to-datamodel or excel_powerquery)
+2. Use create-from-dax with a DAX EVALUATE query
+3. Table is created on worksheet with query results
+4. Use update-dax to change the query, get-dax to inspect it
+```
+
+Example DAX queries for create-from-dax:
+- `EVALUATE SUMMARIZE('Sales', 'Sales'[Region], "Total", SUM('Sales'[Amount]))`
+- `EVALUATE TOPN(10, 'Products', 'Products'[Revenue], DESC)`
+- `EVALUATE FILTER('Customers', 'Customers'[Country] = "USA")`
 
 **add-to-datamodel behavior**:
 

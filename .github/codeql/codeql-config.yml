@@ -1,14 +1,11 @@
 # CodeQL Configuration for ExcelMcp
 # Defines security scanning rules and exclusions
-# Version: 3.0 - Comprehensive COM interop pattern suppressions
+# Version: 4.0 - Exclude test code from analysis (production code only)
 #
 # Summary of Intentional Exclusions:
-# - cs/catch-of-all-exceptions: COM requires broad exception handling
-# - cs/empty-catch-block: Cleanup must not fail operations
+# - tests/**: Test code doesn't ship to production
+# - cs/catch-of-all-exceptions: MCP/CLI require broad exception handling
 # - cs/call-to-gc: Required for COM resource management
-# - cs/nested-if-statements: Complex validation requires nested conditions
-# - cs/dereferenced-value-may-be-null: Custom validation patterns
-# - cs/useless-upcast: COM dynamic types require explicit casts
 # - cs/invalid-dynamic-call: COM interop uses dynamic extensively
 #
 # See CODEQL-FIXES-SUMMARY.md for detailed rationale
@@ -36,52 +33,14 @@ paths-ignore:
   - '**/*.g.i.cs'
   - '**/AssemblyInfo.cs'
   - '**/TemporaryGeneratedFile_*.cs'
+  - 'tests/**'  # Test code doesn't ship to production
 
-# Paths to explicitly include
+# Paths to explicitly include (production code only)
 paths:
   - 'src/**'
-  - 'tests/**'
 
 # Query filters - Suppress intentional patterns
 query-filters:
-  # ============================================================================
-  # TEST CODE: Generic Exception Catches
-  # Test cleanup code catches all exceptions to ensure proper teardown.
-  # Pragmas are used for C# compiler, but CodeQL ignores them.
-  # ============================================================================
-  - exclude:
-      id: cs/catch-of-all-exceptions
-      paths:
-        - tests/**
-
-  # ============================================================================
-  # TEST CODE: Dynamic COM Calls
-  # Diagnostic tests explore Excel COM API behavior using dynamic calls.
-  # These are valid COM method invocations that CodeQL cannot verify.
-  # ============================================================================
-  - exclude:
-      id: cs/invalid-dynamic-call
-      paths:
-        - tests/**
-
-  # ============================================================================
-  # TEST CODE: Empty Catch Blocks
-  # Test cleanup code has empty catch blocks for best-effort cleanup.
-  # ============================================================================
-  - exclude:
-      id: cs/empty-catch-block
-      paths:
-        - tests/**
-
-  # ============================================================================
-  # TEST CODE: Complex Blocks
-  # Diagnostic tests intentionally explore many scenarios in single methods.
-  # ============================================================================
-  - exclude:
-      id: cs/complex-block
-      paths:
-        - tests/**
-
   # ============================================================================
   # INTENTIONAL PATTERN: Generic Exception Catches in MCP Tools
   # MCP protocol requires tools to return JSON responses for ALL errors.
@@ -133,16 +92,6 @@ query-filters:
       id: cs/call-to-gc
       paths:
         - src/ExcelMcp.ComInterop/**
-
-  # ============================================================================
-  # TEST CODE: Path.Combine with User Input
-  # Test code constructs paths from test parameters. This is safe because
-  # tests run in isolated temp directories with controlled inputs.
-  # ============================================================================
-  - exclude:
-      id: cs/path-combine
-      paths:
-        - tests/**
 
   # ============================================================================
   # AUTO-GENERATED CODE: Regex Generator
