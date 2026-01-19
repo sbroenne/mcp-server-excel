@@ -136,7 +136,9 @@ ExcelMcp.McpServer.LLM.Tests/
 │   ├── excel-file-worksheet-test.yaml     # File and worksheet lifecycle
 │   ├── excel-range-test.yaml              # Range data operations
 │   ├── excel-table-test.yaml              # Table operations
-│   └── excel-incremental-update-test.yaml # Incremental update validation
+│   ├── excel-slicer-test.yaml             # PivotTable and Table slicers
+│   ├── excel-powerquery-datamodel-test.yaml  # Complete BI workflow
+│   └── excel-modification-patterns-test.yaml # Incremental update validation
 ├── output/                                # Test artifacts (git-ignored)
 ├── Run-LLMTests.ps1                       # PowerShell test runner
 ├── llm-tests.config.json                  # Shared configuration defaults
@@ -153,7 +155,9 @@ ExcelMcp.McpServer.LLM.Tests/
 | `excel-file-worksheet-test.yaml` | excel_file, excel_worksheet | File lifecycle and worksheet operations |
 | `excel-range-test.yaml` | excel_range | Get/set values, 2D array format |
 | `excel-table-test.yaml` | excel_table | Table creation and data operations |
-| `excel-incremental-update-test.yaml` | excel_range | Validates LLM uses incremental updates |
+| `excel-slicer-test.yaml` | excel_slicer, excel_table, excel_pivottable | PivotTable and Table slicer operations |
+| `excel-powerquery-datamodel-test.yaml` | excel_powerquery, excel_datamodel, excel_pivottable | Complete BI workflow |
+| `excel-modification-patterns-test.yaml` | excel_range | Validates LLM uses incremental updates |
 
 ## Test Isolation
 
