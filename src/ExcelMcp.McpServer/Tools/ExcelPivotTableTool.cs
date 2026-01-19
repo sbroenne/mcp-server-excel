@@ -17,6 +17,11 @@ public static partial class ExcelPivotTableTool
     /// <summary>
     /// PivotTable lifecycle management: create from various sources, list, read details, refresh, and delete.
     ///
+    /// BEST PRACTICE: Use 'list' before creating. Prefer 'refresh' or field modifications over delete+recreate.
+    /// Delete+recreate loses field configurations, filters, sorting, and custom layouts.
+    ///
+    /// LAYOUT: Use excel_pivottable_calc set-layout action (0=Compact, 1=Tabular, 2=Outline).
+    ///
     /// CREATE OPTIONS:
     /// - create-from-range: Use sourceSheetName and sourceRangeAddress for data range
     /// - create-from-table: Use sourceTableName for an Excel Table (ListObject)

@@ -15,6 +15,10 @@ public static partial class ExcelRangeTool
     /// <summary>
     /// Core range operations: get/set values and formulas, copy ranges, clear content, and discover data regions.
     ///
+    /// BEST PRACTICE: Use 'get-values' to check existing data before overwriting.
+    /// Use 'clear-contents' (not 'clear-all') to preserve cell formatting when clearing data.
+    /// set-values preserves existing formatting; use set-number-format after if format change needed.
+    ///
     /// DATA FORMAT: values and formulas are 2D JSON arrays representing rows and columns.
     /// Example: [[row1col1, row1col2], [row2col1, row2col2]]
     /// Single cell returns [[value]] (always 2D).

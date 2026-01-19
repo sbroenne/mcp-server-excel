@@ -15,6 +15,11 @@ public static partial class TableTool
     /// <summary>
     /// Excel Tables (ListObjects) - lifecycle and data operations.
     ///
+    /// BEST PRACTICE: Use 'list' to check existing tables before creating.
+    /// Prefer 'append'/'resize'/'rename' over delete+recreate to preserve references.
+    ///
+    /// WARNING: Deleting tables used as PivotTable sources or in Data Model relationships will break those objects.
+    ///
     /// CREATING TABLES: Specify sheetName, tableName, and rangeAddress. Set hasHeaders=true if first row contains headers.
     ///
     /// DATA MODEL WORKFLOW: To analyze worksheet data with DAX/Power Pivot:
