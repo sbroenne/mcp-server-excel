@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**21 specialized tools with 186 operations for comprehensive Excel automation**
+**21 specialized tools with 187 operations for comprehensive Excel automation**
 
 ---
 
@@ -33,7 +33,7 @@
 
 ---
 
-## 📊 Data Model & DAX (Power Pivot) (18 operations)
+## 📊 Data Model & DAX (Power Pivot) (19 operations)
 
 - **List Tables:** Discover all tables in the Data Model
 - **Read Table:** Get specific table information
@@ -53,6 +53,7 @@
 - **Refresh:** Refresh entire Data Model
 - **List Workbook Connections:** List Power Query sources available for integration
 - **Evaluate:** Execute DAX EVALUATE queries and return tabular results (for ad-hoc analysis)
+- **Execute DMV:** Execute SQL-like DMV (Dynamic Management View) queries for metadata discovery
 
 **Automatic DAX Formatting:** DAX formulas are automatically formatted on write operations (CreateMeasure, UpdateMeasure) using the official Dax.Formatter library (SQLBI). Read operations return raw DAX as stored in Excel. Formatting adds ~100-500ms network latency but dramatically improves readability. Graceful fallback returns original DAX if formatting fails.
 

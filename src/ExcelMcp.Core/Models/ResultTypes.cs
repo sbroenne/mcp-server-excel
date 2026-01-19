@@ -1857,6 +1857,45 @@ public class DaxEvaluateResult : ResultBase
 }
 
 /// <summary>
+/// Result for DMV (Dynamic Management View) query execution
+/// </summary>
+/// <remarks>
+/// Property names: dmv=DmvQuery, cols=Columns, rows=Rows, rc=RowCount, cc=ColumnCount
+/// </remarks>
+public class DmvQueryResult : ResultBase
+{
+    /// <summary>
+    /// The DMV query that was executed
+    /// </summary>
+    [JsonPropertyName("dmv")]
+    public string DmvQuery { get; set; } = "";
+
+    /// <summary>
+    /// Column names from the query result
+    /// </summary>
+    [JsonPropertyName("cols")]
+    public List<string> Columns { get; set; } = [];
+
+    /// <summary>
+    /// Data rows from the query result (2D array matching Columns order)
+    /// </summary>
+    [JsonPropertyName("rows")]
+    public List<List<object?>> Rows { get; set; } = [];
+
+    /// <summary>
+    /// Number of rows returned
+    /// </summary>
+    [JsonPropertyName("rc")]
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns returned
+    /// </summary>
+    [JsonPropertyName("cc")]
+    public int ColumnCount { get; set; }
+}
+
+/// <summary>
 /// Result for getting DAX query information from a table
 /// </summary>
 /// <remarks>

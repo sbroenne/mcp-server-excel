@@ -214,5 +214,25 @@ public interface IDataModelCommands
     /// <exception cref="ArgumentException">Thrown when daxQuery is empty</exception>
     /// <exception cref="InvalidOperationException">Thrown when workbook has no Data Model or query execution fails</exception>
     DaxEvaluateResult Evaluate(IExcelBatch batch, string daxQuery);
+
+    /// <summary>
+    /// Executes a DMV (Dynamic Management View) query against the Data Model and returns the results.
+    /// Uses ADOConnection.Execute for SQL-like DMV query execution via MSOLAP provider.
+    /// DMV queries retrieve metadata about the Data Model (tables, columns, measures, relationships, etc.).
+    /// </summary>
+    /// <param name="batch">Excel batch context for accessing workbook</param>
+    /// <param name="dmvQuery">DMV query in SQL-like syntax (e.g., "SELECT * FROM $SYSTEM.TMSCHEMA_TABLES")</param>
+    /// <returns>Result containing column names and data rows from the DMV query</returns>
+    /// <exception cref="ArgumentException">Thrown when dmvQuery is empty</exception>
+    /// <exception cref="InvalidOperationException">Thrown when workbook has no Data Model or query execution fails</exception>
+    /// <remarks>
+    /// Common DMV queries for Excel PowerPivot:
+    /// - $SYSTEM.TMSCHEMA_TABLES - List all tables
+    /// - $SYSTEM.TMSCHEMA_COLUMNS - List all columns
+    /// - $SYSTEM.TMSCHEMA_MEASURES - List all measures
+    /// - $SYSTEM.TMSCHEMA_RELATIONSHIPS - List all relationships
+    /// - $SYSTEM.DISCOVER_CALC_DEPENDENCY - Show calculation dependencies
+    /// </remarks>
+    DmvQueryResult ExecuteDmv(IExcelBatch batch, string dmvQuery);
 }
 

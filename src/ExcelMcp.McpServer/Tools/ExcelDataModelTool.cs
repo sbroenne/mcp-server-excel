@@ -33,6 +33,14 @@ public static partial class ExcelDataModelTool
     /// - Supports complex DAX: SUMMARIZE, FILTER, CALCULATETABLE, TOPN, etc.
     /// - Results can be used for analysis or to create DAX-backed tables via excel_table
     ///
+    /// DMV (DYNAMIC MANAGEMENT VIEW) QUERIES:
+    /// - Use 'execute-dmv' action to query Data Model metadata via SQL-like syntax
+    /// - Syntax: SELECT * FROM $SYSTEM.SchemaRowset (ONLY SELECT * supported, not specific columns)
+    /// - WORKING DMVs: TMSCHEMA_MEASURES, TMSCHEMA_RELATIONSHIPS, DISCOVER_CALC_DEPENDENCY, DBSCHEMA_CATALOGS
+    /// - LIMITED DMVs: TMSCHEMA_TABLES, TMSCHEMA_COLUMNS may return empty in Excel's embedded AS
+    /// - Use DISCOVER_SCHEMA_ROWSETS to list all available DMVs
+    /// - See MS docs: https://learn.microsoft.com/analysis-services/instances/use-dynamic-management-views-dmvs
+    ///
     /// PERFORMANCE:
     /// - Formatting adds ~100-500ms network latency per operation (daxformatter.com API)
     /// - Graceful fallback: returns original DAX if formatting fails (no operation failures)
@@ -54,6 +62,7 @@ public static partial class ExcelDataModelTool
     /// <param name="newTableName">New name for rename-table action</param>
     /// <param name="daxFormula">DAX formula for the measure, e.g., 'SUM(Sales[Amount])'</param>
     /// <param name="daxQuery">DAX EVALUATE query for evaluate action, e.g., 'EVALUATE TableName'</param>
+    /// <param name="dmvQuery">DMV query for execute-dmv action. Use SELECT * FROM $SYSTEM.TMSCHEMA_MEASURES or DISCOVER_CALC_DEPENDENCY</param>
     /// <param name="description">Optional description for the measure</param>
     /// <param name="formatString">Number format code in US format, e.g., '#,##0.00' for currency</param>
     [McpServerTool(Name = "excel_datamodel", Title = "Excel Data Model Operations")]
@@ -67,6 +76,7 @@ public static partial class ExcelDataModelTool
         [DefaultValue(null)] string? newTableName,
         [DefaultValue(null)] string? daxFormula,
         [DefaultValue(null)] string? daxQuery,
+        [DefaultValue(null)] string? dmvQuery,
         [DefaultValue(null)] string? description,
         [DefaultValue(null)] string? formatString)
     {
@@ -92,6 +102,7 @@ public static partial class ExcelDataModelTool
                     DataModelAction.CreateMeasure => CreateMeasureAction(dataModelCommands, sessionId, tableName, measureName, daxFormula, formatString, description),
                     DataModelAction.UpdateMeasure => UpdateMeasureAction(dataModelCommands, sessionId, measureName, daxFormula, formatString, description),
                     DataModelAction.Evaluate => EvaluateAction(dataModelCommands, sessionId, daxQuery),
+                    DataModelAction.ExecuteDmv => ExecuteDmvAction(dataModelCommands, sessionId, dmvQuery),
                     _ => throw new ArgumentException(
                         $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
@@ -460,6 +471,42 @@ public static partial class ExcelDataModelTool
         {
             result.Success,
             result.DaxQuery,
+            result.Columns,
+            result.Rows,
+            result.RowCount,
+            result.ColumnCount,
+            result.ErrorMessage,
+            isError = !result.Success
+        }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string ExecuteDmvAction(DataModelCommands commands, string sessionId, string? dmvQuery)
+    {
+        if (string.IsNullOrWhiteSpace(dmvQuery))
+        {
+            throw new ArgumentException("dmvQuery is required for execute-dmv action", nameof(dmvQuery));
+        }
+
+        DmvQueryResult result;
+
+        try
+        {
+            result = ExcelToolsBase.WithSession(sessionId, batch => commands.ExecuteDmv(batch, dmvQuery));
+        }
+        catch (TimeoutException ex)
+        {
+            result = new DmvQueryResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message,
+                DmvQuery = dmvQuery
+            };
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.DmvQuery,
             result.Columns,
             result.Rows,
             result.RowCount,

@@ -57,6 +57,7 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
             "delete-relationship" => ExecuteDeleteRelationship(batch, settings),
             "refresh" => ExecuteRefresh(batch, settings),
             "evaluate" => ExecuteEvaluate(batch, settings),
+            "execute-dmv" => ExecuteDmv(batch, settings),
             _ => ReportUnknown(action)
         };
     }
@@ -316,6 +317,17 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
         return WriteResult(_dataModelCommands.Evaluate(batch, settings.DaxQuery));
     }
 
+    private int ExecuteDmv(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.DmvQuery))
+        {
+            _console.WriteError("--dmv-query is required for execute-dmv.");
+            return -1;
+        }
+
+        return WriteResult(_dataModelCommands.ExecuteDmv(batch, settings.DmvQuery));
+    }
+
     private bool TryGetTable(Settings settings, out string tableName)
     {
         tableName = settings.TableName?.Trim() ?? string.Empty;
@@ -420,5 +432,8 @@ internal sealed class DataModelCommand : Command<DataModelCommand.Settings>
 
         [CommandOption("--dax-query <QUERY>")]
         public string? DaxQuery { get; init; }
+
+        [CommandOption("--dmv-query <QUERY>")]
+        public string? DmvQuery { get; init; }
     }
 }

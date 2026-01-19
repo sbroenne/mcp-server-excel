@@ -15,7 +15,7 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time.
 
-**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. CLI has 13 command categories with 186 operations matching the MCP Server (21 tools with 186 operations).
+**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. CLI has 13 command categories with 187 operations matching the MCP Server (21 tools with 187 operations).
 
 **Requirements:** Windows OS + Excel 2016+
 
@@ -53,7 +53,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 ## 🛠️ What You Can Do
 
-**21 specialized tools with 186 operations:**
+**21 specialized tools with 187 operations:**
 
 - 🔄 **Power Query** (1 tool, 10 ops) - Atomic workflows, M code management, load destinations
 - 📊 **Data Model/DAX** (2 tools, 17 ops) - Measures, relationships, model structure
@@ -68,7 +68,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 - 📁 **Files** (1 tool, 6 ops) - Session management and workbook creation
 - 🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
 
-📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 186 operations
+📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 187 operations
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot, Claude, or ChatGPT
