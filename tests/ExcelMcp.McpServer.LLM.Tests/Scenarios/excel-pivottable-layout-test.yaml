@@ -39,6 +39,15 @@ providers:
     retry:
       retry_on_429: true
       max_retries: 5
+  - name: azure-openai-gpt52
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-5.2-chat
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+    retry:
+      retry_on_429: true
+      max_retries: 5
   - name: azure-openai-judge
     type: AZURE
     auth_type: entra_id
@@ -70,6 +79,23 @@ agents:
     clarification_detection:
       enabled: true
       judge_provider: azure-openai-judge
+  - name: gpt52-agent
+    servers:
+      - name: excel-mcp
+    provider: azure-openai-gpt52
+    system_prompt: |
+      You are {{AGENT_NAME}}, an Excel automation agent using {{PROVIDER_NAME}}.
+
+      RULES:
+      - Execute tasks immediately without asking for confirmation
+      - Never ask clarifying questions - make reasonable assumptions and proceed
+      - Never show Excel to the user - keep it hidden
+      - Format Excel files professionally (proper column widths, headers, number formats, cell styles)
+      - Always format data ranges as Excel Tables (not plain ranges)
+      - Report results after completion
+    clarification_detection:
+      enabled: true
+      judge_provider: azure-openai-judge
 
 settings:
   verbose: true
@@ -84,7 +110,7 @@ sessions:
     tests:
       - name: "Create PivotTable with Tabular layout"
         prompt: |
-          I need to create a PivotTable that I can easily copy to other applications.
+          I need to create a PivotTable that I can easily copy-paste into a database or CSV export tool. Each field should be in its own column so the data is flat and easy to work with in other applications.
 
           Create a new Excel file at {{TEST_RESULTS_PATH}}/pivottable-tabular-{{randomValue type='UUID'}}.xlsx
 
@@ -101,9 +127,7 @@ sessions:
 
           Convert it to a table called "SalesData".
 
-          Then create a PivotTable on a new sheet called "Analysis" at cell A3 named "SalesPivot".
-
-          IMPORTANT: Use Tabular layout (layoutStyle=1) when creating the PivotTable - this puts each field in its own column, which is best for exporting to other tools.
+          Then create a PivotTable on a new sheet called "Analysis" at cell A3 named "SalesPivot" with the appropriate layout for flat data export.
 
           Add Region and Product as row fields, and Sales as a value field.
         assertions:
@@ -133,7 +157,7 @@ sessions:
     tests:
       - name: "Create PivotTable with Compact layout"
         prompt: |
-          I want a space-efficient PivotTable with hierarchical row labels.
+          I want a PivotTable that saves horizontal space. Show all the row labels in a single column with indentation to indicate hierarchy - the default compact view that Excel normally uses.
 
           Create a new Excel file at {{TEST_RESULTS_PATH}}/pivottable-compact-{{randomValue type='UUID'}}.xlsx
 
@@ -149,9 +173,7 @@ sessions:
 
           Convert it to a table called "TimeTracking".
 
-          Create a PivotTable on a new sheet at A3 named "HoursSummary".
-
-          Use Compact layout (layoutStyle=0) - this shows all row fields in a single column with indentation, which saves space.
+          Create a PivotTable on a new sheet at A3 named "HoursSummary" with the standard compact indented layout.
 
           Add Department and Team as row fields, and Hours as a value field.
         assertions:
@@ -181,7 +203,7 @@ sessions:
     tests:
       - name: "Create PivotTable with Outline layout"
         prompt: |
-          I need a PivotTable with expandable/collapsible groups for drilling down.
+          I need a PivotTable where I can expand and collapse groups to drill down through the geographic hierarchy. Each level should have its own column with +/- buttons to show or hide the details underneath.
 
           Create a new Excel file at {{TEST_RESULTS_PATH}}/pivottable-outline-{{randomValue type='UUID'}}.xlsx
 
@@ -197,9 +219,7 @@ sessions:
 
           Convert it to a table called "GeoRevenue".
 
-          Create a PivotTable on a new sheet at A3 named "RegionalAnalysis".
-
-          Use Outline layout (layoutStyle=2) - this shows fields in separate columns with expand/collapse buttons for drilling down through the hierarchy.
+          Create a PivotTable on a new sheet at A3 named "RegionalAnalysis" with a layout that supports expanding and collapsing hierarchy levels.
 
           Add Country, State, and City as row fields, and Revenue as a value field.
         assertions:
