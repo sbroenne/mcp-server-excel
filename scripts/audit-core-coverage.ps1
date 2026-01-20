@@ -190,35 +190,35 @@ function Find-InterfaceForEnum {
         # Known naming exceptions
         "WorksheetAction" = "ISheetCommands"
         "ConditionalFormatAction" = "IConditionalFormattingCommands"
-        
+
         # Sub-tool enums that map to parent interfaces
         # Range sub-tools (all map to IRangeCommands)
         "RangeEditAction" = "IRangeCommands"
         "RangeFormatAction" = "IRangeCommands"
         "RangeLinkAction" = "IRangeCommands"
-        
+
         # Worksheet sub-tools (all map to ISheetCommands)
         "WorksheetStyleAction" = "ISheetCommands"
-        
+
         # DataModel sub-tools (all map to IDataModelCommands)
         "DataModelRelAction" = "IDataModelCommands"
-        
+
         # Table sub-tools (all map to ITableCommands)
         "TableColumnAction" = "ITableCommands"
-        
+
         # PivotTable sub-tools (all map to IPivotTableCommands)
         "PivotTableFieldAction" = "IPivotTableCommands"
         "PivotTableCalcAction" = "IPivotTableCommands"
-        
+
         # Cross-interface enums (cover methods from multiple interfaces)
         # SlicerAction covers methods from BOTH IPivotTableCommands AND ITableCommands
         # We map to IPivotTableCommands as primary, and add ITableCommands below in additionalEnumMappings
         "SlicerAction" = "IPivotTableCommands"
-        
+
         # Chart sub-tools (all map to IChartCommands)
         "ChartConfigAction" = "IChartCommands"
     }
-    
+
     # Additional interface mappings for cross-interface enums
     # These enums have methods implemented in multiple Core interfaces
     # Format: "InterfaceName" = @("EnumName1", "EnumName2", ...)
@@ -304,7 +304,7 @@ $hasGaps = $false
 foreach ($key in $groupedInterfaces.Keys) {
     $interfaceGroup = $groupedInterfaces[$key]
     $coreMethods = Count-CoreMethods -InterfacePath $interfaceGroup.Path -InterfaceName $interfaceGroup.Name
-    
+
     # Sum enum values across ALL enums that map to this interface
     $totalEnumValuesForInterface = 0
     $enumNames = @()
@@ -437,7 +437,7 @@ if ($CheckNaming) {
     # Known intentional exceptions (documented in CORE-METHOD-RENAMING-SUMMARY.md)
     # Also includes methods that moved to sub-tool enums
     $knownExceptions = @{
-        "TableAction" = @("ApplyFilterValues", "SortMulti", "ApplyFilter", "ClearFilters", "GetFilters", 
+        "TableAction" = @("ApplyFilterValues", "SortMulti", "ApplyFilter", "ClearFilters", "GetFilters",
                           "AddColumn", "RemoveColumn", "RenameColumn", "GetStructuredReference", "Sort",
                           "GetColumnNumberFormat", "SetColumnNumberFormat",
                           # Table slicer methods exposed via SlicerAction (cross-interface enum)
@@ -451,7 +451,7 @@ if ($CheckNaming) {
                           "SetCellLock", "GetCellLock")  # Methods moved to RangeEdit/RangeFormat/RangeLink tools
         "WorksheetAction" = @("SetTabColor", "GetTabColor", "ClearTabColor", "SetVisibility", "GetVisibility",
                               "Show", "Hide", "VeryHide")  # Methods moved to WorksheetStyleAction
-        "DataModelAction" = @("ListRelationships", "ReadRelationship", "DeleteRelationship", 
+        "DataModelAction" = @("ListRelationships", "ReadRelationship", "DeleteRelationship",
                               "CreateRelationship", "UpdateRelationship")  # Methods moved to DataModelRelAction
         "PivotTableAction" = @("ListFields", "AddRowField", "AddColumnField", "AddValueField", "AddFilterField",
                                "RemoveField", "SetFieldFunction", "SetFieldName", "SetFieldFormat", "GetData",

@@ -24,6 +24,10 @@
 criteria:
   success_rate: 1  # 100% required
 
+ai_summary:
+  enabled: true
+  judge_provider: azure-openai-judge
+
 providers:
   - name: azure-openai-gpt41
     type: AZURE

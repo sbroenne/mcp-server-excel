@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**21 specialized tools with 187 operations for comprehensive Excel automation**
+**22 specialized tools with 194 operations for comprehensive Excel automation**
 
 ---
 
@@ -324,7 +324,28 @@
 
 ---
 
-## 🎨 Conditional Formatting (2 operations)
+## �️ Slicers (8 operations)
+
+**PivotTable Slicers:**
+- **Create Slicer:** Add slicer for PivotTable field with optional position
+- **List Slicers:** List all PivotTable slicers in workbook
+- **Set Selection:** Filter PivotTable by slicer selection (single or multi-select)
+- **Delete Slicer:** Remove PivotTable slicer
+
+**Table Slicers:**
+- **Create Table Slicer:** Add slicer for Excel Table column
+- **List Table Slicers:** List all Table slicers in workbook
+- **Set Table Selection:** Filter Table by slicer selection
+- **Delete Table Slicer:** Remove Table slicer
+
+**Use Cases:**
+- Interactive data filtering without modifying PivotTable/Table structure
+- Dashboard creation with visual filter controls
+- Multi-slicer filtering for complex data analysis
+
+---
+
+## �🎨 Conditional Formatting (2 operations)
 
 - **Add Rule:** Create conditional formatting rules
   - Cell value comparisons (>, <, =, etc.)
@@ -349,8 +370,9 @@
 | Connections | 9 |
 | Named Ranges | 6 |
 | VBA Macros | 6 |
+| Slicers | 8 |
 | Conditional Formatting | 2 |
-| **Total** | **186** |
+| **Total** | **194** |
 
 ---
 

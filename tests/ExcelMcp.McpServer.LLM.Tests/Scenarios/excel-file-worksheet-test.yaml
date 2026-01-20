@@ -32,6 +32,10 @@
 criteria:
   success_rate: 1  # 100% required
 
+ai_summary:
+  enabled: true
+  judge_provider: azure-openai-judge
+
 providers:
   # GPT-4.1 Provider - Lower RPM, good for complex reasoning
   - name: azure-openai-gpt41

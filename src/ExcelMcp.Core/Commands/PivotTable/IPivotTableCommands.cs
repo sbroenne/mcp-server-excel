@@ -120,7 +120,7 @@ public interface IPivotTableCommands
 
     /// <summary>
     /// Adds field to Values area with aggregation function.
-    /// 
+    ///
     /// For OLAP PivotTables, supports TWO modes:
     /// 1. Pre-existing measure: fieldName = "Total Sales" or "[Measures].[Total Sales]"
     ///    - Adds existing DAX measure without creating duplicate
@@ -128,7 +128,7 @@ public interface IPivotTableCommands
     /// 2. Auto-create measure: fieldName = "Sales" (column name)
     ///    - Creates new DAX measure with specified aggregation function
     ///    - customName becomes the measure name
-    /// 
+    ///
     /// For Regular PivotTables: Adds column with aggregation function
     /// </summary>
     /// <param name="batch">Excel batch session</param>
@@ -443,7 +443,7 @@ public interface IPivotTableCommands
     /// - Slicers are visual filter controls that can filter one or more PivotTables
     /// - One SlicerCache is created per field, which can have multiple visual Slicers
     /// - Multiple PivotTables can be connected to the same SlicerCache
-    /// 
+    ///
     /// SUPPORTED:
     /// - Regular PivotTables: Full support
     /// - OLAP PivotTables: Full support (Data Model-based)
@@ -476,7 +476,7 @@ public interface IPivotTableCommands
     /// - Only selected items are visible in connected PivotTable(s)
     /// - Empty selectedItems list shows all items (clears filter)
     /// - Invalid item names are ignored with a warning
-    /// 
+    ///
     /// MULTI-PIVOTTABLE:
     /// - Selection change affects ALL PivotTables connected to this slicer
     /// </remarks>

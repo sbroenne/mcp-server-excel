@@ -8,15 +8,17 @@ public static class ComInteropConstants
     #region Timeouts
 
     /// <summary>
-    /// Timeout for Excel.Quit() operation (2 minutes).
+    /// Timeout for Excel.Quit() operation (30 seconds).
+    /// With DisplayAlerts=false, Excel quits quickly. This timeout catches hung scenarios.
     /// </summary>
-    public static readonly TimeSpan ExcelQuitTimeout = TimeSpan.FromMinutes(2);
+    public static readonly TimeSpan ExcelQuitTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// Timeout for STA thread join after quit (2.5 minutes).
-    /// Allows extra time for thread cleanup after Excel process ends.
+    /// Timeout for STA thread join after quit.
+    /// CRITICAL: Must be >= ExcelQuitTimeout to ensure Dispose() waits for CloseAndQuit() to complete.
+    /// Set to ExcelQuitTimeout + 15s margin for workbook close and COM cleanup.
     /// </summary>
-    public static readonly TimeSpan StaThreadJoinTimeout = TimeSpan.FromMinutes(2.5);
+    public static readonly TimeSpan StaThreadJoinTimeout = ExcelQuitTimeout + TimeSpan.FromSeconds(15);
 
     /// <summary>
     /// Timeout for save operations (5 minutes).

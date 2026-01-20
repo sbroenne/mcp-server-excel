@@ -397,18 +397,18 @@ internal sealed class ExcelBatch : IExcelBatch
         {
             _logger.LogDebug("[Thread {CallingThread}] Calling Join() with {Timeout} timeout on STA={STAThread}, file={FileName}", callingThread, ComInteropConstants.StaThreadJoinTimeout, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
 
-            // CRITICAL: The join timeout MUST be longer than ExcelShutdownService.CloseAndQuit() timeout (2 minutes)
-            // Otherwise, Dispose() returns before Excel has finished closing, causing "file still open" issues.
-            // 2.5 min = 2 min quit timeout + 30s margin for workbook close and COM cleanup
+            // CRITICAL: StaThreadJoinTimeout >= ExcelQuitTimeout + margin (currently 45 seconds total).
+            // The join must wait at least as long as CloseAndQuit() can take, otherwise Dispose() returns
+            // before Excel has finished closing, causing "file still open" issues in subsequent operations.
             if (!_staThread.Join(ComInteropConstants.StaThreadJoinTimeout))
             {
                 // STA thread didn't exit - log error but don't throw
-                // This means even the 2-minute quit timeout + retries couldn't close Excel
+                // This means Excel is severely stuck (exceeded quit timeout + margin)
                 _logger.LogError(
-                    "[Thread {CallingThread}] STA thread (Id={STAThread}) did NOT exit within 2.5 minutes for {FileName}. " +
-                    "This indicates Excel cleanup is severely stuck (exceeded 2-minute quit timeout + margin). " +
+                    "[Thread {CallingThread}] STA thread (Id={STAThread}) did NOT exit within {Timeout} for {FileName}. " +
+                    "This indicates Excel cleanup is severely stuck (exceeded quit timeout + margin). " +
                     "Process will leak.",
-                    callingThread, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
+                    callingThread, _staThread.ManagedThreadId, ComInteropConstants.StaThreadJoinTimeout, Path.GetFileName(_workbookPath));
 
                 // Don't throw - disposal should not fail. Log the leak and continue.
                 // OS will clean up when process exits.

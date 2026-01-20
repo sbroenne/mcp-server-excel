@@ -32,6 +32,10 @@
 criteria:
   success_rate: 1  # 100% required
 
+ai_summary:
+  enabled: true
+  judge_provider: azure-openai-gpt52-chat
+
 providers:
   - name: azure-openai-gpt41
     type: AZURE
@@ -100,7 +104,7 @@ agents:
 settings:
   verbose: true
   max_iterations: 20
-
+  session_delay: 30s  # Allow Excel COM cleanup between sessions
 
 sessions:
   # ==========================================================================

@@ -22,6 +22,12 @@ public static class ExcelSlicerTool
     /// - PivotTable slicers can filter multiple PivotTables
     /// - Table slicers filter a single Excel Table
     ///
+    /// BEST PRACTICE - SLICER NAMING:
+    /// When user does not specify a slicer name, auto-generate a descriptive name
+    /// based on the field/column being filtered. Pattern: {FieldName}Slicer
+    /// Examples: RegionSlicer, CategorySlicer, DepartmentSlicer, YearSlicer
+    /// Do NOT ask the user to provide a slicer name - generate one automatically.
+    ///
     /// PIVOTTABLE SLICERS:
     /// - create-slicer: Requires pivotTableName, fieldName, slicerName, destinationSheet, position
     /// - list-slicers: Returns PivotTable slicers. Optionally filter by pivotTableName
@@ -110,15 +116,18 @@ public static class ExcelSlicerTool
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "create-slicer");
         if (string.IsNullOrWhiteSpace(fieldName))
             ExcelToolsBase.ThrowMissingParameter("fieldName", "create-slicer");
-        if (string.IsNullOrWhiteSpace(slicerName))
-            ExcelToolsBase.ThrowMissingParameter("slicerName", "create-slicer");
         if (string.IsNullOrWhiteSpace(destinationSheet))
             ExcelToolsBase.ThrowMissingParameter("destinationSheet", "create-slicer");
         if (string.IsNullOrWhiteSpace(position))
             ExcelToolsBase.ThrowMissingParameter("position", "create-slicer");
 
+        // Auto-generate slicer name from field name if not provided
+        var effectiveSlicerName = string.IsNullOrWhiteSpace(slicerName)
+            ? $"{fieldName}Slicer"
+            : slicerName;
+
         var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.CreateSlicer(batch, pivotTableName!, fieldName!, slicerName!, destinationSheet!, position!));
+            batch => commands.CreateSlicer(batch, pivotTableName!, fieldName!, effectiveSlicerName!, destinationSheet!, position!));
 
         return JsonSerializer.Serialize(new
         {
@@ -221,15 +230,18 @@ public static class ExcelSlicerTool
             ExcelToolsBase.ThrowMissingParameter("tableName", "create-table-slicer");
         if (string.IsNullOrWhiteSpace(columnName))
             ExcelToolsBase.ThrowMissingParameter("columnName", "create-table-slicer");
-        if (string.IsNullOrWhiteSpace(slicerName))
-            ExcelToolsBase.ThrowMissingParameter("slicerName", "create-table-slicer");
         if (string.IsNullOrWhiteSpace(destinationSheet))
             ExcelToolsBase.ThrowMissingParameter("destinationSheet", "create-table-slicer");
         if (string.IsNullOrWhiteSpace(position))
             ExcelToolsBase.ThrowMissingParameter("position", "create-table-slicer");
 
+        // Auto-generate slicer name from column name if not provided
+        var effectiveSlicerName = string.IsNullOrWhiteSpace(slicerName)
+            ? $"{columnName}Slicer"
+            : slicerName;
+
         var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.CreateTableSlicer(batch, tableName!, columnName!, slicerName!, destinationSheet!, position!));
+            batch => commands.CreateTableSlicer(batch, tableName!, columnName!, effectiveSlicerName!, destinationSheet!, position!));
 
         return JsonSerializer.Serialize(new
         {

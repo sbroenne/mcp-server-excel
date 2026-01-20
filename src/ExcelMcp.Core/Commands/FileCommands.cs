@@ -81,25 +81,16 @@ public class FileCommands : IFileCommands
 
                 workbook = excel.Workbooks.Add();
 
-                // Save the workbook with 5-minute timeout (Excel automatically creates Sheet1)
-                var saveAsTask = Task.Run(() =>
+                // Save the workbook directly on STA thread (Excel automatically creates Sheet1)
+                // Note: We don't wrap in Task.Run because COM calls must execute on the STA thread.
+                // Using Task.Run would cause the COM call to marshal back to this thread, causing deadlock.
+                if (isMacroEnabled)
                 {
-                    if (isMacroEnabled)
-                    {
-                        workbook.SaveAs(filePath, 52); // xlOpenXMLWorkbookMacroEnabled
-                    }
-                    else
-                    {
-                        workbook.SaveAs(filePath, 51); // xlOpenXMLWorkbook
-                    }
-                });
-
-                using var saveCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
-                if (!saveAsTask.Wait(TimeSpan.FromMinutes(5), saveCts.Token))
+                    workbook.SaveAs(filePath, 52); // xlOpenXMLWorkbookMacroEnabled
+                }
+                else
                 {
-                    throw new TimeoutException(
-                        $"SaveAs operation for '{Path.GetFileName(filePath)}' exceeded 5 minutes. " +
-                        "Check disk performance and antivirus settings.");
+                    workbook.SaveAs(filePath, 51); // xlOpenXMLWorkbook
                 }
 
                 completion.TrySetResult(null);

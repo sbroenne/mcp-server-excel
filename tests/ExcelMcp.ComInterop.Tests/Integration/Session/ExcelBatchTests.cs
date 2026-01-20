@@ -129,17 +129,25 @@ public class ExcelBatchTests : IAsyncLifetime
 
         batch.Dispose();
 
-        // Wait for Excel process to fully terminate
-        Thread.Sleep(5000);
+        // Wait for Excel process to fully terminate with polling
+        // Excel.Quit() signals shutdown but process termination is OS-controlled
+        // Dispose() blocks up to StaThreadJoinTimeout for COM cleanup, but process may linger briefly
+        var waitTimeout = TimeSpan.FromSeconds(15); // Allow reasonable time for process cleanup
+        var stopwatch = Stopwatch.StartNew();
+        int endingCount;
+        do
+        {
+            Thread.Sleep(500); // Poll every 500ms
+            endingCount = Process.GetProcessesByName("EXCEL").Length;
+            _output.WriteLine($"Excel processes at {stopwatch.Elapsed.TotalSeconds:F1}s: {endingCount}");
+        }
+        while (endingCount > startingCount && stopwatch.Elapsed < waitTimeout);
 
         // Assert
-        var endingProcesses = Process.GetProcessesByName("EXCEL");
-        int endingCount = endingProcesses.Length;
-
-        _output.WriteLine($"Excel processes after: {endingCount}");
+        _output.WriteLine($"Excel processes after {stopwatch.Elapsed.TotalSeconds:F1}s: {endingCount}");
 
         Assert.True(endingCount <= startingCount,
-            $"Excel process leak in batch! Started with {startingCount}, ended with {endingCount}");
+            $"Excel process leak in batch! Started with {startingCount}, ended with {endingCount} after {waitTimeout.TotalSeconds}s");
     }
 
     [Fact]
