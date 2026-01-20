@@ -299,6 +299,20 @@ public static class ActionExtensions
         ChartConfigAction.SetStyle => "set-style",
         _ => throw new ArgumentException($"Unknown ChartConfigAction: {action}")
     };
-}
 
+    public static string ToActionString(this SlicerAction action) => action switch
+    {
+        // PivotTable slicers
+        SlicerAction.CreateSlicer => "create-slicer",
+        SlicerAction.ListSlicers => "list-slicers",
+        SlicerAction.SetSlicerSelection => "set-slicer-selection",
+        SlicerAction.DeleteSlicer => "delete-slicer",
+        // Table slicers
+        SlicerAction.CreateTableSlicer => "create-table-slicer",
+        SlicerAction.ListTableSlicers => "list-table-slicers",
+        SlicerAction.SetTableSlicerSelection => "set-table-slicer-selection",
+        SlicerAction.DeleteTableSlicer => "delete-table-slicer",
+        _ => throw new ArgumentException($"Unknown SlicerAction: {action}")
+    };
+}
 

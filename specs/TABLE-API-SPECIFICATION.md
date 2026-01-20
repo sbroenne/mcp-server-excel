@@ -318,13 +318,31 @@ Tables can use standard Range.Sort(), so RangeCommands.SortAsync works on table 
 ### 5. **Data Validation on Columns** ⭐ LOW PRIORITY (RangeCommands has Validation)
 RangeCommands validation operations work on table column ranges.
 
-### 6. **Slicers** ⭐ FUTURE ENHANCEMENT
+### 6. **Slicers** ✅ IMPLEMENTED
+
+Table slicers provide visual filtering controls for Excel Tables:
+
 ```csharp
-// Add slicer for table column
-Task<OperationResult> AddSlicerAsync(IExcelBatch batch, string tableName, string columnName);
+// Create slicer for table column
+SlicerResult CreateTableSlicer(IExcelBatch batch, string tableName, 
+    string columnName, string slicerName, string destinationSheet, string position);
+
+// List all Table slicers (optionally filter by table name)
+SlicerListResult ListTableSlicers(IExcelBatch batch, string? tableName = null);
+
+// Set slicer selection (filter values)
+SlicerResult SetTableSlicerSelection(IExcelBatch batch, string slicerName, 
+    List<string> selectedItems, bool clearFirst = true);
+
+// Delete a Table slicer
+OperationResult DeleteTableSlicer(IExcelBatch batch, string slicerName);
 ```
 
-Slicers are complex UI objects - defer to future phase.
+**Key Implementation Details:**
+- Table slicers use `SlicerCaches.Add(table, columnName)` (deprecated but required for non-OLAP sources)
+- Detection uses `SlicerCache.List` boolean property (returns `true` for Table slicers)
+- Cannot use `SlicerCaches.Add2()` for Table slicers - it only supports PivotTable sources
+- Exposed via `excel_slicer` MCP tool with `create-table-slicer`, `list-table-slicers`, etc.
 
 ---
 
@@ -452,6 +470,7 @@ Excel Tables support structured references:
 - Structure (resize, totals, styles, columns)
 - Table-specific behaviors (auto-expansion on append, filters)
 - Data Model integration
+- **Table slicers** ✅ IMPLEMENTED
 
 **RangeCommands** = **Data operations** on any range
 - Read/write values and formulas
@@ -477,8 +496,8 @@ This maintains clear separation of concerns and prevents duplication!
    - Filters are common table operations
    - But adds scope to refactoring
 
-4. **Should we support table slicers?**
-   - Complex UI objects
-   - Defer to future phase?
+4. ~~**Should we support table slicers?**~~ ✅ **DONE - Implemented in Issue #363**
+   - Table slicers implemented via `ITableCommands` interface
+   - Exposed via `excel_slicer` MCP tool
 
 **Next Step:** Review this specification and decide on Phase 1 scope before implementation!

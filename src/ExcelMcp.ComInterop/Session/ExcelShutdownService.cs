@@ -189,12 +189,12 @@ public static class ExcelShutdownService
                 }
                 catch (OperationCanceledException) when (quitTimeout.Token.IsCancellationRequested)
                 {
-                    // Overall 2-minute timeout reached - Excel is truly hung
+                    // Overall timeout reached - Excel is truly hung
                     logger.LogError(
-                        "Excel quit TIMED OUT after 2 minutes for {FileName} (Attempts: {Attempts}). " +
+                        "Excel quit TIMED OUT after {Timeout} for {FileName} (Attempts: {Attempts}). " +
                         "Excel is likely hung (modal dialog or deadlock). Proceeding with forced COM cleanup.",
-                        fileName, attemptNumber);
-                    lastException = new TimeoutException($"Excel.Quit() timed out after 2 minutes for {fileName}");
+                        ComInteropConstants.ExcelQuitTimeout, fileName, attemptNumber);
+                    lastException = new TimeoutException($"Excel.Quit() timed out after {ComInteropConstants.ExcelQuitTimeout} for {fileName}");
                 }
                 catch (COMException ex)
                 {

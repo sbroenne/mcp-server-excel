@@ -44,7 +44,8 @@ public partial class NamedRangeCommandsTests
     public void Create_ParameterNameExactly255Characters_ReturnsSuccess()
     {
         // Arrange - Create name with exactly 255 characters (Excel's limit)
-        var uniquePrefix = Guid.NewGuid().ToString("N")[..8] + "_";
+        // Named ranges must start with letter or underscore, so use "NR_" prefix
+        var uniquePrefix = "NR_" + Guid.NewGuid().ToString("N")[..5] + "_";
         var paramName = uniquePrefix + new string('A', 255 - uniquePrefix.Length);
 
         // Act

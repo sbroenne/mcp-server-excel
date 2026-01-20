@@ -894,3 +894,166 @@ public class CalculatedMemberResult : ResultBase
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? WorkflowHint { get; set; }
 }
+
+// ==================== SLICER TYPES ====================
+
+/// <summary>
+/// Information about a slicer connected to a PivotTable
+/// </summary>
+public class SlicerInfo
+{
+    /// <summary>
+    /// Name of the slicer
+    /// </summary>
+    [JsonPropertyName("n")]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Caption displayed on the slicer
+    /// </summary>
+    [JsonPropertyName("c")]
+    public string Caption { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Name of the source field for the slicer
+    /// </summary>
+    [JsonPropertyName("fn")]
+    public string FieldName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Name of the worksheet containing the slicer
+    /// </summary>
+    [JsonPropertyName("sn")]
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Top-left cell position of the slicer
+    /// </summary>
+    [JsonPropertyName("pos")]
+    public string Position { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Currently selected items in the slicer
+    /// </summary>
+    [JsonPropertyName("si")]
+    public List<string> SelectedItems { get; set; } = [];
+
+    /// <summary>
+    /// All available items in the slicer
+    /// </summary>
+    [JsonPropertyName("ai")]
+    public List<string> AvailableItems { get; set; } = [];
+
+    /// <summary>
+    /// Number of columns in the slicer layout
+    /// </summary>
+    [JsonPropertyName("cols")]
+    public int ColumnCount { get; set; }
+
+    /// <summary>
+    /// Names of PivotTables connected to this slicer (for PivotTable slicers)
+    /// </summary>
+    [JsonPropertyName("pt")]
+    public List<string> ConnectedPivotTables { get; set; } = [];
+
+    /// <summary>
+    /// Name of the Table connected to this slicer (for Table slicers)
+    /// </summary>
+    [JsonPropertyName("tbl")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ConnectedTable { get; set; }
+
+    /// <summary>
+    /// Type of source: "PivotTable" or "Table"
+    /// </summary>
+    [JsonPropertyName("srcType")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SourceType { get; set; }
+}
+
+/// <summary>
+/// Result for listing slicers
+/// </summary>
+public class SlicerListResult : ResultBase
+{
+    /// <summary>
+    /// List of slicers in the workbook (optionally filtered by PivotTable)
+    /// </summary>
+    [JsonPropertyName("sl")]
+    public List<SlicerInfo> Slicers { get; set; } = [];
+}
+
+/// <summary>
+/// Result for slicer operations (create, delete, set selection)
+/// </summary>
+public class SlicerResult : ResultBase
+{
+    /// <summary>
+    /// Name of the slicer
+    /// </summary>
+    [JsonPropertyName("n")]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Caption displayed on the slicer
+    /// </summary>
+    [JsonPropertyName("c")]
+    public string Caption { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Name of the source field for the slicer
+    /// </summary>
+    [JsonPropertyName("fn")]
+    public string FieldName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Name of the worksheet containing the slicer
+    /// </summary>
+    [JsonPropertyName("sn")]
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Top-left cell position of the slicer
+    /// </summary>
+    [JsonPropertyName("pos")]
+    public string Position { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Currently selected items in the slicer
+    /// </summary>
+    [JsonPropertyName("si")]
+    public List<string> SelectedItems { get; set; } = [];
+
+    /// <summary>
+    /// All available items in the slicer
+    /// </summary>
+    [JsonPropertyName("ai")]
+    public List<string> AvailableItems { get; set; } = [];
+
+    /// <summary>
+    /// Names of PivotTables connected to this slicer (for PivotTable slicers)
+    /// </summary>
+    [JsonPropertyName("pt")]
+    public List<string> ConnectedPivotTables { get; set; } = [];
+
+    /// <summary>
+    /// Name of the Table connected to this slicer (for Table slicers)
+    /// </summary>
+    [JsonPropertyName("tbl")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ConnectedTable { get; set; }
+
+    /// <summary>
+    /// Type of source: "PivotTable" or "Table"
+    /// </summary>
+    [JsonPropertyName("srcType")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SourceType { get; set; }
+
+    /// <summary>
+    /// Workflow hint describing what happened and suggested next steps
+    /// </summary>
+    [JsonPropertyName("wh")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? WorkflowHint { get; set; }
+}

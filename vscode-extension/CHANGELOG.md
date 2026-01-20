@@ -4,6 +4,23 @@ All notable changes to the ExcelMcp VS Code extension will be documented in this
 
 ## [Unreleased]
 
+## [1.5.6] - 2025-01-20
+
+- **PivotTable & Table Slicers** (#363): New `excel_slicer` tool for interactive filtering
+  - **PivotTable Slicers**: Create, list, filter, and delete slicers for PivotTable fields
+    - `CreateSlicer`: Create slicer for PivotTable field with optional position
+    - `ListSlicers`: List all slicers in workbook
+    - `SetSlicerSelection`: Set slicer selection (single or multiple items)
+    - `DeleteSlicer`: Remove slicer
+  - **Table Slicers**: Create, list, filter, and delete slicers for Excel Table columns
+    - `CreateTableSlicer`: Create slicer for Table column
+    - `ListTableSlicers`: List all Table slicers
+    - `SetTableSlicerSelection`: Filter Table via slicer
+    - `DeleteTableSlicer`: Remove Table slicer
+  - 8 new operations for interactive data filtering
+
+## [1.5.5] - 2025-01-19
+
 - **DMV Query Execution** (#353): Query Data Model metadata using Dynamic Management Views
   - New `execute-dmv` action on `excel_datamodel` tool for DMV queries
   - Query TMSCHEMA_MEASURES, TMSCHEMA_RELATIONSHIPS, DISCOVER_CALC_DEPENDENCY, etc.

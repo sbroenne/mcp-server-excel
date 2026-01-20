@@ -4,7 +4,7 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
+namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration;
 
 /// <summary>
 /// Verifies that the Interlocked disposal fix prevents double disposal.
@@ -44,7 +44,6 @@ public class DisposalVerificationTest : IAsyncLifetime
                     p.WaitForExit(5000);
                     p.Dispose();
                 }
-                Thread.Sleep(2000);
             }
         }
         catch (Exception ex)
@@ -84,20 +83,25 @@ public class DisposalVerificationTest : IAsyncLifetime
             // Best effort
         }
 
-        Thread.Sleep(1000);
-
         return Task.CompletedTask;
     }
+
+    /// <summary>
+    /// Path to the template xlsx file used for fast test file creation.
+    /// Copying a template is ~1000x faster than spawning Excel to create a new workbook.
+    /// </summary>
+    private static readonly string TemplateFilePath = Path.Combine(
+        Path.GetDirectoryName(typeof(DisposalVerificationTest).Assembly.Location)!,
+        "Integration", "Session", "TestFiles", "batch-test-static.xlsx");
 
     private string CreateTestFile(string testName)
     {
         var fileName = $"{testName}_{Guid.NewGuid():N}.xlsx";
         var filePath = Path.Combine(_tempDir, fileName);
 
-        ExcelSession.CreateNew(
-            filePath,
-            isMacroEnabled: false,
-            (ctx, ct) => 0);
+        // PERFORMANCE OPTIMIZATION: Copy from template instead of spawning Excel.
+        // This reduces test file creation from ~7-14 seconds to <10ms.
+        File.Copy(TemplateFilePath, filePath);
 
         _testFiles.Add(filePath);
         return filePath;

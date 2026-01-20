@@ -365,44 +365,17 @@ public sealed class SessionManager : IDisposable
         _activeFilePaths.Clear();
         _sessionFilePaths.Clear();
 
-        for (int i = 0; i < sessions.Count; i++)
+        foreach (var session in sessions)
         {
             try
             {
-                // Dispose synchronously - Excel COM deadlock handled in Dispose() itself
-                sessions[i].Dispose();
-
-                // CRITICAL: Wait for Excel process to actually terminate before disposing next session
-                // Excel COM has known synchronization issues when multiple instances are disposed rapidly
-                // Without this delay, the second disposal can deadlock waiting for the first to complete
-                if (i < sessions.Count - 1) // Don't delay after the last one
-                {
-                    // Wait for any EXCEL processes to terminate
-                    var startWait = DateTime.UtcNow;
-                    var maxWait = ComInteropConstants.SessionFileLockTimeout;
-
-                    while (DateTime.UtcNow - startWait < maxWait)
-                    {
-                        var excelProcesses = System.Diagnostics.Process.GetProcessesByName("EXCEL");
-                        if (excelProcesses.Length == 0)
-                        {
-                            // All Excel processes terminated, safe to proceed
-                            break;
-                        }
-
-                        // Still have Excel processes, wait a bit
-                        Thread.Sleep(ComInteropConstants.SessionLockRetryDelayMs);
-
-                        foreach (var p in excelProcesses)
-                        {
-                            p.Dispose();
-                        }
-                    }
-                }
+                // Dispose sequentially - ExcelBatch.Dispose() handles its own Excel cleanup
+                // via ExcelShutdownService with proper timeouts and retry logic
+                session.Dispose();
             }
             catch
             {
-                // Best effort cleanup
+                // Best effort cleanup - continue with remaining sessions
             }
         }
     }

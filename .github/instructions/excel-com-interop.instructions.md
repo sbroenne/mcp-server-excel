@@ -130,7 +130,7 @@ ExcelShutdownService.CloseAndQuit(workbook, excel, save: false, filePath, logger
 - Retries on: `RPC_E_SERVERCALL_RETRYLATER` (-2147417851), `RPC_E_CALL_REJECTED` (-2147418111)
 - Structured logging for diagnostics (attempt number, HResult, elapsed time)
 - Continues with COM cleanup even if Quit fails/times out
-- **STA thread join (10s)**: Short verification timeout after quit succeeds/fails
+- **STA thread join (45s)**: Must be >= ExcelQuitTimeout + margin (currently 30s + 15s) to ensure Dispose() waits for full cleanup
 
 **Save Semantics:**
 ```csharp
@@ -152,11 +152,11 @@ ExcelShutdownService.CloseAndQuit(workbook, excel, save: true, filePath, logger)
 Overall Quit Timeout: 30 seconds (outer)
   └─> Resilient Retry: 6 attempts with exponential backoff (inner, ~6s max)
       └─> Individual Quit() calls
-  └─> STA Thread Join: 10 seconds (verification only)
+  └─> STA Thread Join: 45 seconds (ExcelQuitTimeout + 15s margin)
 ```
 - **30s quit timeout**: Catches truly hung Excel (modal dialogs, deadlocks) via CancellationToken
 - **6-attempt retry**: Handles transient COM busy states within the 30s window
-- **10s thread join**: Quick verification that cleanup finished (not a primary timeout mechanism)
+- **45s thread join**: Must be >= ExcelQuitTimeout + margin to ensure Dispose() waits for full cleanup
 
 ## COM Object Cleanup Pattern (CRITICAL)
 

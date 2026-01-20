@@ -3,7 +3,7 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
+namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration;
 
 /// <summary>
 /// Integration tests for ExcelSession - verifies public API and COM cleanup.
@@ -40,7 +40,6 @@ public class ExcelSessionTests : IDisposable
             {
                 p.Kill(); p.WaitForExit(2000);
             }
-            Thread.Sleep(2000); // Wait for cleanup
             _output.WriteLine("Excel processes cleaned up");
         }
 
@@ -207,13 +206,20 @@ public class ExcelSessionTests : IDisposable
     }
 
     // Helper method
+
+    /// <summary>
+    /// Path to the template xlsx file used for fast test file creation.
+    /// Copying a template is ~1000x faster than spawning Excel to create a new workbook.
+    /// </summary>
+    private static readonly string TemplateFilePath = Path.Combine(
+        Path.GetDirectoryName(typeof(ExcelSessionTests).Assembly.Location)!,
+        "Integration", "Session", "TestFiles", "batch-test-static.xlsx");
+
     private static void CreateTempTestFile(string filePath)
     {
-        ExcelSession.CreateNew(filePath, isMacroEnabled: false, (ctx, ct) =>
-        {
-            // File created, just return
-            return 0;
-        });
+        // PERFORMANCE OPTIMIZATION: Copy from template instead of spawning Excel.
+        // For tests that only need a valid Excel file to exist (not testing creation),
+        // this reduces setup time from ~7-14 seconds to <10ms.
+        File.Copy(TemplateFilePath, filePath);
     }
 }
-
