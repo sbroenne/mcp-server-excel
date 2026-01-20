@@ -237,13 +237,11 @@ jobs:
         $version = $env:VERSION
         cd vscode-extension
         npm version "$version" --no-git-tag-version
+      shell: pwsh
 
-        # Update CHANGELOG.md
-        $date = Get-Date -Format 'yyyy-MM-dd'
-        $changelogPath = 'CHANGELOG.md'
-        $content = Get-Content $changelogPath -Raw
-        $content = $content -replace '## \[Unreleased\]', "## [$version] - $date"
-        Set-Content $changelogPath $content -NoNewline
+    - name: Sync Extension Changelog
+      run: |
+        Copy-Item "CHANGELOG.md" "vscode-extension/CHANGELOG.md" -Force
       shell: pwsh
 
     - name: Install Dependencies
