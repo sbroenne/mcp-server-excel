@@ -10,6 +10,15 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.5.9] - 2025-01-20
+
+### Fixed
+- **CreateEmpty Error Handling** (#372): File creation errors now return proper JSON with `isError: true` instead of crashing
+
+### Changed
+- **MCPB Submission Compliance**: Bundle now includes LICENSE and CHANGELOG.md per Anthropic requirements
+- **Documentation Updates**: All READMEs updated with LLM-tested example prompts and accurate tool counts (22 tools, 194 operations)
+
 ## [1.5.8] - 2025-01-20
 
 ### Added
