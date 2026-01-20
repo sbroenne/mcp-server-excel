@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -328,8 +330,9 @@ public partial class PivotTableCommands
 
                 ComUtilities.Release(ref cache);
             }
-            catch
+            catch (COMException)
             {
+                // COM property access may fail for certain cache types - continue searching
                 ComUtilities.Release(ref cache);
             }
         }
@@ -352,9 +355,9 @@ public partial class PivotTableCommands
                 if (!string.IsNullOrEmpty(sourceName))
                     return sourceName;
             }
-            catch
+            catch (COMException)
             {
-                // SourceName not available
+                // SourceName property not available for this cache type - fall back to Name
             }
 
             // For regular slicers, get from PivotTables collection
@@ -426,8 +429,9 @@ public partial class PivotTableCommands
             }
             return false;
         }
-        catch
+        catch (COMException)
         {
+            // PivotTables collection may not be accessible for this cache type
             return false;
         }
         finally
@@ -467,8 +471,9 @@ public partial class PivotTableCommands
                         }
                         ComUtilities.Release(ref slicer);
                     }
-                    catch
+                    catch (COMException)
                     {
+                        // COM access may fail for certain slicer types - continue searching
                         ComUtilities.Release(ref slicer);
                     }
                 }
@@ -476,8 +481,9 @@ public partial class PivotTableCommands
                 ComUtilities.Release(ref slicers);
                 ComUtilities.Release(ref cache);
             }
-            catch
+            catch (COMException)
             {
+                // COM access may fail for certain cache types - continue searching
                 ComUtilities.Release(ref slicers);
                 ComUtilities.Release(ref cache);
             }
@@ -518,9 +524,9 @@ public partial class PivotTableCommands
             topLeftCell = slicer.TopLeftCell;
             info.Position = topLeftCell.Address?.ToString()?.Replace("$", "") ?? string.Empty;
         }
-        catch
+        catch (COMException)
         {
-            // TopLeftCell may not be available in some cases
+            // TopLeftCell may not be available for floating slicers
             info.Position = string.Empty;
         }
         finally
@@ -570,8 +576,9 @@ public partial class PivotTableCommands
             topLeftCell = slicer.TopLeftCell;
             result.Position = topLeftCell.Address?.ToString()?.Replace("$", "") ?? string.Empty;
         }
-        catch
+        catch (COMException)
         {
+            // TopLeftCell may not be available for floating slicers
             result.Position = string.Empty;
         }
         finally
@@ -635,9 +642,9 @@ public partial class PivotTableCommands
                 }
             }
         }
-        catch
+        catch (COMException)
         {
-            // SlicerItems may not be accessible
+            // SlicerItems collection may not be accessible for certain cache types
         }
         finally
         {
@@ -677,9 +684,9 @@ public partial class PivotTableCommands
                 }
             }
         }
-        catch
+        catch (COMException)
         {
-            // PivotTables collection may not be accessible
+            // PivotTables collection may not be accessible for certain cache types
         }
         finally
         {

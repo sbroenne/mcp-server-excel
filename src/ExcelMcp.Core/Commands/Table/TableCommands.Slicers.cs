@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -129,7 +131,7 @@ public partial class TableCommands
                         {
                             isTableSlicer = cache.List == true;
                         }
-                        catch
+                        catch (COMException)
                         {
                             // List property not available - not a Table slicer
                             isTableSlicer = false;
@@ -384,8 +386,9 @@ public partial class TableCommands
                 {
                     isTableSlicer = cache.List == true;
                 }
-                catch
+                catch (COMException)
                 {
+                    // List property doesn't exist on PivotTable slicer caches
                     isTableSlicer = false;
                 }
 
@@ -411,8 +414,9 @@ public partial class TableCommands
 
                 ComUtilities.Release(ref cache);
             }
-            catch
+            catch (COMException)
             {
+                // COM access may fail for certain cache types - continue searching
                 ComUtilities.Release(ref cache);
             }
         }
@@ -440,8 +444,9 @@ public partial class TableCommands
             }
             return cacheName;
         }
-        catch
+        catch (COMException)
         {
+            // COM access may fail for certain cache configurations
             return "Unknown";
         }
     }
@@ -462,8 +467,9 @@ public partial class TableCommands
             }
             return "Unknown";
         }
-        catch
+        catch (COMException)
         {
+            // COM access may fail for certain cache configurations
             return "Unknown";
         }
         finally
@@ -489,8 +495,9 @@ public partial class TableCommands
 
             return string.Equals(cacheTableName, targetTableName, StringComparison.OrdinalIgnoreCase);
         }
-        catch
+        catch (COMException)
         {
+            // COM access may fail for certain cache configurations
             return false;
         }
         finally
@@ -519,8 +526,9 @@ public partial class TableCommands
                 {
                     isTableSlicer = cache.List == true;
                 }
-                catch
+                catch (COMException)
                 {
+                    // List property doesn't exist on PivotTable slicer caches
                     isTableSlicer = false;
                 }
 
@@ -548,8 +556,9 @@ public partial class TableCommands
 
                         ComUtilities.Release(ref slicer);
                     }
-                    catch
+                    catch (COMException)
                     {
+                        // COM access failed for this slicer, continue searching
                         ComUtilities.Release(ref slicer);
                     }
                 }
@@ -557,8 +566,9 @@ public partial class TableCommands
                 ComUtilities.Release(ref slicers);
                 ComUtilities.Release(ref cache);
             }
-            catch
+            catch (COMException)
             {
+                // COM access failed for this cache, continue searching
                 ComUtilities.Release(ref slicers);
                 ComUtilities.Release(ref cache);
             }
@@ -693,8 +703,9 @@ public partial class TableCommands
             }
             return string.Empty;
         }
-        catch
+        catch (COMException)
         {
+            // COM access may fail for certain slicer configurations
             return string.Empty;
         }
         finally
