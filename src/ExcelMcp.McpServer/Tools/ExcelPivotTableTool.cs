@@ -20,7 +20,10 @@ public static partial class ExcelPivotTableTool
     /// BEST PRACTICE: Use 'list' before creating. Prefer 'refresh' or field modifications over delete+recreate.
     /// Delete+recreate loses field configurations, filters, sorting, and custom layouts.
     ///
-    /// LAYOUT: Use excel_pivottable_calc set-layout action (0=Compact, 1=Tabular, 2=Outline).
+    /// LAYOUT (for create operations):
+    /// - 0 = Compact (default - row fields in single column with indentation)
+    /// - 1 = Tabular (each row field in separate column - best for export/analysis)
+    /// - 2 = Outline (hierarchical with expand/collapse)
     ///
     /// CREATE OPTIONS:
     /// - create-from-range: Use sourceSheetName and sourceRangeAddress for data range
@@ -31,7 +34,7 @@ public static partial class ExcelPivotTableTool
     ///
     /// RELATED TOOLS:
     /// - excel_pivottable_field: Add/remove/configure fields, filtering, sorting, grouping
-    /// - excel_pivottable_calc: Calculated fields, layout options, subtotals
+    /// - excel_pivottable_calc: Calculated fields, change layout after creation, subtotals
     /// </summary>
     /// <param name="action">The PivotTable operation to perform</param>
     /// <param name="sessionId">Session identifier returned from excel_file open action - required for all operations</param>
@@ -42,6 +45,7 @@ public static partial class ExcelPivotTableTool
     /// <param name="dataModelTableName">Name of Data Model table from Power Pivot (for create-from-datamodel)</param>
     /// <param name="destinationSheetName">Worksheet name where PivotTable will be placed</param>
     /// <param name="destinationCellAddress">Cell address for top-left corner of PivotTable, e.g., 'A3'</param>
+    /// <param name="layoutStyle">Layout style for create operations: 0=Compact (default), 1=Tabular, 2=Outline</param>
     [McpServerTool(Name = "excel_pivottable", Title = "Excel PivotTable Operations")]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
@@ -54,7 +58,8 @@ public static partial class ExcelPivotTableTool
         [DefaultValue(null)] string? sourceTableName,
         [DefaultValue(null)] string? dataModelTableName,
         [DefaultValue(null)] string? destinationSheetName,
-        [DefaultValue(null)] string? destinationCellAddress)
+        [DefaultValue(null)] string? destinationCellAddress,
+        [DefaultValue(null)] int? layoutStyle)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_pivottable",
@@ -67,9 +72,9 @@ public static partial class ExcelPivotTableTool
                 {
                     PivotTableAction.List => List(commands, sessionId),
                     PivotTableAction.Read => Read(commands, sessionId, pivotTableName),
-                    PivotTableAction.CreateFromRange => CreateFromRange(commands, sessionId, sourceSheetName, sourceRangeAddress, destinationSheetName, destinationCellAddress, pivotTableName),
-                    PivotTableAction.CreateFromTable => CreateFromTable(commands, sessionId, sourceTableName, destinationSheetName, destinationCellAddress, pivotTableName),
-                    PivotTableAction.CreateFromDataModel => CreateFromDataModel(commands, sessionId, dataModelTableName, destinationSheetName, destinationCellAddress, pivotTableName),
+                    PivotTableAction.CreateFromRange => CreateFromRange(commands, sessionId, sourceSheetName, sourceRangeAddress, destinationSheetName, destinationCellAddress, pivotTableName, layoutStyle),
+                    PivotTableAction.CreateFromTable => CreateFromTable(commands, sessionId, sourceTableName, destinationSheetName, destinationCellAddress, pivotTableName, layoutStyle),
+                    PivotTableAction.CreateFromDataModel => CreateFromDataModel(commands, sessionId, dataModelTableName, destinationSheetName, destinationCellAddress, pivotTableName, layoutStyle),
                     PivotTableAction.Delete => Delete(commands, sessionId, pivotTableName),
                     PivotTableAction.Refresh => Refresh(commands, sessionId, pivotTableName),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
@@ -118,7 +123,8 @@ public static partial class ExcelPivotTableTool
         string? sourceRangeAddress,
         string? destinationSheetName,
         string? destinationCellAddress,
-        string? pivotTableName)
+        string? pivotTableName,
+        int? layoutStyle)
     {
         if (string.IsNullOrWhiteSpace(sourceSheetName))
             ExcelToolsBase.ThrowMissingParameter("sourceSheetName", "create-from-range");
@@ -132,8 +138,19 @@ public static partial class ExcelPivotTableTool
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "create-from-range");
 
         var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.CreateFromRange(batch, sourceSheetName!, sourceRangeAddress!,
-                destinationSheetName!, destinationCellAddress!, pivotTableName!));
+            batch =>
+            {
+                var createResult = commands.CreateFromRange(batch, sourceSheetName!, sourceRangeAddress!,
+                    destinationSheetName!, destinationCellAddress!, pivotTableName!);
+
+                // Apply layout if specified and creation succeeded
+                if (createResult.Success && layoutStyle.HasValue)
+                {
+                    commands.SetLayout(batch, createResult.PivotTableName!, layoutStyle.Value);
+                }
+
+                return createResult;
+            });
 
         return JsonSerializer.Serialize(new
         {
@@ -144,7 +161,8 @@ public static partial class ExcelPivotTableTool
             result.SourceData,
             result.SourceRowCount,
             result.AvailableFields,
-            result.ErrorMessage
+            result.ErrorMessage,
+            LayoutApplied = result.Success && layoutStyle.HasValue ? layoutStyle : null
         }, JsonOptions);
     }
 
@@ -154,7 +172,8 @@ public static partial class ExcelPivotTableTool
         string? sourceTableName,
         string? destinationSheetName,
         string? destinationCellAddress,
-        string? pivotTableName)
+        string? pivotTableName,
+        int? layoutStyle)
     {
         if (string.IsNullOrWhiteSpace(sourceTableName))
             ExcelToolsBase.ThrowMissingParameter("sourceTableName", "create-from-table");
@@ -166,8 +185,19 @@ public static partial class ExcelPivotTableTool
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "create-from-table");
 
         var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.CreateFromTable(batch, sourceTableName!,
-                destinationSheetName!, destinationCellAddress!, pivotTableName!));
+            batch =>
+            {
+                var createResult = commands.CreateFromTable(batch, sourceTableName!,
+                    destinationSheetName!, destinationCellAddress!, pivotTableName!);
+
+                // Apply layout if specified and creation succeeded
+                if (createResult.Success && layoutStyle.HasValue)
+                {
+                    commands.SetLayout(batch, createResult.PivotTableName!, layoutStyle.Value);
+                }
+
+                return createResult;
+            });
 
         return JsonSerializer.Serialize(new
         {
@@ -178,7 +208,8 @@ public static partial class ExcelPivotTableTool
             result.SourceData,
             result.SourceRowCount,
             result.AvailableFields,
-            result.ErrorMessage
+            result.ErrorMessage,
+            LayoutApplied = result.Success && layoutStyle.HasValue ? layoutStyle : null
         }, JsonOptions);
     }
 
@@ -188,7 +219,8 @@ public static partial class ExcelPivotTableTool
         string? dataModelTableName,
         string? destinationSheetName,
         string? destinationCellAddress,
-        string? pivotTableName)
+        string? pivotTableName,
+        int? layoutStyle)
     {
         if (string.IsNullOrWhiteSpace(dataModelTableName))
             ExcelToolsBase.ThrowMissingParameter("dataModelTableName", "create-from-datamodel");
@@ -200,12 +232,29 @@ public static partial class ExcelPivotTableTool
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "create-from-datamodel");
 
         PivotTableCreateResult result;
+        int? appliedLayout = null;
 
         try
         {
             result = ExcelToolsBase.WithSession(sessionId,
-                batch => commands.CreateFromDataModel(batch, dataModelTableName!,
-                    destinationSheetName!, destinationCellAddress!, pivotTableName!));
+                batch =>
+                {
+                    var createResult = commands.CreateFromDataModel(batch, dataModelTableName!,
+                        destinationSheetName!, destinationCellAddress!, pivotTableName!);
+
+                    // Apply layout if specified and creation succeeded
+                    if (createResult.Success && layoutStyle.HasValue)
+                    {
+                        commands.SetLayout(batch, createResult.PivotTableName!, layoutStyle.Value);
+                    }
+
+                    return createResult;
+                });
+
+            if (result.Success && layoutStyle.HasValue)
+            {
+                appliedLayout = layoutStyle;
+            }
         }
         catch (TimeoutException ex)
         {
@@ -232,7 +281,8 @@ public static partial class ExcelPivotTableTool
             result.SourceRowCount,
             result.AvailableFields,
             result.ErrorMessage,
-            isError = !result.Success
+            isError = !result.Success,
+            LayoutApplied = appliedLayout
         }, JsonOptions);
     }
 
