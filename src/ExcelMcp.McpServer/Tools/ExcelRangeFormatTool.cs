@@ -60,7 +60,7 @@ public static partial class ExcelRangeFormatTool
     /// <param name="errorAlertMessage">Text for the error alert popup</param>
     /// <param name="ignoreBlankCells">Whether to allow blank cells in validation (default: true)</param>
     /// <param name="showDropdownList">Whether to show dropdown arrow for list validation (default: true)</param>
-    [McpServerTool(Name = "excel_range_format", Title = "Excel Range Format Operations")]
+    [McpServerTool(Name = "excel_range_format", Title = "Excel Range Format Operations", Destructive = true)]
     [McpMeta("category", "data")]
     [McpMeta("requiresSession", true)]
     public static partial string RangeFormat(

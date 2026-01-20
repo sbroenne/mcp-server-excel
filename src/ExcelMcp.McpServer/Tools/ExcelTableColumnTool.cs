@@ -43,7 +43,7 @@ public static partial class TableColumnTool
     /// <param name="formatCode">Number format code in US locale (e.g., "#,##0.00", "0%"). Required for: set-column-number-format</param>
     /// <param name="columnPosition">1-based column position for 'add-column' (optional, defaults to end of table)</param>
     /// <param name="ascending">Sort order for 'sort' action. true=ascending (A-Z, 0-9), false=descending. Default: true</param>
-    [McpServerTool(Name = "excel_table_column", Title = "Excel Table Column Operations")]
+    [McpServerTool(Name = "excel_table_column", Title = "Excel Table Column Operations", Destructive = true)]
     [McpMeta("category", "data")]
     [McpMeta("requiresSession", true)]
     public static partial string TableColumn(

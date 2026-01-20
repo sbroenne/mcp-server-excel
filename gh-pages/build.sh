@@ -30,18 +30,18 @@ awk '
 ' "$ROOT_DIR/FEATURES.md" > "$SCRIPT_DIR/_includes/features.md"
 echo "   ✓ Copied FEATURES.md (stripped top block, H1→H2)"
 
-# Copy CHANGELOG.md from vscode-extension
+# Copy CHANGELOG.md from root (centralized changelog for all components)
 # Strip top H1 block (title + paragraph) and convert remaining H1 to H2
 awk '
     BEGIN { inheader=0; headerdone=0 }
     {
         if (headerdone==0 && /^# /) { inheader=1; next }                 # drop H1 title
-        if (inheader==1 && /^All notable/) { next }                      # drop description line
+        if (inheader==1 && /^This changelog/) { next }                   # drop description line
         if (inheader==1 && /^$/) { inheader=0; headerdone=1; next }      # blank line ends header
         if (/^# /) { sub(/^# /, "## "); print; next }                   # convert any remaining H1 → H2
         print
     }
-' "$ROOT_DIR/vscode-extension/CHANGELOG.md" > "$SCRIPT_DIR/_includes/changelog.md"
+' "$ROOT_DIR/CHANGELOG.md" > "$SCRIPT_DIR/_includes/changelog.md"
 echo "   ✓ Copied CHANGELOG.md (stripped top H1 block, H1→H2)"
 
 # Copy INSTALLATION.md from docs
@@ -64,6 +64,10 @@ echo "   ✓ Copied CONTRIBUTING.md"
 # Copy SECURITY.md from docs
 cp "$ROOT_DIR/docs/SECURITY.md" "$SCRIPT_DIR/_includes/security.md"
 echo "   ✓ Copied SECURITY.md"
+
+# Copy PRIVACY.md from root
+cp "$ROOT_DIR/PRIVACY.md" "$SCRIPT_DIR/_includes/privacy.md"
+echo "   ✓ Copied PRIVACY.md"
 
 # Determine build mode
 if [ "$1" == "serve" ]; then

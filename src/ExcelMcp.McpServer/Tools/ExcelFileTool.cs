@@ -23,11 +23,11 @@ public static partial class ExcelFileTool
     /// If showExcel=true was used, confirm with user before closing visible Excel windows.
     /// </summary>
     /// <param name="action">The file operation to perform</param>
-    /// <param name="excelPath">Full path to Excel file (.xlsx or .xlsm). Required for: open, create-empty, test</param>
+    /// <param name="excelPath">Full Windows path to Excel file (.xlsx or .xlsm). Use Documents folder or other Windows paths. Required for: open, create-empty, test</param>
     /// <param name="sessionId">Session ID returned from 'open' action. Required for: close. Used by all other tools.</param>
     /// <param name="save">Whether to save changes when closing. Default: false (discard changes)</param>
     /// <param name="showExcel">Whether to make Excel window visible. Default: false (hidden automation)</param>
-    [McpServerTool(Name = "excel_file", Title = "Excel File Operations")]
+    [McpServerTool(Name = "excel_file", Title = "Excel File Operations", Destructive = true)]
     [McpMeta("category", "session")]
     [McpMeta("requiresSession", false)]
     public static partial string ExcelFile(
@@ -69,6 +69,13 @@ public static partial class ExcelFileTool
         if (string.IsNullOrWhiteSpace(excelPath))
         {
             throw new ArgumentException("excelPath is required for 'open' action", nameof(excelPath));
+        }
+
+        // Validate Windows path format before any file operations
+        var pathError = ExcelToolsBase.ValidateWindowsPath(excelPath);
+        if (pathError != null)
+        {
+            return pathError;
         }
 
         if (!File.Exists(excelPath))
@@ -198,6 +205,13 @@ public static partial class ExcelFileTool
     /// </summary>
     private static string CreateEmptyFileAsync(FileCommands fileCommands, string excelPath, bool macroEnabled)
     {
+        // Validate Windows path format before any file operations
+        var pathError = ExcelToolsBase.ValidateWindowsPath(excelPath);
+        if (pathError != null)
+        {
+            return pathError;
+        }
+
         var extension = macroEnabled ? ".xlsm" : ".xlsx";
         if (!excelPath.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
         {
@@ -264,6 +278,13 @@ public static partial class ExcelFileTool
         if (string.IsNullOrWhiteSpace(excelPath))
         {
             throw new ArgumentException("excelPath is required for 'test' action", nameof(excelPath));
+        }
+
+        // Validate Windows path format before any file operations
+        var pathError = ExcelToolsBase.ValidateWindowsPath(excelPath);
+        if (pathError != null)
+        {
+            return pathError;
         }
 
         var info = fileCommands.Test(excelPath);

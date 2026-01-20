@@ -30,7 +30,7 @@ public static partial class ExcelWorksheetStyleTool
     /// <param name="green">Green color component (0-255). Required for: set-tab-color</param>
     /// <param name="blue">Blue color component (0-255). Required for: set-tab-color</param>
     /// <param name="visibility">Visibility level: 'visible', 'hidden', or 'veryhidden'. Required for: set-visibility</param>
-    [McpServerTool(Name = "excel_worksheet_style", Title = "Excel Worksheet Style Operations")]
+    [McpServerTool(Name = "excel_worksheet_style", Title = "Excel Worksheet Style Operations", Destructive = true)]
     [McpMeta("category", "structure")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelWorksheetStyle(

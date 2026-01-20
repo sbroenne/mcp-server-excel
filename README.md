@@ -37,7 +37,11 @@
 
 The extension opens automatically after installation with a quick start guide!
 
-### For Visual Studio, Claude Desktop, Cursor, Windsurf, or other MCP clients:
+### For Claude Desktop (One-Click Install)
+
+Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest) and double-click to install.
+
+### For Visual Studio, Cursor, Windsurf, or other MCP clients:
 
 📖 **[Complete Installation Guide →](docs/INSTALLATION.md)** - Step-by-step setup for all AI assistants with ready-to-use config files
 

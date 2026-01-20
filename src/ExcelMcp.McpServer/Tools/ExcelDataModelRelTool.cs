@@ -45,7 +45,7 @@ public static partial class ExcelDataModelRelTool
     /// <param name="toTableName">Target (one-side/lookup) table name containing the primary key</param>
     /// <param name="toColumnName">Column in toTable that fromColumn links to (usually primary key)</param>
     /// <param name="isActive">True for active relationship (default), false for inactive (use with DAX USERELATIONSHIP)</param>
-    [McpServerTool(Name = "excel_datamodel_rel", Title = "Excel Data Model Relationship Operations")]
+    [McpServerTool(Name = "excel_datamodel_rel", Title = "Excel Data Model Relationship Operations", Destructive = true)]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelDataModelRel(

@@ -215,13 +215,12 @@ git push origin cli-v1.1.0
 # - Test installation
 ```
 
-### Quick Release (Patch Version with Synced Numbers)
+### Quick Release (All Components with Single Tag)
 
 ```bash
-# Create and push both tags at once
-git tag mcp-v1.2.2 -m "Release MCP Server v1.2.2"
-git tag vscode-v1.2.2 -m "Release VS Code Extension v1.2.2"
-git push origin mcp-v1.2.2 vscode-v1.2.2
+# Create and push unified tag - releases ALL components (MCP Server, CLI, VS Code Extension, MCPB)
+git tag v1.2.2 -m "Release v1.2.2"
+git push origin v1.2.2
 ```
 
 ---

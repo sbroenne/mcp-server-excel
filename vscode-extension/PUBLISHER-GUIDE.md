@@ -109,19 +109,20 @@ This guide walks you through publishing your VS Code extension to the marketplac
    git push
    ```
 
-4. **Create and push version tag**:
+4. **Create and push version tag** (releases ALL components):
    ```bash
-   git tag vscode-v1.0.0
-   git push origin vscode-v1.0.0
+   git tag v1.0.0
+   git push origin v1.0.0
    ```
 
 5. **Watch the magic happen**:
    - Go to **Actions** tab in GitHub
-   - Watch the "Release VS Code Extension" workflow run
+   - Watch the "Release All Components" workflow run
    - It will:
-     - Build the extension
+     - Build all components (MCP Server, CLI, VS Code Extension, MCPB)
+     - Publish to NuGet (MCP Server, CLI)
      - Publish to VS Code Marketplace
-     - Create GitHub release
+     - Create unified GitHub release with all artifacts
 
 6. **Verify publication** (takes 5-15 minutes):
    - VS Code Marketplace: https://marketplace.visualstudio.com/items?itemName=sbroenne.excelmcp
@@ -143,18 +144,18 @@ Once you've done the above setup once, publishing new versions is easy:
 cd vscode-extension
 npm version patch  # or minor, or major
 
-# 3. Update CHANGELOG.md
+# 3. Update root CHANGELOG.md
 # Add release notes under new version
 
-# 4. Commit and tag
+# 4. Commit and tag (releases ALL components)
 git add .
 git commit -m "Release v1.0.1"
 git push
 
-git tag vscode-v1.0.1
-git push origin vscode-v1.0.1
+git tag v1.0.1
+git push origin v1.0.1
 
-# 5. Done! Automated workflow handles the rest
+# 5. Done! Automated workflow handles all components
 ```
 
 ---
@@ -266,8 +267,8 @@ git push origin vscode-v1.0.1
 - [ ] Created VS Code Marketplace publisher (ID matches package.json)
 - [ ] Added `VSCE_TOKEN` GitHub secret
 - [ ] Verified package.json has all required fields
-- [ ] Updated CHANGELOG.md with release notes
-- [ ] Tagged release with `vscode-v*` format
+- [ ] Updated root CHANGELOG.md with release notes
+- [ ] Tagged release with `v*` format (e.g., `v1.5.7`)
 - [ ] Watched GitHub Actions workflow succeed
 - [ ] Verified extension appears on marketplace (wait 5-15 min)
 

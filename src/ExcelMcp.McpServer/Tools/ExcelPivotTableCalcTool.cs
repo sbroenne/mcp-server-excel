@@ -45,7 +45,7 @@ public static partial class ExcelPivotTableCalcTool
     /// <param name="subtotalsVisible">Whether to show subtotals for the specified field</param>
     /// <param name="showRowGrandTotals">Whether to show grand totals for rows</param>
     /// <param name="showColumnGrandTotals">Whether to show grand totals for columns</param>
-    [McpServerTool(Name = "excel_pivottable_calc", Title = "Excel PivotTable Calc Operations")]
+    [McpServerTool(Name = "excel_pivottable_calc", Title = "Excel PivotTable Calc Operations", Destructive = true)]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelPivotTableCalc(

@@ -32,8 +32,20 @@ canonical_url: "https://excelmcpserver.dev/"
 
 **Automate Excel with AI - A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.**
 
-<p>One-click setup with GitHub Copilot integration</p>
-<p><a href="https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp" class="button-link">Install from Marketplace</a></p>
+<div class="quick-install-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0;">
+  <div style="text-align: center;">
+    <p><strong>VS Code / GitHub Copilot</strong></p>
+    <a href="https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp" class="button-link">Install Extension</a>
+  </div>
+  <div style="text-align: center;">
+    <p><strong>Claude Desktop</strong></p>
+    <a href="https://github.com/sbroenne/mcp-server-excel/releases/latest" class="button-link">Download MCPB</a>
+  </div>
+  <div style="text-align: center;">
+    <p><strong>Other MCP Clients</strong></p>
+    <a href="/installation/" class="button-link">Installation Guide</a>
+  </div>
+</div>
 
 **MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands, including Power Query & M, PowerPivot & DAX, VBA macros, PivotTables, Charts, formatting & much more – no Excel programming knowledge required.
 

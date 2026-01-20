@@ -75,14 +75,12 @@ Before committing README changes:
 
 ## CHANGELOG.md
 
-The VS Code extension has its own changelog at `/vscode-extension/CHANGELOG.md`. This file:
-- Is **automatically used** by the release workflow to populate GitHub Release notes
-- Should be updated with every feature/bug fix before release
-- Uses standard Keep a Changelog format: `## [version] - YYYY-MM-DD`
+The project uses a **centralized changelog** at `/CHANGELOG.md` covering all components.
 
 **When to update:**
-- Before creating a `vscode-v*` tag, ensure the version section exists in CHANGELOG.md
+- Before creating a `v*` tag, ensure the version section exists in CHANGELOG.md
 - The release workflow extracts the specific version's changes for release notes
+- Uses standard Keep a Changelog format: `## [version] - YYYY-MM-DD`
 
 | Mistake | Fix |
 |---------|-----|

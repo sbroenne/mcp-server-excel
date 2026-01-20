@@ -278,9 +278,9 @@ See **Principle XIV** for the 6 required components. Detailed checklist: `.githu
 
 ### Release Process
 
-- **Version Tags**: `v1.2.3` for MCP Server & CLI (unified), `vscode-v1.1.3` for VS Code extension
+- **Version Tags**: `v1.2.3` releases ALL components (MCP Server, CLI, VS Code Extension, MCPB)
 - **Semantic Versioning**: MAJOR (breaking), MINOR (features), PATCH (fixes)
-- Versions auto-managed by release workflow—never update manually
+- Versions auto-managed by unified release workflow—never update manually
 
 ## Governance
 

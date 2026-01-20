@@ -86,16 +86,18 @@ Quick reference:
 
 ## Release Process (Maintainers)
 
-**Tag Patterns:**
-- MCP Server & CLI (unified): `v1.2.3`
-- VS Code Extension: `vscode-v1.1.3`
+**Tag Pattern:** `v1.2.3` - Releases ALL components with same version:
+- MCP Server → NuGet + ZIP
+- CLI → NuGet + ZIP
+- VS Code Extension → Marketplace + VSIX
+- MCPB → Claude Desktop bundle
 
-**Before Tagging VS Code Extension:**
-1. Update `/vscode-extension/CHANGELOG.md` with new version section
+**Before Tagging:**
+1. Update `/CHANGELOG.md` with new version section
 2. Use format: `## [1.2.3] - YYYY-MM-DD`
 3. Release workflow auto-extracts this for GitHub Release notes
 
-Push tag → Workflow auto-builds → GitHub release created
+Push tag → Workflow builds all 4 components → GitHub release created with all artifacts
 
 ## Key Principles
 

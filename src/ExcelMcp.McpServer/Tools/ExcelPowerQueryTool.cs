@@ -39,7 +39,7 @@ public static partial class ExcelPowerQueryTool
     /// <param name="loadDestination">Load destination for query: 'worksheet' (DEFAULT - load to worksheet as table), 'data-model' (load to Power Pivot), 'both' (load to both), 'connection-only' (don't load data)</param>
     /// <param name="refreshTimeoutSeconds">Timeout in seconds for refresh action (60-600 seconds / 1-10 minutes). Required when action is 'refresh'.</param>
     /// <param name="newName">New name for query (required for rename action). Names are trimmed; case-insensitive uniqueness is enforced.</param>
-    [McpServerTool(Name = "excel_powerquery", Title = "Excel Power Query Operations")]
+    [McpServerTool(Name = "excel_powerquery", Title = "Excel Power Query Operations", Destructive = true)]
     [McpMeta("category", "query")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelPowerQuery(

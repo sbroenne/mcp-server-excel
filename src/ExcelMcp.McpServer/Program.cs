@@ -43,6 +43,22 @@ public class Program
 
     public static async Task<int> Main(string[] args)
     {
+        // Handle --help and --version flags for easy verification
+        if (args.Length > 0)
+        {
+            var arg = args[0].ToLowerInvariant();
+            if (arg is "-h" or "--help" or "-?" or "/?" or "/h")
+            {
+                ShowHelp();
+                return 0;
+            }
+            if (arg is "-v" or "--version")
+            {
+                ShowVersion();
+                return 0;
+            }
+        }
+
         // Register global exception handlers for unhandled exceptions (telemetry)
         RegisterGlobalExceptionHandlers();
 
@@ -225,6 +241,48 @@ public class Program
             ExcelMcpTelemetry.TrackUnhandledException(e.Exception, "TaskScheduler.UnobservedTaskException");
             // Don't observe it - let the runtime handle it
         };
+    }
+
+    /// <summary>
+    /// Shows help information.
+    /// </summary>
+    private static void ShowHelp()
+    {
+        var version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0";
+        Console.WriteLine($"""
+            Excel MCP Server v{version}
+
+            An MCP (Model Context Protocol) server for Microsoft Excel automation.
+            Provides 22 tools with 195+ operations for AI assistants.
+
+            Usage:
+              Sbroenne.ExcelMcp.McpServer.exe [options]
+
+            Options:
+              -h, --help      Show this help message
+              -v, --version   Show version information
+
+            Without options, starts the MCP server in stdio mode.
+
+            Requirements:
+              - Windows x64
+              - Microsoft Excel 2016 or later (desktop version)
+
+            Documentation:
+              https://sbroenne.github.io/mcp-server-excel/
+
+            Source:
+              https://github.com/sbroenne/mcp-server-excel
+            """);
+    }
+
+    /// <summary>
+    /// Shows version information.
+    /// </summary>
+    private static void ShowVersion()
+    {
+        var version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0";
+        Console.WriteLine($"Excel MCP Server v{version}");
     }
 }
 
