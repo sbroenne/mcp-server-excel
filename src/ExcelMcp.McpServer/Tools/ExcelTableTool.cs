@@ -47,7 +47,7 @@ public static partial class TableTool
     /// <param name="styleName">Multi-purpose string parameter: Table style name for 'create'/'set-style' (e.g., 'TableStyleMedium2'). Total function for 'set-column-total' (Sum, Average, Count, etc.). CSV data for 'append'.</param>
     /// <param name="visibleOnly">For 'get-data': true to return only visible (non-filtered) rows. Default: false (all rows)</param>
     /// <param name="daxQuery">DAX EVALUATE query for 'create-from-dax' and 'update-dax' actions (e.g., 'EVALUATE SUMMARIZE(...))'</param>
-    [McpServerTool(Name = "excel_table", Title = "Excel Table Operations")]
+    [McpServerTool(Name = "excel_table", Title = "Excel Table Operations", Destructive = true)]
     [McpMeta("category", "data")]
     [McpMeta("requiresSession", true)]
     public static partial string Table(

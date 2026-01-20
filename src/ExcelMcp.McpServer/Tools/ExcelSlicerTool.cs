@@ -60,7 +60,7 @@ public static class ExcelSlicerTool
     /// <param name="position">Cell address for top-left corner of slicer, e.g., 'E1' (required for create actions)</param>
     /// <param name="selectedItems">JSON array of item names to select, e.g., '["North","South"]'. Empty array clears filter.</param>
     /// <param name="clearFirst">If true (default), replaces selection. If false, adds to existing selection.</param>
-    [McpServerTool(Name = "excel_slicer", Title = "Excel Slicer Operations")]
+    [McpServerTool(Name = "excel_slicer", Title = "Excel Slicer Operations", Destructive = true)]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
     public static string ExcelSlicer(

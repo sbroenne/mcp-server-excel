@@ -46,7 +46,7 @@ public static partial class ExcelChartTool
     /// <param name="top">Top position in points (72 points = 1 inch)</param>
     /// <param name="width">Chart width in points (default 400)</param>
     /// <param name="height">Chart height in points (default 300)</param>
-    [McpServerTool(Name = "excel_chart", Title = "Excel Chart Operations")]
+    [McpServerTool(Name = "excel_chart", Title = "Excel Chart Operations", Destructive = true)]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelChart(

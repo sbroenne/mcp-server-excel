@@ -1,0 +1,501 @@
+name: Release All Components
+
+# Unified release workflow for all ExcelMcp components:
+# - MCP Server (NuGet + ZIP)
+# - CLI (NuGet + ZIP)
+# - VS Code Extension (VSIX + Marketplace)
+# - MCPB (Claude Desktop bundle)
+#
+# All components are released with the same version from a single tag.
+# Tag pattern: v1.2.3
+#
+# Required GitHub Secrets:
+# - NUGET_USER: Your NuGet.org username (profile name, NOT email)
+# - VSCE_TOKEN: VS Code Marketplace PAT
+# - APPINSIGHTS_CONNECTION_STRING: Application Insights connection string
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  NODE_VERSION: '22'
+
+jobs:
+  # =============================================================================
+  # Job 1: Build and Publish MCP Server
+  # =============================================================================
+  build-mcp-server:
+    name: MCP Server
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write  # Required for NuGet OIDC
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Extract Version
+      id: version
+      run: |
+        $version = "${{ github.ref_name }}" -replace '^v', ''
+        echo "version=$version" >> $env:GITHUB_OUTPUT
+        echo "VERSION=$version" >> $env:GITHUB_ENV
+        Write-Output "Version: $version"
+      shell: pwsh
+
+    - name: Update Project Version
+      run: |
+        $version = $env:VERSION
+        $csprojPath = "src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj"
+        $content = Get-Content $csprojPath -Raw
+        $content = $content -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
+        $content = $content -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
+        $content = $content -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
+        Set-Content $csprojPath $content
+
+        # Update MCP Registry server.json
+        $serverJsonPath = "src/ExcelMcp.McpServer/.mcp/server.json"
+        $serverContent = Get-Content $serverJsonPath -Raw
+        $serverContent = $serverContent -replace '("version":\s*)"[\d\.]+"(\s*,\s*\n\s*"packages")' , "`$1`"$version`"`$2"
+        $serverContent = $serverContent -replace '("identifier":\s*"Sbroenne\.ExcelMcp\.McpServer",\s*\n\s*"version":\s*)"[\d\.]+"', "`$1`"$version`""
+        Set-Content $serverJsonPath $serverContent
+      shell: pwsh
+
+    - name: Restore
+      run: dotnet restore src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
+
+    - name: Build
+      run: dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-restore
+      env:
+        APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
+
+    - name: Pack NuGet
+      run: dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-build --output ./nupkg
+
+    - name: NuGet Login (OIDC)
+      uses: NuGet/login@v1
+      id: nuget-login
+      with:
+        user: ${{ secrets.NUGET_USER }}
+
+    - name: Publish to NuGet.org
+      run: |
+        $version = $env:VERSION
+        dotnet nuget push "nupkg/Sbroenne.ExcelMcp.McpServer.$version.nupkg" `
+          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} `
+          --source https://api.nuget.org/v3/index.json `
+          --skip-duplicate
+        Write-Output "Published Sbroenne.ExcelMcp.McpServer.$version to NuGet.org"
+      shell: pwsh
+
+    - name: Create Release Package
+      run: |
+        $version = $env:VERSION
+        New-Item -ItemType Directory -Path "release/ExcelMcp-MCP-Server-$version" -Force
+        Copy-Item "src/ExcelMcp.McpServer/bin/Release/net10.0/*" "release/ExcelMcp-MCP-Server-$version/" -Recurse
+        Copy-Item "README.md" "release/ExcelMcp-MCP-Server-$version/"
+        Copy-Item "LICENSE" "release/ExcelMcp-MCP-Server-$version/"
+        Compress-Archive -Path "release/ExcelMcp-MCP-Server-$version/*" -DestinationPath "ExcelMcp-MCP-Server-$version-windows.zip"
+      shell: pwsh
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: mcp-server-zip
+        path: ExcelMcp-MCP-Server-*-windows.zip
+
+  # =============================================================================
+  # Job 2: Build and Publish CLI
+  # =============================================================================
+  build-cli:
+    name: CLI
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Extract Version
+      run: |
+        $version = "${{ github.ref_name }}" -replace '^v', ''
+        echo "VERSION=$version" >> $env:GITHUB_ENV
+      shell: pwsh
+
+    - name: Update Project Version
+      run: |
+        $version = $env:VERSION
+        $csprojPath = "src/ExcelMcp.CLI/ExcelMcp.CLI.csproj"
+        $content = Get-Content $csprojPath -Raw
+        $content = $content -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
+        $content = $content -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
+        $content = $content -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
+        Set-Content $csprojPath $content
+      shell: pwsh
+
+    - name: Restore
+      run: dotnet restore src/ExcelMcp.CLI/ExcelMcp.CLI.csproj
+
+    - name: Build
+      run: dotnet build src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-restore
+
+    - name: Pack NuGet
+      run: dotnet pack src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-build --output ./nupkg
+
+    - name: NuGet Login (OIDC)
+      uses: NuGet/login@v1
+      id: nuget-login
+      with:
+        user: ${{ secrets.NUGET_USER }}
+
+    - name: Publish to NuGet.org
+      run: |
+        $version = $env:VERSION
+        dotnet nuget push "nupkg/Sbroenne.ExcelMcp.CLI.$version.nupkg" `
+          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} `
+          --source https://api.nuget.org/v3/index.json `
+          --skip-duplicate
+        Write-Output "Published Sbroenne.ExcelMcp.CLI.$version to NuGet.org"
+      shell: pwsh
+
+    - name: Create Release Package
+      run: |
+        $version = $env:VERSION
+        New-Item -ItemType Directory -Path "release/ExcelMcp-CLI-$version" -Force
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net10.0/*" "release/ExcelMcp-CLI-$version/" -Recurse
+        Copy-Item "README.md" "release/ExcelMcp-CLI-$version/"
+        Copy-Item "LICENSE" "release/ExcelMcp-CLI-$version/"
+        Compress-Archive -Path "release/ExcelMcp-CLI-$version/*" -DestinationPath "ExcelMcp-CLI-$version-windows.zip"
+      shell: pwsh
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: cli-zip
+        path: ExcelMcp-CLI-*-windows.zip
+
+  # =============================================================================
+  # Job 3: Build and Publish VS Code Extension
+  # =============================================================================
+  build-vscode:
+    name: VS Code Extension
+    runs-on: windows-latest
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Extract Version
+      run: |
+        $version = "${{ github.ref_name }}" -replace '^v', ''
+        echo "VERSION=$version" >> $env:GITHUB_ENV
+      shell: pwsh
+
+    - name: Update MCP Server Version
+      run: |
+        $version = $env:VERSION
+        $csprojPath = "src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj"
+        $content = Get-Content $csprojPath -Raw
+        $content = $content -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
+        $content = $content -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
+        $content = $content -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
+        Set-Content $csprojPath $content
+      shell: pwsh
+
+    - name: Update Extension Version
+      run: |
+        $version = $env:VERSION
+        cd vscode-extension
+        npm version "$version" --no-git-tag-version
+
+        # Update CHANGELOG.md
+        $date = Get-Date -Format 'yyyy-MM-dd'
+        $changelogPath = 'CHANGELOG.md'
+        $content = Get-Content $changelogPath -Raw
+        $content = $content -replace '## \[Unreleased\]', "## [$version] - $date"
+        Set-Content $changelogPath $content -NoNewline
+      shell: pwsh
+
+    - name: Install Dependencies
+      run: |
+        cd vscode-extension
+        npm install
+
+    - name: Build and Package
+      run: |
+        cd vscode-extension
+        npm run package
+      env:
+        APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
+
+    - name: Rename VSIX
+      run: |
+        $version = $env:VERSION
+        cd vscode-extension
+        $vsix = Get-ChildItem -Filter "*.vsix" | Select-Object -First 1
+        $targetName = "excelmcp-$version.vsix"
+        if ($vsix.Name -ne $targetName) {
+          Rename-Item $vsix.FullName -NewName $targetName
+        }
+      shell: pwsh
+
+    - name: Publish to VS Code Marketplace
+      uses: HaaLeo/publish-vscode-extension@v2
+      with:
+        pat: ${{ secrets.VSCE_TOKEN }}
+        registryUrl: https://marketplace.visualstudio.com
+        extensionFile: vscode-extension/excelmcp-${{ env.VERSION }}.vsix
+      continue-on-error: true
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: vscode-vsix
+        path: vscode-extension/excelmcp-*.vsix
+
+  # =============================================================================
+  # Job 4: Build MCPB (Claude Desktop Bundle)
+  # =============================================================================
+  build-mcpb:
+    name: MCPB Bundle
+    runs-on: windows-latest
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Extract Version
+      run: |
+        $version = "${{ github.ref_name }}" -replace '^v', ''
+        echo "VERSION=$version" >> $env:GITHUB_ENV
+      shell: pwsh
+
+    - name: Build MCPB Bundle
+      run: |
+        cd mcpb
+        .\Build-McpBundle.ps1 -Version $env:VERSION
+      shell: pwsh
+      env:
+        APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: mcpb-bundle
+        path: mcpb/artifacts/excel-mcp-*.mcpb
+
+  # =============================================================================
+  # Job 5: Wait for NuGet Propagation + MCP Registry
+  # =============================================================================
+  publish-mcp-registry:
+    name: MCP Registry
+    needs: [build-mcp-server]
+    runs-on: windows-latest
+    permissions:
+      id-token: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Extract Version
+      run: |
+        $version = "${{ github.ref_name }}" -replace '^v', ''
+        echo "VERSION=$version" >> $env:GITHUB_ENV
+      shell: pwsh
+
+    - name: Update server.json Version
+      run: |
+        $version = $env:VERSION
+        $serverJsonPath = "src/ExcelMcp.McpServer/.mcp/server.json"
+        $serverContent = Get-Content $serverJsonPath -Raw
+        $serverContent = $serverContent -replace '("version":\s*)"[\d\.]+"(\s*,\s*\n\s*"packages")' , "`$1`"$version`"`$2"
+        $serverContent = $serverContent -replace '("identifier":\s*"Sbroenne\.ExcelMcp\.McpServer",\s*\n\s*"version":\s*)"[\d\.]+"', "`$1`"$version`""
+        Set-Content $serverJsonPath $serverContent
+      shell: pwsh
+
+    - name: Wait for NuGet Propagation
+      run: |
+        $version = $env:VERSION
+        $packageId = "sbroenne.excelmcp.mcpserver"
+        $readmeUrl = "https://api.nuget.org/v3-flatcontainer/$packageId/$version/readme"
+
+        Write-Output "Waiting for NuGet CDN propagation..."
+        $maxAttempts = 3
+        $pollInterval = 600  # 10 minutes
+
+        for ($i = 1; $i -le $maxAttempts; $i++) {
+          Write-Output "Attempt $i of $maxAttempts..."
+          try {
+            $response = Invoke-WebRequest -Uri $readmeUrl -UseBasicParsing -ErrorAction Stop
+            if ($response.StatusCode -eq 200) {
+              $content = [System.Text.Encoding]::UTF8.GetString($response.Content)
+              if ($content -match "mcp-name:\s+io\.github\.sbroenne/mcp-server-excel") {
+                Write-Output "README propagated successfully"
+                break
+              }
+            }
+          } catch {
+            Write-Output "README not yet available"
+          }
+          if ($i -lt $maxAttempts) {
+            Start-Sleep -Seconds $pollInterval
+          }
+        }
+      shell: pwsh
+
+    - name: Install MCP Publisher
+      run: |
+        $arch = if ([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture -eq "Arm64") { "arm64" } else { "amd64" }
+        Invoke-WebRequest -Uri "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_windows_$arch.tar.gz" -OutFile "mcp-publisher.tar.gz"
+        tar xf mcp-publisher.tar.gz mcp-publisher.exe
+      shell: pwsh
+
+    - name: Publish to MCP Registry
+      run: |
+        ./mcp-publisher.exe login github-oidc
+        Set-Location src/ExcelMcp.McpServer/.mcp
+        ../../../mcp-publisher.exe publish --verbose
+      shell: pwsh
+      continue-on-error: true
+
+  # =============================================================================
+  # Job 6: Create Unified GitHub Release
+  # =============================================================================
+  create-release:
+    name: Create GitHub Release
+    needs: [build-mcp-server, build-cli, build-vscode, build-mcpb]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Extract Version
+      run: |
+        VERSION="${GITHUB_REF_NAME#v}"
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+    - name: Download All Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: List Artifacts
+      run: |
+        echo "Downloaded artifacts:"
+        find artifacts -type f -name "*" | head -20
+
+    - name: Extract Changelog
+      id: changelog
+      run: |
+        VERSION=${{ env.VERSION }}
+        CHANGELOG_FILE="CHANGELOG.md"
+
+        if [ -f "$CHANGELOG_FILE" ]; then
+          # Extract section for this version
+          CONTENT=$(awk "/^## \[$VERSION\]/,/^## \[/" "$CHANGELOG_FILE" | head -n -1 | tail -n +2)
+          if [ -n "$CONTENT" ]; then
+            echo "Found changelog for $VERSION"
+            echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+            echo "$CONTENT" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "No changelog entry for $VERSION"
+            echo "CHANGELOG=See repository for details." >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "CHANGELOG=See repository for details." >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create Release
+      run: |
+        VERSION=${{ env.VERSION }}
+        TAG=${{ github.ref_name }}
+
+        # Build release notes
+        cat > release_notes.md << 'NOTES'
+        ## ExcelMcp ${{ env.VERSION }}
+
+        ### What's New
+        ${{ steps.changelog.outputs.CHANGELOG }}
+
+        ### Installation Options
+
+        **VS Code Extension** (Recommended)
+        - Search "ExcelMcp" in VS Code Marketplace and click Install
+        - Or download `excelmcp-${{ env.VERSION }}.vsix` below
+
+        **Claude Desktop (MCPB)**
+        - Download `excel-mcp-${{ env.VERSION }}.mcpb` and double-click to install
+
+        **NuGet (.NET Tool)**
+        ```powershell
+        # MCP Server
+        dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+
+        # CLI
+        dotnet tool install --global Sbroenne.ExcelMcp.CLI
+        ```
+
+        ### Requirements
+        - Windows OS
+        - Microsoft Excel 2016+
+        - .NET 10 Runtime (auto-installed by VS Code extension)
+
+        ### Documentation
+        - [Website](https://excelmcpserver.dev/)
+        - [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)
+        - [Changelog](https://github.com/sbroenne/mcp-server-excel/blob/main/CHANGELOG.md)
+        NOTES
+
+        # Collect all artifacts
+        ARTIFACTS=""
+        for f in artifacts/mcp-server-zip/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
+        for f in artifacts/cli-zip/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
+        for f in artifacts/vscode-vsix/*.vsix; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
+        for f in artifacts/mcpb-bundle/*.mcpb; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
+
+        echo "Creating release with artifacts:$ARTIFACTS"
+
+        gh release create "$TAG" $ARTIFACTS \
+          --title "ExcelMcp $VERSION" \
+          --notes-file release_notes.md
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

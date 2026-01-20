@@ -4,7 +4,7 @@ This directory contains include files for Jekyll pages.
 
 **Note:** Some files in this directory are **auto-generated** by `build.sh`:
 - `features.md` - Copied from `/FEATURES.md`
-- `changelog.md` - Copied from `/vscode-extension/CHANGELOG.md`
+- `changelog.md` - Copied from `/CHANGELOG.md` (centralized changelog)
 - `installation.md` - Copied from `/docs/INSTALLATION.md`
 
 These generated files are listed in `.gitignore` and should not be committed.

@@ -49,7 +49,7 @@ public static partial class ExcelChartConfigTool
     /// <param name="visible">Show or hide legend in show-legend action</param>
     /// <param name="legendPosition">Legend position: Bottom, Corner, Top, Right, Left</param>
     /// <param name="styleId">Chart style ID from 1-48 for set-style action</param>
-    [McpServerTool(Name = "excel_chart_config", Title = "Excel Chart Configuration")]
+    [McpServerTool(Name = "excel_chart_config", Title = "Excel Chart Configuration", Destructive = true)]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelChartConfig(

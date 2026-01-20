@@ -30,7 +30,7 @@ public static partial class ExcelWorksheetTool
     /// <param name="targetName">New name for the worksheet. Required for: rename. Optional for: copy, copy-to-file (defaults to sheetName)</param>
     /// <param name="beforeSheet">Position the sheet before this sheet name. Optional for: move, copy-to-file, move-to-file</param>
     /// <param name="afterSheet">Position the sheet after this sheet name. Optional for: move, copy-to-file, move-to-file</param>
-    [McpServerTool(Name = "excel_worksheet", Title = "Excel Worksheet Operations")]
+    [McpServerTool(Name = "excel_worksheet", Title = "Excel Worksheet Operations", Destructive = true)]
     [McpMeta("category", "structure")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelWorksheet(

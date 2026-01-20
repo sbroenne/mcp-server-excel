@@ -45,14 +45,16 @@ The release workflow requires the following secret to be configured in your GitH
 
 ## Workflow Behavior
 
-When you push a tag matching `vscode-v*` (e.g., `vscode-v1.0.0`):
+**Note:** The VS Code extension is now released as part of the unified release workflow (`.github/workflows/release.yml`).
+
+When you push a tag matching `v*` (e.g., `v1.5.7`):
 
 1. **Extracts version from tag** and updates `package.json`
 2. **Updates CHANGELOG.md** with release date
 3. **Builds the extension** from source
 4. **Packages as VSIX** file
 5. **Publishes to VS Code Marketplace** (if `VSCE_TOKEN` is configured)
-6. **Creates GitHub Release** with VSIX attachment and publishing status
+6. **Creates GitHub Release** with all components (MCP Server, CLI, VS Code, MCPB)
 
 ### Publishing is Optional
 
@@ -81,12 +83,12 @@ Or if token is not configured:
 To test the release workflow:
 
 1. Ensure the `VSCE_TOKEN` secret is configured
-2. Push a test tag:
+2. Push a test tag (this will trigger release of ALL components):
    ```bash
-   git tag vscode-v0.0.1-test
-   git push origin vscode-v0.0.1-test
+   git tag v0.0.1-test
+   git push origin v0.0.1-test
    ```
-3. Go to GitHub Actions and watch the workflow run
+3. Go to GitHub Actions and watch the unified workflow run
 4. Check that the release was created and marketplace publishing succeeded
 
 ## Troubleshooting

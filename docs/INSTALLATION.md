@@ -7,7 +7,7 @@ Complete installation instructions for the ExcelMcp MCP Server and CLI tool.
 ### Required
 - **Windows OS** (Windows 10 or later)
 - **Microsoft Excel 2016 or later** (Desktop version - Office 365, Professional Plus, or Standalone)
-- **.NET 10 Runtime or SDK**
+- **.NET 10 Runtime or SDK** (not required for VS Code Extension or MCPB - they bundle it)
 
 ### Recommended
 - Windows 11 for best performance
@@ -38,9 +38,21 @@ Complete installation instructions for the ExcelMcp MCP Server and CLI tool.
 
 ---
 
-### Option 2: Manual Installation (MCP Server)
+### Option 2: Claude Desktop (One-Click Install)
 
-**Best for:** Claude Desktop users, other MCP clients, advanced users
+**Best for:** Claude Desktop users who want the simplest installation
+
+1. Download `excel-mcp-{version}.mcpb` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+2. Double-click the `.mcpb` file (or drag-and-drop onto Claude Desktop)
+3. Restart Claude Desktop
+
+That's it! The MCPB bundle includes everything needed - no .NET installation required.
+
+---
+
+### Option 3: Manual Installation (MCP Server)
+
+**Best for:** Other MCP clients (Cursor, Windsurf, Cline), advanced users
 
 #### Step 1: Install .NET 10
 
@@ -101,6 +113,10 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 ```
 
 **For Claude Desktop:**
+
+> **Recommended:** Use [Option 2: Claude Desktop (One-Click Install)](#option-2-claude-desktop-one-click-install) instead - no .NET installation required!
+
+If you prefer manual installation, configure as follows:
 
 1. Locate config file: `%APPDATA%\Claude\claude_desktop_config.json`
 2. If file doesn't exist, create it with the content below
@@ -198,7 +214,7 @@ This opens Excel visibly so you can see every change in real-time - great for de
 
 ---
 
-### Option 3: CLI Installation (No AI Required)
+### Option 4: CLI Installation (No AI Required)
 
 **Best for:** Scripting, RPA, CI/CD pipelines, automation without AI
 
@@ -314,7 +330,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer --version 1.2.3
 
 Before updating, check the release notes:
 - **GitHub Releases:** https://github.com/sbroenne/mcp-server-excel/releases
-- **Changelog:** https://github.com/sbroenne/mcp-server-excel/blob/main/vscode-extension/CHANGELOG.md
+- **Changelog:** https://github.com/sbroenne/mcp-server-excel/blob/main/CHANGELOG.md
 
 ---
 

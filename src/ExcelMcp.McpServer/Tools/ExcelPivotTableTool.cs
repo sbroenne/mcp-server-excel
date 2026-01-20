@@ -46,7 +46,7 @@ public static partial class ExcelPivotTableTool
     /// <param name="destinationSheetName">Worksheet name where PivotTable will be placed</param>
     /// <param name="destinationCellAddress">Cell address for top-left corner of PivotTable, e.g., 'A3'</param>
     /// <param name="layoutStyle">Layout style for create operations: 0=Compact (default), 1=Tabular, 2=Outline</param>
-    [McpServerTool(Name = "excel_pivottable", Title = "Excel PivotTable Operations")]
+    [McpServerTool(Name = "excel_pivottable", Title = "Excel PivotTable Operations", Destructive = true)]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelPivotTable(

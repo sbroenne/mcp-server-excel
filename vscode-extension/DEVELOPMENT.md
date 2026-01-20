@@ -157,20 +157,21 @@ bin/Sbroenne.ExcelMcp.McpServer.exe --help
 The extension is automatically published to the VS Code Marketplace when a version tag is pushed:
 
 ```bash
-# 1. Create and push tag (workflow updates version automatically)
-git tag vscode-vX.Y.Z
+# 1. Create and push tag (releases ALL components with same version)
+git tag vX.Y.Z
 git push --tags
 ```
 
 The GitHub Actions workflow will automatically:
-- ✅ **Extract version from tag** (e.g., `vscode-v1.0.0` → `1.0.0`)
+- ✅ **Extract version from tag** (e.g., `v1.5.7` → `1.5.7`)
 - ✅ **Update package.json version** using `npm version` (no manual editing needed)
 - ✅ **Update CHANGELOG.md** with release date
 - ✅ **Build and package the extension**
 - ✅ **Publish to VS Code Marketplace** (if `VSCE_TOKEN` secret is configured)
-- ✅ **Create GitHub release** with VSIX file
+- ✅ **Build all other components** (MCP Server, CLI, MCPB)
+- ✅ **Create unified GitHub release** with all artifacts
 
-**Important**: The workflow manages version numbers - you don't need to manually update `package.json` before tagging.
+**Important**: The workflow manages version numbers - you don't need to manually update `package.json` before tagging. The unified release workflow (`.github/workflows/release.yml`) releases all components together.
 
 See [MARKETPLACE-PUBLISHING.md](MARKETPLACE-PUBLISHING.md) for setup instructions.
 
@@ -206,8 +207,8 @@ The CHANGELOG.md file should always have a **top entry ready for the next releas
 
 ### Workflow Process
 
-1. **You maintain**: Keep CHANGELOG.md updated with changes, but version number can be any placeholder
-2. **Workflow updates**: When you push tag `vscode-v1.1.0`, the workflow replaces the first version number with `1.1.0` and updates the date
+1. **You maintain**: Keep root CHANGELOG.md updated with changes, but version number can be any placeholder
+2. **Workflow updates**: When you push tag `v1.1.0`, the workflow extracts that version's section for release notes
 
 ### Best Practice
 
@@ -263,18 +264,19 @@ npm run package
 ## Versioning
 
 **Automatic Version Management** (Recommended):
-The release workflow automatically updates version numbers from git tags:
+The unified release workflow automatically updates version numbers from git tags:
 
 ```bash
-# Just create and push the tag - workflow does the rest
-git tag vscode-v1.2.3
+# Just create and push the tag - workflow does the rest for ALL components
+git tag v1.2.3
 git push --tags
 ```
 
 The workflow will:
-- Extract version from tag (`vscode-v1.2.3` → `1.2.3`)
-- Update `package.json` version
-- Update `CHANGELOG.md` with release date
+- Extract version from tag (`v1.2.3` → `1.2.3`)
+- Update `package.json` version for VS Code extension
+- Update all component versions (MCP Server, CLI, MCPB manifest)
+- Create unified GitHub release with all artifacts
 
 **Manual Version Updates** (if needed):
 If you need to update the version locally before tagging:

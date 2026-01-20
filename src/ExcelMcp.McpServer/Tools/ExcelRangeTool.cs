@@ -45,7 +45,7 @@ public static partial class ExcelRangeTool
     /// <param name="formatCode">Number format code in US locale (e.g., '#,##0.00' for numbers, 'mm/dd/yyyy' for dates, '0.00%' for percentages)</param>
     /// <param name="formatCodes">2D array of format codes to apply cell-by-cell - same dimensions as target range</param>
     /// <param name="cellAddress">Single cell address for get-current-region action (e.g., 'B5') - expands to contiguous data region around this cell</param>
-    [McpServerTool(Name = "excel_range", Title = "Excel Range Operations")]
+    [McpServerTool(Name = "excel_range", Title = "Excel Range Operations", Destructive = true)]
     [McpMeta("category", "data")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelRange(

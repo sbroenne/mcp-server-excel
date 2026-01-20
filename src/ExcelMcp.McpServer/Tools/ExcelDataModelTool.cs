@@ -65,7 +65,7 @@ public static partial class ExcelDataModelTool
     /// <param name="dmvQuery">DMV query for execute-dmv action. Use SELECT * FROM $SYSTEM.TMSCHEMA_MEASURES or DISCOVER_CALC_DEPENDENCY</param>
     /// <param name="description">Optional description for the measure</param>
     /// <param name="formatString">Number format code in US format, e.g., '#,##0.00' for currency</param>
-    [McpServerTool(Name = "excel_datamodel", Title = "Excel Data Model Operations")]
+    [McpServerTool(Name = "excel_datamodel", Title = "Excel Data Model Operations", Destructive = true)]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelDataModel(

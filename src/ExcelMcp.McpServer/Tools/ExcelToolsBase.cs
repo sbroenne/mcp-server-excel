@@ -203,6 +203,52 @@ public static class ExcelToolsBase
     }
 
     /// <summary>
+    /// Validates that a path is a valid Windows absolute path.
+    /// Returns null if valid, or a JSON error response if invalid.
+    /// </summary>
+    /// <param name="path">The path to validate</param>
+    /// <returns>JSON error response if invalid, null if valid</returns>
+    public static string? ValidateWindowsPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null; // Let existing null checks handle this
+        }
+
+        // Use .NET's built-in check for fully qualified Windows paths
+        // Returns false for Unix paths like /home/user/file.xlsx, relative paths like ./file.xlsx
+        if (!Path.IsPathFullyQualified(path))
+        {
+            // Extract filename from the invalid path (works for both Unix and Windows separators)
+            var fileName = Path.GetFileName(path.Replace('/', Path.DirectorySeparatorChar));
+            if (string.IsNullOrEmpty(fileName))
+            {
+                fileName = "workbook.xlsx";
+            }
+
+            // Get user's actual Documents folder to provide a valid suggestion
+            var documentsFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            var suggestedPath = Path.Combine(documentsFolder, fileName);
+
+            var errorMessage = path.StartsWith('/')
+                ? $"Invalid path format: '{path}' appears to be a Unix/Linux path. This server runs on Windows. Use: '{suggestedPath}'"
+                : $"Invalid path format: '{path}' is not an absolute Windows path. Use: '{suggestedPath}'";
+
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage,
+                filePath = path,
+                suggestedPath,
+                documentsFolder,
+                isError = true
+            }, JsonOptions);
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Serializes a tool error response with consistent structure.
     /// Uses short property names for token efficiency: ok=success, err=errorMessage, ie=isError
     /// </summary>

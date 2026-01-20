@@ -1,0 +1,53 @@
+{
+  "manifest_version": "0.3",
+  "name": "excel-mcp",
+  "display_name": "Excel (Windows)",
+  "version": "1.1.5",
+  "description": "Manage Sheets, Power Query, DAX, VBA, PowerPivot, Tables, Ranges, Charts, Formatting, Validation & more - requires Excel to be installed",
+  "long_description": "Enterprise-grade MCP server for Microsoft Excel automation. 22 specialized tools with 195+ operations for Power Query, DAX, VBA, Charts, PivotTables, Conditional Formatting, and more. Windows-only, requires Microsoft Excel desktop application (2016 or later).",
+  "author": {
+    "name": "Stefan Broenner",
+    "url": "https://github.com/sbroenne"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sbroenne/mcp-server-excel"
+  },
+  "homepage": "https://excelmcpserver.dev/",
+  "documentation": "https://excelmcpserver.dev/",
+  "support": "https://github.com/sbroenne/mcp-server-excel/issues",
+  "icon": "icon-512.png",
+  "license": "MIT",
+  "privacy_policies": ["https://excelmcpserver.dev/privacy/"],
+  "keywords": [
+    "excel",
+    "office",
+    "spreadsheet",
+    "automation",
+    "power query",
+    "m language",
+    "dax",
+    "data model",
+    "power pivot",
+    "vba",
+    "macro",
+    "table",
+    "data analysis",
+    "pivot table"
+  ],
+  "server": {
+    "type": "binary",
+    "entry_point": "server/excel-mcp-server",
+    "mcp_config": {
+      "command": "${__dirname}/server/excel-mcp-server",
+      "args": [],
+      "env": {}
+    }
+  },
+  "tools_generated": true,
+  "prompts_generated": true,
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": ["win32"]
+  }
+}

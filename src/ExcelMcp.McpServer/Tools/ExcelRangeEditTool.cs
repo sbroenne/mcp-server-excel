@@ -42,7 +42,7 @@ public static partial class ExcelRangeEditTool
     /// <param name="replaceAll">Whether to replace all occurrences or just the first one (default: true)</param>
     /// <param name="sortColumns">Array of sort specifications: [{columnIndex: 1, ascending: true}, ...] - columnIndex is 1-based relative to range</param>
     /// <param name="hasHeaderRow">Whether the range has a header row to exclude from sorting (default: true)</param>
-    [McpServerTool(Name = "excel_range_edit", Title = "Excel Range Edit Operations")]
+    [McpServerTool(Name = "excel_range_edit", Title = "Excel Range Edit Operations", Destructive = true)]
     [McpMeta("category", "data")]
     [McpMeta("requiresSession", true)]
     public static partial string RangeEdit(

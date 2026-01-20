@@ -24,24 +24,26 @@ The ExcelMcp VS Code Extension provides one-click installation of the ExcelMcp M
 
 ### How to Maintain CHANGELOG.md
 
-**Rule:** CHANGELOG.md should always have a **top entry ready for the next release**. The release workflow will automatically update the version number and date.
+**Rule:** The root CHANGELOG.md should always have a **top entry ready for the next release**. The release workflow will automatically update the version number and date.
 
 ### Workflow Process
 
-1. **You maintain**: Keep CHANGELOG.md updated with changes as you make them
-2. **Version number can be a placeholder**: Use any version (e.g., `1.0.0`) - workflow will replace it
-3. **Workflow updates automatically**: When you push tag `vscode-v1.1.0`, the workflow:
-   - Replaces the **first version number** in CHANGELOG.md with `1.1.0`
-   - Updates the date to the release date
-   - Updates package.json version to `1.1.0`
+1. **You maintain**: Keep root CHANGELOG.md updated with changes as you make them
+2. **Version number must match tag**: Use the version you'll tag (e.g., `1.5.7`)
+3. **Workflow extracts automatically**: When you push tag `v1.5.7`, the unified workflow:
+   - Extracts the section for that version from CHANGELOG.md for release notes
+   - Updates package.json version to `1.5.7`
+   - Builds and releases ALL components (MCP Server, CLI, VS Code Extension, MCPB)
 
 ### Example Workflow
 
-**During Development** (CHANGELOG.md):
+**During Development** (root CHANGELOG.md):
 ```markdown
-# Change Log
+# Changelog
 
-## [1.0.0] - 2025-10-29
+## [Unreleased]
+
+## [1.5.7] - 2025-01-21
 
 ### Added
 - New feature A
@@ -50,29 +52,15 @@ The ExcelMcp VS Code Extension provides one-click installation of the ExcelMcp M
 ### Fixed
 - Bug fix C
 
-## [1.0.0] - 2025-10-28
+## [1.5.6] - 2025-01-20
 
 ### Added
-- Initial release
+- Initial slicer support
 ```
 
-**After Pushing Tag** `vscode-v1.1.0` (workflow auto-updates):
-```markdown
-# Change Log
-
-## [1.1.0] - 2025-10-30
-
-### Added
-- New feature A
-- New feature B
-
-### Fixed
-- Bug fix C
-
-## [1.0.0] - 2025-10-28
-
-### Added
-- Initial release
+**After Pushing Tag** `v1.5.7`:
+- Workflow extracts the `[1.5.7]` section for GitHub Release notes
+- All 4 components are built and released with version 1.5.7
 ```
 
 ### Best Practice
@@ -110,23 +98,24 @@ Follow [Keep a Changelog](https://keepachangelog.com/) format:
 
 ## Version Management
 
-### Automatic Version Management (Release Workflow)
+### Automatic Version Management (Unified Release Workflow)
 
-**DO NOT manually edit package.json version** - The release workflow handles this:
+**DO NOT manually edit package.json version** - The unified release workflow handles this:
 
 ```bash
-# Create and push tag - workflow does everything
-git tag vscode-v1.2.3
-git push origin vscode-v1.2.3
+# Create and push tag - workflow releases ALL components with same version
+git tag v1.5.7
+git push origin v1.5.7
 ```
 
-Workflow automatically:
-1. Extracts version from tag (`vscode-v1.2.3` → `1.2.3`)
+Unified workflow automatically:
+1. Extracts version from tag (`v1.5.7` → `1.5.7`)
 2. Updates `package.json` version using `npm version`
-3. Updates first version in `CHANGELOG.md` with release date
-4. Builds and packages extension
-5. Publishes to VS Code Marketplace
-6. Creates GitHub release with VSIX file
+3. Extracts changelog section for release notes
+4. Builds and packages VS Code extension
+5. Builds all other components (MCP Server, CLI, MCPB)
+6. Publishes to VS Code Marketplace and NuGet
+7. Creates unified GitHub release with all artifacts
 
 ### Local Testing (Manual Version Bump)
 
@@ -239,13 +228,13 @@ npm run package
 
 ### Automated Publishing (Preferred)
 
-1. **Update CHANGELOG.md** with new features/fixes
-2. **Create and push version tag**:
+1. **Update root CHANGELOG.md** with new features/fixes for all components
+2. **Create and push version tag** (releases ALL components):
    ```bash
-   git tag vscode-v1.2.3
-   git push origin vscode-v1.2.3
+   git tag v1.5.7
+   git push origin v1.5.7
    ```
-3. **GitHub Actions workflow handles the rest**
+3. **Unified GitHub Actions workflow handles the rest**
 
 ### Manual Publishing (Emergency Only)
 

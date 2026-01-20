@@ -32,7 +32,7 @@ public static partial class ExcelConditionalFormatTool
     /// <param name="fontItalic">Font italic (true/false)</param>
     /// <param name="borderStyle">Border line style: 'continuous', 'dash', 'dot', 'dash-dot', 'dash-dot-dot', 'slant-dash-dot', 'double'</param>
     /// <param name="borderColor">Border color (#RRGGBB hex or color index, e.g., '#000000' for black)</param>
-    [McpServerTool(Name = "excel_conditionalformat", Title = "Excel Conditional Formatting")]
+    [McpServerTool(Name = "excel_conditionalformat", Title = "Excel Conditional Formatting", Destructive = true)]
     [McpMeta("category", "structure")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelConditionalFormat(

@@ -1,153 +1,201 @@
 # ExcelMcp Release Strategy
 
-This document outlines the build and release processes for ExcelMcp components: MCP Server & CLI (unified), and VS Code Extension.
+This document outlines the unified release process for all ExcelMcp components.
 
-## Release Workflows
+## Overview
 
-### 1. MCP Server & CLI Unified Releases (`v*` tags)
+All four ExcelMcp components are released together with a single version tag:
 
-**Workflow**: `.github/workflows/release-mcp-server.yml`
-**Trigger**: Tags starting with `v` (e.g., `v1.0.0`)
+| Component | Distribution | Description |
+|-----------|--------------|-------------|
+| **MCP Server** | NuGet + ZIP | Model Context Protocol server for AI assistants |
+| **CLI** | NuGet + ZIP | Command-line interface for scripting |
+| **VS Code Extension** | VSIX + Marketplace | One-click installation with bundled MCP Server |
+| **MCPB** | Claude Desktop bundle | One-click installation for Claude Desktop |
 
-**Features**:
+## Unified Release Workflow
 
-- Builds and packages **both MCP Server and CLI together**
-- Publishes both to NuGet as .NET tools (using OIDC trusted publishing)
-- Creates unified GitHub release with both packages
-- Synchronized versioning ensures compatibility
-- Single workflow handles both NuGet packages and GitHub release
+**Workflow**: `.github/workflows/release.yml`  
+**Trigger**: Tags matching `v*` (e.g., `v1.5.6`)
 
-**Release Artifacts**:
+### What Gets Released
 
-- `ExcelMcp-MCP-Server-{version}-windows.zip` - MCP Server binary package
-- `ExcelMcp-CLI-{version}-windows.zip` - CLI binary package
-- NuGet package: `Sbroenne.ExcelMcp.McpServer` on NuGet.org
-- NuGet package: `Sbroenne.ExcelMcp.CLI` on NuGet.org (as .NET global tool)
-- Unified release notes covering both packages
+When you push a `v*` tag:
 
-**Publishing Method**:
-- Uses OIDC (OpenID Connect) trusted publishing for secure NuGet authentication
-- No API keys stored in secrets - authentication via GitHub identity
-- Publishes both packages to NuGet.org within same workflow
-- CLI configured as .NET global tool (PackAsTool=true)
+1. **MCP Server** → NuGet (`Sbroenne.ExcelMcp.McpServer`) + ZIP
+2. **CLI** → NuGet (`Sbroenne.ExcelMcp.CLI`) + ZIP
+3. **VS Code Extension** → VS Code Marketplace + VSIX
+4. **MCPB** → Claude Desktop bundle (`.mcpb` file)
+5. **MCP Registry** → Updated after NuGet propagation
+6. **GitHub Release** → Created with all artifacts
 
-**Use Cases**:
+### Release Artifacts
 
-- **MCP Server**: AI assistant integration (GitHub Copilot, Claude, ChatGPT), conversational Excel workflows
-- **CLI**: Direct Excel automation scripts, CI/CD pipeline integration, command-line operations
-- **Both**: Unified version ensures compatibility, simplified dependency management
+| Artifact | Format | Distribution |
+|----------|--------|--------------|
+| `ExcelMcp-MCP-Server-{version}-windows.zip` | ZIP | GitHub Release |
+| `ExcelMcp-CLI-{version}-windows.zip` | ZIP | GitHub Release |
+| `excelmcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace |
+| `excel-mcp-{version}.mcpb` | MCPB | GitHub Release |
+| `Sbroenne.ExcelMcp.McpServer.{version}.nupkg` | NuGet | NuGet.org |
+| `Sbroenne.ExcelMcp.CLI.{version}.nupkg` | NuGet | NuGet.org |
 
-**Why Unified?**
-- MCP Server and CLI share Core/ComInterop libraries as internal dependencies
-- Synchronized versioning prevents compatibility issues
-- Simplified release process (one tag, one workflow)
-- Users can install either or both with matching versions
+## Release Process
 
-### 2. VS Code Extension Releases (`vscode-v*` tags)
+### 1. Update Changelog
 
-**Workflow**: `.github/workflows/release-vscode-extension.yml`
-**Trigger**: Tags starting with `vscode-v` (e.g., `vscode-v1.0.0`)
+Before creating a release tag, update `CHANGELOG.md`:
 
-**Features**:
+```markdown
+## [Unreleased]
 
-- Builds and packages VS Code extension
-- Creates VSIX package for VS Code Marketplace
-- Focused on VS Code integration
-- No NuGet publishing (VSIX distribution only)
+## [1.5.7] - 2025-01-21
 
-**Release Artifacts**:
+### Added
+- New feature description
 
-- `excel-mcp-{version}.vsix` - VS Code Extension package
-- Installation guide for VS Code extension
-- Extension marketplace listing updates
+### Changed
+- Changed feature description
 
-**Use Cases**:
+### Fixed
+- Bug fix description
+```
 
-- VS Code integration for Excel development
-- MCP server management within VS Code
-- Developer experience improvements
-- One-click MCP server configuration
+### 2. Create Release Tag
+
+```bash
+# Ensure you're on main with latest changes
+git checkout main
+git pull origin main
+
+# Create and push tag
+git tag v1.5.7
+git push origin v1.5.7
+```
+
+### 3. Monitor Workflow
+
+The release workflow runs automatically:
+
+1. **build-mcp-server** (3-5 min) → Builds and publishes to NuGet
+2. **build-cli** (3-5 min) → Builds and publishes to NuGet
+3. **build-vscode** (3-5 min) → Builds and publishes to VS Code Marketplace
+4. **build-mcpb** (3-5 min) → Builds Claude Desktop bundle
+5. **publish-mcp-registry** (10-30 min) → Waits for NuGet propagation, updates MCP Registry
+6. **create-release** → Creates GitHub Release with all artifacts
+
+### 4. Verify Release
+
+After workflow completes:
+
+- [ ] GitHub Release created with all 4 artifacts
+- [ ] NuGet packages available (may take 10-30 min for full propagation)
+- [ ] VS Code Marketplace updated
+- [ ] MCP Registry updated
 
 ## Version Management
 
-### Versioning Strategy
+### Single Version Number
 
-**Unified Packages:**
-- **MCP Server & CLI**: Always released together with same version number (e.g., v1.2.0)
-- Single tag triggers both NuGet packages
-- Ensures compatibility between MCP Server and CLI
-- Core and ComInterop are internal dependencies (not separately released to NuGet)
+All components use the same version number extracted from the tag:
 
-**Independent Package:**
-- **VS Code Extension**: Independent version numbers (e.g., vscode-v1.0.5)
-
-### Development Strategy
-
-- **Core & ComInterop**: Internal libraries, not separately published to NuGet
-- **MCP Server & CLI**: Consumer-facing packages, always co-released
-  - **MCP Server**: AI integration features, conversational interfaces
-  - **CLI**: Direct automation, command completeness, CI/CD integration
-- **VS Code Extension**: Focus on developer experience, VS Code integration, MCP management
-
-## Release Process Examples
-
-### Releasing MCP Server & CLI Together (Standard)
-
-```bash
-# MCP Server and CLI are always released together
-
-# Create and push unified release tag
-git tag v1.2.0
-git push origin v1.2.0
-
-# This triggers release-mcp-server.yml which:
-# - Builds both MCP Server and CLI
-# - Publishes both to NuGet using OIDC trusted publishing
-# - Creates GitHub release with both ZIP packages
-# - Unified release notes covering both packages
+```
+Tag: v1.5.7
+↓
+MCP Server: 1.5.7
+CLI: 1.5.7
+VS Code Extension: 1.5.7
+MCPB: 1.5.7
 ```
 
-### Releasing VS Code Extension Only
+### Version Sources
 
-```bash
-# Create and push VS Code extension release tag
-git tag vscode-v1.0.5
-git push origin vscode-v1.0.5
+| Component | Version Source |
+|-----------|----------------|
+| MCP Server | `.csproj` (updated at build time from tag) |
+| CLI | `.csproj` (updated at build time from tag) |
+| VS Code Extension | `package.json` (updated at build time from tag) |
+| MCPB | `manifest.json` (updated at build time from tag) |
 
-# This triggers release-vscode-extension.yml which:
-# - Builds VS Code extension
-# - Creates VSIX package
-# - Creates GitHub release with extension installation docs
+### Development Version
+
+During development, use placeholder version `1.0.0` in:
+- `Directory.Build.props`
+- `package.json`
+- `manifest.json`
+
+The release workflow injects the correct version from the tag.
+
+## Changelog Format
+
+The root `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/) format:
+
+```markdown
+# Changelog
+
+## [Unreleased]
+
+## [1.5.7] - 2025-01-21
+
+### Added
+- Feature description
+
+### Changed
+- Change description
+
+### Fixed
+- Bug fix description
 ```
 
-## Documentation Strategy
+The release workflow extracts the section for the current version and includes it in GitHub Release notes.
 
-### Separate Focus Areas
+## Required Secrets
 
-- **Main README.md**: MCP Server focused (AI assistant integration)
-- **src/ExcelMcp.CLI/README.md**: CLI focused (direct automation)
-- **vscode-extension/README.md**: VS Code Extension focused (developer experience)
-- **Release Notes**: Unified for MCP Server + CLI, separate for VS Code Extension
+Configure these GitHub repository secrets:
 
-### Cross-References
+| Secret | Purpose |
+|--------|---------|
+| `NUGET_USER` | NuGet.org username (for OIDC trusted publishing) |
+| `VSCE_TOKEN` | VS Code Marketplace PAT |
+| `APPINSIGHTS_CONNECTION_STRING` | Application Insights (optional telemetry) |
 
-- Each tool's documentation references the others
-- Clear navigation between MCP, CLI, and VS Code Extension docs
-- Unified project branding while maintaining component clarity
+## Troubleshooting
 
-## Benefits of This Approach
+### NuGet Publishing Fails
 
-1. **Unified Releases**: MCP Server and CLI always compatible (same version)
-2. **Simplified Process**: One tag triggers both packages
-3. **Reduced Complexity**: No need to coordinate separate Core/ComInterop releases
-4. **Focused Documentation**: Release notes match user intent
-5. **Clear Separation**: MCP for AI workflows, CLI for automation, VS Code for IDE
-6. **Flexibility**: VS Code Extension evolves independently
-7. **NuGet Ecosystem**: Both tools available via NuGet package manager
+- Verify `NUGET_USER` secret is set to your NuGet.org profile name (not email)
+- Check NuGet.org trusted publishers are configured for OIDC
 
-## Tag Patterns
+### VS Code Marketplace Fails
 
-- `v*`: MCP Server and CLI together (unified release)
-- `vscode-v*`: VS Code Extension only (VSIX)
+- Verify `VSCE_TOKEN` is valid and not expired
+- Check extension ID matches marketplace listing
 
-This approach provides simplified release management while maintaining the integrated ExcelMcp ecosystem.
+### MCPB Build Fails
+
+- Ensure `mcpb/manifest.json` is valid JSON
+- Verify `mcpb/icon-512.png` exists (512x512 PNG)
+
+### MCP Registry Update Fails
+
+- MCP Registry update uses GitHub OIDC
+- Failures don't block the release (marked continue-on-error)
+- Can be retried manually via MCP publisher tool
+
+## Legacy Workflows
+
+The following workflows have been deprecated:
+
+- `.github/workflows/release-mcp-server.yml.deprecated` - Replaced by unified workflow
+- `.github/workflows/release-vscode-extension.yml.deprecated` - Replaced by unified workflow
+
+These files are kept for reference but are not triggered.
+
+## Benefits of Unified Releases
+
+1. **Single version** across all components ensures compatibility
+2. **One tag** triggers all releases - simpler process
+3. **Synchronized updates** - users always get matching versions
+4. **Reduced coordination** - no need to remember multiple tag patterns
+5. **Complete changelog** - all changes documented in one place
+6. **Faster releases** - parallel builds for all components

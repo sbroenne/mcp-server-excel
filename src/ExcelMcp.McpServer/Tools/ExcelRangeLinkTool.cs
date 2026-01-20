@@ -35,7 +35,7 @@ public static partial class ExcelRangeLinkTool
     /// <param name="displayText">Text to display in the cell (optional, defaults to URL)</param>
     /// <param name="tooltip">Tooltip text shown on hover (optional)</param>
     /// <param name="isLocked">Lock status for cell protection. true=locked (protected), false=unlocked (editable). Required for: set-cell-lock</param>
-    [McpServerTool(Name = "excel_range_link", Title = "Excel Range Link Operations")]
+    [McpServerTool(Name = "excel_range_link", Title = "Excel Range Link Operations", Destructive = true)]
     [McpMeta("category", "data")]
     [McpMeta("requiresSession", true)]
     public static partial string RangeLink(

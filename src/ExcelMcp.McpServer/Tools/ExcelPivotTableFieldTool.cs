@@ -50,7 +50,7 @@ public static partial class ExcelPivotTableFieldTool
     /// <param name="numericGroupingStart">Starting value for numeric grouping ranges</param>
     /// <param name="numericGroupingEnd">Ending value for numeric grouping ranges</param>
     /// <param name="numericGroupingInterval">Interval size for numeric grouping (must be greater than 0)</param>
-    [McpServerTool(Name = "excel_pivottable_field", Title = "Excel PivotTable Field Operations")]
+    [McpServerTool(Name = "excel_pivottable_field", Title = "Excel PivotTable Field Operations", Destructive = true)]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelPivotTableField(
