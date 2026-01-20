@@ -16,11 +16,11 @@
 
 ## Features
 
-The Excel MCP Server provides **21 specialized tools with 187 operations** for comprehensive Excel automation:
+The Excel MCP Server provides **22 specialized tools with 194 operations** for comprehensive Excel automation:
 
 - 🔄 **Power Query** (1 tool, 10 ops) - Atomic workflows, M code management, load destinations
-- 📊 **Data Model/DAX** (2 tools, 17 ops) - Measures, relationships, model structure
-- 🎨 **Excel Tables** (2 tools, 24 ops) - Lifecycle, filtering, sorting, structured references
+- 📊 **Data Model/DAX** (2 tools, 18 ops) - Measures, relationships, model structure
+- 🎨 **Excel Tables** (2 tools, 27 ops) - Lifecycle, filtering, sorting, structured references
 - 📈 **PivotTables** (3 tools, 30 ops) - Creation, fields, aggregations, calculated members/fields
 - 📉 **Charts** (2 tools, 14 ops) - Create, configure, manage series and formatting
 - 📝 **VBA** (1 tool, 6 ops) - Modules, execution, version control
@@ -29,30 +29,28 @@ The Excel MCP Server provides **21 specialized tools with 187 operations** for c
 - 🔌 **Connections** (1 tool, 9 ops) - OLEDB/ODBC management and refresh
 - 🏷️ **Named Ranges** (1 tool, 6 ops) - Parameters and configuration
 - 📁 **Files** (1 tool, 6 ops) - Session management and workbook creation
-- 🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
+- �️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
+- �🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
 
 📚 **[Complete Feature Reference →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)**
 
 
 ## 💬 Example Prompts
 
-**Data Transformation & Analysis:**
-- *"Optimize all my Power Queries in this workbook for better performance"*
-- *"Create a PivotTable from SalesData table showing top 10 products by region with sum and average"*
-- *"Create a data model from the following tables ... "*
-- *"Build a DAX measure calculating year-over-year growth with proper time intelligence"*
-- *"Filter this table by Column Product = Sushi"*
-- *"Create a treemap chart from this table".
+**Create & Populate Data:**
+- *"Create a new Excel file called SalesTracker.xlsx with a table for Date, Product, Quantity, Unit Price, and Total"*
+- *"Put this data in A1:C4 - Name, Age, City / Alice, 30, Seattle / Bob, 25, Portland"*
+- *"Add sample data and a formula column for Quantity times Unit Price"*
 
-**Formatting & Styling (No Programming Required):**
-- *"Format the revenue columns as currency, make headers bold with blue background, and add borders to the table"*
-- *"Apply conditional formatting to highlight values above $10,000 in red and below $5,000 in yellow"*
-- *"Convert this data range to an Excel Table with style TableStyleMedium2, add auto-filters, and create a totals row"*
+**Analysis & Visualization:**
+- *"Create a PivotTable from this data showing total sales by Product, then add a bar chart"*
+- *"Import products.csv with Power Query, load to Data Model, create a measure for Total Revenue"*
+- *"Create a slicer for the Region field so I can filter the PivotTable interactively"*
 
-**Workflow Automation:**
-- *"Find all cells containing 'Q1 2024' and replace with 'Q1 2025', then sort the table by Date descending"*
-- *"Add data validation dropdowns to the Status column with options: Active, Pending, Completed"*
-- *"Merge the header cells, center-align them, and auto-fit all column widths to content"*
+**Formatting & Automation:**
+- *"Format the Price column as currency and highlight values over $500 in green"*
+- *"Export all Power Query M code to files for version control"*
+- *"Show me Excel while you work"* - watch changes in real-time
 
 
 ## Quick Start

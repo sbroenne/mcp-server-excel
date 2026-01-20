@@ -15,7 +15,7 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time.
 
-**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. CLI has 13 command categories with 187 operations matching the MCP Server (21 tools with 187 operations).
+**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. CLI has 13 command categories with 194 operations matching the MCP Server (22 tools with 194 operations).
 
 **Requirements:** Windows OS + Excel 2016+
 
@@ -53,11 +53,11 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 ## 🛠️ What You Can Do
 
-**21 specialized tools with 187 operations:**
+**22 specialized tools with 194 operations:**
 
 - 🔄 **Power Query** (1 tool, 10 ops) - Atomic workflows, M code management, load destinations
-- 📊 **Data Model/DAX** (2 tools, 17 ops) - Measures, relationships, model structure
-- 🎨 **Excel Tables** (2 tools, 24 ops) - Lifecycle, filtering, sorting, structured references
+- 📊 **Data Model/DAX** (2 tools, 18 ops) - Measures, relationships, model structure
+- 🎨 **Excel Tables** (2 tools, 27 ops) - Lifecycle, filtering, sorting, structured references
 - 📈 **PivotTables** (3 tools, 30 ops) - Creation, fields, aggregations, calculated members/fields
 - 📉 **Charts** (2 tools, 14 ops) - Create, configure, manage series and formatting
 - 📝 **VBA** (1 tool, 6 ops) - Modules, execution, version control
@@ -66,9 +66,10 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 - 🔌 **Connections** (1 tool, 9 ops) - OLEDB/ODBC management and refresh
 - 🏷️ **Named Ranges** (1 tool, 6 ops) - Parameters and configuration
 - 📁 **Files** (1 tool, 6 ops) - Session management and workbook creation
+- �️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
 - 🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
 
-📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 187 operations
+📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 194 operations
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot, Claude, or ChatGPT
@@ -82,20 +83,20 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 ## 💡 Example Use Cases
 
-**"Optimize all my Power Queries in this workbook"**  
-→ AI analyzes M code, optimizes query folding, improves step organization
+**"Create a sales tracker with Date, Product, Quantity, Unit Price, and Total columns"**  
+→ AI creates the workbook, adds headers, enters sample data, and builds formulas
 
-**"Create a PivotTable showing sales by region and product"**  
-→ AI creates PivotTable, adds fields, sets aggregations, applies formatting
+**"Create a PivotTable from this data showing total sales by Product, then add a chart"**  
+→ AI creates PivotTable, configures fields, and adds a linked visualization
 
-**"Format revenue columns as currency with bold headers and blue background"**  
-→ AI applies number formatting, font styles, and cell colors
+**"Import products.csv with Power Query, load to Data Model, create a Total Revenue measure"**  
+→ AI imports data, adds to Power Pivot, and creates DAX measures for analysis
 
-**"Build a DAX measure for year-over-year growth"**  
-→ AI writes DAX formula, sets currency format, adds to Data Model
+**"Create a slicer for the Region field so I can filter interactively"**  
+→ AI adds slicers connected to PivotTables or Tables for point-and-click filtering
 
-**"Export all Power Query M code to Git for version control"**  
-→ CLI batch exports all queries to .pq files for source control workflows
+**"Put this data in A1: Name, Age / Alice, 30 / Bob, 25"**  
+→ AI writes data directly to cells using natural delimiters you provide
 
 ---
 

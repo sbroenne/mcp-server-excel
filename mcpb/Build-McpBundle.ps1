@@ -32,6 +32,9 @@
     Contents:
     ├── manifest.json
     ├── icon-512.png
+    ├── README.md
+    ├── LICENSE
+    ├── CHANGELOG.md
     └── server/
         └── excel-mcp-server.exe
 
@@ -143,6 +146,24 @@ $IconDst = Join-Path $StagingDir "icon-512.png"
 Copy-Item $IconSrc $IconDst -Force
 Write-Host "   ✓ Copied icon-512.png" -ForegroundColor Green
 
+# Copy README.md from mcpb directory (end-user documentation)
+$ReadmeSrc = Join-Path $McpbDir "README.md"
+$ReadmeDst = Join-Path $StagingDir "README.md"
+Copy-Item $ReadmeSrc $ReadmeDst -Force
+Write-Host "   ✓ Copied README.md" -ForegroundColor Green
+
+# Copy LICENSE from root directory (required for MCPB submission)
+$LicenseSrc = Join-Path $RootDir "LICENSE"
+$LicenseDst = Join-Path $StagingDir "LICENSE"
+Copy-Item $LicenseSrc $LicenseDst -Force
+Write-Host "   ✓ Copied LICENSE" -ForegroundColor Green
+
+# Copy CHANGELOG.md from root directory (recommended for MCPB submission)
+$ChangelogSrc = Join-Path $RootDir "CHANGELOG.md"
+$ChangelogDst = Join-Path $StagingDir "CHANGELOG.md"
+Copy-Item $ChangelogSrc $ChangelogDst -Force
+Write-Host "   ✓ Copied CHANGELOG.md" -ForegroundColor Green
+
 # Create mcpb file (zip with .mcpb extension)
 $McpbFileName = "excel-mcp-$Version.mcpb"
 $McpbPath = Join-Path $OutputDir $McpbFileName
@@ -150,10 +171,13 @@ $McpbPath = Join-Path $OutputDir $McpbFileName
 Write-Host ""
 Write-Host "📦 Creating MCPB bundle..." -ForegroundColor Yellow
 
-# Get files/directories to include (manifest.json, icon at root, server/ directory with exe)
+# Get files/directories to include (manifest.json, icon, README, LICENSE, CHANGELOG at root, server/ directory with exe)
 $FilesToZip = @(
     (Join-Path $StagingDir "manifest.json"),
     (Join-Path $StagingDir "icon-512.png"),
+    (Join-Path $StagingDir "README.md"),
+    (Join-Path $StagingDir "LICENSE"),
+    (Join-Path $StagingDir "CHANGELOG.md"),
     (Join-Path $StagingDir "server")
 )
 

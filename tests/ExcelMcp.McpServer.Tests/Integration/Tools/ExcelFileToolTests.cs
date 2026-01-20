@@ -20,9 +20,35 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 public class ExcelFileToolTests(ITestOutputHelper output)
 {
     [Fact]
+    public void CreateEmpty_ProtectedSystemPath_ReturnsJsonError()
+    {
+        // Arrange - path that reliably fails (Windows directory is protected)
+        var protectedPath = @"C:\Windows\HelloWorld.xlsx";
+
+        // Act
+        var result = ExcelFileTool.ExcelFile(
+            FileAction.CreateEmpty,
+            excelPath: protectedPath,
+            sessionId: null,
+            save: false,
+            showExcel: false);
+
+        output.WriteLine($"Result: {result}");
+
+        // Assert - should return JSON error, not crash the server
+        Assert.NotNull(result);
+        var json = JsonDocument.Parse(result).RootElement;
+        Assert.False(json.GetProperty("success").GetBoolean());
+        Assert.True(json.TryGetProperty("errorMessage", out var errorMsg));
+        Assert.Contains("Cannot create file", errorMsg.GetString());
+        Assert.True(json.TryGetProperty("isError", out var isError));
+        Assert.True(isError.GetBoolean());
+    }
+
+    [Fact]
     public void CreateEmpty_InvalidPath_ReturnsJsonError()
     {
-        // Arrange - use a path that will fail (root of C: drive, no permission)
+        // Arrange - use a path that will fail (System32, no permission)
         var invalidPath = @"C:\Windows\System32\test.xlsx";
 
         // Act

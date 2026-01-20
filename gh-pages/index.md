@@ -39,10 +39,10 @@ canonical_url: "https://excelmcpserver.dev/"
   </div>
   <div style="text-align: center;">
     <p><strong>Claude Desktop</strong></p>
-    <a href="https://github.com/sbroenne/mcp-server-excel/releases/latest" class="button-link">Download MCPB</a>
+    <a href="https://github.com/sbroenne/mcp-server-excel/releases/latest" class="button-link">One-Click Install</a>
   </div>
   <div style="text-align: center;">
-    <p><strong>Other MCP Clients</strong></p>
+    <p><strong>Cursor, Windsurf, etc.</strong></p>
     <a href="/installation/" class="button-link">Installation Guide</a>
   </div>
 </div>
@@ -101,40 +101,40 @@ It works with any MCP-compatible AI assistant like GitHub Copilot, Claude Deskto
 </div>
 </div>
 
-<p><a href="/features/">See all 21 tools and 187 operations →</a></p>
+<p><a href="/features/">See all 22 tools and 194 operations →</a></p>
 
 ## What Can You Do With It?
 
 Ask your AI assistant to automate Excel tasks using natural language:
 
 <div class="example-section">
-<h4>🔍 Power Query & M Code</h4>
-<p><strong>You:</strong> "This Power Query is taking 5 minutes to refresh. Can you optimize it?"</p>
-<p>AI analyzes your M code, identifies inefficiencies, and applies best practices automatically.</p>
+<h4>� Create & Populate Data</h4>
+<p><strong>You:</strong> "Create a new Excel file with a table for tracking sales - include Date, Product, Quantity, Unit Price, and Total with sample data and formulas."</p>
+<p>AI creates the workbook, adds headers, enters sample data, and builds formulas automatically.</p>
 </div>
 
 <div class="example-section">
-<h4>📊 PivotTables & Data Model</h4>
-<p><strong>You:</strong> "Create a PivotTable from the Data Model showing top 10 products by region with a DAX measure for profit margin"</p>
-<p>AI creates the PivotTable, adds fields, and builds the DAX measure in seconds.</p>
+<h4>📊 PivotTables & Charts</h4>
+<p><strong>You:</strong> "Create a PivotTable showing total sales by Product, then add a bar chart to visualize the results."</p>
+<p>AI creates the PivotTable with proper field configuration and adds a linked chart.</p>
 </div>
 
 <div class="example-section">
-<h4>📈 Charts & Visualization</h4>
-<p><strong>You:</strong> "Create a column chart from SalesData and add a trend line"</p>
-<p>AI builds the chart with proper formatting and data series configuration.</p>
+<h4>🔄 Power Query & Data Model</h4>
+<p><strong>You:</strong> "Use Power Query to import products.csv, load it to the Data Model, and create measures for Total Revenue and Average Rating."</p>
+<p>AI imports the data, adds it to Power Pivot, and creates DAX measures ready for analysis.</p>
 </div>
 
 <div class="example-section">
-<h4>🖥️ VBA Macros</h4>
-<p><strong>You:</strong> "Write a VBA macro that exports all sheets to PDF"</p>
-<p>AI creates, imports, and can execute VBA code directly in your workbook.</p>
+<h4>🎛️ Interactive Filtering</h4>
+<p><strong>You:</strong> "Create a slicer for the Region field so I can filter the PivotTable interactively."</p>
+<p>AI adds a slicer connected to your PivotTable for point-and-click filtering.</p>
 </div>
 
 <div class="example-section">
-<h4>🎨 Tables & Formatting</h4>
-<p><strong>You:</strong> "Convert this range to an Excel Table, format revenue as currency, and add conditional formatting for values over 10000"</p>
-<p>AI applies structured tables, number formats, and conditional rules.</p>
+<h4>🎨 Formatting & Tables</h4>
+<p><strong>You:</strong> "Format the Price column as currency, highlight values over $500 in green, and convert this to an Excel Table."</p>
+<p>AI applies number formats, conditional formatting, and structured table styling.</p>
 </div>
 
 ## CLI Tool (Optional)
@@ -161,7 +161,7 @@ The CLI provides 172 operations across 13 command groups, sharing the same Core 
 
 ## Documentation
 
-📖 **[Complete Feature Reference](/features/)** — All 21 tools and 187 operations
+📖 **[Complete Feature Reference](/features/)** — All 22 tools and 194 operations
 
 📥 **[Installation Guide](/installation/)** — Setup for VS Code, Claude Desktop, other MCP clients, and CLI
 
