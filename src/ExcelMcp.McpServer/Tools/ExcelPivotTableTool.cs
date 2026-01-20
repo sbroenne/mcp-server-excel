@@ -20,7 +20,12 @@ public static partial class ExcelPivotTableTool
     /// BEST PRACTICE: Use 'list' before creating. Prefer 'refresh' or field modifications over delete+recreate.
     /// Delete+recreate loses field configurations, filters, sorting, and custom layouts.
     ///
-    /// LAYOUT: Use excel_pivottable_calc set-layout action (0=Compact, 1=Tabular, 2=Outline).
+    /// AFTER CREATION - SET LAYOUT:
+    /// New PivotTables default to Compact layout. To change layout immediately after creation:
+    /// Call excel_pivottable_calc(action: 'set-layout', pivotTableName: '...', layoutStyle: N)
+    /// - 0 = Compact (default, row fields in single column)
+    /// - 1 = Tabular (each row field in separate column - best for export/analysis)
+    /// - 2 = Outline (hierarchical with expand/collapse)
     ///
     /// CREATE OPTIONS:
     /// - create-from-range: Use sourceSheetName and sourceRangeAddress for data range
