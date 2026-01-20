@@ -10,6 +10,11 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.5.8] - 2025-01-20
+
+### Added
+- Now available as a Claude Desktop MCPB Extension
+  
 ## [1.5.6] - 2025-01-20
 
 ### Added
@@ -17,9 +22,6 @@ This changelog covers all components:
   - **PivotTable Slicers**: Create, list, filter, and delete slicers for PivotTable fields
   - **Table Slicers**: Create, list, filter, and delete slicers for Excel Table columns
   - 8 new operations for interactive data filtering
-
-### Changed
-- **MCPB**: First release with unified versioning
 
 ## [1.5.5] - 2025-01-19
 
