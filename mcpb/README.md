@@ -1,135 +1,117 @@
-# Claude Desktop MCPB Submission
+# Excel (Windows)
 
-This directory contains all files needed to submit the Excel MCP Server to the Claude Desktop directory via MCPB (MCP Bundle) format.
+**Automate Microsoft Excel with Claude** - Control Excel through natural language conversations. Requires Windows and local Office install.
 
-## Directory Contents
+## What It Does
 
-```
-mcpb/
-├── Build-McpBundle.ps1   # Packaging script
-├── manifest.json         # MCPB manifest for Claude directory
-├── icon-512.png          # Server icon (512x512 PNG)
-├── README.md             # This file
-└── artifacts/            # Build output (gitignored)
-```
+Excel MCP Server lets you automate Excel through conversation with Claude:
 
-## Overview
+- **Create & Edit** - Build spreadsheets, tables, and formulas
+- **Analyze Data** - PivotTables, charts, and DAX calculations
+- **Transform Data** - Power Query imports and transformations
+- **Format & Style** - Conditional formatting, number formats, table styles
+- **Automate** - VBA macros, batch operations, data refresh
 
-MCPB enables one-click installation of MCP servers in Claude Desktop. Users can install directly from the Anthropic directory without manual configuration.
+**22 tools with 194 operations** for comprehensive Excel automation.
 
-## Prerequisites
+## Requirements
 
-- .NET 10 SDK
-- Windows x64 development machine
+- **Windows** (required - uses Excel COM automation)
+- **Microsoft Excel 2016 or later**
+- **Claude Desktop** (Windows version)
 
-## Building the MCPB Package
+## Installation
 
-From the `mcpb` directory:
+1. Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+2. Double-click to install in Claude Desktop
+3. Restart Claude Desktop if prompted
 
-```powershell
-.\Build-McpBundle.ps1
-```
+That's it! Start a new conversation and ask Claude to work with Excel.
 
-This creates `mcpb/artifacts/ExcelMcp.McpServer-win-x64.zip`.
+## Usage Examples
 
-### Build Options
+These examples work with any Excel file, including a new empty workbook.
 
-```powershell
-# Specify version
-.\Build-McpBundle.ps1 -Version "1.2.0"
+### Example 1: Create a Sales Tracker
 
-# Custom output directory
-.\Build-McpBundle.ps1 -OutputDir "./dist"
-```
+**You say:** *"Create a new Excel file called SalesTracker.xlsx with a table for tracking sales. Include columns for Date, Product, Quantity, Unit Price, and Total. Add some sample data and a formula for the Total column."*
 
-## Package Contents
+**What happens:**
+- Creates a new workbook
+- Adds column headers (Date, Product, Quantity, Unit Price, Total)
+- Enters sample sales data
+- Creates formulas in the Total column (Quantity × Unit Price)
+- Formats the data as an Excel Table
+- Confirms completion with file location
 
-The MCPB zip file contains:
+### Example 2: Build a Dashboard with PivotTable and Chart
 
-```
-ExcelMcp.McpServer-win-x64.zip/
-├── Sbroenne.ExcelMcp.McpServer.exe  # Self-contained executable (~15 MB)
-├── .mcp/
-│   └── server.json                   # MCP server configuration
-├── manifest.json                     # MCPB manifest
-└── icon-512.png                      # Server icon (512x512)
-```
+**You say:** *"I want to analyze this data. Create a PivotTable that shows total sales by Product, then add a bar chart to visualize the results."*
 
-## Release Workflow
+**What happens:**
+- Creates a PivotTable from the data
+- Configures Product as rows and Total as sum values
+- Creates a new worksheet for the PivotTable
+- Adds a bar chart based on the PivotTable
+- Returns confirmation with locations of both
 
-1. **Create GitHub Release:**
-   - Tag format: `v1.x.x`
-   - Upload `ExcelMcp.McpServer-win-x64.zip` as release asset
+### Example 3: Power Query and Data Model Analysis
 
-2. **Update manifest.json download URL:**
-   - Verify the `install.win32.download` URL points to the release asset
-   - URL format: `https://github.com/sbroenne/mcp-server-excel/releases/latest/download/ExcelMcp.McpServer-win-x64.zip`
+**You say:** *"Use Power Query to import this CSV file: C:/Data/products.csv. Add the data to the Data Model and create measures for Total Revenue and Average Rating."*
 
-3. **Submit to Claude Directory:**
-   - Follow Anthropic's submission process
-   - Include the manifest.json content
+**What happens:**
+- Imports the CSV using Power Query
+- Loads the data to a worksheet as an Excel Table
+- Adds the table to the Power Pivot Data Model
+- Creates DAX measures for analysis
+- Confirms the data is ready for PivotTable analysis
 
-## Manifest Schema
+---
 
-The manifest follows MCPB version 0.3 specification:
+**More things you can ask:**
 
-```json
-{
-  "manifestVersion": "0.3",
-  "server": {
-    "id": "excel-mcp-server",
-    "name": "Excel MCP Server",
-    "type": "binary",
-    "platforms": ["win32"]
-  },
-  "install": {
-    "win32": {
-      "download": "https://github.com/.../ExcelMcp.McpServer-win-x64.zip",
-      "command": "Sbroenne.ExcelMcp.McpServer.exe"
-    }
-  }
-}
-```
+- *"Put this data in A1:C4 - Name, Age, City / Alice, 30, Seattle / Bob, 25, Portland"*
+- *"Create a slicer for the Region field so I can filter the PivotTable interactively"*
+- *"Format the Price column as currency and highlight values over $500 in green"*
+- *"Create a relationship between the Orders and Products tables using ProductID"*
+- *"Run the UpdatePrices macro"*
+- *"Show me Excel while you work"* - watch changes in real-time
 
-## Tool Annotations
+## Tips for Best Results
 
-All 22 MCP tools include the `Destructive = true` annotation since they can modify Excel files:
+- **Be specific** - Include file paths, sheet names, and column references when you know them
+- **Start simple** - Build complex spreadsheets step by step
+- **Ask to see Excel** - Say *"Show me Excel while you work"* to watch changes in real-time
+- **Close files first** - Excel MCP needs exclusive access to workbooks during automation
 
-```csharp
-[McpServerTool(Name = "excel_range", Title = "Excel Range Operations", Destructive = true)]
-```
+## Privacy & Security
 
-## Technical Notes
+Excel MCP Server runs **entirely on your computer**. Your Excel data:
+- Never leaves your machine
+- Is not sent to any external servers
+- Is not used for training AI models
 
-### Why Self-Contained?
+**Anonymous Telemetry:** We collect anonymous usage statistics (tool usage, performance metrics, error rates) to improve the software. No file contents, file names, or personal data are collected.
 
-- Users don't need .NET SDK installed
-- Avoids version conflicts
-- Single executable deployment (~15 MB compressed)
+See our complete [Privacy Policy](https://excelmcpserver.dev/privacy/).
 
-### Why No Trimming?
+## Troubleshooting
 
-Excel COM interop uses `Type.GetTypeFromProgID()` which requires reflection. Trimming would break COM activation with IL2072 errors.
+**Claude says the tool isn't available:**
+- Restart Claude Desktop after installation
+- Check Settings → Integrations to verify Excel MCP Server is enabled
 
-### Why Windows x64 Only?
+**Excel operations fail:**
+- Close the workbook in Excel before asking Claude to modify it
+- Ensure Excel is installed and working normally
 
-- COM interop requires Windows
-- x64 is the most common architecture
-- ARM64 Windows can run x64 binaries via emulation
-
-## Verification
-
-After building, verify the package:
-
-```powershell
-# List zip contents
-Expand-Archive ./artifacts/ExcelMcp.McpServer-win-x64.zip -DestinationPath ./test-extract
-dir ./test-extract
-Remove-Item -Recurse ./test-extract
-```
+**Need help?**
+- [Report an issue](https://github.com/sbroenne/mcp-server-excel/issues)
+- [Full documentation](https://excelmcpserver.dev/)
 
 ## Links
 
-- [MCPB Specification](https://modelcontextprotocol.io/docs/registry)
-- [Claude Desktop Documentation](https://docs.anthropic.com/claude/docs/claude-for-desktop)
-- [Privacy Policy](https://sbroenne.github.io/mcp-server-excel/privacy/)
+- [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)
+- [Feature Reference](https://excelmcpserver.dev/features/)
+- [Privacy Policy](https://excelmcpserver.dev/privacy/)
+- [License (MIT)](https://github.com/sbroenne/mcp-server-excel/blob/main/LICENSE)

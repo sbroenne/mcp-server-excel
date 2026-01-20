@@ -23,7 +23,7 @@ public static partial class ExcelFileTool
     /// If showExcel=true was used, confirm with user before closing visible Excel windows.
     /// </summary>
     /// <param name="action">The file operation to perform</param>
-    /// <param name="excelPath">Full Windows path to Excel file (.xlsx or .xlsm). Use Documents folder or other Windows paths. Required for: open, create-empty, test</param>
+    /// <param name="excelPath">Full Windows path to Excel file (.xlsx or .xlsm). ASK USER for the path - do not guess or use placeholder usernames. Required for: open, create-empty, test</param>
     /// <param name="sessionId">Session ID returned from 'open' action. Required for: close. Used by all other tools.</param>
     /// <param name="save">Whether to save changes when closing. Default: false (discard changes)</param>
     /// <param name="showExcel">Whether to make Excel window visible. Default: false (hidden automation)</param>
@@ -51,8 +51,7 @@ public static partial class ExcelFileTool
                     FileAction.List => ListSessions(),
                     FileAction.Open => OpenSessionAsync(excelPath!, showExcel),
                     FileAction.Close => CloseSessionAsync(sessionId!, save),
-                    FileAction.CreateEmpty => CreateEmptyFileAsync(fileCommands, excelPath!,
-                        excelPath!.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase)),
+                    FileAction.CreateEmpty => CreateEmptyFileAsync(fileCommands, excelPath),
                     FileAction.CloseWorkbook => CloseWorkbook(excelPath!),
                     FileAction.Test => TestFileAsync(fileCommands, excelPath!),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
@@ -200,11 +199,16 @@ public static partial class ExcelFileTool
     }
 
     /// <summary>
-    /// Creates a new empty Excel file (.xlsx or .xlsm based on macroEnabled flag).
+    /// Creates a new empty Excel file (.xlsx or .xlsm based on file extension).
     /// LLM Pattern: Use this when you need a fresh Excel workbook for automation.
     /// </summary>
-    private static string CreateEmptyFileAsync(FileCommands fileCommands, string excelPath, bool macroEnabled)
+    private static string CreateEmptyFileAsync(FileCommands fileCommands, string? excelPath)
     {
+        if (string.IsNullOrWhiteSpace(excelPath))
+        {
+            throw new ArgumentException("excelPath is required for 'create-empty' action", nameof(excelPath));
+        }
+
         // Validate Windows path format before any file operations
         var pathError = ExcelToolsBase.ValidateWindowsPath(excelPath);
         if (pathError != null)
@@ -212,21 +216,36 @@ public static partial class ExcelFileTool
             return pathError;
         }
 
+        // Determine if macro-enabled from extension
+        bool macroEnabled = excelPath.EndsWith(".xlsm", StringComparison.OrdinalIgnoreCase);
         var extension = macroEnabled ? ".xlsm" : ".xlsx";
         if (!excelPath.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
         {
             excelPath = Path.ChangeExtension(excelPath, extension);
         }
 
-        fileCommands.CreateEmpty(excelPath, overwriteIfExists: false);
-
-        return JsonSerializer.Serialize(new
+        try
         {
-            success = true,
-            filePath = excelPath,
-            macroEnabled,
-            message = "Excel workbook created successfully"
-        }, ExcelToolsBase.JsonOptions);
+            fileCommands.CreateEmpty(excelPath, overwriteIfExists: false);
+
+            return JsonSerializer.Serialize(new
+            {
+                success = true,
+                filePath = excelPath,
+                macroEnabled,
+                message = "Excel workbook created successfully"
+            }, ExcelToolsBase.JsonOptions);
+        }
+        catch (Exception ex)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"Cannot create file '{excelPath}': {ex.Message}",
+                filePath = excelPath,
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
     }
 
     /// <summary>

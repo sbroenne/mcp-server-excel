@@ -18,7 +18,7 @@ Complete installation instructions for the ExcelMcp MCP Server and CLI tool.
 
 ## Quick Start (Recommended)
 
-### Option 1: VS Code Extension (Easiest - One-Click Setup)
+### VS Code Extension (Easiest - One-Click Setup)
 
 **Best for:** GitHub Copilot users, beginners, anyone wanting automatic configuration
 
@@ -38,7 +38,7 @@ Complete installation instructions for the ExcelMcp MCP Server and CLI tool.
 
 ---
 
-### Option 2: Claude Desktop (One-Click Install)
+### Claude Desktop (One-Click Install)
 
 **Best for:** Claude Desktop users who want the simplest installation
 
@@ -50,11 +50,11 @@ That's it! The MCPB bundle includes everything needed - no .NET installation req
 
 ---
 
-### Option 3: Manual Installation (MCP Server)
+## Manual Installation  & Configuration (MCP Server)
 
 **Best for:** Other MCP clients (Cursor, Windsurf, Cline), advanced users
 
-#### Step 1: Install .NET 10
+### Step 1: Install .NET 10
 
 **Check if already installed:**
 ```powershell
@@ -70,7 +70,7 @@ winget install Microsoft.DotNet.Runtime.10
 
 **Manual Download:** [.NET 10 Downloads](https://dotnet.microsoft.com/download/dotnet/10.0)
 
-#### Step 2: Install ExcelMcp MCP Server
+### Step 2: Install ExcelMcp MCP Server
 
 ```powershell
 # Install globally as a .NET tool
@@ -80,7 +80,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 dotnet tool list --global | Select-String "ExcelMcp"
 ```
 
-#### Step 3: Configure Your MCP Client
+### Step 3: Configure Your MCP Client
 
 **Quick Start:** Ready-to-use config files for all clients are available in [`examples/mcp-configs/`](https://github.com/sbroenne/mcp-server-excel/tree/main/examples/mcp-configs/)
 
@@ -113,10 +113,6 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 ```
 
 **For Claude Desktop:**
-
-> **Recommended:** Use [Option 2: Claude Desktop (One-Click Install)](#option-2-claude-desktop-one-click-install) instead - no .NET installation required!
-
-If you prefer manual installation, configure as follows:
 
 1. Locate config file: `%APPDATA%\Claude\claude_desktop_config.json`
 2. If file doesn't exist, create it with the content below
@@ -197,7 +193,7 @@ If you prefer manual installation, configure as follows:
 
 4. Save and restart Windsurf
 
-#### Step 4: Test the Installation
+### Step 4: Test the Installation
 
 Restart your MCP client, then ask:
 ```
@@ -214,11 +210,11 @@ This opens Excel visibly so you can see every change in real-time - great for de
 
 ---
 
-### Option 4: CLI Installation (No AI Required)
+## CLI Installation (No AI Required)
 
 **Best for:** Scripting, RPA, CI/CD pipelines, automation without AI
 
-#### Install CLI Tool
+### Install CLI Tool
 
 ```powershell
 # Install CLI globally
@@ -228,7 +224,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 excel-mcp --version
 ```
 
-#### Quick Test
+### Quick Test
 
 ```powershell
 # Create a test workbook
