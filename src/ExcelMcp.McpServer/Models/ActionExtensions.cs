@@ -295,6 +295,8 @@ public static class ActionExtensions
         ChartConfigAction.SetChartType => "set-chart-type",
         ChartConfigAction.SetTitle => "set-title",
         ChartConfigAction.SetAxisTitle => "set-axis-title",
+        ChartConfigAction.GetAxisNumberFormat => "get-axis-number-format",
+        ChartConfigAction.SetAxisNumberFormat => "set-axis-number-format",
         ChartConfigAction.ShowLegend => "show-legend",
         ChartConfigAction.SetStyle => "set-style",
         _ => throw new ArgumentException($"Unknown ChartConfigAction: {action}")

@@ -6,7 +6,7 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands;
 
 /// <summary>
-/// Integration tests for Chart appearance operations (SetChartType, SetTitle, SetAxisTitle, ShowLegend, SetStyle).
+/// Integration tests for Chart appearance operations (SetChartType, SetTitle, SetAxisTitle, ShowLegend, SetStyle, Get/SetAxisNumberFormat).
 /// </summary>
 public partial class ChartCommandsTests
 {
@@ -331,5 +331,190 @@ public partial class ChartCommandsTests
 
         foreach (var position in positions)
             _commands.ShowLegend(batch, createResult.ChartName, true, position);
+    }
+
+    [Fact]
+    public void GetAxisNumberFormat_ValueAxis_ReturnsCurrentFormat()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create test data and chart
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B4"].Value2 = new object[,] {
+                { "Month", "Revenue" },
+                { "Jan", 1000000 },
+                { "Feb", 1500000 },
+                { "Mar", 2000000 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
+
+        // Act
+        var format = _commands.GetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value);
+
+        // Assert - Default format is typically "General"
+        Assert.NotNull(format);
+    }
+
+    [Fact]
+    public void SetAxisNumberFormat_ValueAxis_SetsFormatSuccessfully()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create test data and chart
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B4"].Value2 = new object[,] {
+                { "Month", "Revenue" },
+                { "Jan", 1000000 },
+                { "Feb", 1500000 },
+                { "Mar", 2000000 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
+
+        // Act - Set millions format
+        _commands.SetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value, "$#,##0,,\"M\"");
+
+        // Assert - Verify format was set
+        var format = _commands.GetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value);
+        Assert.Equal("$#,##0,,\"M\"", format);
+    }
+
+    [Fact]
+    public void SetAxisNumberFormat_CategoryAxis_SetsFormatSuccessfully()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create test data with dates
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B4"].Value2 = new object[,] {
+                { "Date", "Sales" },
+                { 45658, 100 }, // Jan 1, 2025
+                { 45689, 150 }, // Feb 1, 2025
+                { 45717, 200 }  // Mar 1, 2025
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.Line, 50, 50);
+
+        // Act - Set date format on category axis
+        _commands.SetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Category, "mmm-yy");
+
+        // Assert - Verify format was set
+        var format = _commands.GetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Category);
+        Assert.Equal("mmm-yy", format);
+    }
+
+    [Fact]
+    public void SetAxisNumberFormat_PercentageFormat_SetsFormatSuccessfully()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create test data
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B4"].Value2 = new object[,] {
+                { "Item", "Rate" },
+                { "A", 0.25 },
+                { "B", 0.50 },
+                { "C", 0.75 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.BarClustered, 50, 50);
+
+        // Act - Set percentage format
+        _commands.SetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value, "0%");
+
+        // Assert - Verify format was set
+        var format = _commands.GetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value);
+        Assert.Equal("0%", format);
+    }
+
+    [Fact]
+    public void SetAxisNumberFormat_NonExistentChart_ThrowsException()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Act & Assert - Non-existent chart should throw
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            _commands.SetAxisNumberFormat(batch, "NonExistentChart", ChartAxisType.Value, "#,##0"));
+        Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void GetAxisNumberFormat_NonExistentChart_ThrowsException()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Act & Assert - Non-existent chart should throw
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            _commands.GetAxisNumberFormat(batch, "NonExistentChart", ChartAxisType.Value));
+        Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SetAxisNumberFormat_MultipleFormats_AllWorkCorrectly()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create test data and chart
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B4"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 1000000 },
+                { 2, 2000000 },
+                { 3, 3000000 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
+
+        // Act & Assert - Test multiple format changes
+        var formats = new[] { "#,##0", "$#,##0", "#,##0.00", "$#,##0,,\"M\"", "0.0E+0" };
+
+        foreach (var fmt in formats)
+        {
+            _commands.SetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value, fmt);
+            var result = _commands.GetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value);
+            Assert.Equal(fmt, result);
+        }
     }
 }

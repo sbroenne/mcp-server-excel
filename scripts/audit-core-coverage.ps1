@@ -90,6 +90,27 @@ function Count-EnumValues {
     return 0
 }
 
+# Function to count enum values for a specific interface (handles cross-interface enum splits)
+function Count-EnumValuesForInterface {
+    param(
+        [string]$EnumName,
+        [string]$InterfaceName,
+        [string]$ToolActionsPath
+    )
+
+    # Check if this enum has a cross-interface split defined
+    if ($Script:crossInterfaceEnumSplits -and $Script:crossInterfaceEnumSplits.ContainsKey($EnumName)) {
+        $splits = $Script:crossInterfaceEnumSplits[$EnumName]
+        if ($splits.ContainsKey($InterfaceName)) {
+            # Return count of values specific to this interface
+            return $splits[$InterfaceName].Count
+        }
+    }
+
+    # No split defined - return full enum count
+    return Count-EnumValues -EnumName $EnumName -ToolActionsPath $ToolActionsPath
+}
+
 # Function to extract unique method names from Core interface (without "Async" suffix, handles overloads)
 function Get-CoreMethodNames {
     param([string]$InterfacePath)
@@ -226,6 +247,18 @@ function Find-InterfaceForEnum {
         "ITableCommands" = @("SlicerAction")  # Table slicer methods exposed via SlicerAction
     }
 
+    # Cross-interface enum value splits
+    # When an enum covers methods from MULTIPLE interfaces, specify which values belong to each
+    # Format: "EnumName" = @{ "InterfaceName" = @("Value1", "Value2", ...) }
+    $Script:crossInterfaceEnumSplits = @{
+        "SlicerAction" = @{
+            # PivotTable slicer actions (4 values)
+            "IPivotTableCommands" = @("CreateSlicer", "ListSlicers", "SetSlicerSelection", "DeleteSlicer")
+            # Table slicer actions (4 values)
+            "ITableCommands" = @("CreateTableSlicer", "ListTableSlicers", "SetTableSlicerSelection", "DeleteTableSlicer")
+        }
+    }
+
     if ($enumToInterface.ContainsKey($EnumType)) {
         $interfaceName = $enumToInterface[$EnumType]
     } else {
@@ -309,7 +342,8 @@ foreach ($key in $groupedInterfaces.Keys) {
     $totalEnumValuesForInterface = 0
     $enumNames = @()
     foreach ($enumName in $interfaceGroup.Enums) {
-        $enumCount = Count-EnumValues -EnumName $enumName -ToolActionsPath $toolActionsPath
+        # Use interface-aware counting for cross-interface enums (e.g., SlicerAction)
+        $enumCount = Count-EnumValuesForInterface -EnumName $enumName -InterfaceName $interfaceGroup.Name -ToolActionsPath $toolActionsPath
         $totalEnumValuesForInterface += $enumCount
         $enumNames += "$enumName($enumCount)"
     }
@@ -461,7 +495,7 @@ if ($CheckNaming) {
                                "ListCalculatedMembers", "CreateCalculatedMember", "DeleteCalculatedMember",
                                "CreateSlicer", "ListSlicers", "SetSlicerSelection", "DeleteSlicer")  # Methods moved to PivotTableField/PivotTableCalc/Slicer
         "ChartAction" = @("SetSourceRange", "AddSeries", "RemoveSeries", "SetChartType", "SetTitle",
-                          "SetAxisTitle", "ShowLegend", "SetStyle")  # Methods moved to ChartConfigAction
+                          "SetAxisTitle", "GetAxisNumberFormat", "SetAxisNumberFormat", "ShowLegend", "SetStyle")  # Methods moved to ChartConfigAction
     }
 
     $hasNamingIssues = $false

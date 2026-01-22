@@ -416,6 +416,8 @@ public enum ChartConfigAction
     SetChartType,
     SetTitle,
     SetAxisTitle,
+    GetAxisNumberFormat,
+    SetAxisNumberFormat,
     ShowLegend,
     SetStyle
 }
