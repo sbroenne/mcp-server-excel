@@ -44,6 +44,51 @@ When creating or modifying Excel files:
 - Use proper number formats (currency, dates, percentages)
 - Format data as Excel Tables (not plain ranges)
 
+### Format Cells by Data Type (CRITICAL)
+
+Always apply number formats after setting values. Without formatting:
+- Dates appear as serial numbers (45678 instead of 2025-01-22)
+- Currency appears as plain numbers (1234.56 instead of $1,234.56)
+- Percentages appear as decimals (0.15 instead of 15%)
+
+**Common format codes (US locale, auto-translated):**
+
+| Data Type | Format Code | Result |
+|-----------|-------------|--------|
+| USD | `$#,##0.00` | $1,234.56 |
+| EUR | `€#,##0.00` | €1,234.56 |
+| Number | `#,##0.00` | 1,234.56 |
+| Percent | `0.00%` | 15.00% |
+| Date (ISO) | `yyyy-mm-dd` | 2025-01-22 |
+| Date (US) | `mm/dd/yyyy` | 01/22/2025 |
+
+**Workflow:**
+```
+1. excel_range set-values (data is now in cells)
+2. excel_range_format set-number-format (apply format to range)
+```
+
+### Format Tabular Data as Excel Tables
+
+Always convert tabular data to Excel Tables (ListObjects):
+
+```
+1. excel_range set-values (write data including headers)
+2. excel_table create tableName="SalesData" rangeAddress="A1:D100"
+```
+
+**Why Tables over plain ranges:**
+- Structured references: `=SUM(Sales[Amount])` instead of `=SUM(B2:B100)`
+- Auto-expand when rows are added
+- Built-in filtering, sorting, and banded rows
+- Required for `add-to-datamodel` action (Data Model/DAX)
+- Named reference for Power Query: `Excel.CurrentWorkbook(){[Name="SalesData"]}`
+
+**When NOT to use Tables:**
+- Single-cell parameters (use named ranges instead)
+- Layout areas with merged cells
+- Print-formatted reports with specific spacing
+
 ### Report Results
 
 After completing operations, report:
@@ -52,17 +97,17 @@ After completing operations, report:
 - File path (for new files)
 - Any relevant statistics (row counts, etc.)
 
-### Use Batch Mode for Multiple Operations
+### Session Lifecycle
 
-When performing 3+ operations on the same file:
+Always close sessions when done:
 
 ```
-1. excel_batch(action: 'start', sessionId: '...')  → batchId
-2. All operations use batchId (faster execution)
-3. excel_batch(action: 'commit', batchId: '...')   → save and close
+1. excel_file(action: 'open', excelPath: '...')  → sessionId
+2. All operations use sessionId
+3. excel_file(action: 'close', sessionId: '...', save: true)  → saves and closes
 ```
 
-**Why**: Batch mode avoids repeated file open/close cycles, improving performance 5-10x for multi-step workflows.
+**Why**: Unclosed sessions leave Excel processes running, consuming memory and locking files.
 
 ### Format Results as Tables
 
@@ -99,7 +144,7 @@ When updating data:
 
 ### Save Explicitly
 
-Call `excel_file(action: 'close', save: true)` or `excel_batch(action: 'commit')` to persist changes:
+Call `excel_file(action: 'close', save: true)` to persist changes:
 
 - Operations modify the in-memory workbook
 - Changes are NOT automatically saved to disk
@@ -114,7 +159,7 @@ DAX operations require tables in the Data Model:
 ```
 Step 1: Create or import data → Table exists
 Step 2: excel_table(action: 'add-to-datamodel') → Table in Data Model
-Step 3: excel_datamodel(action: 'add-measure') → NOW this works
+Step 3: excel_datamodel(action: 'create-measure') → NOW this works
 ```
 
 Skipping Step 2 causes DAX operations to fail with "table not found".

@@ -139,23 +139,13 @@ Always close sessions:
 ```
 ✅ CORRECT: Proper lifecycle
 
-session1 = excel_file(action: 'open', filePath: 'file1.xlsx')
+session1 = excel_file(action: 'open', excelPath: 'file1.xlsx')
 // ... work with file1 ...
 excel_file(action: 'close', sessionId: session1, save: true)
 
-session2 = excel_file(action: 'open', filePath: 'file2.xlsx')
+session2 = excel_file(action: 'open', excelPath: 'file2.xlsx')
 // ... work with file2 ...
 excel_file(action: 'close', sessionId: session2, save: true)
-```
-
-Or use batch mode for sequential file processing:
-
-```
-✅ BETTER: Batch mode auto-closes
-
-batch = excel_batch(action: 'start', sessionId: session)
-// ... all operations ...
-excel_batch(action: 'commit', batchId: batch)  // Saves and closes
 ```
 
 ## Ignoring Error Context Anti-Pattern
@@ -167,9 +157,9 @@ Retrying failed operations without reading the error:
 ```
 ❌ WRONG: Blind retry
 
-excel_datamodel(action: 'add-measure', ...) → Error: Table not in Data Model
-excel_datamodel(action: 'add-measure', ...) → Error: Table not in Data Model
-excel_datamodel(action: 'add-measure', ...) → Error: Table not in Data Model
+excel_datamodel(action: 'create-measure', ...) → Error: Table not in Data Model
+excel_datamodel(action: 'create-measure', ...) → Error: Table not in Data Model
+excel_datamodel(action: 'create-measure', ...) → Error: Table not in Data Model
 ```
 
 ### The Solution
@@ -179,12 +169,12 @@ Read and act on error context:
 ```
 ✅ CORRECT: Error-driven correction
 
-excel_datamodel(action: 'add-measure', ...) 
+excel_datamodel(action: 'create-measure', ...) 
 → Error: Table 'Sales' not in Data Model
 → Suggested: excel_table(action: 'add-to-datamodel', tableName: 'Sales')
 
 excel_table(action: 'add-to-datamodel', tableName: 'Sales')  // Fix prerequisite
-excel_datamodel(action: 'add-measure', ...)  // Now succeeds
+excel_datamodel(action: 'create-measure', ...)  // Now succeeds
 ```
 
 ## Number Format Locale Anti-Pattern
@@ -222,7 +212,7 @@ Wrong load destination for the workflow:
 ❌ WRONG: Loading to worksheet when DAX is needed
 
 excel_powerquery(action: 'create', loadDestination: 'worksheet', ...)
-excel_datamodel(action: 'add-measure', ...)  // FAILS: table not in Data Model
+excel_datamodel(action: 'create-measure', ...)  // FAILS: table not in Data Model
 ```
 
 ### The Solution
@@ -234,7 +224,7 @@ Match load destination to workflow:
 
 excel_powerquery(action: 'create', loadDestination: 'data-model', ...)
 excel_powerquery(action: 'refresh', ...)
-excel_datamodel(action: 'add-measure', ...)  // Works
+excel_datamodel(action: 'create-measure', ...)  // Works
 ```
 
 | Workflow Goal | Load Destination |

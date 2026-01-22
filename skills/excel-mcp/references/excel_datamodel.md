@@ -5,6 +5,19 @@
 The Data Model (Power Pivot) only contains tables that were explicitly added.
 You CANNOT create DAX measures on tables that aren't in the Data Model.
 
+## Excel Power Pivot Limitations (vs SSAS/Power BI)
+
+| Feature | Power BI/SSAS | Excel Power Pivot | Workaround |
+|---------|---------------|-------------------|------------|
+| Calculated Tables | DAX: `MyTable = FILTER(...)` | NOT SUPPORTED | Use Power Query to create the table |
+| Calculated Columns | DAX: `Table[Col] = ...` | NO COM API access | Use Power Query or DAX measures |
+| Measures | Full support | Full support | - |
+| Relationships | Full support | Full support | - |
+
+**Key Insight**: Excel's COM API cannot create or modify calculated columns. If you need computed columns:
+1. **Preferred**: Add the column in Power Query (computed at refresh time)
+2. **Alternative**: Use a DAX measure instead (computed at query time)
+
 **How to add tables to the Data Model**:
 
 | Source | Method |
@@ -137,6 +150,13 @@ COUNTROWS(TableName)
 // Calculated ratio
 DIVIDE(SUM(Sales[Revenue]), SUM(Sales[Units]), 0)
 ```
+
+## Star Schema Architecture
+
+**Why use DAX over Power Query for calculations?**
+
+- DAX recalculates on refresh without re-running Power Query
+- Useful when lookup/rate tables change frequently
 
 **Common mistakes**:
 
