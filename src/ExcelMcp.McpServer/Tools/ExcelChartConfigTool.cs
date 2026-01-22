@@ -28,6 +28,10 @@ public static partial class ExcelChartConfigTool
     /// - set-title: Set chart title (empty string hides title)
     /// - set-axis-title: Set axis labels (Category, Value, CategorySecondary, ValueSecondary)
     ///
+    /// AXIS FORMATTING:
+    /// - get-axis-number-format: Get current number format for axis tick labels
+    /// - set-axis-number-format: Set number format for axis tick labels (e.g., "$#,##0,,"M"" for millions)
+    ///
     /// LEGEND POSITIONS: Bottom, Corner, Top, Right, Left
     ///
     /// CHART STYLES: 1-48 (built-in Excel styles with different color schemes)
@@ -42,6 +46,7 @@ public static partial class ExcelChartConfigTool
     /// <param name="chartType">Chart type enum for set-chart-type action</param>
     /// <param name="title">Title text for set-title and set-axis-title (empty string hides)</param>
     /// <param name="axis">Axis type: Category, Value, CategorySecondary, ValueSecondary</param>
+    /// <param name="numberFormat">Excel number format string for set-axis-number-format (e.g., "$#,##0,,"M"" for millions, "0%" for percentage)</param>
     /// <param name="seriesName">Name for new series in add-series action</param>
     /// <param name="valuesRange">Data range for series values like 'Sheet1!B2:B10' (required for add-series)</param>
     /// <param name="categoryRange">Optional category range for series X-axis labels</param>
@@ -60,6 +65,7 @@ public static partial class ExcelChartConfigTool
         [DefaultValue(null)] ChartType? chartType,
         [DefaultValue(null)] string? title,
         [DefaultValue(null)] ChartAxisType? axis,
+        [DefaultValue(null)] string? numberFormat,
         [DefaultValue(null)] string? seriesName,
         [DefaultValue(null)] string? valuesRange,
         [DefaultValue(null)] string? categoryRange,
@@ -83,6 +89,8 @@ public static partial class ExcelChartConfigTool
                     ChartConfigAction.SetChartType => SetChartTypeAction(commands, sessionId, chartName, chartType),
                     ChartConfigAction.SetTitle => SetTitleAction(commands, sessionId, chartName, title),
                     ChartConfigAction.SetAxisTitle => SetAxisTitleAction(commands, sessionId, chartName, axis, title),
+                    ChartConfigAction.GetAxisNumberFormat => GetAxisNumberFormatAction(commands, sessionId, chartName, axis),
+                    ChartConfigAction.SetAxisNumberFormat => SetAxisNumberFormatAction(commands, sessionId, chartName, axis, numberFormat),
                     ChartConfigAction.ShowLegend => ShowLegendAction(commands, sessionId, chartName, visible, legendPosition),
                     ChartConfigAction.SetStyle => SetStyleAction(commands, sessionId, chartName, styleId),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
@@ -185,6 +193,37 @@ public static partial class ExcelChartConfigTool
         });
 
         return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' {axis!.Value} axis title set" }, JsonOptions);
+    }
+
+    private static string GetAxisNumberFormatAction(ChartCommands commands, string sessionId, string? chartName, ChartAxisType? axis)
+    {
+        if (string.IsNullOrWhiteSpace(chartName))
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "get-axis-number-format");
+        if (!axis.HasValue)
+            ExcelToolsBase.ThrowMissingParameter(nameof(axis), "get-axis-number-format");
+
+        var numberFormat = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.GetAxisNumberFormat(batch, chartName!, axis!.Value));
+
+        return JsonSerializer.Serialize(new { Success = true, ChartName = chartName, Axis = axis!.Value.ToString(), NumberFormat = numberFormat }, JsonOptions);
+    }
+
+    private static string SetAxisNumberFormatAction(ChartCommands commands, string sessionId, string? chartName, ChartAxisType? axis, string? numberFormat)
+    {
+        if (string.IsNullOrWhiteSpace(chartName))
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-axis-number-format");
+        if (!axis.HasValue)
+            ExcelToolsBase.ThrowMissingParameter(nameof(axis), "set-axis-number-format");
+        if (string.IsNullOrWhiteSpace(numberFormat))
+            ExcelToolsBase.ThrowMissingParameter(nameof(numberFormat), "set-axis-number-format");
+
+        ExcelToolsBase.WithSession(sessionId, batch =>
+        {
+            commands.SetAxisNumberFormat(batch, chartName!, axis!.Value, numberFormat!);
+            return 0;
+        });
+
+        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' {axis!.Value} axis number format set to '{numberFormat}'" }, JsonOptions);
     }
 
     private static string ShowLegendAction(ChartCommands commands, string sessionId, string? chartName, bool? visible, LegendPosition? legendPosition)

@@ -166,6 +166,31 @@ public interface IChartCommands
         string title);
 
     /// <summary>
+    /// Gets axis number format for tick labels.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="axis">Axis type (Primary, Secondary, Category, Value)</param>
+    /// <returns>The current number format string</returns>
+    string GetAxisNumberFormat(
+        IExcelBatch batch,
+        string chartName,
+        ChartAxisType axis);
+
+    /// <summary>
+    /// Sets axis number format for tick labels.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="axis">Axis type (Primary, Secondary, Category, Value)</param>
+    /// <param name="numberFormat">Excel number format string (e.g., "$#,##0,,"M"" for millions)</param>
+    void SetAxisNumberFormat(
+        IExcelBatch batch,
+        string chartName,
+        ChartAxisType axis,
+        string numberFormat);
+
+    /// <summary>
     /// Shows or hides chart legend.
     /// </summary>
     /// <param name="batch">Excel batch session</param>

@@ -129,6 +129,109 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
+    public string GetAxisNumberFormat(
+        IExcelBatch batch,
+        string chartName,
+        ChartAxisType axis)
+    {
+        return batch.Execute((ctx, ct) =>
+        {
+            // Find chart by name
+            var findResult = FindChart(ctx.Book, chartName);
+            if (findResult.Chart == null)
+            {
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
+            }
+
+            dynamic? axes = null;
+            dynamic? targetAxis = null;
+            dynamic? tickLabels = null;
+
+            try
+            {
+                axes = findResult.Chart.Axes;
+
+                // Map axis type to Excel constants
+                int axisType = axis switch
+                {
+                    ChartAxisType.Category => 1,    // xlCategory
+                    ChartAxisType.Value => 2,       // xlValue
+                    ChartAxisType.Primary => 1,     // Primary = Category
+                    ChartAxisType.Secondary => 2,   // Secondary = Value
+                    _ => 1
+                };
+
+                targetAxis = axes.Item(axisType);
+                tickLabels = targetAxis.TickLabels;
+
+                // Get the number format for axis tick labels
+                return tickLabels.NumberFormat?.ToString() ?? "General";
+            }
+            finally
+            {
+                if (tickLabels != null) ComUtilities.Release(ref tickLabels!);
+                if (targetAxis != null) ComUtilities.Release(ref targetAxis!);
+                if (axes != null) ComUtilities.Release(ref axes!);
+                if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
+                if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
+            }
+        });
+    }
+
+    /// <inheritdoc />
+    public void SetAxisNumberFormat(
+        IExcelBatch batch,
+        string chartName,
+        ChartAxisType axis,
+        string numberFormat)
+    {
+        batch.Execute((ctx, ct) =>
+        {
+            // Find chart by name
+            var findResult = FindChart(ctx.Book, chartName);
+            if (findResult.Chart == null)
+            {
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
+            }
+
+            dynamic? axes = null;
+            dynamic? targetAxis = null;
+            dynamic? tickLabels = null;
+
+            try
+            {
+                axes = findResult.Chart.Axes;
+
+                // Map axis type to Excel constants
+                int axisType = axis switch
+                {
+                    ChartAxisType.Category => 1,    // xlCategory
+                    ChartAxisType.Value => 2,       // xlValue
+                    ChartAxisType.Primary => 1,     // Primary = Category
+                    ChartAxisType.Secondary => 2,   // Secondary = Value
+                    _ => 1
+                };
+
+                targetAxis = axes.Item(axisType);
+                tickLabels = targetAxis.TickLabels;
+
+                // Set the number format for axis tick labels
+                tickLabels.NumberFormat = numberFormat;
+
+                return 0; // Void operation completed
+            }
+            finally
+            {
+                if (tickLabels != null) ComUtilities.Release(ref tickLabels!);
+                if (targetAxis != null) ComUtilities.Release(ref targetAxis!);
+                if (axes != null) ComUtilities.Release(ref axes!);
+                if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
+                if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
+            }
+        });
+    }
+
+    /// <inheritdoc />
     public void ShowLegend(
         IExcelBatch batch,
         string chartName,
