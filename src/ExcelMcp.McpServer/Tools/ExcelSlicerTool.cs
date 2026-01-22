@@ -10,7 +10,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// MCP tool for Excel Slicer operations
 /// </summary>
 [McpServerToolType]
-public static class ExcelSlicerTool
+public static partial class ExcelSlicerTool
 {
     private static readonly JsonSerializerOptions JsonOptions = ExcelToolsBase.JsonOptions;
 
@@ -63,7 +63,7 @@ public static class ExcelSlicerTool
     [McpServerTool(Name = "excel_slicer", Title = "Excel Slicer Operations", Destructive = true)]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
-    public static string ExcelSlicer(
+    public static partial string ExcelSlicer(
         SlicerAction action,
         string sessionId,
         [DefaultValue(null)] string? pivotTableName,
@@ -74,7 +74,7 @@ public static class ExcelSlicerTool
         [DefaultValue(null)] string? destinationSheet,
         [DefaultValue(null)] string? position,
         [DefaultValue(null)] string? selectedItems,
-        [DefaultValue(true)] bool clearFirst = true)
+        [DefaultValue(true)] bool clearFirst)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_slicer",

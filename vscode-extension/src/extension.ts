@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 
 /**
  * ExcelMcp VS Code Extension
@@ -21,6 +23,13 @@ export async function activate(context: vscode.ExtensionContext) {
 			`ExcelMcp: Failed to setup .NET environment: ${errorMessage}. ` +
 			`The extension may not work correctly.`
 		);
+	}
+
+	try {
+		await ensureAgentSkillsInstalled(context);
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		console.warn(`ExcelMcp: Failed to install Agent Skills: ${errorMessage}`);
 	}
 
 	// Register MCP server definition provider
@@ -51,6 +60,39 @@ export async function activate(context: vscode.ExtensionContext) {
 		showWelcomeMessage();
 		context.globalState.update('excelmcp.hasShownWelcome', true);
 	}
+}
+
+async function ensureAgentSkillsInstalled(context: vscode.ExtensionContext): Promise<void> {
+	const skillSource = path.join(context.extensionPath, 'skills', 'excel-mcp');
+	const skillManifest = path.join(skillSource, 'SKILL.md');
+	if (!fs.existsSync(skillManifest)) {
+		return;
+	}
+
+	const homeDir = os.homedir();
+	if (!homeDir) {
+		return;
+	}
+
+	const skillsRoot = path.join(homeDir, '.copilot', 'skills');
+	const skillDestination = path.join(skillsRoot, 'excel-mcp');
+	const destinationManifest = path.join(skillDestination, 'SKILL.md');
+
+	const extension = vscode.extensions.getExtension('sbroenne.excel-mcp');
+	const currentVersion = (extension?.packageJSON as { version?: string } | undefined)?.version ?? '0.0.0';
+	const installedVersion = context.globalState.get<string>('excelmcp.skillsVersion');
+
+	if (installedVersion === currentVersion && fs.existsSync(destinationManifest)) {
+		return;
+	}
+
+	await fs.promises.mkdir(skillsRoot, { recursive: true });
+	await fs.promises.cp(skillSource, skillDestination, { recursive: true, force: true });
+	await context.globalState.update('excelmcp.skillsVersion', currentVersion);
+
+	vscode.window.showInformationMessage(
+		"Excel MCP Agent Skills installed for Copilot. Enable 'chat.useAgentSkills' in VS Code settings."
+	);
 }
 
 async function ensureDotNetRuntime(): Promise<void> {

@@ -165,6 +165,8 @@ The CLI provides 172 operations across 13 command groups, sharing the same Core 
 
 📥 **[Installation Guide](/installation/)** — Setup for VS Code, Claude Desktop, other MCP clients, and CLI
 
+🤖 **[Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-mcp/SKILL.md)** — Cross-platform AI guidance (agentskills.io)
+
 📋 **[Changelog](/changelog/)** — Release notes and version history
 
 ## More Information

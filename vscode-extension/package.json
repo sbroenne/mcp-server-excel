@@ -56,6 +56,7 @@
   "files": [
     "out/**",
     "bin/**",
+    "skills/**",
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
@@ -71,11 +72,12 @@
   },
   "scripts": {
     "clean": "cd .. && dotnet clean src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release",
+    "copy:skills": "xcopy /E /I /Y ..\\skills\\excel-mcp skills\\excel-mcp",
     "build:mcp-server": "npm run clean && cd .. && dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release --no-self-contained -o vscode-extension/bin --verbosity minimal",
-    "vscode:prepublish": "npm run build:mcp-server && npm run compile",
+    "vscode:prepublish": "npm run build:mcp-server && npm run copy:skills && npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "npm run build:mcp-server && vsce package",
+    "package": "npm run build:mcp-server && npm run copy:skills && vsce package",
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
