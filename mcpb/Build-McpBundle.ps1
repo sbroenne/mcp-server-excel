@@ -164,6 +164,16 @@ $ChangelogDst = Join-Path $StagingDir "CHANGELOG.md"
 Copy-Item $ChangelogSrc $ChangelogDst -Force
 Write-Host "   ✓ Copied CHANGELOG.md" -ForegroundColor Green
 
+# Copy Agent Skills from skills/excel-mcp directory
+$SkillsSrc = Join-Path $RootDir "skills/excel-mcp"
+$SkillsDst = Join-Path $StagingDir "skills/excel-mcp"
+if (Test-Path $SkillsSrc) {
+    Copy-Item $SkillsSrc $SkillsDst -Recurse -Force
+    Write-Host "   ✓ Copied Agent Skills (skills/excel-mcp)" -ForegroundColor Green
+} else {
+    Write-Host "   ⚠ Agent Skills not found at $SkillsSrc" -ForegroundColor Yellow
+}
+
 # Create mcpb file (zip with .mcpb extension)
 $McpbFileName = "excel-mcp-$Version.mcpb"
 $McpbPath = Join-Path $OutputDir $McpbFileName
@@ -171,7 +181,7 @@ $McpbPath = Join-Path $OutputDir $McpbFileName
 Write-Host ""
 Write-Host "📦 Creating MCPB bundle..." -ForegroundColor Yellow
 
-# Get files/directories to include (manifest.json, icon, README, LICENSE, CHANGELOG at root, server/ directory with exe)
+# Get files/directories to include (manifest.json, icon, README, LICENSE, CHANGELOG at root, server/ directory with exe, skills/)
 $FilesToZip = @(
     (Join-Path $StagingDir "manifest.json"),
     (Join-Path $StagingDir "icon-512.png"),
@@ -180,6 +190,12 @@ $FilesToZip = @(
     (Join-Path $StagingDir "CHANGELOG.md"),
     (Join-Path $StagingDir "server")
 )
+
+# Add skills directory if it exists
+$SkillsZipDir = Join-Path $StagingDir "skills"
+if (Test-Path $SkillsZipDir) {
+    $FilesToZip += $SkillsZipDir
+}
 
 # Remove .mcp directory if it exists (MCP registry metadata not needed in MCPB bundle)
 $McpMetaDir = Join-Path $StagingDir ".mcp"

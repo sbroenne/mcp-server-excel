@@ -34,6 +34,14 @@ The Excel MCP Server provides **22 specialized tools with 194 operations** for c
 
 📚 **[Complete Feature Reference →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)**
 
+### Agent Skills (Bundled)
+
+This extension includes **Agent Skills** following the [agentskills.io](https://agentskills.io) specification - providing domain-specific guidance for AI assistants. The skills enable GitHub Copilot to effectively understand Excel MCP Server capabilities, workflows, and best practices.
+
+📚 **[View Agent Skills →](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-mcp/SKILL.md)**
+
+**VS Code setup:** Enable the preview setting `chat.useAgentSkills` to allow Copilot to load skills. This extension installs the skill to `~/.copilot/skills/excel-mcp` for discovery.
+
 
 ## 💬 Example Prompts
 

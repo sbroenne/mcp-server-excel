@@ -46,6 +46,10 @@
   },
   "tools_generated": true,
   "prompts_generated": true,
+  "skills": {
+    "path": "skills/excel-mcp",
+    "spec": "agentskills.io"
+  },
   "compatibility": {
     "claude_desktop": ">=0.10.0",
     "platforms": ["win32"]

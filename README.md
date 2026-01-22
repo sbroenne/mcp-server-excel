@@ -111,6 +111,14 @@ Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/
 
 xcelMcp includes a CLI interface for Excel automation without AI assistance. This is useful for RPA workflows, CI/CD pipelines, or batch processing scripts. Run `excelcli --help` for a categorized list of commands, or `excelcli sheet --help` (replace `sheet`) to view action-specific options. **Always follow the session pattern:** `excelcli session open <file>` → run commands with `--session <id>` → `excelcli session save/close <id>`. See **[CLI Guide](src/ExcelMcp.CLI/README.md)** for complete documentation.
 
+### Agent Skills (Cross-Platform AI Guidance)
+
+ExcelMcp includes an **Agent Skills** package following the [agentskills.io](https://agentskills.io) specification. This provides domain-specific guidance for AI assistants beyond MCP - enabling GitHub Copilot, Codex, Gemini CLI, Goose, and other agents to effectively use Excel MCP Server. For VS Code, enable the preview setting `chat.useAgentSkills` to allow Copilot to load skills.
+
+📚 **[Agent Skills →](skills/excel-mcp/SKILL.md)** - Cross-platform AI assistant guidance
+
+The skills are bundled with both the VS Code extension and MCPB package for automatic availability. The extension also installs the skill to `~/.copilot/skills/excel-mcp` so Copilot can discover it.
+
 
 
 ## 🔧 How It Works - COM Interop Architecture

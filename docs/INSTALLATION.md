@@ -388,6 +388,7 @@ After installation:
 3. **Read the guides:**
    - [MCP Server Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.McpServer/README.md)
    - [CLI Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)
+   - [Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-mcp/SKILL.md) - Cross-platform AI guidance
 4. **Join the community:** Star the repo, report issues, contribute improvements
 
 **Happy automating! 🚀**
