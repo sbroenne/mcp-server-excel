@@ -91,3 +91,24 @@ Alternative path (for existing worksheet tables):
 - Unload removes BOTH worksheet ListObjects AND Data Model connections
 - Delete removes query, worksheet ListObjects, AND Data Model connections
 - Connection naming pattern: "Query - {queryName}" or "Query - {queryName} - suffix"
+
+## M Code - Server-Specific Notes
+
+### Reading Named Ranges (parameters)
+
+```m
+Excel.CurrentWorkbook(){[Name = "Param_Name"]}[Content]{0}[Column1]
+```
+
+### Query Chaining
+
+Reference other queries by name directly: `Source = OtherQueryName`
+
+### Source Control Pattern
+
+1. Store M code in `.pq` files
+2. `excel_powerquery create` or `update` with inline `mCode`
+3. `refresh` to validate
+4. File name MUST match query name
+
+Query naming: File name MUST match Excel query name exactly.

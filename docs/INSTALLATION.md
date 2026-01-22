@@ -391,4 +391,34 @@ After installation:
    - [Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-mcp/SKILL.md) - Cross-platform AI guidance
 4. **Join the community:** Star the repo, report issues, contribute improvements
 
+---
+
+## Agent Skills (Optional)
+
+Agent Skills provide domain-specific guidance to AI coding assistants, helping them use Excel MCP Server more effectively.
+
+**VS Code Extension:** Skills are installed automatically to `~/.copilot/skills/`.
+
+**Other Platforms (Claude Code, Cursor, Windsurf, etc.):**
+
+```bash
+# Cross-platform installation
+npx add-skill sbroenne/mcp-server-excel
+
+# Install for specific agent
+npx add-skill sbroenne/mcp-server-excel -a claude-code
+npx add-skill sbroenne/mcp-server-excel -a cursor
+```
+
+**Manual Installation:**
+1. Download `excel-mcp-skills-{version}.zip` from [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+2. Extract to your AI assistant's skills directory:
+   - Copilot: `~/.copilot/skills/excel-mcp/`
+   - Claude Code: `.claude/skills/excel-mcp/`
+   - Cursor: `.cursor/skills/excel-mcp/`
+
+**See:** [Agent Skills Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/README.md)
+
+---
+
 **Happy automating! 🚀**

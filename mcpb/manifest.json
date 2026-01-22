@@ -33,7 +33,8 @@
     "macro",
     "table",
     "data analysis",
-    "pivot table"
+    "pivot table",
+    "agent skills"
   ],
   "server": {
     "type": "binary",

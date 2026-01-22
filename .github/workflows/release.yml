@@ -5,6 +5,7 @@ name: Release All Components
 # - CLI (NuGet + ZIP)
 # - VS Code Extension (VSIX + Marketplace)
 # - MCPB (Claude Desktop bundle)
+# - Agent Skills (ZIP package)
 #
 # All components are released with the same version from a single tag.
 # Tag pattern: v1.2.3
@@ -319,7 +320,36 @@ jobs:
         path: mcpb/artifacts/excel-mcp-*.mcpb
 
   # =============================================================================
-  # Job 5: Wait for NuGet Propagation + MCP Registry
+  # Job 5: Build Agent Skills Package
+  # =============================================================================
+  build-agent-skills:
+    name: Agent Skills
+    runs-on: windows-latest
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Extract Version
+      run: |
+        $version = "${{ github.ref_name }}" -replace '^v', ''
+        echo "VERSION=$version" >> $env:GITHUB_ENV
+      shell: pwsh
+
+    - name: Build Agent Skills Package
+      run: |
+        .\scripts\Build-AgentSkills.ps1 -Version $env:VERSION
+      shell: pwsh
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: agent-skills
+        path: artifacts/skills/excel-mcp-skills-*.zip
+
+  # =============================================================================
+  # Job 6: Wait for NuGet Propagation + MCP Registry
   # =============================================================================
   publish-mcp-registry:
     name: MCP Registry
@@ -393,11 +423,11 @@ jobs:
       continue-on-error: true
 
   # =============================================================================
-  # Job 6: Create Unified GitHub Release
+  # Job 7: Create Unified GitHub Release
   # =============================================================================
   create-release:
     name: Create GitHub Release
-    needs: [build-mcp-server, build-cli, build-vscode, build-mcpb]
+    needs: [build-mcp-server, build-cli, build-vscode, build-mcpb, build-agent-skills]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -472,6 +502,10 @@ jobs:
         dotnet tool install --global Sbroenne.ExcelMcp.CLI
         ```
 
+        **Agent Skills** (for AI coding assistants)
+        - Download `excel-mcp-skills-${{ env.VERSION }}.zip` and extract to your preferred location
+        - Or use: `npx add-skill sbroenne/mcp-server-excel`
+
         ### Requirements
         - Windows OS
         - Microsoft Excel 2016+
@@ -489,6 +523,7 @@ jobs:
         for f in artifacts/cli-zip/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/vscode-vsix/*.vsix; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/mcpb-bundle/*.mcpb; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
+        for f in artifacts/agent-skills/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
 
         echo "Creating release with artifacts:$ARTIFACTS"
 
