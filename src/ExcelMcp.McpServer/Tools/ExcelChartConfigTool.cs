@@ -66,8 +66,13 @@ public static partial class ExcelChartConfigTool
     /// - Power: Power curve (y = cx^b)
     /// - MovingAverage: Moving average (requires period)
     ///
+    /// PLACEMENT MODE (set-placement):
+    /// - 1: Move and size with cells (chart resizes when rows/columns resize)
+    /// - 2: Move but don't size with cells (chart position tracks cells, size stays fixed)
+    /// - 3: Don't move or size with cells (free floating, absolute position)
+    ///
     /// RELATED TOOLS:
-    /// - excel_chart: Create, delete, and move charts
+    /// - excel_chart: Create, delete, move, and fit-to-range
     /// </summary>
     /// <param name="action">The chart configuration action to perform</param>
     /// <param name="sessionId">Session identifier returned from excel_file open action</param>
@@ -112,6 +117,7 @@ public static partial class ExcelChartConfigTool
     /// <param name="displayEquation">For add-trendline, set-trendline: Display equation on chart</param>
     /// <param name="displayRSquared">For add-trendline, set-trendline: Display R-squared value on chart</param>
     /// <param name="trendlineName">For add-trendline, set-trendline: Custom name for the trendline</param>
+    /// <param name="placement">Placement mode for set-placement: 1=Move and size with cells, 2=Move only, 3=Free floating</param>
     [McpServerTool(Name = "excel_chart_config", Title = "Excel Chart Configuration", Destructive = true)]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
@@ -163,7 +169,9 @@ public static partial class ExcelChartConfigTool
         [DefaultValue(null)] double? intercept,
         [DefaultValue(null)] bool? displayEquation,
         [DefaultValue(null)] bool? displayRSquared,
-        [DefaultValue(null)] string? trendlineName)
+        [DefaultValue(null)] string? trendlineName,
+        // Placement parameter
+        [DefaultValue(null)] int? placement)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_chart_config",
@@ -194,6 +202,7 @@ public static partial class ExcelChartConfigTool
                     ChartConfigAction.AddTrendline => AddTrendlineAction(commands, sessionId, chartName, seriesIndex, trendlineType, order, period, forward, backward, intercept, displayEquation, displayRSquared, trendlineName),
                     ChartConfigAction.DeleteTrendline => DeleteTrendlineAction(commands, sessionId, chartName, seriesIndex, trendlineIndex),
                     ChartConfigAction.SetTrendline => SetTrendlineAction(commands, sessionId, chartName, seriesIndex, trendlineIndex, forward, backward, intercept, displayEquation, displayRSquared, trendlineName),
+                    ChartConfigAction.SetPlacement => SetPlacementAction(commands, sessionId, chartName, placement),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });
@@ -621,5 +630,31 @@ public static partial class ExcelChartConfigTool
         });
 
         return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Trendline {trendlineIndex!.Value} configured in series {seriesIndex!.Value} of chart '{chartName}'" }, JsonOptions);
+    }
+
+    // === PLACEMENT ===
+
+    private static string SetPlacementAction(ChartCommands commands, string sessionId, string? chartName, int? placement)
+    {
+        if (string.IsNullOrWhiteSpace(chartName))
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-placement");
+        if (!placement.HasValue)
+            ExcelToolsBase.ThrowMissingParameter(nameof(placement), "set-placement");
+
+        ExcelToolsBase.WithSession(sessionId, batch =>
+        {
+            commands.SetPlacement(batch, chartName!, placement!.Value);
+            return 0;
+        });
+
+        string placementDescription = placement!.Value switch
+        {
+            1 => "Move and size with cells",
+            2 => "Move but don't size with cells",
+            3 => "Don't move or size with cells (free floating)",
+            _ => $"Unknown ({placement.Value})"
+        };
+
+        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' placement set to: {placementDescription}" }, JsonOptions);
     }
 }

@@ -47,6 +47,23 @@ public class ChartInfo
 
     /// <summary>Number of data series</summary>
     public int SeriesCount { get; set; }
+
+    /// <summary>
+    /// Cell address of top-left anchor (e.g., "$A$1"). 
+    /// Chart's top-left corner overlaps this cell.
+    /// </summary>
+    public string? TopLeftCell { get; set; }
+
+    /// <summary>
+    /// Cell address of bottom-right anchor (e.g., "$D$10").
+    /// Chart's bottom-right corner overlaps this cell.
+    /// </summary>
+    public string? BottomRightCell { get; set; }
+
+    /// <summary>
+    /// Chart placement mode: 1=Move and size with cells, 2=Move but don't size with cells, 3=Don't move or size with cells
+    /// </summary>
+    public int? Placement { get; set; }
 }
 
 /// <summary>
@@ -83,6 +100,23 @@ public class ChartInfoResult : OperationResult
 
     /// <summary>Height in points</summary>
     public double Height { get; set; }
+
+    /// <summary>
+    /// Cell address of top-left anchor (e.g., "$A$1"). 
+    /// Chart's top-left corner overlaps this cell.
+    /// </summary>
+    public string? TopLeftCell { get; set; }
+
+    /// <summary>
+    /// Cell address of bottom-right anchor (e.g., "$D$10").
+    /// Chart's bottom-right corner overlaps this cell.
+    /// </summary>
+    public string? BottomRightCell { get; set; }
+
+    /// <summary>
+    /// Chart placement mode: 1=Move and size with cells, 2=Move but don't size with cells, 3=Don't move or size with cells
+    /// </summary>
+    public int? Placement { get; set; }
 
     /// <summary>Chart title text</summary>
     public string? Title { get; set; }

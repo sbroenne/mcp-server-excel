@@ -27,18 +27,24 @@ public static partial class ExcelChartTool
     ///
     /// POSITIONING: Use left/top in points (1 inch = 72 points).
     /// Default size is 400x300 points.
+    /// Use fit-to-range to position chart relative to cells.
+    ///
+    /// CELL-RELATIVE POSITIONING:
+    /// - Use excel_range(action: 'get-info') to get cell geometry (Left, Top, Width, Height in points)
+    /// - Use fit-to-range action to fit chart exactly to a cell range
     ///
     /// PIVOTCHART: Use create-from-pivottable to link chart to PivotTable.
     /// Changes to PivotTable filters automatically update the chart.
     ///
     /// RELATED TOOLS:
-    /// - excel_chart_config: Series, titles, legends, styles
+    /// - excel_chart_config: Series, titles, legends, styles, placement mode
     /// - excel_pivottable: Create PivotTables for PivotCharts
+    /// - excel_range: Get cell geometry for positioning
     /// </summary>
     /// <param name="action">The chart operation to perform</param>
     /// <param name="sessionId">Session identifier returned from excel_file open action</param>
     /// <param name="chartName">Name of the chart - optional for create (auto-generated), required for other actions</param>
-    /// <param name="sheetName">Worksheet name where chart will be placed (required for create actions)</param>
+    /// <param name="sheetName">Worksheet name where chart will be placed (required for create and fit-to-range actions)</param>
     /// <param name="sourceRange">Data range for chart like 'A1:D10' (required for create-from-range)</param>
     /// <param name="chartType">Chart type enum like ColumnClustered, Line, Pie</param>
     /// <param name="pivotTableName">PivotTable name (required for create-from-pivottable action)</param>
@@ -46,6 +52,7 @@ public static partial class ExcelChartTool
     /// <param name="top">Top position in points (72 points = 1 inch)</param>
     /// <param name="width">Chart width in points (default 400)</param>
     /// <param name="height">Chart height in points (default 300)</param>
+    /// <param name="rangeAddress">Target cell range for fit-to-range action (e.g., 'A1:D10')</param>
     [McpServerTool(Name = "excel_chart", Title = "Excel Chart Operations", Destructive = true)]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
@@ -60,7 +67,8 @@ public static partial class ExcelChartTool
         [DefaultValue(null)] double? left,
         [DefaultValue(null)] double? top,
         [DefaultValue(null)] double? width,
-        [DefaultValue(null)] double? height)
+        [DefaultValue(null)] double? height,
+        [DefaultValue(null)] string? rangeAddress)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_chart",
@@ -77,6 +85,7 @@ public static partial class ExcelChartTool
                     ChartAction.CreateFromPivotTable => CreateFromPivotTableAction(commands, sessionId, pivotTableName, sheetName, chartType, left, top, width, height, chartName),
                     ChartAction.Delete => DeleteAction(commands, sessionId, chartName),
                     ChartAction.Move => MoveAction(commands, sessionId, chartName, left, top, width, height),
+                    ChartAction.FitToRange => FitToRangeAction(commands, sessionId, chartName, sheetName, rangeAddress),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });
@@ -200,6 +209,29 @@ public static partial class ExcelChartTool
         });
 
         return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' moved successfully" }, JsonOptions);
+    }
+
+    private static string FitToRangeAction(
+        ChartCommands commands,
+        string sessionId,
+        string? chartName,
+        string? sheetName,
+        string? rangeAddress)
+    {
+        if (string.IsNullOrWhiteSpace(chartName))
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "fit-to-range");
+        if (string.IsNullOrWhiteSpace(sheetName))
+            ExcelToolsBase.ThrowMissingParameter(nameof(sheetName), "fit-to-range");
+        if (string.IsNullOrWhiteSpace(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter(nameof(rangeAddress), "fit-to-range");
+
+        ExcelToolsBase.WithSession(sessionId, batch =>
+        {
+            commands.FitToRange(batch, chartName!, sheetName!, rangeAddress!);
+            return 0; // Dummy return value
+        });
+
+        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' fitted to range '{sheetName}'!{rangeAddress}" }, JsonOptions);
     }
 
 

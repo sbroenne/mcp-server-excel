@@ -38,6 +38,46 @@ public class RegularChartStrategy : IChartStrategy
             Height = Convert.ToDouble(shape.Height)
         };
 
+        // Get anchor cells and placement mode
+        dynamic? topLeftCell = null;
+        dynamic? bottomRightCell = null;
+        try
+        {
+            topLeftCell = shape.TopLeftCell;
+            info.TopLeftCell = topLeftCell.Address?.ToString();
+        }
+        catch
+        {
+            // TopLeftCell not available - optional property
+        }
+        finally
+        {
+            if (topLeftCell != null) ComUtilities.Release(ref topLeftCell!);
+        }
+
+        try
+        {
+            bottomRightCell = shape.BottomRightCell;
+            info.BottomRightCell = bottomRightCell.Address?.ToString();
+        }
+        catch
+        {
+            // BottomRightCell not available - optional property
+        }
+        finally
+        {
+            if (bottomRightCell != null) ComUtilities.Release(ref bottomRightCell!);
+        }
+
+        try
+        {
+            info.Placement = Convert.ToInt32(shape.Placement);
+        }
+        catch
+        {
+            // Placement not available - optional property
+        }
+
         // Count series
         dynamic? seriesCollection = null;
         try
@@ -68,6 +108,46 @@ public class RegularChartStrategy : IChartStrategy
             Width = Convert.ToDouble(shape.Width),
             Height = Convert.ToDouble(shape.Height)
         };
+
+        // Get anchor cells and placement mode
+        dynamic? topLeftCell = null;
+        dynamic? bottomRightCell = null;
+        try
+        {
+            topLeftCell = shape.TopLeftCell;
+            info.TopLeftCell = topLeftCell.Address?.ToString();
+        }
+        catch
+        {
+            // TopLeftCell not available - optional property
+        }
+        finally
+        {
+            if (topLeftCell != null) ComUtilities.Release(ref topLeftCell!);
+        }
+
+        try
+        {
+            bottomRightCell = shape.BottomRightCell;
+            info.BottomRightCell = bottomRightCell.Address?.ToString();
+        }
+        catch
+        {
+            // BottomRightCell not available - optional property
+        }
+        finally
+        {
+            if (bottomRightCell != null) ComUtilities.Release(ref bottomRightCell!);
+        }
+
+        try
+        {
+            info.Placement = Convert.ToInt32(shape.Placement);
+        }
+        catch
+        {
+            // Placement not available - optional property
+        }
 
         // Get title
         try
