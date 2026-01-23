@@ -121,6 +121,31 @@ When presenting data to users, format as Markdown tables:
 
 NOT as raw JSON arrays: `[["Column A","Column B"],["Value 1","Value 2"]]`
 
+## Data Model Output Rules
+
+### Choose the Right Display Method
+
+When displaying Data Model data:
+
+| Scenario | Use | NOT |
+|----------|-----|-----|
+| Show DAX query results | `excel_table create-from-dax` | PivotTable |
+| Static report/snapshot | `excel_table create-from-dax` | PivotTable |
+| Data needed in formulas | `excel_table create-from-dax` | PivotTable |
+| User needs interactive filtering | `excel_pivottable` | DAX table |
+| Cross-tabulation layout | `excel_pivottable` | DAX table |
+
+**Why**: PivotTables add UI complexity (field panes, refresh prompts) that's unnecessary for simple data display. DAX-backed tables are cleaner for presenting query results.
+
+### Chart Data Model Data Directly
+
+When creating charts from Data Model:
+
+- **Use**: `excel_chart create-from-pivottable` (creates PivotChart)
+- **NOT**: Create PivotTable → Create separate Chart from the PivotTable
+
+**Why**: A PivotChart is a single object connected to the Data Model. Creating PivotTable + Chart is redundant - two objects instead of one.
+
 ## Data Modification Rules
 
 ### Verify Before Delete

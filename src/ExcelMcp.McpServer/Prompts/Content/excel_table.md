@@ -55,7 +55,17 @@ Example DAX queries for create-from-dax:
 | Add worksheet table to Power Pivot | excel_table (add-to-datamodel) |
 | Import external data to Data Model | excel_powerquery (loadDestination='data-model') |
 | Create DAX measures | excel_datamodel |
-| Create PivotTables from Data Model | excel_pivottable |
+| **Display DAX query results** | `excel_table create-from-dax` |
+| **Interactive analysis** | excel_pivottable |
+
+**create-from-dax vs PivotTable**:
+
+| Use create-from-dax when | Use PivotTable when |
+|--------------------------|---------------------|
+| Displaying flat query results | User needs drill-down/filtering |
+| Static reports/snapshots | Interactive analysis required |
+| Data will be used in formulas | Cross-tabulation (rows × columns) |
+| Clean tabular display needed | User will regroup/pivot data |
 
 **Common mistakes**:
 
