@@ -15,7 +15,7 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time.
 
-**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. CLI has 13 command categories with 194 operations matching the MCP Server (22 tools with 194 operations).
+**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. CLI has 13 command categories with 206 operations matching the MCP Server (22 tools with 206 operations).
 
 **Requirements:** Windows OS + Excel 2016+
 
@@ -53,13 +53,13 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 ## 🛠️ What You Can Do
 
-**22 specialized tools with 194 operations:**
+**22 specialized tools with 206 operations:**
 
 - 🔄 **Power Query** (1 tool, 10 ops) - Atomic workflows, M code management, load destinations
 - 📊 **Data Model/DAX** (2 tools, 18 ops) - Measures, relationships, model structure
 - 🎨 **Excel Tables** (2 tools, 27 ops) - Lifecycle, filtering, sorting, structured references
 - 📈 **PivotTables** (3 tools, 30 ops) - Creation, fields, aggregations, calculated members/fields
-- 📉 **Charts** (2 tools, 14 ops) - Create, configure, manage series and formatting
+- 📉 **Charts** (2 tools, 26 ops) - Create, configure, series, formatting, data labels, trendlines
 - 📝 **VBA** (1 tool, 6 ops) - Modules, execution, version control
 - 📋 **Ranges** (4 tools, 42 ops) - Values, formulas, formatting, validation, protection
 - 📄 **Worksheets** (2 tools, 16 ops) - Lifecycle, colors, visibility, cross-workbook moves
@@ -69,7 +69,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 - �️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
 - 🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
 
-📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 194 operations
+📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 206 operations
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot, Claude, or ChatGPT

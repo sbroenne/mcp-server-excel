@@ -159,4 +159,5 @@ See `references/` for detailed guidance:
 - @references/excel_table.md - Table operations
 - @references/excel_range.md - Range operations
 - @references/excel_worksheet.md - Worksheet operations
+- @references/excel_chart.md - Charts, formatting, and trendlines
 - @references/claude-desktop.md - Claude Desktop setup
