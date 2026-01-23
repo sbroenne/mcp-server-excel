@@ -419,7 +419,27 @@ public enum ChartConfigAction
     GetAxisNumberFormat,
     SetAxisNumberFormat,
     ShowLegend,
-    SetStyle
+    SetStyle,
+
+    // Data Labels
+    SetDataLabels,
+
+    // Axis Scale
+    GetAxisScale,
+    SetAxisScale,
+
+    // Gridlines
+    GetGridlines,
+    SetGridlines,
+
+    // Series Formatting
+    SetSeriesFormat,
+
+    // Trendlines
+    ListTrendlines,
+    AddTrendline,
+    DeleteTrendline,
+    SetTrendline
 }
 
 /// <summary>

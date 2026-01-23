@@ -6,7 +6,7 @@
 
 **Optional command-line interface for Excel automation without AI assistance.**
 
-For advanced users who prefer direct scripting control, the CLI provides 13 command categories with 194 operations matching the MCP Server (22 tools with 194 operations). Perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
+For advanced users who prefer direct scripting control, the CLI provides 13 command categories with 206 operations matching the MCP Server (22 tools with 206 operations). Perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
 
 **Note:** Most users should use the [MCP Server with AI assistants](../ExcelMcp.McpServer/README.md) for natural language automation.
 
@@ -78,9 +78,9 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **194 operations** across 13 categories:
+ExcelMcp.CLI provides **206 operations** across 13 categories:
 
-📚 **[Complete Feature Reference →](../../FEATURES.md)** - Full MCP Server documentation (194 operations)
+📚 **[Complete Feature Reference →](../../FEATURES.md)** - Full MCP Server documentation (206 operations)
 
 **Quick Reference:**
 
@@ -92,7 +92,7 @@ ExcelMcp.CLI provides **194 operations** across 13 categories:
 | **Ranges** | 42 | `range get-values`, `range set-values`, `range copy`, `range find`, `range merge-cells`, `range add-hyperlink` |
 | **Conditional Formatting** | 2 | `conditionalformat add-rule`, `conditionalformat clear-rules` |
 | **Excel Tables** | 27 | `table create`, `table apply-filter`, `table get-data`, `table sort`, `table add-column`, `table create-from-dax`, `table update-dax` |
-| **Charts** | 14 | `chart create-from-range`, `chart add-series`, `chart set-chart-type`, `chart show-legend` |
+| **Charts** | 26 | `chart create-from-range`, `chart add-series`, `chart set-chart-type`, `chart show-legend`, `chart add-trendline`, `chart list-trendlines` |
 | **PivotTables** | 30 | `pivottable create-from-range`, `pivottable add-row-field`, `pivottable refresh`, `pivottable list-calculated-fields`, `pivottable create-calculated-member` |
 | **Data Model** | 18 | `datamodel create-measure`, `datamodel create-relationship`, `datamodel refresh`, `datamodel evaluate`, `datamodel delete-table`, `datamodel read-relationship` |
 | **Connections** | 9 | `connection list`, `connection refresh`, `connection test` |

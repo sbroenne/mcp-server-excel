@@ -17,7 +17,7 @@
 
 **Automate Excel with AI - A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.**
 
-**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (22 tools with 194 operations).
+**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (22 tools with 206 operations).
 
 **🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
 
@@ -49,13 +49,13 @@ Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/
 
 ## 🎯 What You Can Do
 
-**22 specialized tools with 194 operations:**
+**22 specialized tools with 206 operations:**
 
 - 🔄 **Power Query** (1 tool, 10 ops) - Atomic workflows, M code management, load destinations
 - 📊 **Data Model/DAX** (2 tools, 18 ops) - Measures with auto-formatted DAX, relationships, model structure
 - 🎨 **Excel Tables** (2 tools, 27 ops) - Lifecycle, filtering, sorting, structured references
 - 📈 **PivotTables** (3 tools, 30 ops) - Creation, fields, aggregations, calculated members/fields
-- 📉 **Charts** (2 tools, 14 ops) - Create, configure, manage series and formatting
+- 📉 **Charts** (2 tools, 26 ops) - Create, configure, series, formatting, data labels, trendlines
 - 📝 **VBA** (1 tool, 6 ops) - Modules, execution, version control
 - 📋 **Ranges** (4 tools, 42 ops) - Values, formulas, formatting, validation, protection
 - 📄 **Worksheets** (2 tools, 16 ops) - Lifecycle, colors, visibility, cross-workbook moves
@@ -65,7 +65,7 @@ Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/
 - �️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
 - �🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
 
-📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 194 operations
+📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 206 operations
 
 
 ## 💬 Example Prompts

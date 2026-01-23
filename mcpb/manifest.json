@@ -4,7 +4,7 @@
   "display_name": "Excel (Windows)",
   "version": "1.1.5",
   "description": "Manage Sheets, Power Query, DAX, VBA, PowerPivot, Tables, Ranges, Charts, Formatting, Validation & more - requires Excel to be installed",
-  "long_description": "Enterprise-grade MCP server for Microsoft Excel automation. 22 specialized tools with 194 operations for Power Query, DAX, VBA, Charts, PivotTables, Conditional Formatting, and more. Windows-only, requires Microsoft Excel desktop application (2016 or later).",
+  "long_description": "Enterprise-grade MCP server for Microsoft Excel automation. 22 specialized tools with 206 operations for Power Query, DAX, VBA, Charts, PivotTables, Conditional Formatting, and more. Windows-only, requires Microsoft Excel desktop application (2016 or later).",
   "author": {
     "name": "Stefan Broenner",
     "url": "https://github.com/sbroenne"

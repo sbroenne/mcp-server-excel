@@ -210,4 +210,195 @@ public interface IChartCommands
     /// <param name="chartName">Name of the chart</param>
     /// <param name="styleId">Style number (1-48)</param>
     void SetStyle(IExcelBatch batch, string chartName, int styleId);
+
+    // === DATA LABELS ===
+
+    /// <summary>
+    /// Configures data labels for chart series.
+    /// Applies to all series, or specify seriesIndex for one series.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="showValue">Show actual data values</param>
+    /// <param name="showPercentage">Show percentage (pie/doughnut charts)</param>
+    /// <param name="showSeriesName">Show series name in label</param>
+    /// <param name="showCategoryName">Show category name in label</param>
+    /// <param name="showBubbleSize">Show bubble size (bubble charts)</param>
+    /// <param name="separator">Separator between label parts (e.g., ", " or "\n")</param>
+    /// <param name="position">Label position (Center, InsideEnd, InsideBase, OutsideEnd, BestFit)</param>
+    /// <param name="seriesIndex">Optional 1-based series index (null = all series)</param>
+    void SetDataLabels(
+        IExcelBatch batch,
+        string chartName,
+        bool? showValue = null,
+        bool? showPercentage = null,
+        bool? showSeriesName = null,
+        bool? showCategoryName = null,
+        bool? showBubbleSize = null,
+        string? separator = null,
+        DataLabelPosition? position = null,
+        int? seriesIndex = null);
+
+    // === AXIS SCALE ===
+
+    /// <summary>
+    /// Gets axis scale settings.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="axis">Axis type (Value, Category, ValueSecondary, CategorySecondary)</param>
+    /// <returns>Axis scale information including min/max/units</returns>
+    AxisScaleResult GetAxisScale(
+        IExcelBatch batch,
+        string chartName,
+        ChartAxisType axis);
+
+    /// <summary>
+    /// Sets axis scale settings.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="axis">Axis type (Value, Category, ValueSecondary, CategorySecondary)</param>
+    /// <param name="minimumScale">Minimum axis value (null = auto)</param>
+    /// <param name="maximumScale">Maximum axis value (null = auto)</param>
+    /// <param name="majorUnit">Major unit interval (null = auto)</param>
+    /// <param name="minorUnit">Minor unit interval (null = auto)</param>
+    void SetAxisScale(
+        IExcelBatch batch,
+        string chartName,
+        ChartAxisType axis,
+        double? minimumScale = null,
+        double? maximumScale = null,
+        double? majorUnit = null,
+        double? minorUnit = null);
+
+    // === GRIDLINES ===
+
+    /// <summary>
+    /// Gets gridlines visibility for chart axes.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <returns>Gridlines visibility for value and category axes</returns>
+    GridlinesResult GetGridlines(IExcelBatch batch, string chartName);
+
+    /// <summary>
+    /// Configures gridlines visibility for chart axes.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="axis">Axis type (Value, Category)</param>
+    /// <param name="showMajor">Show major gridlines</param>
+    /// <param name="showMinor">Show minor gridlines</param>
+    void SetGridlines(
+        IExcelBatch batch,
+        string chartName,
+        ChartAxisType axis,
+        bool? showMajor = null,
+        bool? showMinor = null);
+
+    // === SERIES FORMATTING ===
+
+    /// <summary>
+    /// Configures series marker formatting (for line, scatter, and radar charts).
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="seriesIndex">1-based series index</param>
+    /// <param name="markerStyle">Marker style (None, Square, Diamond, Triangle, X, Star, Circle, Plus, etc.)</param>
+    /// <param name="markerSize">Marker size in points (2-72)</param>
+    /// <param name="markerBackgroundColor">Marker fill color (#RRGGBB hex)</param>
+    /// <param name="markerForegroundColor">Marker border color (#RRGGBB hex)</param>
+    /// <param name="invertIfNegative">Invert colors for negative values</param>
+    void SetSeriesFormat(
+        IExcelBatch batch,
+        string chartName,
+        int seriesIndex,
+        MarkerStyle? markerStyle = null,
+        int? markerSize = null,
+        string? markerBackgroundColor = null,
+        string? markerForegroundColor = null,
+        bool? invertIfNegative = null);
+
+    // === TRENDLINES ===
+
+    /// <summary>
+    /// Lists all trendlines on a chart series.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="seriesIndex">1-based series index</param>
+    /// <returns>List of trendlines with their properties</returns>
+    TrendlineListResult ListTrendlines(
+        IExcelBatch batch,
+        string chartName,
+        int seriesIndex);
+
+    /// <summary>
+    /// Adds a trendline to a chart series.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="seriesIndex">1-based series index</param>
+    /// <param name="type">Trendline type (Linear, Exponential, Logarithmic, Polynomial, Power, MovingAverage)</param>
+    /// <param name="order">Polynomial order (2-6), required when type is Polynomial</param>
+    /// <param name="period">Moving average period, required when type is MovingAverage</param>
+    /// <param name="forward">Periods to forecast forward</param>
+    /// <param name="backward">Periods to forecast backward</param>
+    /// <param name="intercept">Y-intercept value (null = calculated automatically)</param>
+    /// <param name="displayEquation">Display equation on chart</param>
+    /// <param name="displayRSquared">Display R-squared value on chart</param>
+    /// <param name="name">Custom name for the trendline</param>
+    /// <returns>Created trendline information</returns>
+    TrendlineResult AddTrendline(
+        IExcelBatch batch,
+        string chartName,
+        int seriesIndex,
+        TrendlineType type,
+        int? order = null,
+        int? period = null,
+        double? forward = null,
+        double? backward = null,
+        double? intercept = null,
+        bool displayEquation = false,
+        bool displayRSquared = false,
+        string? name = null);
+
+    /// <summary>
+    /// Deletes a trendline from a chart series.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="seriesIndex">1-based series index</param>
+    /// <param name="trendlineIndex">1-based trendline index within the series</param>
+    void DeleteTrendline(
+        IExcelBatch batch,
+        string chartName,
+        int seriesIndex,
+        int trendlineIndex);
+
+    /// <summary>
+    /// Updates trendline properties.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="seriesIndex">1-based series index</param>
+    /// <param name="trendlineIndex">1-based trendline index within the series</param>
+    /// <param name="forward">Periods to forecast forward</param>
+    /// <param name="backward">Periods to forecast backward</param>
+    /// <param name="intercept">Y-intercept value (null = calculated automatically)</param>
+    /// <param name="displayEquation">Display equation on chart</param>
+    /// <param name="displayRSquared">Display R-squared value on chart</param>
+    /// <param name="name">Custom name for the trendline</param>
+    void SetTrendline(
+        IExcelBatch batch,
+        string chartName,
+        int seriesIndex,
+        int trendlineIndex,
+        double? forward = null,
+        double? backward = null,
+        double? intercept = null,
+        bool? displayEquation = null,
+        bool? displayRSquared = null,
+        string? name = null);
 }
