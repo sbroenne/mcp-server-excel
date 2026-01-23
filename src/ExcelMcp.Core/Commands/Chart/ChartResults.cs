@@ -279,3 +279,79 @@ public class SeriesFormatInfo
     /// <summary>True to invert colors for negative values</summary>
     public bool? InvertIfNegative { get; set; }
 }
+
+/// <summary>
+/// Information about a trendline on a chart series.
+/// </summary>
+public class TrendlineInfo
+{
+    /// <summary>1-based trendline index within the series</summary>
+    public int Index { get; set; }
+
+    /// <summary>Trendline type (Linear, Exponential, etc.)</summary>
+    public TrendlineType Type { get; set; }
+
+    /// <summary>Custom name for the trendline</summary>
+    public string? Name { get; set; }
+
+    /// <summary>Polynomial order (2-6) when type is Polynomial</summary>
+    public int? Order { get; set; }
+
+    /// <summary>Moving average period when type is MovingAverage</summary>
+    public int? Period { get; set; }
+
+    /// <summary>Number of periods to forecast forward</summary>
+    public double? Forward { get; set; }
+
+    /// <summary>Number of periods to forecast backward</summary>
+    public double? Backward { get; set; }
+
+    /// <summary>Y-intercept value (null = calculated)</summary>
+    public double? Intercept { get; set; }
+
+    /// <summary>True if equation is displayed on chart</summary>
+    public bool DisplayEquation { get; set; }
+
+    /// <summary>True if R-squared value is displayed on chart</summary>
+    public bool DisplayRSquared { get; set; }
+}
+
+/// <summary>
+/// Result containing list of trendlines for a series.
+/// </summary>
+public class TrendlineListResult : OperationResult
+{
+    /// <summary>Chart name</summary>
+    public string ChartName { get; set; } = string.Empty;
+
+    /// <summary>1-based series index</summary>
+    public int SeriesIndex { get; set; }
+
+    /// <summary>Series name</summary>
+    public string SeriesName { get; set; } = string.Empty;
+
+    /// <summary>List of trendlines on the series</summary>
+    public List<TrendlineInfo> Trendlines { get; set; } = new();
+}
+
+/// <summary>
+/// Result from adding a trendline.
+/// </summary>
+public class TrendlineResult : OperationResult
+{
+    /// <summary>Chart name</summary>
+    public string ChartName { get; set; } = string.Empty;
+
+    /// <summary>1-based series index</summary>
+    public int SeriesIndex { get; set; }
+
+    /// <summary>1-based trendline index within the series</summary>
+    public int TrendlineIndex { get; set; }
+
+    /// <summary>Trendline type</summary>
+    public TrendlineType Type { get; set; }
+
+    /// <summary>Custom name for the trendline</summary>
+    public string? Name { get; set; }
+}
+

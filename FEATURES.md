@@ -148,7 +148,7 @@
 
 ---
 
-## 📉 Charts (22 operations)
+## 📉 Charts (26 operations)
 
 **Creation:**
 - Create from range
@@ -189,6 +189,12 @@
 - Set marker style (Circle, Square, Diamond, Triangle, etc.)
 - Set marker size
 - Set marker colors
+
+**Trendlines:**
+- Add trendline (Linear, Exponential, Logarithmic, Polynomial, Power, MovingAverage)
+- List trendlines on series
+- Delete trendline
+- Configure trendline (forecast forward/backward, display equation, display R²)
 
 **Lifecycle:**
 - List charts
@@ -383,7 +389,7 @@
 | Data Model/DAX | 18 |
 | Excel Tables | 27 |
 | PivotTables | 30 |
-| Charts | 22 |
+| Charts | 26 |
 | Ranges | 42 |
 | Worksheets | 16 |
 | Connections | 9 |
@@ -391,7 +397,7 @@
 | VBA Macros | 6 |
 | Slicers | 8 |
 | Conditional Formatting | 2 |
-| **Total** | **202** |
+| **Total** | **206** |
 
 ---
 

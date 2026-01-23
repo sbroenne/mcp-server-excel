@@ -305,6 +305,10 @@ public static class ActionExtensions
         ChartConfigAction.GetGridlines => "get-gridlines",
         ChartConfigAction.SetGridlines => "set-gridlines",
         ChartConfigAction.SetSeriesFormat => "set-series-format",
+        ChartConfigAction.ListTrendlines => "list-trendlines",
+        ChartConfigAction.AddTrendline => "add-trendline",
+        ChartConfigAction.DeleteTrendline => "delete-trendline",
+        ChartConfigAction.SetTrendline => "set-trendline",
         _ => throw new ArgumentException($"Unknown ChartConfigAction: {action}")
     };
 

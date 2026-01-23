@@ -773,4 +773,360 @@ public partial class ChartCommands
         // Excel uses BGR format (Blue * 65536 + Green * 256 + Red)
         return b * 65536 + g * 256 + r;
     }
+
+    // === TRENDLINE OPERATIONS ===
+
+    /// <inheritdoc />
+    public TrendlineListResult ListTrendlines(IExcelBatch batch, string chartName, int seriesIndex)
+    {
+        return batch.Execute((ctx, ct) =>
+        {
+            var findResult = FindChart(ctx.Book, chartName);
+            if (findResult.Chart == null)
+            {
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
+            }
+
+            dynamic? seriesCollection = null;
+            dynamic? series = null;
+            dynamic? trendlines = null;
+
+            try
+            {
+                seriesCollection = findResult.Chart.SeriesCollection();
+                int seriesCount = seriesCollection.Count;
+
+                if (seriesIndex < 1 || seriesIndex > seriesCount)
+                {
+                    throw new ArgumentException($"Series index {seriesIndex} is out of range. Chart has {seriesCount} series.");
+                }
+
+                series = seriesCollection.Item(seriesIndex);
+                trendlines = series.Trendlines();
+
+                var result = new TrendlineListResult
+                {
+                    Success = true,
+                    ChartName = chartName,
+                    SeriesIndex = seriesIndex,
+                    SeriesName = series.Name?.ToString() ?? $"Series {seriesIndex}"
+                };
+
+                int trendlineCount = trendlines.Count;
+                for (int i = 1; i <= trendlineCount; i++)
+                {
+                    dynamic? trendline = null;
+                    try
+                    {
+                        trendline = trendlines.Item(i);
+                        var info = new TrendlineInfo
+                        {
+                            Index = i,
+                            Type = (TrendlineType)Convert.ToInt32(trendline.Type),
+                            Name = trendline.Name?.ToString(),
+                            DisplayEquation = trendline.DisplayEquation,
+                            DisplayRSquared = trendline.DisplayRSquared
+                        };
+
+                        // Get forward/backward forecast periods
+                        try { info.Forward = trendline.Forward; } catch { }
+                        try { info.Backward = trendline.Backward; } catch { }
+                        try { info.Intercept = trendline.Intercept; } catch { }
+
+                        // Get order for polynomial trendlines
+                        if (info.Type == TrendlineType.Polynomial)
+                        {
+                            try { info.Order = Convert.ToInt32(trendline.Order); } catch { }
+                        }
+
+                        // Get period for moving average
+                        if (info.Type == TrendlineType.MovingAverage)
+                        {
+                            try { info.Period = Convert.ToInt32(trendline.Period); } catch { }
+                        }
+
+                        result.Trendlines.Add(info);
+                    }
+                    finally
+                    {
+                        if (trendline != null) ComUtilities.Release(ref trendline!);
+                    }
+                }
+
+                return result;
+            }
+            finally
+            {
+                if (trendlines != null) ComUtilities.Release(ref trendlines!);
+                if (series != null) ComUtilities.Release(ref series!);
+                if (seriesCollection != null) ComUtilities.Release(ref seriesCollection!);
+                if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
+                if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
+            }
+        });
+    }
+
+    /// <inheritdoc />
+    public TrendlineResult AddTrendline(
+        IExcelBatch batch,
+        string chartName,
+        int seriesIndex,
+        TrendlineType type,
+        int? order = null,
+        int? period = null,
+        double? forward = null,
+        double? backward = null,
+        double? intercept = null,
+        bool displayEquation = false,
+        bool displayRSquared = false,
+        string? name = null)
+    {
+        // Validate type-specific parameters
+        if (type == TrendlineType.Polynomial)
+        {
+            if (!order.HasValue || order.Value < 2 || order.Value > 6)
+            {
+                throw new ArgumentException("Polynomial trendline requires order parameter (2-6).");
+            }
+        }
+
+        if (type == TrendlineType.MovingAverage)
+        {
+            if (!period.HasValue || period.Value < 2)
+            {
+                throw new ArgumentException("Moving average trendline requires period parameter (2 or greater).");
+            }
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var findResult = FindChart(ctx.Book, chartName);
+            if (findResult.Chart == null)
+            {
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
+            }
+
+            dynamic? seriesCollection = null;
+            dynamic? series = null;
+            dynamic? trendlines = null;
+            dynamic? newTrendline = null;
+
+            try
+            {
+                seriesCollection = findResult.Chart.SeriesCollection();
+                int seriesCount = seriesCollection.Count;
+
+                if (seriesIndex < 1 || seriesIndex > seriesCount)
+                {
+                    throw new ArgumentException($"Series index {seriesIndex} is out of range. Chart has {seriesCount} series.");
+                }
+
+                series = seriesCollection.Item(seriesIndex);
+                trendlines = series.Trendlines();
+
+                // Add trendline with type
+                newTrendline = trendlines.Add((int)type);
+
+                // Set optional parameters
+                if (order.HasValue && type == TrendlineType.Polynomial)
+                {
+                    newTrendline.Order = order.Value;
+                }
+
+                if (period.HasValue && type == TrendlineType.MovingAverage)
+                {
+                    newTrendline.Period = period.Value;
+                }
+
+                if (forward.HasValue)
+                {
+                    newTrendline.Forward = forward.Value;
+                }
+
+                if (backward.HasValue)
+                {
+                    newTrendline.Backward = backward.Value;
+                }
+
+                if (intercept.HasValue)
+                {
+                    newTrendline.Intercept = intercept.Value;
+                }
+
+                newTrendline.DisplayEquation = displayEquation;
+                newTrendline.DisplayRSquared = displayRSquared;
+
+                if (!string.IsNullOrEmpty(name))
+                {
+                    newTrendline.Name = name;
+                }
+
+                // Get the index of the newly added trendline
+                int trendlineIndex = trendlines.Count;
+
+                return new TrendlineResult
+                {
+                    Success = true,
+                    ChartName = chartName,
+                    SeriesIndex = seriesIndex,
+                    TrendlineIndex = trendlineIndex,
+                    Type = type,
+                    Name = name
+                };
+            }
+            finally
+            {
+                if (newTrendline != null) ComUtilities.Release(ref newTrendline!);
+                if (trendlines != null) ComUtilities.Release(ref trendlines!);
+                if (series != null) ComUtilities.Release(ref series!);
+                if (seriesCollection != null) ComUtilities.Release(ref seriesCollection!);
+                if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
+                if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
+            }
+        });
+    }
+
+    /// <inheritdoc />
+    public void DeleteTrendline(IExcelBatch batch, string chartName, int seriesIndex, int trendlineIndex)
+    {
+        batch.Execute((ctx, ct) =>
+        {
+            var findResult = FindChart(ctx.Book, chartName);
+            if (findResult.Chart == null)
+            {
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
+            }
+
+            dynamic? seriesCollection = null;
+            dynamic? series = null;
+            dynamic? trendlines = null;
+            dynamic? trendline = null;
+
+            try
+            {
+                seriesCollection = findResult.Chart.SeriesCollection();
+                int seriesCount = seriesCollection.Count;
+
+                if (seriesIndex < 1 || seriesIndex > seriesCount)
+                {
+                    throw new ArgumentException($"Series index {seriesIndex} is out of range. Chart has {seriesCount} series.");
+                }
+
+                series = seriesCollection.Item(seriesIndex);
+                trendlines = series.Trendlines();
+                int trendlineCount = trendlines.Count;
+
+                if (trendlineIndex < 1 || trendlineIndex > trendlineCount)
+                {
+                    throw new ArgumentException($"Trendline index {trendlineIndex} is out of range. Series has {trendlineCount} trendlines.");
+                }
+
+                trendline = trendlines.Item(trendlineIndex);
+                trendline.Delete();
+
+                return 0;
+            }
+            finally
+            {
+                if (trendline != null) ComUtilities.Release(ref trendline!);
+                if (trendlines != null) ComUtilities.Release(ref trendlines!);
+                if (series != null) ComUtilities.Release(ref series!);
+                if (seriesCollection != null) ComUtilities.Release(ref seriesCollection!);
+                if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
+                if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
+            }
+        });
+    }
+
+    /// <inheritdoc />
+    public void SetTrendline(
+        IExcelBatch batch,
+        string chartName,
+        int seriesIndex,
+        int trendlineIndex,
+        double? forward = null,
+        double? backward = null,
+        double? intercept = null,
+        bool? displayEquation = null,
+        bool? displayRSquared = null,
+        string? name = null)
+    {
+        batch.Execute((ctx, ct) =>
+        {
+            var findResult = FindChart(ctx.Book, chartName);
+            if (findResult.Chart == null)
+            {
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
+            }
+
+            dynamic? seriesCollection = null;
+            dynamic? series = null;
+            dynamic? trendlines = null;
+            dynamic? trendline = null;
+
+            try
+            {
+                seriesCollection = findResult.Chart.SeriesCollection();
+                int seriesCount = seriesCollection.Count;
+
+                if (seriesIndex < 1 || seriesIndex > seriesCount)
+                {
+                    throw new ArgumentException($"Series index {seriesIndex} is out of range. Chart has {seriesCount} series.");
+                }
+
+                series = seriesCollection.Item(seriesIndex);
+                trendlines = series.Trendlines();
+                int trendlineCount = trendlines.Count;
+
+                if (trendlineIndex < 1 || trendlineIndex > trendlineCount)
+                {
+                    throw new ArgumentException($"Trendline index {trendlineIndex} is out of range. Series has {trendlineCount} trendlines.");
+                }
+
+                trendline = trendlines.Item(trendlineIndex);
+
+                // Update optional parameters
+                if (forward.HasValue)
+                {
+                    trendline.Forward = forward.Value;
+                }
+
+                if (backward.HasValue)
+                {
+                    trendline.Backward = backward.Value;
+                }
+
+                if (intercept.HasValue)
+                {
+                    trendline.Intercept = intercept.Value;
+                }
+
+                if (displayEquation.HasValue)
+                {
+                    trendline.DisplayEquation = displayEquation.Value;
+                }
+
+                if (displayRSquared.HasValue)
+                {
+                    trendline.DisplayRSquared = displayRSquared.Value;
+                }
+
+                if (!string.IsNullOrEmpty(name))
+                {
+                    trendline.Name = name;
+                }
+
+                return 0;
+            }
+            finally
+            {
+                if (trendline != null) ComUtilities.Release(ref trendline!);
+                if (trendlines != null) ComUtilities.Release(ref trendlines!);
+                if (series != null) ComUtilities.Release(ref series!);
+                if (seriesCollection != null) ComUtilities.Release(ref seriesCollection!);
+                if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
+                if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
+            }
+        });
+    }
 }

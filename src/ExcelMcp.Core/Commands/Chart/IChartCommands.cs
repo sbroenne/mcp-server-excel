@@ -319,4 +319,86 @@ public interface IChartCommands
         string? markerBackgroundColor = null,
         string? markerForegroundColor = null,
         bool? invertIfNegative = null);
+
+    // === TRENDLINES ===
+
+    /// <summary>
+    /// Lists all trendlines on a chart series.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="seriesIndex">1-based series index</param>
+    /// <returns>List of trendlines with their properties</returns>
+    TrendlineListResult ListTrendlines(
+        IExcelBatch batch,
+        string chartName,
+        int seriesIndex);
+
+    /// <summary>
+    /// Adds a trendline to a chart series.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="seriesIndex">1-based series index</param>
+    /// <param name="type">Trendline type (Linear, Exponential, Logarithmic, Polynomial, Power, MovingAverage)</param>
+    /// <param name="order">Polynomial order (2-6), required when type is Polynomial</param>
+    /// <param name="period">Moving average period, required when type is MovingAverage</param>
+    /// <param name="forward">Periods to forecast forward</param>
+    /// <param name="backward">Periods to forecast backward</param>
+    /// <param name="intercept">Y-intercept value (null = calculated automatically)</param>
+    /// <param name="displayEquation">Display equation on chart</param>
+    /// <param name="displayRSquared">Display R-squared value on chart</param>
+    /// <param name="name">Custom name for the trendline</param>
+    /// <returns>Created trendline information</returns>
+    TrendlineResult AddTrendline(
+        IExcelBatch batch,
+        string chartName,
+        int seriesIndex,
+        TrendlineType type,
+        int? order = null,
+        int? period = null,
+        double? forward = null,
+        double? backward = null,
+        double? intercept = null,
+        bool displayEquation = false,
+        bool displayRSquared = false,
+        string? name = null);
+
+    /// <summary>
+    /// Deletes a trendline from a chart series.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="seriesIndex">1-based series index</param>
+    /// <param name="trendlineIndex">1-based trendline index within the series</param>
+    void DeleteTrendline(
+        IExcelBatch batch,
+        string chartName,
+        int seriesIndex,
+        int trendlineIndex);
+
+    /// <summary>
+    /// Updates trendline properties.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="seriesIndex">1-based series index</param>
+    /// <param name="trendlineIndex">1-based trendline index within the series</param>
+    /// <param name="forward">Periods to forecast forward</param>
+    /// <param name="backward">Periods to forecast backward</param>
+    /// <param name="intercept">Y-intercept value (null = calculated automatically)</param>
+    /// <param name="displayEquation">Display equation on chart</param>
+    /// <param name="displayRSquared">Display R-squared value on chart</param>
+    /// <param name="name">Custom name for the trendline</param>
+    void SetTrendline(
+        IExcelBatch batch,
+        string chartName,
+        int seriesIndex,
+        int trendlineIndex,
+        double? forward = null,
+        double? backward = null,
+        double? intercept = null,
+        bool? displayEquation = null,
+        bool? displayRSquared = null,
+        string? name = null);
 }

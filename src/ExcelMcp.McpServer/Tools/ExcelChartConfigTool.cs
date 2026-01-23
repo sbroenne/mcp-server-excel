@@ -52,6 +52,20 @@ public static partial class ExcelChartConfigTool
     /// - Marker colors (#RRGGBB hex)
     /// - Invert if negative
     ///
+    /// TRENDLINES:
+    /// - list-trendlines: List all trendlines on a series
+    /// - add-trendline: Add trendline (Linear, Exponential, Logarithmic, Polynomial, Power, MovingAverage)
+    /// - delete-trendline: Remove a trendline by index
+    /// - set-trendline: Configure trendline display options
+    ///
+    /// TRENDLINE TYPES:
+    /// - Linear: Linear regression (y = mx + b)
+    /// - Exponential: Exponential curve (y = ce^bx)
+    /// - Logarithmic: Logarithmic curve (y = c ln x + b)
+    /// - Polynomial: Polynomial fit (requires order 2-6)
+    /// - Power: Power curve (y = cx^b)
+    /// - MovingAverage: Moving average (requires period)
+    ///
     /// RELATED TOOLS:
     /// - excel_chart: Create, delete, and move charts
     /// </summary>
@@ -88,6 +102,16 @@ public static partial class ExcelChartConfigTool
     /// <param name="markerBackgroundColor">For set-series-format: Marker fill color (#RRGGBB hex)</param>
     /// <param name="markerForegroundColor">For set-series-format: Marker border color (#RRGGBB hex)</param>
     /// <param name="invertIfNegative">For set-series-format: Invert colors for negative values</param>
+    /// <param name="trendlineType">For add-trendline: Type (Linear, Exponential, Logarithmic, Polynomial, Power, MovingAverage)</param>
+    /// <param name="trendlineIndex">For delete-trendline, set-trendline: 1-based trendline index within the series</param>
+    /// <param name="order">For add-trendline: Polynomial order (2-6) when type is Polynomial</param>
+    /// <param name="period">For add-trendline: Moving average period when type is MovingAverage</param>
+    /// <param name="forward">For add-trendline, set-trendline: Periods to forecast forward</param>
+    /// <param name="backward">For add-trendline, set-trendline: Periods to forecast backward</param>
+    /// <param name="intercept">For add-trendline, set-trendline: Y-intercept value (omit for calculated)</param>
+    /// <param name="displayEquation">For add-trendline, set-trendline: Display equation on chart</param>
+    /// <param name="displayRSquared">For add-trendline, set-trendline: Display R-squared value on chart</param>
+    /// <param name="trendlineName">For add-trendline, set-trendline: Custom name for the trendline</param>
     [McpServerTool(Name = "excel_chart_config", Title = "Excel Chart Configuration", Destructive = true)]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
@@ -128,7 +152,18 @@ public static partial class ExcelChartConfigTool
         [DefaultValue(null)] int? markerSize,
         [DefaultValue(null)] string? markerBackgroundColor,
         [DefaultValue(null)] string? markerForegroundColor,
-        [DefaultValue(null)] bool? invertIfNegative)
+        [DefaultValue(null)] bool? invertIfNegative,
+        // Trendline parameters
+        [DefaultValue(null)] TrendlineType? trendlineType,
+        [DefaultValue(null)] int? trendlineIndex,
+        [DefaultValue(null)] int? order,
+        [DefaultValue(null)] int? period,
+        [DefaultValue(null)] double? forward,
+        [DefaultValue(null)] double? backward,
+        [DefaultValue(null)] double? intercept,
+        [DefaultValue(null)] bool? displayEquation,
+        [DefaultValue(null)] bool? displayRSquared,
+        [DefaultValue(null)] string? trendlineName)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_chart_config",
@@ -155,6 +190,10 @@ public static partial class ExcelChartConfigTool
                     ChartConfigAction.GetGridlines => GetGridlinesAction(commands, sessionId, chartName),
                     ChartConfigAction.SetGridlines => SetGridlinesAction(commands, sessionId, chartName, axis, showMajor, showMinor),
                     ChartConfigAction.SetSeriesFormat => SetSeriesFormatAction(commands, sessionId, chartName, seriesIndex, markerStyle, markerSize, markerBackgroundColor, markerForegroundColor, invertIfNegative),
+                    ChartConfigAction.ListTrendlines => ListTrendlinesAction(commands, sessionId, chartName, seriesIndex),
+                    ChartConfigAction.AddTrendline => AddTrendlineAction(commands, sessionId, chartName, seriesIndex, trendlineType, order, period, forward, backward, intercept, displayEquation, displayRSquared, trendlineName),
+                    ChartConfigAction.DeleteTrendline => DeleteTrendlineAction(commands, sessionId, chartName, seriesIndex, trendlineIndex),
+                    ChartConfigAction.SetTrendline => SetTrendlineAction(commands, sessionId, chartName, seriesIndex, trendlineIndex, forward, backward, intercept, displayEquation, displayRSquared, trendlineName),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });
@@ -465,5 +504,122 @@ public static partial class ExcelChartConfigTool
         });
 
         return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Series {seriesIndex!.Value} format configured in chart '{chartName}'" }, JsonOptions);
+    }
+
+    // === TRENDLINES ===
+
+    private static string ListTrendlinesAction(ChartCommands commands, string sessionId, string? chartName, int? seriesIndex)
+    {
+        if (string.IsNullOrWhiteSpace(chartName))
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "list-trendlines");
+        if (!seriesIndex.HasValue)
+            ExcelToolsBase.ThrowMissingParameter(nameof(seriesIndex), "list-trendlines");
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.ListTrendlines(batch, chartName!, seriesIndex!.Value));
+
+        return JsonSerializer.Serialize(result, JsonOptions);
+    }
+
+    private static string AddTrendlineAction(
+        ChartCommands commands,
+        string sessionId,
+        string? chartName,
+        int? seriesIndex,
+        TrendlineType? trendlineType,
+        int? order,
+        int? period,
+        double? forward,
+        double? backward,
+        double? intercept,
+        bool? displayEquation,
+        bool? displayRSquared,
+        string? trendlineName)
+    {
+        if (string.IsNullOrWhiteSpace(chartName))
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "add-trendline");
+        if (!seriesIndex.HasValue)
+            ExcelToolsBase.ThrowMissingParameter(nameof(seriesIndex), "add-trendline");
+        if (!trendlineType.HasValue)
+            ExcelToolsBase.ThrowMissingParameter(nameof(trendlineType), "add-trendline");
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.AddTrendline(
+                batch,
+                chartName!,
+                seriesIndex!.Value,
+                trendlineType!.Value,
+                order,
+                period,
+                forward,
+                backward,
+                intercept,
+                displayEquation ?? false,
+                displayRSquared ?? false,
+                trendlineName));
+
+        return JsonSerializer.Serialize(result, JsonOptions);
+    }
+
+    private static string DeleteTrendlineAction(
+        ChartCommands commands,
+        string sessionId,
+        string? chartName,
+        int? seriesIndex,
+        int? trendlineIndex)
+    {
+        if (string.IsNullOrWhiteSpace(chartName))
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "delete-trendline");
+        if (!seriesIndex.HasValue)
+            ExcelToolsBase.ThrowMissingParameter(nameof(seriesIndex), "delete-trendline");
+        if (!trendlineIndex.HasValue)
+            ExcelToolsBase.ThrowMissingParameter(nameof(trendlineIndex), "delete-trendline");
+
+        ExcelToolsBase.WithSession(sessionId, batch =>
+        {
+            commands.DeleteTrendline(batch, chartName!, seriesIndex!.Value, trendlineIndex!.Value);
+            return 0;
+        });
+
+        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Trendline {trendlineIndex!.Value} deleted from series {seriesIndex!.Value} in chart '{chartName}'" }, JsonOptions);
+    }
+
+    private static string SetTrendlineAction(
+        ChartCommands commands,
+        string sessionId,
+        string? chartName,
+        int? seriesIndex,
+        int? trendlineIndex,
+        double? forward,
+        double? backward,
+        double? intercept,
+        bool? displayEquation,
+        bool? displayRSquared,
+        string? trendlineName)
+    {
+        if (string.IsNullOrWhiteSpace(chartName))
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-trendline");
+        if (!seriesIndex.HasValue)
+            ExcelToolsBase.ThrowMissingParameter(nameof(seriesIndex), "set-trendline");
+        if (!trendlineIndex.HasValue)
+            ExcelToolsBase.ThrowMissingParameter(nameof(trendlineIndex), "set-trendline");
+
+        ExcelToolsBase.WithSession(sessionId, batch =>
+        {
+            commands.SetTrendline(
+                batch,
+                chartName!,
+                seriesIndex!.Value,
+                trendlineIndex!.Value,
+                forward,
+                backward,
+                intercept,
+                displayEquation,
+                displayRSquared,
+                trendlineName);
+            return 0;
+        });
+
+        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Trendline {trendlineIndex!.Value} configured in series {seriesIndex!.Value} of chart '{chartName}'" }, JsonOptions);
     }
 }

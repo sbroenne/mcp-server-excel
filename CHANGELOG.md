@@ -18,6 +18,13 @@ This changelog covers all components:
   - **Series Markers**: Configure marker style, size, and colors for data series
   - 8 new operations bringing total chart operations to 22
 
+- **Chart Trendlines** (#386): Statistical analysis and forecasting for chart series
+  - **Add Trendline**: Linear, Exponential, Logarithmic, Polynomial, Power, Moving Average
+  - **List Trendlines**: View all trendlines on a series
+  - **Delete Trendline**: Remove trendline by index
+  - **Configure Trendline**: Forward/backward forecasting, display equation and R² value
+  - 4 new operations bringing total chart operations to 26
+
 ## [1.5.11] - 2025-01-22
 
 ### Added

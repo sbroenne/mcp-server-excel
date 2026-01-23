@@ -508,4 +508,290 @@ public partial class ChartCommandsTests
         Assert.Throws<ArgumentException>(() =>
             _commands.SetDataLabels(batch, createResult.ChartName, showValue: true, seriesIndex: 999));
     }
+
+    // === TRENDLINES ===
+
+    [Fact]
+    [Trait("Feature", "Charts")]
+    public void AddTrendline_Linear_AddsTrendlineToSeries()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B5"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 10 },
+                { 2, 22 },
+                { 3, 28 },
+                { 4, 42 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B5", ChartType.XYScatter, 50, 50);
+
+        // Act
+        var result = _commands.AddTrendline(batch, createResult.ChartName, seriesIndex: 1, type: TrendlineType.Linear);
+
+        // Assert
+        Assert.True(result.Success, $"AddTrendline failed: {result.ErrorMessage}");
+        Assert.Equal(TrendlineType.Linear, result.Type);
+        Assert.Equal(1, result.TrendlineIndex);
+    }
+
+    [Fact]
+    [Trait("Feature", "Charts")]
+    public void AddTrendline_WithEquationDisplay_ShowsEquationOnChart()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B5"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 10 },
+                { 2, 22 },
+                { 3, 28 },
+                { 4, 42 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B5", ChartType.XYScatter, 50, 50);
+
+        // Act
+        var result = _commands.AddTrendline(batch, createResult.ChartName, seriesIndex: 1, type: TrendlineType.Linear,
+            displayEquation: true, displayRSquared: true);
+
+        // Assert
+        Assert.True(result.Success);
+
+        // Verify via ListTrendlines
+        var listResult = _commands.ListTrendlines(batch, createResult.ChartName, seriesIndex: 1);
+        Assert.True(listResult.Success);
+        Assert.Single(listResult.Trendlines);
+        Assert.True(listResult.Trendlines[0].DisplayEquation);
+        Assert.True(listResult.Trendlines[0].DisplayRSquared);
+    }
+
+    [Fact]
+    [Trait("Feature", "Charts")]
+    public void AddTrendline_Polynomial_RequiresOrder()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B5"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 10 },
+                { 2, 22 },
+                { 3, 28 },
+                { 4, 42 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B5", ChartType.XYScatter, 50, 50);
+
+        // Act & Assert - Should throw without order
+        Assert.Throws<ArgumentException>(() =>
+            _commands.AddTrendline(batch, createResult.ChartName, seriesIndex: 1, type: TrendlineType.Polynomial));
+
+        // Should succeed with order
+        var result = _commands.AddTrendline(batch, createResult.ChartName, seriesIndex: 1, type: TrendlineType.Polynomial, order: 2);
+        Assert.True(result.Success);
+    }
+
+    [Fact]
+    [Trait("Feature", "Charts")]
+    public void ListTrendlines_MultipleTrendlines_ReturnsAll()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B5"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 10 },
+                { 2, 22 },
+                { 3, 28 },
+                { 4, 42 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B5", ChartType.XYScatter, 50, 50);
+
+        // Add multiple trendlines
+        _commands.AddTrendline(batch, createResult.ChartName, seriesIndex: 1, type: TrendlineType.Linear);
+        _commands.AddTrendline(batch, createResult.ChartName, seriesIndex: 1, type: TrendlineType.Exponential);
+
+        // Act
+        var result = _commands.ListTrendlines(batch, createResult.ChartName, seriesIndex: 1);
+
+        // Assert
+        Assert.True(result.Success);
+        Assert.Equal(2, result.Trendlines.Count);
+        Assert.Contains(result.Trendlines, t => t.Type == TrendlineType.Linear);
+        Assert.Contains(result.Trendlines, t => t.Type == TrendlineType.Exponential);
+    }
+
+    [Fact]
+    [Trait("Feature", "Charts")]
+    public void DeleteTrendline_RemovesTrendlineFromSeries()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B5"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 10 },
+                { 2, 22 },
+                { 3, 28 },
+                { 4, 42 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B5", ChartType.XYScatter, 50, 50);
+        _commands.AddTrendline(batch, createResult.ChartName, seriesIndex: 1, type: TrendlineType.Linear);
+
+        // Verify trendline exists
+        var beforeList = _commands.ListTrendlines(batch, createResult.ChartName, seriesIndex: 1);
+        Assert.Single(beforeList.Trendlines);
+
+        // Act
+        _commands.DeleteTrendline(batch, createResult.ChartName, seriesIndex: 1, trendlineIndex: 1);
+
+        // Assert
+        var afterList = _commands.ListTrendlines(batch, createResult.ChartName, seriesIndex: 1);
+        Assert.Empty(afterList.Trendlines);
+    }
+
+    [Fact]
+    [Trait("Feature", "Charts")]
+    public void SetTrendline_UpdatesDisplayOptions()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B5"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 10 },
+                { 2, 22 },
+                { 3, 28 },
+                { 4, 42 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B5", ChartType.XYScatter, 50, 50);
+        _commands.AddTrendline(batch, createResult.ChartName, seriesIndex: 1, type: TrendlineType.Linear);
+
+        // Verify initial state (no equation displayed)
+        var beforeList = _commands.ListTrendlines(batch, createResult.ChartName, seriesIndex: 1);
+        Assert.False(beforeList.Trendlines[0].DisplayEquation);
+
+        // Act
+        _commands.SetTrendline(batch, createResult.ChartName, seriesIndex: 1, trendlineIndex: 1,
+            displayEquation: true, displayRSquared: true);
+
+        // Assert
+        var afterList = _commands.ListTrendlines(batch, createResult.ChartName, seriesIndex: 1);
+        Assert.True(afterList.Trendlines[0].DisplayEquation);
+        Assert.True(afterList.Trendlines[0].DisplayRSquared);
+    }
+
+    [Fact]
+    [Trait("Feature", "Charts")]
+    public void AddTrendline_WithForecasting_ExtendsTrendline()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B5"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 10 },
+                { 2, 22 },
+                { 3, 28 },
+                { 4, 42 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B5", ChartType.XYScatter, 50, 50);
+
+        // Act
+        var result = _commands.AddTrendline(batch, createResult.ChartName, seriesIndex: 1, type: TrendlineType.Linear,
+            forward: 2.0, backward: 1.0);
+
+        // Assert
+        Assert.True(result.Success);
+
+        var listResult = _commands.ListTrendlines(batch, createResult.ChartName, seriesIndex: 1);
+        Assert.Equal(2.0, listResult.Trendlines[0].Forward);
+        Assert.Equal(1.0, listResult.Trendlines[0].Backward);
+    }
+
+    [Fact]
+    [Trait("Feature", "Charts")]
+    public void DeleteTrendline_InvalidIndex_ThrowsException()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B5"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 10 },
+                { 2, 22 },
+                { 3, 28 },
+                { 4, 42 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B5", ChartType.XYScatter, 50, 50);
+
+        // Act & Assert - Should throw for invalid trendline index (no trendlines exist)
+        Assert.Throws<ArgumentException>(() =>
+            _commands.DeleteTrendline(batch, createResult.ChartName, seriesIndex: 1, trendlineIndex: 1));
+    }
 }

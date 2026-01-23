@@ -433,7 +433,13 @@ public enum ChartConfigAction
     SetGridlines,
 
     // Series Formatting
-    SetSeriesFormat
+    SetSeriesFormat,
+
+    // Trendlines
+    ListTrendlines,
+    AddTrendline,
+    DeleteTrendline,
+    SetTrendline
 }
 
 /// <summary>
