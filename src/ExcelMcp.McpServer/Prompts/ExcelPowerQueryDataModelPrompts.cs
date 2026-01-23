@@ -31,4 +31,11 @@ public static class ExcelPowerQueryDataModelPrompts
     {
         return new ChatMessage(ChatRole.User, MarkdownLoader.LoadPrompt("excel_datamodel.md"));
     }
+
+    [McpServerPrompt(Name = "excel_chart_guide")]
+    [Description("Chart operations: PivotCharts vs regular charts, charting Data Model data")]
+    public static ChatMessage ChartGuide()
+    {
+        return new ChatMessage(ChatRole.User, MarkdownLoader.LoadPrompt("excel_chart.md"));
+    }
 }

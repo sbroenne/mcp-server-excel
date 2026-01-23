@@ -5,6 +5,26 @@
 The Data Model (Power Pivot) only contains tables that were explicitly added.
 You CANNOT create DAX measures on tables that aren't in the Data Model.
 
+## Displaying Data Model Data - Choose the Right Output
+
+| Goal | Best Tool | Why |
+|------|-----------|-----|
+| **Flat query results** | `excel_table create-from-dax` | Clean tabular display, no PivotTable UI |
+| **Static reports/snapshots** | `excel_table create-from-dax` | DAX does aggregation, table just displays |
+| **Data for formulas** | `excel_table create-from-dax` | Use structured references like `=SUM(Sales[Amount])` |
+| **Interactive drill-down** | `excel_pivottable` | User can regroup, filter, expand/collapse |
+| **Cross-tabulation (rows × columns)** | `excel_pivottable` | Matrix layout with row/column fields |
+
+**Rule**: Prefer `excel_table create-from-dax` for displaying query results.
+Use `excel_pivottable` only when the user needs interactive analysis capabilities.
+
+## Charting Data Model Data - Use PivotChart Directly
+
+**WRONG**: Create PivotTable → Create separate Chart from PivotTable data
+**RIGHT**: Use `excel_chart create-from-pivottable` to create a PivotChart directly
+
+A PivotChart is a single object connected to the Data Model. Creating a PivotTable + separate chart is unnecessary extra work.
+
 **How to add tables to the Data Model**:
 
 | Source | Method |

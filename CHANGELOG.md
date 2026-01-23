@@ -10,6 +10,11 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.5.11] - 2025-01-22
+
+### Added
+- Added Agent Skill to all artifacts
+
 ## [1.5.9] - 2025-01-20
 
 ### Fixed
