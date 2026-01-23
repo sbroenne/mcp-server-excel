@@ -148,7 +148,7 @@
 
 ---
 
-## 📉 Charts (14 operations)
+## 📉 Charts (22 operations)
 
 **Creation:**
 - Create from range
@@ -168,8 +168,27 @@
 **Formatting:**
 - Set chart title
 - Set axis title
-- Set axis properties
-- Set plot area properties
+- Set axis number format
+- Get axis number format
+
+**Data Labels:**
+- Configure data labels (show values, percentages, category names, etc.)
+- Set label position (Center, InsideEnd, OutsideEnd, etc.)
+- Apply to all series or specific series
+
+**Axis Scale:**
+- Get axis scale settings
+- Set minimum/maximum scale
+- Set major/minor units
+
+**Gridlines:**
+- Get gridlines configuration
+- Set major/minor gridlines visibility
+
+**Series Formatting:**
+- Set marker style (Circle, Square, Diamond, Triangle, etc.)
+- Set marker size
+- Set marker colors
 
 **Lifecycle:**
 - List charts
@@ -364,7 +383,7 @@
 | Data Model/DAX | 18 |
 | Excel Tables | 27 |
 | PivotTables | 30 |
-| Charts | 14 |
+| Charts | 22 |
 | Ranges | 42 |
 | Worksheets | 16 |
 | Connections | 9 |
@@ -372,7 +391,7 @@
 | VBA Macros | 6 |
 | Slicers | 8 |
 | Conditional Formatting | 2 |
-| **Total** | **194** |
+| **Total** | **202** |
 
 ---
 

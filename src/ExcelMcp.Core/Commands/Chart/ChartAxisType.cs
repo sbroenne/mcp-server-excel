@@ -1,7 +1,7 @@
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
 /// <summary>
-/// Chart axis types for setting axis titles.
+/// Chart axis types for setting axis titles, scales, and gridlines.
 /// </summary>
 public enum ChartAxisType
 {
@@ -15,5 +15,11 @@ public enum ChartAxisType
     Category,
 
     /// <summary>Value axis (Y-axis)</summary>
-    Value
+    Value,
+
+    /// <summary>Secondary category axis (X-axis on secondary axis group)</summary>
+    CategorySecondary,
+
+    /// <summary>Secondary value axis (Y-axis on secondary axis group)</summary>
+    ValueSecondary
 }

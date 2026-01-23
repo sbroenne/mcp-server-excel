@@ -159,3 +159,123 @@ public class ChartSeriesResult : OperationResult
     /// <summary>1-based series index</summary>
     public int SeriesIndex { get; set; }
 }
+
+/// <summary>
+/// Result containing axis scale information.
+/// </summary>
+public class AxisScaleResult : OperationResult
+{
+    /// <summary>Chart name</summary>
+    public string ChartName { get; set; } = string.Empty;
+
+    /// <summary>Axis type (Value, Category, ValueSecondary, CategorySecondary)</summary>
+    public string AxisType { get; set; } = string.Empty;
+
+    /// <summary>Minimum scale value (null if auto)</summary>
+    public double? MinimumScale { get; set; }
+
+    /// <summary>Maximum scale value (null if auto)</summary>
+    public double? MaximumScale { get; set; }
+
+    /// <summary>True if minimum scale is automatic</summary>
+    public bool MinimumScaleIsAuto { get; set; }
+
+    /// <summary>True if maximum scale is automatic</summary>
+    public bool MaximumScaleIsAuto { get; set; }
+
+    /// <summary>Major unit (distance between major gridlines/tick marks)</summary>
+    public double? MajorUnit { get; set; }
+
+    /// <summary>Minor unit (distance between minor gridlines/tick marks)</summary>
+    public double? MinorUnit { get; set; }
+
+    /// <summary>True if major unit is automatic</summary>
+    public bool MajorUnitIsAuto { get; set; }
+
+    /// <summary>True if minor unit is automatic</summary>
+    public bool MinorUnitIsAuto { get; set; }
+}
+
+/// <summary>
+/// Information about chart data labels.
+/// </summary>
+public class DataLabelsInfo
+{
+    /// <summary>Show the actual value</summary>
+    public bool ShowValue { get; set; }
+
+    /// <summary>Show percentage (pie/doughnut charts)</summary>
+    public bool ShowPercentage { get; set; }
+
+    /// <summary>Show series name</summary>
+    public bool ShowSeriesName { get; set; }
+
+    /// <summary>Show category name</summary>
+    public bool ShowCategoryName { get; set; }
+
+    /// <summary>Show bubble size (bubble charts)</summary>
+    public bool ShowBubbleSize { get; set; }
+
+    /// <summary>Separator between label parts (e.g., ", " or newline)</summary>
+    public string? Separator { get; set; }
+
+    /// <summary>Position of data labels</summary>
+    public string? Position { get; set; }
+}
+
+/// <summary>
+/// Information about chart gridlines.
+/// </summary>
+public class GridlinesInfo
+{
+    /// <summary>True if major gridlines are visible on primary value axis</summary>
+    public bool HasValueMajorGridlines { get; set; }
+
+    /// <summary>True if minor gridlines are visible on primary value axis</summary>
+    public bool HasValueMinorGridlines { get; set; }
+
+    /// <summary>True if major gridlines are visible on category axis</summary>
+    public bool HasCategoryMajorGridlines { get; set; }
+
+    /// <summary>True if minor gridlines are visible on category axis</summary>
+    public bool HasCategoryMinorGridlines { get; set; }
+}
+
+/// <summary>
+/// Result containing gridlines information.
+/// </summary>
+public class GridlinesResult : OperationResult
+{
+    /// <summary>Chart name</summary>
+    public string ChartName { get; set; } = string.Empty;
+
+    /// <summary>Gridlines configuration</summary>
+    public GridlinesInfo Gridlines { get; set; } = new();
+}
+
+/// <summary>
+/// Information about series marker formatting.
+/// </summary>
+public class SeriesFormatInfo
+{
+    /// <summary>1-based series index</summary>
+    public int SeriesIndex { get; set; }
+
+    /// <summary>Series name</summary>
+    public string SeriesName { get; set; } = string.Empty;
+
+    /// <summary>Marker style (none, square, diamond, triangle, x, star, circle, plus, etc.)</summary>
+    public string? MarkerStyle { get; set; }
+
+    /// <summary>Marker size (2-72 points)</summary>
+    public int? MarkerSize { get; set; }
+
+    /// <summary>Marker background color (#RRGGBB hex)</summary>
+    public string? MarkerBackgroundColor { get; set; }
+
+    /// <summary>Marker foreground/border color (#RRGGBB hex)</summary>
+    public string? MarkerForegroundColor { get; set; }
+
+    /// <summary>True to invert colors for negative values</summary>
+    public bool? InvertIfNegative { get; set; }
+}

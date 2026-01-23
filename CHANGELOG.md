@@ -10,6 +10,14 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### Added
+- **Chart Formatting** (#384): Enhanced chart formatting capabilities
+  - **Data Labels**: Configure label position and visibility (showValue, showCategory, showPercentage, etc.)
+  - **Axis Scale**: Get/set axis scale properties (min, max, units, auto-scale flags)
+  - **Gridlines**: Control major/minor gridlines visibility on chart axes
+  - **Series Markers**: Configure marker style, size, and colors for data series
+  - 8 new operations bringing total chart operations to 22
+
 ## [1.5.11] - 2025-01-22
 
 ### Added

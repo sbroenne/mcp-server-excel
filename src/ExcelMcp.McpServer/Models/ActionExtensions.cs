@@ -299,6 +299,12 @@ public static class ActionExtensions
         ChartConfigAction.SetAxisNumberFormat => "set-axis-number-format",
         ChartConfigAction.ShowLegend => "show-legend",
         ChartConfigAction.SetStyle => "set-style",
+        ChartConfigAction.SetDataLabels => "set-data-labels",
+        ChartConfigAction.GetAxisScale => "get-axis-scale",
+        ChartConfigAction.SetAxisScale => "set-axis-scale",
+        ChartConfigAction.GetGridlines => "get-gridlines",
+        ChartConfigAction.SetGridlines => "set-gridlines",
+        ChartConfigAction.SetSeriesFormat => "set-series-format",
         _ => throw new ArgumentException($"Unknown ChartConfigAction: {action}")
     };
 

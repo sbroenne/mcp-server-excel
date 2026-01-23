@@ -31,10 +31,26 @@ public static partial class ExcelChartConfigTool
     /// AXIS FORMATTING:
     /// - get-axis-number-format: Get current number format for axis tick labels
     /// - set-axis-number-format: Set number format for axis tick labels (e.g., "$#,##0,,"M"" for millions)
+    /// - get-axis-scale: Get min/max scale and unit settings for axis
+    /// - set-axis-scale: Set min/max scale and major/minor unit values for axis
     ///
     /// LEGEND POSITIONS: Bottom, Corner, Top, Right, Left
     ///
     /// CHART STYLES: 1-48 (built-in Excel styles with different color schemes)
+    ///
+    /// DATA LABELS (set-data-labels):
+    /// - Show values, percentages, series names, category names
+    /// - Specify position (Center, InsideEnd, InsideBase, OutsideEnd, BestFit)
+    /// - Apply to all series or specific series by index
+    ///
+    /// GRIDLINES (get-gridlines, set-gridlines):
+    /// - Control major/minor gridlines for value and category axes
+    ///
+    /// SERIES FORMATTING (set-series-format):
+    /// - Marker style (None, Circle, Square, Diamond, Triangle, X, Star, Plus)
+    /// - Marker size (2-72 points)
+    /// - Marker colors (#RRGGBB hex)
+    /// - Invert if negative
     ///
     /// RELATED TOOLS:
     /// - excel_chart: Create, delete, and move charts
@@ -50,10 +66,28 @@ public static partial class ExcelChartConfigTool
     /// <param name="seriesName">Name for new series in add-series action</param>
     /// <param name="valuesRange">Data range for series values like 'Sheet1!B2:B10' (required for add-series)</param>
     /// <param name="categoryRange">Optional category range for series X-axis labels</param>
-    /// <param name="seriesIndex">1-based series index for remove-series action</param>
+    /// <param name="seriesIndex">1-based series index for remove-series, set-data-labels, set-series-format actions</param>
     /// <param name="visible">Show or hide legend in show-legend action</param>
     /// <param name="legendPosition">Legend position: Bottom, Corner, Top, Right, Left</param>
     /// <param name="styleId">Chart style ID from 1-48 for set-style action</param>
+    /// <param name="showValue">For set-data-labels: Show actual data values</param>
+    /// <param name="showPercentage">For set-data-labels: Show percentage (pie/doughnut charts)</param>
+    /// <param name="showSeriesName">For set-data-labels: Show series name in label</param>
+    /// <param name="showCategoryName">For set-data-labels: Show category name in label</param>
+    /// <param name="showBubbleSize">For set-data-labels: Show bubble size (bubble charts)</param>
+    /// <param name="separator">For set-data-labels: Separator between label parts (e.g., ", " or "\n")</param>
+    /// <param name="labelPosition">For set-data-labels: Position (Center, InsideEnd, InsideBase, OutsideEnd, BestFit, Above, Below, Left, Right)</param>
+    /// <param name="minimumScale">For set-axis-scale: Minimum axis value (omit for auto)</param>
+    /// <param name="maximumScale">For set-axis-scale: Maximum axis value (omit for auto)</param>
+    /// <param name="majorUnit">For set-axis-scale: Major unit interval (omit for auto)</param>
+    /// <param name="minorUnit">For set-axis-scale: Minor unit interval (omit for auto)</param>
+    /// <param name="showMajor">For set-gridlines: Show major gridlines</param>
+    /// <param name="showMinor">For set-gridlines: Show minor gridlines</param>
+    /// <param name="markerStyle">For set-series-format: Marker style (None, Circle, Square, Diamond, Triangle, X, Star, Plus, etc.)</param>
+    /// <param name="markerSize">For set-series-format: Marker size in points (2-72)</param>
+    /// <param name="markerBackgroundColor">For set-series-format: Marker fill color (#RRGGBB hex)</param>
+    /// <param name="markerForegroundColor">For set-series-format: Marker border color (#RRGGBB hex)</param>
+    /// <param name="invertIfNegative">For set-series-format: Invert colors for negative values</param>
     [McpServerTool(Name = "excel_chart_config", Title = "Excel Chart Configuration", Destructive = true)]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
@@ -72,7 +106,29 @@ public static partial class ExcelChartConfigTool
         [DefaultValue(null)] int? seriesIndex,
         [DefaultValue(null)] bool? visible,
         [DefaultValue(null)] LegendPosition? legendPosition,
-        [DefaultValue(null)] int? styleId)
+        [DefaultValue(null)] int? styleId,
+        // Data labels parameters
+        [DefaultValue(null)] bool? showValue,
+        [DefaultValue(null)] bool? showPercentage,
+        [DefaultValue(null)] bool? showSeriesName,
+        [DefaultValue(null)] bool? showCategoryName,
+        [DefaultValue(null)] bool? showBubbleSize,
+        [DefaultValue(null)] string? separator,
+        [DefaultValue(null)] DataLabelPosition? labelPosition,
+        // Axis scale parameters
+        [DefaultValue(null)] double? minimumScale,
+        [DefaultValue(null)] double? maximumScale,
+        [DefaultValue(null)] double? majorUnit,
+        [DefaultValue(null)] double? minorUnit,
+        // Gridlines parameters
+        [DefaultValue(null)] bool? showMajor,
+        [DefaultValue(null)] bool? showMinor,
+        // Series format parameters
+        [DefaultValue(null)] MarkerStyle? markerStyle,
+        [DefaultValue(null)] int? markerSize,
+        [DefaultValue(null)] string? markerBackgroundColor,
+        [DefaultValue(null)] string? markerForegroundColor,
+        [DefaultValue(null)] bool? invertIfNegative)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_chart_config",
@@ -93,6 +149,12 @@ public static partial class ExcelChartConfigTool
                     ChartConfigAction.SetAxisNumberFormat => SetAxisNumberFormatAction(commands, sessionId, chartName, axis, numberFormat),
                     ChartConfigAction.ShowLegend => ShowLegendAction(commands, sessionId, chartName, visible, legendPosition),
                     ChartConfigAction.SetStyle => SetStyleAction(commands, sessionId, chartName, styleId),
+                    ChartConfigAction.SetDataLabels => SetDataLabelsAction(commands, sessionId, chartName, showValue, showPercentage, showSeriesName, showCategoryName, showBubbleSize, separator, labelPosition, seriesIndex),
+                    ChartConfigAction.GetAxisScale => GetAxisScaleAction(commands, sessionId, chartName, axis),
+                    ChartConfigAction.SetAxisScale => SetAxisScaleAction(commands, sessionId, chartName, axis, minimumScale, maximumScale, majorUnit, minorUnit),
+                    ChartConfigAction.GetGridlines => GetGridlinesAction(commands, sessionId, chartName),
+                    ChartConfigAction.SetGridlines => SetGridlinesAction(commands, sessionId, chartName, axis, showMajor, showMinor),
+                    ChartConfigAction.SetSeriesFormat => SetSeriesFormatAction(commands, sessionId, chartName, seriesIndex, markerStyle, markerSize, markerBackgroundColor, markerForegroundColor, invertIfNegative),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });
@@ -256,5 +318,152 @@ public static partial class ExcelChartConfigTool
         });
 
         return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' style set to {styleId!.Value}" }, JsonOptions);
+    }
+
+    // === DATA LABELS ===
+
+    private static string SetDataLabelsAction(
+        ChartCommands commands,
+        string sessionId,
+        string? chartName,
+        bool? showValue,
+        bool? showPercentage,
+        bool? showSeriesName,
+        bool? showCategoryName,
+        bool? showBubbleSize,
+        string? separator,
+        DataLabelPosition? labelPosition,
+        int? seriesIndex)
+    {
+        if (string.IsNullOrWhiteSpace(chartName))
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-data-labels");
+
+        ExcelToolsBase.WithSession(sessionId, batch =>
+        {
+            commands.SetDataLabels(
+                batch,
+                chartName!,
+                showValue,
+                showPercentage,
+                showSeriesName,
+                showCategoryName,
+                showBubbleSize,
+                separator,
+                labelPosition,
+                seriesIndex);
+            return 0;
+        });
+
+        string target = seriesIndex.HasValue ? $"series {seriesIndex.Value}" : "all series";
+        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Data labels configured for {target} in chart '{chartName}'" }, JsonOptions);
+    }
+
+    // === AXIS SCALE ===
+
+    private static string GetAxisScaleAction(ChartCommands commands, string sessionId, string? chartName, ChartAxisType? axis)
+    {
+        if (string.IsNullOrWhiteSpace(chartName))
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "get-axis-scale");
+        if (!axis.HasValue)
+            ExcelToolsBase.ThrowMissingParameter(nameof(axis), "get-axis-scale");
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.GetAxisScale(batch, chartName!, axis!.Value));
+
+        return JsonSerializer.Serialize(result, JsonOptions);
+    }
+
+    private static string SetAxisScaleAction(
+        ChartCommands commands,
+        string sessionId,
+        string? chartName,
+        ChartAxisType? axis,
+        double? minimumScale,
+        double? maximumScale,
+        double? majorUnit,
+        double? minorUnit)
+    {
+        if (string.IsNullOrWhiteSpace(chartName))
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-axis-scale");
+        if (!axis.HasValue)
+            ExcelToolsBase.ThrowMissingParameter(nameof(axis), "set-axis-scale");
+
+        ExcelToolsBase.WithSession(sessionId, batch =>
+        {
+            commands.SetAxisScale(batch, chartName!, axis!.Value, minimumScale, maximumScale, majorUnit, minorUnit);
+            return 0;
+        });
+
+        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Axis scale configured for {axis!.Value} axis in chart '{chartName}'" }, JsonOptions);
+    }
+
+    // === GRIDLINES ===
+
+    private static string GetGridlinesAction(ChartCommands commands, string sessionId, string? chartName)
+    {
+        if (string.IsNullOrWhiteSpace(chartName))
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "get-gridlines");
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.GetGridlines(batch, chartName!));
+
+        return JsonSerializer.Serialize(result, JsonOptions);
+    }
+
+    private static string SetGridlinesAction(
+        ChartCommands commands,
+        string sessionId,
+        string? chartName,
+        ChartAxisType? axis,
+        bool? showMajor,
+        bool? showMinor)
+    {
+        if (string.IsNullOrWhiteSpace(chartName))
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-gridlines");
+        if (!axis.HasValue)
+            ExcelToolsBase.ThrowMissingParameter(nameof(axis), "set-gridlines");
+
+        ExcelToolsBase.WithSession(sessionId, batch =>
+        {
+            commands.SetGridlines(batch, chartName!, axis!.Value, showMajor, showMinor);
+            return 0;
+        });
+
+        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Gridlines configured for {axis!.Value} axis in chart '{chartName}'" }, JsonOptions);
+    }
+
+    // === SERIES FORMATTING ===
+
+    private static string SetSeriesFormatAction(
+        ChartCommands commands,
+        string sessionId,
+        string? chartName,
+        int? seriesIndex,
+        MarkerStyle? markerStyle,
+        int? markerSize,
+        string? markerBackgroundColor,
+        string? markerForegroundColor,
+        bool? invertIfNegative)
+    {
+        if (string.IsNullOrWhiteSpace(chartName))
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-series-format");
+        if (!seriesIndex.HasValue)
+            ExcelToolsBase.ThrowMissingParameter(nameof(seriesIndex), "set-series-format");
+
+        ExcelToolsBase.WithSession(sessionId, batch =>
+        {
+            commands.SetSeriesFormat(
+                batch,
+                chartName!,
+                seriesIndex!.Value,
+                markerStyle,
+                markerSize,
+                markerBackgroundColor,
+                markerForegroundColor,
+                invertIfNegative);
+            return 0;
+        });
+
+        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Series {seriesIndex!.Value} format configured in chart '{chartName}'" }, JsonOptions);
     }
 }
