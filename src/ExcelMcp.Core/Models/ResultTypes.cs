@@ -1117,6 +1117,34 @@ public class RangeInfoResult : ResultBase
     [JsonPropertyName("nf")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? NumberFormat { get; set; }
+
+    /// <summary>
+    /// Left position of the range in points (Excel COM: range.Left). 72 points = 1 inch.
+    /// </summary>
+    [JsonPropertyName("l")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? Left { get; set; }
+
+    /// <summary>
+    /// Top position of the range in points (Excel COM: range.Top). 72 points = 1 inch.
+    /// </summary>
+    [JsonPropertyName("t")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? Top { get; set; }
+
+    /// <summary>
+    /// Width of the range in points (Excel COM: range.Width). 72 points = 1 inch.
+    /// </summary>
+    [JsonPropertyName("w")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? Width { get; set; }
+
+    /// <summary>
+    /// Height of the range in points (Excel COM: range.Height). 72 points = 1 inch.
+    /// </summary>
+    [JsonPropertyName("h")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public double? Height { get; set; }
 }
 
 /// <summary>

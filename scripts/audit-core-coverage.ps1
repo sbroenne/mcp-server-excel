@@ -497,7 +497,7 @@ if ($CheckNaming) {
         "ChartAction" = @("SetSourceRange", "AddSeries", "RemoveSeries", "SetChartType", "SetTitle",
                           "SetAxisTitle", "GetAxisNumberFormat", "SetAxisNumberFormat", "ShowLegend", "SetStyle",
                           "SetDataLabels", "GetAxisScale", "SetAxisScale", "GetGridlines", "SetGridlines", "SetSeriesFormat",
-                          "ListTrendlines", "AddTrendline", "DeleteTrendline", "SetTrendline")  # Methods moved to ChartConfigAction
+                          "ListTrendlines", "AddTrendline", "DeleteTrendline", "SetTrendline", "SetPlacement")  # Methods moved to ChartConfigAction
     }
 
     $hasNamingIssues = $false

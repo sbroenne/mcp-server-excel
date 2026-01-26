@@ -147,6 +147,12 @@ public partial class RangeCommands
                 result.ColumnCount = range.Columns.Count;
                 result.NumberFormat = range.NumberFormat?.ToString();
 
+                // Cell geometry properties (position and dimensions in points)
+                result.Left = Convert.ToDouble(range.Left);
+                result.Top = Convert.ToDouble(range.Top);
+                result.Width = Convert.ToDouble(range.Width);
+                result.Height = Convert.ToDouble(range.Height);
+
                 result.Success = true;
                 return result;
             }

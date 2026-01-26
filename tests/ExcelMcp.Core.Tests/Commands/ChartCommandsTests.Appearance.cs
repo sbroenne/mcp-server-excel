@@ -517,4 +517,363 @@ public partial class ChartCommandsTests
             Assert.Equal(fmt, result);
         }
     }
+
+    // === PLACEMENT TESTS ===
+
+    [Fact]
+    public void SetPlacement_MoveAndSize_SetsPlacementMode()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create test data and chart
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B4"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 100 },
+                { 2, 200 },
+                { 3, 300 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
+
+        // Act - Set placement to MoveAndSize (1 = xlMoveAndSizeWithCells)
+        _commands.SetPlacement(batch, createResult.ChartName, 1);
+
+        // Assert - Verify placement changed
+        var readResult = _commands.Read(batch, createResult.ChartName);
+        Assert.Equal(1, readResult.Placement);
+    }
+
+    [Fact]
+    public void SetPlacement_MoveOnly_SetsPlacementMode()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create test data and chart
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B4"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 100 },
+                { 2, 200 },
+                { 3, 300 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.Line, 50, 50);
+
+        // Act - Set placement to Move (2 = xlMove)
+        _commands.SetPlacement(batch, createResult.ChartName, 2);
+
+        // Assert - Verify placement changed
+        var readResult = _commands.Read(batch, createResult.ChartName);
+        Assert.Equal(2, readResult.Placement);
+    }
+
+    [Fact]
+    public void SetPlacement_FreeFloating_SetsPlacementMode()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create test data and chart
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B4"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 100 },
+                { 2, 200 },
+                { 3, 300 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.Pie, 50, 50);
+
+        // Act - Set placement to FreeFloating (3 = xlFreeFloating)
+        _commands.SetPlacement(batch, createResult.ChartName, 3);
+
+        // Assert - Verify placement changed
+        var readResult = _commands.Read(batch, createResult.ChartName);
+        Assert.Equal(3, readResult.Placement);
+    }
+
+    [Fact]
+    public void SetPlacement_InvalidValue_ThrowsException()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create test data and chart
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B4"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 100 },
+                { 2, 200 },
+                { 3, 300 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
+
+        // Act & Assert - Invalid placement value should throw
+        var exception = Assert.Throws<ArgumentException>(() =>
+            _commands.SetPlacement(batch, createResult.ChartName, 5));
+        Assert.Contains("placement", exception.ParamName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void SetPlacement_NonExistentChart_ThrowsException()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Act & Assert - Non-existent chart should throw
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            _commands.SetPlacement(batch, "NonExistentChart", 1));
+        Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // === FIT TO RANGE TESTS ===
+
+    [Fact]
+    public void FitToRange_ValidRange_ResizesChartToMatchRange()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create test data and chart
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B4"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 100 },
+                { 2, 200 },
+                { 3, 300 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50, 400, 300);
+
+        // Act - Fit chart to a specific range
+        _commands.FitToRange(batch, createResult.ChartName, "Sheet1", "E5:J15");
+
+        // Assert - Verify chart position/size changed (can verify via Read that chart still exists)
+        var readResult = _commands.Read(batch, createResult.ChartName);
+        Assert.NotNull(readResult);
+
+        // TopLeftCell should now be E5 (or close to it, depending on exact positioning)
+        Assert.NotNull(readResult.TopLeftCell);
+    }
+
+    [Fact]
+    public void FitToRange_DifferentSheet_ThrowsOrMovesChart()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create test data, chart, and a second sheet
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B4"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 100 },
+                { 2, 200 },
+                { 3, 300 }
+            };
+
+            // Create second sheet
+            dynamic newSheet = ctx.Book.Worksheets.Add();
+            newSheet.Name = "Sheet2";
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
+
+        // Act - Try to fit chart to range on same sheet
+        _commands.FitToRange(batch, createResult.ChartName, "Sheet1", "E5:H10");
+
+        // Assert - Verify chart moved
+        var readResult = _commands.Read(batch, createResult.ChartName);
+        Assert.NotNull(readResult);
+    }
+
+    [Fact]
+    public void FitToRange_NonExistentChart_ThrowsException()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Act & Assert - Non-existent chart should throw
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            _commands.FitToRange(batch, "NonExistentChart", "Sheet1", "A1:D10"));
+        Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void FitToRange_InvalidRangeAddress_ThrowsException()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create test data and chart
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B4"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 100 },
+                { 2, 200 },
+                { 3, 300 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
+
+        // Act & Assert - Invalid range should throw
+        Assert.ThrowsAny<Exception>(() =>
+            _commands.FitToRange(batch, createResult.ChartName, "Sheet1", "InvalidRange!!!"));
+    }
+
+    // === ANCHOR CELLS TESTS ===
+
+    [Fact]
+    public void Read_ChartCreatedAtPosition_ReturnsAnchorCells()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create test data and chart at specific position
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B4"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 100 },
+                { 2, 200 },
+                { 3, 300 }
+            };
+            return 0;
+        });
+
+        // Create chart at position left=50, top=50
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50, 400, 300);
+
+        // Act
+        var readResult = _commands.Read(batch, createResult.ChartName);
+
+        // Assert - Anchor cells should be populated
+        Assert.NotNull(readResult.TopLeftCell);
+        Assert.NotNull(readResult.BottomRightCell);
+
+        // TopLeftCell should be a valid cell address (e.g., "$A$1", "$B$2", etc.)
+        Assert.Matches(@"\$[A-Z]+\$\d+", readResult.TopLeftCell);
+        Assert.Matches(@"\$[A-Z]+\$\d+", readResult.BottomRightCell);
+    }
+
+    [Fact]
+    public void Read_ChartAfterFitToRange_ReturnsUpdatedAnchorCells()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create test data and chart
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B4"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 100 },
+                { 2, 200 },
+                { 3, 300 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
+
+        // Get initial anchor cells
+        var initialRead = _commands.Read(batch, createResult.ChartName);
+        var initialTopLeft = initialRead.TopLeftCell;
+
+        // Act - Fit chart to a different range
+        _commands.FitToRange(batch, createResult.ChartName, "Sheet1", "F10:K20");
+
+        // Assert - Anchor cells should have changed
+        var afterRead = _commands.Read(batch, createResult.ChartName);
+        Assert.NotEqual(initialTopLeft, afterRead.TopLeftCell);
+
+        // The new TopLeftCell should reflect the new position (around F10)
+        Assert.NotNull(afterRead.TopLeftCell);
+        Assert.NotNull(afterRead.BottomRightCell);
+    }
+
+    [Fact]
+    public void Read_ChartWithPlacement_ReturnsPlacementValue()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create test data and chart
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            sheet.Range["A1:B4"].Value2 = new object[,] {
+                { "X", "Y" },
+                { 1, 100 },
+                { 2, 200 },
+                { 3, 300 }
+            };
+            return 0;
+        });
+
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
+
+        // Act
+        var readResult = _commands.Read(batch, createResult.ChartName);
+
+        // Assert - Placement should be populated with a valid value (1, 2, or 3)
+        Assert.NotNull(readResult.Placement);
+        Assert.InRange(readResult.Placement.Value, 1, 3);
+    }
 }

@@ -158,6 +158,7 @@ ExcelMcp.McpServer.LLM.Tests/
 | `excel-slicer-test.yaml` | excel_slicer, excel_table, excel_pivottable | PivotTable and Table slicer operations |
 | `excel-powerquery-datamodel-test.yaml` | excel_powerquery, excel_datamodel, excel_pivottable | Complete BI workflow |
 | `excel-modification-patterns-test.yaml` | excel_range | Validates LLM uses incremental updates |
+| `excel-chart-positioning-test.yaml` | excel_chart, excel_chart_config | Validates charts don't overlap data |
 
 ## Test Isolation
 

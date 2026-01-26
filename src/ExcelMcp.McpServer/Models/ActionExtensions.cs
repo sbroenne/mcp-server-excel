@@ -284,6 +284,7 @@ public static class ActionExtensions
         ChartAction.CreateFromPivotTable => "create-from-pivottable",
         ChartAction.Delete => "delete",
         ChartAction.Move => "move",
+        ChartAction.FitToRange => "fit-to-range",
         _ => throw new ArgumentException($"Unknown ChartAction: {action}")
     };
 
@@ -299,6 +300,7 @@ public static class ActionExtensions
         ChartConfigAction.SetAxisNumberFormat => "set-axis-number-format",
         ChartConfigAction.ShowLegend => "show-legend",
         ChartConfigAction.SetStyle => "set-style",
+        ChartConfigAction.SetPlacement => "set-placement",
         ChartConfigAction.SetDataLabels => "set-data-labels",
         ChartConfigAction.GetAxisScale => "get-axis-scale",
         ChartConfigAction.SetAxisScale => "set-axis-scale",

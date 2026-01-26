@@ -1,6 +1,28 @@
 ````markdown
 # excel_chart - Server Quirks
 
+**CRITICAL: Always position charts to avoid overlapping data!**
+
+Before creating a chart:
+1. **Check used range**: `excel_range(action: 'get-used-range')` → know where data ends
+2. **Use targetRange (PREFERRED)**: Position chart by cell reference in one step
+3. **Or use coordinates**: Set `left` and `top` explicitly (don't rely on defaults)
+
+**Positioning with targetRange (recommended)**:
+```
+excel_chart(create-from-range, sourceRange='A1:B10', chartType='Line', targetRange='F2:K15')
+```
+Creates chart AND positions it to F2:K15 in one call.
+
+**Positioning with coordinates**:
+```
+Data in A1:D10 → Chart at row 12 (below) or column F (right)
+- Below: top = (lastRow + 2) * 15 points (estimate row height)
+- Right: left = (lastCol + 2) * 60 points (estimate col width)
+```
+
+---
+
 **Charting Data Model data - use PivotChart directly!**
 
 When visualizing Data Model data:
@@ -46,6 +68,7 @@ Or if you only need the chart (no PivotTable visible):
 - Units: Points (72 points = 1 inch)
 - Default size: 400×300 points
 - Use left/top parameters for placement
+- **Always check used range first to avoid overlaps**
 
 **Related tools**:
 
@@ -54,11 +77,13 @@ Or if you only need the chart (no PivotTable visible):
 | Configure series, titles, legends | excel_chart_config |
 | Create source PivotTable | excel_pivottable |
 | Display data as table instead | excel_table create-from-dax |
+| Position chart in empty area | excel_chart_config set-placement or fit-to-range |
 
 **Common mistakes**:
 
 - Creating PivotTable + Chart instead of PivotChart (unnecessary complexity)
 - Creating chart from range when Data Model data is available
 - Forgetting to create PivotTable first for PivotChart
+- **Placing charts at default position (overlaps data!)**
 
 ````

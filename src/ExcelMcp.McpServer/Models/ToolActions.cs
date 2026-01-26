@@ -399,7 +399,8 @@ public enum ChartAction
     CreateFromRange,
     CreateFromPivotTable,
     Delete,
-    Move
+    Move,
+    FitToRange
 }
 
 /// <summary>
@@ -420,6 +421,7 @@ public enum ChartConfigAction
     SetAxisNumberFormat,
     ShowLegend,
     SetStyle,
+    SetPlacement,
 
     // Data Labels
     SetDataLabels,

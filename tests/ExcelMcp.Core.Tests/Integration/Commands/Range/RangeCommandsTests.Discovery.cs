@@ -81,4 +81,70 @@ public partial class RangeCommandsTests
         Assert.Contains("$A$1:$D$10", result.Address); // Absolute address
     }
 
+    [Fact]
+    public void GetInfo_ValidRange_ReturnsGeometryInPoints()
+    {
+        // Arrange - use shared file, create unique sheet for this test
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        // Act - Get info for a range that has known geometry
+        var result = _commands.GetInfo(batch, sheetName, "A1:C5");
+
+        // Assert - Geometry should be populated (values vary by default column width/row height)
+        Assert.True(result.Success);
+        Assert.NotNull(result.Left);
+        Assert.NotNull(result.Top);
+        Assert.NotNull(result.Width);
+        Assert.NotNull(result.Height);
+
+        // All geometry values should be positive (in points)
+        Assert.True(result.Left >= 0, "Left should be >= 0 points");
+        Assert.True(result.Top >= 0, "Top should be >= 0 points");
+        Assert.True(result.Width > 0, "Width should be > 0 points");
+        Assert.True(result.Height > 0, "Height should be > 0 points");
+    }
+
+    [Fact]
+    public void GetInfo_DifferentRanges_ReturnsDifferentGeometry()
+    {
+        // Arrange - use shared file, create unique sheet for this test
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        // Act - Get info for two different ranges
+        var rangeA1 = _commands.GetInfo(batch, sheetName, "A1");
+        var rangeB2 = _commands.GetInfo(batch, sheetName, "B2");
+
+        // Assert - B2 should be offset from A1
+        Assert.True(rangeA1.Success);
+        Assert.True(rangeB2.Success);
+
+        // B2 should have greater Left (offset by column A width)
+        Assert.True(rangeB2.Left > rangeA1.Left, "B2 should be to the right of A1");
+
+        // B2 should have greater Top (offset by row 1 height)
+        Assert.True(rangeB2.Top > rangeA1.Top, "B2 should be below A1");
+    }
+
+    [Fact]
+    public void GetInfo_LargerRange_ReturnsLargerDimensions()
+    {
+        // Arrange - use shared file, create unique sheet for this test
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        // Act - Compare single cell to multi-cell range
+        var singleCell = _commands.GetInfo(batch, sheetName, "A1");
+        var multiCell = _commands.GetInfo(batch, sheetName, "A1:C5");
+
+        // Assert
+        Assert.True(singleCell.Success);
+        Assert.True(multiCell.Success);
+
+        // Multi-cell range should be larger
+        Assert.True(multiCell.Width > singleCell.Width, "A1:C5 should be wider than A1");
+        Assert.True(multiCell.Height > singleCell.Height, "A1:C5 should be taller than A1");
+    }
+
 }

@@ -305,6 +305,41 @@ public partial class ChartCommands
         });
     }
 
+    /// <inheritdoc />
+    public void SetPlacement(IExcelBatch batch, string chartName, int placement)
+    {
+        batch.Execute((ctx, ct) =>
+        {
+            // Find chart by name
+            var findResult = FindChart(ctx.Book, chartName);
+            if (findResult.Chart == null)
+            {
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
+            }
+
+            try
+            {
+                // Validate placement value (xlMoveAndSize=1, xlMove=2, xlFreeFloating=3)
+                if (placement < 1 || placement > 3)
+                {
+                    throw new ArgumentException(
+                        $"Placement must be 1 (move and size with cells), 2 (move only), or 3 (free floating). Provided: {placement}",
+                        nameof(placement));
+                }
+
+                // Set placement on the shape (ChartObject)
+                findResult.Shape.Placement = placement;
+
+                return 0; // Void operation completed
+            }
+            finally
+            {
+                if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
+                if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
+            }
+        });
+    }
+
     // === DATA LABELS ===
 
     /// <inheritdoc />
@@ -1124,6 +1159,51 @@ public partial class ChartCommands
                 if (trendlines != null) ComUtilities.Release(ref trendlines!);
                 if (series != null) ComUtilities.Release(ref series!);
                 if (seriesCollection != null) ComUtilities.Release(ref seriesCollection!);
+                if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
+                if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
+            }
+        });
+    }
+
+    /// <inheritdoc />
+    public void FitToRange(IExcelBatch batch, string chartName, string sheetName, string rangeAddress)
+    {
+        batch.Execute((ctx, ct) =>
+        {
+            // Find chart by name
+            var findResult = FindChart(ctx.Book, chartName);
+            if (findResult.Chart == null)
+            {
+                throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
+            }
+
+            dynamic? worksheet = null;
+            dynamic? range = null;
+
+            try
+            {
+                // Get the target range
+                worksheet = ctx.Book.Worksheets.Item(sheetName);
+                range = worksheet.Range[rangeAddress];
+
+                // Get range geometry
+                double left = Convert.ToDouble(range.Left);
+                double top = Convert.ToDouble(range.Top);
+                double width = Convert.ToDouble(range.Width);
+                double height = Convert.ToDouble(range.Height);
+
+                // Apply to chart shape
+                findResult.Shape.Left = left;
+                findResult.Shape.Top = top;
+                findResult.Shape.Width = width;
+                findResult.Shape.Height = height;
+
+                return 0; // Void operation completed
+            }
+            finally
+            {
+                if (range != null) ComUtilities.Release(ref range!);
+                if (worksheet != null) ComUtilities.Release(ref worksheet!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
             }

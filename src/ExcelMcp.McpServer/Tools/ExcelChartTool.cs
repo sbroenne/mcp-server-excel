@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
+using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using Sbroenne.ExcelMcp.Core.Models;
 
@@ -17,6 +18,17 @@ public static partial class ExcelChartTool
     /// <summary>
     /// Chart lifecycle - create, read, move, and delete embedded charts.
     ///
+    /// CRITICAL - AVOID OVERLAPPING DATA:
+    /// 1. Check used range first: excel_range(action: 'get-used-range')
+    /// 2. Position chart BELOW or to the RIGHT of data
+    /// 3. Use targetRange for cell-relative positioning (RECOMMENDED)
+    /// 4. NEVER place charts at default position (0,0) - it overlaps data!
+    ///
+    /// POSITIONING OPTIONS (for create actions):
+    /// - targetRange: Position by cell range (e.g., 'F2:K15') - PREFERRED
+    /// - left/top: Position by points (72 points = 1 inch)
+    /// One of these is required for create-from-range and create-from-pivottable.
+    ///
     /// CHART TYPES: 70+ types available including:
     /// - Column: ColumnClustered, ColumnStacked, ColumnStacked100, Column3D
     /// - Line: Line, LineMarkers, LineStacked, LineMarkerStacked
@@ -25,20 +37,18 @@ public static partial class ExcelChartTool
     /// - Area: Area, AreaStacked, AreaStacked100
     /// - XY Scatter: XYScatter, XYScatterLines, XYScatterSmooth
     ///
-    /// POSITIONING: Use left/top in points (1 inch = 72 points).
-    /// Default size is 400x300 points.
-    ///
     /// PIVOTCHART: Use create-from-pivottable to link chart to PivotTable.
     /// Changes to PivotTable filters automatically update the chart.
     ///
     /// RELATED TOOLS:
-    /// - excel_chart_config: Series, titles, legends, styles
+    /// - excel_chart_config: Series, titles, legends, styles, placement mode
     /// - excel_pivottable: Create PivotTables for PivotCharts
+    /// - excel_range: Get cell geometry for positioning
     /// </summary>
     /// <param name="action">The chart operation to perform</param>
     /// <param name="sessionId">Session identifier returned from excel_file open action</param>
     /// <param name="chartName">Name of the chart - optional for create (auto-generated), required for other actions</param>
-    /// <param name="sheetName">Worksheet name where chart will be placed (required for create actions)</param>
+    /// <param name="sheetName">Worksheet name where chart will be placed (required for create and fit-to-range actions)</param>
     /// <param name="sourceRange">Data range for chart like 'A1:D10' (required for create-from-range)</param>
     /// <param name="chartType">Chart type enum like ColumnClustered, Line, Pie</param>
     /// <param name="pivotTableName">PivotTable name (required for create-from-pivottable action)</param>
@@ -46,6 +56,8 @@ public static partial class ExcelChartTool
     /// <param name="top">Top position in points (72 points = 1 inch)</param>
     /// <param name="width">Chart width in points (default 400)</param>
     /// <param name="height">Chart height in points (default 300)</param>
+    /// <param name="rangeAddress">Target cell range for fit-to-range action (e.g., 'A1:D10')</param>
+    /// <param name="targetRange">Position chart within this cell range (e.g., 'F2:K15') - alternative to left/top for create actions</param>
     [McpServerTool(Name = "excel_chart", Title = "Excel Chart Operations", Destructive = true)]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
@@ -60,7 +72,9 @@ public static partial class ExcelChartTool
         [DefaultValue(null)] double? left,
         [DefaultValue(null)] double? top,
         [DefaultValue(null)] double? width,
-        [DefaultValue(null)] double? height)
+        [DefaultValue(null)] double? height,
+        [DefaultValue(null)] string? rangeAddress,
+        [DefaultValue(null)] string? targetRange)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_chart",
@@ -73,10 +87,11 @@ public static partial class ExcelChartTool
                 {
                     ChartAction.List => ListAction(commands, sessionId),
                     ChartAction.Read => ReadAction(commands, sessionId, chartName),
-                    ChartAction.CreateFromRange => CreateFromRangeAction(commands, sessionId, sheetName, sourceRange, chartType, left, top, width, height, chartName),
-                    ChartAction.CreateFromPivotTable => CreateFromPivotTableAction(commands, sessionId, pivotTableName, sheetName, chartType, left, top, width, height, chartName),
+                    ChartAction.CreateFromRange => CreateFromRangeAction(commands, sessionId, sheetName, sourceRange, chartType, left, top, width, height, chartName, targetRange),
+                    ChartAction.CreateFromPivotTable => CreateFromPivotTableAction(commands, sessionId, pivotTableName, sheetName, chartType, left, top, width, height, chartName, targetRange),
                     ChartAction.Delete => DeleteAction(commands, sessionId, chartName),
                     ChartAction.Move => MoveAction(commands, sessionId, chartName, left, top, width, height),
+                    ChartAction.FitToRange => FitToRangeAction(commands, sessionId, chartName, sheetName, rangeAddress),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
             });
@@ -114,7 +129,8 @@ public static partial class ExcelChartTool
         double? top,
         double? width,
         double? height,
-        string? chartName)
+        string? chartName,
+        string? targetRange)
     {
         if (string.IsNullOrWhiteSpace(sheetName))
             ExcelToolsBase.ThrowMissingParameter(nameof(sheetName), "create-from-range");
@@ -122,14 +138,33 @@ public static partial class ExcelChartTool
             ExcelToolsBase.ThrowMissingParameter(nameof(sourceRange), "create-from-range");
         if (!chartType.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(chartType), "create-from-range");
-        if (!left.HasValue)
-            ExcelToolsBase.ThrowMissingParameter(nameof(left), "create-from-range");
-        if (!top.HasValue)
-            ExcelToolsBase.ThrowMissingParameter(nameof(top), "create-from-range");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.CreateFromRange(batch, sheetName!, sourceRange!, chartType!.Value,
-                left!.Value, top!.Value, width ?? 400, height ?? 300, chartName));
+        // Either targetRange OR (left, top) must be provided
+        bool hasTargetRange = !string.IsNullOrWhiteSpace(targetRange);
+        bool hasPointPosition = left.HasValue && top.HasValue;
+
+        if (!hasTargetRange && !hasPointPosition)
+            throw new McpException("create-from-range requires either targetRange (e.g., 'F2:K15') OR left/top coordinates");
+
+        var result = ExcelToolsBase.WithSession<object>(sessionId, batch =>
+        {
+            // Create chart - use targetRange position or explicit coordinates
+            double createLeft = hasTargetRange ? 0 : left!.Value;
+            double createTop = hasTargetRange ? 0 : top!.Value;
+
+            var createResult = commands.CreateFromRange(batch, sheetName!, sourceRange!, chartType!.Value,
+                createLeft, createTop, width ?? 400, height ?? 300, chartName);
+
+            // If targetRange specified, fit chart to that range
+            if (hasTargetRange)
+            {
+                commands.FitToRange(batch, createResult.ChartName, sheetName!, targetRange!);
+                // Re-read to get updated position
+                return commands.Read(batch, createResult.ChartName);
+            }
+
+            return createResult;
+        });
 
         return JsonSerializer.Serialize(result, JsonOptions);
     }
@@ -144,7 +179,8 @@ public static partial class ExcelChartTool
         double? top,
         double? width,
         double? height,
-        string? chartName)
+        string? chartName,
+        string? targetRange)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter(nameof(pivotTableName), "create-from-pivottable");
@@ -152,14 +188,33 @@ public static partial class ExcelChartTool
             ExcelToolsBase.ThrowMissingParameter(nameof(sheetName), "create-from-pivottable");
         if (!chartType.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(chartType), "create-from-pivottable");
-        if (!left.HasValue)
-            ExcelToolsBase.ThrowMissingParameter(nameof(left), "create-from-pivottable");
-        if (!top.HasValue)
-            ExcelToolsBase.ThrowMissingParameter(nameof(top), "create-from-pivottable");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.CreateFromPivotTable(batch, pivotTableName!, sheetName!, chartType!.Value,
-                left!.Value, top!.Value, width ?? 400, height ?? 300, chartName));
+        // Either targetRange OR (left, top) must be provided
+        bool hasTargetRange = !string.IsNullOrWhiteSpace(targetRange);
+        bool hasPointPosition = left.HasValue && top.HasValue;
+
+        if (!hasTargetRange && !hasPointPosition)
+            throw new McpException("create-from-pivottable requires either targetRange (e.g., 'F2:K15') OR left/top coordinates");
+
+        var result = ExcelToolsBase.WithSession<object>(sessionId, batch =>
+        {
+            // Create chart - use targetRange position or explicit coordinates
+            double createLeft = hasTargetRange ? 0 : left!.Value;
+            double createTop = hasTargetRange ? 0 : top!.Value;
+
+            var createResult = commands.CreateFromPivotTable(batch, pivotTableName!, sheetName!, chartType!.Value,
+                createLeft, createTop, width ?? 400, height ?? 300, chartName);
+
+            // If targetRange specified, fit chart to that range
+            if (hasTargetRange)
+            {
+                commands.FitToRange(batch, createResult.ChartName, sheetName!, targetRange!);
+                // Re-read to get updated position
+                return commands.Read(batch, createResult.ChartName);
+            }
+
+            return createResult;
+        });
 
         return JsonSerializer.Serialize(result, JsonOptions);
     }
@@ -200,6 +255,29 @@ public static partial class ExcelChartTool
         });
 
         return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' moved successfully" }, JsonOptions);
+    }
+
+    private static string FitToRangeAction(
+        ChartCommands commands,
+        string sessionId,
+        string? chartName,
+        string? sheetName,
+        string? rangeAddress)
+    {
+        if (string.IsNullOrWhiteSpace(chartName))
+            ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "fit-to-range");
+        if (string.IsNullOrWhiteSpace(sheetName))
+            ExcelToolsBase.ThrowMissingParameter(nameof(sheetName), "fit-to-range");
+        if (string.IsNullOrWhiteSpace(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter(nameof(rangeAddress), "fit-to-range");
+
+        ExcelToolsBase.WithSession(sessionId, batch =>
+        {
+            commands.FitToRange(batch, chartName!, sheetName!, rangeAddress!);
+            return 0; // Dummy return value
+        });
+
+        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' fitted to range '{sheetName}'!{rangeAddress}" }, JsonOptions);
     }
 
 

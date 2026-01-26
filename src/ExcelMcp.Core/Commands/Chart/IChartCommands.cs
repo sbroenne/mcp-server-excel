@@ -211,6 +211,24 @@ public interface IChartCommands
     /// <param name="styleId">Style number (1-48)</param>
     void SetStyle(IExcelBatch batch, string chartName, int styleId);
 
+    /// <summary>
+    /// Sets chart placement mode (how chart responds when underlying cells are resized).
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="placement">Placement mode: 1=Move and size with cells, 2=Move but don't size, 3=Don't move or size</param>
+    void SetPlacement(IExcelBatch batch, string chartName, int placement);
+
+    /// <summary>
+    /// Fits a chart to a cell range by setting position and size to match the range bounds.
+    /// Uses the range's Left, Top, Width, Height properties.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="sheetName">Worksheet containing the range</param>
+    /// <param name="rangeAddress">Target range (e.g., "A1:D10")</param>
+    void FitToRange(IExcelBatch batch, string chartName, string sheetName, string rangeAddress);
+
     // === DATA LABELS ===
 
     /// <summary>
