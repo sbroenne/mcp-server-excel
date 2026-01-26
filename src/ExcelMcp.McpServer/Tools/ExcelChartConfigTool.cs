@@ -71,8 +71,12 @@ public static partial class ExcelChartConfigTool
     /// - 2: Move but don't size with cells (chart position tracks cells, size stays fixed)
     /// - 3: Don't move or size with cells (free floating, absolute position)
     ///
+    /// FIT-TO-RANGE (in excel_chart tool):
+    /// Use excel_chart(action: 'fit-to-range') to position chart within empty cells.
+    /// Example: fit-to-range to 'F2:K15' places chart in that cell region.
+    ///
     /// RELATED TOOLS:
-    /// - excel_chart: Create, delete, move, and fit-to-range
+    /// - excel_chart: Create, delete, move, and fit-to-range (use fit-to-range to avoid overlaps!)
     /// </summary>
     /// <param name="action">The chart configuration action to perform</param>
     /// <param name="sessionId">Session identifier returned from excel_file open action</param>

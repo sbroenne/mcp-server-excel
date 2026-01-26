@@ -110,3 +110,41 @@ Specialized: `Waterfall`, `Funnel`, `Treemap`, `Sunburst`, `BoxWhisker`, `Histog
 3. **Use gridlines sparingly**: Minor gridlines often add clutter
 4. **Trendlines for insights**: Add R² to show fit quality
 5. **Data labels placement**: `OutsideEnd` for bar charts, `Center` for pie charts
+
+## Chart Positioning (CRITICAL)
+
+**ALWAYS position charts to avoid overlapping data:**
+
+### Use targetRange (PREFERRED - One Step)
+```
+excel_chart(create-from-range, sourceRange='A1:B10', chartType='Line', targetRange='F2:K15')
+```
+Creates chart AND positions it to cell range in one call.
+
+### Check Used Range First
+```
+excel_range(action: 'get-used-range') → e.g., "Sheet1!A1:D20"
+```
+
+### Position with Coordinates
+```
+excel_chart(create-from-range, sourceRange: 'A1:B10', left: 360, top: 20)
+# left/top in points (72 points = 1 inch)
+```
+
+### Use FitToRange (After Creation)
+```
+excel_chart(create-from-range, ...) -> chartName
+excel_chart(fit-to-range, chartName, rangeAddress: 'F2:K15')
+# Reposition existing chart to cell range
+```
+
+### Position Estimates
+- Rows: ~15 points per row (varies with row height)
+- Columns: ~60 points per column (varies with column width)
+- Default chart: 400x300 points
+
+### Positioning Workflow
+1. `get-used-range` -> Identify data boundaries
+2. **Option A (Preferred)**: Use `targetRange='F2:K15'` in create call
+3. **Option B**: Calculate `(lastRow + 2) * 15` for top, or `(lastCol + 2) * 60` for left
