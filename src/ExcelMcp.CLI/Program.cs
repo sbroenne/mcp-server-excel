@@ -79,39 +79,39 @@ internal sealed class Program
 
             config.AddBranch("session", branch =>
             {
-                branch.SetDescription("Open, close, and list Excel sessions to reuse a single Excel process.");
+                branch.SetDescription("File and session management for Excel automation. WORKFLOW: open -> use sessionId -> close (save=true to persist).");
                 branch.AddCommand<SessionOpenCommand>("open");
                 branch.AddCommand<SessionCloseCommand>("close")
-                    .WithDescription("Close an Excel session (use --save to save changes before closing).");
+                    .WithDescription("Close an Excel session. Use --save to persist changes before closing.");
                 branch.AddCommand<SessionListCommand>("list");
             });
 
             config.AddCommand<CreateEmptyFileCommand>("create-empty")
                 .WithDescription("Create a new empty workbook on disk (use --overwrite to replace existing files).");
             config.AddCommand<PowerQueryCommand>("powerquery")
-                .WithDescription("Manage Power Query M code: list, import/export, update, and refresh queries.");
+                .WithDescription("Power Query M code and data loading. Actions: list, view, create, update, refresh, load-to, delete.");
             config.AddCommand<RangeCommand>("range")
-                .WithDescription("Work with worksheet ranges for values, formulas, formatting, validation, and hyperlinks.");
+                .WithDescription("Core range operations: get/set values and formulas, copy ranges, clear content, formatting, validation, hyperlinks.");
             config.AddCommand<SheetCommand>("sheet")
-                .WithDescription("Manage worksheet lifecycle, tab colors, and visibility within a session.");
+                .WithDescription("Worksheet lifecycle: create, rename, copy, delete, move sheets. Also tab colors and visibility.");
             config.AddCommand<NamedRangeCommand>("namedrange")
-                .WithDescription("Create, update, delete, and list named ranges/parameters.");
+                .WithDescription("Named ranges for formulas and parameters. Actions: list, read, write, create, update, delete.");
             config.AddCommand<ConditionalFormattingCommand>("conditionalformat")
-                .WithDescription("Add or clear conditional formatting rules on ranges.");
+                .WithDescription("Conditional formatting - visual rules based on cell values. Actions: add-rule, clear-rules.");
             config.AddCommand<TableCommand>("table")
-                .WithDescription("Automate Excel Tables: create, resize, filter, sort, and manage totals.");
+                .WithDescription("Excel Tables (ListObjects) - lifecycle, filtering, sorting, totals, Data Model integration.");
             config.AddCommand<PivotTableCommand>("pivottable")
-                .WithDescription("Create and configure PivotTables, fields, and refresh behavior.");
+                .WithDescription("PivotTable lifecycle and configuration: create, fields, calculated fields, layout, refresh.");
             config.AddCommand<ChartCommand>("chart")
-                .WithDescription("Create and manage Excel charts (Regular and PivotCharts).");
+                .WithDescription("Chart lifecycle and configuration: create from range/PivotTable, series, axis, legend, trendlines.");
             config.AddCommand<ConnectionCommand>("connection")
-                .WithDescription("Inspect, refresh, and update workbook data connections (OLEDB/ODBC/Text/Web).");
+                .WithDescription("Data connections (OLEDB, ODBC, ODC). Use excel_powerquery for Text/Web/CSV sources.");
             config.AddCommand<DataModelCommand>("datamodel")
-                .WithDescription("Create DAX measures/relationships and inspect the Power Pivot Data Model.");
+                .WithDescription("Data Model (Power Pivot) - DAX measures, table management, relationships. Tables must be in Data Model first.");
             config.AddCommand<VbaCommand>("vba")
-                .WithDescription("List, export/import, update, and run VBA modules or macros.");
+                .WithDescription("VBA scripts - requires .xlsm and VBA trust enabled. Actions: list, view, import, update, run, delete.");
             config.AddCommand<SlicerCommand>("slicer")
-                .WithDescription("Create, configure, and delete slicers for PivotTables and Tables.");
+                .WithDescription("Slicer management for visual filtering. Works with PivotTables and Tables.");
         });
 
         try
