@@ -5,10 +5,10 @@ description: >
   or modifying Excel workbooks from scripts, CI/CD, or coding agents.
   Supports Power Query, DAX, PivotTables, Tables, Ranges, Charts, VBA.
   Triggers: Excel, spreadsheet, workbook, xlsx, excelcli, CLI automation.
-allowed-tools: Bash(excelcli:*)
+allowed-tools: Cmd(excelcli:*),PowerShell(excelcli:*)
 disable-model-invocation: true
 license: MIT
-version: 1.2.0
+version: 1.3.0
 tags:
   - excel
   - cli
@@ -25,7 +25,7 @@ documentation: https://excelmcpserver.dev/
 
 ## Quick Start
 
-```bash
+```powershell
 excelcli -q session open C:\Data\Report.xlsx
 excelcli -q range set-values --session 1 --sheet Sheet1 --range A1:B2 --values-json '[["Name","Value"],["Test",123]]'
 excelcli -q session close --session 1 --save
@@ -44,7 +44,7 @@ excelcli -q session close --session 1 --save
 
 ## Check for Updates
 
-```bash
+```powershell
 # Check if update available
 excelcli -q version --check
 # {"currentVersion":"1.2.0","latestVersion":"1.3.0","updateAvailable":true,...}
@@ -55,7 +55,7 @@ dotnet tool update --global Sbroenne.ExcelMcp.CLI
 
 ## Installation
 
-```bash
+```powershell
 dotnet tool install --global Sbroenne.ExcelMcp.CLI
 ```
 
@@ -63,7 +63,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 ### Session Management
 
-```bash
+```powershell
 excelcli session open C:\Data\Report.xlsx
 excelcli session list
 excelcli session close --session 1 --save
@@ -73,58 +73,149 @@ excelcli create-empty C:\Data\New.xlsx --overwrite
 
 ### Range Operations
 
-```bash
+```powershell
+# Value operations
 excelcli range get-values --session 1 --sheet Sheet1 --range A1:D10
 excelcli range set-values --session 1 --sheet Sheet1 --range A1 --values-json '[["Header1","Header2"]]'
-excelcli range set-formulas --session 1 --sheet Sheet1 --range B2 --formulas-json '[["=SUM(A1:A10)"]]'
 excelcli range get-used-range --session 1 --sheet Sheet1
-excelcli range clear --session 1 --sheet Sheet1 --range A1:D10
+excelcli range get-current-region --session 1 --sheet Sheet1 --cell A1
+excelcli range get-info --session 1 --sheet Sheet1 --range A1:D10
+
+# Formula operations
+excelcli range get-formulas --session 1 --sheet Sheet1 --range B2:B10
+excelcli range set-formulas --session 1 --sheet Sheet1 --range B2 --formulas-json '[["=SUM(A1:A10)"]]'
+
+# Clear operations
+excelcli range clear --session 1 --sheet Sheet1 --range A1:D10  # clears all (values, formulas, formats)
+excelcli range clear-contents --session 1 --sheet Sheet1 --range A1:D10  # preserves formatting
+excelcli range clear-formats --session 1 --sheet Sheet1 --range A1:D10  # preserves values
+
+# Copy operations
 excelcli range copy --session 1 --source-sheet Sheet1 --source-range A1:B5 --target-sheet Sheet2 --target-range A1
-excelcli range find --session 1 --sheet Sheet1 --find-value "test"
-excelcli range replace --session 1 --sheet Sheet1 --find-value "old" --replace-value "new" --replace-all
-excelcli range sort --session 1 --sheet Sheet1 --range A1:D10 --sort-columns-json '[{"column":1,"ascending":true}]' --has-headers
+excelcli range copy-values --session 1 --source-sheet Sheet1 --source-range A1:B5 --target-sheet Sheet2 --target-range A1
+excelcli range copy-formulas --session 1 --source-sheet Sheet1 --source-range A1:B5 --target-sheet Sheet2 --target-range A1
+
+# Insert/Delete operations
+excelcli range insert-cells --session 1 --sheet Sheet1 --range A1:B5 --shift-direction down
+excelcli range delete-cells --session 1 --sheet Sheet1 --range A1:B5 --shift-direction up
+excelcli range insert-rows --session 1 --sheet Sheet1 --range A1:A5
+excelcli range delete-rows --session 1 --sheet Sheet1 --range A1:A5
+excelcli range insert-columns --session 1 --sheet Sheet1 --range A1:C1
+excelcli range delete-columns --session 1 --sheet Sheet1 --range A1:C1
+
+# Find/Replace operations
+excelcli range find --session 1 --sheet Sheet1 --range A1:Z100 --search-value "test" --match-case false
+excelcli range replace --session 1 --sheet Sheet1 --range A1:Z100 --find-value "old" --replace-value "new" --replace-all true
+
+# Sort operations
+excelcli range sort --session 1 --sheet Sheet1 --range A1:D10 --sort-columns-json '[{"columnIndex":1,"ascending":true}]' --has-headers true
 ```
 
-### Formatting
+### Number Formatting
 
-```bash
+```powershell
+excelcli range get-number-formats --session 1 --sheet Sheet1 --range B2:B10
 excelcli range set-number-format --session 1 --sheet Sheet1 --range B2:B10 --format-code "$#,##0.00"
-excelcli range set-font --session 1 --sheet Sheet1 --range A1 --bold --font-size 14 --font-color "#0000FF"
-excelcli range set-fill --session 1 --sheet Sheet1 --range A1:D1 --fill-color "#FFFF00"
-excelcli range set-borders --session 1 --sheet Sheet1 --range A1:D10 --border-style thin --border-color "#000000"
-excelcli range set-alignment --session 1 --sheet Sheet1 --range A1 --horizontal-alignment center --wrap-text
+excelcli range set-number-formats --session 1 --sheet Sheet1 --range B2:C10 --formats-json '[["$#,##0.00","0.00%"],...]'
 ```
+
+### Cell Styling
+
+```powershell
+# Built-in styles (recommended - theme-aware)
+excelcli range set-style --session 1 --sheet Sheet1 --range A1 --style-name "Heading 1"
+excelcli range get-style --session 1 --sheet Sheet1 --range A1
+
+# Custom formatting (for specific needs)
+excelcli range format-range --session 1 --sheet Sheet1 --range A1:D1 \
+  --font-name "Arial" --font-size 14 --bold true --font-color "#0000FF" \
+  --fill-color "#FFFF00" --horizontal-alignment center --wrap-text true
+
+# AutoFit
+excelcli range auto-fit-columns --session 1 --sheet Sheet1 --range A:D
+excelcli range auto-fit-rows --session 1 --sheet Sheet1 --range 1:10
+```
+
+Built-in styles: `Normal`, `Heading 1-4`, `Title`, `Total`, `Input`, `Output`, `Calculation`, `Good`, `Bad`, `Neutral`, `Accent1-6`, `Currency`, `Percent`, `Comma`
 
 ### Data Validation
 
-```bash
-excelcli range set-validation --session 1 --sheet Sheet1 --range B2:B100 --validation-type list --validation-formula1 "Yes,No,Maybe"
-excelcli range set-validation --session 1 --sheet Sheet1 --range C2:C100 --validation-type whole --validation-operator between --validation-formula1 1 --validation-formula2 100
+```powershell
+# List validation (dropdown)
+excelcli range set-validation --session 1 --sheet Sheet1 --range B2:B100 \
+  --validation-type list --formula1 "Yes,No,Maybe" --show-dropdown true
+
+# Number range validation
+excelcli range set-validation --session 1 --sheet Sheet1 --range C2:C100 \
+  --validation-type whole --validation-operator between --formula1 1 --formula2 100 \
+  --show-error-alert true --error-title "Invalid" --error-message "Enter 1-100"
+
+# Get/Remove validation
+excelcli range get-validation --session 1 --sheet Sheet1 --range B2
 excelcli range clear-validation --session 1 --sheet Sheet1 --range B2:B100
 ```
 
+Validation types: `whole`, `decimal`, `list`, `date`, `time`, `textLength`, `custom`
+Operators: `between`, `notBetween`, `equal`, `notEqual`, `greaterThan`, `lessThan`, `greaterThanOrEqual`, `lessThanOrEqual`
+
 ### Hyperlinks
 
-```bash
-excelcli range set-hyperlink --session 1 --sheet Sheet1 --cell A1 --url "https://example.com" --display-text "Click here"
-excelcli range get-hyperlinks --session 1 --sheet Sheet1 --range A1:A10
+```powershell
+excelcli range set-hyperlink --session 1 --sheet Sheet1 --cell A1 --url "https://example.com" --display-text "Click here" --tooltip "Visit site"
+excelcli range get-hyperlink --session 1 --sheet Sheet1 --cell A1
+excelcli range get-hyperlinks --session 1 --sheet Sheet1
+excelcli range remove-hyperlink --session 1 --sheet Sheet1 --range A1:A10
+```
+
+### Merge/Unmerge Cells
+
+```powershell
+excelcli range merge-cells --session 1 --sheet Sheet1 --range A1:D1
+excelcli range unmerge-cells --session 1 --sheet Sheet1 --range A1:D1
+excelcli range get-merge-info --session 1 --sheet Sheet1 --range A1:D10
+```
+
+### Cell Protection
+
+```powershell
+# Lock/unlock cells (requires worksheet protection to take effect)
+excelcli range set-cell-lock --session 1 --sheet Sheet1 --range A1:D10 --locked true
+excelcli range get-cell-lock --session 1 --sheet Sheet1 --range A1
 ```
 
 ### Worksheets
 
-```bash
+```powershell
+# Basic operations
 excelcli sheet list --session 1
 excelcli sheet create --session 1 --name "NewSheet"
-excelcli sheet rename --session 1 --sheet Sheet1 --name "DataSheet"
-excelcli sheet copy --session 1 --sheet Sheet1 --name "Sheet1_Copy"
+excelcli sheet rename --session 1 --sheet Sheet1 --new-name "DataSheet"
+excelcli sheet copy --session 1 --source-sheet Sheet1 --target-sheet "Sheet1_Copy"
 excelcli sheet delete --session 1 --sheet OldSheet
-excelcli sheet set-tab-color --session 1 --sheet Sheet1 --color "#FF0000"
-excelcli sheet set-visibility --session 1 --sheet Hidden --visibility hidden
+excelcli sheet move --session 1 --sheet Sheet1 --before-sheet Sheet2  # or --after-sheet
+
+# Cross-file operations (atomic - no session needed)
+excelcli sheet copy-to-file --source-file "C:\Data\Source.xlsx" --source-sheet "Data" \
+  --target-file "C:\Data\Target.xlsx" --target-sheet-name "ImportedData"
+excelcli sheet move-to-file --source-file "C:\Data\Source.xlsx" --source-sheet "Archive" \
+  --target-file "C:\Data\Archive.xlsx"
+
+# Tab color
+excelcli sheet set-tab-color --session 1 --sheet Sheet1 --red 255 --green 0 --blue 0
+excelcli sheet get-tab-color --session 1 --sheet Sheet1
+excelcli sheet clear-tab-color --session 1 --sheet Sheet1
+
+# Visibility
+excelcli sheet set-visibility --session 1 --sheet Hidden --visibility hidden  # visible, hidden, veryhidden
+excelcli sheet get-visibility --session 1 --sheet Hidden
+excelcli sheet show --session 1 --sheet Hidden
+excelcli sheet hide --session 1 --sheet Temp
+excelcli sheet very-hide --session 1 --sheet Secret  # requires code to unhide
 ```
 
 ### Tables
 
-```bash
+```powershell
 excelcli table list --session 1
 excelcli table create --session 1 --sheet Sheet1 --range A1:D10 --name "SalesData" --has-headers
 excelcli table get --session 1 --name SalesData
@@ -138,11 +229,15 @@ excelcli table set-total-row --session 1 --name SalesData --show-totals --totals
 excelcli table add-to-datamodel --session 1 --name SalesData
 excelcli table rename --session 1 --name SalesData --new-name "Sales"
 excelcli table delete --session 1 --name OldTable
+
+# Structured references (for formulas)
+excelcli table get-structured-reference --session 1 --name SalesData --region data  # all, data, headers, totals
+excelcli table get-structured-reference --session 1 --name SalesData --region data --column-name "Amount"
 ```
 
 ### Named Ranges
 
-```bash
+```powershell
 excelcli namedrange list --session 1
 excelcli namedrange create --session 1 --name "TaxRate" --refers-to "=0.25"
 excelcli namedrange create --session 1 --name "DataRange" --refers-to "=Sheet1!$A$1:$D$100"
@@ -152,7 +247,7 @@ excelcli namedrange delete --session 1 --name "OldName"
 
 ### Power Query
 
-```bash
+```powershell
 excelcli powerquery list --session 1
 excelcli powerquery get --session 1 --name "SalesQuery"
 excelcli powerquery create --session 1 --name "CsvImport" --m-code 'let Source = Csv.Document(File.Contents("C:\Data\sales.csv")) in Source' --load-destination worksheet
@@ -165,7 +260,7 @@ Load destinations: `worksheet`, `data-model`, `both`, `connection-only`
 
 ### Data Model (Power Pivot)
 
-```bash
+```powershell
 excelcli datamodel list-tables --session 1
 excelcli datamodel list-measures --session 1
 excelcli datamodel create-measure --session 1 --table "Sales" --name "TotalRevenue" --dax "SUM(Sales[Amount])"
@@ -177,23 +272,44 @@ excelcli datamodel create-relationship --session 1 --from-table "Sales" --from-c
 
 ### PivotTables
 
-```bash
+```powershell
+# Lifecycle
 excelcli pivottable list --session 1
 excelcli pivottable create-from-table --session 1 --source-table "SalesData" --target-sheet "PivotSheet" --target-cell A1 --name "SalesPivot"
 excelcli pivottable create-from-datamodel --session 1 --target-sheet "Analysis" --target-cell A1 --name "ModelPivot"
+excelcli pivottable refresh --session 1 --name "SalesPivot"
+excelcli pivottable delete --session 1 --name "OldPivot"
+
+# Fields
 excelcli pivottable add-field --session 1 --name "SalesPivot" --field "Region" --area row
 excelcli pivottable add-field --session 1 --name "SalesPivot" --field "Amount" --area data --function sum
 excelcli pivottable remove-field --session 1 --name "SalesPivot" --field "Category"
-excelcli pivottable refresh --session 1 --name "SalesPivot"
-excelcli pivottable delete --session 1 --name "OldPivot"
+excelcli pivottable set-field-function --session 1 --name "SalesPivot" --field "Amount" --aggregation-function average
+excelcli pivottable set-field-name --session 1 --name "SalesPivot" --field "Sum of Amount" --custom-name "Total Revenue"
+excelcli pivottable set-field-format --session 1 --name "SalesPivot" --field "Amount" --number-format "$#,##0.00"
+
+# Grouping
+excelcli pivottable group-by-date --session 1 --name "SalesPivot" --field "OrderDate" --interval months  # days, months, quarters, years
+excelcli pivottable group-by-numeric --session 1 --name "SalesPivot" --field "Price" --start 0 --end 1000 --interval-size 100
+
+# Calculated fields (non-OLAP)
+excelcli pivottable create-calculated-field --session 1 --name "SalesPivot" --field "Profit" --formula "=Sales-Cost"
+excelcli pivottable list-calculated-fields --session 1 --name "SalesPivot"
+excelcli pivottable delete-calculated-field --session 1 --name "SalesPivot" --field "Profit"
+
+# Calculated members (OLAP/Data Model)
+excelcli pivottable list-calculated-members --session 1 --name "ModelPivot"
+excelcli pivottable create-calculated-member --session 1 --name "ModelPivot" --member-name "YTDSales" --formula "..." --member-type measure
+excelcli pivottable delete-calculated-member --session 1 --name "ModelPivot" --member-name "YTDSales"
 ```
 
 Field areas: `row`, `column`, `data`, `page`
 Functions: `sum`, `count`, `average`, `max`, `min`, `product`, `countNums`, `stdDev`, `stdDevP`, `var`, `varP`
+Grouping intervals: `days`, `months`, `quarters`, `years`
 
 ### Slicers
 
-```bash
+```powershell
 # PivotTable slicers
 excelcli slicer create-slicer --session 1 --pivot-name "SalesPivot" --field-name "Region" --destination-sheet "Dashboard" --position E1
 excelcli slicer list-slicers --session 1
@@ -212,7 +328,7 @@ Note: `--selected-items` accepts JSON array or comma-separated values. Use `--cl
 
 ### Charts
 
-```bash
+```powershell
 # Lifecycle
 excelcli chart list --session 1
 excelcli chart create-from-range --session 1 --sheet Sheet1 --source-range A1:B10 --chart-type 51 --left 100 --top 50 --name "SalesChart"
@@ -249,7 +365,7 @@ Placement: 1=Move and size with cells, 2=Move only, 3=Don't move or size
 
 ### Conditional Formatting
 
-```bash
+```powershell
 excelcli conditionalformat add-color-scale --session 1 --sheet Sheet1 --range B2:B100 --min-color "#FF0000" --max-color "#00FF00"
 excelcli conditionalformat add-data-bar --session 1 --sheet Sheet1 --range C2:C100 --bar-color "#0000FF"
 excelcli conditionalformat add-icon-set --session 1 --sheet Sheet1 --range D2:D100 --icon-set "3Arrows"
@@ -259,7 +375,7 @@ excelcli conditionalformat clear --session 1 --sheet Sheet1 --range B2:E100
 
 ### Connections
 
-```bash
+```powershell
 excelcli connection list --session 1
 excelcli connection get --session 1 --name "SQLServer_Sales"
 excelcli connection refresh --session 1 --name "SQLServer_Sales"
@@ -268,7 +384,7 @@ excelcli connection refresh-all --session 1
 
 ### VBA (requires Trust Center enabled)
 
-```bash
+```powershell
 excelcli vba list --session 1
 excelcli vba get --session 1 --module "Module1"
 excelcli vba create --session 1 --module "Utilities" --code "Sub Hello()\n    MsgBox \"Hello!\"\nEnd Sub"
@@ -283,7 +399,7 @@ excelcli vba import --session 1 --file "C:\Code\NewModule.bas"
 
 ### Import CSV and Create Dashboard
 
-```bash
+```powershell
 # Create workbook
 excelcli -q create-empty C:\Reports\Dashboard.xlsx
 
@@ -292,8 +408,8 @@ excelcli -q session open C:\Reports\Dashboard.xlsx
 # Returns: {"success":true,"sessionId":1,...}
 
 # Import CSV via Power Query
-excelcli -q powerquery create --session 1 --name "SalesData" \
-  --m-code 'let Source = Csv.Document(File.Contents("C:\Data\sales.csv"),[Delimiter=",",Encoding=65001]) in Source' \
+excelcli -q powerquery create --session 1 --name "SalesData" `
+  --m-code 'let Source = Csv.Document(File.Contents("C:\Data\sales.csv"),[Delimiter=",",Encoding=65001]) in Source' `
   --load-destination data-model
 
 # Refresh to load data
@@ -313,17 +429,17 @@ excelcli -q session close --session 1 --save
 
 ### Batch Update Multiple Files
 
-```bash
-for file in C:\Data\*.xlsx; do
-  excelcli -q session open "$file"
+```powershell
+Get-ChildItem C:\Data\*.xlsx | ForEach-Object {
+  excelcli -q session open $_.FullName
   excelcli -q range set-values --session 1 --sheet Summary --range A1 --values-json '[["Updated: 2026-01-28"]]'
   excelcli -q session close --session 1 --save
-done
+}
 ```
 
 ### Format Financial Report
 
-```bash
+```powershell
 excelcli -q session open C:\Reports\Financial.xlsx
 
 # Format currency column
@@ -355,3 +471,21 @@ excelcli -q session close --session 1 --save
 - Windows with Microsoft Excel 2016+
 - .NET 10 Runtime
 - VBA operations require "Trust access to VBA project object model" enabled
+
+## Reference Documentation
+
+See `references/` for detailed behavioral guidance and quirks:
+
+- @references/behavioral-rules.md - Core execution rules (format cells, use Tables, etc.)
+- @references/anti-patterns.md - Common mistakes to avoid
+- @references/workflows.md - Production workflow patterns
+- @references/excel_powerquery.md - Power Query quirks (timeout required, create vs update)
+- @references/excel_datamodel.md - Data Model/DAX specifics (prerequisites, timeouts)
+- @references/excel_table.md - Table operations and Data Model integration
+- @references/excel_range.md - Range operations and number formatting
+- @references/excel_worksheet.md - Worksheet operations
+- @references/excel_chart.md - Chart positioning and configuration
+- @references/excel_slicer.md - Slicer operations for PivotTables and Tables
+- @references/excel_conditionalformat.md - Conditional formatting rules
+
+````

@@ -1,7 +1,7 @@
 ---
 layout: default
 title: "Complete Feature Reference"
-description: "22 specialized tools with 206 operations for comprehensive Excel automation. Power Query, DAX, VBA, Charts, PivotTables, and more."
+description: "22 specialized tools with 209 operations for comprehensive Excel automation. Power Query, DAX, VBA, Charts, PivotTables, and more."
 keywords: "Excel MCP features, Power Query automation, DAX measures, VBA macros, Excel tools, MCP operations"
 permalink: /features/
 ---
@@ -10,7 +10,7 @@ permalink: /features/
   <div class="container">
     <div class="hero-content">
       <h1 class="hero-title">Complete Feature Reference</h1>
-      <p class="hero-subtitle">22 specialized tools with 206 operations for comprehensive Excel automation</p>
+      <p class="hero-subtitle">22 specialized tools with 209 operations for comprehensive Excel automation</p>
     </div>
   </div>
 </div>

@@ -30,6 +30,8 @@ internal sealed class ExcelBatch : IExcelBatch
     private readonly Thread _staThread;
     private readonly CancellationTokenSource _shutdownCts;
     private int _disposed; // 0 = not disposed, 1 = disposed (using int for Interlocked.CompareExchange)
+    private int? _excelProcessId; // Excel.exe process ID for force-kill if needed
+    private bool _operationTimedOut; // Track if an operation timed out for aggressive cleanup
 
     // COM state (STA thread only)
     private dynamic? _excel;
@@ -82,6 +84,28 @@ internal sealed class ExcelBatch : IExcelBatch
                 dynamic tempExcel = Activator.CreateInstance(excelType)!;
                 tempExcel.Visible = _showExcel;
                 tempExcel.DisplayAlerts = false;
+
+                // Capture Excel process ID for force-kill scenarios (hung Excel, dead RPC connection)
+                try
+                {
+                    // Excel.Application.Hwnd returns the main window handle
+                    // Use Process.GetProcesses() to find Excel.exe with matching main window handle
+                    int hwnd = tempExcel.Hwnd;
+                    var excelProcesses = System.Diagnostics.Process.GetProcessesByName("EXCEL");
+                    foreach (var proc in excelProcesses)
+                    {
+                        if (proc.MainWindowHandle.ToInt32() == hwnd)
+                        {
+                            _excelProcessId = proc.Id;
+                            _logger.LogDebug("Captured Excel process ID: {ProcessId}", _excelProcessId);
+                            break;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to capture Excel process ID. Force-kill will not be available.");
+                }
 
                 // Disable macro security warnings for unattended automation
                 // msoAutomationSecurityForceDisable = 3 (disable all macros, no prompts)
@@ -347,6 +371,7 @@ internal sealed class ExcelBatch : IExcelBatch
         catch (OperationCanceledException)
         {
             _logger.LogDebug("Operation cancelled for {FileName}", Path.GetFileName(_workbookPath));
+            _operationTimedOut = true; // Mark timeout for aggressive cleanup during disposal
             throw;
         }
     }
@@ -395,23 +420,76 @@ internal sealed class ExcelBatch : IExcelBatch
         // Wait for STA thread to finish cleanup (with timeout)
         if (_staThread != null && _staThread.IsAlive)
         {
-            _logger.LogDebug("[Thread {CallingThread}] Calling Join() with {Timeout} timeout on STA={STAThread}, file={FileName}", callingThread, ComInteropConstants.StaThreadJoinTimeout, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
+            // Use shorter timeout if operation timed out (Excel is likely hung)
+            var joinTimeout = _operationTimedOut
+                ? TimeSpan.FromSeconds(10)  // Aggressive: 10 seconds when operation timed out
+                : ComInteropConstants.StaThreadJoinTimeout;  // Normal: 45 seconds
+
+            var reasonSuffix = _operationTimedOut ? " (operation timed out - aggressive cleanup)" : "";
+            _logger.LogDebug(
+                "[Thread {CallingThread}] Calling Join() with {Timeout} timeout on STA={STAThread}, file={FileName}{Reason}",
+                callingThread, joinTimeout, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath), reasonSuffix);
 
             // CRITICAL: StaThreadJoinTimeout >= ExcelQuitTimeout + margin (currently 45 seconds total).
             // The join must wait at least as long as CloseAndQuit() can take, otherwise Dispose() returns
             // before Excel has finished closing, causing "file still open" issues in subsequent operations.
-            if (!_staThread.Join(ComInteropConstants.StaThreadJoinTimeout))
+            if (!_staThread.Join(joinTimeout))
             {
-                // STA thread didn't exit - log error but don't throw
-                // This means Excel is severely stuck (exceeded quit timeout + margin)
+                // STA thread didn't exit - Excel cleanup is severely stuck
+                var reasonForError = _operationTimedOut ? " (operation previously timed out)" : "";
                 _logger.LogError(
                     "[Thread {CallingThread}] STA thread (Id={STAThread}) did NOT exit within {Timeout} for {FileName}. " +
-                    "This indicates Excel cleanup is severely stuck (exceeded quit timeout + margin). " +
-                    "Process will leak.",
-                    callingThread, _staThread.ManagedThreadId, ComInteropConstants.StaThreadJoinTimeout, Path.GetFileName(_workbookPath));
+                    "Excel cleanup is severely stuck{Reason}. Attempting force-kill.",
+                    callingThread, _staThread.ManagedThreadId, joinTimeout, Path.GetFileName(_workbookPath), reasonForError);
 
-                // Don't throw - disposal should not fail. Log the leak and continue.
-                // OS will clean up when process exits.
+                // Force-kill the hung Excel process
+                if (_excelProcessId.HasValue)
+                {
+                    try
+                    {
+                        var excelProcess = System.Diagnostics.Process.GetProcessById(_excelProcessId.Value);
+                        _logger.LogWarning(
+                            "[Thread {CallingThread}] Force-killing Excel process {ProcessId} for {FileName}",
+                            callingThread, _excelProcessId.Value, Path.GetFileName(_workbookPath));
+
+                        excelProcess.Kill();
+                        excelProcess.WaitForExit(5000); // Wait up to 5 seconds for process to die
+
+                        _logger.LogInformation(
+                            "[Thread {CallingThread}] Successfully force-killed Excel process {ProcessId}",
+                            callingThread, _excelProcessId.Value);
+
+                        // Now wait briefly for STA thread to exit after process killed
+                        if (_staThread.Join(TimeSpan.FromSeconds(5)))
+                        {
+                            _logger.LogDebug("[Thread {CallingThread}] STA thread exited after force-kill", callingThread);
+                        }
+                        else
+                        {
+                            _logger.LogWarning(
+                                "[Thread {CallingThread}] STA thread still stuck even after force-kill. Thread leak.",
+                                callingThread);
+                        }
+                    }
+                    catch (ArgumentException)
+                    {
+                        _logger.LogWarning(
+                            "[Thread {CallingThread}] Excel process {ProcessId} not found (already exited?)",
+                            callingThread, _excelProcessId.Value);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex,
+                            "[Thread {CallingThread}] Failed to force-kill Excel process {ProcessId}",
+                            callingThread, _excelProcessId.Value);
+                    }
+                }
+                else
+                {
+                    _logger.LogError(
+                        "[Thread {CallingThread}] No Excel process ID captured - cannot force-kill. Process will leak.",
+                        callingThread);
+                }
             }
         }
         else

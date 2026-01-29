@@ -1,0 +1,147 @@
+# =============================================================================
+# Excel File and Worksheet CLI Test - excelcli session and worksheet commands
+# =============================================================================
+#
+# Tests: excelcli CLI for file and worksheet management
+#
+# Commands Covered:
+#   - excelcli session create: Create new session with empty file
+#   - excelcli session open: Open existing file
+#   - excelcli session list: List active sessions
+#   - excelcli session close: Close session (with optional --save)
+#
+#   - excelcli worksheet list: List all worksheets
+#   - excelcli worksheet create: Create new worksheet
+#   - excelcli worksheet rename: Rename worksheet
+#   - excelcli worksheet delete: Delete worksheet
+#
+# Key Validation:
+#   - LLM correctly uses CLI session workflow
+#   - LLM understands session IDs for subsequent commands
+#   - LLM uses quiet mode (-q) for clean JSON output
+#
+# Prerequisites:
+#   - Windows 10/11 with Excel installed
+#   - excelcli installed and in PATH (or use dotnet run)
+#   - Environment: AZURE_OPENAI_ENDPOINT
+#   - agent-benchmark with CLI server support (feature/combined-skills-cli branch)
+#
+# =============================================================================
+
+criteria:
+  success_rate: 1  # 100% required
+
+ai_summary:
+  enabled: true
+  judge_provider: azure-openai-judge
+
+providers:
+  - name: azure-openai-gpt41
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+  - name: azure-openai-gpt5-chat
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-5.2-chat
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+  # Provider for clarification detection judge
+  - name: azure-openai-judge
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+
+servers:
+  - name: excel-cli
+    type: cli
+    command: "{{CLI_COMMAND}}"
+    shell: powershell
+    working_dir: "{{TEMP_DIR}}"
+    tool_prefix: excel
+
+agents:
+  - name: gpt41-agent
+    servers:
+      - name: excel-cli
+    provider: azure-openai-gpt41
+    # Agent Skills: Load excel-cli skill for CLI-specific guidance
+    skill:
+      path: "{{SKILL_PATH_CLI}}"
+      file_access: true
+    clarification_detection:
+      enabled: true
+      judge_provider: azure-openai-judge
+  - name: gpt5-chat-agent
+    servers:
+      - name: excel-cli
+    provider: azure-openai-gpt5-chat
+    # Agent Skills: Load excel-cli skill for CLI-specific guidance
+    skill:
+      path: "{{SKILL_PATH_CLI}}"
+      file_access: true
+    clarification_detection:
+      enabled: true
+      judge_provider: azure-openai-judge
+
+settings:
+  verbose: true
+  max_iterations: 15
+
+
+sessions:
+  # ==========================================================================
+  # Session 1: File Lifecycle via CLI
+  # ==========================================================================
+  - name: "CLI File Lifecycle"
+    tests:
+      - name: "Complete file lifecycle using CLI"
+        prompt: |
+          Using the Excel CLI tool:
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-file-lifecycle-cli-{{randomValue type='UUID'}}.xlsx and open a session
+          2. List all active Excel sessions to see the session ID
+          3. Close the session without saving
+        assertions:
+          - type: no_clarification_questions
+          - type: cli_exit_code_equals
+            expected: 0
+
+  # ==========================================================================
+  # Session 2: Worksheet Operations via CLI
+  # ==========================================================================
+  - name: "CLI Worksheet Operations"
+    tests:
+      - name: "Create file and worksheet operations using CLI"
+        prompt: |
+          Using the Excel CLI tool:
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-worksheets-cli-{{randomValue type='UUID'}}.xlsx and open a session
+          2. Create a new worksheet called "SalesData"
+          3. Rename the "SalesData" worksheet to "Q1Sales"
+          4. List all worksheets to confirm Q1Sales exists
+          5. Close the session without saving
+        assertions:
+          - type: no_clarification_questions
+          - type: cli_stdout_contains
+            substring: "Q1Sales"
+            description: "Renamed worksheet should appear in list"
+
+  # ==========================================================================
+  # Session 3: Session Persistence with Save
+  # ==========================================================================
+  - name: "CLI Session Save"
+    tests:
+      - name: "Create file, modify, and save using CLI"
+        prompt: |
+          Using the Excel CLI tool:
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-save-cli-{{randomValue type='UUID'}}.xlsx
+          2. Create a worksheet called "Data"
+          3. Write "Hello World" to cell A1 on the Data worksheet
+          4. Close the session WITH saving (--save flag)
+        assertions:
+          - type: no_clarification_questions
+          - type: cli_exit_code_equals
+            expected: 0

@@ -112,7 +112,7 @@ This package provides both **CLI** and **MCP Server** interfaces:
 </div>
 </div>
 
-<p><a href="/features/">See all 22 tools and 206 operations →</a></p>
+<p><a href="/features/">See all 22 tools and 209 operations →</a></p>
 
 ## What Can You Do With It?
 
@@ -172,7 +172,7 @@ The CLI provides 172 operations across 13 command groups, sharing the same Core 
 
 ## Documentation
 
-📖 **[Complete Feature Reference](/features/)** — All 22 tools and 206 operations
+📖 **[Complete Feature Reference](/features/)** — All 22 tools and 209 operations
 
 📥 **[Installation Guide](/installation/)** — Setup for VS Code, Claude Desktop, other MCP clients, and CLI
 

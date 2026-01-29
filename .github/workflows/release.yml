@@ -320,7 +320,7 @@ jobs:
         path: mcpb/artifacts/excel-mcp-*.mcpb
 
   # =============================================================================
-  # Job 5: Build Agent Skills Package
+  # Job 5: Build Agent Skills Packages
   # =============================================================================
   build-agent-skills:
     name: Agent Skills
@@ -337,16 +337,22 @@ jobs:
         echo "VERSION=$version" >> $env:GITHUB_ENV
       shell: pwsh
 
-    - name: Build Agent Skills Package
+    - name: Build Agent Skills Packages
       run: |
         .\scripts\Build-AgentSkills.ps1 -Version $env:VERSION
       shell: pwsh
 
-    - name: Upload Artifact
+    - name: Upload MCP Skill Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: agent-skills
-        path: artifacts/skills/excel-mcp-skills-*.zip
+        name: agent-skill-mcp
+        path: artifacts/skills/excel-mcp-skill-*.zip
+
+    - name: Upload CLI Skill Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: agent-skill-cli
+        path: artifacts/skills/excel-cli-skill-*.zip
 
   # =============================================================================
   # Job 6: Wait for NuGet Propagation + MCP Registry
@@ -503,7 +509,8 @@ jobs:
         ```
 
         **Agent Skills** (for AI coding assistants)
-        - Download `excel-mcp-skills-${{ env.VERSION }}.zip` and extract to your preferred location
+        - **MCP Skill**: Download `excel-mcp-skill-${{ env.VERSION }}.zip` - for conversational AI (Claude Desktop, VS Code Chat)
+        - **CLI Skill**: Download `excel-cli-skill-${{ env.VERSION }}.zip` - for coding agents (Copilot, Cursor, Windsurf)
         - Or use: `npx add-skill sbroenne/mcp-server-excel`
 
         ### Requirements
@@ -523,7 +530,8 @@ jobs:
         for f in artifacts/cli-zip/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/vscode-vsix/*.vsix; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/mcpb-bundle/*.mcpb; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
-        for f in artifacts/agent-skills/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
+        for f in artifacts/agent-skill-mcp/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
+        for f in artifacts/agent-skill-cli/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
 
         echo "Creating release with artifacts:$ARTIFACTS"
 

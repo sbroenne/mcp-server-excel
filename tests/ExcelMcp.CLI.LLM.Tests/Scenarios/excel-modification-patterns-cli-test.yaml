@@ -1,0 +1,153 @@
+# =============================================================================
+# Modification Patterns CLI Test - Validates LLM Uses Targeted Operations
+# =============================================================================
+#
+# Purpose: Validates that LLMs use targeted modification operations instead of
+# delete-and-rebuild patterns when working with Excel data via CLI.
+#
+# Prerequisites:
+#   - Windows 10/11 with Excel installed
+#   - excelcli installed or use dotnet run
+#   - Environment: AZURE_OPENAI_ENDPOINT
+#
+# =============================================================================
+
+criteria:
+  success_rate: 1  # 100% required
+
+ai_summary:
+  enabled: true
+  judge_provider: azure-openai-judge
+
+providers:
+  - name: azure-openai-gpt41
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+  - name: azure-openai-gpt5-chat
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-5.2-chat
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+  - name: azure-openai-judge
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+
+servers:
+  - name: excel-cli
+    type: cli
+    command: "{{CLI_COMMAND}}"
+    shell: powershell
+    working_dir: "{{TEMP_DIR}}"
+    tool_prefix: excel
+
+agents:
+  - name: gpt41-agent
+    servers:
+      - name: excel-cli
+    provider: azure-openai-gpt41
+    skill:
+      path: "{{SKILL_PATH_CLI}}"
+      file_access: true
+    clarification_detection:
+      enabled: true
+      judge_provider: azure-openai-judge
+  - name: gpt5-chat-agent
+    servers:
+      - name: excel-cli
+    provider: azure-openai-gpt5-chat
+    skill:
+      path: "{{SKILL_PATH_CLI}}"
+      file_access: true
+    clarification_detection:
+      enabled: true
+      judge_provider: azure-openai-judge
+
+settings:
+  verbose: true
+  max_iterations: 15
+
+
+sessions:
+  # ==========================================================================
+  # Session 1: Range Updates with Formula Canary
+  # ==========================================================================
+  - name: "Range Updates"
+    tests:
+      - name: "Modify specific cells without touching formula canary"
+        prompt: |
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-range-cli-{{randomValue type='UUID'}}.xlsx and open it
+          2. Set up a budget in A1:C4 on Sheet1:
+             Row 1: Category, Budget, Actual
+             Row 2: Rent, 1000, 1000
+             Row 3: Food, 500, 450
+             Row 4: Transport, 200, 180
+          3. Put a canary formula =ROW()*1000+COLUMN() in cell D1 (will show 1004)
+          4. Update Food actual (C3) to 480
+          5. Update Transport actual (C4) to 195
+          6. Add a new row 5: Utilities, 150, 145
+          7. Read D1 to verify the canary formula still shows 1004
+          8. Read all data from A1:C5 to verify the updates
+          9. Close the file without saving
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(1004)"
+          - type: output_regex
+            pattern: "(?i)(480)"
+
+  # ==========================================================================
+  # Session 2: Table Modification with Table Count Canary
+  # ==========================================================================
+  - name: "Table Operations"
+    tests:
+      - name: "Modify table cell without recreating table"
+        prompt: |
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-table-cli-{{randomValue type='UUID'}}.xlsx and open it
+          2. Put sales data in A1:C4 on Sheet1:
+             Row 1: Product, Price, Quantity
+             Row 2: Widget, 25, 3
+             Row 3: Gadget, 50, 2
+             Row 4: Device, 75, 1
+          3. Convert range A1:C4 into an Excel Table named "SalesTable"
+          4. Update Widget quantity (C2) from 3 to 5 - this should NOT delete the table
+          5. List tables to confirm exactly 1 table named "SalesTable" exists
+          6. Close the file without saving
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(salestable)"
+
+  # ==========================================================================
+  # Session 3: Chart Modification with Chart Count Canary
+  # ==========================================================================
+  - name: "Chart Modifications"
+    tests:
+      - name: "Change chart title without recreating chart"
+        prompt: |
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-chart-cli-{{randomValue type='UUID'}}.xlsx and open it
+          2. Put chart data in A1:B4 on Sheet1:
+             Row 1: Month, Sales
+             Row 2: Jan, 100
+             Row 3: Feb, 150
+             Row 4: Mar, 200
+          3. Create a column chart from A1:B4 with title "Monthly Sales"
+          4. Change ONLY the chart title to "Q1 Sales Report" - do NOT delete and recreate the chart
+          5. List charts to confirm exactly 1 chart exists
+          6. Close the file without saving
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(q1 sales report|chart)"

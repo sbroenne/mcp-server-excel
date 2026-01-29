@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**22 specialized tools with 206 operations for comprehensive Excel automation**
+**22 specialized tools with 209 operations for comprehensive Excel automation**
 
 ---
 
@@ -148,7 +148,7 @@
 
 ---
 
-## 📉 Charts (26 operations)
+## 📉 Charts (28 operations)
 
 **Creation:**
 - Create from range
@@ -195,6 +195,10 @@
 - List trendlines on series
 - Delete trendline
 - Configure trendline (forecast forward/backward, display equation, display R²)
+
+**Placement & Positioning:**
+- Set chart placement (move/size with cells options)
+- Fit to range (position and size to match a range)
 
 **Lifecycle:**
 - List charts
@@ -386,10 +390,10 @@
 |----------|-----------|
 | File Operations | 6 |
 | Power Query | 10 |
-| Data Model/DAX | 18 |
+| Data Model/DAX | 19 |
 | Excel Tables | 27 |
 | PivotTables | 30 |
-| Charts | 26 |
+| Charts | 28 |
 | Ranges | 42 |
 | Worksheets | 16 |
 | Connections | 9 |
@@ -397,7 +401,7 @@
 | VBA Macros | 6 |
 | Slicers | 8 |
 | Conditional Formatting | 2 |
-| **Total** | **206** |
+| **Total** | **209** |
 
 ---
 

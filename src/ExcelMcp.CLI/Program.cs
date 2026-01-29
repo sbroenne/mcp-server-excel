@@ -1,26 +1,6 @@
-using Microsoft.Extensions.DependencyInjection;
 using Sbroenne.ExcelMcp.CLI.Commands;
-using Sbroenne.ExcelMcp.CLI.Commands.Chart;
-using Sbroenne.ExcelMcp.CLI.Commands.ConditionalFormatting;
-using Sbroenne.ExcelMcp.CLI.Commands.Connection;
-using Sbroenne.ExcelMcp.CLI.Commands.DataModel;
-using Sbroenne.ExcelMcp.CLI.Commands.File;
-using Sbroenne.ExcelMcp.CLI.Commands.NamedRange;
-using Sbroenne.ExcelMcp.CLI.Commands.PivotTable;
-using Sbroenne.ExcelMcp.CLI.Commands.PowerQuery;
-using Sbroenne.ExcelMcp.CLI.Commands.Range;
-using Sbroenne.ExcelMcp.CLI.Commands.Session;
-using Sbroenne.ExcelMcp.CLI.Commands.Sheet;
-using Sbroenne.ExcelMcp.CLI.Commands.Slicer;
-using Sbroenne.ExcelMcp.CLI.Commands.Table;
-using Sbroenne.ExcelMcp.CLI.Commands.Vba;
+using Sbroenne.ExcelMcp.CLI.Daemon;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
-using Sbroenne.ExcelMcp.CLI.Infrastructure.Session;
-using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Commands.Chart;
-using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
-using Sbroenne.ExcelMcp.Core.Commands.Range;
-using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -31,9 +11,15 @@ internal sealed class Program
     private static readonly string[] VersionFlags = ["--version", "-v"];
     private static readonly string[] QuietFlags = ["--quiet", "-q"];
 
-    private static int Main(string[] args)
+    private static async Task<int> Main(string[] args)
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
+
+        // Handle daemon run command before Spectre.Console
+        if (args.Length >= 2 && args[0] == "daemon" && args[1] == "run")
+        {
+            return await RunDaemonAsync();
+        }
 
         // Determine if we should show the banner:
         // - Not when --quiet/-q flag is passed
@@ -60,11 +46,7 @@ internal sealed class Program
 
         if (showBanner) RenderHeader();
 
-        var services = new ServiceCollection();
-        ConfigureServices(services);
-
-        using var registrar = new TypeRegistrar(services);
-        var app = new CommandApp(registrar);
+        var app = new CommandApp();
 
         app.Configure(config =>
         {
@@ -73,45 +55,87 @@ internal sealed class Program
             {
                 AnsiConsole.MarkupLine($"[red]Unhandled error:[/] {ex.Message.EscapeMarkup()}");
             });
-            config.ValidateExamples();
+
             config.AddCommand<VersionCommand>("version")
                 .WithDescription("Display excelcli version. Use --check to check for updates.");
 
-            config.AddBranch("session", branch =>
+            // Daemon commands
+            config.AddBranch("daemon", branch =>
             {
-                branch.SetDescription("File and session management for Excel automation. WORKFLOW: open -> use sessionId -> close (save=true to persist).");
-                branch.AddCommand<SessionOpenCommand>("open");
-                branch.AddCommand<SessionCloseCommand>("close")
-                    .WithDescription("Close an Excel session. Use --save to persist changes before closing.");
-                branch.AddCommand<SessionListCommand>("list");
+                branch.SetDescription("Daemon management. The daemon holds Excel sessions across CLI invocations.");
+                branch.AddCommand<DaemonStartCommand>("start")
+                    .WithDescription("Start the daemon in the background.");
+                branch.AddCommand<DaemonStopCommand>("stop")
+                    .WithDescription("Stop the daemon.");
+                branch.AddCommand<DaemonStatusCommand>("status")
+                    .WithDescription("Show daemon status and active sessions.");
             });
 
-            config.AddCommand<CreateEmptyFileCommand>("create-empty")
-                .WithDescription("Create a new empty workbook on disk (use --overwrite to replace existing files).");
-            config.AddCommand<PowerQueryCommand>("powerquery")
-                .WithDescription("Power Query M code and data loading. Actions: list, view, create, update, refresh, load-to, delete.");
-            config.AddCommand<RangeCommand>("range")
-                .WithDescription("Core range operations: get/set values and formulas, copy ranges, clear content, formatting, validation, hyperlinks.");
+            // Session commands
+            config.AddBranch("session", branch =>
+            {
+                branch.SetDescription("Session management. WORKFLOW: open -> use sessionId -> close (--save to persist).");
+                branch.AddCommand<SessionOpenCommand>("open")
+                    .WithDescription("Open an Excel file and create a session.");
+                branch.AddCommand<SessionCloseCommand>("close")
+                    .WithDescription("Close a session. Use --save to persist changes.");
+                branch.AddCommand<SessionListCommand>("list")
+                    .WithDescription("List active sessions.");
+                branch.AddCommand<SessionSaveCommand>("save")
+                    .WithDescription("Save a session without closing it.");
+            });
+
+            // Sheet commands
             config.AddCommand<SheetCommand>("sheet")
-                .WithDescription("Worksheet lifecycle: create, rename, copy, delete, move sheets. Also tab colors and visibility.");
-            config.AddCommand<NamedRangeCommand>("namedrange")
-                .WithDescription("Named ranges for formulas and parameters. Actions: list, read, write, create, update, delete.");
-            config.AddCommand<ConditionalFormattingCommand>("conditionalformat")
-                .WithDescription("Conditional formatting - visual rules based on cell values. Actions: add-rule, clear-rules.");
+                .WithDescription("Worksheet operations: list, create, rename, copy, delete, move.");
+
+            // Range commands
+            config.AddCommand<RangeCommand>("range")
+                .WithDescription("Range operations: get/set values, formulas, number formats, copy, clear.");
+
+            // Table commands
             config.AddCommand<TableCommand>("table")
-                .WithDescription("Excel Tables (ListObjects) - lifecycle, filtering, sorting, totals, Data Model integration.");
+                .WithDescription("Table operations: list, create, read, rename, delete, resize, style, append, get-data.");
+
+            // PowerQuery commands
+            config.AddCommand<PowerQueryCommand>("powerquery")
+                .WithDescription("Power Query operations: list, view, create, update, refresh, delete, load-to.");
+
+            // PivotTable commands
             config.AddCommand<PivotTableCommand>("pivottable")
-                .WithDescription("PivotTable lifecycle and configuration: create, fields, calculated fields, layout, refresh.");
+                .WithDescription("PivotTable operations: list, read, create, delete, refresh.");
+
+            // Chart commands
             config.AddCommand<ChartCommand>("chart")
-                .WithDescription("Chart lifecycle and configuration: create from range/PivotTable, series, axis, legend, trendlines.");
+                .WithDescription("Chart operations: list, read, create, delete, move, fit-to-range.");
+
+            // ChartConfig commands
+            config.AddCommand<ChartConfigCommand>("chartconfig")
+                .WithDescription("Chart configuration: set-title, set-axis-title, add-series, set-style, data-labels, gridlines.");
+
+            // Connection commands
             config.AddCommand<ConnectionCommand>("connection")
-                .WithDescription("Data connections (OLEDB, ODBC, ODC). Use excel_powerquery for Text/Web/CSV sources.");
-            config.AddCommand<DataModelCommand>("datamodel")
-                .WithDescription("Data Model (Power Pivot) - DAX measures, table management, relationships. Tables must be in Data Model first.");
+                .WithDescription("Connection operations: list, view, create, test, refresh, delete.");
+
+            // NamedRange commands
+            config.AddCommand<NamedRangeCommand>("namedrange")
+                .WithDescription("Named range operations: list, read, write, create, update, delete.");
+
+            // ConditionalFormat commands
+            config.AddCommand<ConditionalFormatCommand>("conditionalformat")
+                .WithDescription("Conditional formatting: add-rule, clear-rules.");
+
+            // VBA commands
             config.AddCommand<VbaCommand>("vba")
-                .WithDescription("VBA scripts - requires .xlsm and VBA trust enabled. Actions: list, view, import, update, run, delete.");
+                .WithDescription("VBA operations: list, view, import, update, run, delete.");
+
+            // DataModel commands
+            config.AddCommand<DataModelCommand>("datamodel")
+                .WithDescription("Data Model operations: list-tables, list-measures, create/update/delete measures, evaluate DAX.");
+
+            // Slicer commands
             config.AddCommand<SlicerCommand>("slicer")
-                .WithDescription("Slicer management for visual filtering. Works with PivotTables and Tables.");
+                .WithDescription("Slicer operations: create, list, set-selection, delete (for PivotTables and Tables).");
         });
 
         try
@@ -134,31 +158,32 @@ internal sealed class Program
         }
     }
 
-    private static void ConfigureServices(IServiceCollection services)
+    private static async Task<int> RunDaemonAsync()
     {
-        services.AddSingleton<SessionService>();
-        services.AddSingleton<ISessionService>(sp => sp.GetRequiredService<SessionService>());
-        services.AddSingleton<ICliConsole, SpectreCliConsole>();
-        services.AddSingleton<IFileCommands, FileCommands>();
-        services.AddSingleton<IDataModelCommands, DataModelCommands>();
-        services.AddSingleton<IPowerQueryCommands>(sp => new PowerQueryCommands(sp.GetRequiredService<IDataModelCommands>()));
-        services.AddSingleton<IRangeCommands, RangeCommands>();
-        services.AddSingleton<ISheetCommands, SheetCommands>();
-        services.AddSingleton<INamedRangeCommands, NamedRangeCommands>();
-        services.AddSingleton<ITableCommands, TableCommands>();
-        services.AddSingleton<IPivotTableCommands, PivotTableCommands>();
-        services.AddSingleton<IChartCommands, ChartCommands>();
-        services.AddSingleton<IConditionalFormattingCommands, ConditionalFormattingCommands>();
-        services.AddSingleton<IConnectionCommands, ConnectionCommands>();
-        services.AddSingleton<IVbaCommands, VbaCommands>();
+        using var daemon = new ExcelDaemon();
+        try
+        {
+            await daemon.RunAsync();
+            return 0;
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("already running"))
+        {
+            Console.Error.WriteLine("Daemon is already running.");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Daemon error: {ex.Message}");
+            return 1;
+        }
     }
 
     private static void RenderHeader()
     {
-        AnsiConsole.Write(new FigletText("Excel CLI").Color(Color.Blue));
+        AnsiConsole.Write(new FigletText("Excel CLI").Color(Spectre.Console.Color.Blue));
         AnsiConsole.MarkupLine("[dim]Excel automation powered by ExcelMcp Core[/]");
         AnsiConsole.MarkupLine("[yellow]Workflow:[/] [green]session open <file>[/] → run commands with [green]--session <id>[/] → [green]session close --save[/].");
-        AnsiConsole.MarkupLine("[dim]Most commands expect an active session so they can reuse the same Excel instance.[/]");
+        AnsiConsole.MarkupLine("[dim]A background daemon manages sessions for performance.[/]");
         AnsiConsole.WriteLine();
     }
 }

@@ -70,6 +70,10 @@ agents:
     servers:
       - name: excel-mcp
     provider: azure-openai-gpt41
+    # Agent Skills: Load excel-mcp skill for server-specific guidance
+    skill:
+      path: "{{SKILL_PATH_MCP}}"
+      file_access: true
     clarification_detection:
       enabled: true
       judge_provider: azure-openai-judge
@@ -77,6 +81,10 @@ agents:
     servers:
       - name: excel-mcp
     provider: azure-openai-gpt5-chat
+    # Agent Skills: Load excel-mcp skill for server-specific guidance
+    skill:
+      path: "{{SKILL_PATH_MCP}}"
+      file_access: true
     clarification_detection:
       enabled: true
       judge_provider: azure-openai-judge

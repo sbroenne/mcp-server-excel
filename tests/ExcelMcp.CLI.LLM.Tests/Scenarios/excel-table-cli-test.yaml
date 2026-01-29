@@ -1,0 +1,136 @@
+# =============================================================================
+# Excel Table CLI Test - excelcli table command
+# =============================================================================
+#
+# Tests: excelcli CLI for structured table operations
+#
+# Commands Covered:
+#   - excelcli table create: Create table from range
+#   - excelcli table list: List all tables
+#   - excelcli table get-data: Get table data
+#   - excelcli table delete: Delete table
+#
+# Key Validation:
+#   - LLM correctly uses CLI syntax for table operations
+#   - LLM understands session workflow (open → operations → close)
+#   - LLM uses quiet mode (-q) for clean JSON output
+#
+# Prerequisites:
+#   - Windows 10/11 with Excel installed
+#   - excelcli installed and in PATH (or use dotnet run)
+#   - Environment: AZURE_OPENAI_ENDPOINT
+#   - agent-benchmark with CLI server support (feature/combined-skills-cli branch)
+#
+# =============================================================================
+
+criteria:
+  success_rate: 1  # 100% required
+
+ai_summary:
+  enabled: true
+  judge_provider: azure-openai-judge
+
+providers:
+  - name: azure-openai-gpt41
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+  - name: azure-openai-gpt5-chat
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-5.2-chat
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+  # Provider for clarification detection judge
+  - name: azure-openai-judge
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+
+servers:
+  - name: excel-cli
+    type: cli
+    command: "{{CLI_COMMAND}}"
+    shell: powershell
+    working_dir: "{{TEMP_DIR}}"
+    tool_prefix: excel
+
+agents:
+  - name: gpt41-agent
+    servers:
+      - name: excel-cli
+    provider: azure-openai-gpt41
+    # Agent Skills: Load excel-cli skill for CLI-specific guidance
+    skill:
+      path: "{{SKILL_PATH_CLI}}"
+      file_access: true
+    clarification_detection:
+      enabled: true
+      judge_provider: azure-openai-judge
+  - name: gpt5-chat-agent
+    servers:
+      - name: excel-cli
+    provider: azure-openai-gpt5-chat
+    # Agent Skills: Load excel-cli skill for CLI-specific guidance
+    skill:
+      path: "{{SKILL_PATH_CLI}}"
+      file_access: true
+    clarification_detection:
+      enabled: true
+      judge_provider: azure-openai-judge
+
+settings:
+  verbose: true
+  max_iterations: 15
+
+
+sessions:
+  # ==========================================================================
+  # Session 1: Table Creation and Query via CLI
+  # ==========================================================================
+  - name: "CLI Table Creation and Query"
+    tests:
+      - name: "Create table and query data using CLI"
+        prompt: |
+          Using the Excel CLI tool:
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-table-cli-{{randomValue type='UUID'}}.xlsx
+          2. On Sheet1, put these column headers in A1:D1: Product, Quantity, Price, Total
+          3. Add data in A2:D3:
+             Row 2: Widget, 10, 5.99, 59.90
+             Row 3: Gadget, 5, 12.99, 64.95
+          4. Create an Excel table from A1:D3 and name it "SalesData"
+          5. List all tables to confirm SalesData exists
+          6. Get the data from the SalesData table
+          7. Close the file without saving
+        assertions:
+          - type: no_clarification_questions
+          - type: cli_stdout_contains
+            substring: "SalesData"
+            description: "Table name should appear in output"
+
+  # ==========================================================================
+  # Session 2: Table Lifecycle via CLI
+  # ==========================================================================
+  - name: "CLI Table Lifecycle"
+    tests:
+      - name: "Create and delete table using CLI"
+        prompt: |
+          Using the Excel CLI tool:
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-table-lifecycle-cli-{{randomValue type='UUID'}}.xlsx
+          2. Put these column headers in A1:C1: ID, Name, Status
+          3. Add data in A2:C3:
+             Row 2: 1, Task One, Active
+             Row 3: 2, Task Two, Complete
+          4. Create a table from A1:C3 called "TaskList"
+          5. List all tables to verify TaskList was created
+          6. Delete the TaskList table
+          7. Close the file without saving
+        assertions:
+          - type: no_clarification_questions
+          - type: cli_stdout_contains
+            substring: "TaskList"
+            description: "Table name should appear in list output"

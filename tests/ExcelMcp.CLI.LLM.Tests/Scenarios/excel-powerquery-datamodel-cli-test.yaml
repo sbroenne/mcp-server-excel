@@ -1,0 +1,229 @@
+# =============================================================================
+# Power Query & Data Model CLI Test
+# =============================================================================
+#
+# Tests: Complete BI workflow via CLI - Import → Model → Analyze → Visualize
+#
+# Prerequisites:
+#   - Windows 10/11 with Excel installed
+#   - excelcli installed or use dotnet run
+#   - Environment: AZURE_OPENAI_ENDPOINT
+#
+# =============================================================================
+
+criteria:
+  success_rate: 1  # 100% required
+
+ai_summary:
+  enabled: true
+  judge_provider: azure-openai-judge
+
+providers:
+  - name: azure-openai-gpt41
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+    retry:
+      retry_on_429: true
+      max_retries: 5
+  - name: azure-openai-gpt52-chat
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-5.2-chat
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+    retry:
+      retry_on_429: true
+      max_retries: 5
+  - name: azure-openai-judge
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-5.2-chat
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+
+servers:
+  - name: excel-cli
+    type: cli
+    command: "{{CLI_COMMAND}}"
+    shell: powershell
+    working_dir: "{{TEMP_DIR}}"
+    tool_prefix: excel
+
+agents:
+  - name: gpt41-agent
+    servers:
+      - name: excel-cli
+    provider: azure-openai-gpt41
+    skill:
+      path: "{{SKILL_PATH_CLI}}"
+      file_access: true
+    clarification_detection:
+      enabled: true
+      judge_provider: azure-openai-judge
+  - name: gpt52-chat-agent
+    servers:
+      - name: excel-cli
+    provider: azure-openai-gpt52-chat
+    skill:
+      path: "{{SKILL_PATH_CLI}}"
+      file_access: true
+    clarification_detection:
+      enabled: true
+      judge_provider: azure-openai-judge
+
+settings:
+  verbose: true
+  max_iterations: 20
+
+
+sessions:
+  # ==========================================================================
+  # Complete BI Dashboard Build - Progressive workflow
+  # ==========================================================================
+  - name: "Sales Dashboard Build"
+    tests:
+      - name: "Create workbook with sales data"
+        prompt: |
+          I want to build a sales analysis dashboard.
+
+          Create a new Excel file at {{TEMP_DIR}}/sales-dashboard-cli-{{randomValue type='UUID'}}.xlsx
+
+          Enter this quarterly sales data starting at A1:
+
+          Region, Quarter, Product, Revenue, Units
+          North, Q1, Laptops, 45000, 30
+          North, Q1, Phones, 28000, 70
+          North, Q2, Laptops, 52000, 35
+          North, Q2, Phones, 31000, 80
+          South, Q1, Laptops, 38000, 25
+          South, Q1, Phones, 24000, 60
+          South, Q2, Laptops, 48000, 32
+          South, Q2, Phones, 29000, 75
+
+          Convert this data into an Excel table called "Sales"
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(sales|table|created|success)"
+
+      - name: "Add to Data Model with measures"
+        prompt: |
+          Add the Sales table to the Data Model.
+
+          Then create these measures:
+          - Total Revenue - sum of all revenue
+          - Total Units - sum of all units sold
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(measure|revenue|units|data model|created)"
+
+      - name: "Create PivotTable analysis"
+        prompt: |
+          Create a PivotTable on a new sheet using the Data Model.
+
+          Set it up to show:
+          - Regions as rows
+          - Quarters as columns
+          - Total Revenue as the values
+
+          Which region performed better in Q2?
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(pivot|north|south|q2|revenue)"
+
+      - name: "Save and close"
+        prompt: |
+          Save and close the file.
+
+          Give me a summary: which region had better Q2 revenue?
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(north|south|saved|closed)"
+
+
+  # ==========================================================================
+  # Multi-Table Star Schema - Related tables workflow
+  # ==========================================================================
+  - name: "Star Schema Analysis"
+    tests:
+      - name: "Create Products dimension"
+        prompt: |
+          I need to set up a star schema for analysis.
+
+          Create a new Excel file at {{TEMP_DIR}}/star-schema-cli-{{randomValue type='UUID'}}.xlsx
+
+          On a sheet called "Products", enter this product catalog starting at A1:
+
+          ProductID, ProductName, Category, UnitPrice
+          P001, Laptop Pro, Electronics, 1200
+          P002, Wireless Headphones, Electronics, 150
+          P003, Standing Desk, Furniture, 400
+          P004, Ergonomic Chair, Furniture, 250
+          P005, USB Hub, Electronics, 35
+
+          Make it a table called "Products" and add it to the Data Model.
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(products|table|data model|success)"
+
+      - name: "Create Orders fact table"
+        prompt: |
+          Create a new sheet called "Orders" with this data starting at A1:
+
+          OrderID, ProductID, Quantity, OrderDate
+          1001, P001, 2, 2024-03-01
+          1002, P002, 5, 2024-03-02
+          1003, P003, 1, 2024-03-03
+          1004, P001, 1, 2024-03-04
+          1005, P004, 3, 2024-03-05
+
+          Make it a table called "Orders" and add it to the Data Model.
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(orders|table|data model|success)"
+
+      - name: "Create table relationship"
+        prompt: |
+          Create a relationship between the Orders and Products tables using ProductID.
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(relationship|productid|created|success)"
+
+      - name: "Cross-table PivotTable analysis"
+        prompt: |
+          Create a PivotTable on a new sheet that shows:
+          - Product Categories as rows (from the Products table)
+          - Sum of Quantity as the values (from the Orders table)
+
+          Save and close the file.
+
+          Which category had more orders?
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(pivot|electronics|furniture|category)"
