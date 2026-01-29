@@ -2,6 +2,36 @@
 
 Cross-platform AI assistant guidance for Excel MCP Server, following the emerging Agent Skills specification.
 
+## Two Skills for Different Use Cases
+
+| Skill | Target | Best For |
+|-------|--------|----------|
+| **[excel-cli](excel-cli/SKILL.md)** | CLI Tool | **Coding agents** (Copilot, Cursor, Windsurf) - token-efficient, `--help` discoverable |
+| **[excel-mcp](excel-mcp/SKILL.md)** | MCP Server | **Conversational AI** (Claude Desktop, VS Code Chat) - rich tool schemas, exploratory workflows |
+
+### When to use CLI (Recommended for Coding Agents)
+
+Modern coding agents increasingly favor CLI-based workflows over MCP because:
+- **Token-efficient**: No large tool schemas loaded into context
+- **Discoverable**: Agents can run `excelcli --help` to learn commands
+- **Scriptable**: Works in bash pipelines, CI/CD, batch processing
+- **Quiet mode**: `-q` flag outputs clean JSON only
+
+```bash
+# Coding agent workflow
+excelcli -q session open C:\Data\Report.xlsx
+excelcli -q range set-values --session 1 --sheet Sheet1 --range A1 --values-json '[["Hello"]]'
+excelcli -q session close --session 1 --save
+```
+
+### When to use MCP Server
+
+MCP remains relevant for:
+- Exploratory automation with iterative reasoning
+- Self-healing workflows needing rich introspection  
+- Long-running autonomous tasks with continuous context
+- Conversational interfaces (Claude Desktop, VS Code Chat)
+
 ## What Are Agent Skills?
 
 Agent Skills are reusable instruction sets that extend AI coding assistants with domain-specific knowledge. They enable consistent, reliable behavior when working with specific tools like Excel MCP Server.
@@ -69,8 +99,8 @@ cp -r mcp-server-excel/skills/excel-mcp ~/.copilot/skills/
 ```
 skills/
 ├── README.md                    # This file
-├── excel-mcp/                   # Main skill package
-│   ├── SKILL.md                 # Primary skill definition
+├── excel-mcp/                   # MCP Server skill package
+│   ├── SKILL.md                 # Primary skill definition (MCP tools)
 │   ├── VERSION                  # Version tracking
 │   └── references/              # Supporting documentation
 │       ├── workflows.md         # Production workflow patterns
@@ -82,6 +112,8 @@ skills/
 │       ├── excel_range.md       # Range operations
 │       ├── excel_worksheet.md   # Worksheet operations
 │       └── claude-desktop.md    # Claude Desktop setup
+├── excel-cli/                   # CLI skill package (NEW)
+│   └── SKILL.md                 # CLI commands documentation
 ├── CLAUDE.md                    # Claude Code project instructions
 └── .cursorrules                 # Cursor-specific rules
 ```

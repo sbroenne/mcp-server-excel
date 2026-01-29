@@ -58,9 +58,19 @@ try {
     # Copy skill content to staging
     Write-Host "Copying skill content..." -ForegroundColor Yellow
 
+    # Copy excel-mcp skill (MCP Server)
     $SkillSource = Join-Path $SkillsDir "excel-mcp"
     $SkillDest = Join-Path $StagingDir "excel-mcp"
     Copy-Item -Path $SkillSource -Destination $SkillDest -Recurse
+    Write-Host "  Copied: excel-mcp (MCP Server skill)" -ForegroundColor Green
+
+    # Copy excel-cli skill (CLI)
+    $CliSkillSource = Join-Path $SkillsDir "excel-cli"
+    if (Test-Path $CliSkillSource) {
+        $CliSkillDest = Join-Path $StagingDir "excel-cli"
+        Copy-Item -Path $CliSkillSource -Destination $CliSkillDest -Recurse
+        Write-Host "  Copied: excel-cli (CLI skill)" -ForegroundColor Green
+    }
 
     # Copy root-level files
     $ReadmeSrc = Join-Path $SkillsDir "README.md"

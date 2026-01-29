@@ -17,18 +17,19 @@ internal sealed class SessionCloseCommand : Command<SessionCloseCommand.Settings
 
     public override int Execute(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
-        var closed = _sessionService.Close(settings.SessionId);
+        var closed = _sessionService.Close(settings.SessionId, save: settings.Save);
         if (!closed)
         {
             _console.WriteError($"Session '{settings.SessionId}' not found.");
-            return -1;
+            return 1;
         }
 
         _console.WriteJson(new
         {
             success = true,
             sessionId = settings.SessionId,
-            action = "close"
+            action = "close",
+            saved = settings.Save
         });
         return 0;
     }
@@ -37,5 +38,8 @@ internal sealed class SessionCloseCommand : Command<SessionCloseCommand.Settings
     {
         [CommandArgument(0, "<session>")]
         public string SessionId { get; init; } = string.Empty;
+
+        [CommandOption("--save")]
+        public bool Save { get; init; }
     }
 }

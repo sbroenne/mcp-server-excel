@@ -50,8 +50,22 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
             "set-chart-type" => ExecuteSetChartType(batch, settings),
             "set-title" => ExecuteSetTitle(batch, settings),
             "set-axis-title" => ExecuteSetAxisTitle(batch, settings),
+            "get-axis-number-format" => ExecuteGetAxisNumberFormat(batch, settings),
+            "set-axis-number-format" => ExecuteSetAxisNumberFormat(batch, settings),
             "show-legend" => ExecuteShowLegend(batch, settings),
             "set-style" => ExecuteSetStyle(batch, settings),
+            "set-data-labels" => ExecuteSetDataLabels(batch, settings),
+            "get-axis-scale" => ExecuteGetAxisScale(batch, settings),
+            "set-axis-scale" => ExecuteSetAxisScale(batch, settings),
+            "get-gridlines" => ExecuteGetGridlines(batch, settings),
+            "set-gridlines" => ExecuteSetGridlines(batch, settings),
+            "set-series-format" => ExecuteSetSeriesFormat(batch, settings),
+            "list-trendlines" => ExecuteListTrendlines(batch, settings),
+            "add-trendline" => ExecuteAddTrendline(batch, settings),
+            "delete-trendline" => ExecuteDeleteTrendline(batch, settings),
+            "set-trendline" => ExecuteSetTrendline(batch, settings),
+            "set-placement" => ExecuteSetPlacement(batch, settings),
+            "fit-to-range" => ExecuteFitToRange(batch, settings),
             _ => ReportUnknown(action)
         };
     }
@@ -397,6 +411,352 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
         }
     }
 
+    private int ExecuteGetAxisNumberFormat(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ChartName) || !settings.AxisType.HasValue)
+        {
+            _console.WriteError("--chart-name and --axis-type are required for get-axis-number-format.");
+            return -1;
+        }
+
+        try
+        {
+            var format = _chartCommands.GetAxisNumberFormat(batch, settings.ChartName, settings.AxisType.Value);
+            _console.WriteJson(new { success = true, chartName = settings.ChartName, axis = settings.AxisType.Value.ToString(), numberFormat = format });
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to get axis number format: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private int ExecuteSetAxisNumberFormat(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ChartName) || !settings.AxisType.HasValue || string.IsNullOrWhiteSpace(settings.NumberFormat))
+        {
+            _console.WriteError("--chart-name, --axis-type, and --number-format are required for set-axis-number-format.");
+            return -1;
+        }
+
+        try
+        {
+            _chartCommands.SetAxisNumberFormat(batch, settings.ChartName, settings.AxisType.Value, settings.NumberFormat);
+            _console.WriteInfo($"Axis number format set for chart '{settings.ChartName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to set axis number format: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private int ExecuteSetDataLabels(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ChartName))
+        {
+            _console.WriteError("--chart-name is required for set-data-labels.");
+            return -1;
+        }
+
+        try
+        {
+            _chartCommands.SetDataLabels(
+                batch,
+                settings.ChartName,
+                settings.ShowValue,
+                settings.ShowPercentage,
+                settings.ShowSeriesName,
+                settings.ShowCategoryName,
+                settings.ShowBubbleSize,
+                settings.Separator,
+                settings.LabelPosition,
+                settings.SeriesIndex);
+            _console.WriteInfo($"Data labels updated for chart '{settings.ChartName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to set data labels: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private int ExecuteGetAxisScale(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ChartName) || !settings.AxisType.HasValue)
+        {
+            _console.WriteError("--chart-name and --axis-type are required for get-axis-scale.");
+            return -1;
+        }
+
+        try
+        {
+            var result = _chartCommands.GetAxisScale(batch, settings.ChartName, settings.AxisType.Value);
+            _console.WriteJson(result);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to get axis scale: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private int ExecuteSetAxisScale(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ChartName) || !settings.AxisType.HasValue)
+        {
+            _console.WriteError("--chart-name and --axis-type are required for set-axis-scale.");
+            return -1;
+        }
+
+        try
+        {
+            _chartCommands.SetAxisScale(
+                batch,
+                settings.ChartName,
+                settings.AxisType.Value,
+                settings.MinimumScale,
+                settings.MaximumScale,
+                settings.MajorUnit,
+                settings.MinorUnit);
+            _console.WriteInfo($"Axis scale set for chart '{settings.ChartName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to set axis scale: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private int ExecuteGetGridlines(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ChartName))
+        {
+            _console.WriteError("--chart-name is required for get-gridlines.");
+            return -1;
+        }
+
+        try
+        {
+            var result = _chartCommands.GetGridlines(batch, settings.ChartName);
+            _console.WriteJson(result);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to get gridlines: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private int ExecuteSetGridlines(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ChartName) || !settings.AxisType.HasValue)
+        {
+            _console.WriteError("--chart-name and --axis-type are required for set-gridlines.");
+            return -1;
+        }
+
+        try
+        {
+            _chartCommands.SetGridlines(
+                batch,
+                settings.ChartName,
+                settings.AxisType.Value,
+                settings.ShowMajor,
+                settings.ShowMinor);
+            _console.WriteInfo($"Gridlines updated for chart '{settings.ChartName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to set gridlines: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private int ExecuteSetSeriesFormat(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ChartName) || !settings.SeriesIndex.HasValue)
+        {
+            _console.WriteError("--chart-name and --series-index are required for set-series-format.");
+            return -1;
+        }
+
+        try
+        {
+            _chartCommands.SetSeriesFormat(
+                batch,
+                settings.ChartName,
+                settings.SeriesIndex.Value,
+                settings.MarkerStyle,
+                settings.MarkerSize,
+                settings.MarkerBackgroundColor,
+                settings.MarkerForegroundColor,
+                settings.InvertIfNegative);
+            _console.WriteInfo($"Series format updated for chart '{settings.ChartName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to set series format: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private int ExecuteListTrendlines(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ChartName) || !settings.SeriesIndex.HasValue)
+        {
+            _console.WriteError("--chart-name and --series-index are required for list-trendlines.");
+            return -1;
+        }
+
+        try
+        {
+            var result = _chartCommands.ListTrendlines(batch, settings.ChartName, settings.SeriesIndex.Value);
+            _console.WriteJson(result);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to list trendlines: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private int ExecuteAddTrendline(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ChartName) || !settings.SeriesIndex.HasValue || !settings.TrendlineType.HasValue)
+        {
+            _console.WriteError("--chart-name, --series-index, and --trendline-type are required for add-trendline.");
+            return -1;
+        }
+
+        try
+        {
+            var result = _chartCommands.AddTrendline(
+                batch,
+                settings.ChartName,
+                settings.SeriesIndex.Value,
+                settings.TrendlineType.Value,
+                settings.TrendlineOrder,
+                settings.TrendlinePeriod,
+                settings.TrendlineForward,
+                settings.TrendlineBackward,
+                settings.TrendlineIntercept,
+                settings.DisplayEquation ?? false,
+                settings.DisplayRSquared ?? false,
+                settings.TrendlineName);
+            _console.WriteJson(result);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to add trendline: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private int ExecuteDeleteTrendline(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ChartName) || !settings.SeriesIndex.HasValue || !settings.TrendlineIndex.HasValue)
+        {
+            _console.WriteError("--chart-name, --series-index, and --trendline-index are required for delete-trendline.");
+            return -1;
+        }
+
+        try
+        {
+            _chartCommands.DeleteTrendline(batch, settings.ChartName, settings.SeriesIndex.Value, settings.TrendlineIndex.Value);
+            _console.WriteInfo($"Trendline deleted from chart '{settings.ChartName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to delete trendline: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private int ExecuteSetTrendline(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ChartName) || !settings.SeriesIndex.HasValue || !settings.TrendlineIndex.HasValue)
+        {
+            _console.WriteError("--chart-name, --series-index, and --trendline-index are required for set-trendline.");
+            return -1;
+        }
+
+        try
+        {
+            _chartCommands.SetTrendline(
+                batch,
+                settings.ChartName,
+                settings.SeriesIndex.Value,
+                settings.TrendlineIndex.Value,
+                settings.TrendlineForward,
+                settings.TrendlineBackward,
+                settings.TrendlineIntercept,
+                settings.DisplayEquation,
+                settings.DisplayRSquared,
+                settings.TrendlineName);
+            _console.WriteInfo($"Trendline updated for chart '{settings.ChartName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to set trendline: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private int ExecuteSetPlacement(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ChartName) || !settings.Placement.HasValue)
+        {
+            _console.WriteError("--chart-name and --placement are required for set-placement. (1=Move and size with cells, 2=Move but don't size, 3=Don't move or size)");
+            return -1;
+        }
+
+        try
+        {
+            _chartCommands.SetPlacement(batch, settings.ChartName, settings.Placement.Value);
+            _console.WriteInfo($"Placement mode set for chart '{settings.ChartName}'.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to set placement: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private int ExecuteFitToRange(IExcelBatch batch, Settings settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ChartName) || string.IsNullOrWhiteSpace(settings.SheetName) || string.IsNullOrWhiteSpace(settings.SourceRange))
+        {
+            _console.WriteError("--chart-name, --sheet, and --source-range are required for fit-to-range.");
+            return -1;
+        }
+
+        try
+        {
+            _chartCommands.FitToRange(batch, settings.ChartName, settings.SheetName, settings.SourceRange);
+            _console.WriteInfo($"Chart '{settings.ChartName}' fitted to range.");
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _console.WriteError($"Failed to fit chart to range: {ex.Message}");
+            return 1;
+        }
+    }
+
     private int ReportUnknown(string action)
     {
         _console.WriteError($"Unknown Chart action '{action}'.");
@@ -464,5 +824,101 @@ internal sealed class ChartCommand : Command<ChartCommand.Settings>
 
         [CommandOption("--style-id <ID>")]
         public int? StyleId { get; init; }
+
+        // Data labels options
+        [CommandOption("--show-value <BOOL>")]
+        public bool? ShowValue { get; init; }
+
+        [CommandOption("--show-percentage <BOOL>")]
+        public bool? ShowPercentage { get; init; }
+
+        [CommandOption("--show-series-name <BOOL>")]
+        public bool? ShowSeriesName { get; init; }
+
+        [CommandOption("--show-category-name <BOOL>")]
+        public bool? ShowCategoryName { get; init; }
+
+        [CommandOption("--show-bubble-size <BOOL>")]
+        public bool? ShowBubbleSize { get; init; }
+
+        [CommandOption("--separator <TEXT>")]
+        public string? Separator { get; init; }
+
+        [CommandOption("--label-position <POSITION>")]
+        public DataLabelPosition? LabelPosition { get; init; }
+
+        // Axis scale options
+        [CommandOption("--minimum-scale <VALUE>")]
+        public double? MinimumScale { get; init; }
+
+        [CommandOption("--maximum-scale <VALUE>")]
+        public double? MaximumScale { get; init; }
+
+        [CommandOption("--major-unit <VALUE>")]
+        public double? MajorUnit { get; init; }
+
+        [CommandOption("--minor-unit <VALUE>")]
+        public double? MinorUnit { get; init; }
+
+        [CommandOption("--number-format <FORMAT>")]
+        public string? NumberFormat { get; init; }
+
+        // Gridlines options
+        [CommandOption("--show-major <BOOL>")]
+        public bool? ShowMajor { get; init; }
+
+        [CommandOption("--show-minor <BOOL>")]
+        public bool? ShowMinor { get; init; }
+
+        // Series format options
+        [CommandOption("--marker-style <STYLE>")]
+        public MarkerStyle? MarkerStyle { get; init; }
+
+        [CommandOption("--marker-size <SIZE>")]
+        public int? MarkerSize { get; init; }
+
+        [CommandOption("--marker-background-color <HEX>")]
+        public string? MarkerBackgroundColor { get; init; }
+
+        [CommandOption("--marker-foreground-color <HEX>")]
+        public string? MarkerForegroundColor { get; init; }
+
+        [CommandOption("--invert-if-negative <BOOL>")]
+        public bool? InvertIfNegative { get; init; }
+
+        // Trendline options
+        [CommandOption("--trendline-type <TYPE>")]
+        public TrendlineType? TrendlineType { get; init; }
+
+        [CommandOption("--trendline-index <INDEX>")]
+        public int? TrendlineIndex { get; init; }
+
+        [CommandOption("--trendline-order <ORDER>")]
+        public int? TrendlineOrder { get; init; }
+
+        [CommandOption("--trendline-period <PERIOD>")]
+        public int? TrendlinePeriod { get; init; }
+
+        [CommandOption("--trendline-forward <PERIODS>")]
+        public double? TrendlineForward { get; init; }
+
+        [CommandOption("--trendline-backward <PERIODS>")]
+        public double? TrendlineBackward { get; init; }
+
+        [CommandOption("--trendline-intercept <VALUE>")]
+        public double? TrendlineIntercept { get; init; }
+
+        [CommandOption("--display-equation <BOOL>")]
+        public bool? DisplayEquation { get; init; }
+
+        [CommandOption("--display-r-squared <BOOL>")]
+        public bool? DisplayRSquared { get; init; }
+
+        [CommandOption("--trendline-name <NAME>")]
+        public string? TrendlineName { get; init; }
+
+        // Placement option
+        [CommandOption("--placement <MODE>")]
+        public int? Placement { get; init; }
     }
 }
