@@ -5,8 +5,7 @@ namespace Sbroenne.ExcelMcp.CLI.Infrastructure.Session;
 internal interface ISessionService
 {
     string Create(string filePath);
-    bool Save(string sessionId);
-    bool Close(string sessionId);
+    bool Close(string sessionId, bool save = false);
     IReadOnlyList<SessionDescriptor> List();
     IExcelBatch GetBatch(string sessionId);
 }

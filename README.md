@@ -19,6 +19,25 @@
 
 **MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (22 tools with 206 operations).
 
+### CLI vs MCP Server
+
+This package provides both **CLI** and **MCP Server** interfaces. Choose based on your use case:
+
+| Interface | Best For | Why |
+|-----------|----------|-----|
+| **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | Token-efficient: no large tool schemas. Agents invoke `excelcli -q session open` directly. Better for high-throughput agents with limited context windows. |
+| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool schemas, session management, exploratory workflows. Better for iterative reasoning and long-running autonomous tasks. |
+
+**Installation:**
+```bash
+# CLI for coding agents
+dotnet tool install --global Sbroenne.ExcelMcp.CLI
+excelcli --help
+
+# MCP Server for AI assistants (or use VS Code extension)
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+```
+
 **🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
 
 **💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
@@ -107,9 +126,30 @@ Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/
 
 ## 📋 Additional Information
 
-### CLI for Direct Automation
+### CLI for Coding Agents (Recommended)
 
-ExcelMcp includes a CLI interface for Excel automation without AI assistance. This is useful for RPA workflows, CI/CD pipelines, or batch processing scripts. Run `excelcli --help` for a categorized list of commands, or `excelcli sheet --help` (replace `sheet`) to view action-specific options. **Always follow the session pattern:** `excelcli session open <file>` → run commands with `--session <id>` → `excelcli session save/close <id>`. See **[CLI Guide](src/ExcelMcp.CLI/README.md)** for complete documentation.
+**For coding agents like GitHub Copilot, Cursor, and Windsurf, use the CLI instead of MCP Server.** CLI invocations are more token-efficient: they avoid loading large tool schemas into the model context, allowing agents to act through concise commands.
+
+```bash
+# Install CLI
+dotnet tool install --global Sbroenne.ExcelMcp.CLI
+
+# Agent workflow (use -q for clean JSON output)
+excelcli -q session open C:\Data\Report.xlsx    # Returns {"sessionId":1,...}
+excelcli -q range set-values --session 1 --sheet Sheet1 --range A1 --values-json '[["Hello"]]'
+excelcli -q session save --session 1
+excelcli -q session close --session 1
+```
+
+**Key features:**
+- `-q` / `--quiet` flag for clean JSON output (no banner)
+- Auto-suppresses banner when output is piped
+- All commands output parseable JSON
+- Session pattern for efficient Excel reuse
+
+Run `excelcli --help` for all commands, or `excelcli <command> --help` for action-specific options.
+
+📚 **[CLI Skill for Agents →](skills/excel-cli/SKILL.md)** | **[CLI Guide →](src/ExcelMcp.CLI/README.md)**
 
 ### Agent Skills (Cross-Platform AI Guidance)
 

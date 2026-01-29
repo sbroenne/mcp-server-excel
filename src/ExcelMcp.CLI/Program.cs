@@ -28,30 +28,41 @@ namespace Sbroenne.ExcelMcp.CLI;
 internal sealed class Program
 {
     private static readonly string[] VersionFlags = ["--version", "-v"];
+    private static readonly string[] QuietFlags = ["--quiet", "-q"];
 
     private static int Main(string[] args)
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-        if (args.Length == 0)
+        // Determine if we should show the banner:
+        // - Not when --quiet/-q flag is passed
+        // - Not when output is redirected (piped to another process or file)
+        var isQuiet = args.Any(arg => QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase));
+        var isPiped = Console.IsOutputRedirected;
+        var showBanner = !isQuiet && !isPiped;
+
+        // Remove --quiet/-q from args before passing to Spectre.Console.Cli
+        var filteredArgs = args.Where(arg => !QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)).ToArray();
+
+        if (filteredArgs.Length == 0)
         {
-            RenderHeader();
+            if (showBanner) RenderHeader();
             AnsiConsole.MarkupLine("[dim]No command supplied. Use [green]--help[/] for usage examples.[/]");
             return 0;
         }
 
-        if (args.Any(arg => VersionFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)))
+        if (filteredArgs.Any(arg => VersionFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)))
         {
             VersionReporter.WriteVersion();
             return 0;
         }
 
-        RenderHeader();
+        if (showBanner) RenderHeader();
 
         var services = new ServiceCollection();
         ConfigureServices(services);
 
-        var registrar = new TypeRegistrar(services);
+        using var registrar = new TypeRegistrar(services);
         var app = new CommandApp(registrar);
 
         app.Configure(config =>
@@ -63,14 +74,14 @@ internal sealed class Program
             });
             config.ValidateExamples();
             config.AddCommand<VersionCommand>("version")
-                .WithDescription("Display excelcli version information.");
+                .WithDescription("Display excelcli version. Use --check to check for updates.");
 
             config.AddBranch("session", branch =>
             {
-                branch.SetDescription("Open, save, close, and list Excel sessions to reuse a single Excel process.");
+                branch.SetDescription("Open, close, and list Excel sessions to reuse a single Excel process.");
                 branch.AddCommand<SessionOpenCommand>("open");
-                branch.AddCommand<SessionSaveCommand>("save");
-                branch.AddCommand<SessionCloseCommand>("close");
+                branch.AddCommand<SessionCloseCommand>("close")
+                    .WithDescription("Close an Excel session (use --save to save changes before closing).");
                 branch.AddCommand<SessionListCommand>("list");
             });
 
@@ -102,7 +113,7 @@ internal sealed class Program
 
         try
         {
-            return app.Run(args);
+            return app.Run(filteredArgs);
         }
         catch (CommandRuntimeException ex)
         {
@@ -143,7 +154,7 @@ internal sealed class Program
     {
         AnsiConsole.Write(new FigletText("Excel CLI").Color(Color.Blue));
         AnsiConsole.MarkupLine("[dim]Excel automation powered by ExcelMcp Core[/]");
-        AnsiConsole.MarkupLine("[yellow]Workflow:[/] [green]session open <file>[/] → run commands with [green]--session <id>[/] → [green]session save[/] (optional) → [green]session close[/].");
+        AnsiConsole.MarkupLine("[yellow]Workflow:[/] [green]session open <file>[/] → run commands with [green]--session <id>[/] → [green]session close --save[/].");
         AnsiConsole.MarkupLine("[dim]Most commands expect an active session so they can reuse the same Excel instance.[/]");
         AnsiConsole.WriteLine();
     }

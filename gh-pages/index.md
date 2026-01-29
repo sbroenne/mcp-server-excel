@@ -51,6 +51,17 @@ canonical_url: "https://excelmcpserver.dev/"
 
 It works with any MCP-compatible AI assistant like GitHub Copilot, Claude Desktop, Cursor, Windsurf, etc.
 
+### CLI vs MCP Server
+
+This package provides both **CLI** and **MCP Server** interfaces:
+
+| Interface | Best For | Install |
+|-----------|----------|---------|
+| **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | `dotnet tool install -g Sbroenne.ExcelMcp.CLI` |
+| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | [VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) |
+
+**For coding agents, we recommend CLI** – token-efficient commands without loading large tool schemas into context. Use `-q` flag for clean JSON output.
+
 **🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
 
 **💡 Interactive Development** - Watch Excel update in real-time as AI works. Say "Show me Excel while you work" and see every change live - create a query, watch it populate, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.

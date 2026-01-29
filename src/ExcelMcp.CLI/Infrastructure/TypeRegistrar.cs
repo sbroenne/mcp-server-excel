@@ -3,9 +3,11 @@ using Spectre.Console.Cli;
 
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
 
-internal sealed class TypeRegistrar : ITypeRegistrar
+internal sealed class TypeRegistrar : ITypeRegistrar, IDisposable
 {
     private readonly IServiceCollection _services;
+    private TypeResolver? _resolver;
+    private bool _disposed;
 
     public TypeRegistrar(IServiceCollection services)
     {
@@ -14,7 +16,8 @@ internal sealed class TypeRegistrar : ITypeRegistrar
 
     public ITypeResolver Build()
     {
-        return new TypeResolver(_services.BuildServiceProvider());
+        _resolver = new TypeResolver(_services.BuildServiceProvider());
+        return _resolver;
     }
 
     public void Register(Type service, Type implementation)
@@ -30,6 +33,13 @@ internal sealed class TypeRegistrar : ITypeRegistrar
     public void RegisterLazy(Type service, Func<object> factory)
     {
         _services.AddSingleton(service, _ => factory());
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _resolver?.Dispose();
+        _disposed = true;
     }
 }
 

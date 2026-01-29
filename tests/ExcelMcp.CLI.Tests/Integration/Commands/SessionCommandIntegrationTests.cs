@@ -109,8 +109,10 @@ public sealed class SessionCommandIntegrationTests : IClassFixture<TempDirectory
 
         Assert.Equal(0, listExit);
         using var listJson = JsonDocument.Parse(listConsole.GetLastJson());
-        var worksheets = listJson.RootElement.GetProperty("worksheets").EnumerateArray().ToList();
-        Assert.Contains(worksheets, w => string.Equals(w.GetProperty("name").GetString(), "CliSheet", StringComparison.OrdinalIgnoreCase));
+        // WorksheetListResult uses [JsonPropertyName("ws")] for Worksheets property
+        var worksheets = listJson.RootElement.GetProperty("ws").EnumerateArray().ToList();
+        // WorksheetInfo uses [JsonPropertyName("n")] for Name property
+        Assert.Contains(worksheets, w => string.Equals(w.GetProperty("n").GetString(), "CliSheet", StringComparison.OrdinalIgnoreCase));
 
         var closeConsole = new TestCliConsole();
         var closeCommand = new SessionCloseCommand(sessionService, closeConsole);
