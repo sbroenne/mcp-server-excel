@@ -108,8 +108,9 @@ ExcelMcp.CLI provides **206 operations** across 13 categories:
 | **Ranges** | 42 | `range get-values`, `range set-values`, `range copy`, `range find`, `range merge-cells`, `range add-hyperlink` |
 | **Conditional Formatting** | 2 | `conditionalformat add-rule`, `conditionalformat clear-rules` |
 | **Excel Tables** | 27 | `table create`, `table apply-filter`, `table get-data`, `table sort`, `table add-column`, `table create-from-dax`, `table update-dax` |
-| **Charts** | 26 | `chart create-from-range`, `chart add-series`, `chart set-chart-type`, `chart show-legend`, `chart add-trendline`, `chart list-trendlines` |
+| **Charts** | 28 | `chart create-from-range`, `chart add-series`, `chart set-chart-type`, `chart show-legend`, `chart add-trendline`, `chart list-trendlines`, `chart set-placement` |
 | **PivotTables** | 30 | `pivottable create-from-range`, `pivottable add-row-field`, `pivottable refresh`, `pivottable list-calculated-fields`, `pivottable create-calculated-member` |
+| **Slicers** | 8 | `slicer create-slicer`, `slicer list-slicers`, `slicer set-slicer-selection`, `slicer delete-slicer`, `slicer create-table-slicer` |
 | **Data Model** | 18 | `datamodel create-measure`, `datamodel create-relationship`, `datamodel refresh`, `datamodel evaluate`, `datamodel delete-table`, `datamodel read-relationship` |
 | **Connections** | 9 | `connection list`, `connection refresh`, `connection test` |
 | **Named Ranges** | 6 | `namedrange create`, `namedrange read`, `namedrange write`, `namedrange update` |

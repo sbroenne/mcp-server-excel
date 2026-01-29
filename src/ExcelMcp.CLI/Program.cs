@@ -11,6 +11,7 @@ using Sbroenne.ExcelMcp.CLI.Commands.PowerQuery;
 using Sbroenne.ExcelMcp.CLI.Commands.Range;
 using Sbroenne.ExcelMcp.CLI.Commands.Session;
 using Sbroenne.ExcelMcp.CLI.Commands.Sheet;
+using Sbroenne.ExcelMcp.CLI.Commands.Slicer;
 using Sbroenne.ExcelMcp.CLI.Commands.Table;
 using Sbroenne.ExcelMcp.CLI.Commands.Vba;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -109,6 +110,8 @@ internal sealed class Program
                 .WithDescription("Create DAX measures/relationships and inspect the Power Pivot Data Model.");
             config.AddCommand<VbaCommand>("vba")
                 .WithDescription("List, export/import, update, and run VBA modules or macros.");
+            config.AddCommand<SlicerCommand>("slicer")
+                .WithDescription("Create, configure, and delete slicers for PivotTables and Tables.");
         });
 
         try

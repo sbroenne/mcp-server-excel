@@ -191,19 +191,61 @@ excelcli pivottable delete --session 1 --name "OldPivot"
 Field areas: `row`, `column`, `data`, `page`
 Functions: `sum`, `count`, `average`, `max`, `min`, `product`, `countNums`, `stdDev`, `stdDevP`, `var`, `varP`
 
+### Slicers
+
+```bash
+# PivotTable slicers
+excelcli slicer create-slicer --session 1 --pivot-name "SalesPivot" --field-name "Region" --destination-sheet "Dashboard" --position E1
+excelcli slicer list-slicers --session 1
+excelcli slicer list-slicers --session 1 --pivot-name "SalesPivot"
+excelcli slicer set-slicer-selection --session 1 --slicer-name "RegionSlicer" --selected-items '["North","South"]'
+excelcli slicer delete-slicer --session 1 --slicer-name "RegionSlicer"
+
+# Table slicers
+excelcli slicer create-table-slicer --session 1 --table-name "SalesData" --column-name "Category" --destination-sheet "Dashboard" --position G1
+excelcli slicer list-table-slicers --session 1
+excelcli slicer set-table-slicer-selection --session 1 --slicer-name "CategorySlicer" --selected-items "Electronics,Furniture"
+excelcli slicer delete-table-slicer --session 1 --slicer-name "CategorySlicer"
+```
+
+Note: `--selected-items` accepts JSON array or comma-separated values. Use `--clear-first false` to add to existing selection.
+
 ### Charts
 
 ```bash
+# Lifecycle
 excelcli chart list --session 1
-excelcli chart create --session 1 --sheet Sheet1 --source-range A1:B10 --chart-type columnClustered --name "SalesChart"
-excelcli chart create-pivot-chart --session 1 --pivot-table "SalesPivot" --chart-type pie --name "PivotChart"
-excelcli chart set-title --session 1 --name "SalesChart" --title "Monthly Sales"
-excelcli chart set-position --session 1 --name "SalesChart" --left 100 --top 50 --width 400 --height 300
-excelcli chart add-trendline --session 1 --name "SalesChart" --series-index 1 --trendline-type linear
-excelcli chart delete --session 1 --name "OldChart"
+excelcli chart create-from-range --session 1 --sheet Sheet1 --source-range A1:B10 --chart-type 51 --left 100 --top 50 --name "SalesChart"
+excelcli chart create-from-pivottable --session 1 --pivot-name "SalesPivot" --sheet Dashboard --chart-type 5 --left 100 --top 50
+excelcli chart delete --session 1 --chart-name "OldChart"
+
+# Configuration
+excelcli chart set-title --session 1 --chart-name "SalesChart" --title "Monthly Sales"
+excelcli chart set-axis-title --session 1 --chart-name "SalesChart" --axis-type Value --title "Revenue ($)"
+excelcli chart set-chart-type --session 1 --chart-name "SalesChart" --chart-type 4
+excelcli chart move --session 1 --chart-name "SalesChart" --left 100 --top 50 --width 400 --height 300
+excelcli chart set-placement --session 1 --chart-name "SalesChart" --placement 2
+excelcli chart fit-to-range --session 1 --chart-name "SalesChart" --sheet Sheet1 --source-range D1:H20
+
+# Data labels and formatting
+excelcli chart set-data-labels --session 1 --chart-name "SalesChart" --show-value true --label-position OutsideEnd
+excelcli chart set-style --session 1 --chart-name "SalesChart" --style-id 5
+excelcli chart show-legend --session 1 --chart-name "SalesChart" --visible true --legend-position Bottom
+
+# Axis configuration
+excelcli chart set-axis-scale --session 1 --chart-name "SalesChart" --axis-type Value --minimum-scale 0 --maximum-scale 1000
+excelcli chart set-axis-number-format --session 1 --chart-name "SalesChart" --axis-type Value --number-format "$#,##0"
+excelcli chart set-gridlines --session 1 --chart-name "SalesChart" --axis-type Value --show-major true --show-minor false
+
+# Series and trendlines
+excelcli chart add-series --session 1 --chart-name "SalesChart" --series-name "Q2" --values-range "Sheet1!C2:C10"
+excelcli chart set-series-format --session 1 --chart-name "SalesChart" --series-index 1 --marker-style Circle --marker-size 8
+excelcli chart add-trendline --session 1 --chart-name "SalesChart" --series-index 1 --trendline-type Linear --display-equation true
+excelcli chart list-trendlines --session 1 --chart-name "SalesChart" --series-index 1
 ```
 
-Chart types: `columnClustered`, `columnStacked`, `bar`, `line`, `pie`, `area`, `scatter`, `doughnut`, `radar`
+Chart types: Use Excel XlChartType constants (e.g., 51=ColumnClustered, 4=Line, 5=Pie)
+Placement: 1=Move and size with cells, 2=Move only, 3=Don't move or size
 
 ### Conditional Formatting
 
