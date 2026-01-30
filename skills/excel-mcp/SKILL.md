@@ -49,6 +49,11 @@ Server-specific guidance for Excel MCP Server. Tools are auto-discovered - this 
 - Check `canClose=true` before closing (no active operations running)
 - Without `save=true`, all changes are discarded
 
+**Session Timeout:**
+- Default: 5 minutes per operation. Use `timeoutSeconds` to customize (range: 10-3600)
+- For long operations (large Power Query refresh, complex DAX): `excel_file(open, excelPath, timeoutSeconds=600)`
+- Timeout triggers aggressive cleanup - Excel may be in inconsistent state after timeout
+
 ## Format Cells After Setting Values (CRITICAL)
 
 Without formatting, dates appear as serial numbers and currency as plain numbers.

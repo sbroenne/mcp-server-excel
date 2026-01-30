@@ -130,6 +130,13 @@ public interface IExcelBatch : IDisposable
     /// <returns>Process ID, or null if not captured during startup.</returns>
     int? ExcelProcessId { get; }
 
+    /// <summary>
+    /// Gets the operation timeout for this batch.
+    /// All Execute() calls will timeout after this duration.
+    /// Default is 5 minutes (from ComInteropConstants.DefaultOperationTimeout).
+    /// </summary>
+    TimeSpan OperationTimeout { get; }
+
 }
 
 

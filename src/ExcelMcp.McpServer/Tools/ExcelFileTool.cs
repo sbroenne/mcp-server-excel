@@ -22,12 +22,17 @@ public static partial class ExcelFileTool
     ///
     /// IMPORTANT: Before closing, check 'list' action - wait for canClose=true (no active operations).
     /// If showExcel=true was used, confirm with user before closing visible Excel windows.
+    ///
+    /// TIMEOUT: Each operation has a 5-min default timeout. Use timeoutSeconds to customize
+    /// for long-running operations (data refresh, large queries). Operations timing out
+    /// trigger aggressive cleanup and may leave Excel in inconsistent state.
     /// </summary>
     /// <param name="action">The file operation to perform</param>
     /// <param name="excelPath">Full Windows path to Excel file (.xlsx or .xlsm). ASK USER for the path - do not guess or use placeholder usernames. Required for: open, create-and-open, test</param>
     /// <param name="sessionId">Session ID returned from 'open' or 'create-and-open'. Required for: close. Used by all other tools.</param>
     /// <param name="save">Whether to save changes when closing. Default: false (discard changes)</param>
     /// <param name="showExcel">Whether to make Excel window visible. Default: false (hidden automation)</param>
+    /// <param name="timeoutSeconds">Maximum time in seconds for any operation in this session. Default: 300 (5 min). Range: 10-3600. Used for: open, create-and-open</param>
     [McpServerTool(Name = "excel_file", Title = "Excel File Operations", Destructive = true)]
     [McpMeta("category", "session")]
     [McpMeta("requiresSession", false)]
@@ -36,8 +41,22 @@ public static partial class ExcelFileTool
         [DefaultValue(null)] string? excelPath,
         [DefaultValue(null)] string? sessionId,
         [DefaultValue(false)] bool save,
-        [DefaultValue(false)] bool showExcel)
+        [DefaultValue(false)] bool showExcel,
+        [DefaultValue(300)] int timeoutSeconds)
     {
+        // Validate timeout range
+        if (timeoutSeconds < 10 || timeoutSeconds > 3600)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = $"timeoutSeconds must be between 10 and 3600 seconds, got {timeoutSeconds}",
+                isError = true
+            }, ExcelToolsBase.JsonOptions);
+        }
+
+        var timeout = TimeSpan.FromSeconds(timeoutSeconds);
+
         return ExcelToolsBase.ExecuteToolAction(
             "excel_file",
             action.ToActionString(),
@@ -48,9 +67,9 @@ public static partial class ExcelFileTool
                 return action switch
                 {
                     FileAction.List => ListSessions(),
-                    FileAction.Open => OpenSessionAsync(excelPath!, showExcel),
+                    FileAction.Open => OpenSessionAsync(excelPath!, showExcel, timeout),
                     FileAction.Close => CloseSessionAsync(sessionId!, save),
-                    FileAction.CreateAndOpen => CreateAndOpenSessionAsync(excelPath!, showExcel),
+                    FileAction.CreateAndOpen => CreateAndOpenSessionAsync(excelPath!, showExcel, timeout),
                     FileAction.CloseWorkbook => CloseWorkbook(excelPath!),
                     FileAction.Test => TestFileAsync(excelPath!),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
@@ -62,7 +81,7 @@ public static partial class ExcelFileTool
     /// Opens an Excel file and creates a new session.
     /// Returns sessionId that must be used for all subsequent operations.
     /// </summary>
-    private static string OpenSessionAsync(string excelPath, bool showExcel)
+    private static string OpenSessionAsync(string excelPath, bool showExcel, TimeSpan timeout)
     {
         if (string.IsNullOrWhiteSpace(excelPath))
         {
@@ -89,7 +108,7 @@ public static partial class ExcelFileTool
 
         try
         {
-            string sessionId = ExcelToolsBase.GetSessionManager().CreateSession(excelPath, showExcel);
+            string sessionId = ExcelToolsBase.GetSessionManager().CreateSession(excelPath, showExcel, timeout);
 
             return JsonSerializer.Serialize(new
             {
@@ -202,7 +221,7 @@ public static partial class ExcelFileTool
     /// Returns sessionId that must be used for all subsequent operations.
     /// Directory must exist - will not be created automatically.
     /// </summary>
-    private static string CreateAndOpenSessionAsync(string excelPath, bool showExcel)
+    private static string CreateAndOpenSessionAsync(string excelPath, bool showExcel, TimeSpan timeout)
     {
         if (string.IsNullOrWhiteSpace(excelPath))
         {
@@ -227,7 +246,7 @@ public static partial class ExcelFileTool
         try
         {
             // Use the combined create+open which starts Excel only once
-            string sessionId = ExcelToolsBase.GetSessionManager().CreateSessionForNewFile(excelPath, showExcel);
+            string sessionId = ExcelToolsBase.GetSessionManager().CreateSessionForNewFile(excelPath, showExcel, timeout);
 
             return JsonSerializer.Serialize(new
             {

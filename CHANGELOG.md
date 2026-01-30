@@ -11,6 +11,14 @@ This changelog covers all components:
 ## [Unreleased]
 
 ### Added
+- **Session Operation Timeout** (#388): Configurable timeout prevents infinite hangs when Excel gets stuck
+  - MCP Server: New `timeoutSeconds` parameter on `excel_file(open)` and `excel_file(create-and-open)` actions
+  - CLI: New `--timeout` option on `session create` and `session open` commands
+  - Default: 300 seconds (5 minutes), configurable range: 10-3600 seconds
+  - Applies to ALL operations within the session
+  - Operations exceeding timeout throw `TimeoutException` and trigger aggressive cleanup
+  - Prevents test hangs and runaway automation scenarios
+
 - **CreateAndOpen File Action** (#385): New optimized `excel_file(create-and-open)` for faster new workbook creation
   - Combines file creation and session opening into single Excel.Application lifecycle
   - Performance improvement: ~3.8 seconds (vs ~7-8 seconds with separate create+open)

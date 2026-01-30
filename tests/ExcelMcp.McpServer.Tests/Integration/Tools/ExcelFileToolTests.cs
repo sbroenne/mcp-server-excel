@@ -31,7 +31,8 @@ public class ExcelFileToolTests(ITestOutputHelper output)
             excelPath: protectedPath,
             sessionId: null,
             save: false,
-            showExcel: false);
+            showExcel: false,
+            timeoutSeconds: 300);
 
         output.WriteLine($"Result: {result}");
 
@@ -57,7 +58,8 @@ public class ExcelFileToolTests(ITestOutputHelper output)
             excelPath: invalidPath,
             sessionId: null,
             save: false,
-            showExcel: false);
+            showExcel: false,
+            timeoutSeconds: 300);
 
         output.WriteLine($"Result: {result}");
 
@@ -80,7 +82,8 @@ public class ExcelFileToolTests(ITestOutputHelper output)
             excelPath: null,
             sessionId: null,
             save: false,
-            showExcel: false);
+            showExcel: false,
+            timeoutSeconds: 300);
 
         output.WriteLine($"Result: {result}");
 
@@ -109,7 +112,8 @@ public class ExcelFileToolTests(ITestOutputHelper output)
                 excelPath: tempPath,
                 sessionId: null,
                 save: false,
-                showExcel: false);
+                showExcel: false,
+                timeoutSeconds: 300);
 
             output.WriteLine($"Result: {result}");
 
@@ -132,7 +136,8 @@ public class ExcelFileToolTests(ITestOutputHelper output)
                     excelPath: null,
                     sessionId: sessionId,
                     save: false,
-                    showExcel: false);
+                    showExcel: false,
+                    timeoutSeconds: 300);
             }
 
             if (File.Exists(tempPath))
@@ -154,7 +159,8 @@ public class ExcelFileToolTests(ITestOutputHelper output)
             excelPath: fakePath,
             sessionId: null,
             save: false,
-            showExcel: false);
+            showExcel: false,
+            timeoutSeconds: 300);
 
         output.WriteLine($"Result: {result}");
 

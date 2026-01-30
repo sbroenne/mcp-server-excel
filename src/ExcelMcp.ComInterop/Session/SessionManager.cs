@@ -35,6 +35,7 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     /// <param name="filePath">Path to the Excel file to open</param>
     /// <param name="showExcel">Whether to show the Excel window (default: false for background automation)</param>
+    /// <param name="operationTimeout">Maximum time for any operation in this session (default: 5 minutes)</param>
     /// <returns>Unique session ID for this session</returns>
     /// <exception cref="FileNotFoundException">File does not exist</exception>
     /// <exception cref="InvalidOperationException">Failed to create session or file already open in another session</exception>
@@ -43,7 +44,7 @@ public sealed class SessionManager : IDisposable
     /// <para><b>Same-file prevention:</b> Throws if file is already open in another session.</para>
     /// <para><b>Concurrency:</b> You can create multiple sessions for DIFFERENT files. Operations within each session execute serially.</para>
     /// </remarks>
-    public string CreateSession(string filePath, bool showExcel = false)
+    public string CreateSession(string filePath, bool showExcel = false, TimeSpan? operationTimeout = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -68,7 +69,7 @@ public sealed class SessionManager : IDisposable
         try
         {
             // Create batch session using Core API
-            batch = ExcelSession.BeginBatch(showExcel, filePath);
+            batch = ExcelSession.BeginBatch(showExcel, operationTimeout, filePath);
 
             // Store in active sessions
             if (!_activeSessions.TryAdd(sessionId, batch))
@@ -117,6 +118,7 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     /// <param name="filePath">Path for the new Excel file (.xlsx or .xlsm)</param>
     /// <param name="showExcel">Whether to show the Excel window (default: false)</param>
+    /// <param name="operationTimeout">Maximum time for any operation in this session (default: 5 minutes)</param>
     /// <returns>Unique session ID for this session</returns>
     /// <exception cref="InvalidOperationException">File already exists, or failed to create session</exception>
     /// <exception cref="DirectoryNotFoundException">Target directory does not exist</exception>
@@ -125,7 +127,7 @@ public sealed class SessionManager : IDisposable
     /// <para><b>File Format:</b> Determined by extension - .xlsm creates macro-enabled workbook.</para>
     /// <para><b>Directory:</b> Target directory must exist - will not be created automatically.</para>
     /// </remarks>
-    public string CreateSessionForNewFile(string filePath, bool showExcel = false)
+    public string CreateSessionForNewFile(string filePath, bool showExcel = false, TimeSpan? operationTimeout = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -158,7 +160,7 @@ public sealed class SessionManager : IDisposable
         try
         {
             // Create new workbook and keep session open
-            batch = ExcelBatch.CreateNewWorkbook(normalizedPath, isMacroEnabled, logger: null, showExcel: showExcel);
+            batch = ExcelBatch.CreateNewWorkbook(normalizedPath, isMacroEnabled, logger: null, showExcel: showExcel, operationTimeout: operationTimeout);
 
             // Store in active sessions
             if (!_activeSessions.TryAdd(sessionId, batch))

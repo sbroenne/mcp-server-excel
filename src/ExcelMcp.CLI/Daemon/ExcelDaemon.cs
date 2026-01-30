@@ -339,7 +339,10 @@ internal sealed class ExcelDaemon : IDisposable
         try
         {
             // Use the combined create+open which starts Excel only once
-            var sessionId = _sessionManager.CreateSessionForNewFile(fullPath);
+            TimeSpan? timeout = args.TimeoutSeconds.HasValue
+                ? TimeSpan.FromSeconds(args.TimeoutSeconds.Value)
+                : null;
+            var sessionId = _sessionManager.CreateSessionForNewFile(fullPath, operationTimeout: timeout);
 
             return new DaemonResponse
             {
@@ -363,7 +366,10 @@ internal sealed class ExcelDaemon : IDisposable
 
         try
         {
-            var sessionId = _sessionManager.CreateSession(args.FilePath);
+            TimeSpan? timeout = args.TimeoutSeconds.HasValue
+                ? TimeSpan.FromSeconds(args.TimeoutSeconds.Value)
+                : null;
+            var sessionId = _sessionManager.CreateSession(args.FilePath, operationTimeout: timeout);
             return new DaemonResponse
             {
                 Success = true,
@@ -1865,7 +1871,11 @@ internal sealed class ExcelDaemon : IDisposable
 // === ARGUMENT TYPES ===
 
 // Session
-internal sealed class SessionOpenArgs { public string? FilePath { get; set; } }
+internal sealed class SessionOpenArgs
+{
+    public string? FilePath { get; set; }
+    public int? TimeoutSeconds { get; set; }
+}
 internal sealed class SessionCloseArgs { public bool Save { get; set; } }
 
 // Sheet

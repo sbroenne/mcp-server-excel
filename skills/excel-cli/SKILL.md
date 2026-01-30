@@ -45,6 +45,11 @@ excelcli -q session close --session 1
 2. Run commands with `--session <id>`
 3. Close and save: `excelcli -q session close --session <id> --save`
 
+**Session Timeout:**
+- Default: 5 minutes per operation (prevents hangs when Excel gets stuck)
+- Custom timeout: `excelcli -q session open <file> --timeout 600` (10 minutes)
+- Range: 10-3600 seconds
+
 **Agent-friendly flags:**
 - `-q` / `--quiet`: Suppress banner, output JSON only (recommended for agents)
 - `--save`: Save changes before closing session
@@ -74,6 +79,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 ```powershell
 excelcli session create C:\Data\New.xlsx  # create new workbook, returns session ID
 excelcli session open C:\Data\Report.xlsx  # open existing workbook
+excelcli session open C:\Data\Large.xlsx --timeout 600  # 10-minute timeout for heavy files
 excelcli session list
 excelcli session close --session 1 --save
 excelcli session close --session 1  # close without saving

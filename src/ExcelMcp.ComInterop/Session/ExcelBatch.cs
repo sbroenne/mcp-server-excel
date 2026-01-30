@@ -31,6 +31,7 @@ internal sealed class ExcelBatch : IExcelBatch
     private readonly bool _showExcel; // Whether to show Excel window
     private readonly bool _createNewFile; // Whether to create a new file instead of opening existing
     private readonly bool _isMacroEnabled; // For new files: whether to create .xlsm (macro-enabled)
+    private readonly TimeSpan _operationTimeout; // Timeout for individual operations
     private readonly ILogger<ExcelBatch> _logger;
     private readonly Channel<Func<Task>> _workQueue;
     private readonly Thread _staThread;
@@ -52,8 +53,9 @@ internal sealed class ExcelBatch : IExcelBatch
     /// <param name="workbookPaths">Paths to Excel workbooks. First path is the primary workbook.</param>
     /// <param name="logger">Optional logger for diagnostic output. If null, uses NullLogger (no output).</param>
     /// <param name="showExcel">Whether to show the Excel window (default: false for background automation).</param>
-    public ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger = null, bool showExcel = false)
-        : this(workbookPaths, logger, showExcel, createNewFile: false, isMacroEnabled: false)
+    /// <param name="operationTimeout">Timeout for individual operations. Default: 5 minutes.</param>
+    public ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger = null, bool showExcel = false, TimeSpan? operationTimeout = null)
+        : this(workbookPaths, logger, showExcel, createNewFile: false, isMacroEnabled: false, operationTimeout: operationTimeout)
     {
     }
 
@@ -65,16 +67,17 @@ internal sealed class ExcelBatch : IExcelBatch
     /// <param name="isMacroEnabled">Whether to create .xlsm (macro-enabled) format.</param>
     /// <param name="logger">Optional logger for diagnostic output.</param>
     /// <param name="showExcel">Whether to show the Excel window.</param>
+    /// <param name="operationTimeout">Timeout for individual operations. Default: 5 minutes.</param>
     /// <returns>ExcelBatch instance with the new workbook open.</returns>
-    internal static ExcelBatch CreateNewWorkbook(string filePath, bool isMacroEnabled, ILogger<ExcelBatch>? logger = null, bool showExcel = false)
+    internal static ExcelBatch CreateNewWorkbook(string filePath, bool isMacroEnabled, ILogger<ExcelBatch>? logger = null, bool showExcel = false, TimeSpan? operationTimeout = null)
     {
-        return new ExcelBatch([filePath], logger, showExcel, createNewFile: true, isMacroEnabled: isMacroEnabled);
+        return new ExcelBatch([filePath], logger, showExcel, createNewFile: true, isMacroEnabled: isMacroEnabled, operationTimeout: operationTimeout);
     }
 
     /// <summary>
     /// Private constructor that handles both opening existing files and creating new ones.
     /// </summary>
-    private ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger, bool showExcel, bool createNewFile, bool isMacroEnabled)
+    private ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger, bool showExcel, bool createNewFile, bool isMacroEnabled, TimeSpan? operationTimeout = null)
     {
         if (workbookPaths == null || workbookPaths.Length == 0)
             throw new ArgumentException("At least one workbook path is required", nameof(workbookPaths));
@@ -84,6 +87,7 @@ internal sealed class ExcelBatch : IExcelBatch
         _showExcel = showExcel;
         _createNewFile = createNewFile;
         _isMacroEnabled = isMacroEnabled;
+        _operationTimeout = operationTimeout ?? ComInteropConstants.DefaultOperationTimeout;
         _logger = logger ?? NullLogger<ExcelBatch>.Instance;
         _shutdownCts = new CancellationTokenSource();
 
@@ -351,6 +355,8 @@ internal sealed class ExcelBatch : IExcelBatch
 
     public int? ExcelProcessId => _excelProcessId;
 
+    public TimeSpan OperationTimeout => _operationTimeout;
+
     public bool IsExcelProcessAlive()
     {
         if (_disposed != 0) return false;
@@ -453,10 +459,24 @@ internal sealed class ExcelBatch : IExcelBatch
             writeTask.AsTask().GetAwaiter().GetResult();
         }
 
-        // Wait for operation to complete (caller controls cancellation)
+        // Wait for operation to complete with timeout
+        // Combine caller's cancellation token with operation timeout
         try
         {
-            return tcs.Task.WaitAsync(cancellationToken).GetAwaiter().GetResult();
+            using var timeoutCts = new CancellationTokenSource(_operationTimeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
+            return tcs.Task.WaitAsync(linkedCts.Token).GetAwaiter().GetResult();
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Timeout occurred (not caller cancellation)
+            _logger.LogError("Operation timed out after {Timeout} for {FileName}", _operationTimeout, Path.GetFileName(_workbookPath));
+            _operationTimedOut = true; // Mark timeout for aggressive cleanup during disposal
+            throw new TimeoutException(
+                $"Excel operation timed out after {_operationTimeout.TotalSeconds} seconds for '{Path.GetFileName(_workbookPath)}'. " +
+                "Excel may be unresponsive or the operation is taking longer than expected. " +
+                "Consider increasing timeoutSeconds when opening the session.");
         }
         catch (OperationCanceledException)
         {

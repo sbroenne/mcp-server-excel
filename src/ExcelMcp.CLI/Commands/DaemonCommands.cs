@@ -112,7 +112,7 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
         var response = await client.SendAsync(new DaemonRequest
         {
             Command = "session.create",
-            Args = JsonSerializer.Serialize(new { filePath = settings.FilePath }, DaemonProtocol.JsonOptions)
+            Args = JsonSerializer.Serialize(new { filePath = settings.FilePath, timeoutSeconds = settings.TimeoutSeconds }, DaemonProtocol.JsonOptions)
         }, cancellationToken);
 
         if (response.Success)
@@ -131,6 +131,9 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
     {
         [CommandArgument(0, "<FILE>")]
         public string FilePath { get; init; } = string.Empty;
+
+        [CommandOption("--timeout <SECONDS>")]
+        public int? TimeoutSeconds { get; init; }
     }
 }
 
@@ -155,7 +158,7 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
         var response = await client.SendAsync(new DaemonRequest
         {
             Command = "session.open",
-            Args = JsonSerializer.Serialize(new { filePath = settings.FilePath }, DaemonProtocol.JsonOptions)
+            Args = JsonSerializer.Serialize(new { filePath = settings.FilePath, timeoutSeconds = settings.TimeoutSeconds }, DaemonProtocol.JsonOptions)
         }, cancellationToken);
 
         if (response.Success)
@@ -174,6 +177,9 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
     {
         [CommandArgument(0, "<FILE>")]
         public string FilePath { get; init; } = string.Empty;
+
+        [CommandOption("--timeout <SECONDS>")]
+        public int? TimeoutSeconds { get; init; }
     }
 }
 
