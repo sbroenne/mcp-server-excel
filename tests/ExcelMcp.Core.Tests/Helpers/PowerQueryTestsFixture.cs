@@ -20,7 +20,6 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 public class PowerQueryTestsFixture : IAsyncLifetime
 {
     private readonly string _tempDir;
-    private readonly FileCommands _fileCommands = new();
 
     /// <summary>
     /// Temp directory for all test files (auto-cleaned on disposal)
@@ -57,8 +56,11 @@ public class PowerQueryTestsFixture : IAsyncLifetime
 
         try
         {
-            var fileCommands = new FileCommands();
-            fileCommands.CreateEmpty(TestFilePath);
+            using (var manager = new SessionManager())
+            {
+                var sessionId = manager.CreateSessionForNewFile(TestFilePath, showExcel: false);
+                manager.CloseSession(sessionId, save: true);
+            }
 
             CreationResult.FileCreated = true;
 
@@ -132,7 +134,9 @@ public class PowerQueryTestsFixture : IAsyncLifetime
     {
         var guid = Guid.NewGuid().ToString("N")[..8];
         var testFile = Path.Join(_tempDir, $"PQ_{testName}_{guid}.xlsx");
-        _fileCommands.CreateEmpty(testFile);
+        using var manager = new SessionManager();
+        var sessionId = manager.CreateSessionForNewFile(testFile, showExcel: false);
+        manager.CloseSession(sessionId, save: true);
         return testFile;
     }
 

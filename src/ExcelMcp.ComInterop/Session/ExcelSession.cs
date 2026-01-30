@@ -116,7 +116,11 @@ public static class ExcelSession
     {
         // CRITICAL: Acquire lock to serialize file creation operations
         // This prevents parallel CreateNew() calls from spawning multiple Excel processes
-        _createFileLock.Wait(cancellationToken);
+        // Use timeout to prevent infinite waits if previous operation hung
+        if (!_createFileLock.Wait(TimeSpan.FromMinutes(2), cancellationToken))
+        {
+            throw new TimeoutException("Timed out waiting for file creation lock. Another CreateNew operation may be stuck.");
+        }
         try
         {
             string fullPath = Path.GetFullPath(filePath);
@@ -179,25 +183,14 @@ public static class ExcelSession
 
                 workbook = excel.Workbooks.Add();
 
-                // SaveAs with timeout
-                var saveAsTask = Task.Run(() =>
+                // SaveAs directly on STA thread
+                if (isMacroEnabled)
                 {
-                    if (isMacroEnabled)
-                    {
-                        workbook.SaveAs(fullPath, ComInteropConstants.XlOpenXmlWorkbookMacroEnabled);
-                    }
-                    else
-                    {
-                        workbook.SaveAs(fullPath, ComInteropConstants.XlOpenXmlWorkbook);
-                    }
-                });
-
-                using var saveCts = new CancellationTokenSource(ComInteropConstants.SaveOperationTimeout);
-                if (!saveAsTask.Wait(ComInteropConstants.SaveOperationTimeout, saveCts.Token))
+                    workbook.SaveAs(fullPath, ComInteropConstants.XlOpenXmlWorkbookMacroEnabled);
+                }
+                else
                 {
-                    throw new TimeoutException(
-                        $"SaveAs operation for '{Path.GetFileName(fullPath)}' exceeded {ComInteropConstants.SaveOperationTimeout.TotalMinutes} minutes. " +
-                        "Check disk performance and antivirus settings.");
+                    workbook.SaveAs(fullPath, ComInteropConstants.XlOpenXmlWorkbook);
                 }
 
                 completion.SetResult();
@@ -208,12 +201,21 @@ public static class ExcelSession
             }
             finally
             {
-                if (workbook != null || excel != null)
+                // Simple cleanup - no fancy retry logic needed for a new empty file
+                try
                 {
-                    // Use ExcelShutdownService for resilient close and quit
-                    // save=false: file was already saved via SaveAs
-                    ExcelShutdownService.CloseAndQuit(workbook, excel, false, fullPath, null);
+                    workbook?.Close(false);  // Don't save again
                 }
+                catch { }
+
+                try
+                {
+                    excel?.Quit();
+                }
+                catch { }
+
+                ComUtilities.Release(ref workbook!);
+                ComUtilities.Release(ref excel!);
 
                 OleMessageFilter.Revoke();
             }
@@ -226,10 +228,14 @@ public static class ExcelSession
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
 
-        completion.Task.Wait(cancellationToken);
+        // Wait for file creation (with reasonable timeout)
+        if (!completion.Task.Wait(TimeSpan.FromSeconds(30), cancellationToken))
+        {
+            throw new TimeoutException($"File creation timed out for '{Path.GetFileName(fullPath)}'. Excel may be unresponsive.");
+        }
 
-        // Ensure thread finished before proceeding
-        thread.Join();
+        // Wait for cleanup to release the file
+        thread.Join(TimeSpan.FromSeconds(10));
     }
 }
 

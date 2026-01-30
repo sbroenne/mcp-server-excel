@@ -179,33 +179,20 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         _output.WriteLine("Testing all 22 tools via MCP protocol with real Excel...\n");
 
         // =====================================================================
-        // STEP 1: FILE CREATION
+        // STEP 1: CREATE AND OPEN SESSION
         // =====================================================================
-        _output.WriteLine("✓ Step 1: Creating workbook via MCP protocol...");
+        _output.WriteLine("✓ Step 1: Creating workbook and opening session via MCP protocol...");
 
         var createResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
-            ["action"] = "CreateEmpty",
+            ["action"] = "CreateAndOpen",
             ["excelPath"] = _testExcelFile
         });
-        AssertSuccess(createResult, "File creation");
+        AssertSuccess(createResult, "File creation and session open");
         Assert.True(File.Exists(_testExcelFile), "Excel file should exist");
-        _output.WriteLine("  ✓ excel_file: CreateEmpty passed");
-
-        // =====================================================================
-        // STEP 2: OPEN SESSION
-        // =====================================================================
-        _output.WriteLine("\n✓ Step 2: Opening session via MCP protocol...");
-
-        var openResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
-        {
-            ["action"] = "Open",
-            ["excelPath"] = _testExcelFile
-        });
-        AssertSuccess(openResult, "Open session");
-        var sessionId = GetJsonProperty(openResult, "sessionId");
+        var sessionId = GetJsonProperty(createResult, "sessionId");
         Assert.NotNull(sessionId);
-        _output.WriteLine($"  ✓ Session opened: {sessionId}");
+        _output.WriteLine($"  ✓ excel_file: CreateAndOpen passed (session: {sessionId})");
 
         // =====================================================================
         // STEP 3: WORKSHEET OPERATIONS

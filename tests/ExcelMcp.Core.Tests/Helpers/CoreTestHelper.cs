@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
@@ -49,10 +49,12 @@ public static class CoreTestHelper
         // Handle Excel files (.xlsx, .xlsm)
         if (extension is ".xlsx" or ".xlsm")
         {
-            var fileCommands = new FileCommands();
             try
             {
-                fileCommands.CreateEmpty(filePath, overwriteIfExists: false);
+                // Use SessionManager to create file and immediately close the session
+                using var manager = new SessionManager();
+                var sessionId = manager.CreateSessionForNewFile(filePath, showExcel: false);
+                manager.CloseSession(sessionId, save: true);
             }
             catch (Exception ex)
             {

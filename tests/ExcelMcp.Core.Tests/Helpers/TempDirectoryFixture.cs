@@ -1,6 +1,5 @@
 using System.Runtime.CompilerServices;
-
-using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
@@ -14,7 +13,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 /// public partial class MyTests : IClassFixture&lt;TempDirectoryFixture&gt;
 /// {
 ///     private readonly TempDirectoryFixture _fixture;
-///     
+///
 ///     public MyTests(TempDirectoryFixture fixture)
 ///     {
 ///         _fixture = fixture;
@@ -24,7 +23,6 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 /// </remarks>
 public class TempDirectoryFixture : IDisposable
 {
-    private readonly FileCommands _fileCommands = new();
 
     /// <summary>
     /// Temporary directory for test files. Created in constructor, deleted in Dispose.
@@ -42,7 +40,9 @@ public class TempDirectoryFixture : IDisposable
     {
         var fileName = $"{testName}_{Guid.NewGuid():N}{extension}";
         var filePath = Path.Combine(TempDir, fileName);
-        _fileCommands.CreateEmpty(filePath);
+        using var manager = new SessionManager();
+        var sessionId = manager.CreateSessionForNewFile(filePath, showExcel: false);
+        manager.CloseSession(sessionId, save: true);
         return filePath;
     }
 

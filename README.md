@@ -2,7 +2,8 @@
 
 [![VS Code Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/sbroenne.excel-mcp?label=VS%20Code%20Installs)](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)
 [![Downloads](https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total?label=GitHub%20Downloads)](https://github.com/sbroenne/mcp-server-excel/releases)
-[![NuGet Downloads - MCP Server](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg?label=Nuget%20MCP%20Server%20Installs)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
+[![NuGet Downloads - MCP Server](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg?label=NuGet%20MCP%20Server)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
+[![NuGet Downloads - CLI](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.CLI.svg?label=NuGet%20CLI)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
 
 [![Build MCP Server](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-mcp-server.yml/badge.svg)](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-mcp-server.yml)
 [![Build CLI](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-cli.yml/badge.svg)](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-cli.yml)
@@ -25,8 +26,23 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 
 | Interface | Best For | Why |
 |-----------|----------|-----|
-| **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | Token-efficient: no large tool schemas. Agents invoke `excelcli -q session open` directly. Better for high-throughput agents with limited context windows. |
-| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool schemas, session management, exploratory workflows. Better for iterative reasoning and long-running autonomous tasks. |
+| **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | **64% fewer tokens** - single tool, no large schemas. Better for cost-sensitive, high-throughput automation. |
+| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | **32% faster** - persistent connection, rich tool discovery. Better for interactive, exploratory workflows. |
+
+<details>
+<summary>📊 Benchmark Results (same task, same model)</summary>
+
+| Metric | CLI | MCP Server | Winner |
+|--------|-----|------------|--------|
+| **Tokens** | ~59K | ~163K | 🏆 CLI (64% fewer) |
+| **Runtime** | 23.6s | 16.0s | 🏆 MCP (32% faster) |
+| **Tool Calls** | 12 | 11 | Tie |
+
+**Key insight:** MCP sends 22 tool schemas to the LLM on each request (~100K+ tokens). CLI wraps everything in one `excel_execute` tool and offloads guidance to a skill file.
+
+[View benchmark test →](tests/ExcelMcp.CLI.LLM.Tests/Scenarios/excel-cli-vs-mcp-comparison.yaml)
+
+</details>
 
 **Installation:**
 ```bash

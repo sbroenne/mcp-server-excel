@@ -28,13 +28,14 @@ internal sealed class PowerQueryCommand : AsyncCommand<PowerQueryCommand.Setting
         var action = settings.Action.Trim().ToLowerInvariant();
         var command = $"powerquery.{action}";
 
+        // Note: property names must match daemon's Args classes (e.g., PowerQueryRenameArgs)
         object? args = action switch
         {
             "list" => null,
             "view" => new { queryName = settings.QueryName },
             "create" => new { queryName = settings.QueryName, mCode = settings.MCode, loadDestination = settings.LoadDestination },
             "update" => new { queryName = settings.QueryName, mCode = settings.MCode },
-            "rename" => new { queryName = settings.QueryName, newName = settings.NewName },
+            "rename" => new { oldName = settings.QueryName, newName = settings.NewName },
             "delete" => new { queryName = settings.QueryName },
             "refresh" => new { queryName = settings.QueryName },
             "refresh-all" => null,

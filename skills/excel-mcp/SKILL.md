@@ -37,12 +37,15 @@ Server-specific guidance for Excel MCP Server. Tools are auto-discovered - this 
 
 ## Session Workflow
 
-1. **Open/Create**: `excel_file(open)` or `excel_file(create-empty)` → returns `sessionId`
+1. **Open/Create**: 
+   - **Existing file**: `excel_file(open, excelPath)` → returns `sessionId`
+   - **New file**: `excel_file(create-and-open, excelPath)` → creates file AND returns `sessionId` in single operation
 2. **Perform Operations**: Pass `sessionId` to all tool calls
-3. **Save and Close**: `excel_file(close, save=true)` to persist changes
+3. **Save and Close**: `excel_file(close, sessionId, save=true)` to persist changes
 
 **Session Tips:**
 - Call `excel_file(list)` first to check for existing sessions (reuse if file already open)
+- Use `create-and-open` for new files (single Excel startup, faster performance)
 - Check `canClose=true` before closing (no active operations running)
 - Without `save=true`, all changes are discarded
 

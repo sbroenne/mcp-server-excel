@@ -6,7 +6,7 @@
 
 **Optional command-line interface for Excel automation without AI assistance.**
 
-For advanced users who prefer direct scripting control, the CLI provides 13 command categories with 209 operations matching the MCP Server (22 tools with 209 operations). Perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
+For advanced users who prefer direct scripting control, the CLI provides 14 command categories with 209 operations matching the MCP Server. Perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
 
 **Note:** Most users should use the [MCP Server with AI assistants](../ExcelMcp.McpServer/README.md) for natural language automation.
 
@@ -94,27 +94,28 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **209 operations** across 13 categories:
+ExcelMcp.CLI provides **209 operations** across 14 command categories:
 
-📚 **[Complete Feature Reference →](../../FEATURES.md)** - Full MCP Server documentation (209 operations)
+📚 **[Complete Feature Reference →](../../FEATURES.md)** - Full documentation with all operations
 
 **Quick Reference:**
 
 | Category | Operations | Examples |
 |----------|-----------|----------|
-| **File & Session** | 4 | `create-empty`, `session open`, `session close`, `session list` |
-| **Worksheets** | 16 | `sheet list`, `sheet create`, `sheet rename`, `sheet copy`, `sheet move`, `sheet copy-to-file`, `sheet move-to-file`, `sheet set-tab-color`, `sheet get-visibility` |
-| **Power Query** | 10 | `powerquery list`, `powerquery create`, `powerquery refresh`, `powerquery update`, `powerquery rename` |
-| **Ranges** | 42 | `range get-values`, `range set-values`, `range copy`, `range find`, `range merge-cells`, `range add-hyperlink` |
+| **File & Session** | 6 | `session create`, `session open`, `session close`, `session list` |
+| **Worksheets** | 16 | `sheet list`, `sheet create`, `sheet rename`, `sheet copy`, `sheet move`, `sheet copy-to-file` |
+| **Power Query** | 10 | `powerquery list`, `powerquery create`, `powerquery refresh`, `powerquery update` |
+| **Ranges** | 42 | `range get-values`, `range set-values`, `range copy`, `range find`, `range merge-cells` |
 | **Conditional Formatting** | 2 | `conditionalformat add-rule`, `conditionalformat clear-rules` |
-| **Excel Tables** | 27 | `table create`, `table apply-filter`, `table get-data`, `table sort`, `table add-column`, `table create-from-dax`, `table update-dax` |
-| **Charts** | 28 | `chart create-from-range`, `chart add-series`, `chart set-chart-type`, `chart show-legend`, `chart add-trendline`, `chart list-trendlines`, `chart set-placement`, `chart fit-to-range` |
-| **PivotTables** | 30 | `pivottable create-from-range`, `pivottable add-row-field`, `pivottable refresh`, `pivottable list-calculated-fields`, `pivottable create-calculated-member` |
-| **Slicers** | 8 | `slicer create-slicer`, `slicer list-slicers`, `slicer set-slicer-selection`, `slicer delete-slicer`, `slicer create-table-slicer` |
-| **Data Model** | 18 | `datamodel create-measure`, `datamodel create-relationship`, `datamodel refresh`, `datamodel evaluate`, `datamodel delete-table`, `datamodel read-relationship` |
+| **Excel Tables** | 27 | `table create`, `table apply-filter`, `table get-data`, `table sort`, `table add-column` |
+| **Charts** | 14 | `chart create-from-range`, `chart list`, `chart delete`, `chart move`, `chart fit-to-range` |
+| **Chart Config** | 14 | `chartconfig set-title`, `chartconfig add-series`, `chartconfig set-style`, `chartconfig data-labels` |
+| **PivotTables** | 30 | `pivottable create-from-range`, `pivottable add-row-field`, `pivottable refresh` |
+| **Slicers** | 8 | `slicer create-slicer`, `slicer list-slicers`, `slicer set-slicer-selection` |
+| **Data Model** | 19 | `datamodel create-measure`, `datamodel create-relationship`, `datamodel evaluate` |
 | **Connections** | 9 | `connection list`, `connection refresh`, `connection test` |
 | **Named Ranges** | 6 | `namedrange create`, `namedrange read`, `namedrange write`, `namedrange update` |
-| **VBA** | 7 | `vba list`, `vba import`, `vba run`, `vba update` |
+| **VBA** | 6 | `vba list`, `vba import`, `vba run`, `vba update` |
 
 **Note:** CLI uses session commands for multi-operation workflows.
 
@@ -149,6 +150,21 @@ excelcli session close 550e8400-e29b-41d4-a716-446655440000
 - **Batch efficiency** - Keep single Excel instance open for multiple operations (75-90% faster)
 - **Flexibility** - Save and close in one command, or close without saving
 - **Clean resource management** - Automatic Excel cleanup when session closes
+
+### Background Daemon & System Tray
+
+When you run your first CLI command, a **background daemon** starts automatically. The daemon:
+
+- **Manages Excel COM** - Keeps Excel instance alive between commands (no restart overhead)
+- **Shows system tray icon** - Look for the Excel CLI icon in your Windows taskbar notification area
+- **Tracks sessions** - Right-click the tray icon to see active sessions and close them
+
+**Tray Icon Features:**
+- 📋 **View sessions** - Double-click to see active session count
+- 💾 **Close sessions** - Right-click → Sessions → select file → "Save & Close" or "Close"
+- 🛑 **Stop daemon** - Right-click → "Stop Daemon" (prompts if sessions are open)
+
+The daemon auto-stops after 5 minutes of inactivity (no active sessions).
 
 ---
 
@@ -421,8 +437,10 @@ This is a security setting that must be manually enabled. ExcelMcp.CLI never mod
 For macro-enabled workbooks, use `.xlsm` extension:
 
 ```bash
-excelcli create-empty macros.xlsm
-excelcli vba-import macros.xlsm "Module1" code.vba
+excelcli session create macros.xlsm
+# Returns session ID (e.g., 1)
+excelcli vba import --session 1 --file code.vba
+excelcli session close --session 1 --save
 ```
 
 ---

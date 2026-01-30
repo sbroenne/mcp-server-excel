@@ -26,14 +26,22 @@ documentation: https://excelmcpserver.dev/
 ## Quick Start
 
 ```powershell
-excelcli -q session open C:\Data\Report.xlsx
-excelcli -q range set-values --session 1 --sheet Sheet1 --range A1:B2 --values-json '[["Name","Value"],["Test",123]]'
+# Create new workbook
+excelcli -q session create C:\Data\Report.xlsx
+excelcli -q range set-values --session 1 --sheet Sheet1 --range A1:B2 --values '[["Name","Value"],["Test",123]]'
 excelcli -q session close --session 1 --save
+
+# Open existing workbook
+excelcli -q session open C:\Data\Report.xlsx
+excelcli -q range get-values --session 1 --sheet Sheet1 --range A1:B2
+excelcli -q session close --session 1
 ```
 
 ## Core Workflow
 
-1. Open session: `excelcli -q session open <file>` → returns JSON with session ID
+1. Create or open session:
+   - New file: `excelcli -q session create <file>` → creates file and returns session ID (optimized single Excel startup)
+   - Existing file: `excelcli -q session open <file>` → returns session ID
 2. Run commands with `--session <id>`
 3. Close and save: `excelcli -q session close --session <id> --save`
 
@@ -64,11 +72,11 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 ### Session Management
 
 ```powershell
-excelcli session open C:\Data\Report.xlsx
+excelcli session create C:\Data\New.xlsx  # create new workbook, returns session ID
+excelcli session open C:\Data\Report.xlsx  # open existing workbook
 excelcli session list
 excelcli session close --session 1 --save
 excelcli session close --session 1  # close without saving
-excelcli create-empty C:\Data\New.xlsx --overwrite
 ```
 
 ### Range Operations
@@ -76,7 +84,7 @@ excelcli create-empty C:\Data\New.xlsx --overwrite
 ```powershell
 # Value operations
 excelcli range get-values --session 1 --sheet Sheet1 --range A1:D10
-excelcli range set-values --session 1 --sheet Sheet1 --range A1 --values-json '[["Header1","Header2"]]'
+excelcli range set-values --session 1 --sheet Sheet1 --range A1 --values '[["Header1","Header2"]]'
 excelcli range get-used-range --session 1 --sheet Sheet1
 excelcli range get-current-region --session 1 --sheet Sheet1 --cell A1
 excelcli range get-info --session 1 --sheet Sheet1 --range A1:D10
@@ -400,11 +408,8 @@ excelcli vba import --session 1 --file "C:\Code\NewModule.bas"
 ### Import CSV and Create Dashboard
 
 ```powershell
-# Create workbook
-excelcli -q create-empty C:\Reports\Dashboard.xlsx
-
-# Open session
-excelcli -q session open C:\Reports\Dashboard.xlsx
+# Create workbook and get session ID
+excelcli -q session create C:\Reports\Dashboard.xlsx
 # Returns: {"success":true,"sessionId":1,...}
 
 # Import CSV via Power Query
@@ -432,7 +437,7 @@ excelcli -q session close --session 1 --save
 ```powershell
 Get-ChildItem C:\Data\*.xlsx | ForEach-Object {
   excelcli -q session open $_.FullName
-  excelcli -q range set-values --session 1 --sheet Summary --range A1 --values-json '[["Updated: 2026-01-28"]]'
+  excelcli -q range set-values --session 1 --sheet Summary --range A1 --values '[["Updated: 2026-01-28"]]'
   excelcli -q session close --session 1 --save
 }
 ```
@@ -461,10 +466,28 @@ excelcli -q session close --session 1 --save
 
 - **Use `-q` flag**: Always use `-q` for clean JSON output (no banner)
 - **Check help**: `excelcli <command> --help` shows all options
-- **JSON values**: Use `--values-json` for 2D arrays: `'[["A","B"],["C","D"]]'`
 - **Session reuse**: Keep session open for multiple operations (faster than open/close each time)
 - **Timeout**: Power Query refresh may need `--timeout 120` or higher for large datasets
 - **US format codes**: Use US locale for number formats (`#,##0.00` not `#.##0,00`)
+
+### JSON Values Parameter
+
+When using `--values` for range operations, pass a 2D JSON array. Use single quotes around the JSON in PowerShell:
+
+```powershell
+# Correct: single quotes preserve the JSON
+excelcli -q range set-values --session 1 --sheet Sheet1 --range A1:B2 --values '[["Name","Value"],["Test",123]]'
+
+# Multiple rows and columns
+excelcli -q range set-values --session 1 --sheet Sheet1 --range A1:C4 --values '[["Product","Q1","Q2"],["Widget",100,150],["Gadget",80,90],["Device",200,180]]'
+```
+
+**Important**: The `--values` parameter expects a JSON 2D array where:
+- Outer array = rows
+- Inner arrays = cells in each row
+- Strings must be quoted: `"text"`
+- Numbers are unquoted: `123`, `45.67`
+- The range dimensions should match the array dimensions
 
 ## Requirements
 

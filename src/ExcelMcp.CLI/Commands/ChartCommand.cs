@@ -28,15 +28,16 @@ internal sealed class ChartCommand : AsyncCommand<ChartCommand.Settings>
         var action = settings.Action.Trim().ToLowerInvariant();
         var command = $"chart.{action}";
 
+        // Note: property names must match daemon's Args classes (e.g., ChartFromRangeArgs)
         object? args = action switch
         {
             "list" => new { sheetName = settings.SheetName },
             "read" => new { sheetName = settings.SheetName, chartName = settings.ChartName },
-            "create-from-range" => new { sheetName = settings.SheetName, chartName = settings.ChartName, sourceRange = settings.SourceRange, chartType = settings.ChartType, position = settings.Position },
-            "create-from-pivottable" => new { pivotTableName = settings.PivotTableName, chartName = settings.ChartName, chartType = settings.ChartType, position = settings.Position },
+            "create-from-range" => new { sheetName = settings.SheetName, chartName = settings.ChartName, sourceRange = settings.SourceRange, chartType = settings.ChartType },
+            "create-from-pivottable" => new { pivotTableName = settings.PivotTableName, sheetName = settings.SheetName, chartName = settings.ChartName, chartType = settings.ChartType },
             "delete" => new { sheetName = settings.SheetName, chartName = settings.ChartName },
-            "move" => new { sheetName = settings.SheetName, chartName = settings.ChartName, targetSheet = settings.TargetSheet, position = settings.Position },
-            "fit-to-range" => new { sheetName = settings.SheetName, chartName = settings.ChartName, targetRange = settings.TargetRange },
+            "move" => new { chartName = settings.ChartName },
+            "fit-to-range" => new { chartName = settings.ChartName, sheetName = settings.SheetName, rangeAddress = settings.TargetRange },
             _ => new { sheetName = settings.SheetName, chartName = settings.ChartName }
         };
 

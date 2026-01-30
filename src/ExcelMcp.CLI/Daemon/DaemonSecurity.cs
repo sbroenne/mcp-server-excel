@@ -151,6 +151,7 @@ internal static class DaemonSecurity
 
     /// <summary>
     /// Checks if the daemon process is running based on lock file PID.
+    /// Guards against PID reuse by verifying the process name.
     /// </summary>
     public static bool IsDaemonProcessRunning()
     {
@@ -163,7 +164,23 @@ internal static class DaemonSecurity
         try
         {
             var process = System.Diagnostics.Process.GetProcessById(pid.Value);
-            return !process.HasExited;
+            if (process.HasExited)
+            {
+                DeleteLockFile();
+                return false;
+            }
+
+            // Guard against PID reuse: verify it's actually the daemon
+            // Process name will be "excelcli" (production) or "dotnet" (dev mode)
+            var processName = process.ProcessName.ToLowerInvariant();
+            if (processName != "excelcli" && processName != "dotnet")
+            {
+                // Different process reused the PID - daemon is dead
+                DeleteLockFile();
+                return false;
+            }
+
+            return true;
         }
         catch (ArgumentException)
         {

@@ -10,7 +10,7 @@ public static class ActionExtensions
         FileAction.List => "list",
         FileAction.Open => "open",
         FileAction.Close => "close",
-        FileAction.CreateEmpty => "create-empty",
+        FileAction.CreateAndOpen => "create-and-open",
         FileAction.CloseWorkbook => "close-workbook",
         FileAction.Test => "test",
         _ => throw new ArgumentException($"Unknown FileAction: {action}")

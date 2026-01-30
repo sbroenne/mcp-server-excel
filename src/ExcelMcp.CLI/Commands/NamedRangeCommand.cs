@@ -28,15 +28,16 @@ internal sealed class NamedRangeCommand : AsyncCommand<NamedRangeCommand.Setting
         var action = settings.Action.Trim().ToLowerInvariant();
         var command = $"namedrange.{action}";
 
+        // Note: property names must match daemon's Args classes (e.g., NamedRangeArgs, NamedRangeCreateArgs)
         object? args = action switch
         {
             "list" => null,
-            "read" => new { name = settings.Name },
-            "write" => new { name = settings.Name, value = settings.Value },
-            "create" => new { name = settings.Name, refersTo = settings.RefersTo, sheetScope = settings.SheetScope },
-            "update" => new { name = settings.Name, newRefersTo = settings.RefersTo },
-            "delete" => new { name = settings.Name },
-            _ => new { name = settings.Name }
+            "read" => new { paramName = settings.Name },
+            "write" => new { paramName = settings.Name, value = settings.Value },
+            "create" => new { paramName = settings.Name, reference = settings.RefersTo },
+            "update" => new { paramName = settings.Name, reference = settings.RefersTo },
+            "delete" => new { paramName = settings.Name },
+            _ => new { paramName = settings.Name }
         };
 
         using var client = new DaemonClient();

@@ -140,6 +140,9 @@ internal sealed class ExcelDaemon : IDisposable
 
     private async Task RunPipeServerAsync(CancellationToken cancellationToken)
     {
+        // Use a semaphore to limit concurrent connections (prevents resource exhaustion)
+        using var connectionLimit = new SemaphoreSlim(10, 10);
+
         while (!cancellationToken.IsCancellationRequested)
         {
             NamedPipeServerStream? server = null;
@@ -149,7 +152,25 @@ internal sealed class ExcelDaemon : IDisposable
                 await server.WaitForConnectionAsync(cancellationToken);
                 _lastActivityTime = DateTime.UtcNow;
 
-                await HandleClientAsync(server, cancellationToken);
+                // Capture server for the task
+                var clientServer = server;
+                server = null; // Prevent disposal in finally - task owns it now
+
+                // Handle client asynchronously - allows accepting next connection immediately
+                _ = Task.Run(async () =>
+                {
+                    await connectionLimit.WaitAsync(cancellationToken);
+                    try
+                    {
+                        await HandleClientAsync(clientServer, cancellationToken);
+                    }
+                    finally
+                    {
+                        connectionLimit.Release();
+                        try { if (clientServer.IsConnected) clientServer.Disconnect(); } catch { }
+                        await clientServer.DisposeAsync();
+                    }
+                }, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -276,12 +297,60 @@ internal sealed class ExcelDaemon : IDisposable
     {
         return action switch
         {
+            "create" => HandleSessionCreate(request),
             "open" => HandleSessionOpen(request),
             "close" => HandleSessionClose(request),
             "save" => HandleSessionSave(request),
             "list" => HandleSessionList(),
             _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown session action: {action}" }
         };
+    }
+
+    private DaemonResponse HandleSessionCreate(DaemonRequest request)
+    {
+        var args = DeserializeArgs<SessionOpenArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args?.FilePath))
+        {
+            return new DaemonResponse { Success = false, ErrorMessage = "filePath is required" };
+        }
+
+        var fullPath = Path.GetFullPath(args.FilePath);
+
+        if (File.Exists(fullPath))
+        {
+            return new DaemonResponse
+            {
+                Success = false,
+                ErrorMessage = $"File already exists: {fullPath}. Use session open to open an existing workbook."
+            };
+        }
+
+        var extension = Path.GetExtension(fullPath);
+        if (!string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(extension, ".xlsm", StringComparison.OrdinalIgnoreCase))
+        {
+            return new DaemonResponse
+            {
+                Success = false,
+                ErrorMessage = $"Invalid file extension '{extension}'. session create supports .xlsx and .xlsm only."
+            };
+        }
+
+        try
+        {
+            // Use the combined create+open which starts Excel only once
+            var sessionId = _sessionManager.CreateSessionForNewFile(fullPath);
+
+            return new DaemonResponse
+            {
+                Success = true,
+                Result = JsonSerializer.Serialize(new { sessionId, filePath = fullPath }, DaemonProtocol.JsonOptions)
+            };
+        }
+        catch (Exception ex)
+        {
+            return new DaemonResponse { Success = false, ErrorMessage = ex.Message };
+        }
     }
 
     private DaemonResponse HandleSessionOpen(DaemonRequest request)
@@ -333,6 +402,17 @@ internal sealed class ExcelDaemon : IDisposable
         if (batch == null)
         {
             return new DaemonResponse { Success = false, ErrorMessage = $"Session '{request.SessionId}' not found" };
+        }
+
+        // Check if Excel process is still alive before attempting save
+        if (!batch.IsExcelProcessAlive())
+        {
+            _sessionManager.CloseSession(request.SessionId, save: false, force: true);
+            return new DaemonResponse
+            {
+                Success = false,
+                ErrorMessage = $"Excel process for session '{request.SessionId}' has died. Session has been closed. Please create a new session."
+            };
         }
 
         batch.Save();
@@ -1659,6 +1739,18 @@ internal sealed class ExcelDaemon : IDisposable
         if (batch == null)
         {
             return Task.FromResult(new DaemonResponse { Success = false, ErrorMessage = $"Session '{sessionId}' not found" });
+        }
+
+        // Check if Excel process is still alive before attempting operation
+        if (!batch.IsExcelProcessAlive())
+        {
+            // Excel died - clean up the dead session
+            _sessionManager.CloseSession(sessionId, save: false, force: true);
+            return Task.FromResult(new DaemonResponse
+            {
+                Success = false,
+                ErrorMessage = $"Excel process for session '{sessionId}' has died. Session has been closed. Please create a new session."
+            });
         }
 
         try

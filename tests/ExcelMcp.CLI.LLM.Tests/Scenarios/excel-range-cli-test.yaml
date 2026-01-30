@@ -6,7 +6,7 @@
 #
 # Commands Covered:
 #   - excelcli range set-values: Write data to cells (2D array format)
-#   - excelcli range get-values: Read data from cells  
+#   - excelcli range get-values: Read data from cells
 #   - excelcli range get-used-range: Get the used range in a worksheet
 #   - excelcli range clear-all: Clear all content and formatting
 #
@@ -40,7 +40,7 @@ providers:
   - name: azure-openai-gpt5-chat
     type: AZURE
     auth_type: entra_id
-    model: gpt-5.2-chat
+    model: gpt-5.1-chat
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
   # Provider for clarification detection judge
@@ -99,7 +99,7 @@ sessions:
           1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-range-cli-{{randomValue type='UUID'}}.xlsx
           2. Write the following data to Sheet1:
              - A1: "Product"
-             - B1: "Quantity" 
+             - B1: "Quantity"
              - C1: "Price"
              - A2: "Widget"
              - B2: 10

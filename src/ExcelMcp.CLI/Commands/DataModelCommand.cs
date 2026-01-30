@@ -29,6 +29,7 @@ internal sealed class DataModelCommand : AsyncCommand<DataModelCommand.Settings>
         var action = settings.Action.Trim().ToLowerInvariant();
         var command = $"datamodel.{action}";
 
+        // Note: property names must match daemon's Args classes (e.g., DataModelCreateMeasureArgs)
         object? args = action switch
         {
             "list-tables" => null,
@@ -36,10 +37,10 @@ internal sealed class DataModelCommand : AsyncCommand<DataModelCommand.Settings>
             "list-columns" => new { tableName = settings.TableName },
             "list-measures" => new { tableName = settings.TableName },
             "read" => new { measureName = settings.MeasureName, tableName = settings.TableName },
-            "create-measure" => new { tableName = settings.TableName, measureName = settings.MeasureName, expression = settings.Expression, formatString = settings.FormatString },
-            "update-measure" => new { measureName = settings.MeasureName, tableName = settings.TableName, expression = settings.Expression, formatString = settings.FormatString },
+            "create-measure" => new { tableName = settings.TableName, measureName = settings.MeasureName, daxFormula = settings.Expression, formatType = settings.FormatString },
+            "update-measure" => new { measureName = settings.MeasureName, tableName = settings.TableName, daxFormula = settings.Expression, formatType = settings.FormatString },
             "delete-measure" => new { measureName = settings.MeasureName, tableName = settings.TableName },
-            "rename-table" => new { tableName = settings.TableName, newName = settings.NewName },
+            "rename-table" => new { oldName = settings.TableName, newName = settings.NewName },
             "delete-table" => new { tableName = settings.TableName },
             "read-info" => null,
             "refresh" => null,

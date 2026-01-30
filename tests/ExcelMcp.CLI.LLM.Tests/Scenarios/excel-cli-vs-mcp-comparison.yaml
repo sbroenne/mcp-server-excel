@@ -1,18 +1,18 @@
 # =============================================================================
-# Excel File and Worksheet CLI Test - Realistic User Scenarios
+# Excel CLI vs MCP Server Comparison Test
 # =============================================================================
 #
-# Tests: Natural user workflows for creating and organizing Excel workbooks
+# Purpose: Compare CLI and MCP Server for the same task
+#   - Token usage
+#   - Execution speed (latency)
+#   - Tool call count
 #
-# Validates:
-#   - LLM handles session workflow transparently (user doesn't manage sessions)
-#   - LLM creates files, adds sheets, writes data, and saves correctly
-#   - LLM uses quiet mode (-q) for clean JSON output
+# Test: Create workbook with two sheets and data (Budget Tracker)
 #
 # Prerequisites:
 #   - Windows 10/11 with Excel installed
-#   - excelcli installed and in PATH (or use dotnet run)
-#   - Environment: AZURE_OPENAI_ENDPOINT
+#   - Both CLI and MCP Server available
+#   - Environment: AZURE_OPENAI_ENDPOINT, CLI_COMMAND, SERVER_COMMAND
 #
 # =============================================================================
 
@@ -30,12 +30,6 @@ providers:
     model: gpt-4.1
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
-  - name: azure-openai-gpt5-chat
-    type: AZURE
-    auth_type: entra_id
-    model: gpt-5.1-chat
-    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
-    version: 2025-01-01-preview
   - name: azure-openai-judge
     type: AZURE
     auth_type: entra_id
@@ -44,6 +38,7 @@ providers:
     version: 2025-01-01-preview
 
 servers:
+  # CLI Server
   - name: excel-cli
     type: cli
     command: "{{CLI_COMMAND}}"
@@ -51,8 +46,15 @@ servers:
     working_dir: "{{TEMP_DIR}}"
     tool_prefix: excel
 
+  # MCP Server (stdio)
+  - name: excel-mcp
+    type: stdio
+    command: "{{SERVER_COMMAND}}"
+    server_delay: 30s
+
 agents:
-  - name: gpt41-agent
+  # CLI Agent using GPT-4.1
+  - name: cli-gpt41
     servers:
       - name: excel-cli
     provider: azure-openai-gpt41
@@ -62,12 +64,14 @@ agents:
     clarification_detection:
       enabled: true
       judge_provider: azure-openai-judge
-  - name: gpt5-chat-agent
+
+  # MCP Agent using GPT-4.1
+  - name: mcp-gpt41
     servers:
-      - name: excel-cli
-    provider: azure-openai-gpt5-chat
+      - name: excel-mcp
+    provider: azure-openai-gpt41
     skill:
-      path: "{{SKILL_PATH_CLI}}"
+      path: "{{SKILL_PATH_MCP}}"
       file_access: true
     clarification_detection:
       enabled: true
@@ -80,9 +84,9 @@ settings:
 
 sessions:
   # ==========================================================================
-  # Create Budget Tracker with Multiple Sheets and Data
+  # Budget Tracker Test - Same task for CLI and MCP
   # ==========================================================================
-  - name: "Budget Tracker"
+  - name: "Budget Tracker Comparison"
     tests:
       - name: "Create workbook with sheets and data"
         prompt: |
@@ -104,5 +108,5 @@ sessions:
           Save the file when done.
         assertions:
           - type: no_clarification_questions
-          - type: cli_exit_code_equals
-            expected: 0
+          - type: no_hallucinated_tools
+          - type: no_rate_limit_errors

@@ -28,13 +28,14 @@ internal sealed class PivotTableCommand : AsyncCommand<PivotTableCommand.Setting
         var action = settings.Action.Trim().ToLowerInvariant();
         var command = $"pivottable.{action}";
 
+        // Note: property names must match daemon's Args classes (e.g., PivotTableFromRangeArgs)
         object? args = action switch
         {
             "list" => null,
             "read" => new { pivotTableName = settings.PivotTableName },
-            "create-from-range" => new { pivotTableName = settings.PivotTableName, sourceSheet = settings.SourceSheet, sourceRange = settings.SourceRange, destSheet = settings.DestSheet, destCell = settings.DestCell, layoutStyle = settings.LayoutStyle },
-            "create-from-table" => new { pivotTableName = settings.PivotTableName, tableName = settings.TableName, destSheet = settings.DestSheet, destCell = settings.DestCell, layoutStyle = settings.LayoutStyle },
-            "create-from-datamodel" => new { pivotTableName = settings.PivotTableName, destSheet = settings.DestSheet, destCell = settings.DestCell, layoutStyle = settings.LayoutStyle },
+            "create-from-range" => new { pivotTableName = settings.PivotTableName, sourceSheet = settings.SourceSheet, sourceRange = settings.SourceRange, destinationSheet = settings.DestSheet, destinationCell = settings.DestCell },
+            "create-from-table" => new { pivotTableName = settings.PivotTableName, tableName = settings.TableName, destinationSheet = settings.DestSheet, destinationCell = settings.DestCell },
+            "create-from-datamodel" => new { pivotTableName = settings.PivotTableName, tableName = settings.TableName, destinationSheet = settings.DestSheet, destinationCell = settings.DestCell },
             "delete" => new { pivotTableName = settings.PivotTableName },
             "refresh" => new { pivotTableName = settings.PivotTableName },
             _ => new { pivotTableName = settings.PivotTableName }

@@ -30,15 +30,16 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
         var command = $"table.{action}";
 
         // Build args based on action
+        // Note: property names must match daemon's Args classes (e.g., TableCreateArgs)
         object? args = action switch
         {
             "list" => null,
-            "create" => new { sheetName = settings.SheetName, tableName = settings.TableName, rangeAddress = settings.Range, hasHeaders = settings.HasHeaders, styleName = settings.Style },
+            "create" => new { sheetName = settings.SheetName, tableName = settings.TableName, range = settings.Range, hasHeaders = settings.HasHeaders, tableStyle = settings.Style },
             "read" => new { tableName = settings.TableName },
             "rename" => new { tableName = settings.TableName, newName = settings.NewName },
             "delete" => new { tableName = settings.TableName },
-            "resize" => new { tableName = settings.TableName, rangeAddress = settings.Range },
-            "set-style" => new { tableName = settings.TableName, styleName = settings.Style },
+            "resize" => new { tableName = settings.TableName, newRange = settings.Range },
+            "set-style" => new { tableName = settings.TableName, tableStyle = settings.Style },
             "toggle-totals" => new { tableName = settings.TableName, showTotals = settings.HasHeaders },
             "set-column-total" => new { tableName = settings.TableName, columnName = settings.NewName, totalFunction = settings.Style },
             "append" => new { tableName = settings.TableName, csvData = settings.CsvData },

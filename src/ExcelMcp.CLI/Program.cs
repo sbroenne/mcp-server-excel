@@ -75,6 +75,8 @@ internal sealed class Program
             config.AddBranch("session", branch =>
             {
                 branch.SetDescription("Session management. WORKFLOW: open -> use sessionId -> close (--save to persist).");
+                branch.AddCommand<SessionCreateCommand>("create")
+                    .WithDescription("Create a new Excel file, open it, and create a session.");
                 branch.AddCommand<SessionOpenCommand>("open")
                     .WithDescription("Open an Excel file and create a session.");
                 branch.AddCommand<SessionCloseCommand>("close")
@@ -161,6 +163,19 @@ internal sealed class Program
     private static async Task<int> RunDaemonAsync()
     {
         using var daemon = new ExcelDaemon();
+
+        // Handle Ctrl+C and process termination gracefully
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true; // Prevent immediate termination
+            daemon.RequestShutdown();
+        };
+
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            daemon.RequestShutdown();
+        };
+
         try
         {
             await daemon.RunAsync();

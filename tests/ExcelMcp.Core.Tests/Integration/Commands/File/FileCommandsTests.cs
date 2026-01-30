@@ -10,14 +10,12 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.File;
 /// Each test uses a unique Excel file for complete test isolation.
 ///
 /// WHAT LLMs NEED TO KNOW:
-/// 1. CreateEmpty creates .xlsx or .xlsm files (valid extensions)
-/// 2. CreateEmpty fails on invalid extensions (.xls, .csv, .txt, etc.)
-/// 3. CreateEmpty respects overwrite flag (default: fail if exists)
-/// 4. TestFile returns metadata (Exists, IsValid, Message) without Success flag
+/// 1. TestFile returns metadata (Exists, IsValid, Message) without Success flag
+/// 2. File creation uses SessionManager.CreateSessionForNewFile (create-and-open action)
 ///
 /// LAYER RESPONSIBILITY:
 /// - ✅ Test Excel COM file operations and Result objects
-/// - ✅ Test business rules (valid extensions, overwrite behavior)
+/// - ✅ Test business rules (valid extensions, file metadata)
 /// - ❌ DO NOT test CLI argument parsing (CLI's responsibility)
 /// - ❌ DO NOT test JSON serialization (MCP Server's responsibility)
 /// - ❌ DO NOT test infrastructure (paths, directories, OS validation)

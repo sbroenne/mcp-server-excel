@@ -50,6 +50,8 @@ internal static class DaemonManager
         var isDotnetRun = entryAssembly != null &&
             Environment.ProcessPath?.EndsWith("dotnet.exe", StringComparison.OrdinalIgnoreCase) == true;
 
+        // Use UseShellExecute=true to create daemon in separate process group
+        // This prevents parent's console handles from being inherited
         if (isDotnetRun)
         {
             // Development mode: use 'dotnet <dll> daemon run'
@@ -58,10 +60,9 @@ internal static class DaemonManager
             {
                 FileName = "dotnet",
                 Arguments = $"\"{dllPath}\" daemon run",
-                UseShellExecute = false,
+                UseShellExecute = true,
                 CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
+                WindowStyle = ProcessWindowStyle.Hidden
             };
         }
         else
@@ -77,10 +78,9 @@ internal static class DaemonManager
             {
                 FileName = exePath,
                 Arguments = "daemon run",
-                UseShellExecute = false,
+                UseShellExecute = true,
                 CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
+                WindowStyle = ProcessWindowStyle.Hidden
             };
         }
 

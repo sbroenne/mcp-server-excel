@@ -77,7 +77,19 @@ $ReportsDir = Join-Path $TestDir "TestResults"
 
 # Build command string (forward slashes for YAML compatibility)
 $ProjectPathForYaml = $ProjectPath -replace '\\', '/'
-$ServerCommand = "dotnet run --project $ProjectPathForYaml -c Release --"
+
+# For MCP Server, use dotnet run (no daemon conflicts)
+# For CLI, use the built exe directly (daemon locks DLLs during dotnet run rebuild)
+if ($Component -eq "cli") {
+    $ExePath = Join-Path $SrcDir "bin\Release\net10.0-windows\excelcli.exe"
+    if (-not $Build -and -not (Test-Path $ExePath)) {
+        Write-Host "CLI exe not found. Building first..." -ForegroundColor Cyan
+        $Build = $true
+    }
+    $ServerCommand = ($ExePath -replace '\\', '/')
+} else {
+    $ServerCommand = "dotnet run --project $ProjectPathForYaml -c Release --"
+}
 
 # Load configuration from test directory
 $ConfigLocalPath = Join-Path $TestDir "llm-tests.config.local.json"
@@ -159,10 +171,19 @@ if ($Build) {
     }
 }
 
-# Verify project exists
+# Verify project/exe exists
 if (-not (Test-Path $ProjectPath)) {
     Write-Error "$ComponentName project not found at: $ProjectPath"
     exit 1
+}
+
+# For CLI, verify the exe exists after build
+if ($Component -eq "cli") {
+    $ExePath = Join-Path $SrcDir "bin\Release\net10.0-windows\excelcli.exe"
+    if (-not (Test-Path $ExePath)) {
+        Write-Error "CLI exe not found at: $ExePath. Run with -Build flag."
+        exit 1
+    }
 }
 
 # Download agent-benchmark if needed (executable mode only)
@@ -237,7 +258,7 @@ if ($ScenarioFiles.Count -eq 0) {
 Write-Host "`n========================================" -ForegroundColor Cyan
 Write-Host "$ComponentName - LLM Integration Tests" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Command: dotnet run --project $ProjectPath"
+Write-Host "Command: $ServerCommand"
 Write-Host "Agent-Benchmark: $ResolvedAgentBenchmarkPath ($AgentBenchmarkMode)"
 Write-Host "Skill: $SkillName"
 Write-Host "Scenarios: $($ScenarioFiles.Count) file(s)"

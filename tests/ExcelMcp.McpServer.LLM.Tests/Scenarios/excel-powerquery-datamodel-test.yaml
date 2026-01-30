@@ -42,7 +42,7 @@ providers:
   - name: azure-openai-gpt52-chat
     type: AZURE
     auth_type: entra_id
-    model: gpt-5.2-chat
+    model: gpt-5.1-chat
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
     retry:
@@ -52,7 +52,7 @@ providers:
   - name: azure-openai-judge
     type: AZURE
     auth_type: entra_id
-    model:  gpt-5.2-chat
+    model:  gpt-5.1-chat
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
 

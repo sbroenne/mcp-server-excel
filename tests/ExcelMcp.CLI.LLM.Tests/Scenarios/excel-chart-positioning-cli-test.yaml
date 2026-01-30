@@ -26,18 +26,27 @@ providers:
     model: gpt-4.1
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
+    retry:
+      retry_on_429: true
+      max_retries: 5
   - name: azure-openai-gpt5-chat
     type: AZURE
     auth_type: entra_id
-    model: gpt-5.2-chat
+    model: gpt-5.1-chat
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
+    retry:
+      retry_on_429: true
+      max_retries: 5
   - name: azure-openai-judge
     type: AZURE
     auth_type: entra_id
     model: gpt-4.1
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
+    retry:
+      retry_on_429: true
+      max_retries: 5
 
 servers:
   - name: excel-cli
@@ -92,7 +101,7 @@ sessions:
              Row 6: May, 58000, 39000
           3. Create a column chart from B1:C6 with Month labels from A1:A6
           4. Position the chart so it does NOT overlap with the data - it should be placed BELOW row 6
-          5. List the charts and report the exact chart position 
+          5. List the charts and report the exact chart position
           6. Save and close the file
         assertions:
           - type: cli_exit_code_equals

@@ -9,7 +9,7 @@
 #
 # Rate Limits (from Azure Portal):
 #   - gpt-4.1:      150 RPM,   150,000 TPM
-#   - gpt-5.2-chat: 1,500 RPM, 150,000 TPM
+#   - gpt-5.1-chat: 1,500 RPM, 150,000 TPM
 #
 # =============================================================================
 
@@ -25,11 +25,11 @@ providers:
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
 
-  # GPT-5.2-chat Provider - Higher RPM, faster throughput
+  # gpt-5.1-chat Provider - Higher RPM, faster throughput
   - name: azure-openai-gpt5-chat
     type: AZURE
     auth_type: entra_id  # Uses DefaultAzureCredential - no API key needed
-    model: gpt-5.2-chat
+    model: gpt-5.1-chat
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
 

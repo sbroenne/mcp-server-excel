@@ -32,18 +32,27 @@ providers:
     model: gpt-4.1
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
+    retry:
+      retry_on_429: true
+      max_retries: 5
   - name: azure-openai-gpt5-chat
     type: AZURE
     auth_type: entra_id
-    model: gpt-5.2-chat
+    model: gpt-5.1-chat
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
+    retry:
+      retry_on_429: true
+      max_retries: 5
   - name: azure-openai-judge
     type: AZURE
     auth_type: entra_id
     model: gpt-4.1
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
+    retry:
+      retry_on_429: true
+      max_retries: 5
 
 servers:
   - name: excel-mcp
@@ -55,6 +64,12 @@ agents:
   - name: gpt41-agent
     servers:
       - name: excel-mcp
+        # Only include tools needed for chart tests - reduces token usage ~80%
+        allowed_tools:
+          - excel_file
+          - excel_range
+          - excel_table
+          - excel_chart
     provider: azure-openai-gpt41
     # Agent Skills: Load excel-mcp skill for server-specific guidance
     skill:
@@ -66,6 +81,12 @@ agents:
   - name: gpt5-chat-agent
     servers:
       - name: excel-mcp
+        # Only include tools needed for chart tests - reduces token usage ~80%
+        allowed_tools:
+          - excel_file
+          - excel_range
+          - excel_table
+          - excel_chart
     provider: azure-openai-gpt5-chat
     # Agent Skills: Load excel-mcp skill for server-specific guidance
     skill:

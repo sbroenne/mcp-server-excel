@@ -22,9 +22,15 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </remarks>
 internal sealed class ExcelBatch : IExcelBatch
 {
+    // P/Invoke for getting process ID from window handle
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
     private readonly string _workbookPath; // Primary workbook path
     private readonly string[] _allWorkbookPaths; // All workbook paths (includes primary)
     private readonly bool _showExcel; // Whether to show Excel window
+    private readonly bool _createNewFile; // Whether to create a new file instead of opening existing
+    private readonly bool _isMacroEnabled; // For new files: whether to create .xlsm (macro-enabled)
     private readonly ILogger<ExcelBatch> _logger;
     private readonly Channel<Func<Task>> _workQueue;
     private readonly Thread _staThread;
@@ -47,6 +53,28 @@ internal sealed class ExcelBatch : IExcelBatch
     /// <param name="logger">Optional logger for diagnostic output. If null, uses NullLogger (no output).</param>
     /// <param name="showExcel">Whether to show the Excel window (default: false for background automation).</param>
     public ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger = null, bool showExcel = false)
+        : this(workbookPaths, logger, showExcel, createNewFile: false, isMacroEnabled: false)
+    {
+    }
+
+    /// <summary>
+    /// Creates a new ExcelBatch that creates a new workbook file instead of opening an existing one.
+    /// The file is saved immediately after creation, then kept open in the session.
+    /// </summary>
+    /// <param name="filePath">Path where the new Excel file will be created.</param>
+    /// <param name="isMacroEnabled">Whether to create .xlsm (macro-enabled) format.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    /// <param name="showExcel">Whether to show the Excel window.</param>
+    /// <returns>ExcelBatch instance with the new workbook open.</returns>
+    internal static ExcelBatch CreateNewWorkbook(string filePath, bool isMacroEnabled, ILogger<ExcelBatch>? logger = null, bool showExcel = false)
+    {
+        return new ExcelBatch([filePath], logger, showExcel, createNewFile: true, isMacroEnabled: isMacroEnabled);
+    }
+
+    /// <summary>
+    /// Private constructor that handles both opening existing files and creating new ones.
+    /// </summary>
+    private ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger, bool showExcel, bool createNewFile, bool isMacroEnabled)
     {
         if (workbookPaths == null || workbookPaths.Length == 0)
             throw new ArgumentException("At least one workbook path is required", nameof(workbookPaths));
@@ -54,6 +82,8 @@ internal sealed class ExcelBatch : IExcelBatch
         _allWorkbookPaths = workbookPaths;
         _workbookPath = workbookPaths[0]; // Primary workbook
         _showExcel = showExcel;
+        _createNewFile = createNewFile;
+        _isMacroEnabled = isMacroEnabled;
         _logger = logger ?? NullLogger<ExcelBatch>.Instance;
         _shutdownCts = new CancellationTokenSource();
 
@@ -88,17 +118,31 @@ internal sealed class ExcelBatch : IExcelBatch
                 // Capture Excel process ID for force-kill scenarios (hung Excel, dead RPC connection)
                 try
                 {
-                    // Excel.Application.Hwnd returns the main window handle
-                    // Use Process.GetProcesses() to find Excel.exe with matching main window handle
+                    // Excel.Application.Hwnd returns the window handle
+                    // Use GetWindowThreadProcessId to get process ID directly from Hwnd
+                    // This works even for hidden Excel windows (Visible=false)
                     int hwnd = tempExcel.Hwnd;
-                    var excelProcesses = System.Diagnostics.Process.GetProcessesByName("EXCEL");
-                    foreach (var proc in excelProcesses)
+                    if (hwnd != 0)
                     {
-                        if (proc.MainWindowHandle.ToInt32() == hwnd)
+                        uint processId = 0;
+                        _ = GetWindowThreadProcessId(new IntPtr(hwnd), out processId);
+                        if (processId != 0)
                         {
-                            _excelProcessId = proc.Id;
-                            _logger.LogDebug("Captured Excel process ID: {ProcessId}", _excelProcessId);
-                            break;
+                            _excelProcessId = (int)processId;
+                            _logger.LogDebug("Captured Excel process ID via Hwnd: {ProcessId}", _excelProcessId);
+                        }
+                    }
+
+                    // Fallback: If Hwnd method failed, try finding newest EXCEL.EXE process
+                    if (!_excelProcessId.HasValue)
+                    {
+                        var excelProcesses = System.Diagnostics.Process.GetProcessesByName("EXCEL")
+                            .OrderByDescending(p => p.StartTime)
+                            .ToList();
+                        if (excelProcesses.Count > 0)
+                        {
+                            _excelProcessId = excelProcesses[0].Id;
+                            _logger.LogDebug("Captured Excel process ID via fallback (newest): {ProcessId}", _excelProcessId);
                         }
                     }
                 }
@@ -112,28 +156,55 @@ internal sealed class ExcelBatch : IExcelBatch
                 // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
                 tempExcel.AutomationSecurity = 3; // msoAutomationSecurityForceDisable
 
-                // Open all workbooks in the same Excel instance
+                // Open or create workbooks in the same Excel instance
                 var tempWorkbooks = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase);
                 dynamic? primaryWorkbook = null;
 
                 foreach (var path in _allWorkbookPaths)
                 {
-                    // CRITICAL: Check if file is locked at OS level BEFORE attempting Excel COM open
-                    FileAccessValidator.ValidateFileNotLocked(path);
-
-                    // Open workbook with Excel COM
                     dynamic wb;
-                    try
+                    string normalizedPath = Path.GetFullPath(path);
+
+                    if (_createNewFile)
                     {
-                        wb = tempExcel.Workbooks.Open(path);
+                        // CREATE NEW FILE: Use Add() + SaveAs() instead of Open()
+                        // Validate directory exists (do not create automatically)
+                        string? directory = Path.GetDirectoryName(normalizedPath);
+                        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                        {
+                            throw new DirectoryNotFoundException($"Directory does not exist: '{directory}'. Create the directory first before creating Excel files.");
+                        }
+
+                        wb = tempExcel.Workbooks.Add();
+
+                        // SaveAs with appropriate format
+                        if (_isMacroEnabled)
+                        {
+                            wb.SaveAs(normalizedPath, ComInteropConstants.XlOpenXmlWorkbookMacroEnabled);
+                        }
+                        else
+                        {
+                            wb.SaveAs(normalizedPath, ComInteropConstants.XlOpenXmlWorkbook);
+                        }
                     }
-                    catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
+                    else
                     {
-                        // Excel Error 1004 - File is already open or locked
-                        throw FileAccessValidator.CreateFileLockedError(path, ex);
+                        // OPEN EXISTING FILE: Validate and open
+                        // CRITICAL: Check if file is locked at OS level BEFORE attempting Excel COM open
+                        FileAccessValidator.ValidateFileNotLocked(path);
+
+                        // Open workbook with Excel COM
+                        try
+                        {
+                            wb = tempExcel.Workbooks.Open(path);
+                        }
+                        catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
+                        {
+                            // Excel Error 1004 - File is already open or locked
+                            throw FileAccessValidator.CreateFileLockedError(path, ex);
+                        }
                     }
 
-                    string normalizedPath = Path.GetFullPath(path);
                     tempWorkbooks[normalizedPath] = wb;
 
                     if (path == _workbookPath)
@@ -277,6 +348,25 @@ internal sealed class ExcelBatch : IExcelBatch
     public string WorkbookPath => _workbookPath;
 
     public ILogger Logger => _logger;
+
+    public int? ExcelProcessId => _excelProcessId;
+
+    public bool IsExcelProcessAlive()
+    {
+        if (_disposed != 0) return false;
+        if (!_excelProcessId.HasValue) return false;
+
+        try
+        {
+            var proc = System.Diagnostics.Process.GetProcessById(_excelProcessId.Value);
+            return !proc.HasExited;
+        }
+        catch (ArgumentException)
+        {
+            // Process ID doesn't exist - process has terminated
+            return false;
+        }
+    }
 
     public IReadOnlyDictionary<string, dynamic> Workbooks
     {

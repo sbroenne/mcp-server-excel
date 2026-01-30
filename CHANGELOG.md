@@ -4,11 +4,20 @@ All notable changes to ExcelMcp will be documented in this file.
 
 This changelog covers all components:
 - **MCP Server** - Model Context Protocol server for AI assistants
-- **CLI** - Command-line interface for scripting
+- **CLI** - Command-line interface for scripting and coding agents
 - **VS Code Extension** - One-click installation with bundled MCP Server
 - **MCPB** - Claude Desktop bundle for one-click installation
 
 ## [Unreleased]
+
+### Added
+- **CreateAndOpen File Action** (#385): New optimized `excel_file(create-and-open)` for faster new workbook creation
+  - Combines file creation and session opening into single Excel.Application lifecycle
+  - Performance improvement: ~3.8 seconds (vs ~7-8 seconds with separate create+open)
+  - 50% faster new file creation for both MCP Server and CLI
+  - Replaces separate create+open workflow for new workbooks
+
+## [1.5.13] - 2025-01-24
 
 ### Added
 - **Chart Formatting** (#384): Enhanced chart formatting capabilities
@@ -29,11 +38,6 @@ This changelog covers all components:
 
 ### Added
 - Added Agent Skill to all artifacts
-
-## [1.5.9] - 2025-01-20
-
-### Fixed
-- **CreateEmpty Error Handling** (#372): File creation errors now return proper JSON with `isError: true` instead of crashing
 
 ### Changed
 - **MCPB Submission Compliance**: Bundle now includes LICENSE and CHANGELOG.md per Anthropic requirements

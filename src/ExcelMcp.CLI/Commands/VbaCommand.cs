@@ -28,14 +28,15 @@ internal sealed class VbaCommand : AsyncCommand<VbaCommand.Settings>
         var action = settings.Action.Trim().ToLowerInvariant();
         var command = $"vba.{action}";
 
+        // Note: property names must match daemon's Args classes (e.g., VbaImportArgs, VbaRunArgs)
         object? args = action switch
         {
             "list" => null,
             "view" => new { moduleName = settings.ModuleName },
-            "import" => new { moduleName = settings.ModuleName, code = settings.Code, moduleType = settings.ModuleType },
+            "import" => new { moduleName = settings.ModuleName, vbaCode = settings.Code },
             "delete" => new { moduleName = settings.ModuleName },
-            "run" => new { macroName = settings.MacroName, arguments = settings.Arguments },
-            "update" => new { moduleName = settings.ModuleName, code = settings.Code },
+            "run" => new { procedureName = settings.MacroName, parameters = ParseParameters(settings.Arguments) },
+            "update" => new { moduleName = settings.ModuleName, vbaCode = settings.Code },
             _ => new { moduleName = settings.ModuleName }
         };
 
@@ -56,6 +57,26 @@ internal sealed class VbaCommand : AsyncCommand<VbaCommand.Settings>
         {
             Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, DaemonProtocol.JsonOptions));
             return 1;
+        }
+    }
+
+    /// <summary>
+    /// Parse comma-separated arguments string into a list.
+    /// </summary>
+    private static List<string>? ParseParameters(string? arguments)
+    {
+        if (string.IsNullOrWhiteSpace(arguments))
+            return null;
+
+        // Try to parse as JSON array first
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(arguments, DaemonProtocol.JsonOptions);
+        }
+        catch
+        {
+            // Fall back to comma-separated parsing
+            return arguments.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
         }
     }
 

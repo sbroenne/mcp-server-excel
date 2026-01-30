@@ -91,6 +91,49 @@ internal sealed class DaemonStatusCommand : AsyncCommand
 // SESSION COMMANDS
 // ============================================================================
 
+internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.Settings>
+{
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(settings.FilePath))
+        {
+            AnsiConsole.MarkupLine("[red]File path is required.[/]");
+            return 1;
+        }
+
+        // Ensure daemon is running
+        if (!await DaemonManager.EnsureDaemonRunningAsync(cancellationToken))
+        {
+            AnsiConsole.MarkupLine("[red]Failed to start daemon.[/]");
+            return 1;
+        }
+
+        using var client = new DaemonClient();
+        var response = await client.SendAsync(new DaemonRequest
+        {
+            Command = "session.create",
+            Args = JsonSerializer.Serialize(new { filePath = settings.FilePath }, DaemonProtocol.JsonOptions)
+        }, cancellationToken);
+
+        if (response.Success)
+        {
+            Console.WriteLine(response.Result);
+            return 0;
+        }
+        else
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, DaemonProtocol.JsonOptions));
+            return 1;
+        }
+    }
+
+    internal sealed class Settings : CommandSettings
+    {
+        [CommandArgument(0, "<FILE>")]
+        public string FilePath { get; init; } = string.Empty;
+    }
+}
+
 internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)

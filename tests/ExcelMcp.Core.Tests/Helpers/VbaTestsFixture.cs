@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -12,7 +12,6 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 public class VbaTestsFixture : IAsyncLifetime
 {
     private readonly string _tempDir;
-    private readonly FileCommands _fileCommands = new();
 
     /// <summary>
     /// Temp directory for all test files (auto-cleaned on disposal)
@@ -58,7 +57,9 @@ public class VbaTestsFixture : IAsyncLifetime
     {
         var guid = Guid.NewGuid().ToString("N")[..8];
         var testFile = Path.Join(_tempDir, $"Vba_{testName}_{guid}.xlsm");
-        _fileCommands.CreateEmpty(testFile);
+        using var manager = new SessionManager();
+        var sessionId = manager.CreateSessionForNewFile(testFile, showExcel: false);
+        manager.CloseSession(sessionId, save: true);
         return testFile;
     }
 }

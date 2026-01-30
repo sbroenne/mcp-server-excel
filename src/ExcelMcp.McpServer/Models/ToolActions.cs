@@ -5,15 +5,17 @@ namespace Sbroenne.ExcelMcp.McpServer.Models;
 /// </summary>
 /// <remarks>
 /// IMPORTANT: Keep enum values synchronized with ExcelFileTool.cs switch cases.
-/// Enum names are PascalCase (CreateEmpty), converted to kebab-case (create-empty) via ActionExtensions.
+/// Enum names are PascalCase (CreateAndOpen), converted to kebab-case (create-and-open) via ActionExtensions.
 /// Session Management: Open/Close manage persistent sessions. Close action has optional save parameter.
+///
+/// Use CreateAndOpen to create new workbooks (creates file + returns sessionId in one operation).
 /// </remarks>
 public enum FileAction
 {
     List,
     Open,
     Close,
-    CreateEmpty,
+    CreateAndOpen,  // Creates new file AND returns sessionId in one operation
     CloseWorkbook,
     Test
 }
