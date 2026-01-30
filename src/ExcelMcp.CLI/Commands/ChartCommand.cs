@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Daemon;
+using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.Core.Models.Actions;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -25,7 +27,11 @@ internal sealed class ChartCommand : AsyncCommand<ChartCommand.Settings>
             return 1;
         }
 
-        var action = settings.Action.Trim().ToLowerInvariant();
+        if (!ActionValidator.TryNormalizeAction<ChartAction>(settings.Action, out var action, out var errorMessage))
+        {
+            AnsiConsole.MarkupLine($"[red]{errorMessage}[/]");
+            return 1;
+        }
         var command = $"chart.{action}";
 
         // Note: property names must match daemon's Args classes (e.g., ChartFromRangeArgs)

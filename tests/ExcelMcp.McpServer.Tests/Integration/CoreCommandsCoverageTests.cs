@@ -7,7 +7,7 @@ using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
-using Sbroenne.ExcelMcp.McpServer.Models;
+using Sbroenne.ExcelMcp.Core.Models.Actions;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration;

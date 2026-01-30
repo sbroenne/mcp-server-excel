@@ -1,7 +1,7 @@
 // Copyright (c) Sbroenne. All rights reserved.
 // Licensed under the MIT License.
 
-using Sbroenne.ExcelMcp.McpServer.Models;
+using Sbroenne.ExcelMcp.Core.Models.Actions;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;

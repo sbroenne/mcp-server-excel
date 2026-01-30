@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Daemon;
+using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.Core.Models.Actions;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -7,8 +9,8 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 
 /// <summary>
 /// Slicer commands - thin wrapper that sends requests to daemon.
-/// Actions: list, create-from-pivottable, create-from-table, delete,
-/// set-filter, clear-filter, get-filter-state, connect-to-pivottable
+/// Actions: create-slicer, list-slicers, set-slicer-selection, delete-slicer,
+/// create-table-slicer, list-table-slicers, set-table-slicer-selection, delete-table-slicer
 /// </summary>
 internal sealed class SlicerCommand : AsyncCommand<SlicerCommand.Settings>
 {
@@ -26,13 +28,18 @@ internal sealed class SlicerCommand : AsyncCommand<SlicerCommand.Settings>
             return 1;
         }
 
-        var action = settings.Action.Trim().ToLowerInvariant();
+        if (!ActionValidator.TryNormalizeAction<SlicerAction>(settings.Action, out var action, out var errorMessage))
+        {
+            AnsiConsole.MarkupLine($"[red]{errorMessage}[/]");
+            return 1;
+        }
         var command = $"slicer.{action}";
 
         object? args = action switch
         {
-            "list" => new { sheetName = settings.SheetName },
-            "create-from-pivottable" => new
+            "list-slicers" => new { pivotTableName = settings.PivotTableName },
+            "list-table-slicers" => new { tableName = settings.TableName },
+            "create-slicer" => new
             {
                 pivotTableName = settings.PivotTableName,
                 sourceFieldName = settings.SourceFieldName,
@@ -43,7 +50,7 @@ internal sealed class SlicerCommand : AsyncCommand<SlicerCommand.Settings>
                 width = settings.Width,
                 height = settings.Height
             },
-            "create-from-table" => new
+            "create-table-slicer" => new
             {
                 tableName = settings.TableName,
                 columnName = settings.ColumnName,
@@ -54,11 +61,10 @@ internal sealed class SlicerCommand : AsyncCommand<SlicerCommand.Settings>
                 width = settings.Width,
                 height = settings.Height
             },
-            "delete" => new { slicerName = settings.SlicerName },
-            "set-filter" => new { slicerName = settings.SlicerName, selectedItems = settings.SelectedItems, multiSelect = settings.MultiSelect },
-            "clear-filter" => new { slicerName = settings.SlicerName },
-            "get-filter-state" => new { slicerName = settings.SlicerName },
-            "connect-to-pivottable" => new { slicerName = settings.SlicerName, targetPivotTableName = settings.TargetPivotTableName },
+            "set-slicer-selection" => new { slicerName = settings.SlicerName, selectedItems = settings.SelectedItems, multiSelect = settings.MultiSelect },
+            "set-table-slicer-selection" => new { slicerName = settings.SlicerName, selectedItems = settings.SelectedItems, multiSelect = settings.MultiSelect },
+            "delete-slicer" => new { slicerName = settings.SlicerName },
+            "delete-table-slicer" => new { slicerName = settings.SlicerName },
             _ => new { slicerName = settings.SlicerName }
         };
 
@@ -89,9 +95,6 @@ internal sealed class SlicerCommand : AsyncCommand<SlicerCommand.Settings>
 
         [CommandOption("-s|--session <SESSION>")]
         public string SessionId { get; init; } = string.Empty;
-
-        [CommandOption("--sheet <NAME>")]
-        public string? SheetName { get; init; }
 
         [CommandOption("--slicer <NAME>")]
         public string? SlicerName { get; init; }

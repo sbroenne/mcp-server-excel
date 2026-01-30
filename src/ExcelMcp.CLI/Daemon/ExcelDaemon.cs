@@ -8,6 +8,7 @@ using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Models.Actions;
 
 namespace Sbroenne.ExcelMcp.CLI.Daemon;
 
@@ -442,47 +443,52 @@ internal sealed class ExcelDaemon : IDisposable
 
     private Task<DaemonResponse> HandleSheetCommandAsync(string action, DaemonRequest request)
     {
-        // Handle cross-file operations separately (they don't need a session)
-        if (action is "copy-to-file" or "move-to-file")
+        if (TryParseAction<WorksheetAction>(action, out var sheetAction))
         {
-            return Task.FromResult(HandleSheetCrossFileCommand(action, request));
-        }
+            if (sheetAction is WorksheetAction.CopyToFile or WorksheetAction.MoveToFile)
+            {
+                return Task.FromResult(HandleSheetCrossFileCommand(sheetAction, request));
+            }
 
-        return WithSessionAsync(request.SessionId, batch =>
-        {
-            return action switch
+            return WithSessionAsync(request.SessionId, batch => sheetAction switch
             {
                 // Lifecycle operations
-                "list" => SerializeResult(_sheetCommands.List(batch)),
-                "create" => ExecuteVoid(() => _sheetCommands.Create(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                "rename" => ExecuteVoid(() =>
+                WorksheetAction.List => SerializeResult(_sheetCommands.List(batch)),
+                WorksheetAction.Create => ExecuteVoid(() => _sheetCommands.Create(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
+                WorksheetAction.Rename => ExecuteVoid(() =>
                 {
                     var args = GetArg<SheetRenameArgs>(request.Args);
                     _sheetCommands.Rename(batch, args.SheetName!, args.NewName!);
                 }),
-                "delete" => ExecuteVoid(() => _sheetCommands.Delete(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                "copy" => ExecuteVoid(() =>
+                WorksheetAction.Delete => ExecuteVoid(() => _sheetCommands.Delete(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
+                WorksheetAction.Copy => ExecuteVoid(() =>
                 {
                     var args = GetArg<SheetCopyArgs>(request.Args);
                     _sheetCommands.Copy(batch, args.SourceSheet!, args.TargetSheet!);
                 }),
-                "move" => ExecuteVoid(() =>
+                WorksheetAction.Move => ExecuteVoid(() =>
                 {
                     var args = GetArg<SheetMoveArgs>(request.Args);
                     _sheetCommands.Move(batch, args.SheetName!, args.BeforeSheet, args.AfterSheet);
                 }),
 
-                // Tab color operations
-                "set-tab-color" => ExecuteVoid(() =>
+                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported sheet action: {action}" }
+            });
+        }
+
+        if (TryParseAction<WorksheetStyleAction>(action, out var styleAction))
+        {
+            return WithSessionAsync(request.SessionId, batch => styleAction switch
+            {
+                WorksheetStyleAction.SetTabColor => ExecuteVoid(() =>
                 {
                     var args = GetArg<SheetTabColorArgs>(request.Args);
                     _sheetCommands.SetTabColor(batch, args.SheetName!, args.Red ?? 0, args.Green ?? 0, args.Blue ?? 0);
                 }),
-                "get-tab-color" => SerializeResult(_sheetCommands.GetTabColor(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                "clear-tab-color" => ExecuteVoid(() => _sheetCommands.ClearTabColor(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
+                WorksheetStyleAction.GetTabColor => SerializeResult(_sheetCommands.GetTabColor(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
+                WorksheetStyleAction.ClearTabColor => ExecuteVoid(() => _sheetCommands.ClearTabColor(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
 
-                // Visibility operations
-                "set-visibility" => ExecuteVoid(() =>
+                WorksheetStyleAction.SetVisibility => ExecuteVoid(() =>
                 {
                     var args = GetArg<SheetVisibilityArgs>(request.Args);
                     var visibility = args.Visibility?.ToLowerInvariant() switch
@@ -494,28 +500,30 @@ internal sealed class ExcelDaemon : IDisposable
                     };
                     _sheetCommands.SetVisibility(batch, args.SheetName!, visibility);
                 }),
-                "get-visibility" => SerializeResult(_sheetCommands.GetVisibility(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                "show" => ExecuteVoid(() => _sheetCommands.Show(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                "hide" => ExecuteVoid(() => _sheetCommands.Hide(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                "very-hide" => ExecuteVoid(() => _sheetCommands.VeryHide(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
+                WorksheetStyleAction.GetVisibility => SerializeResult(_sheetCommands.GetVisibility(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
+                WorksheetStyleAction.Show => ExecuteVoid(() => _sheetCommands.Show(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
+                WorksheetStyleAction.Hide => ExecuteVoid(() => _sheetCommands.Hide(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
+                WorksheetStyleAction.VeryHide => ExecuteVoid(() => _sheetCommands.VeryHide(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
 
-                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown sheet action: {action}" }
-            };
-        });
+                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported sheet style action: {action}" }
+            });
+        }
+
+        return Task.FromResult(new DaemonResponse { Success = false, ErrorMessage = $"Unknown sheet action: {action}" });
     }
 
-    private DaemonResponse HandleSheetCrossFileCommand(string action, DaemonRequest request)
+    private DaemonResponse HandleSheetCrossFileCommand(WorksheetAction action, DaemonRequest request)
     {
         try
         {
             return action switch
             {
-                "copy-to-file" => ExecuteVoid(() =>
+                WorksheetAction.CopyToFile => ExecuteVoid(() =>
                 {
                     var args = GetArg<SheetCopyToFileArgs>(request.Args);
                     _sheetCommands.CopyToFile(args.SourceFile!, args.SourceSheet!, args.TargetFile!, args.TargetSheetName, args.BeforeSheet, args.AfterSheet);
                 }),
-                "move-to-file" => ExecuteVoid(() =>
+                WorksheetAction.MoveToFile => ExecuteVoid(() =>
                 {
                     var args = GetArg<SheetMoveToFileArgs>(request.Args);
                     _sheetCommands.MoveToFile(args.SourceFile!, args.SourceSheet!, args.TargetFile!, args.BeforeSheet, args.AfterSheet);
@@ -535,80 +543,81 @@ internal sealed class ExcelDaemon : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            return action switch
+            if (TryParseAction<RangeAction>(action, out var rangeAction))
             {
-                // Value operations
-                "get-values" => ExecuteRangeGetValues(batch, request),
-                "set-values" => ExecuteRangeSetValues(batch, request),
-                "get-used-range" => ExecuteRangeGetUsedRange(batch, request),
-                "get-current-region" => ExecuteRangeGetCurrentRegion(batch, request),
-                "get-info" => ExecuteRangeGetInfo(batch, request),
+                return rangeAction switch
+                {
+                    RangeAction.GetValues => ExecuteRangeGetValues(batch, request),
+                    RangeAction.SetValues => ExecuteRangeSetValues(batch, request),
+                    RangeAction.GetUsedRange => ExecuteRangeGetUsedRange(batch, request),
+                    RangeAction.GetCurrentRegion => ExecuteRangeGetCurrentRegion(batch, request),
+                    RangeAction.GetInfo => ExecuteRangeGetInfo(batch, request),
+                    RangeAction.GetFormulas => ExecuteRangeGetFormulas(batch, request),
+                    RangeAction.SetFormulas => ExecuteRangeSetFormulas(batch, request),
+                    RangeAction.ClearAll => ExecuteRangeClearAll(batch, request),
+                    RangeAction.ClearContents => ExecuteRangeClearContents(batch, request),
+                    RangeAction.ClearFormats => ExecuteRangeClearFormats(batch, request),
+                    RangeAction.Copy => ExecuteRangeCopy(batch, request),
+                    RangeAction.CopyValues => ExecuteRangeCopyValues(batch, request),
+                    RangeAction.CopyFormulas => ExecuteRangeCopyFormulas(batch, request),
+                    RangeAction.GetNumberFormats => ExecuteRangeGetNumberFormats(batch, request),
+                    RangeAction.SetNumberFormat => ExecuteRangeSetNumberFormat(batch, request),
+                    RangeAction.SetNumberFormats => ExecuteRangeSetNumberFormats(batch, request),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported range action: {action}" }
+                };
+            }
 
-                // Formula operations
-                "get-formulas" => ExecuteRangeGetFormulas(batch, request),
-                "set-formulas" => ExecuteRangeSetFormulas(batch, request),
+            if (TryParseAction<RangeEditAction>(action, out var editAction))
+            {
+                return editAction switch
+                {
+                    RangeEditAction.InsertCells => ExecuteRangeInsertCells(batch, request),
+                    RangeEditAction.DeleteCells => ExecuteRangeDeleteCells(batch, request),
+                    RangeEditAction.InsertRows => ExecuteRangeInsertRows(batch, request),
+                    RangeEditAction.DeleteRows => ExecuteRangeDeleteRows(batch, request),
+                    RangeEditAction.InsertColumns => ExecuteRangeInsertColumns(batch, request),
+                    RangeEditAction.DeleteColumns => ExecuteRangeDeleteColumns(batch, request),
+                    RangeEditAction.Find => ExecuteRangeFind(batch, request),
+                    RangeEditAction.Replace => ExecuteRangeReplace(batch, request),
+                    RangeEditAction.Sort => ExecuteRangeSort(batch, request),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported range edit action: {action}" }
+                };
+            }
 
-                // Clear operations
-                "clear-all" => ExecuteRangeClearAll(batch, request),
-                "clear-contents" => ExecuteRangeClearContents(batch, request),
-                "clear-formats" => ExecuteRangeClearFormats(batch, request),
+            if (TryParseAction<RangeFormatAction>(action, out var formatAction))
+            {
+                return formatAction switch
+                {
+                    RangeFormatAction.SetStyle => ExecuteRangeSetStyle(batch, request),
+                    RangeFormatAction.GetStyle => ExecuteRangeGetStyle(batch, request),
+                    RangeFormatAction.FormatRange => ExecuteRangeFormatRange(batch, request),
+                    RangeFormatAction.ValidateRange => ExecuteRangeValidateRange(batch, request),
+                    RangeFormatAction.GetValidation => ExecuteRangeGetValidation(batch, request),
+                    RangeFormatAction.RemoveValidation => ExecuteRangeRemoveValidation(batch, request),
+                    RangeFormatAction.AutoFitColumns => ExecuteRangeAutoFitColumns(batch, request),
+                    RangeFormatAction.AutoFitRows => ExecuteRangeAutoFitRows(batch, request),
+                    RangeFormatAction.MergeCells => ExecuteRangeMergeCells(batch, request),
+                    RangeFormatAction.UnmergeCells => ExecuteRangeUnmergeCells(batch, request),
+                    RangeFormatAction.GetMergeInfo => ExecuteRangeGetMergeInfo(batch, request),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported range format action: {action}" }
+                };
+            }
 
-                // Copy operations
-                "copy" => ExecuteRangeCopy(batch, request),
-                "copy-values" => ExecuteRangeCopyValues(batch, request),
-                "copy-formulas" => ExecuteRangeCopyFormulas(batch, request),
+            if (TryParseAction<RangeLinkAction>(action, out var linkAction))
+            {
+                return linkAction switch
+                {
+                    RangeLinkAction.AddHyperlink => ExecuteRangeAddHyperlink(batch, request),
+                    RangeLinkAction.RemoveHyperlink => ExecuteRangeRemoveHyperlink(batch, request),
+                    RangeLinkAction.ListHyperlinks => ExecuteRangeListHyperlinks(batch, request),
+                    RangeLinkAction.GetHyperlink => ExecuteRangeGetHyperlink(batch, request),
+                    RangeLinkAction.SetCellLock => ExecuteRangeSetCellLock(batch, request),
+                    RangeLinkAction.GetCellLock => ExecuteRangeGetCellLock(batch, request),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported range link action: {action}" }
+                };
+            }
 
-                // Insert/Delete operations
-                "insert-cells" => ExecuteRangeInsertCells(batch, request),
-                "delete-cells" => ExecuteRangeDeleteCells(batch, request),
-                "insert-rows" => ExecuteRangeInsertRows(batch, request),
-                "delete-rows" => ExecuteRangeDeleteRows(batch, request),
-                "insert-columns" => ExecuteRangeInsertColumns(batch, request),
-                "delete-columns" => ExecuteRangeDeleteColumns(batch, request),
-
-                // Find/Replace operations
-                "find" => ExecuteRangeFind(batch, request),
-                "replace" => ExecuteRangeReplace(batch, request),
-
-                // Sort operation
-                "sort" => ExecuteRangeSort(batch, request),
-
-                // Hyperlink operations
-                "add-hyperlink" => ExecuteRangeAddHyperlink(batch, request),
-                "remove-hyperlink" => ExecuteRangeRemoveHyperlink(batch, request),
-                "list-hyperlinks" => ExecuteRangeListHyperlinks(batch, request),
-                "get-hyperlink" => ExecuteRangeGetHyperlink(batch, request),
-
-                // Number format operations
-                "get-number-formats" => ExecuteRangeGetNumberFormats(batch, request),
-                "set-number-format" => ExecuteRangeSetNumberFormat(batch, request),
-                "set-number-formats" => ExecuteRangeSetNumberFormats(batch, request),
-
-                // Style/Formatting operations
-                "set-style" => ExecuteRangeSetStyle(batch, request),
-                "get-style" => ExecuteRangeGetStyle(batch, request),
-                "format-range" => ExecuteRangeFormatRange(batch, request),
-
-                // Validation operations
-                "validate-range" => ExecuteRangeValidateRange(batch, request),
-                "get-validation" => ExecuteRangeGetValidation(batch, request),
-                "remove-validation" => ExecuteRangeRemoveValidation(batch, request),
-
-                // AutoFit operations
-                "auto-fit-columns" => ExecuteRangeAutoFitColumns(batch, request),
-                "auto-fit-rows" => ExecuteRangeAutoFitRows(batch, request),
-
-                // Merge operations
-                "merge-cells" => ExecuteRangeMergeCells(batch, request),
-                "unmerge-cells" => ExecuteRangeUnmergeCells(batch, request),
-                "get-merge-info" => ExecuteRangeGetMergeInfo(batch, request),
-
-                // Cell protection operations
-                "set-cell-lock" => ExecuteRangeSetCellLock(batch, request),
-                "get-cell-lock" => ExecuteRangeGetCellLock(batch, request),
-
-                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown range action: {action}" }
-            };
+            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown range action: {action}" };
         });
     }
 
@@ -944,103 +953,117 @@ internal sealed class ExcelDaemon : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            return action switch
+            if (TryParseAction<TableAction>(action, out var tableAction))
             {
-                "list" => SerializeResult(_tableCommands.List(batch)),
-                "create" => ExecuteVoid(() =>
+                return tableAction switch
                 {
-                    var a = GetArg<TableCreateArgs>(request.Args);
-                    _tableCommands.Create(batch, a.SheetName!, a.TableName!, a.Range!, a.HasHeaders ?? true, a.TableStyle);
-                }),
-                "read" => SerializeResult(_tableCommands.Read(batch, GetArg<TableArgs>(request.Args).TableName!)),
-                "rename" => ExecuteVoid(() =>
+                    TableAction.List => SerializeResult(_tableCommands.List(batch)),
+                    TableAction.Create => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<TableCreateArgs>(request.Args);
+                        _tableCommands.Create(batch, a.SheetName!, a.TableName!, a.Range!, a.HasHeaders ?? true, a.TableStyle);
+                    }),
+                    TableAction.Read => SerializeResult(_tableCommands.Read(batch, GetArg<TableArgs>(request.Args).TableName!)),
+                    TableAction.Rename => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<TableRenameArgs>(request.Args);
+                        _tableCommands.Rename(batch, a.TableName!, a.NewName!);
+                    }),
+                    TableAction.Delete => ExecuteVoid(() => _tableCommands.Delete(batch, GetArg<TableArgs>(request.Args).TableName!)),
+                    TableAction.Resize => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<TableResizeArgs>(request.Args);
+                        _tableCommands.Resize(batch, a.TableName!, a.NewRange!);
+                    }),
+                    TableAction.SetStyle => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<TableStyleArgs>(request.Args);
+                        _tableCommands.SetStyle(batch, a.TableName!, a.TableStyle!);
+                    }),
+                    TableAction.ToggleTotals => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<TableToggleTotalsArgs>(request.Args);
+                        _tableCommands.ToggleTotals(batch, a.TableName!, a.ShowTotals ?? false);
+                    }),
+                    TableAction.SetColumnTotal => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<TableColumnTotalArgs>(request.Args);
+                        _tableCommands.SetColumnTotal(batch, a.TableName!, a.ColumnName!, a.TotalFunction!);
+                    }),
+                    TableAction.Append => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<TableAppendArgs>(request.Args);
+                        _tableCommands.Append(batch, a.TableName!, a.Rows!);
+                    }),
+                    TableAction.GetData => SerializeResult(_tableCommands.GetData(batch, GetArg<TableDataArgs>(request.Args).TableName!, GetArg<TableDataArgs>(request.Args).VisibleOnly ?? false)),
+                    TableAction.AddToDataModel => ExecuteVoid(() => _tableCommands.AddToDataModel(batch, GetArg<TableArgs>(request.Args).TableName!)),
+                    TableAction.CreateFromDax => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<TableDaxArgs>(request.Args);
+                        _tableCommands.CreateFromDax(batch, a.SheetName!, a.TableName!, a.DaxQuery!, a.TargetCell);
+                    }),
+                    TableAction.UpdateDax => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<TableUpdateDaxArgs>(request.Args);
+                        _tableCommands.UpdateDax(batch, a.TableName!, a.DaxQuery!);
+                    }),
+                    TableAction.GetDax => SerializeResult(_tableCommands.GetDax(batch, GetArg<TableArgs>(request.Args).TableName!)),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported table action: {action}" }
+                };
+            }
+
+            if (TryParseAction<TableColumnAction>(action, out var columnAction))
+            {
+                return columnAction switch
                 {
-                    var a = GetArg<TableRenameArgs>(request.Args);
-                    _tableCommands.Rename(batch, a.TableName!, a.NewName!);
-                }),
-                "delete" => ExecuteVoid(() => _tableCommands.Delete(batch, GetArg<TableArgs>(request.Args).TableName!)),
-                "resize" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<TableResizeArgs>(request.Args);
-                    _tableCommands.Resize(batch, a.TableName!, a.NewRange!);
-                }),
-                "set-style" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<TableStyleArgs>(request.Args);
-                    _tableCommands.SetStyle(batch, a.TableName!, a.TableStyle!);
-                }),
-                "toggle-totals" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<TableToggleTotalsArgs>(request.Args);
-                    _tableCommands.ToggleTotals(batch, a.TableName!, a.ShowTotals ?? false);
-                }),
-                "set-column-total" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<TableColumnTotalArgs>(request.Args);
-                    _tableCommands.SetColumnTotal(batch, a.TableName!, a.ColumnName!, a.TotalFunction!);
-                }),
-                "append" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<TableAppendArgs>(request.Args);
-                    _tableCommands.Append(batch, a.TableName!, a.Rows!);
-                }),
-                "get-data" => SerializeResult(_tableCommands.GetData(batch, GetArg<TableDataArgs>(request.Args).TableName!, GetArg<TableDataArgs>(request.Args).VisibleOnly ?? false)),
-                "add-to-datamodel" => ExecuteVoid(() => _tableCommands.AddToDataModel(batch, GetArg<TableArgs>(request.Args).TableName!)),
-                "apply-filter" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<TableFilterArgs>(request.Args);
-                    if (a.Criteria != null)
-                        _tableCommands.ApplyFilter(batch, a.TableName!, a.ColumnName!, a.Criteria);
-                    else if (a.Values != null)
-                        _tableCommands.ApplyFilter(batch, a.TableName!, a.ColumnName!, a.Values);
-                }),
-                "clear-filters" => ExecuteVoid(() => _tableCommands.ClearFilters(batch, GetArg<TableArgs>(request.Args).TableName!)),
-                "get-filters" => SerializeResult(_tableCommands.GetFilters(batch, GetArg<TableArgs>(request.Args).TableName!)),
-                "add-column" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<TableAddColumnArgs>(request.Args);
-                    _tableCommands.AddColumn(batch, a.TableName!, a.ColumnName!, a.Position);
-                }),
-                "remove-column" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<TableColumnArgs>(request.Args);
-                    _tableCommands.RemoveColumn(batch, a.TableName!, a.ColumnName!);
-                }),
-                "rename-column" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<TableRenameColumnArgs>(request.Args);
-                    _tableCommands.RenameColumn(batch, a.TableName!, a.OldName!, a.NewName!);
-                }),
-                "sort" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<TableSortArgs>(request.Args);
-                    _tableCommands.Sort(batch, a.TableName!, a.ColumnName!, a.Ascending ?? true);
-                }),
-                "get-column-number-format" => SerializeResult(_tableCommands.GetColumnNumberFormat(batch, GetArg<TableColumnArgs>(request.Args).TableName!, GetArg<TableColumnArgs>(request.Args).ColumnName!)),
-                "set-column-number-format" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<TableColumnFormatArgs>(request.Args);
-                    _tableCommands.SetColumnNumberFormat(batch, a.TableName!, a.ColumnName!, a.FormatCode!);
-                }),
-                "create-from-dax" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<TableDaxArgs>(request.Args);
-                    _tableCommands.CreateFromDax(batch, a.SheetName!, a.TableName!, a.DaxQuery!, a.TargetCell);
-                }),
-                "update-dax" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<TableUpdateDaxArgs>(request.Args);
-                    _tableCommands.UpdateDax(batch, a.TableName!, a.DaxQuery!);
-                }),
-                "get-dax" => SerializeResult(_tableCommands.GetDax(batch, GetArg<TableArgs>(request.Args).TableName!)),
-                "get-structured-reference" => SerializeResult(() =>
-                {
-                    var a = GetArg<TableStructuredRefArgs>(request.Args);
-                    var region = ParseTableRegion(a.Region);
-                    return _tableCommands.GetStructuredReference(batch, a.TableName!, region, a.ColumnName);
-                }),
-                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown table action: {action}" }
-            };
+                    TableColumnAction.ApplyFilter or TableColumnAction.ApplyFilterValues => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<TableFilterArgs>(request.Args);
+                        if (a.Criteria != null)
+                            _tableCommands.ApplyFilter(batch, a.TableName!, a.ColumnName!, a.Criteria);
+                        else if (a.Values != null)
+                            _tableCommands.ApplyFilter(batch, a.TableName!, a.ColumnName!, a.Values);
+                    }),
+                    TableColumnAction.ClearFilters => ExecuteVoid(() => _tableCommands.ClearFilters(batch, GetArg<TableArgs>(request.Args).TableName!)),
+                    TableColumnAction.GetFilters => SerializeResult(_tableCommands.GetFilters(batch, GetArg<TableArgs>(request.Args).TableName!)),
+                    TableColumnAction.AddColumn => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<TableAddColumnArgs>(request.Args);
+                        _tableCommands.AddColumn(batch, a.TableName!, a.ColumnName!, a.Position);
+                    }),
+                    TableColumnAction.RemoveColumn => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<TableColumnArgs>(request.Args);
+                        _tableCommands.RemoveColumn(batch, a.TableName!, a.ColumnName!);
+                    }),
+                    TableColumnAction.RenameColumn => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<TableRenameColumnArgs>(request.Args);
+                        _tableCommands.RenameColumn(batch, a.TableName!, a.OldName!, a.NewName!);
+                    }),
+                    TableColumnAction.Sort => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<TableSortArgs>(request.Args);
+                        _tableCommands.Sort(batch, a.TableName!, a.ColumnName!, a.Ascending ?? true);
+                    }),
+                    TableColumnAction.SortMulti => new DaemonResponse { Success = false, ErrorMessage = "sort-multi is not supported by the CLI daemon" },
+                    TableColumnAction.GetStructuredReference => SerializeResult(() =>
+                    {
+                        var a = GetArg<TableStructuredRefArgs>(request.Args);
+                        var region = ParseTableRegion(a.Region);
+                        return _tableCommands.GetStructuredReference(batch, a.TableName!, region, a.ColumnName);
+                    }),
+                    TableColumnAction.GetColumnNumberFormat => SerializeResult(_tableCommands.GetColumnNumberFormat(batch, GetArg<TableColumnArgs>(request.Args).TableName!, GetArg<TableColumnArgs>(request.Args).ColumnName!)),
+                    TableColumnAction.SetColumnNumberFormat => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<TableColumnFormatArgs>(request.Args);
+                        _tableCommands.SetColumnNumberFormat(batch, a.TableName!, a.ColumnName!, a.FormatCode!);
+                    }),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported table column action: {action}" }
+                };
+            }
+
+            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown table action: {action}" };
         });
     }
 
@@ -1048,34 +1071,39 @@ internal sealed class ExcelDaemon : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            return action switch
+            if (TryParseAction<PowerQueryAction>(action, out var pqAction))
             {
-                "list" => SerializeResult(_powerQueryCommands.List(batch)),
-                "view" => SerializeResult(_powerQueryCommands.View(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!)),
-                "create" => ExecuteVoid(() =>
+                return pqAction switch
                 {
-                    var a = GetArg<PowerQueryCreateArgs>(request.Args);
-                    var loadMode = ParseLoadMode(a.LoadDestination);
-                    _powerQueryCommands.Create(batch, a.QueryName!, a.MCode!, loadMode, a.TargetSheet, a.TargetCellAddress);
-                }),
-                "update" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<PowerQueryUpdateArgs>(request.Args);
-                    _powerQueryCommands.Update(batch, a.QueryName!, a.MCode!, a.Refresh ?? true);
-                }),
-                "rename" => SerializeResult(_powerQueryCommands.Rename(batch, GetArg<PowerQueryRenameArgs>(request.Args).OldName!, GetArg<PowerQueryRenameArgs>(request.Args).NewName!)),
-                "delete" => ExecuteVoid(() => _powerQueryCommands.Delete(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!)),
-                "refresh" => SerializeResult(_powerQueryCommands.Refresh(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!, TimeSpan.FromMinutes(5))),
-                "refresh-all" => ExecuteVoid(() => _powerQueryCommands.RefreshAll(batch)),
-                "load-to" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<PowerQueryLoadToArgs>(request.Args);
-                    var loadMode = ParseLoadMode(a.LoadDestination);
-                    _powerQueryCommands.LoadTo(batch, a.QueryName!, loadMode, a.TargetSheet, a.TargetCellAddress);
-                }),
-                "get-load-config" => SerializeResult(_powerQueryCommands.GetLoadConfig(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!)),
-                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown powerquery action: {action}" }
-            };
+                    PowerQueryAction.List => SerializeResult(_powerQueryCommands.List(batch)),
+                    PowerQueryAction.View => SerializeResult(_powerQueryCommands.View(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!)),
+                    PowerQueryAction.Create => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<PowerQueryCreateArgs>(request.Args);
+                        var loadMode = ParseLoadMode(a.LoadDestination);
+                        _powerQueryCommands.Create(batch, a.QueryName!, a.MCode!, loadMode, a.TargetSheet, a.TargetCellAddress);
+                    }),
+                    PowerQueryAction.Update => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<PowerQueryUpdateArgs>(request.Args);
+                        _powerQueryCommands.Update(batch, a.QueryName!, a.MCode!, a.Refresh ?? true);
+                    }),
+                    PowerQueryAction.Rename => SerializeResult(_powerQueryCommands.Rename(batch, GetArg<PowerQueryRenameArgs>(request.Args).OldName!, GetArg<PowerQueryRenameArgs>(request.Args).NewName!)),
+                    PowerQueryAction.Delete => ExecuteVoid(() => _powerQueryCommands.Delete(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!)),
+                    PowerQueryAction.Refresh => SerializeResult(_powerQueryCommands.Refresh(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!, TimeSpan.FromMinutes(5))),
+                    PowerQueryAction.RefreshAll => ExecuteVoid(() => _powerQueryCommands.RefreshAll(batch)),
+                    PowerQueryAction.LoadTo => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<PowerQueryLoadToArgs>(request.Args);
+                        var loadMode = ParseLoadMode(a.LoadDestination);
+                        _powerQueryCommands.LoadTo(batch, a.QueryName!, loadMode, a.TargetSheet, a.TargetCellAddress);
+                    }),
+                    PowerQueryAction.GetLoadConfig => SerializeResult(_powerQueryCommands.GetLoadConfig(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!)),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported powerquery action: {action}" }
+                };
+            }
+
+            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown powerquery action: {action}" };
         });
     }
 
@@ -1095,109 +1123,130 @@ internal sealed class ExcelDaemon : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            return action switch
+            if (TryParseAction<PivotTableAction>(action, out var pivotAction))
             {
-                "list" => SerializeResult(_pivotTableCommands.List(batch)),
-                "read" => SerializeResult(_pivotTableCommands.Read(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
-                "create-from-range" => SerializeResult(() =>
+                return pivotAction switch
                 {
-                    var a = GetArg<PivotTableFromRangeArgs>(request.Args);
-                    return _pivotTableCommands.CreateFromRange(batch, a.SourceSheet!, a.SourceRange!, a.DestinationSheet!, a.DestinationCell!, a.PivotTableName!);
-                }),
-                "create-from-table" => SerializeResult(() =>
+                    PivotTableAction.List => SerializeResult(_pivotTableCommands.List(batch)),
+                    PivotTableAction.Read => SerializeResult(_pivotTableCommands.Read(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
+                    PivotTableAction.CreateFromRange => SerializeResult(() =>
+                    {
+                        var a = GetArg<PivotTableFromRangeArgs>(request.Args);
+                        return _pivotTableCommands.CreateFromRange(batch, a.SourceSheet!, a.SourceRange!, a.DestinationSheet!, a.DestinationCell!, a.PivotTableName!);
+                    }),
+                    PivotTableAction.CreateFromTable => SerializeResult(() =>
+                    {
+                        var a = GetArg<PivotTableFromTableArgs>(request.Args);
+                        return _pivotTableCommands.CreateFromTable(batch, a.TableName!, a.DestinationSheet!, a.DestinationCell!, a.PivotTableName!);
+                    }),
+                    PivotTableAction.CreateFromDataModel => SerializeResult(() =>
+                    {
+                        var a = GetArg<PivotTableFromDataModelArgs>(request.Args);
+                        return _pivotTableCommands.CreateFromDataModel(batch, a.TableName!, a.DestinationSheet!, a.DestinationCell!, a.PivotTableName!);
+                    }),
+                    PivotTableAction.Delete => SerializeResult(_pivotTableCommands.Delete(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
+                    PivotTableAction.Refresh => SerializeResult(_pivotTableCommands.Refresh(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!, GetArg<PivotTableRefreshArgs>(request.Args).Timeout)),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported pivottable action: {action}" }
+                };
+            }
+
+            if (TryParseAction<PivotTableFieldAction>(action, out var fieldAction))
+            {
+                return fieldAction switch
                 {
-                    var a = GetArg<PivotTableFromTableArgs>(request.Args);
-                    return _pivotTableCommands.CreateFromTable(batch, a.TableName!, a.DestinationSheet!, a.DestinationCell!, a.PivotTableName!);
-                }),
-                "create-from-datamodel" => SerializeResult(() =>
+                    PivotTableFieldAction.ListFields => SerializeResult(_pivotTableCommands.ListFields(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
+                    PivotTableFieldAction.AddRowField => SerializeResult(() =>
+                    {
+                        var a = GetArg<PivotFieldArgs>(request.Args);
+                        return _pivotTableCommands.AddRowField(batch, a.PivotTableName!, a.FieldName!, a.Position);
+                    }),
+                    PivotTableFieldAction.AddColumnField => SerializeResult(() =>
+                    {
+                        var a = GetArg<PivotFieldArgs>(request.Args);
+                        return _pivotTableCommands.AddColumnField(batch, a.PivotTableName!, a.FieldName!, a.Position);
+                    }),
+                    PivotTableFieldAction.AddValueField => SerializeResult(() =>
+                    {
+                        var a = GetArg<PivotValueFieldArgs>(request.Args);
+                        var func = ParseAggregationFunction(a.AggregationFunction);
+                        return _pivotTableCommands.AddValueField(batch, a.PivotTableName!, a.FieldName!, func, a.CustomName);
+                    }),
+                    PivotTableFieldAction.AddFilterField => SerializeResult(_pivotTableCommands.AddFilterField(batch, GetArg<PivotFieldArgs>(request.Args).PivotTableName!, GetArg<PivotFieldArgs>(request.Args).FieldName!)),
+                    PivotTableFieldAction.RemoveField => SerializeResult(_pivotTableCommands.RemoveField(batch, GetArg<PivotFieldArgs>(request.Args).PivotTableName!, GetArg<PivotFieldArgs>(request.Args).FieldName!)),
+                    PivotTableFieldAction.SetFieldFunction => SerializeResult(() =>
+                    {
+                        var a = GetArg<PivotFieldFunctionArgs>(request.Args);
+                        var func = ParseAggregationFunction(a.AggregationFunction);
+                        return _pivotTableCommands.SetFieldFunction(batch, a.PivotTableName!, a.FieldName!, func);
+                    }),
+                    PivotTableFieldAction.SetFieldName => SerializeResult(() =>
+                    {
+                        var a = GetArg<PivotFieldNameArgs>(request.Args);
+                        return _pivotTableCommands.SetFieldName(batch, a.PivotTableName!, a.FieldName!, a.CustomName!);
+                    }),
+                    PivotTableFieldAction.SetFieldFormat => SerializeResult(() =>
+                    {
+                        var a = GetArg<PivotFieldFormatArgs>(request.Args);
+                        return _pivotTableCommands.SetFieldFormat(batch, a.PivotTableName!, a.FieldName!, a.NumberFormat!);
+                    }),
+                    PivotTableFieldAction.SetFieldFilter => SerializeResult(() =>
+                    {
+                        var a = GetArg<PivotFieldFilterArgs>(request.Args);
+                        return _pivotTableCommands.SetFieldFilter(batch, a.PivotTableName!, a.FieldName!, a.SelectedValues!);
+                    }),
+                    PivotTableFieldAction.SortField => SerializeResult(() =>
+                    {
+                        var a = GetArg<PivotFieldSortArgs>(request.Args);
+                        var dir = a.Ascending ?? true ? SortDirection.Ascending : SortDirection.Descending;
+                        return _pivotTableCommands.SortField(batch, a.PivotTableName!, a.FieldName!, dir);
+                    }),
+                    PivotTableFieldAction.GroupByDate => SerializeResult(() =>
+                    {
+                        var a = GetArg<PivotGroupByDateArgs>(request.Args);
+                        var interval = ParseDateGroupingInterval(a.Interval);
+                        return _pivotTableCommands.GroupByDate(batch, a.PivotTableName!, a.FieldName!, interval);
+                    }),
+                    PivotTableFieldAction.GroupByNumeric => SerializeResult(() =>
+                    {
+                        var a = GetArg<PivotGroupByNumericArgs>(request.Args);
+                        return _pivotTableCommands.GroupByNumeric(batch, a.PivotTableName!, a.FieldName!, a.Start, a.End, a.IntervalSize ?? 10);
+                    }),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported pivottable field action: {action}" }
+                };
+            }
+
+            if (TryParseAction<PivotTableCalcAction>(action, out var calcAction))
+            {
+                return calcAction switch
                 {
-                    var a = GetArg<PivotTableFromDataModelArgs>(request.Args);
-                    return _pivotTableCommands.CreateFromDataModel(batch, a.TableName!, a.DestinationSheet!, a.DestinationCell!, a.PivotTableName!);
-                }),
-                "delete" => SerializeResult(_pivotTableCommands.Delete(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
-                "refresh" => SerializeResult(_pivotTableCommands.Refresh(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!, GetArg<PivotTableRefreshArgs>(request.Args).Timeout)),
-                "list-fields" => SerializeResult(_pivotTableCommands.ListFields(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
-                "add-row-field" => SerializeResult(() =>
-                {
-                    var a = GetArg<PivotFieldArgs>(request.Args);
-                    return _pivotTableCommands.AddRowField(batch, a.PivotTableName!, a.FieldName!, a.Position);
-                }),
-                "add-column-field" => SerializeResult(() =>
-                {
-                    var a = GetArg<PivotFieldArgs>(request.Args);
-                    return _pivotTableCommands.AddColumnField(batch, a.PivotTableName!, a.FieldName!, a.Position);
-                }),
-                "add-value-field" => SerializeResult(() =>
-                {
-                    var a = GetArg<PivotValueFieldArgs>(request.Args);
-                    var func = ParseAggregationFunction(a.AggregationFunction);
-                    return _pivotTableCommands.AddValueField(batch, a.PivotTableName!, a.FieldName!, func, a.CustomName);
-                }),
-                "add-filter-field" => SerializeResult(_pivotTableCommands.AddFilterField(batch, GetArg<PivotFieldArgs>(request.Args).PivotTableName!, GetArg<PivotFieldArgs>(request.Args).FieldName!)),
-                "remove-field" => SerializeResult(_pivotTableCommands.RemoveField(batch, GetArg<PivotFieldArgs>(request.Args).PivotTableName!, GetArg<PivotFieldArgs>(request.Args).FieldName!)),
-                "get-data" => SerializeResult(_pivotTableCommands.GetData(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
-                "set-field-filter" => SerializeResult(() =>
-                {
-                    var a = GetArg<PivotFieldFilterArgs>(request.Args);
-                    return _pivotTableCommands.SetFieldFilter(batch, a.PivotTableName!, a.FieldName!, a.SelectedValues!);
-                }),
-                "sort-field" => SerializeResult(() =>
-                {
-                    var a = GetArg<PivotFieldSortArgs>(request.Args);
-                    var dir = a.Ascending ?? true ? SortDirection.Ascending : SortDirection.Descending;
-                    return _pivotTableCommands.SortField(batch, a.PivotTableName!, a.FieldName!, dir);
-                }),
-                "create-calculated-field" => SerializeResult(() =>
-                {
-                    var a = GetArg<PivotCalculatedFieldArgs>(request.Args);
-                    return _pivotTableCommands.CreateCalculatedField(batch, a.PivotTableName!, a.FieldName!, a.Formula!);
-                }),
-                "list-calculated-fields" => SerializeResult(_pivotTableCommands.ListCalculatedFields(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
-                "delete-calculated-field" => SerializeResult(_pivotTableCommands.DeleteCalculatedField(batch, GetArg<PivotCalculatedFieldArgs>(request.Args).PivotTableName!, GetArg<PivotCalculatedFieldArgs>(request.Args).FieldName!)),
-                "set-layout" => SerializeResult(_pivotTableCommands.SetLayout(batch, GetArg<PivotLayoutArgs>(request.Args).PivotTableName!, GetArg<PivotLayoutArgs>(request.Args).LayoutType ?? 1)),
-                "set-subtotals" => SerializeResult(() =>
-                {
-                    var a = GetArg<PivotSubtotalsArgs>(request.Args);
-                    return _pivotTableCommands.SetSubtotals(batch, a.PivotTableName!, a.FieldName!, a.ShowSubtotals ?? true);
-                }),
-                "set-grand-totals" => SerializeResult(_pivotTableCommands.SetGrandTotals(batch, GetArg<PivotGrandTotalsArgs>(request.Args).PivotTableName!, GetArg<PivotGrandTotalsArgs>(request.Args).ShowRowGrandTotals ?? true, GetArg<PivotGrandTotalsArgs>(request.Args).ShowColumnGrandTotals ?? true)),
-                "set-field-function" => SerializeResult(() =>
-                {
-                    var a = GetArg<PivotFieldFunctionArgs>(request.Args);
-                    var func = ParseAggregationFunction(a.AggregationFunction);
-                    return _pivotTableCommands.SetFieldFunction(batch, a.PivotTableName!, a.FieldName!, func);
-                }),
-                "set-field-name" => SerializeResult(() =>
-                {
-                    var a = GetArg<PivotFieldNameArgs>(request.Args);
-                    return _pivotTableCommands.SetFieldName(batch, a.PivotTableName!, a.FieldName!, a.CustomName!);
-                }),
-                "set-field-format" => SerializeResult(() =>
-                {
-                    var a = GetArg<PivotFieldFormatArgs>(request.Args);
-                    return _pivotTableCommands.SetFieldFormat(batch, a.PivotTableName!, a.FieldName!, a.NumberFormat!);
-                }),
-                "group-by-date" => SerializeResult(() =>
-                {
-                    var a = GetArg<PivotGroupByDateArgs>(request.Args);
-                    var interval = ParseDateGroupingInterval(a.Interval);
-                    return _pivotTableCommands.GroupByDate(batch, a.PivotTableName!, a.FieldName!, interval);
-                }),
-                "group-by-numeric" => SerializeResult(() =>
-                {
-                    var a = GetArg<PivotGroupByNumericArgs>(request.Args);
-                    return _pivotTableCommands.GroupByNumeric(batch, a.PivotTableName!, a.FieldName!, a.Start, a.End, a.IntervalSize ?? 10);
-                }),
-                "list-calculated-members" => SerializeResult(_pivotTableCommands.ListCalculatedMembers(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
-                "create-calculated-member" => SerializeResult(() =>
-                {
-                    var a = GetArg<PivotCalculatedMemberArgs>(request.Args);
-                    var memberType = ParseCalculatedMemberType(a.MemberType);
-                    return _pivotTableCommands.CreateCalculatedMember(batch, a.PivotTableName!, a.MemberName!, a.Formula!, memberType, a.SolveOrder ?? 0, a.DisplayFolder, a.NumberFormat);
-                }),
-                "delete-calculated-member" => SerializeResult(_pivotTableCommands.DeleteCalculatedMember(batch, GetArg<PivotCalculatedMemberArgs>(request.Args).PivotTableName!, GetArg<PivotCalculatedMemberArgs>(request.Args).MemberName!)),
-                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown pivottable action: {action}" }
-            };
+                    PivotTableCalcAction.ListCalculatedFields => SerializeResult(_pivotTableCommands.ListCalculatedFields(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
+                    PivotTableCalcAction.CreateCalculatedField => SerializeResult(() =>
+                    {
+                        var a = GetArg<PivotCalculatedFieldArgs>(request.Args);
+                        return _pivotTableCommands.CreateCalculatedField(batch, a.PivotTableName!, a.FieldName!, a.Formula!);
+                    }),
+                    PivotTableCalcAction.DeleteCalculatedField => SerializeResult(_pivotTableCommands.DeleteCalculatedField(batch, GetArg<PivotCalculatedFieldArgs>(request.Args).PivotTableName!, GetArg<PivotCalculatedFieldArgs>(request.Args).FieldName!)),
+                    PivotTableCalcAction.ListCalculatedMembers => SerializeResult(_pivotTableCommands.ListCalculatedMembers(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
+                    PivotTableCalcAction.CreateCalculatedMember => SerializeResult(() =>
+                    {
+                        var a = GetArg<PivotCalculatedMemberArgs>(request.Args);
+                        var memberType = ParseCalculatedMemberType(a.MemberType);
+                        return _pivotTableCommands.CreateCalculatedMember(batch, a.PivotTableName!, a.MemberName!, a.Formula!, memberType, a.SolveOrder ?? 0, a.DisplayFolder, a.NumberFormat);
+                    }),
+                    PivotTableCalcAction.DeleteCalculatedMember => SerializeResult(_pivotTableCommands.DeleteCalculatedMember(batch, GetArg<PivotCalculatedMemberArgs>(request.Args).PivotTableName!, GetArg<PivotCalculatedMemberArgs>(request.Args).MemberName!)),
+                    PivotTableCalcAction.SetLayout => SerializeResult(_pivotTableCommands.SetLayout(batch, GetArg<PivotLayoutArgs>(request.Args).PivotTableName!, GetArg<PivotLayoutArgs>(request.Args).LayoutType ?? 1)),
+                    PivotTableCalcAction.SetSubtotals => SerializeResult(() =>
+                    {
+                        var a = GetArg<PivotSubtotalsArgs>(request.Args);
+                        return _pivotTableCommands.SetSubtotals(batch, a.PivotTableName!, a.FieldName!, a.ShowSubtotals ?? true);
+                    }),
+                    PivotTableCalcAction.SetGrandTotals => SerializeResult(_pivotTableCommands.SetGrandTotals(batch, GetArg<PivotGrandTotalsArgs>(request.Args).PivotTableName!, GetArg<PivotGrandTotalsArgs>(request.Args).ShowRowGrandTotals ?? true, GetArg<PivotGrandTotalsArgs>(request.Args).ShowColumnGrandTotals ?? true)),
+                    PivotTableCalcAction.GetData => SerializeResult(_pivotTableCommands.GetData(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported pivottable calc action: {action}" }
+                };
+            }
+
+            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown pivottable action: {action}" };
         });
     }
 
@@ -1259,35 +1308,40 @@ internal sealed class ExcelDaemon : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            return action switch
+            if (TryParseAction<ChartAction>(action, out var chartAction))
             {
-                "list" => SerializeResult(_chartCommands.List(batch)),
-                "read" => SerializeResult(_chartCommands.Read(batch, GetArg<ChartArgs>(request.Args).ChartName!)),
-                "create-from-range" => SerializeResult(() =>
+                return chartAction switch
                 {
-                    var a = GetArg<ChartFromRangeArgs>(request.Args);
-                    var chartType = ParseChartType(a.ChartType);
-                    return _chartCommands.CreateFromRange(batch, a.SheetName!, a.SourceRange!, chartType, a.Left ?? 0, a.Top ?? 0, a.Width ?? 400, a.Height ?? 300, a.ChartName);
-                }),
-                "create-from-pivottable" => SerializeResult(() =>
-                {
-                    var a = GetArg<ChartFromPivotArgs>(request.Args);
-                    var chartType = ParseChartType(a.ChartType);
-                    return _chartCommands.CreateFromPivotTable(batch, a.PivotTableName!, a.SheetName!, chartType, a.Left ?? 0, a.Top ?? 0, a.Width ?? 400, a.Height ?? 300, a.ChartName);
-                }),
-                "delete" => ExecuteVoid(() => _chartCommands.Delete(batch, GetArg<ChartArgs>(request.Args).ChartName!)),
-                "move" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ChartMoveArgs>(request.Args);
-                    _chartCommands.Move(batch, a.ChartName!, a.Left, a.Top, a.Width, a.Height);
-                }),
-                "fit-to-range" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ChartFitArgs>(request.Args);
-                    _chartCommands.FitToRange(batch, a.ChartName!, a.SheetName!, a.RangeAddress!);
-                }),
-                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown chart action: {action}" }
-            };
+                    ChartAction.List => SerializeResult(_chartCommands.List(batch)),
+                    ChartAction.Read => SerializeResult(_chartCommands.Read(batch, GetArg<ChartArgs>(request.Args).ChartName!)),
+                    ChartAction.CreateFromRange => SerializeResult(() =>
+                    {
+                        var a = GetArg<ChartFromRangeArgs>(request.Args);
+                        var chartType = ParseChartType(a.ChartType);
+                        return _chartCommands.CreateFromRange(batch, a.SheetName!, a.SourceRange!, chartType, a.Left ?? 0, a.Top ?? 0, a.Width ?? 400, a.Height ?? 300, a.ChartName);
+                    }),
+                    ChartAction.CreateFromPivotTable => SerializeResult(() =>
+                    {
+                        var a = GetArg<ChartFromPivotArgs>(request.Args);
+                        var chartType = ParseChartType(a.ChartType);
+                        return _chartCommands.CreateFromPivotTable(batch, a.PivotTableName!, a.SheetName!, chartType, a.Left ?? 0, a.Top ?? 0, a.Width ?? 400, a.Height ?? 300, a.ChartName);
+                    }),
+                    ChartAction.Delete => ExecuteVoid(() => _chartCommands.Delete(batch, GetArg<ChartArgs>(request.Args).ChartName!)),
+                    ChartAction.Move => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ChartMoveArgs>(request.Args);
+                        _chartCommands.Move(batch, a.ChartName!, a.Left, a.Top, a.Width, a.Height);
+                    }),
+                    ChartAction.FitToRange => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ChartFitArgs>(request.Args);
+                        _chartCommands.FitToRange(batch, a.ChartName!, a.SheetName!, a.RangeAddress!);
+                    }),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported chart action: {action}" }
+                };
+            }
+
+            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown chart action: {action}" };
         });
     }
 
@@ -1295,99 +1349,104 @@ internal sealed class ExcelDaemon : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            return action switch
+            if (TryParseAction<ChartConfigAction>(action, out var configAction))
             {
-                "set-source-range" => ExecuteVoid(() =>
+                return configAction switch
                 {
-                    var a = GetArg<ChartSourceRangeArgs>(request.Args);
-                    _chartCommands.SetSourceRange(batch, a.ChartName!, a.SourceRange!);
-                }),
-                "add-series" => SerializeResult(() =>
-                {
-                    var a = GetArg<ChartAddSeriesArgs>(request.Args);
-                    return _chartCommands.AddSeries(batch, a.ChartName!, a.SeriesName!, a.ValuesRange!, a.CategoryRange);
-                }),
-                "remove-series" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ChartRemoveSeriesArgs>(request.Args);
-                    _chartCommands.RemoveSeries(batch, a.ChartName!, a.SeriesIndex ?? 1);
-                }),
-                "set-chart-type" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ChartTypeArgs>(request.Args);
-                    _chartCommands.SetChartType(batch, a.ChartName!, ParseChartType(a.ChartType));
-                }),
-                "set-title" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ChartTitleArgs>(request.Args);
-                    _chartCommands.SetTitle(batch, a.ChartName!, a.Title!);
-                }),
-                "set-axis-title" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ChartAxisTitleArgs>(request.Args);
-                    _chartCommands.SetAxisTitle(batch, a.ChartName!, ParseAxisType(a.Axis), a.Title!);
-                }),
-                "get-axis-number-format" => SerializeResult(new { numberFormat = _chartCommands.GetAxisNumberFormat(batch, GetArg<ChartAxisArgs>(request.Args).ChartName!, ParseAxisType(GetArg<ChartAxisArgs>(request.Args).Axis)) }),
-                "set-axis-number-format" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ChartAxisFormatArgs>(request.Args);
-                    _chartCommands.SetAxisNumberFormat(batch, a.ChartName!, ParseAxisType(a.Axis), a.NumberFormat!);
-                }),
-                "show-legend" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ChartLegendArgs>(request.Args);
-                    _chartCommands.ShowLegend(batch, a.ChartName!, a.Visible ?? true, ParseLegendPosition(a.LegendPosition));
-                }),
-                "set-style" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ChartStyleArgs>(request.Args);
-                    _chartCommands.SetStyle(batch, a.ChartName!, a.StyleId ?? 1);
-                }),
-                "set-data-labels" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ChartDataLabelsArgs>(request.Args);
-                    _chartCommands.SetDataLabels(batch, a.ChartName!, a.ShowValue, a.ShowPercentage, a.ShowSeriesName, a.ShowCategoryName, null, a.Separator, ParseDataLabelPosition(a.LabelPosition), a.SeriesIndex);
-                }),
-                "get-axis-scale" => SerializeResult(_chartCommands.GetAxisScale(batch, GetArg<ChartAxisArgs>(request.Args).ChartName!, ParseAxisType(GetArg<ChartAxisArgs>(request.Args).Axis))),
-                "set-axis-scale" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ChartAxisScaleArgs>(request.Args);
-                    _chartCommands.SetAxisScale(batch, a.ChartName!, ParseAxisType(a.Axis), a.MinimumScale, a.MaximumScale, a.MajorUnit, a.MinorUnit);
-                }),
-                "get-gridlines" => SerializeResult(_chartCommands.GetGridlines(batch, GetArg<ChartArgs>(request.Args).ChartName!)),
-                "set-gridlines" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ChartGridlinesArgs>(request.Args);
-                    _chartCommands.SetGridlines(batch, a.ChartName!, ParseAxisType(a.Axis), a.ShowMajor, a.ShowMinor);
-                }),
-                "set-series-format" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ChartSeriesFormatArgs>(request.Args);
-                    _chartCommands.SetSeriesFormat(batch, a.ChartName!, a.SeriesIndex ?? 1, ParseMarkerStyle(a.MarkerStyle), a.MarkerSize, a.MarkerBackgroundColor, a.MarkerForegroundColor, null);
-                }),
-                "list-trendlines" => SerializeResult(_chartCommands.ListTrendlines(batch, GetArg<ChartSeriesArgs>(request.Args).ChartName!, GetArg<ChartSeriesArgs>(request.Args).SeriesIndex ?? 1)),
-                "add-trendline" => SerializeResult(() =>
-                {
-                    var a = GetArg<ChartAddTrendlineArgs>(request.Args);
-                    return _chartCommands.AddTrendline(batch, a.ChartName!, a.SeriesIndex ?? 1, ParseTrendlineType(a.TrendlineType), null, null, null, null, null, a.DisplayEquation ?? false, a.DisplayRSquared ?? false, a.TrendlineName);
-                }),
-                "delete-trendline" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ChartDeleteTrendlineArgs>(request.Args);
-                    _chartCommands.DeleteTrendline(batch, a.ChartName!, a.SeriesIndex ?? 1, a.TrendlineIndex ?? 1);
-                }),
-                "set-trendline" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ChartSetTrendlineArgs>(request.Args);
-                    _chartCommands.SetTrendline(batch, a.ChartName!, a.SeriesIndex ?? 1, a.TrendlineIndex ?? 1, null, null, null, a.DisplayEquation, a.DisplayRSquared, a.TrendlineName);
-                }),
-                "set-placement" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ChartPlacementArgs>(request.Args);
-                    _chartCommands.SetPlacement(batch, a.ChartName!, a.Placement ?? 2);
-                }),
-                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown chartconfig action: {action}" }
-            };
+                    ChartConfigAction.SetSourceRange => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ChartSourceRangeArgs>(request.Args);
+                        _chartCommands.SetSourceRange(batch, a.ChartName!, a.SourceRange!);
+                    }),
+                    ChartConfigAction.AddSeries => SerializeResult(() =>
+                    {
+                        var a = GetArg<ChartAddSeriesArgs>(request.Args);
+                        return _chartCommands.AddSeries(batch, a.ChartName!, a.SeriesName!, a.ValuesRange!, a.CategoryRange);
+                    }),
+                    ChartConfigAction.RemoveSeries => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ChartRemoveSeriesArgs>(request.Args);
+                        _chartCommands.RemoveSeries(batch, a.ChartName!, a.SeriesIndex ?? 1);
+                    }),
+                    ChartConfigAction.SetChartType => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ChartTypeArgs>(request.Args);
+                        _chartCommands.SetChartType(batch, a.ChartName!, ParseChartType(a.ChartType));
+                    }),
+                    ChartConfigAction.SetTitle => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ChartTitleArgs>(request.Args);
+                        _chartCommands.SetTitle(batch, a.ChartName!, a.Title!);
+                    }),
+                    ChartConfigAction.SetAxisTitle => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ChartAxisTitleArgs>(request.Args);
+                        _chartCommands.SetAxisTitle(batch, a.ChartName!, ParseAxisType(a.Axis), a.Title!);
+                    }),
+                    ChartConfigAction.GetAxisNumberFormat => SerializeResult(new { numberFormat = _chartCommands.GetAxisNumberFormat(batch, GetArg<ChartAxisArgs>(request.Args).ChartName!, ParseAxisType(GetArg<ChartAxisArgs>(request.Args).Axis)) }),
+                    ChartConfigAction.SetAxisNumberFormat => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ChartAxisFormatArgs>(request.Args);
+                        _chartCommands.SetAxisNumberFormat(batch, a.ChartName!, ParseAxisType(a.Axis), a.NumberFormat!);
+                    }),
+                    ChartConfigAction.ShowLegend => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ChartLegendArgs>(request.Args);
+                        _chartCommands.ShowLegend(batch, a.ChartName!, a.Visible ?? true, ParseLegendPosition(a.LegendPosition));
+                    }),
+                    ChartConfigAction.SetStyle => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ChartStyleArgs>(request.Args);
+                        _chartCommands.SetStyle(batch, a.ChartName!, a.StyleId ?? 1);
+                    }),
+                    ChartConfigAction.SetPlacement => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ChartPlacementArgs>(request.Args);
+                        _chartCommands.SetPlacement(batch, a.ChartName!, a.Placement ?? 2);
+                    }),
+                    ChartConfigAction.SetDataLabels => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ChartDataLabelsArgs>(request.Args);
+                        _chartCommands.SetDataLabels(batch, a.ChartName!, a.ShowValue, a.ShowPercentage, a.ShowSeriesName, a.ShowCategoryName, null, a.Separator, ParseDataLabelPosition(a.LabelPosition), a.SeriesIndex);
+                    }),
+                    ChartConfigAction.GetAxisScale => SerializeResult(_chartCommands.GetAxisScale(batch, GetArg<ChartAxisArgs>(request.Args).ChartName!, ParseAxisType(GetArg<ChartAxisArgs>(request.Args).Axis))),
+                    ChartConfigAction.SetAxisScale => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ChartAxisScaleArgs>(request.Args);
+                        _chartCommands.SetAxisScale(batch, a.ChartName!, ParseAxisType(a.Axis), a.MinimumScale, a.MaximumScale, a.MajorUnit, a.MinorUnit);
+                    }),
+                    ChartConfigAction.GetGridlines => SerializeResult(_chartCommands.GetGridlines(batch, GetArg<ChartArgs>(request.Args).ChartName!)),
+                    ChartConfigAction.SetGridlines => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ChartGridlinesArgs>(request.Args);
+                        _chartCommands.SetGridlines(batch, a.ChartName!, ParseAxisType(a.Axis), a.ShowMajor, a.ShowMinor);
+                    }),
+                    ChartConfigAction.SetSeriesFormat => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ChartSeriesFormatArgs>(request.Args);
+                        _chartCommands.SetSeriesFormat(batch, a.ChartName!, a.SeriesIndex ?? 1, ParseMarkerStyle(a.MarkerStyle), a.MarkerSize, a.MarkerBackgroundColor, a.MarkerForegroundColor, null);
+                    }),
+                    ChartConfigAction.ListTrendlines => SerializeResult(_chartCommands.ListTrendlines(batch, GetArg<ChartSeriesArgs>(request.Args).ChartName!, GetArg<ChartSeriesArgs>(request.Args).SeriesIndex ?? 1)),
+                    ChartConfigAction.AddTrendline => SerializeResult(() =>
+                    {
+                        var a = GetArg<ChartAddTrendlineArgs>(request.Args);
+                        return _chartCommands.AddTrendline(batch, a.ChartName!, a.SeriesIndex ?? 1, ParseTrendlineType(a.TrendlineType), null, null, null, null, null, a.DisplayEquation ?? false, a.DisplayRSquared ?? false, a.TrendlineName);
+                    }),
+                    ChartConfigAction.DeleteTrendline => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ChartDeleteTrendlineArgs>(request.Args);
+                        _chartCommands.DeleteTrendline(batch, a.ChartName!, a.SeriesIndex ?? 1, a.TrendlineIndex ?? 1);
+                    }),
+                    ChartConfigAction.SetTrendline => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ChartSetTrendlineArgs>(request.Args);
+                        _chartCommands.SetTrendline(batch, a.ChartName!, a.SeriesIndex ?? 1, a.TrendlineIndex ?? 1, null, null, null, a.DisplayEquation, a.DisplayRSquared, a.TrendlineName);
+                    }),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported chartconfig action: {action}" }
+                };
+            }
+
+            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown chartconfig action: {action}" };
         });
     }
 
@@ -1489,38 +1548,43 @@ internal sealed class ExcelDaemon : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            return action switch
+            if (TryParseAction<ConnectionAction>(action, out var connectionAction))
             {
-                "list" => SerializeResult(_connectionCommands.List(batch)),
-                "view" => SerializeResult(_connectionCommands.View(batch, GetArg<ConnectionArgs>(request.Args).ConnectionName!)),
-                "create" => ExecuteVoid(() =>
+                return connectionAction switch
                 {
-                    var a = GetArg<ConnectionCreateArgs>(request.Args);
-                    _connectionCommands.Create(batch, a.ConnectionName!, a.ConnectionString!, a.CommandText, a.Description);
-                }),
-                "refresh" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ConnectionRefreshArgs>(request.Args);
-                    if (a.TimeoutSeconds.HasValue)
-                        _connectionCommands.Refresh(batch, a.ConnectionName!, TimeSpan.FromSeconds(a.TimeoutSeconds.Value));
-                    else
-                        _connectionCommands.Refresh(batch, a.ConnectionName!);
-                }),
-                "delete" => ExecuteVoid(() => _connectionCommands.Delete(batch, GetArg<ConnectionArgs>(request.Args).ConnectionName!)),
-                "load-to" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ConnectionLoadToArgs>(request.Args);
-                    _connectionCommands.LoadTo(batch, a.ConnectionName!, a.SheetName!);
-                }),
-                "get-properties" => SerializeResult(_connectionCommands.GetProperties(batch, GetArg<ConnectionArgs>(request.Args).ConnectionName!)),
-                "set-properties" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ConnectionSetPropertiesArgs>(request.Args);
-                    _connectionCommands.SetProperties(batch, a.ConnectionName!, a.ConnectionString, a.CommandText, a.Description, a.BackgroundQuery, a.RefreshOnFileOpen, a.SavePassword, a.RefreshPeriod);
-                }),
-                "test" => ExecuteVoid(() => _connectionCommands.Test(batch, GetArg<ConnectionArgs>(request.Args).ConnectionName!)),
-                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown connection action: {action}" }
-            };
+                    ConnectionAction.List => SerializeResult(_connectionCommands.List(batch)),
+                    ConnectionAction.View => SerializeResult(_connectionCommands.View(batch, GetArg<ConnectionArgs>(request.Args).ConnectionName!)),
+                    ConnectionAction.Create => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ConnectionCreateArgs>(request.Args);
+                        _connectionCommands.Create(batch, a.ConnectionName!, a.ConnectionString!, a.CommandText, a.Description);
+                    }),
+                    ConnectionAction.Refresh => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ConnectionRefreshArgs>(request.Args);
+                        if (a.TimeoutSeconds.HasValue)
+                            _connectionCommands.Refresh(batch, a.ConnectionName!, TimeSpan.FromSeconds(a.TimeoutSeconds.Value));
+                        else
+                            _connectionCommands.Refresh(batch, a.ConnectionName!);
+                    }),
+                    ConnectionAction.Delete => ExecuteVoid(() => _connectionCommands.Delete(batch, GetArg<ConnectionArgs>(request.Args).ConnectionName!)),
+                    ConnectionAction.LoadTo => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ConnectionLoadToArgs>(request.Args);
+                        _connectionCommands.LoadTo(batch, a.ConnectionName!, a.SheetName!);
+                    }),
+                    ConnectionAction.GetProperties => SerializeResult(_connectionCommands.GetProperties(batch, GetArg<ConnectionArgs>(request.Args).ConnectionName!)),
+                    ConnectionAction.SetProperties => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ConnectionSetPropertiesArgs>(request.Args);
+                        _connectionCommands.SetProperties(batch, a.ConnectionName!, a.ConnectionString, a.CommandText, a.Description, a.BackgroundQuery, a.RefreshOnFileOpen, a.SavePassword, a.RefreshPeriod);
+                    }),
+                    ConnectionAction.Test => ExecuteVoid(() => _connectionCommands.Test(batch, GetArg<ConnectionArgs>(request.Args).ConnectionName!)),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported connection action: {action}" }
+                };
+            }
+
+            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown connection action: {action}" };
         });
     }
 
@@ -1528,28 +1592,33 @@ internal sealed class ExcelDaemon : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            return action switch
+            if (TryParseAction<NamedRangeAction>(action, out var namedRangeAction))
             {
-                "list" => SerializeResult(_namedRangeCommands.List(batch)),
-                "read" => SerializeResult(_namedRangeCommands.Read(batch, GetArg<NamedRangeArgs>(request.Args).ParamName!)),
-                "write" => ExecuteVoid(() =>
+                return namedRangeAction switch
                 {
-                    var a = GetArg<NamedRangeWriteArgs>(request.Args);
-                    _namedRangeCommands.Write(batch, a.ParamName!, a.Value!);
-                }),
-                "create" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<NamedRangeCreateArgs>(request.Args);
-                    _namedRangeCommands.Create(batch, a.ParamName!, a.Reference!);
-                }),
-                "update" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<NamedRangeCreateArgs>(request.Args);
-                    _namedRangeCommands.Update(batch, a.ParamName!, a.Reference!);
-                }),
-                "delete" => ExecuteVoid(() => _namedRangeCommands.Delete(batch, GetArg<NamedRangeArgs>(request.Args).ParamName!)),
-                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown namedrange action: {action}" }
-            };
+                    NamedRangeAction.List => SerializeResult(_namedRangeCommands.List(batch)),
+                    NamedRangeAction.Read => SerializeResult(_namedRangeCommands.Read(batch, GetArg<NamedRangeArgs>(request.Args).ParamName!)),
+                    NamedRangeAction.Write => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<NamedRangeWriteArgs>(request.Args);
+                        _namedRangeCommands.Write(batch, a.ParamName!, a.Value!);
+                    }),
+                    NamedRangeAction.Create => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<NamedRangeCreateArgs>(request.Args);
+                        _namedRangeCommands.Create(batch, a.ParamName!, a.Reference!);
+                    }),
+                    NamedRangeAction.Update => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<NamedRangeCreateArgs>(request.Args);
+                        _namedRangeCommands.Update(batch, a.ParamName!, a.Reference!);
+                    }),
+                    NamedRangeAction.Delete => ExecuteVoid(() => _namedRangeCommands.Delete(batch, GetArg<NamedRangeArgs>(request.Args).ParamName!)),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported namedrange action: {action}" }
+                };
+            }
+
+            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown namedrange action: {action}" };
         });
     }
 
@@ -1557,20 +1626,25 @@ internal sealed class ExcelDaemon : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            return action switch
+            if (TryParseAction<ConditionalFormatAction>(action, out var formatAction))
             {
-                "add-rule" => ExecuteVoid(() =>
+                return formatAction switch
                 {
-                    var a = GetArg<ConditionalFormatAddArgs>(request.Args);
-                    _conditionalFormatCommands.AddRule(batch, a.SheetName!, a.RangeAddress!, a.RuleType!, a.OperatorType, a.Formula1, a.Formula2, a.InteriorColor, a.InteriorPattern, a.FontColor, a.FontBold, a.FontItalic, a.BorderStyle, a.BorderColor);
-                }),
-                "clear-rules" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<ConditionalFormatClearArgs>(request.Args);
-                    _conditionalFormatCommands.ClearRules(batch, a.SheetName!, a.RangeAddress!);
-                }),
-                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown conditionalformat action: {action}" }
-            };
+                    ConditionalFormatAction.AddRule => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ConditionalFormatAddArgs>(request.Args);
+                        _conditionalFormatCommands.AddRule(batch, a.SheetName!, a.RangeAddress!, a.RuleType!, a.OperatorType, a.Formula1, a.Formula2, a.InteriorColor, a.InteriorPattern, a.FontColor, a.FontBold, a.FontItalic, a.BorderStyle, a.BorderColor);
+                    }),
+                    ConditionalFormatAction.ClearRules => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<ConditionalFormatClearArgs>(request.Args);
+                        _conditionalFormatCommands.ClearRules(batch, a.SheetName!, a.RangeAddress!);
+                    }),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported conditionalformat action: {action}" }
+                };
+            }
+
+            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown conditionalformat action: {action}" };
         });
     }
 
@@ -1578,29 +1652,34 @@ internal sealed class ExcelDaemon : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            return action switch
+            if (TryParseAction<VbaAction>(action, out var vbaAction))
             {
-                "list" => SerializeResult(_vbaCommands.List(batch)),
-                "view" => SerializeResult(_vbaCommands.View(batch, GetArg<VbaModuleArgs>(request.Args).ModuleName!)),
-                "import" => ExecuteVoid(() =>
+                return vbaAction switch
                 {
-                    var a = GetArg<VbaImportArgs>(request.Args);
-                    _vbaCommands.Import(batch, a.ModuleName!, a.VbaCode!);
-                }),
-                "update" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<VbaImportArgs>(request.Args);
-                    _vbaCommands.Update(batch, a.ModuleName!, a.VbaCode!);
-                }),
-                "run" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<VbaRunArgs>(request.Args);
-                    var timeout = a.TimeoutSeconds.HasValue ? TimeSpan.FromSeconds(a.TimeoutSeconds.Value) : (TimeSpan?)null;
-                    _vbaCommands.Run(batch, a.ProcedureName!, timeout, a.Parameters?.ToArray() ?? []);
-                }),
-                "delete" => ExecuteVoid(() => _vbaCommands.Delete(batch, GetArg<VbaModuleArgs>(request.Args).ModuleName!)),
-                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown vba action: {action}" }
-            };
+                    VbaAction.List => SerializeResult(_vbaCommands.List(batch)),
+                    VbaAction.View => SerializeResult(_vbaCommands.View(batch, GetArg<VbaModuleArgs>(request.Args).ModuleName!)),
+                    VbaAction.Import => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<VbaImportArgs>(request.Args);
+                        _vbaCommands.Import(batch, a.ModuleName!, a.VbaCode!);
+                    }),
+                    VbaAction.Update => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<VbaImportArgs>(request.Args);
+                        _vbaCommands.Update(batch, a.ModuleName!, a.VbaCode!);
+                    }),
+                    VbaAction.Run => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<VbaRunArgs>(request.Args);
+                        var timeout = a.TimeoutSeconds.HasValue ? TimeSpan.FromSeconds(a.TimeoutSeconds.Value) : (TimeSpan?)null;
+                        _vbaCommands.Run(batch, a.ProcedureName!, timeout, a.Parameters?.ToArray() ?? []);
+                    }),
+                    VbaAction.Delete => ExecuteVoid(() => _vbaCommands.Delete(batch, GetArg<VbaModuleArgs>(request.Args).ModuleName!)),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported vba action: {action}" }
+                };
+            }
+
+            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown vba action: {action}" };
         });
     }
 
@@ -1608,60 +1687,73 @@ internal sealed class ExcelDaemon : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            return action switch
+            if (TryParseAction<DataModelAction>(action, out var modelAction))
             {
-                "list-tables" => SerializeResult(_dataModelCommands.ListTables(batch)),
-                "list-columns" => SerializeResult(_dataModelCommands.ListColumns(batch, GetArg<DataModelTableArgs>(request.Args).TableName!)),
-                "read-table" => SerializeResult(_dataModelCommands.ReadTable(batch, GetArg<DataModelTableArgs>(request.Args).TableName!)),
-                "read-info" => SerializeResult(_dataModelCommands.ReadInfo(batch)),
-                "list-measures" => SerializeResult(_dataModelCommands.ListMeasures(batch, GetArg<DataModelTableArgs>(request.Args).TableName)),
-                "read-measure" => SerializeResult(_dataModelCommands.Read(batch, GetArg<DataModelMeasureArgs>(request.Args).MeasureName!)),
-                "create-measure" => ExecuteVoid(() =>
+                return modelAction switch
                 {
-                    var a = GetArg<DataModelCreateMeasureArgs>(request.Args);
-                    _dataModelCommands.CreateMeasure(batch, a.TableName!, a.MeasureName!, a.DaxFormula!, a.FormatType, a.Description);
-                }),
-                "update-measure" => ExecuteVoid(() =>
+                    DataModelAction.ListTables => SerializeResult(_dataModelCommands.ListTables(batch)),
+                    DataModelAction.ListColumns => SerializeResult(_dataModelCommands.ListColumns(batch, GetArg<DataModelTableArgs>(request.Args).TableName!)),
+                    DataModelAction.ReadTable => SerializeResult(_dataModelCommands.ReadTable(batch, GetArg<DataModelTableArgs>(request.Args).TableName!)),
+                    DataModelAction.ReadInfo => SerializeResult(_dataModelCommands.ReadInfo(batch)),
+                    DataModelAction.ListMeasures => SerializeResult(_dataModelCommands.ListMeasures(batch, GetArg<DataModelTableArgs>(request.Args).TableName)),
+                    DataModelAction.Read => SerializeResult(_dataModelCommands.Read(batch, GetArg<DataModelMeasureArgs>(request.Args).MeasureName!)),
+                    DataModelAction.CreateMeasure => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<DataModelCreateMeasureArgs>(request.Args);
+                        _dataModelCommands.CreateMeasure(batch, a.TableName!, a.MeasureName!, a.DaxFormula!, a.FormatType, a.Description);
+                    }),
+                    DataModelAction.UpdateMeasure => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<DataModelUpdateMeasureArgs>(request.Args);
+                        _dataModelCommands.UpdateMeasure(batch, a.MeasureName!, a.DaxFormula, a.FormatType, a.Description);
+                    }),
+                    DataModelAction.DeleteMeasure => ExecuteVoid(() => _dataModelCommands.DeleteMeasure(batch, GetArg<DataModelMeasureArgs>(request.Args).MeasureName!)),
+                    DataModelAction.DeleteTable => ExecuteVoid(() => _dataModelCommands.DeleteTable(batch, GetArg<DataModelTableArgs>(request.Args).TableName!)),
+                    DataModelAction.RenameTable => SerializeResult(_dataModelCommands.RenameTable(batch, GetArg<DataModelRenameTableArgs>(request.Args).OldName!, GetArg<DataModelRenameTableArgs>(request.Args).NewName!)),
+                    DataModelAction.Refresh => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<DataModelRefreshArgs>(request.Args);
+                        if (a.TimeoutSeconds.HasValue)
+                            _dataModelCommands.Refresh(batch, a.TableName, TimeSpan.FromSeconds(a.TimeoutSeconds.Value));
+                        else
+                            _dataModelCommands.Refresh(batch, a.TableName);
+                    }),
+                    DataModelAction.Evaluate => SerializeResult(_dataModelCommands.Evaluate(batch, GetArg<DataModelEvaluateArgs>(request.Args).DaxQuery!)),
+                    DataModelAction.ExecuteDmv => SerializeResult(_dataModelCommands.ExecuteDmv(batch, GetArg<DataModelDmvArgs>(request.Args).DmvQuery!)),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported datamodel action: {action}" }
+                };
+            }
+
+            if (TryParseAction<DataModelRelAction>(action, out var relAction))
+            {
+                return relAction switch
                 {
-                    var a = GetArg<DataModelUpdateMeasureArgs>(request.Args);
-                    _dataModelCommands.UpdateMeasure(batch, a.MeasureName!, a.DaxFormula, a.FormatType, a.Description);
-                }),
-                "delete-measure" => ExecuteVoid(() => _dataModelCommands.DeleteMeasure(batch, GetArg<DataModelMeasureArgs>(request.Args).MeasureName!)),
-                "list-relationships" => SerializeResult(_dataModelCommands.ListRelationships(batch)),
-                "read-relationship" => SerializeResult(() =>
-                {
-                    var a = GetArg<DataModelRelationshipArgs>(request.Args);
-                    return _dataModelCommands.ReadRelationship(batch, a.FromTable!, a.FromColumn!, a.ToTable!, a.ToColumn!);
-                }),
-                "create-relationship" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<DataModelCreateRelationshipArgs>(request.Args);
-                    _dataModelCommands.CreateRelationship(batch, a.FromTable!, a.FromColumn!, a.ToTable!, a.ToColumn!, a.Active ?? true);
-                }),
-                "update-relationship" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<DataModelUpdateRelationshipArgs>(request.Args);
-                    _dataModelCommands.UpdateRelationship(batch, a.FromTable!, a.FromColumn!, a.ToTable!, a.ToColumn!, a.Active ?? true);
-                }),
-                "delete-relationship" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<DataModelRelationshipArgs>(request.Args);
-                    _dataModelCommands.DeleteRelationship(batch, a.FromTable!, a.FromColumn!, a.ToTable!, a.ToColumn!);
-                }),
-                "delete-table" => ExecuteVoid(() => _dataModelCommands.DeleteTable(batch, GetArg<DataModelTableArgs>(request.Args).TableName!)),
-                "rename-table" => SerializeResult(_dataModelCommands.RenameTable(batch, GetArg<DataModelRenameTableArgs>(request.Args).OldName!, GetArg<DataModelRenameTableArgs>(request.Args).NewName!)),
-                "refresh" => ExecuteVoid(() =>
-                {
-                    var a = GetArg<DataModelRefreshArgs>(request.Args);
-                    if (a.TimeoutSeconds.HasValue)
-                        _dataModelCommands.Refresh(batch, a.TableName, TimeSpan.FromSeconds(a.TimeoutSeconds.Value));
-                    else
-                        _dataModelCommands.Refresh(batch, a.TableName);
-                }),
-                "evaluate" => SerializeResult(_dataModelCommands.Evaluate(batch, GetArg<DataModelEvaluateArgs>(request.Args).DaxQuery!)),
-                "execute-dmv" => SerializeResult(_dataModelCommands.ExecuteDmv(batch, GetArg<DataModelDmvArgs>(request.Args).DmvQuery!)),
-                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown datamodel action: {action}" }
-            };
+                    DataModelRelAction.ListRelationships => SerializeResult(_dataModelCommands.ListRelationships(batch)),
+                    DataModelRelAction.ReadRelationship => SerializeResult(() =>
+                    {
+                        var a = GetArg<DataModelRelationshipArgs>(request.Args);
+                        return _dataModelCommands.ReadRelationship(batch, a.FromTable!, a.FromColumn!, a.ToTable!, a.ToColumn!);
+                    }),
+                    DataModelRelAction.CreateRelationship => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<DataModelCreateRelationshipArgs>(request.Args);
+                        _dataModelCommands.CreateRelationship(batch, a.FromTable!, a.FromColumn!, a.ToTable!, a.ToColumn!, a.Active ?? true);
+                    }),
+                    DataModelRelAction.UpdateRelationship => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<DataModelUpdateRelationshipArgs>(request.Args);
+                        _dataModelCommands.UpdateRelationship(batch, a.FromTable!, a.FromColumn!, a.ToTable!, a.ToColumn!, a.Active ?? true);
+                    }),
+                    DataModelRelAction.DeleteRelationship => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<DataModelRelationshipArgs>(request.Args);
+                        _dataModelCommands.DeleteRelationship(batch, a.FromTable!, a.FromColumn!, a.ToTable!, a.ToColumn!);
+                    }),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported datamodel relationship action: {action}" }
+                };
+            }
+
+            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown datamodel action: {action}" };
         });
     }
 
@@ -1669,55 +1761,57 @@ internal sealed class ExcelDaemon : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            return action switch
+            if (TryParseAction<SlicerAction>(action, out var slicerAction))
             {
-                "list" => SerializeResult(() =>
+                return slicerAction switch
                 {
-                    var a = GetArg<SlicerListArgs>(request.Args);
-                    // List slicers - use table slicers if tableName specified, pivot slicers if pivotTableName specified
-                    if (!string.IsNullOrEmpty(a.PivotTableName))
+                    SlicerAction.ListSlicers => SerializeResult(() =>
+                    {
+                        var a = GetArg<SlicerListArgs>(request.Args);
                         return _pivotTableCommands.ListSlicers(batch, a.PivotTableName);
-                    if (!string.IsNullOrEmpty(a.TableName))
+                    }),
+                    SlicerAction.CreateSlicer => SerializeResult(() =>
+                    {
+                        var a = GetArg<SlicerFromPivotArgs>(request.Args);
+                        return _pivotTableCommands.CreateSlicer(batch, a.PivotTableName!, a.SourceFieldName!, a.SlicerName!, a.DestinationSheet!, BuildSlicerPosition(a.Left, a.Top, a.Width, a.Height));
+                    }),
+                    SlicerAction.SetSlicerSelection => SerializeResult(() =>
+                    {
+                        var a = GetArg<SlicerFilterArgs>(request.Args);
+                        var items = a.SelectedItems?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [];
+                        return _pivotTableCommands.SetSlicerSelection(batch, a.SlicerName!, items, !(a.MultiSelect ?? false));
+                    }),
+                    SlicerAction.DeleteSlicer => SerializeResult(() =>
+                    {
+                        var a = GetArg<SlicerArgs>(request.Args);
+                        return _pivotTableCommands.DeleteSlicer(batch, a.SlicerName!);
+                    }),
+                    SlicerAction.ListTableSlicers => SerializeResult(() =>
+                    {
+                        var a = GetArg<SlicerListArgs>(request.Args);
                         return _tableCommands.ListTableSlicers(batch, a.TableName);
-                    // List all slicers (no filter)
-                    return _pivotTableCommands.ListSlicers(batch, null);
-                }),
-                "create-from-pivottable" => SerializeResult(() =>
-                {
-                    var a = GetArg<SlicerFromPivotArgs>(request.Args);
-                    return _pivotTableCommands.CreateSlicer(batch, a.PivotTableName!, a.SourceFieldName!, a.SlicerName!, a.DestinationSheet!, BuildSlicerPosition(a.Left, a.Top, a.Width, a.Height));
-                }),
-                "create-from-table" => SerializeResult(() =>
-                {
-                    var a = GetArg<SlicerFromTableArgs>(request.Args);
-                    return _tableCommands.CreateTableSlicer(batch, a.TableName!, a.ColumnName!, a.SlicerName!, a.DestinationSheet!, BuildSlicerPosition(a.Left, a.Top, a.Width, a.Height));
-                }),
-                "delete" => SerializeResult(() =>
-                {
-                    var a = GetArg<SlicerArgs>(request.Args);
-                    // Try pivot slicer first, then table slicer
-                    try { return _pivotTableCommands.DeleteSlicer(batch, a.SlicerName!); }
-                    catch { return _tableCommands.DeleteTableSlicer(batch, a.SlicerName!); }
-                }),
-                "set-filter" => SerializeResult(() =>
-                {
-                    var a = GetArg<SlicerFilterArgs>(request.Args);
-                    var items = a.SelectedItems?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [];
-                    // Try pivot slicer first, then table slicer
-                    try { return _pivotTableCommands.SetSlicerSelection(batch, a.SlicerName!, items, !(a.MultiSelect ?? false)); }
-                    catch { return _tableCommands.SetTableSlicerSelection(batch, a.SlicerName!, items, !(a.MultiSelect ?? false)); }
-                }),
-                "clear-filter" => SerializeResult(() =>
-                {
-                    var a = GetArg<SlicerArgs>(request.Args);
-                    // Clear by setting empty selection
-                    try { return _pivotTableCommands.SetSlicerSelection(batch, a.SlicerName!, [], true); }
-                    catch { return _tableCommands.SetTableSlicerSelection(batch, a.SlicerName!, [], true); }
-                }),
-                "get-filter-state" => new DaemonResponse { Success = false, ErrorMessage = "get-filter-state not yet implemented for CLI" },
-                "connect-to-pivottable" => new DaemonResponse { Success = false, ErrorMessage = "connect-to-pivottable not yet implemented for CLI" },
-                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown slicer action: {action}" }
-            };
+                    }),
+                    SlicerAction.CreateTableSlicer => SerializeResult(() =>
+                    {
+                        var a = GetArg<SlicerFromTableArgs>(request.Args);
+                        return _tableCommands.CreateTableSlicer(batch, a.TableName!, a.ColumnName!, a.SlicerName!, a.DestinationSheet!, BuildSlicerPosition(a.Left, a.Top, a.Width, a.Height));
+                    }),
+                    SlicerAction.SetTableSlicerSelection => SerializeResult(() =>
+                    {
+                        var a = GetArg<SlicerFilterArgs>(request.Args);
+                        var items = a.SelectedItems?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [];
+                        return _tableCommands.SetTableSlicerSelection(batch, a.SlicerName!, items, !(a.MultiSelect ?? false));
+                    }),
+                    SlicerAction.DeleteTableSlicer => SerializeResult(() =>
+                    {
+                        var a = GetArg<SlicerArgs>(request.Args);
+                        return _tableCommands.DeleteTableSlicer(batch, a.SlicerName!);
+                    }),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported slicer action: {action}" }
+                };
+            }
+
+            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown slicer action: {action}" };
         });
     }
 
@@ -1733,6 +1827,31 @@ internal sealed class ExcelDaemon : IDisposable
     }
 
     // === HELPERS ===
+
+    private static bool TryParseAction<T>(string actionString, out T action) where T : struct, Enum
+    {
+        var pascalCase = ToPascalCase(actionString);
+        return Enum.TryParse(pascalCase, ignoreCase: true, out action);
+    }
+
+    private static string ToPascalCase(string kebabCase)
+    {
+        if (string.IsNullOrWhiteSpace(kebabCase)) return string.Empty;
+
+        var parts = kebabCase.Split('-', StringSplitOptions.RemoveEmptyEntries);
+        var builder = new StringBuilder();
+
+        foreach (var part in parts)
+        {
+            builder.Append(char.ToUpperInvariant(part[0]));
+            if (part.Length > 1)
+            {
+                builder.Append(part[1..]);
+            }
+        }
+
+        return builder.ToString();
+    }
 
     private Task<DaemonResponse> WithSessionAsync(string? sessionId, Func<IExcelBatch, DaemonResponse> action)
     {

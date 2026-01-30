@@ -1,6 +1,8 @@
+using System.Reflection;
 using Sbroenne.ExcelMcp.CLI.Commands;
 using Sbroenne.ExcelMcp.CLI.Daemon;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.Core.Models.Actions;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -40,8 +42,7 @@ internal sealed class Program
 
         if (filteredArgs.Any(arg => VersionFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)))
         {
-            VersionReporter.WriteVersion();
-            return 0;
+            return await HandleVersionAsync();
         }
 
         if (showBanner) RenderHeader();
@@ -56,8 +57,8 @@ internal sealed class Program
                 AnsiConsole.MarkupLine($"[red]Unhandled error:[/] {ex.Message.EscapeMarkup()}");
             });
 
-            config.AddCommand<VersionCommand>("version")
-                .WithDescription("Display excelcli version. Use --check to check for updates.");
+            config.AddCommand<ListActionsCommand>("actions")
+                .WithDescription("List available actions for a command. Usage: excelcli actions <command>");
 
             // Daemon commands
             config.AddBranch("daemon", branch =>
@@ -89,55 +90,85 @@ internal sealed class Program
 
             // Sheet commands
             config.AddCommand<SheetCommand>("sheet")
-                .WithDescription("Worksheet operations: list, create, rename, copy, delete, move.");
+                .WithDescription(DescribeActions(
+                    "Worksheet operations.",
+                    ActionValidator.GetValidActions<WorksheetAction>()
+                        .Concat(ActionValidator.GetValidActions<WorksheetStyleAction>())));
 
             // Range commands
             config.AddCommand<RangeCommand>("range")
-                .WithDescription("Range operations: get/set values, formulas, number formats, copy, clear.");
+                .WithDescription(DescribeActions(
+                    "Range operations.",
+                    ActionValidator.GetValidActions<RangeAction>()
+                        .Concat(ActionValidator.GetValidActions<RangeEditAction>())
+                        .Concat(ActionValidator.GetValidActions<RangeFormatAction>())
+                        .Concat(ActionValidator.GetValidActions<RangeLinkAction>())));
 
             // Table commands
             config.AddCommand<TableCommand>("table")
-                .WithDescription("Table operations: list, create, read, rename, delete, resize, style, append, get-data.");
+                .WithDescription(DescribeActions(
+                    "Table operations.",
+                    ActionValidator.GetValidActions<TableAction>()));
 
             // PowerQuery commands
             config.AddCommand<PowerQueryCommand>("powerquery")
-                .WithDescription("Power Query operations: list, view, create, update, refresh, delete, load-to.");
+                .WithDescription(DescribeActions(
+                    "Power Query operations.",
+                    ActionValidator.GetValidActions<PowerQueryAction>()));
 
             // PivotTable commands
             config.AddCommand<PivotTableCommand>("pivottable")
-                .WithDescription("PivotTable operations: list, read, create, delete, refresh.");
+                .WithDescription(DescribeActions(
+                    "PivotTable operations.",
+                    ActionValidator.GetValidActions<PivotTableAction>()));
 
             // Chart commands
             config.AddCommand<ChartCommand>("chart")
-                .WithDescription("Chart operations: list, read, create, delete, move, fit-to-range.");
+                .WithDescription(DescribeActions(
+                    "Chart operations.",
+                    ActionValidator.GetValidActions<ChartAction>()));
 
             // ChartConfig commands
             config.AddCommand<ChartConfigCommand>("chartconfig")
-                .WithDescription("Chart configuration: set-title, set-axis-title, add-series, set-style, data-labels, gridlines.");
+                .WithDescription(DescribeActions(
+                    "Chart configuration.",
+                    ActionValidator.GetValidActions<ChartConfigAction>()));
 
             // Connection commands
             config.AddCommand<ConnectionCommand>("connection")
-                .WithDescription("Connection operations: list, view, create, test, refresh, delete.");
+                .WithDescription(DescribeActions(
+                    "Connection operations.",
+                    ActionValidator.GetValidActions<ConnectionAction>()));
 
             // NamedRange commands
             config.AddCommand<NamedRangeCommand>("namedrange")
-                .WithDescription("Named range operations: list, read, write, create, update, delete.");
+                .WithDescription(DescribeActions(
+                    "Named range operations.",
+                    ActionValidator.GetValidActions<NamedRangeAction>()));
 
             // ConditionalFormat commands
             config.AddCommand<ConditionalFormatCommand>("conditionalformat")
-                .WithDescription("Conditional formatting: add-rule, clear-rules.");
+                .WithDescription(DescribeActions(
+                    "Conditional formatting.",
+                    ActionValidator.GetValidActions<ConditionalFormatAction>()));
 
             // VBA commands
             config.AddCommand<VbaCommand>("vba")
-                .WithDescription("VBA operations: list, view, import, update, run, delete.");
+                .WithDescription(DescribeActions(
+                    "VBA operations.",
+                    ActionValidator.GetValidActions<VbaAction>()));
 
             // DataModel commands
             config.AddCommand<DataModelCommand>("datamodel")
-                .WithDescription("Data Model operations: list-tables, list-measures, create/update/delete measures, evaluate DAX.");
+                .WithDescription(DescribeActions(
+                    "Data Model operations.",
+                    ActionValidator.GetValidActions<DataModelAction>()));
 
             // Slicer commands
             config.AddCommand<SlicerCommand>("slicer")
-                .WithDescription("Slicer operations: create, list, set-selection, delete (for PivotTables and Tables).");
+                .WithDescription(DescribeActions(
+                    "Slicer operations.",
+                    ActionValidator.GetValidActions<SlicerAction>()));
         });
 
         try
@@ -200,5 +231,55 @@ internal sealed class Program
         AnsiConsole.MarkupLine("[yellow]Workflow:[/] [green]session open <file>[/] → run commands with [green]--session <id>[/] → [green]session close --save[/].");
         AnsiConsole.MarkupLine("[dim]A background daemon manages sessions for performance.[/]");
         AnsiConsole.WriteLine();
+    }
+
+    private static string DescribeActions(string baseDescription, IEnumerable<string> actions)
+    {
+        var actionList = string.Join(", ", actions);
+        return $"{baseDescription} Actions: {actionList}.";
+    }
+
+    private static async Task<int> HandleVersionAsync()
+    {
+        var currentVersion = GetCurrentVersion();
+        var latestVersion = await NuGetVersionChecker.GetLatestVersionAsync();
+        var updateAvailable = latestVersion != null && CompareVersions(currentVersion, latestVersion) < 0;
+
+        // Always show banner for version output
+        RenderHeader();
+
+        // Show friendly update message if available
+        if (updateAvailable)
+        {
+            AnsiConsole.MarkupLine($"[yellow]⚠ Update available:[/] [dim]{currentVersion}[/] → [green]{latestVersion}[/]");
+            AnsiConsole.MarkupLine($"[cyan]Run:[/] [white]dotnet tool update --global Sbroenne.ExcelMcp.CLI[/]");
+            AnsiConsole.MarkupLine($"[cyan]Release notes:[/] [blue]https://github.com/sbroenne/mcp-server-excel/releases/latest[/]");
+        }
+        else if (latestVersion != null)
+        {
+            AnsiConsole.MarkupLine($"[green]✓ You're running the latest version:[/] [white]{currentVersion}[/]");
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[yellow]⚠ Could not check for updates[/]");
+            AnsiConsole.MarkupLine($"[dim]Current version: {currentVersion}[/]");
+        }
+
+        return 0;
+    }
+
+    private static string GetCurrentVersion()
+    {
+        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+        var informational = assembly.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        // Strip git hash suffix (e.g., "1.2.0+abc123" -> "1.2.0")
+        return informational?.Split('+')[0] ?? assembly.GetName().Version?.ToString() ?? "0.0.0";
+    }
+
+    private static int CompareVersions(string current, string latest)
+    {
+        if (Version.TryParse(current, out var currentVer) && Version.TryParse(latest, out var latestVer))
+            return currentVer.CompareTo(latestVer);
+        return string.Compare(current, latest, StringComparison.Ordinal);
     }
 }

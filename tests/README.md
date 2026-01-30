@@ -30,6 +30,7 @@ dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
 ```
 tests/
 ├── ExcelMcp.Core.Tests/           # Core business logic (Integration)
+├── ExcelMcp.Diagnostics.Tests/    # Excel COM behavior research (OnDemand, Manual)
 ├── ExcelMcp.McpServer.Tests/      # MCP protocol layer (Integration)
 ├── ExcelMcp.McpServer.LLM.Tests/  # LLM agent behavior validation (Manual)
 ├── ExcelMcp.CLI.Tests/            # CLI wrapper (Integration)
@@ -42,7 +43,35 @@ tests/
 |----------|-------|--------------|----------------|
 | **Integration** | Medium (10-20 min) | Excel + Windows | ✅ Yes (local) |
 | **OnDemand** | Slow (3-5 min) | Excel + Windows | ❌ No (explicit only) |
+| **Diagnostics** | Slow (varies) | Excel + Windows | ❌ No (manual, excluded from CI) |
 | **LLM Tests** | Slow (varies) | Excel + Azure OpenAI | ❌ No (manual only) |
+
+## Diagnostics Tests
+
+Diagnostics tests are research/exploratory tests in `ExcelMcp.Diagnostics.Tests` that document the actual behavior of Excel's COM APIs without our abstraction layer. These tests are **excluded from CI** to keep automation focused on core functionality.
+
+**Purpose:**
+- Understand Excel COM API behavior for Power Query, Data Model, PivotTables, etc.
+- Document findings and edge cases for future implementation decisions
+- Test alternative approaches to complex Excel operations
+
+**Trait markers:**
+- `Layer=Diagnostics`  
+- `RunType=OnDemand`
+
+**Run diagnostics tests locally:**
+```bash
+# All diagnostics tests
+dotnet test tests/ExcelMcp.Diagnostics.Tests/ --filter "RunType=OnDemand&Layer=Diagnostics"
+
+# Specific diagnostic tests
+dotnet test tests/ExcelMcp.Diagnostics.Tests/ --filter "Feature=PowerQuery&RunType=OnDemand"
+```
+
+**CI Behavior:**
+- Diagnostics tests are **NOT** run in CI workflows (GitHub Actions)
+- Path filter includes folder to trigger builds when tests change
+- Test execution uses `RunType!=OnDemand` filter to exclude them
 
 ## Feature-Specific Tests
 

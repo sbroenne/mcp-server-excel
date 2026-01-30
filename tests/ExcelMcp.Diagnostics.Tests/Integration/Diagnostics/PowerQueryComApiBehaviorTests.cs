@@ -11,7 +11,7 @@ using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Diagnostics;
+namespace Sbroenne.ExcelMcp.Diagnostics.Tests.Integration.Diagnostics;
 
 /// <summary>
 /// Diagnostic tests for Power Query COM API behavior.

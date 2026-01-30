@@ -6,20 +6,19 @@ using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Sbroenne.ExcelMcp.Core.Tests.Diagnostics;
+namespace Sbroenne.ExcelMcp.Diagnostics.Tests.Diagnostics;
 
 /// <summary>
 /// Diagnostic tests to understand Excel's native behavior regarding RefreshTable().
 /// These tests use RAW Excel COM API without our abstraction layer to determine:
 /// 1. Which operations require RefreshTable() to take effect
 /// 2. Which operations work immediately without RefreshTable()
-/// 
+///
 /// Purpose: Inform optimization decisions by understanding Excel's true behavior.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Layer", "Diagnostics")]
 [Trait("Speed", "Slow")]
-[Trait("Feature", "PivotTables")]
 [Trait("RequiresExcel", "true")]
 [Trait("RunType", "OnDemand")]
 public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture>, IDisposable

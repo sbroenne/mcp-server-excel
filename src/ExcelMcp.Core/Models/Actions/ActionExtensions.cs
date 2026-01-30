@@ -1,7 +1,8 @@
-namespace Sbroenne.ExcelMcp.McpServer.Models;
+#pragma warning disable CS1591
+namespace Sbroenne.ExcelMcp.Core.Models.Actions;
 
 /// <summary>
-/// Helper extensions to convert enum actions to string format expected by Core commands
+/// Helper extensions to convert enum actions to string format and parse from cli strings.
 /// </summary>
 public static class ActionExtensions
 {
@@ -23,14 +24,11 @@ public static class ActionExtensions
         PowerQueryAction.Refresh => "refresh",
         PowerQueryAction.Delete => "delete",
         PowerQueryAction.GetLoadConfig => "get-load-config",
-        PowerQueryAction.LoadTo => "load-to",
-
-        // Atomic Operations
         PowerQueryAction.Create => "create",
-        PowerQueryAction.Update => "update",  // Renamed from update-mcode
+        PowerQueryAction.Update => "update",
         PowerQueryAction.Rename => "rename",
         PowerQueryAction.RefreshAll => "refresh-all",
-
+        PowerQueryAction.LoadTo => "load-to",
         _ => throw new ArgumentException($"Unknown PowerQueryAction: {action}")
     };
 
@@ -316,12 +314,10 @@ public static class ActionExtensions
 
     public static string ToActionString(this SlicerAction action) => action switch
     {
-        // PivotTable slicers
         SlicerAction.CreateSlicer => "create-slicer",
         SlicerAction.ListSlicers => "list-slicers",
         SlicerAction.SetSlicerSelection => "set-slicer-selection",
         SlicerAction.DeleteSlicer => "delete-slicer",
-        // Table slicers
         SlicerAction.CreateTableSlicer => "create-table-slicer",
         SlicerAction.ListTableSlicers => "list-table-slicers",
         SlicerAction.SetTableSlicerSelection => "set-table-slicer-selection",
@@ -329,4 +325,4 @@ public static class ActionExtensions
         _ => throw new ArgumentException($"Unknown SlicerAction: {action}")
     };
 }
-
+#pragma warning restore CS1591

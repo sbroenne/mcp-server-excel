@@ -1,21 +1,20 @@
-namespace Sbroenne.ExcelMcp.McpServer.Models;
+#pragma warning disable CS1591
+namespace Sbroenne.ExcelMcp.Core.Models.Actions;
 
 /// <summary>
 /// Actions available for excel_file tool
 /// </summary>
 /// <remarks>
-/// IMPORTANT: Keep enum values synchronized with ExcelFileTool.cs switch cases.
+/// IMPORTANT: Keep enum values synchronized with tool switch cases.
 /// Enum names are PascalCase (CreateAndOpen), converted to kebab-case (create-and-open) via ActionExtensions.
-/// Session Management: Open/Close manage persistent sessions. Close action has optional save parameter.
 ///
-/// Use CreateAndOpen to create new workbooks (creates file + returns sessionId in one operation).
 /// </remarks>
 public enum FileAction
 {
     List,
     Open,
     Close,
-    CreateAndOpen,  // Creates new file AND returns sessionId in one operation
+    CreateAndOpen,
     CloseWorkbook,
     Test
 }
@@ -23,18 +22,6 @@ public enum FileAction
 /// <summary>
 /// Actions available for excel_powerquery tool
 /// </summary>
-/// <remarks>
-/// ATOMIC OPERATIONS: Improved workflow commands
-/// - Create: Atomic import + load (replaces Import + SetLoadTo* + Refresh)
-/// - UpdateMCode: Update formula only (explicit separation from refresh)
-/// - LoadTo: Atomic configure + refresh (replaces SetLoadTo* + Refresh)
-/// - Unload: Convert to connection-only (inverse of LoadTo)
-/// - RefreshAll: Batch refresh all queries
-///
-/// NOTE: ValidateSyntax removed - Excel validation timing differs from test expectations
-/// NOTE: UpdateMCode renamed to Update (auto-refreshes)
-/// NOTE: UpdateAndRefresh removed (redundant - Update now auto-refreshes)
-/// </remarks>
 public enum PowerQueryAction
 {
     List,
@@ -42,10 +29,8 @@ public enum PowerQueryAction
     Refresh,
     Delete,
     GetLoadConfig,
-
-    // Atomic Operations
     Create,
-    Update,       // Renamed from UpdateMCode, now auto-refreshes
+    Update,
     Rename,
     RefreshAll,
     LoadTo
@@ -54,12 +39,6 @@ public enum PowerQueryAction
 /// <summary>
 /// Actions available for excel_worksheet tool (lifecycle)
 /// </summary>
-/// <remarks>
-/// ATOMIC CROSS-FILE OPERATIONS:
-/// - CopyToFile: Copy sheet to another file (no session required)
-/// - MoveToFile: Move sheet to another file (no session required)
-/// These operations handle opening both files internally.
-/// </remarks>
 public enum WorksheetAction
 {
     List,
@@ -68,8 +47,6 @@ public enum WorksheetAction
     Copy,
     Delete,
     Move,
-
-    // Atomic cross-file operations
     CopyToFile,
     MoveToFile
 }
@@ -94,28 +71,19 @@ public enum WorksheetStyleAction
 /// </summary>
 public enum RangeAction
 {
-    // Values & Formulas
     GetValues,
     SetValues,
     GetFormulas,
     SetFormulas,
-
-    // Number Formats
     GetNumberFormats,
     SetNumberFormat,
     SetNumberFormats,
-
-    // Clear Operations
     ClearAll,
     ClearContents,
     ClearFormats,
-
-    // Copy Operations
     Copy,
     CopyValues,
     CopyFormulas,
-
-    // Discovery Operations
     GetUsedRange,
     GetCurrentRegion,
     GetInfo
@@ -126,19 +94,12 @@ public enum RangeAction
 /// </summary>
 public enum RangeEditAction
 {
-    // Insert/Delete Cell Operations
     InsertCells,
     DeleteCells,
-
-    // Insert/Delete Row Operations
     InsertRows,
     DeleteRows,
-
-    // Insert/Delete Column Operations
     InsertColumns,
     DeleteColumns,
-
-    // Search & Sort
     Find,
     Replace,
     Sort
@@ -149,19 +110,14 @@ public enum RangeEditAction
 /// </summary>
 public enum RangeFormatAction
 {
-    // Formatting & Validation
     GetStyle,
     SetStyle,
     FormatRange,
     ValidateRange,
     GetValidation,
     RemoveValidation,
-
-    // Auto-Sizing
     AutoFitColumns,
     AutoFitRows,
-
-    // Merge Operations
     MergeCells,
     UnmergeCells,
     GetMergeInfo
@@ -172,13 +128,10 @@ public enum RangeFormatAction
 /// </summary>
 public enum RangeLinkAction
 {
-    // Hyperlink Operations
     AddHyperlink,
     RemoveHyperlink,
     ListHyperlinks,
     GetHyperlink,
-
-    // Cell Protection
     SetCellLock,
     GetCellLock
 }
@@ -272,27 +225,18 @@ public enum DataModelRelAction
 /// </summary>
 public enum TableAction
 {
-    // Lifecycle
     List,
     Read,
     Create,
     Rename,
     Delete,
     Resize,
-
-    // Styling & Totals
     SetStyle,
     ToggleTotals,
     SetColumnTotal,
-
-    // Data Operations
     Append,
     GetData,
-
-    // Data Model
     AddToDataModel,
-
-    // DAX-Backed Tables
     CreateFromDax,
     UpdateDax,
     GetDax
@@ -303,25 +247,16 @@ public enum TableAction
 /// </summary>
 public enum TableColumnAction
 {
-    // Filter Operations
     ApplyFilter,
     ApplyFilterValues,
     ClearFilters,
     GetFilters,
-
-    // Column Management
     AddColumn,
     RemoveColumn,
     RenameColumn,
-
-    // Structured References
     GetStructuredReference,
-
-    // Sort Operations
     Sort,
     SortMulti,
-
-    // Number Formatting
     GetColumnNumberFormat,
     SetColumnNumberFormat
 }
@@ -331,7 +266,6 @@ public enum TableColumnAction
 /// </summary>
 public enum PivotTableAction
 {
-    // Lifecycle
     List,
     Read,
     CreateFromRange,
@@ -346,22 +280,17 @@ public enum PivotTableAction
 /// </summary>
 public enum PivotTableFieldAction
 {
-    // Field Management
     ListFields,
     AddRowField,
     AddColumnField,
     AddValueField,
     AddFilterField,
     RemoveField,
-
-    // Field Configuration
     SetFieldFunction,
     SetFieldName,
     SetFieldFormat,
     SetFieldFilter,
     SortField,
-
-    // Grouping Operations
     GroupByDate,
     GroupByNumeric
 }
@@ -371,22 +300,15 @@ public enum PivotTableFieldAction
 /// </summary>
 public enum PivotTableCalcAction
 {
-    // Calculated Fields (for regular PivotTables)
     ListCalculatedFields,
     CreateCalculatedField,
     DeleteCalculatedField,
-
-    // Calculated Members (for OLAP/Data Model PivotTables)
     ListCalculatedMembers,
     CreateCalculatedMember,
     DeleteCalculatedMember,
-
-    // Layout and Formatting
     SetLayout,
     SetSubtotals,
     SetGrandTotals,
-
-    // Data Operations
     GetData
 }
 
@@ -395,7 +317,6 @@ public enum PivotTableCalcAction
 /// </summary>
 public enum ChartAction
 {
-    // Lifecycle
     List,
     Read,
     CreateFromRange,
@@ -410,12 +331,9 @@ public enum ChartAction
 /// </summary>
 public enum ChartConfigAction
 {
-    // Data Source Operations
     SetSourceRange,
     AddSeries,
     RemoveSeries,
-
-    // Appearance Operations
     SetChartType,
     SetTitle,
     SetAxisTitle,
@@ -424,22 +342,12 @@ public enum ChartConfigAction
     ShowLegend,
     SetStyle,
     SetPlacement,
-
-    // Data Labels
     SetDataLabels,
-
-    // Axis Scale
     GetAxisScale,
     SetAxisScale,
-
-    // Gridlines
     GetGridlines,
     SetGridlines,
-
-    // Series Formatting
     SetSeriesFormat,
-
-    // Trendlines
     ListTrendlines,
     AddTrendline,
     DeleteTrendline,
@@ -449,40 +357,15 @@ public enum ChartConfigAction
 /// <summary>
 /// Actions available for excel_slicer tool
 /// </summary>
-/// <remarks>
-/// Slicers provide visual filtering controls for PivotTables and Tables.
-/// A slicer can be connected to multiple PivotTables sharing the same SlicerCache.
-/// Table slicers can only filter one Table.
-/// </remarks>
 public enum SlicerAction
 {
-    // === PivotTable Slicer Actions ===
-
-    /// <summary>Create a slicer for a PivotTable field</summary>
     CreateSlicer,
-
-    /// <summary>List all slicers in workbook, optionally filtered by PivotTable</summary>
     ListSlicers,
-
-    /// <summary>Set or clear slicer selection (filter)</summary>
     SetSlicerSelection,
-
-    /// <summary>Delete a slicer from the workbook</summary>
     DeleteSlicer,
-
-    // === Table Slicer Actions ===
-
-    /// <summary>Create a slicer for an Excel Table column</summary>
     CreateTableSlicer,
-
-    /// <summary>List all Table slicers in workbook, optionally filtered by Table name</summary>
     ListTableSlicers,
-
-    /// <summary>Set or clear Table slicer selection (filter)</summary>
     SetTableSlicerSelection,
-
-    /// <summary>Delete a Table slicer from the workbook</summary>
     DeleteTableSlicer
 }
-
-
+#pragma warning restore CS1591

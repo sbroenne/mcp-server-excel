@@ -9,7 +9,9 @@ This repository includes automated pre-commit checks to prevent code quality iss
 3. **Core Commands Coverage** - Verifies 100% of Core methods are exposed via MCP Server
 4. **Naming Consistency** - Ensures enum action names match Core method names exactly
 5. **Success Flag Violations** - Ensures Success=true never paired with ErrorMessage (Rule 1)
-6. **MCP Server Smoke Test** - Validates all 11 MCP tools work correctly
+6. **CLI Actions Audit** - Verifies CLI action catalog matches Core action enums
+7. **CLI Workflow Smoke Test** - Validates the end-to-end CLI workflow
+8. **MCP Server Smoke Test** - Validates all 11 MCP tools work correctly
 
 ## Setup Instructions
 

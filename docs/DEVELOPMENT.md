@@ -130,6 +130,8 @@ tests/
 │   ├── Unit/           # Fast tests, no Excel required (~2-5 sec)
 │   ├── Integration/    # Medium speed, requires Excel (~1-15 min)
 │   └── RoundTrip/      # Slow, comprehensive workflows (~3-10 min each)
+├── ExcelMcp.Diagnostics.Tests/
+│   └── Integration/Diagnostics/ # Research tests, manual only (excluded from CI)
 ├── ExcelMcp.McpServer.Tests/
 │   ├── Unit/           # Fast tests, no server required  
 │   ├── Integration/    # Medium speed, requires MCP server

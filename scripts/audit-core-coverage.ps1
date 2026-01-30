@@ -282,7 +282,7 @@ function Find-InterfaceForEnum {
     }
 }
 
-$toolActionsPath = "$rootDir/src/ExcelMcp.McpServer/Models/ToolActions.cs"
+$toolActionsPath = "$rootDir/src/ExcelMcp.Core/Models/Actions/ToolActions.cs"
 
 # Dynamically discover all interfaces to check
 $commandsPath = Join-Path $rootDir "src\ExcelMcp.Core\Commands"

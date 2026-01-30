@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Daemon;
+using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.Core.Models.Actions;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -24,7 +26,17 @@ internal sealed class RangeCommand : AsyncCommand<RangeCommand.Settings>
             return 1;
         }
 
-        var action = settings.Action.Trim().ToLowerInvariant();
+        var validActions = ActionValidator.GetValidActions<RangeAction>()
+            .Concat(ActionValidator.GetValidActions<RangeEditAction>())
+            .Concat(ActionValidator.GetValidActions<RangeFormatAction>())
+            .Concat(ActionValidator.GetValidActions<RangeLinkAction>())
+            .ToArray();
+
+        if (!ActionValidator.TryNormalizeAction(settings.Action, validActions, out var action, out var errorMessage))
+        {
+            AnsiConsole.MarkupLine($"[red]{errorMessage}[/]");
+            return 1;
+        }
         var command = $"range.{action}";
 
         // Build args based on action

@@ -144,18 +144,19 @@ if ($tables.ts) {
 
 # 6. Create chart
 Test-Step "Create chart (below data)" {
-    & $cli -q chart create-from-range --session $sessionId --sheet Sheet1 --source-range B1:C4 --chart-type ColumnClustered --target-range E2:K15 | ConvertFrom-Json
+    & $cli -q chart create-from-range --session $sessionId --sheet Sheet1 --source-range A1:C4 --chart-type column --chart "SalesChart" | ConvertFrom-Json
 } -Verify {
     param($r)
-    $r.chartName -match "Chart" -or $r.ok -eq $true
+    $r.ok -eq $true -or $r.chartName -eq "SalesChart"
 }
 
 # 7. List charts
 $charts = Test-Step "List charts" {
-    & $cli -q chart list --session $sessionId | ConvertFrom-Json
+    & $cli -q chart list --session $sessionId --sheet Sheet1 | ConvertFrom-Json
 } -Verify {
     param($r)
-    $r.Count -ge 1 -or ($r.GetType().Name -eq "PSCustomObject")
+    if ($r -is [array]) { return $r.Count -ge 1 }
+    return $null -ne $r
 }
 
 if ($charts) {
