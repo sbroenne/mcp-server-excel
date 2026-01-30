@@ -59,8 +59,8 @@ excelcli -q session close --session 1
 
 ```powershell
 # Check if update available
-excelcli -q version --check
-# {"currentVersion":"1.2.0","latestVersion":"1.3.0","updateAvailable":true,...}
+excelcli --version
+# (shows current version and checks against latest NuGet version)
 
 # Update to latest version
 dotnet tool update --global Sbroenne.ExcelMcp.CLI
