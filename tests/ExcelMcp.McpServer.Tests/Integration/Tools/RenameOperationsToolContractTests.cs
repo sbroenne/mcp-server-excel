@@ -71,10 +71,10 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
 
         _output.WriteLine($"✓ Connected to server: {_client.ServerInfo?.Name} v{_client.ServerInfo?.Version}");
 
-        // Create a fresh workbook and open session in one call (CreateAndOpen)
+        // Create a fresh workbook and open session in one call (Create)
         var createJson = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
-            ["action"] = "CreateAndOpen",
+            ["action"] = "Create",
             ["path"] = _testExcelFile
         });
 

@@ -6,7 +6,7 @@ namespace Sbroenne.ExcelMcp.Core.Models.Actions;
 /// </summary>
 /// <remarks>
 /// IMPORTANT: Keep enum values synchronized with tool switch cases.
-/// Enum names are PascalCase (CreateAndOpen), converted to kebab-case (create-and-open) via ActionExtensions.
+/// Enum names are PascalCase (e.g., Create), converted to kebab-case (e.g., create) via ActionExtensions.
 ///
 /// </remarks>
 public enum FileAction
@@ -14,7 +14,7 @@ public enum FileAction
     List,
     Open,
     Close,
-    CreateAndOpen,
+    Create,
     CloseWorkbook,
     Test
 }

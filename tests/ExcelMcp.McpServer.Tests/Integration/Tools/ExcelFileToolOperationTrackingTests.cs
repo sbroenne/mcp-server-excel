@@ -72,7 +72,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         // Create a test Excel file and open session
         var createResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
-            ["action"] = "CreateAndOpen",
+            ["action"] = "Create",
             ["path"] = _testExcelFile
         });
         _output.WriteLine($"Created test file: {_testExcelFile}");

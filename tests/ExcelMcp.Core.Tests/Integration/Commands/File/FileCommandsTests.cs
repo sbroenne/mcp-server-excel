@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.File;
 ///
 /// WHAT LLMs NEED TO KNOW:
 /// 1. TestFile returns metadata (Exists, IsValid, Message) without Success flag
-/// 2. File creation uses SessionManager.CreateSessionForNewFile (create-and-open action)
+/// 2. File creation uses SessionManager.CreateSessionForNewFile (create action)
 ///
 /// LAYER RESPONSIBILITY:
 /// - ✅ Test Excel COM file operations and Result objects

@@ -20,14 +20,14 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 public class ExcelFileToolTests(ITestOutputHelper output)
 {
     [Fact]
-    public void CreateAndOpen_ProtectedSystemPath_ReturnsJsonError()
+    public void Create_ProtectedSystemPath_ReturnsJsonError()
     {
         // Arrange - path that reliably fails (Windows directory is protected)
         var protectedPath = @"C:\Windows\HelloWorld.xlsx";
 
         // Act
         var result = ExcelFileTool.ExcelFile(
-            FileAction.CreateAndOpen,
+            FileAction.Create,
             excelPath: protectedPath,
             sessionId: null,
             save: false,
@@ -47,14 +47,14 @@ public class ExcelFileToolTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void CreateAndOpen_InvalidPath_ReturnsJsonError()
+    public void Create_InvalidPath_ReturnsJsonError()
     {
         // Arrange - use a path that will fail (System32, no permission)
         var invalidPath = @"C:\Windows\System32\test.xlsx";
 
         // Act
         var result = ExcelFileTool.ExcelFile(
-            FileAction.CreateAndOpen,
+            FileAction.Create,
             excelPath: invalidPath,
             sessionId: null,
             save: false,
@@ -74,11 +74,11 @@ public class ExcelFileToolTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void CreateAndOpen_NullPath_ReturnsJsonError()
+    public void Create_NullPath_ReturnsJsonError()
     {
         // Act - null path should be caught and returned as JSON error
         var result = ExcelFileTool.ExcelFile(
-            FileAction.CreateAndOpen,
+            FileAction.Create,
             excelPath: null,
             sessionId: null,
             save: false,
@@ -98,7 +98,7 @@ public class ExcelFileToolTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void CreateAndOpen_ValidPath_ReturnsSuccessWithSessionId()
+    public void Create_ValidPath_ReturnsSuccessWithSessionId()
     {
         // Arrange - use temp directory
         var tempPath = Path.Join(Path.GetTempPath(), $"ExcelFileToolTest_{Guid.NewGuid():N}.xlsx");
@@ -108,7 +108,7 @@ public class ExcelFileToolTests(ITestOutputHelper output)
         {
             // Act
             var result = ExcelFileTool.ExcelFile(
-                FileAction.CreateAndOpen,
+                FileAction.Create,
                 excelPath: tempPath,
                 sessionId: null,
                 save: false,

@@ -185,14 +185,14 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
 
         var createResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
-            ["action"] = "CreateAndOpen",
+            ["action"] = "Create",
             ["excelPath"] = _testExcelFile
         });
         AssertSuccess(createResult, "File creation and session open");
         Assert.True(File.Exists(_testExcelFile), "Excel file should exist");
         var sessionId = GetJsonProperty(createResult, "sessionId");
         Assert.NotNull(sessionId);
-        _output.WriteLine($"  ✓ excel_file: CreateAndOpen passed (session: {sessionId})");
+        _output.WriteLine($"  ✓ excel_file: Create passed (session: {sessionId})");
 
         // =====================================================================
         // STEP 3: WORKSHEET OPERATIONS

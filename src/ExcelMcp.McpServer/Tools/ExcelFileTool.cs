@@ -15,7 +15,7 @@ public static partial class ExcelFileTool
     /// File and session management for Excel automation.
     ///
     /// WORKFLOW: open → use sessionId with other tools → close (save=true to persist changes).
-    /// NEW FILES: Use create-and-open for single optimized operation (50% faster than open+create separately).
+    /// NEW FILES: Use 'create' action to create file AND start session in one call.
     ///
     /// SESSION REUSE: Call 'list' first to check for existing sessions.
     /// If file is already open, reuse existing sessionId instead of opening again.
@@ -28,11 +28,11 @@ public static partial class ExcelFileTool
     /// trigger aggressive cleanup and may leave Excel in inconsistent state.
     /// </summary>
     /// <param name="action">The file operation to perform</param>
-    /// <param name="excelPath">Full Windows path to Excel file (.xlsx or .xlsm). ASK USER for the path - do not guess or use placeholder usernames. Required for: open, create-and-open, test</param>
-    /// <param name="sessionId">Session ID returned from 'open' or 'create-and-open'. Required for: close. Used by all other tools.</param>
+    /// <param name="excelPath">Full Windows path to Excel file (.xlsx or .xlsm). ASK USER for the path - do not guess or use placeholder usernames. Required for: open, create, test</param>
+    /// <param name="sessionId">Session ID returned from 'open' or 'create'. Required for: close. Used by all other tools.</param>
     /// <param name="save">Whether to save changes when closing. Default: false (discard changes)</param>
     /// <param name="showExcel">Whether to make Excel window visible. Default: false (hidden automation)</param>
-    /// <param name="timeoutSeconds">Maximum time in seconds for any operation in this session. Default: 300 (5 min). Range: 10-3600. Used for: open, create-and-open</param>
+    /// <param name="timeoutSeconds">Maximum time in seconds for any operation in this session. Default: 300 (5 min). Range: 10-3600. Used for: open, create</param>
     [McpServerTool(Name = "excel_file", Title = "Excel File Operations", Destructive = true)]
     [McpMeta("category", "session")]
     [McpMeta("requiresSession", false)]
@@ -69,7 +69,7 @@ public static partial class ExcelFileTool
                     FileAction.List => ListSessions(),
                     FileAction.Open => OpenSessionAsync(excelPath!, showExcel, timeout),
                     FileAction.Close => CloseSessionAsync(sessionId!, save),
-                    FileAction.CreateAndOpen => CreateAndOpenSessionAsync(excelPath!, showExcel, timeout),
+                    FileAction.Create => CreateSessionAsync(excelPath!, showExcel, timeout),
                     FileAction.CloseWorkbook => CloseWorkbook(excelPath!),
                     FileAction.Test => TestFileAsync(excelPath!),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
@@ -221,11 +221,11 @@ public static partial class ExcelFileTool
     /// Returns sessionId that must be used for all subsequent operations.
     /// Directory must exist - will not be created automatically.
     /// </summary>
-    private static string CreateAndOpenSessionAsync(string excelPath, bool showExcel, TimeSpan timeout)
+    private static string CreateSessionAsync(string excelPath, bool showExcel, TimeSpan timeout)
     {
         if (string.IsNullOrWhiteSpace(excelPath))
         {
-            throw new ArgumentException("excelPath is required for 'create-and-open' action", nameof(excelPath));
+            throw new ArgumentException("excelPath is required for 'create' action", nameof(excelPath));
         }
 
         // Validate Windows path format before any file operations
