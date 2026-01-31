@@ -4,7 +4,6 @@
 
 using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Commands;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -20,7 +19,6 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 public class NamedRangeTestsFixture : IAsyncLifetime
 {
     private readonly string _tempDir;
-    private readonly FileCommands _fileCommands = new();
     private int _cellCounter;
 
     /// <summary>
@@ -83,7 +81,9 @@ public class NamedRangeTestsFixture : IAsyncLifetime
 
         try
         {
-            _fileCommands.CreateEmpty(TestFilePath);
+            using var manager = new SessionManager();
+            var sessionId = manager.CreateSessionForNewFile(TestFilePath, showExcel: false);
+            manager.CloseSession(sessionId, save: true);
             CreationResult.FileCreated = true;
 
             sw.Stop();

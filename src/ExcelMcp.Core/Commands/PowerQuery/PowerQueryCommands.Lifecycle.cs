@@ -589,7 +589,7 @@ public partial class PowerQueryCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query</param>
     /// <returns>Operation result</returns>
-    public static OperationResult Unload(IExcelBatch batch, string queryName)
+    public OperationResult Unload(IExcelBatch batch, string queryName)
     {
         var result = new OperationResult
         {

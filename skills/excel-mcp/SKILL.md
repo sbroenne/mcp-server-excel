@@ -3,10 +3,10 @@ name: excel-mcp
 description: >
   Automate Microsoft Excel on Windows via COM interop. Use when creating, reading, 
   or modifying Excel workbooks. Supports Power Query (M code), Data Model (DAX measures), 
-  PivotTables, Tables, Ranges, Charts, Formatting, VBA macros, and connections.
+  PivotTables, Tables, Ranges, Charts, Slicers, Formatting, VBA macros, and connections.
   Triggers: Excel, spreadsheet, workbook, xlsx, Power Query, DAX, PivotTable, VBA.
 license: MIT
-version: 1.2.0
+version: 1.3.0
 tags:
   - excel
   - automation
@@ -19,6 +19,7 @@ tags:
   - data-model
   - charts
   - formatting
+  - slicers
 repository: https://github.com/sbroenne/mcp-server-excel
 documentation: https://excelmcpserver.dev/
 ---
@@ -36,14 +37,22 @@ Server-specific guidance for Excel MCP Server. Tools are auto-discovered - this 
 
 ## Session Workflow
 
-1. **Open/Create**: `excel_file(open)` or `excel_file(create-empty)` → returns `sessionId`
+1. **Open/Create**: 
+   - **Existing file**: `excel_file(open, excelPath)` → returns `sessionId`
+   - **New file**: `excel_file(create-and-open, excelPath)` → creates file AND returns `sessionId` in single operation
 2. **Perform Operations**: Pass `sessionId` to all tool calls
-3. **Save and Close**: `excel_file(close, save=true)` to persist changes
+3. **Save and Close**: `excel_file(close, sessionId, save=true)` to persist changes
 
 **Session Tips:**
 - Call `excel_file(list)` first to check for existing sessions (reuse if file already open)
+- Use `create-and-open` for new files (single Excel startup, faster performance)
 - Check `canClose=true` before closing (no active operations running)
 - Without `save=true`, all changes are discarded
+
+**Session Timeout:**
+- Default: 5 minutes per operation. Use `timeoutSeconds` to customize (range: 10-3600)
+- For long operations (large Power Query refresh, complex DAX): `excel_file(open, excelPath, timeoutSeconds=600)`
+- Timeout triggers aggressive cleanup - Excel may be in inconsistent state after timeout
 
 ## Format Cells After Setting Values (CRITICAL)
 
@@ -100,8 +109,38 @@ Tables must be in the Data Model before DAX measures work:
 
 **Server Quirks:**
 - `refresh` REQUIRES `refreshTimeoutSeconds` (60-600 seconds) - will fail without it
-- M code is auto-formatted on create/update
+- M code is auto-formatted on create/update via powerqueryformatter.com
 - `update` action auto-refreshes after updating M code
+- `create` fails if query exists - use `update` instead
+- `connection-only` queries NOT validated until first execution
+
+## Chart Positioning (CRITICAL)
+
+**NEVER place charts at default position (0,0) - they overlap data!**
+
+```
+1. excel_range(get-used-range)           # Find where data ends
+2. excel_chart(create-from-range, targetRange='F2:K15')  # Place OUTSIDE data
+```
+
+**Positioning options:**
+- `targetRange='F2:K15'` - cell-relative (RECOMMENDED)
+- `left=400, top=200` - points (72 pts = 1 inch)
+
+## Slicers for Visual Filtering
+
+Create interactive filter controls for PivotTables and Tables:
+
+```
+# PivotTable slicer
+excel_slicer(create-slicer, pivotTableName='Sales', fieldName='Region')
+
+# Table slicer  
+excel_slicer(create-table-slicer, tableName='SalesTable', columnName='Category')
+
+# Set filter selection (empty array clears filter)
+excel_slicer(set-slicer-selection, slicerName='RegionSlicer', selectedItems='["West","East"]')
+```
 
 ## Star Schema Design
 
@@ -160,4 +199,22 @@ See `references/` for detailed guidance:
 - @references/excel_range.md - Range operations
 - @references/excel_worksheet.md - Worksheet operations
 - @references/excel_chart.md - Charts, formatting, and trendlines
+- @references/excel_slicer.md - Slicer operations
+- @references/excel_conditionalformat.md - Conditional formatting
 - @references/claude-desktop.md - Claude Desktop setup
+
+## CLI Usage
+
+The ExcelCLI provides the same functionality for terminal/agent automation:
+
+```bash
+# Install
+dotnet tool install --global Sbroenne.ExcelMcp.CLI
+
+# Workflow
+excelcli session open "C:\path\to\file.xlsx"  # Returns sessionId
+excelcli range get-values --session <id> --sheet "Sheet1" --range "A1:D10"
+excelcli session close --session <id> --save
+```
+
+Run `excelcli --help` for command discovery. Run `excelcli <command> --help` for detailed parameters.

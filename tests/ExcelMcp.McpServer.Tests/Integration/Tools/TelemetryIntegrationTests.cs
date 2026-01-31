@@ -1,7 +1,7 @@
 // Copyright (c) Sbroenne. All rights reserved.
 // Licensed under the MIT License.
 
-using Sbroenne.ExcelMcp.McpServer.Models;
+using Sbroenne.ExcelMcp.Core.Models.Actions;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
@@ -110,7 +110,8 @@ public class TelemetryIntegrationTests(ITestOutputHelper output)
             excelPath: "C:\\fake\\test.xlsx",
             sessionId: null,
             save: false,
-            showExcel: false);
+            showExcel: false,
+            timeoutSeconds: 300);
 
         output.WriteLine($"Tool result: {result[..Math.Min(200, result.Length)]}...\n");
 

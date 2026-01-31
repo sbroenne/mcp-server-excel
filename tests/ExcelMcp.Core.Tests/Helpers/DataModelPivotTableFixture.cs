@@ -12,13 +12,13 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 /// <summary>
 /// Unified fixture that creates ONE comprehensive Data Model + PivotTable workbook per test CLASS.
 /// Consolidates DataModelTestsFixture and PivotTableRealisticFixture into one fixture.
-/// 
+///
 /// Creates:
 /// - Data Model tables with relationships (SalesTable → CustomersTable, SalesTable → ProductsTable)
 /// - DAX measures for aggregation
 /// - PivotTables from multiple source types (range, table, Data Model)
 /// - Disambiguation test data for OLAP field matching tests
-/// 
+///
 /// The fixture initialization IS the test for creation.
 /// - Created ONCE before any tests run
 /// - Shared READ-ONLY by all tests in the class
@@ -57,8 +57,11 @@ public class DataModelPivotTableFixture : IAsyncLifetime
 
         try
         {
-            var fileCommands = new FileCommands();
-            fileCommands.CreateEmpty(TestFilePath);
+            using (var manager = new SessionManager())
+            {
+                var sessionId = manager.CreateSessionForNewFile(TestFilePath, showExcel: false);
+                manager.CloseSession(sessionId, save: true);
+            }
             CreationResult.FileCreated = true;
 
             using var batch = ExcelSession.BeginBatch(TestFilePath);

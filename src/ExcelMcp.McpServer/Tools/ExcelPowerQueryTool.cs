@@ -75,6 +75,7 @@ public static partial class ExcelPowerQueryTool
                     PowerQueryAction.Update => UpdatePowerQueryAsync(powerQueryCommands, sessionId, queryName, mCode),
                     PowerQueryAction.LoadTo => LoadToPowerQueryAsync(powerQueryCommands, sessionId, queryName, loadDestination, targetSheet, targetCellAddress),
                     PowerQueryAction.RefreshAll => RefreshAllPowerQueriesAsync(powerQueryCommands, sessionId),
+                    PowerQueryAction.Unload => UnloadPowerQueryAsync(powerQueryCommands, sessionId, queryName),
 
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
@@ -396,6 +397,27 @@ public static partial class ExcelPowerQueryTool
                 isError = true
             }, ExcelToolsBase.JsonOptions);
         }
+    }
+
+    private static string UnloadPowerQueryAsync(
+        PowerQueryCommands commands,
+        string sessionId,
+        string? queryName)
+    {
+        if (string.IsNullOrEmpty(queryName))
+            throw new ArgumentException("queryName is required for unload action", nameof(queryName));
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.Unload(batch, queryName));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.Action,
+            result.FilePath,
+            result.Message,
+            result.ErrorMessage
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static PowerQueryLoadMode ParseLoadMode(string loadDestination)

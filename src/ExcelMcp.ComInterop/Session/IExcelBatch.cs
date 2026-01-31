@@ -111,6 +111,32 @@ public interface IExcelBatch : IDisposable
     /// <exception cref="OperationCanceledException">Save operation was cancelled via cancellationToken</exception>
     void Save(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Checks if the underlying Excel process is still alive.
+    /// </summary>
+    /// <returns>
+    /// True if Excel process exists and hasn't exited.
+    /// False if process has crashed, was killed, or process ID wasn't captured.
+    /// </returns>
+    /// <remarks>
+    /// Use this to detect dead Excel processes before attempting operations.
+    /// If this returns false, the session should be closed and recreated.
+    /// </remarks>
+    bool IsExcelProcessAlive();
+
+    /// <summary>
+    /// Gets the Excel process ID, if captured.
+    /// </summary>
+    /// <returns>Process ID, or null if not captured during startup.</returns>
+    int? ExcelProcessId { get; }
+
+    /// <summary>
+    /// Gets the operation timeout for this batch.
+    /// All Execute() calls will timeout after this duration.
+    /// Default is 5 minutes (from ComInteropConstants.DefaultOperationTimeout).
+    /// </summary>
+    TimeSpan OperationTimeout { get; }
+
 }
 
 

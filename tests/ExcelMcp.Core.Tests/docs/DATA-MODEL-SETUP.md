@@ -16,11 +16,11 @@ Data Model tests use a **fixture-as-test pattern** where the fixture initializat
 **DataModelTestsFixture** (`Helpers/DataModelTestsFixture.cs`)
 - Creates ONE Data Model file per test CLASS during initialization
 - Fixture initialization IS the test - validates all creation commands:
-  - FileCommands.CreateEmptyAsync()
-  - TableCommands.AddToDataModelAsync() for all tables
-  - DataModelCommands.CreateRelationshipAsync() for all relationships
-  - DataModelCommands.CreateMeasureAsync() for all measures
-  - Batch.SaveAsync() persistence
+  - `ExcelBatch.CreateNewWorkbook()` to create new file with session (optimized single start)
+  - `TableCommands.AddToDataModelAsync()` for all tables
+  - `DataModelCommands.CreateRelationshipAsync()` for all relationships
+  - `DataModelCommands.CreateMeasureAsync()` for all measures
+  - `Batch.SaveAsync()` persistence
 - Each test gets its own batch/session (isolation at batch level)
 - Write operations use unique names to avoid conflicts
 - Exposes `CreationResult` for validation tests

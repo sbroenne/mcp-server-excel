@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**22 specialized tools with 206 operations for comprehensive Excel automation**
+**22 specialized tools with 210 operations for comprehensive Excel automation**
 
 ---
 
@@ -15,7 +15,7 @@
 
 ---
 
-## 🔄 Power Query & M Code (10 operations)
+## 🔄 Power Query & M Code (11 operations)
 
 **Atomic Operations** - Single-call workflows:
 - **List:** List all Power Query queries in workbook
@@ -27,6 +27,7 @@
 - **Refresh All:** Batch refresh all queries in workbook
 - **Load To:** Configure load destination and refresh (atomic)
 - **Get Load Config:** Get current load configuration
+- **Unload:** Remove data from all destinations (keeps query definition)
 - **Delete:** Remove Power Query from workbook
 
 **Automatic M-Code Formatting:** M code is automatically formatted on write operations (Create, Update) using the powerqueryformatter.com API (by mogularGmbH, MIT License). Read operations return M code as stored in Excel. Formatting adds ~100-500ms network latency but dramatically improves readability with proper indentation, spacing, and line breaks. Graceful fallback returns original M code if formatting fails.
@@ -148,7 +149,7 @@
 
 ---
 
-## 📉 Charts (26 operations)
+## 📉 Charts (28 operations)
 
 **Creation:**
 - Create from range
@@ -195,6 +196,10 @@
 - List trendlines on series
 - Delete trendline
 - Configure trendline (forecast forward/backward, display equation, display R²)
+
+**Placement & Positioning:**
+- Set chart placement (move/size with cells options)
+- Fit to range (position and size to match a range)
 
 **Lifecycle:**
 - List charts
@@ -386,10 +391,10 @@
 |----------|-----------|
 | File Operations | 6 |
 | Power Query | 10 |
-| Data Model/DAX | 18 |
+| Data Model/DAX | 19 |
 | Excel Tables | 27 |
 | PivotTables | 30 |
-| Charts | 26 |
+| Charts | 28 |
 | Ranges | 42 |
 | Worksheets | 16 |
 | Connections | 9 |
@@ -397,7 +402,7 @@
 | VBA Macros | 6 |
 | Slicers | 8 |
 | Conditional Formatting | 2 |
-| **Total** | **206** |
+| **Total** | **209** |
 
 ---
 

@@ -1,0 +1,3930 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test Results - Agent Benchmark</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+    <style>
+/* Agent Benchmark Report Styles - Enhanced Version */
+
+:root {
+    --color-pass: #4CAF50;
+    --color-fail: #f44336;
+    --color-warning: #ff9800;
+    --color-info: #2196F3;
+    --color-primary: #667eea;
+    --color-secondary: #764ba2;
+    --color-bg: #f5f5f5;
+    --color-card: #ffffff;
+    --color-border: #e0e0e0;
+    --color-text: #333333;
+    --color-text-light: #666666;
+    --color-text-muted: #999999;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.12);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,0.15);
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    line-height: 1.5;
+}
+
+.container {
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* Report Header */
+.report-header {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+    color: white;
+    padding: 30px 40px;
+    border-radius: var(--radius-lg);
+    margin-bottom: 30px;
+    box-shadow: var(--shadow-lg);
+}
+
+.report-header h1 {
+    margin: 0 0 10px 0;
+    font-size: 28px;
+    font-weight: 600;
+    border: none;
+    padding: 0;
+}
+
+.report-meta {
+    display: flex;
+    gap: 30px;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+/* Summary Cards */
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.summary-card {
+    background: var(--color-card);
+    padding: 24px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.summary-card.total { border-top: 4px solid var(--color-info); }
+.summary-card.passed { border-top: 4px solid var(--color-pass); }
+.summary-card.failed { border-top: 4px solid var(--color-fail); }
+.summary-card.agents { border-top: 4px solid var(--color-primary); }
+.summary-card.sessions { border-top: 4px solid #17a2b8; }
+.summary-card.agent-info { border-top: 4px solid var(--color-primary); }
+.summary-card.rate { border-top: 4px solid #9b59b6; }
+.summary-card.tokens { border-top: 4px solid var(--color-warning); }
+.summary-card.duration { border-top: 4px solid #3498db; }
+
+.summary-value {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.summary-card.total .summary-value { color: var(--color-info); }
+.summary-card.passed .summary-value { color: var(--color-pass); }
+.summary-card.failed .summary-value { color: var(--color-fail); }
+.summary-card.agents .summary-value { color: var(--color-primary); }
+.summary-card.sessions .summary-value { color: #17a2b8; }
+.summary-card.agent-info .summary-value { 
+    color: var(--color-primary);
+    font-size: 18px;
+    word-break: break-word;
+}
+.summary-card.rate .summary-value { color: #9b59b6; }
+.summary-card.tokens .summary-value { color: var(--color-warning); }
+.summary-card.duration .summary-value { color: #3498db; }
+
+/* Token Range Bar */
+.summary-card.token-range {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.summary-card.token-range .summary-value {
+    font-size: 18px;
+}
+.token-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+    font-size: 10px;
+    color: var(--color-text-light);
+}
+.token-bar-fill {
+    width: 40px;
+    height: 6px;
+    background: linear-gradient(to right, var(--color-success), var(--color-warning), var(--color-danger));
+    border-radius: 3px;
+}
+.token-min, .token-max {
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.duration-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+    font-size: 10px;
+    color: var(--color-text-light);
+}
+.duration-bar-fill {
+    width: 40px;
+    height: 6px;
+    background: linear-gradient(to right, #17a2b8, #6c757d, #343a40);
+    border-radius: 3px;
+}
+.duration-min, .duration-max {
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.summary-label {
+    font-size: 13px;
+    color: var(--color-text-light);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Section */
+.section {
+    background: var(--color-card);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 30px;
+    overflow: hidden;
+}
+
+.section-header {
+    background: #fafafa;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--color-text);
+    border: none;
+    padding: 0;
+}
+
+.section-body { padding: 24px; }
+
+/* File Summary (Suite Runs) */
+.file-summary-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.file-summary-item {
+    background: #f8f9fa;
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+    border-left: 4px solid var(--color-primary);
+}
+
+.file-summary-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.file-summary-item.file-perfect {
+    background: rgba(46, 204, 113, 0.08);
+    border-left: 4px solid var(--color-pass);
+}
+
+.file-name {
+    font-weight: 600;
+    color: var(--color-text);
+    min-width: 250px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 13px;
+}
+
+.session-source-file {
+    font-weight: 400;
+    color: var(--color-text-light);
+    font-size: 12px;
+}
+
+.file-stats {
+    font-size: 14px;
+    color: var(--color-text-light);
+}
+
+.file-stats .summary-metric {
+    margin-left: 12px;
+    color: var(--color-text-light);
+    font-size: 13px;
+}
+
+.file-stats .summary-metric .tok-suffix {
+    font-size: 10px;
+    opacity: 0.7;
+    margin-left: 1px;
+}
+
+/* Comparison Matrix */
+.matrix-container { overflow-x: auto; }
+
+.comparison-matrix {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.comparison-matrix th,
+.comparison-matrix td {
+    padding: 14px 16px;
+    text-align: center;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.comparison-matrix th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: var(--color-text-light);
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    position: sticky;
+    top: 0;
+}
+
+.comparison-matrix th:first-child,
+.comparison-matrix td:first-child {
+    text-align: left;
+    min-width: 200px;
+    font-weight: 500;
+}
+
+.comparison-matrix tbody tr:hover { background: #f8f9fa; }
+
+/* Grouped Matrix - File and Session Headers */
+.matrix-file-header td {
+    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+    font-weight: 600;
+    text-align: left !important;
+    padding: 12px 16px;
+    border-bottom: 2px solid var(--color-primary);
+    color: var(--color-primary);
+}
+
+.matrix-session-header td {
+    background: linear-gradient(135deg, #e8f4fd 0%, #f0f7ff 100%);
+    font-weight: 600;
+    text-align: left !important;
+    padding: 12px 16px 12px 32px;
+    border-bottom: 2px solid #b8d4f0;
+    border-left: 4px solid var(--color-primary);
+    color: var(--color-primary);
+    font-size: 14px;
+}
+
+.matrix-test-indented td:first-child {
+    padding-left: 48px;
+}
+
+.matrix-group-icon {
+    margin-right: 8px;
+}
+
+.group-stats {
+    font-weight: 400;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-left: 8px;
+}
+
+.matrix-file-header .group-stats {
+    color: var(--color-text-light);
+}
+
+/* Provider badge colors */
+.provider-badge.provider-AZURE { background: #0078d4; color: white; }
+.provider-badge.provider-OPENAI { background: #10a37f; color: white; }
+.provider-badge.provider-ANTHROPIC { background: #d4a574; color: white; }
+.provider-badge.provider-GOOGLE { background: #4285f4; color: white; }
+.provider-badge.provider-AWS { background: #ff9900; color: white; }
+.provider-badge.provider-OLLAMA { background: #333; color: white; }
+
+/* Test Overview Table (Single Agent) */
+.test-overview-table .row-passed { background: rgba(46, 204, 113, 0.05); }
+.test-overview-table .row-failed { background: rgba(231, 76, 60, 0.05); }
+.test-overview-table .row-passed:hover { background: rgba(46, 204, 113, 0.1); }
+.test-overview-table .row-failed:hover { background: rgba(231, 76, 60, 0.1); }
+.test-overview-table .error-count {
+    color: var(--color-failed);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.matrix-cell {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.matrix-status { font-size: 18px; }
+.matrix-duration {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+}
+.matrix-tokens {
+    font-size: 10px;
+    color: var(--color-text-muted);
+}
+.matrix-tokens::after {
+    content: ' tok';
+}
+
+/* Leaderboard */
+.leaderboard {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.leaderboard th,
+.leaderboard td {
+    padding: 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.leaderboard th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: var(--color-text-light);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.leaderboard tbody tr:hover { background: #f8f9fa; }
+
+.leaderboard .rank-col { width: 70px; text-align: center; }
+
+/* Leaderboard row state styling */
+.leaderboard-row-perfect { background: rgba(76, 175, 80, 0.08); }
+.leaderboard-row-perfect:hover { background: rgba(76, 175, 80, 0.15) !important; }
+.leaderboard-row-good { background: rgba(255, 193, 7, 0.06); }
+.leaderboard-row-good:hover { background: rgba(255, 193, 7, 0.12) !important; }
+.leaderboard-row-poor { background: rgba(244, 67, 54, 0.06); }
+.leaderboard-row-poor:hover { background: rgba(244, 67, 54, 0.12) !important; }
+.leaderboard-row-dq { 
+    background: #f5f5f5; 
+    color: #999;
+}
+.leaderboard-row-dq:hover { background: #eeeeee !important; }
+.leaderboard-row-dq .agent-name { color: #999; }
+.leaderboard-row-dq .success-bar-fill { background: #ccc !important; }
+
+.rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.rank-1 { background: transparent; font-size: 24px; }
+.rank-2 { background: transparent; font-size: 24px; }
+.rank-3 { background: transparent; font-size: 24px; }
+.rank-other { background: #e0e0e0; color: #666; font-size: 14px; }
+.rank-dq { 
+    background: #f44336; 
+    color: white; 
+    font-size: 11px; 
+    font-weight: 700;
+    border-radius: 4px;
+    padding: 4px 8px;
+}
+
+/* Results cell with pass/fail/error counts */
+.results-cell {
+    display: flex;
+    gap: 12px;
+    font-weight: 500;
+    font-size: 14px;
+}
+.result-pass { color: var(--color-pass); }
+.result-fail { color: var(--color-fail); }
+.result-error { color: #ff9800; }
+
+/* Success rate cell */
+.success-rate-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Legend */
+.leaderboard-legend {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    gap: 24px;
+    font-size: 12px;
+    color: var(--color-text-light);
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.legend-item .rank-badge {
+    min-width: 24px;
+    height: 20px;
+    font-size: 9px;
+    padding: 2px 6px;
+}
+
+.text-muted { color: #999; }
+
+.agent-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.agent-name {
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.provider-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.success-bar {
+    width: 100px;
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 8px;
+}
+
+.success-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+}
+
+.success-bar-fill.success-high { background: var(--color-pass); }
+.success-bar-fill.success-medium { background: var(--color-warning); }
+.success-bar-fill.success-low { background: var(--color-fail); }
+
+.stat-value {
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    font-size: 14px;
+}
+
+.text-pass { color: var(--color-pass); }
+.text-fail { color: var(--color-fail); }
+.text-muted { color: var(--color-text-muted); }
+
+/* Test List */
+.test-list {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* File and Session Headers for Detailed Results */
+.test-file-header {
+    margin-top: 24px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--color-primary);
+}
+
+.test-file-header:first-child {
+    margin-top: 0;
+}
+
+.test-file-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--color-primary);
+    margin: 0;
+}
+
+/* Session Container - wraps header + all tests */
+.session-container {
+    margin: 24px 0;
+    border-left: 4px solid var(--color-primary);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    background: linear-gradient(to right, rgba(0, 102, 204, 0.03) 0%, transparent 100%);
+}
+
+.session-container .test-session-header.session-group-header {
+    margin: 0;
+    border-left: none;
+    border-radius: 0 var(--radius-md) 0 0;
+}
+
+.session-tests-container {
+    padding: 16px 16px 8px 20px;
+    border-top: 1px solid rgba(0, 102, 204, 0.1);
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.session-tests-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--color-border);
+}
+
+.session-tests-container .test-group-section {
+    margin-bottom: 16px;
+    padding-left: 12px;
+    border-left: 2px solid var(--color-border);
+}
+
+.session-tests-container .test-group-section:last-child {
+    margin-bottom: 8px;
+}
+
+.test-session-header {
+    margin-top: 16px;
+    margin-bottom: 12px;
+    padding-left: 8px;
+    border-left: 3px solid var(--color-border);
+}
+
+.test-session-header.session-group-header {
+    background: linear-gradient(135deg, #e8f4fd 0%, #f0f7ff 100%);
+    border: 2px solid #b8d4f0;
+    border-left: 6px solid var(--color-primary);
+    border-radius: var(--radius-md);
+    padding: 16px 20px;
+    margin: 24px 0 16px 0;
+    box-shadow: 0 2px 8px rgba(0, 102, 204, 0.08);
+}
+
+.session-header-main {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.session-stats {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    background: rgba(255, 255, 255, 0.7);
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+}
+
+.session-stats .success-bar {
+    width: 80px;
+}
+
+.test-session-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    margin: 0;
+}
+
+.session-group-header .test-session-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-primary);
+    letter-spacing: -0.3px;
+}
+
+.session-group-header .session-diagram-details {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(0, 102, 204, 0.15);
+}
+
+/* Session Overview Section */
+.session-overview-section {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(0, 102, 204, 0.15);
+}
+
+.session-overview-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-primary);
+    margin-bottom: 12px;
+}
+
+.session-overview-table-wrapper {
+    overflow-x: auto;
+}
+
+.session-overview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: white;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.session-overview-table th,
+.session-overview-table td {
+    padding: 10px 14px;
+    text-align: center;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.session-overview-table th {
+    background: var(--color-background);
+    font-weight: 600;
+    border-bottom: 2px solid var(--color-border);
+}
+
+.session-overview-table th.metric-col {
+    text-align: left;
+    width: 120px;
+    color: var(--color-text-muted);
+}
+
+.session-overview-table th.agent-col {
+    min-width: 150px;
+}
+
+.session-overview-table th.agent-col.success-high {
+    border-top: 3px solid var(--color-success);
+}
+
+.session-overview-table th.agent-col.success-medium {
+    border-top: 3px solid var(--color-warning);
+}
+
+.session-overview-table th.agent-col.success-low {
+    border-top: 3px solid var(--color-danger);
+}
+
+.session-overview-table .agent-status {
+    display: block;
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+
+.session-overview-table .agent-name {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.session-overview-table .provider-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+    margin-top: 4px;
+}
+
+.session-overview-table td.metric-label {
+    text-align: left;
+    color: var(--color-text-muted);
+    font-weight: 500;
+}
+
+.session-overview-table td.metric-value {
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.session-overview-table tr:last-child td {
+    border-bottom: none;
+}
+
+.test-group-section { margin-bottom: 16px; }
+
+.test-group-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0 0 12px 0;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.session-tests-container .test-group-title {
+    font-size: 14px;
+    color: var(--color-text-muted);
+    border-bottom-color: transparent;
+    padding-bottom: 4px;
+}
+
+/* Test Item (Collapsible) */
+.test-item {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.test-item.passed { border-left: 4px solid var(--color-pass); }
+.test-item.failed { border-left: 4px solid var(--color-fail); }
+
+.test-item > summary {
+    list-style: none;
+}
+
+.test-item > summary::-webkit-details-marker {
+    display: none;
+}
+
+.test-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: #fafafa;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.test-header:hover { background: #f0f0f0; }
+
+.test-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.test-status-icon { font-size: 18px; }
+
+.test-agent {
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--color-text);
+}
+
+.test-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 13px;
+    color: var(--color-text-light);
+}
+
+.test-meta .duration,
+.test-meta .tokens {
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+}
+
+.expand-icon {
+    transition: transform 0.2s;
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.test-item[open] .expand-icon { transform: rotate(180deg); }
+
+.test-details {
+    padding: 20px;
+    background: white;
+    border-top: 1px solid var(--color-border);
+}
+
+/* Prompt Section (always visible at top of test details) */
+.prompt-section {
+    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin-bottom: 20px;
+    border-left: 4px solid var(--color-primary);
+}
+
+.prompt-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.prompt-content {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--color-text);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Subsections */
+.subsection-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-light);
+    margin: 0 0 12px 0;
+    cursor: pointer;
+}
+
+.assertions-section,
+.sequence-section,
+.toolcalls-section,
+.messages-section,
+.final-output-section {
+    margin-bottom: 20px;
+}
+
+/* Assertions */
+.assertions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.assertion-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #f8f9fa;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+}
+
+.assertion-item.passed { background: #e8f5e9; }
+.assertion-item.failed { background: #ffebee; }
+
+.assertion-icon { font-size: 14px; flex-shrink: 0; }
+.assertion-item.passed .assertion-icon { color: var(--color-pass); }
+.assertion-item.failed .assertion-icon { color: var(--color-fail); }
+
+.assertion-content { flex: 1; }
+.assertion-type { font-weight: 500; color: var(--color-text); }
+.assertion-message { color: var(--color-text-light); margin-left: 8px; }
+
+.assertion-details {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+.assertion-details-content {
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    font-size: 12px;
+    background: rgba(255,255,255,0.5);
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    margin: 0;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Session Diagram */
+.session-diagram-details {
+    margin-top: 12px;
+    border-top: 1px solid rgba(0,0,0,0.08);
+    padding-top: 12px;
+}
+
+.session-diagram-summary {
+    cursor: pointer;
+    color: var(--color-primary);
+    font-size: 13px;
+    padding: 6px 0;
+    user-select: none;
+}
+
+.session-diagram-summary:hover {
+    color: var(--color-primary-dark);
+}
+
+.session-diagram-details[open] .mermaid {
+    margin-top: 16px;
+    padding: 20px;
+    background: rgba(255,255,255,0.6);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+}
+
+/* Session Agent Diagrams Grid (multi-agent) */
+.session-agent-diagrams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(255,255,255,0.4);
+    border-radius: var(--radius-md);
+}
+
+.session-agent-diagrams-grid .agent-sequence-box {
+    background: #fafbfc;
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    overflow: hidden;
+}
+
+.session-agent-diagrams-grid .agent-sequence-header {
+    font-weight: 600;
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.session-agent-diagrams-grid .mermaid {
+    font-size: 11px;
+}
+
+/* Single session diagram container */
+.session-single-diagram {
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(255,255,255,0.4);
+    border-radius: var(--radius-md);
+}
+
+.session-single-diagram .agent-sequence-box {
+    background: #fafbfc;
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    max-width: 600px;
+}
+
+/* Errors */
+.errors-box {
+    background: #ffebee;
+    border: 1px solid #ffcdd2;
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.errors-title {
+    font-weight: 600;
+    color: #c62828;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.error-item {
+    color: #c62828;
+    font-size: 13px;
+    margin-bottom: 6px;
+}
+
+/* Rate Limit Stats */
+.rate-limit-stats-section {
+    background: #fff3e0;
+    border: 1px solid #ffe0b2;
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.rate-limit-stats-section .subsection-title {
+    margin: 0 0 12px 0;
+    color: #e65100;
+}
+
+.rate-limit-stats-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.rate-limit-stat {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.8);
+    min-width: 150px;
+}
+
+.rate-limit-stat.throttle {
+    border-left: 3px solid #ff9800;
+}
+
+.rate-limit-stat.hits {
+    border-left: 3px solid #f44336;
+}
+
+.rate-limit-stat.retries {
+    border-left: 3px solid #2196F3;
+}
+
+.rate-limit-stat .stat-icon {
+    font-size: 24px;
+}
+
+.rate-limit-stat .stat-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.rate-limit-stat .stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.rate-limit-stat .stat-label {
+    font-size: 12px;
+    color: var(--color-text-light);
+    font-weight: 500;
+}
+
+.rate-limit-stat .stat-detail {
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+
+/* Clarification Stats */
+.clarification-stats-section {
+    background: #fce4ec;
+    border: 1px solid #f8bbd9;
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.clarification-stats-section .subsection-title {
+    margin: 0 0 12px 0;
+    color: #c2185b;
+}
+
+.clarification-stats-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.clarification-count {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.8);
+    border-left: 3px solid #e91e63;
+}
+
+.clarification-count .stat-icon {
+    font-size: 24px;
+}
+
+.clarification-count .stat-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.clarification-count .stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.clarification-count .stat-label {
+    font-size: 12px;
+    color: var(--color-text-light);
+    font-weight: 500;
+}
+
+.clarification-count .stat-detail {
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+
+.clarification-examples {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.clarification-example {
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: var(--radius-sm);
+    border-left: 2px solid #f48fb1;
+}
+
+.clarification-example .example-quote {
+    font-style: italic;
+    font-size: 12px;
+    color: var(--color-text-light);
+    display: block;
+    max-height: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Mermaid Diagram */
+.mermaid {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+}
+
+/* Timeline / Tool Calls */
+.timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.timeline-item {
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--color-info);
+}
+
+.timeline-item.tool-call { border-left-color: var(--color-warning); }
+.timeline-item.user { border-left-color: var(--color-pass); }
+.timeline-item.assistant { border-left-color: var(--color-info); }
+
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.tool-name {
+    font-weight: 600;
+    color: #f57c00;
+    font-size: 14px;
+}
+
+.timeline-meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.tool-duration {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-info);
+    background: rgba(33, 150, 243, 0.1);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+}
+
+.timeline-role {
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.timeline-time {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+}
+
+.timeline-content {
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Tool Params/Result Toggle */
+.tool-params-toggle,
+.tool-result-toggle {
+    margin-top: 8px;
+}
+
+.tool-params-toggle > summary,
+.tool-result-toggle > summary {
+    font-size: 12px;
+    color: var(--color-text-light);
+    cursor: pointer;
+    padding: 4px 0;
+}
+
+.tool-params,
+.tool-result-content {
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    font-size: 12px;
+    background: white;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    margin-top: 8px;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* Conversation Timeline */
+.conversation-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+/* Final Output */
+.final-output-content {
+    background: #f8f9fa;
+    padding: 16px;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    margin-top: 12px;
+}
+
+/* Test Group Header with Prompt */
+.test-group-header {
+    margin-bottom: 16px;
+}
+
+.test-group-prompt {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-left: 4px solid var(--color-primary);
+    padding: 12px 16px;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    margin-top: 12px;
+    font-size: 14px;
+}
+
+.test-group-prompt .prompt-label {
+    font-weight: 600;
+    color: var(--color-primary);
+    margin-right: 8px;
+}
+
+.test-group-prompt .prompt-text {
+    color: var(--color-text);
+}
+
+/* Agent Comparison Table (horizontal layout) */
+.comparison-table-wrapper {
+    overflow-x: auto;
+    margin-bottom: 12px;
+}
+
+.agent-comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    background: var(--color-card);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.agent-comparison-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.agent-comparison-table th,
+.agent-comparison-table td {
+    padding: 10px 14px;
+    text-align: center;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.agent-comparison-table th.attribute-col,
+.agent-comparison-table td.metric-label {
+    text-align: left;
+    font-weight: 600;
+    background: #f8f9fa;
+    white-space: nowrap;
+    width: 120px;
+    min-width: 120px;
+}
+
+.agent-comparison-table th.agent-col {
+    background: linear-gradient(180deg, #f8f9fa 0%, #fff 100%);
+    font-weight: 600;
+    vertical-align: middle;
+    min-width: 140px;
+}
+
+.agent-comparison-table th.agent-col.passed {
+    border-top: 3px solid var(--color-pass);
+}
+
+.agent-comparison-table th.agent-col.failed {
+    border-top: 3px solid var(--color-fail);
+}
+
+.agent-comparison-table th .agent-status {
+    font-size: 16px;
+    margin-right: 6px;
+}
+
+.agent-comparison-table th .agent-name {
+    font-size: 13px;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.agent-comparison-table th .provider-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+}
+
+.agent-comparison-table .metric-row:nth-child(even) {
+    background: #fafbfc;
+}
+
+.agent-comparison-table .metric-row:hover {
+    background: #f0f4f8;
+}
+
+.agent-comparison-table .metric-value {
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 13px;
+    color: var(--color-text);
+}
+
+/* Failure reasons in comparison table */
+.failure-reasons {
+    text-align: left !important;
+    font-family: inherit;
+}
+
+.failure-reason {
+    font-size: 12px;
+    color: var(--color-fail);
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.failure-reason:last-child {
+    margin-bottom: 0;
+}
+
+.failure-type {
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.failure-details {
+    margin-top: 4px;
+    padding: 6px 10px;
+    background: #fff5f5;
+    border-left: 3px solid var(--color-fail);
+    border-radius: 0 4px 4px 0;
+    font-family: 'SF Mono', Monaco, monospace;
+    font-size: 11px;
+    color: #666;
+    overflow-x: auto;
+    white-space: pre-wrap;
+}
+
+.failure-details-row td {
+    vertical-align: top;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+/* Details toggle button in comparison table */
+.details-toggle-btn {
+    background: transparent;
+    color: var(--color-primary);
+    border: 1px solid var(--color-primary);
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.details-toggle-btn:hover {
+    background: var(--color-primary);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+}
+
+/* Agent detail panels (hidden by default in multi-agent view) */
+.agent-details-section {
+    margin-top: 15px;
+}
+
+.agent-detail-panel {
+    margin-bottom: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Inline assertions badges */
+.inline-assertions {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.mini-badge {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: bold;
+    text-align: center;
+    cursor: help;
+}
+
+.mini-badge.pass {
+    background: #d4edda;
+    color: #155724;
+}
+
+.mini-badge.fail {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Error count styling */
+.error-count {
+    color: var(--color-fail);
+    font-weight: 600;
+    cursor: help;
+    padding: 2px 8px;
+    background: #fee;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.no-errors {
+    color: #aaa;
+}
+
+.has-errors {
+    background: #fff5f5;
+}
+
+/* Output cell */
+.output-cell {
+    max-width: 200px;
+    cursor: help;
+}
+
+.truncated-output {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    color: #666;
+}
+
+/* Tool Comparison Section */
+.tool-comparison-section {
+    margin-top: 8px;
+    background: var(--color-card);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.tool-comparison-header {
+    padding: 10px 16px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    background: #f8f9fa;
+    border-radius: var(--radius-md);
+    transition: background 0.2s;
+}
+
+.tool-comparison-header:hover {
+    background: #eef1f5;
+}
+
+.tool-comparison-section[open] .tool-comparison-header {
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.tool-comparison-content {
+    padding: 12px;
+}
+
+.tool-lists-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+.agent-tool-list {
+    background: #fafbfc;
+    border-radius: var(--radius-sm);
+    padding: 12px;
+}
+
+.agent-tool-header {
+    font-weight: 600;
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.tool-sequence {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 12px;
+}
+
+.tool-sequence .tool-item {
+    font-family: 'SF Mono', Monaco, monospace;
+    color: #0066cc;
+    padding: 3px 0;
+}
+
+.tool-sequence .no-tools {
+    color: #999;
+    font-style: italic;
+    list-style: none;
+    margin-left: -16px;
+}
+
+/* Errors Comparison Section */
+.errors-comparison-section,
+.sequence-comparison-section,
+.outputs-comparison-section {
+    margin-top: 8px;
+    background: var(--color-card);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.errors-comparison-header,
+.sequence-comparison-header,
+.outputs-comparison-header {
+    padding: 10px 16px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    background: #f8f9fa;
+    border-radius: var(--radius-md);
+    transition: background 0.2s;
+}
+
+.errors-comparison-header:hover,
+.sequence-comparison-header:hover,
+.outputs-comparison-header:hover {
+    background: #eef1f5;
+}
+
+.errors-comparison-section[open] .errors-comparison-header,
+.sequence-comparison-section[open] .sequence-comparison-header,
+.outputs-comparison-section[open] .outputs-comparison-header {
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.errors-comparison-content,
+.sequence-comparison-content,
+.outputs-comparison-content {
+    padding: 12px;
+}
+
+.errors-grid,
+.sequence-grid,
+.outputs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+}
+
+.agent-errors-box,
+.agent-sequence-box,
+.agent-output-box {
+    background: #fafbfc;
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    overflow: hidden;
+}
+
+.agent-errors-header,
+.agent-sequence-header,
+.agent-output-header {
+    font-weight: 600;
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.agent-errors-header.failed,
+.agent-output-header.failed {
+    color: var(--color-fail);
+}
+
+.agent-errors-header.passed,
+.agent-output-header.passed {
+    color: var(--color-pass);
+}
+
+.error-list {
+    margin: 0;
+    padding-left: 16px;
+    font-size: 12px;
+    color: var(--color-fail);
+}
+
+.error-detail {
+    padding: 2px 0;
+}
+
+.agent-output-content {
+    font-size: 12px;
+    color: #666;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.agent-sequence-box .mermaid {
+    font-size: 11px;
+}
+
+/* Sequence diagram click-to-fullscreen overlay */
+.agent-sequence-box {
+    position: relative;
+    cursor: pointer;
+    transition: box-shadow 0.2s ease;
+}
+
+.agent-sequence-box:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.agent-sequence-box::after {
+    content: "🔍 Click to enlarge";
+    position: absolute;
+    bottom: 4px;
+    right: 8px;
+    font-size: 10px;
+    color: #999;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.agent-sequence-box:hover::after {
+    opacity: 1;
+}
+
+/* Fullscreen overlay for sequence diagrams */
+.sequence-fullscreen-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    cursor: zoom-out;
+}
+
+.sequence-fullscreen-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.sequence-fullscreen-content {
+    background: white;
+    width: 100vw;
+    height: 100vh;
+    padding: 24px 32px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.sequence-fullscreen-content .mermaid {
+    font-size: 14px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sequence-fullscreen-content .mermaid svg {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.sequence-fullscreen-header {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sequence-fullscreen-close {
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+    padding: 4px 12px;
+    border-radius: var(--radius-sm);
+    transition: background 0.2s ease;
+}
+
+.sequence-fullscreen-close:hover {
+    background: #f0f0f0;
+    color: #333;
+}
+
+/* Fullscreen overlay for agent details */
+.details-fullscreen-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 9999;
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.details-fullscreen-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.details-fullscreen-content {
+    background: white;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    cursor: default;
+}
+
+.details-fullscreen-header {
+    font-size: 20px;
+    font-weight: 600;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    flex-shrink: 0;
+}
+
+.details-fullscreen-close {
+    font-size: 28px;
+    cursor: pointer;
+    color: white;
+    padding: 4px 16px;
+    border-radius: var(--radius-sm);
+    transition: background 0.2s ease;
+}
+
+.details-fullscreen-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.details-overlay-body {
+    padding: 24px 48px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.details-overlay-body .test-item {
+    border: none;
+    box-shadow: none;
+    margin: 0;
+    max-width: 1400px;
+}
+
+.details-overlay-body .test-header {
+    display: none;
+}
+
+.details-overlay-body .test-details {
+    display: block;
+    padding: 0;
+}
+
+/* Keep other boxes from overlapping */
+.sequence-grid {
+    position: relative;
+}
+
+/* Legacy card styles (kept for fallback/single agent) */
+.agent-comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+}
+
+.agent-card {
+    background: var(--color-card);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.agent-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.agent-card.passed {
+    border-top: 4px solid var(--color-pass);
+}
+
+.agent-card.failed {
+    border-top: 4px solid var(--color-fail);
+}
+
+.agent-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    background: #f8f9fa;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.agent-card-header .agent-name {
+    font-weight: 600;
+    font-size: 15px;
+    flex: 1;
+}
+
+.agent-card-header .test-status-icon {
+    font-size: 18px;
+}
+
+.agent-card-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.stat-row {
+    text-align: center;
+}
+
+.stat-row .stat-label {
+    display: block;
+    font-size: 11px;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.stat-row .stat-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.agent-card-assertions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.assertion-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: help;
+}
+
+.assertion-badge.passed {
+    background: #e8f5e9;
+    color: var(--color-pass);
+}
+
+.assertion-badge.failed {
+    background: #ffebee;
+    color: var(--color-fail);
+}
+
+.agent-card-errors {
+    padding: 12px 16px;
+    background: #fff5f5;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.agent-card-errors .error-item {
+    font-size: 12px;
+    color: var(--color-fail);
+    margin-bottom: 4px;
+}
+
+.agent-card-errors .error-item:last-child {
+    margin-bottom: 0;
+}
+
+.agent-card-details {
+    border-top: none;
+}
+
+.agent-card-details > summary {
+    padding: 12px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--color-primary);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.agent-card-details > summary:hover {
+    background: #f8f9fa;
+}
+
+.agent-card-details > summary::before {
+    content: '▶';
+    font-size: 10px;
+    transition: transform 0.2s;
+}
+
+.agent-card-details[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.agent-details-content {
+    padding: 0 16px 16px 16px;
+}
+
+/* Compact Tool Calls */
+.compact-toolcalls {
+    margin-bottom: 12px;
+}
+
+.compact-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-light);
+    margin-bottom: 8px;
+}
+
+.compact-tool {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    background: #f8f9fa;
+    border-radius: var(--radius-sm);
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+.compact-tool .tool-name {
+    font-weight: 500;
+    color: var(--color-text);
+}
+
+.compact-tool .tool-time {
+    color: var(--color-text-muted);
+    font-size: 11px;
+}
+
+/* Compact Output */
+.compact-output {
+    margin-bottom: 12px;
+}
+
+.compact-output .output-text {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--color-text);
+}
+
+/* Compact Messages */
+.compact-messages {
+    margin-top: 8px;
+}
+
+.compact-message {
+    display: flex;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+.compact-message.user {
+    background: #e3f2fd;
+}
+
+.compact-message.assistant {
+    background: #f5f5f5;
+}
+
+.compact-message .msg-role {
+    font-weight: 600;
+    min-width: 60px;
+    color: var(--color-text-light);
+}
+
+.compact-message .msg-content {
+    color: var(--color-text);
+    flex: 1;
+}
+
+/* Sequence & Messages toggles in cards */
+.sequence-toggle,
+.messages-toggle {
+    margin-top: 8px;
+}
+
+.sequence-toggle > summary,
+.messages-toggle > summary {
+    font-size: 12px;
+    color: var(--color-text-light);
+    cursor: pointer;
+    padding: 6px 0;
+}
+
+/* AI Summary Content (inside standard .section) */
+.analysis-content {
+    line-height: 1.7;
+    color: var(--color-text);
+}
+
+.analysis-content h1,
+.analysis-content h2,
+.analysis-content h3,
+.analysis-content h4 {
+    margin-top: 1.2em;
+    margin-bottom: 0.6em;
+    color: var(--color-text);
+}
+
+.analysis-content h1:first-child,
+.analysis-content h2:first-child,
+.analysis-content h3:first-child {
+    margin-top: 0;
+}
+
+.analysis-content ul,
+.analysis-content ol {
+    margin: 0.8em 0;
+    padding-left: 1.5em;
+}
+
+.analysis-content li {
+    margin: 0.4em 0;
+}
+
+.analysis-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+}
+
+.analysis-content th,
+.analysis-content td {
+    border: 1px solid var(--color-border);
+    padding: 8px 12px;
+    text-align: left;
+}
+
+.analysis-content th {
+    background: var(--color-bg);
+    font-weight: 600;
+}
+
+.analysis-content code {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.9em;
+}
+
+.analysis-content pre {
+    background: #f5f5f5;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+}
+
+.analysis-content pre code {
+    background: none;
+    padding: 0;
+}
+
+.analysis-content strong {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+.analysis-content em {
+    color: var(--color-text-light);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    body { padding: 10px; }
+    .report-header { padding: 20px; }
+    .report-meta { flex-direction: column; gap: 8px; }
+    .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    .test-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .agent-comparison-grid { grid-template-columns: 1fr; }
+    .agent-card-stats { grid-template-columns: 1fr; gap: 4px; }
+}
+
+/* Print */
+@media print {
+    body { background: white; }
+    .section { box-shadow: none; border: 1px solid #ddd; }
+    .test-item[open] .test-details { display: block; }
+    .agent-card-details[open] .agent-details-content { display: block; }
+}
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="report-header">
+            <h1>🧪 Agent Benchmark Report</h1>
+            <div class="report-meta">
+                <span>📦 Version: 0.0.0-SNAPSHOT</span>
+                <span>📅 Generated: 2026-01-29T13:32:44&#43;01:00</span>
+                
+                
+            </div>
+        </header>
+
+        
+        
+<div class="summary-grid">
+    
+    <div class="summary-card total">
+        <div class="summary-value">4</div>
+        <div class="summary-label">Total Tests</div>
+    </div>
+    <div class="summary-card passed">
+        <div class="summary-value">2</div>
+        <div class="summary-label">Passed</div>
+    </div>
+    <div class="summary-card failed">
+        <div class="summary-value">2</div>
+        <div class="summary-label">Failed</div>
+    </div>
+    
+    <div class="summary-card agents">
+        <div class="summary-value">2</div>
+        <div class="summary-label">Agents</div>
+    </div>
+    
+    
+    <div class="summary-card sessions">
+        <div class="summary-value">2</div>
+        <div class="summary-label">Sessions</div>
+    </div>
+    
+    <div class="summary-card rate">
+        <div class="summary-value">50%</div>
+        <div class="summary-label">Pass Rate</div>
+    </div>
+    
+    
+    <div class="summary-card tokens token-range">
+        <div class="summary-value">0</div>
+        <div class="summary-label">Token Range</div>
+        <div class="token-bar">
+            <span class="token-min">min</span>
+            <span class="token-bar-fill"></span>
+            <span class="token-max">max</span>
+        </div>
+    </div>
+    
+    
+    
+    <div class="summary-card duration duration-range">
+        <div class="summary-value">0.3s–40.4s</div>
+        <div class="summary-label">Duration Range</div>
+        <div class="duration-bar">
+            <span class="duration-min">min</span>
+            <span class="duration-bar-fill"></span>
+            <span class="duration-max">max</span>
+        </div>
+    </div>
+    
+</div>
+
+        
+        
+        
+
+        
+        
+
+        
+        
+        
+<section class="section">
+    <div class="section-header">
+        <h2 class="section-title">📊 Comparison Matrix</h2>
+    </div>
+    <div class="section-body">
+        <div class="matrix-container">
+            <table class="comparison-matrix">
+                <thead>
+                    <tr>
+                        <th>Session</th>
+                        
+                        <th>gpt41-agent</th>
+                        
+                        <th>gpt5-chat-agent</th>
+                        
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    
+                    
+                    
+                    
+                    
+                    <tr class="matrix-session-header">
+                        <td colspan="3">
+                            <span class="matrix-group-icon">🔄</span> CLI Range Set and Get
+                            <span class="group-stats">— 0/2 passed · 0.3s–40.4s · 0 tok</span>
+                        </td>
+                    </tr>
+                    
+                    
+                    <tr class="matrix-test-indented">
+                        <td>Write and read cells using CLI</td>
+                        
+                        
+                        <td>
+                            
+                            <div class="matrix-cell">
+                                <span class="matrix-status">❌</span>
+                                <span class="matrix-duration">40.4s</span>
+                                <span class="matrix-tokens">0</span>
+                            </div>
+                            
+                        </td>
+                        
+                        
+                        <td>
+                            
+                            <div class="matrix-cell">
+                                <span class="matrix-status">❌</span>
+                                <span class="matrix-duration">0.3s</span>
+                                <span class="matrix-tokens">0</span>
+                            </div>
+                            
+                        </td>
+                        
+                    </tr>
+                    
+                    
+                    
+                    <tr class="matrix-session-header">
+                        <td colspan="3">
+                            <span class="matrix-group-icon">🔄</span> CLI Range Error Handling
+                            <span class="group-stats">— 2/2 passed · 0.4s–24.8s · 0 tok</span>
+                        </td>
+                    </tr>
+                    
+                    
+                    <tr class="matrix-test-indented">
+                        <td>Handle invalid range gracefully</td>
+                        
+                        
+                        <td>
+                            
+                            <div class="matrix-cell">
+                                <span class="matrix-status">✅</span>
+                                <span class="matrix-duration">0.4s</span>
+                                <span class="matrix-tokens">0</span>
+                            </div>
+                            
+                        </td>
+                        
+                        
+                        <td>
+                            
+                            <div class="matrix-cell">
+                                <span class="matrix-status">✅</span>
+                                <span class="matrix-duration">24.8s</span>
+                                <span class="matrix-tokens">0</span>
+                            </div>
+                            
+                        </td>
+                        
+                    </tr>
+                    
+                    
+                    
+                    
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+        
+        
+        
+        
+        
+<section class="section">
+    <div class="section-header">
+        <h2 class="section-title">🏆 Agent Leaderboard</h2>
+    </div>
+    <div class="section-body">
+        <table class="leaderboard">
+            <thead>
+                <tr>
+                    <th class="rank-col">Rank</th>
+                    <th>Agent</th>
+                    <th>Success Rate</th>
+                    
+                    <th>Sessions</th>
+                    
+                    <th>Results</th>
+                    <th>Total Tokens</th>
+                    <th>Efficiency</th>
+                    <th>Total Time</th>
+                    <th>Avg Time</th>
+                </tr>
+            </thead>
+            <tbody>
+            
+                <tr class="leaderboard-row-good">
+                    <td class="rank-col">
+                        <span class="rank-badge rank-1">🥇</span>
+                        
+                    </td>
+                    <td>
+                        <div class="agent-info">
+                            <span class="agent-name">gpt5-chat-agent</span>
+                            <span class="provider-badge provider-azure-openai-gpt5-chat">azure-openai-gpt5-chat</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="success-rate-cell">
+                            <span class="success-bar"><span class="success-bar-fill success-medium" style="width: 50%"></span></span>
+                            <span class="stat-value">50%</span>
+                        </div>
+                    </td>
+                    
+                    <td class="stat-value">
+                        <span class="session-coverage">1/2</span>
+                        <span class="text-muted">(50%)</span>
+                    </td>
+                    
+                    <td class="results-cell">
+                        <span class="result-pass">✓1</span>
+                        <span class="result-fail">✗1</span>
+                        <span class="result-error">⚠1</span>
+                    </td>
+                    <td class="stat-value">0</td>
+                    <td class="stat-value ">0 tok/✓</td>
+                    <td class="stat-value">25.14s</td>
+                    <td class="stat-value">12.57s</td>
+                </tr>
+            
+                <tr class="leaderboard-row-good">
+                    <td class="rank-col">
+                        <span class="rank-badge rank-2">🥈</span>
+                        
+                    </td>
+                    <td>
+                        <div class="agent-info">
+                            <span class="agent-name">gpt41-agent</span>
+                            <span class="provider-badge provider-azure-openai-gpt41">azure-openai-gpt41</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="success-rate-cell">
+                            <span class="success-bar"><span class="success-bar-fill success-medium" style="width: 50%"></span></span>
+                            <span class="stat-value">50%</span>
+                        </div>
+                    </td>
+                    
+                    <td class="stat-value">
+                        <span class="session-coverage">1/2</span>
+                        <span class="text-muted">(50%)</span>
+                    </td>
+                    
+                    <td class="results-cell">
+                        <span class="result-pass">✓1</span>
+                        <span class="result-fail">✗1</span>
+                        <span class="result-error">⚠1</span>
+                    </td>
+                    <td class="stat-value">0</td>
+                    <td class="stat-value ">0 tok/✓</td>
+                    <td class="stat-value">40.79s</td>
+                    <td class="stat-value">20.39s</td>
+                </tr>
+            
+            </tbody>
+        </table>
+        <div class="leaderboard-legend">
+            <span class="legend-item"><span class="result-pass">✓</span> Passed</span>
+            <span class="legend-item"><span class="result-fail">✗</span> Failed</span>
+            <span class="legend-item"><span class="result-error">⚠</span> Errors</span>
+            <span class="legend-item"><span class="rank-badge rank-dq">DQ</span> Disqualified (0% success)</span>
+        </div>
+    </div>
+</section>
+
+        
+
+        
+
+        
+        
+<section class="section">
+    <div class="section-header">
+        <h2 class="section-title">📋 Detailed Test Results</h2>
+    </div>
+    <div class="section-body">
+        <div class="test-list">
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            <div class="session-container">
+            
+            <div class="test-session-header session-group-header">
+                <div class="session-header-main">
+                    <h4 class="test-session-title">🔄 CLI Range Set and Get</h4>
+                    <span class="session-stats">
+                        
+                        <span class="success-bar"><span class="success-bar-fill success-low" style="width: 0%"></span></span>
+                        <span class="text-fail">
+                            0/2 (0%)
+                        </span>
+                        <span class="summary-metric">⏱ 0.3s–40.4s</span>
+                        <span class="summary-metric">🔢 0<span class="tok-suffix">tok</span></span>
+                        <span class="summary-metric">🤖 2 agents</span>
+                        
+                    </span>
+                </div>
+                
+                
+                <div class="session-overview-section">
+                    <div class="session-overview-label">📊 Session Overview — Agent Comparison</div>
+                    <div class="session-overview-table-wrapper">
+                        <table class="session-overview-table">
+                            <thead>
+                                <tr>
+                                    <th class="metric-col">Metric</th>
+                                    
+                                    <th class="agent-col success-low">
+                                        <span class="agent-status">❌</span>
+                                        <span class="agent-name">gpt41-agent</span>
+                                        <span class="provider-badge provider-azure-openai-gpt41">azure-openai-gpt41</span>
+                                    </th>
+                                    
+                                    <th class="agent-col success-low">
+                                        <span class="agent-status">❌</span>
+                                        <span class="agent-name">gpt5-chat-agent</span>
+                                        <span class="provider-badge provider-azure-openai-gpt5-chat">azure-openai-gpt5-chat</span>
+                                    </th>
+                                    
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="metric-row">
+                                <td class="metric-label">📊 Pass Rate</td>
+                                
+                                <td class="metric-value text-fail">
+                                    0/1 (0%)
+                                </td>
+                                
+                                <td class="metric-value text-fail">
+                                    0/1 (0%)
+                                </td>
+                                
+                            </tr>
+                            <tr class="metric-row">
+                                <td class="metric-label">⏱️ Duration</td>
+                                
+                                <td class="metric-value">40.4s</td>
+                                
+                                <td class="metric-value">0.3s</td>
+                                
+                            </tr>
+                            <tr class="metric-row">
+                                <td class="metric-label">🎯 Tokens</td>
+                                
+                                <td class="metric-value">0</td>
+                                
+                                <td class="metric-value">0</td>
+                                
+                            </tr>
+                        </tbody>
+                    </table>
+                    </div>
+                </div>
+                
+                
+                
+                <details class="session-diagram-details">
+                    <summary class="session-diagram-summary">📊 View Session Flow (2 agents)</summary>
+                    <div class="session-agent-diagrams-grid">
+                        
+                        <div class="agent-sequence-box">
+                            <div class="agent-sequence-header">gpt41-agent</div>
+                            <div class="mermaid">sequenceDiagram
+    participant U as User
+    participant A as Agent
+    participant M as MCP Server
+    U-&gt;&gt;A: 1. Create a new empty Excel file at C...
+</div>
+                        </div>
+                        
+                        <div class="agent-sequence-box">
+                            <div class="agent-sequence-header">gpt5-chat-agent</div>
+                            <div class="mermaid">sequenceDiagram
+    participant U as User
+    participant A as Agent
+    participant M as MCP Server
+    U-&gt;&gt;A: 1. Create a new empty Excel file at C...
+</div>
+                        </div>
+                        
+                    </div>
+                </details>
+                
+                
+            </div>
+            <div class="session-tests-container">
+                <div class="session-tests-label">📋 Tests in this session</div>
+            
+            
+            
+            <div class="test-group-section">
+                
+<div class="test-group-header">
+    <h3 class="test-group-title">Write and read cells using CLI</h3>
+    
+    
+    
+    <div class="test-group-prompt">
+        <span class="prompt-label">📝 Prompt:</span>
+        <span class="prompt-text">1. Create a new empty Excel file at C:\Users\stbrnner\AppData\Local\Temp/llm-test-range-cli-98c29df6-6fa3-4e10-843b-238ed263bf30.xlsx
+2. Write the following data to Sheet1:
+   - A1: &#34;Product&#34;
+   - B1: &#34;Quantity&#34; 
+   - C1: &#34;Price&#34;
+   - A2: &#34;Widget&#34;
+   - B2: 10
+   - C2: 5.99
+3. Read back the data from A1:C2 to verify it was written correctly
+4. Close the file without saving
+</span>
+    </div>
+    
+    
+    
+</div>
+
+
+
+
+
+<div class="comparison-table-wrapper">
+    <table class="agent-comparison-table">
+        <thead>
+            <tr>
+                <th class="attribute-col">Metric</th>
+                
+                <th class="agent-col failed">
+                    <span class="agent-status">❌</span>
+                    <span class="agent-name">gpt41-agent</span>
+                    <span class="provider-badge provider-azure-openai-gpt41">azure-openai-gpt41</span>
+                </th>
+                
+                <th class="agent-col failed">
+                    <span class="agent-status">❌</span>
+                    <span class="agent-name">gpt5-chat-agent</span>
+                    <span class="provider-badge provider-azure-openai-gpt5-chat">azure-openai-gpt5-chat</span>
+                </th>
+                
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="metric-row">
+                <td class="metric-label">⏱️ Duration</td>
+                
+                <td class="metric-value">40.43s</td>
+                
+                <td class="metric-value">0.31s</td>
+                
+            </tr>
+            <tr class="metric-row">
+                <td class="metric-label">🎯 Tokens</td>
+                
+                <td class="metric-value">0</td>
+                
+                <td class="metric-value">0</td>
+                
+            </tr>
+            <tr class="metric-row">
+                <td class="metric-label">🔧 Tool Calls</td>
+                
+                <td class="metric-value">0</td>
+                
+                <td class="metric-value">0</td>
+                
+            </tr>
+            <tr class="metric-row assertions-row">
+                <td class="metric-label">✓✗ Assertions</td>
+                
+                <td class="metric-value">
+                    
+                    
+                    <span class="result-pass">✓1</span>
+                    <span class="result-fail">✗2</span>
+                    
+                </td>
+                
+                <td class="metric-value">
+                    
+                    
+                    <span class="result-pass">✓1</span>
+                    <span class="result-fail">✗2</span>
+                    
+                </td>
+                
+            </tr>
+            
+            
+            
+            
+            <tr class="metric-row failure-details-row">
+                <td class="metric-label">❌ Why Failed</td>
+                
+                <td class="metric-value failure-reasons">
+                    
+                    
+                    
+                    
+                    <div class="failure-reason">
+                        <span class="failure-type">cli_exit_code_equals:</span> Invalid expected exit code: 
+                        
+                    </div>
+                    
+                    
+                    
+                    
+                    
+                    
+                    <div class="failure-reason">
+                        <span class="failure-type">cli_stdout_contains:</span> no CLI tool call found matching &#39;cli_execute&#39;
+                        
+                    </div>
+                    
+                    
+                    
+                </td>
+                
+                <td class="metric-value failure-reasons">
+                    
+                    
+                    
+                    
+                    <div class="failure-reason">
+                        <span class="failure-type">cli_exit_code_equals:</span> Invalid expected exit code: 
+                        
+                    </div>
+                    
+                    
+                    
+                    
+                    
+                    
+                    <div class="failure-reason">
+                        <span class="failure-type">cli_stdout_contains:</span> no CLI tool call found matching &#39;cli_execute&#39;
+                        
+                    </div>
+                    
+                    
+                    
+                </td>
+                
+            </tr>
+            
+            <tr class="metric-row details-row">
+                <td class="metric-label">📋 Details</td>
+                
+                <td class="metric-value">
+                    <button class="details-toggle-btn" onclick="openAgentDetails( 0 , this)" title="Click to view full details">
+                        🔍 View
+                    </button>
+                </td>
+                
+                <td class="metric-value">
+                    <button class="details-toggle-btn" onclick="openAgentDetails( 1 , this)" title="Click to view full details">
+                        🔍 View
+                    </button>
+                </td>
+                
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+
+
+<details class="tool-comparison-section">
+    <summary class="tool-comparison-header">🔧 Compare Tool Calls</summary>
+    <div class="tool-comparison-content">
+        <div class="tool-lists-grid">
+            
+            <div class="agent-tool-list">
+                <div class="agent-tool-header">gpt41-agent</div>
+                <ol class="tool-sequence">
+                    
+                    
+                    <li class="no-tools">No tool calls</li>
+                    
+                </ol>
+            </div>
+            
+            <div class="agent-tool-list">
+                <div class="agent-tool-header">gpt5-chat-agent</div>
+                <ol class="tool-sequence">
+                    
+                    
+                    <li class="no-tools">No tool calls</li>
+                    
+                </ol>
+            </div>
+            
+        </div>
+    </div>
+</details>
+
+
+<details class="sequence-comparison-section">
+    <summary class="sequence-comparison-header">📊 Execution Flow</summary>
+    <div class="sequence-comparison-content">
+        <div class="sequence-grid">
+            
+            
+            <div class="agent-sequence-box">
+                <div class="agent-sequence-header">gpt41-agent</div>
+                <div class="mermaid">sequenceDiagram
+    participant U as User
+    participant A as Agent
+    participant M as MCP Server
+    rect rgb(220, 53, 69)
+    note over U,M: ❌ FAIL (40.4s · 0 tok)
+    U-&gt;&gt;A: 1. Create a new empty Excel file at C -\Users\s...
+    end
+</div>
+            </div>
+            
+            
+            
+            <div class="agent-sequence-box">
+                <div class="agent-sequence-header">gpt5-chat-agent</div>
+                <div class="mermaid">sequenceDiagram
+    participant U as User
+    participant A as Agent
+    participant M as MCP Server
+    rect rgb(220, 53, 69)
+    note over U,M: ❌ FAIL (0.3s · 0 tok)
+    U-&gt;&gt;A: 1. Create a new empty Excel file at C -\Users\s...
+    end
+</div>
+            </div>
+            
+            
+        </div>
+    </div>
+</details>
+
+
+
+<div class="agent-details-source" style="display: none;">
+    
+    <div class="agent-detail-panel" data-agent-idx="0" data-agent-name="gpt41-agent">
+        
+<details class="test-item failed" open>
+    <summary class="test-header">
+        <div class="test-info">
+            <span class="test-status-icon">❌</span>
+            <span class="test-agent">gpt41-agent</span>
+            <span class="provider-badge">azure-openai-gpt41</span>
+        </div>
+        <div class="test-meta">
+            <span class="duration">40.43s</span>
+            <span class="tokens">0 tokens</span>
+            <span class="expand-icon">▼</span>
+        </div>
+    </summary>
+    <div class="test-details">
+        
+
+<div class="assertions-section">
+    <h4 class="subsection-title">Assertions</h4>
+    <div class="assertions-list">
+        
+        <div class="assertion-item failed">
+            <span class="assertion-icon">✗</span>
+            <div class="assertion-content">
+                <span class="assertion-type">cli_exit_code_equals</span>
+                <span class="assertion-message">Invalid expected exit code: </span>
+                
+            </div>
+        </div>
+        
+        <div class="assertion-item passed">
+            <span class="assertion-icon">✓</span>
+            <div class="assertion-content">
+                <span class="assertion-type">no_clarification_questions</span>
+                <span class="assertion-message">No clarification questions detected</span>
+                
+            </div>
+        </div>
+        
+        <div class="assertion-item failed">
+            <span class="assertion-icon">✗</span>
+            <div class="assertion-content">
+                <span class="assertion-type">cli_stdout_contains</span>
+                <span class="assertion-message">no CLI tool call found matching &#39;cli_execute&#39;</span>
+                
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+
+        
+
+<div class="errors-box">
+    <div class="errors-title">❌ Errors</div>
+    
+    <div class="error-item">• LLM generation error (iteration 1): API returned unexpected status code: 500: Unable to get resource information.</div>
+    
+</div>
+
+
+        
+
+
+        
+
+
+        
+
+<div class="sequence-section">
+    <h4 class="subsection-title">Execution Flow</h4>
+    <div class="mermaid">
+sequenceDiagram
+    participant U as User
+    participant A as Agent
+    participant M as MCP Server
+    rect rgb(220, 53, 69)
+    note over U,M: ❌ FAIL (40.4s · 0 tok)
+    U-&gt;&gt;A: 1. Create a new empty Excel file at C -\Users\s...
+    end
+
+    </div>
+</div>
+
+
+        
+
+
+        
+
+<details class="messages-section">
+    <summary class="subsection-title">💬 Conversation (1 messages)</summary>
+    <div class="conversation-timeline">
+        
+        <div class="timeline-item user">
+            <div class="timeline-header">
+                <span class="timeline-role">user</span>
+                <span class="timeline-time">13:31:09.274</span>
+            </div>
+            <div class="timeline-content">1. Create a new empty Excel file at C:\Users\stbrnner\AppData\Local\Temp/llm-test-range-cli-98c29df6-6fa3-4e10-843b-238ed263bf30.xlsx
+2. Write the following data to Sheet1:
+   - A1: &#34;Product&#34;
+   - B1: &#34;Quantity&#34; 
+   - C1: &#34;Price&#34;
+   - A2: &#34;Widget&#34;
+   - B2: 10
+   - C2: 5.99
+3. Read back the data from A1:C2 to verify it was written correctly
+4. Close the file without saving
+</div>
+        </div>
+        
+    </div>
+</details>
+
+
+        
+
+
+    </div>
+</details>
+
+    </div>
+    
+    <div class="agent-detail-panel" data-agent-idx="1" data-agent-name="gpt5-chat-agent">
+        
+<details class="test-item failed" open>
+    <summary class="test-header">
+        <div class="test-info">
+            <span class="test-status-icon">❌</span>
+            <span class="test-agent">gpt5-chat-agent</span>
+            <span class="provider-badge">azure-openai-gpt5-chat</span>
+        </div>
+        <div class="test-meta">
+            <span class="duration">0.31s</span>
+            <span class="tokens">0 tokens</span>
+            <span class="expand-icon">▼</span>
+        </div>
+    </summary>
+    <div class="test-details">
+        
+
+<div class="assertions-section">
+    <h4 class="subsection-title">Assertions</h4>
+    <div class="assertions-list">
+        
+        <div class="assertion-item failed">
+            <span class="assertion-icon">✗</span>
+            <div class="assertion-content">
+                <span class="assertion-type">cli_exit_code_equals</span>
+                <span class="assertion-message">Invalid expected exit code: </span>
+                
+            </div>
+        </div>
+        
+        <div class="assertion-item passed">
+            <span class="assertion-icon">✓</span>
+            <div class="assertion-content">
+                <span class="assertion-type">no_clarification_questions</span>
+                <span class="assertion-message">No clarification questions detected</span>
+                
+            </div>
+        </div>
+        
+        <div class="assertion-item failed">
+            <span class="assertion-icon">✗</span>
+            <div class="assertion-content">
+                <span class="assertion-type">cli_stdout_contains</span>
+                <span class="assertion-message">no CLI tool call found matching &#39;cli_execute&#39;</span>
+                
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+
+        
+
+<div class="errors-box">
+    <div class="errors-title">❌ Errors</div>
+    
+    <div class="error-item">• LLM generation error (iteration 1): API returned unexpected status code: 500: Unable to get resource information.</div>
+    
+</div>
+
+
+        
+
+
+        
+
+
+        
+
+<div class="sequence-section">
+    <h4 class="subsection-title">Execution Flow</h4>
+    <div class="mermaid">
+sequenceDiagram
+    participant U as User
+    participant A as Agent
+    participant M as MCP Server
+    rect rgb(220, 53, 69)
+    note over U,M: ❌ FAIL (0.3s · 0 tok)
+    U-&gt;&gt;A: 1. Create a new empty Excel file at C -\Users\s...
+    end
+
+    </div>
+</div>
+
+
+        
+
+
+        
+
+<details class="messages-section">
+    <summary class="subsection-title">💬 Conversation (1 messages)</summary>
+    <div class="conversation-timeline">
+        
+        <div class="timeline-item user">
+            <div class="timeline-header">
+                <span class="timeline-role">user</span>
+                <span class="timeline-time">13:31:50.080</span>
+            </div>
+            <div class="timeline-content">1. Create a new empty Excel file at C:\Users\stbrnner\AppData\Local\Temp/llm-test-range-cli-7fda9e30-807f-4c2d-82e1-236877ab5895.xlsx
+2. Write the following data to Sheet1:
+   - A1: &#34;Product&#34;
+   - B1: &#34;Quantity&#34; 
+   - C1: &#34;Price&#34;
+   - A2: &#34;Widget&#34;
+   - B2: 10
+   - C2: 5.99
+3. Read back the data from A1:C2 to verify it was written correctly
+4. Close the file without saving
+</div>
+        </div>
+        
+    </div>
+</details>
+
+
+        
+
+
+    </div>
+</details>
+
+    </div>
+    
+</div>
+
+
+
+            </div>
+            
+            
+            
+            </div>
+            </div>
+            
+            
+            
+            
+            
+            <div class="session-container">
+            
+            <div class="test-session-header session-group-header">
+                <div class="session-header-main">
+                    <h4 class="test-session-title">🔄 CLI Range Error Handling</h4>
+                    <span class="session-stats">
+                        
+                        <span class="success-bar"><span class="success-bar-fill success-high" style="width: 100%"></span></span>
+                        <span class="text-pass">
+                            2/2 (100%)
+                        </span>
+                        <span class="summary-metric">⏱ 0.4s–24.8s</span>
+                        <span class="summary-metric">🔢 0<span class="tok-suffix">tok</span></span>
+                        <span class="summary-metric">🤖 2 agents</span>
+                        
+                    </span>
+                </div>
+                
+                
+                <div class="session-overview-section">
+                    <div class="session-overview-label">📊 Session Overview — Agent Comparison</div>
+                    <div class="session-overview-table-wrapper">
+                        <table class="session-overview-table">
+                            <thead>
+                                <tr>
+                                    <th class="metric-col">Metric</th>
+                                    
+                                    <th class="agent-col success-high">
+                                        <span class="agent-status">✅</span>
+                                        <span class="agent-name">gpt41-agent</span>
+                                        <span class="provider-badge provider-azure-openai-gpt41">azure-openai-gpt41</span>
+                                    </th>
+                                    
+                                    <th class="agent-col success-high">
+                                        <span class="agent-status">✅</span>
+                                        <span class="agent-name">gpt5-chat-agent</span>
+                                        <span class="provider-badge provider-azure-openai-gpt5-chat">azure-openai-gpt5-chat</span>
+                                    </th>
+                                    
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="metric-row">
+                                <td class="metric-label">📊 Pass Rate</td>
+                                
+                                <td class="metric-value text-pass">
+                                    1/1 (100%)
+                                </td>
+                                
+                                <td class="metric-value text-pass">
+                                    1/1 (100%)
+                                </td>
+                                
+                            </tr>
+                            <tr class="metric-row">
+                                <td class="metric-label">⏱️ Duration</td>
+                                
+                                <td class="metric-value">0.4s</td>
+                                
+                                <td class="metric-value">24.8s</td>
+                                
+                            </tr>
+                            <tr class="metric-row">
+                                <td class="metric-label">🎯 Tokens</td>
+                                
+                                <td class="metric-value">0</td>
+                                
+                                <td class="metric-value">0</td>
+                                
+                            </tr>
+                        </tbody>
+                    </table>
+                    </div>
+                </div>
+                
+                
+                
+                <details class="session-diagram-details">
+                    <summary class="session-diagram-summary">📊 View Session Flow (2 agents)</summary>
+                    <div class="session-agent-diagrams-grid">
+                        
+                        <div class="agent-sequence-box">
+                            <div class="agent-sequence-header">gpt41-agent</div>
+                            <div class="mermaid">sequenceDiagram
+    participant U as User
+    participant A as Agent
+    participant M as MCP Server
+    U-&gt;&gt;A: 1. Create a new empty Excel file at C...
+</div>
+                        </div>
+                        
+                        <div class="agent-sequence-box">
+                            <div class="agent-sequence-header">gpt5-chat-agent</div>
+                            <div class="mermaid">sequenceDiagram
+    participant U as User
+    participant A as Agent
+    participant M as MCP Server
+    U-&gt;&gt;A: 1. Create a new empty Excel file at C...
+</div>
+                        </div>
+                        
+                    </div>
+                </details>
+                
+                
+            </div>
+            <div class="session-tests-container">
+                <div class="session-tests-label">📋 Tests in this session</div>
+            
+            
+            
+            <div class="test-group-section">
+                
+<div class="test-group-header">
+    <h3 class="test-group-title">Handle invalid range gracefully</h3>
+    
+    
+    
+    <div class="test-group-prompt">
+        <span class="prompt-label">📝 Prompt:</span>
+        <span class="prompt-text">1. Create a new empty Excel file at C:\Users\stbrnner\AppData\Local\Temp/llm-test-range-error-cli-05db8f7f-34fb-42ee-8da1-0ef93765d0b2.xlsx
+2. Try to get values from a large range like A1:Z1000 to see what happens
+3. Then close the file without saving
+</span>
+    </div>
+    
+    
+    
+</div>
+
+
+
+
+
+<div class="comparison-table-wrapper">
+    <table class="agent-comparison-table">
+        <thead>
+            <tr>
+                <th class="attribute-col">Metric</th>
+                
+                <th class="agent-col passed">
+                    <span class="agent-status">✅</span>
+                    <span class="agent-name">gpt41-agent</span>
+                    <span class="provider-badge provider-azure-openai-gpt41">azure-openai-gpt41</span>
+                </th>
+                
+                <th class="agent-col passed">
+                    <span class="agent-status">✅</span>
+                    <span class="agent-name">gpt5-chat-agent</span>
+                    <span class="provider-badge provider-azure-openai-gpt5-chat">azure-openai-gpt5-chat</span>
+                </th>
+                
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="metric-row">
+                <td class="metric-label">⏱️ Duration</td>
+                
+                <td class="metric-value">0.36s</td>
+                
+                <td class="metric-value">24.84s</td>
+                
+            </tr>
+            <tr class="metric-row">
+                <td class="metric-label">🎯 Tokens</td>
+                
+                <td class="metric-value">0</td>
+                
+                <td class="metric-value">0</td>
+                
+            </tr>
+            <tr class="metric-row">
+                <td class="metric-label">🔧 Tool Calls</td>
+                
+                <td class="metric-value">0</td>
+                
+                <td class="metric-value">0</td>
+                
+            </tr>
+            <tr class="metric-row assertions-row">
+                <td class="metric-label">✓✗ Assertions</td>
+                
+                <td class="metric-value">
+                    
+                    
+                    <span class="result-pass">✓1</span>
+                    
+                    
+                </td>
+                
+                <td class="metric-value">
+                    
+                    
+                    <span class="result-pass">✓1</span>
+                    
+                    
+                </td>
+                
+            </tr>
+            
+            
+            
+            
+            <tr class="metric-row details-row">
+                <td class="metric-label">📋 Details</td>
+                
+                <td class="metric-value">
+                    <button class="details-toggle-btn" onclick="openAgentDetails( 0 , this)" title="Click to view full details">
+                        🔍 View
+                    </button>
+                </td>
+                
+                <td class="metric-value">
+                    <button class="details-toggle-btn" onclick="openAgentDetails( 1 , this)" title="Click to view full details">
+                        🔍 View
+                    </button>
+                </td>
+                
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+
+
+<details class="tool-comparison-section">
+    <summary class="tool-comparison-header">🔧 Compare Tool Calls</summary>
+    <div class="tool-comparison-content">
+        <div class="tool-lists-grid">
+            
+            <div class="agent-tool-list">
+                <div class="agent-tool-header">gpt41-agent</div>
+                <ol class="tool-sequence">
+                    
+                    
+                    <li class="no-tools">No tool calls</li>
+                    
+                </ol>
+            </div>
+            
+            <div class="agent-tool-list">
+                <div class="agent-tool-header">gpt5-chat-agent</div>
+                <ol class="tool-sequence">
+                    
+                    
+                    <li class="no-tools">No tool calls</li>
+                    
+                </ol>
+            </div>
+            
+        </div>
+    </div>
+</details>
+
+
+<details class="sequence-comparison-section">
+    <summary class="sequence-comparison-header">📊 Execution Flow</summary>
+    <div class="sequence-comparison-content">
+        <div class="sequence-grid">
+            
+            
+            <div class="agent-sequence-box">
+                <div class="agent-sequence-header">gpt41-agent</div>
+                <div class="mermaid">sequenceDiagram
+    participant U as User
+    participant A as Agent
+    participant M as MCP Server
+    rect rgb(40, 167, 69)
+    note over U,M: ✅ PASS (0.4s · 0 tok)
+    U-&gt;&gt;A: 1. Create a new empty Excel file at C -\Users\s...
+    end
+</div>
+            </div>
+            
+            
+            
+            <div class="agent-sequence-box">
+                <div class="agent-sequence-header">gpt5-chat-agent</div>
+                <div class="mermaid">sequenceDiagram
+    participant U as User
+    participant A as Agent
+    participant M as MCP Server
+    rect rgb(40, 167, 69)
+    note over U,M: ✅ PASS (24.8s · 0 tok)
+    U-&gt;&gt;A: 1. Create a new empty Excel file at C -\Users\s...
+    end
+</div>
+            </div>
+            
+            
+        </div>
+    </div>
+</details>
+
+
+
+<div class="agent-details-source" style="display: none;">
+    
+    <div class="agent-detail-panel" data-agent-idx="0" data-agent-name="gpt41-agent">
+        
+<details class="test-item passed" open>
+    <summary class="test-header">
+        <div class="test-info">
+            <span class="test-status-icon">✅</span>
+            <span class="test-agent">gpt41-agent</span>
+            <span class="provider-badge">azure-openai-gpt41</span>
+        </div>
+        <div class="test-meta">
+            <span class="duration">0.36s</span>
+            <span class="tokens">0 tokens</span>
+            <span class="expand-icon">▼</span>
+        </div>
+    </summary>
+    <div class="test-details">
+        
+
+<div class="assertions-section">
+    <h4 class="subsection-title">Assertions</h4>
+    <div class="assertions-list">
+        
+        <div class="assertion-item passed">
+            <span class="assertion-icon">✓</span>
+            <div class="assertion-content">
+                <span class="assertion-type">no_clarification_questions</span>
+                <span class="assertion-message">No clarification questions detected</span>
+                
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+
+        
+
+<div class="errors-box">
+    <div class="errors-title">❌ Errors</div>
+    
+    <div class="error-item">• LLM generation error (iteration 1): API returned unexpected status code: 500: Unable to get resource information.</div>
+    
+</div>
+
+
+        
+
+
+        
+
+
+        
+
+<div class="sequence-section">
+    <h4 class="subsection-title">Execution Flow</h4>
+    <div class="mermaid">
+sequenceDiagram
+    participant U as User
+    participant A as Agent
+    participant M as MCP Server
+    rect rgb(40, 167, 69)
+    note over U,M: ✅ PASS (0.4s · 0 tok)
+    U-&gt;&gt;A: 1. Create a new empty Excel file at C -\Users\s...
+    end
+
+    </div>
+</div>
+
+
+        
+
+
+        
+
+<details class="messages-section">
+    <summary class="subsection-title">💬 Conversation (1 messages)</summary>
+    <div class="conversation-timeline">
+        
+        <div class="timeline-item user">
+            <div class="timeline-header">
+                <span class="timeline-role">user</span>
+                <span class="timeline-time">13:31:49.719</span>
+            </div>
+            <div class="timeline-content">1. Create a new empty Excel file at C:\Users\stbrnner\AppData\Local\Temp/llm-test-range-error-cli-05db8f7f-34fb-42ee-8da1-0ef93765d0b2.xlsx
+2. Try to get values from a large range like A1:Z1000 to see what happens
+3. Then close the file without saving
+</div>
+        </div>
+        
+    </div>
+</details>
+
+
+        
+
+
+    </div>
+</details>
+
+    </div>
+    
+    <div class="agent-detail-panel" data-agent-idx="1" data-agent-name="gpt5-chat-agent">
+        
+<details class="test-item passed" open>
+    <summary class="test-header">
+        <div class="test-info">
+            <span class="test-status-icon">✅</span>
+            <span class="test-agent">gpt5-chat-agent</span>
+            <span class="provider-badge">azure-openai-gpt5-chat</span>
+        </div>
+        <div class="test-meta">
+            <span class="duration">24.84s</span>
+            <span class="tokens">0 tokens</span>
+            <span class="expand-icon">▼</span>
+        </div>
+    </summary>
+    <div class="test-details">
+        
+
+<div class="assertions-section">
+    <h4 class="subsection-title">Assertions</h4>
+    <div class="assertions-list">
+        
+        <div class="assertion-item passed">
+            <span class="assertion-icon">✓</span>
+            <div class="assertion-content">
+                <span class="assertion-type">no_clarification_questions</span>
+                <span class="assertion-message">No clarification questions detected</span>
+                
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+
+        
+
+<div class="errors-box">
+    <div class="errors-title">❌ Errors</div>
+    
+    <div class="error-item">• LLM generation error (iteration 1): API returned unexpected status code: 500: Unable to get resource information.</div>
+    
+</div>
+
+
+        
+
+
+        
+
+
+        
+
+<div class="sequence-section">
+    <h4 class="subsection-title">Execution Flow</h4>
+    <div class="mermaid">
+sequenceDiagram
+    participant U as User
+    participant A as Agent
+    participant M as MCP Server
+    rect rgb(40, 167, 69)
+    note over U,M: ✅ PASS (24.8s · 0 tok)
+    U-&gt;&gt;A: 1. Create a new empty Excel file at C -\Users\s...
+    end
+
+    </div>
+</div>
+
+
+        
+
+
+        
+
+<details class="messages-section">
+    <summary class="subsection-title">💬 Conversation (1 messages)</summary>
+    <div class="conversation-timeline">
+        
+        <div class="timeline-item user">
+            <div class="timeline-header">
+                <span class="timeline-role">user</span>
+                <span class="timeline-time">13:31:50.388</span>
+            </div>
+            <div class="timeline-content">1. Create a new empty Excel file at C:\Users\stbrnner\AppData\Local\Temp/llm-test-range-error-cli-c62e15df-57b4-4411-a743-67a7dfc3c420.xlsx
+2. Try to get values from a large range like A1:Z1000 to see what happens
+3. Then close the file without saving
+</div>
+        </div>
+        
+    </div>
+</details>
+
+
+        
+
+
+    </div>
+</details>
+
+    </div>
+    
+</div>
+
+
+
+            </div>
+            
+            
+            
+            </div>
+            </div>
+            
+            
+            
+        </div>
+    </div>
+</section>
+
+    </div>
+
+    
+
+<div class="sequence-fullscreen-overlay" id="sequenceOverlay" onclick="closeSequenceOverlay(event)">
+    <div class="sequence-fullscreen-content" onclick="event.stopPropagation()">
+        <div class="sequence-fullscreen-header">
+            <span id="sequenceOverlayTitle">Execution Flow</span>
+            <span class="sequence-fullscreen-close" onclick="closeSequenceOverlay(event)">✕</span>
+        </div>
+        <div id="sequenceOverlayDiagram"></div>
+    </div>
+</div>
+
+
+<div class="details-fullscreen-overlay" id="detailsOverlay" onclick="closeDetailsOverlay(event)">
+    <div class="details-fullscreen-content" onclick="event.stopPropagation()">
+        <div class="details-fullscreen-header">
+            <span id="detailsOverlayTitle">Agent Details</span>
+            <span class="details-fullscreen-close" onclick="closeDetailsOverlay(event)">✕</span>
+        </div>
+        <div id="detailsOverlayContent" class="details-overlay-body"></div>
+    </div>
+</div>
+
+    
+<script>
+    
+    document.querySelectorAll('.mermaid').forEach(el => {
+        el.setAttribute('data-mermaid-source', el.textContent.trim());
+    });
+
+    mermaid.initialize({ 
+        startOnLoad: true,
+        theme: 'neutral',
+        securityLevel: 'loose',
+        sequence: {
+            diagramMarginX: 10,
+            diagramMarginY: 10,
+            actorMargin: 50,
+            width: 150,
+            height: 65,
+            boxMargin: 10,
+            boxTextMargin: 5,
+            noteMargin: 10,
+            messageMargin: 35
+        }
+    });
+
+    
+    document.querySelectorAll('.agent-sequence-box').forEach(box => {
+        box.addEventListener('click', async function() {
+            const agentName = this.querySelector('.agent-sequence-header')?.textContent || 'Execution Flow';
+            const mermaidEl = this.querySelector('.mermaid');
+            if (!mermaidEl) return;
+            
+            
+            const mermaidSrc = mermaidEl.getAttribute('data-mermaid-source');
+            if (!mermaidSrc) return;
+            
+            const overlay = document.getElementById('sequenceOverlay');
+            const diagramContainer = document.getElementById('sequenceOverlayDiagram');
+            const titleEl = document.getElementById('sequenceOverlayTitle');
+            
+            titleEl.textContent = agentName;
+            
+            
+            const uniqueId = 'fullscreen-diagram-' + Date.now();
+            
+            try {
+                
+                const { svg } = await mermaid.render(uniqueId, mermaidSrc);
+                diagramContainer.innerHTML = svg;
+                
+                
+                const svgEl = diagramContainer.querySelector('svg');
+                if (svgEl) {
+                    svgEl.style.width = '100%';
+                    svgEl.style.minWidth = '800px';
+                    svgEl.style.height = 'auto';
+                }
+            } catch (e) {
+                diagramContainer.innerHTML = '<p style="color: red;">Error rendering diagram: ' + e.message + '</p><pre>' + mermaidSrc + '</pre>';
+            }
+            
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+    });
+
+    function closeSequenceOverlay(event) {
+        const overlay = document.getElementById('sequenceOverlay');
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    
+    function openAgentDetails(agentIdx, btn) {
+        const section = btn.closest('.test-group-section');
+        const panel = section.querySelector('.agent-detail-panel[data-agent-idx="' + agentIdx + '"]');
+        const agentName = panel.getAttribute('data-agent-name');
+        
+        const overlay = document.getElementById('detailsOverlay');
+        const titleEl = document.getElementById('detailsOverlayTitle');
+        const contentEl = document.getElementById('detailsOverlayContent');
+        
+        titleEl.textContent = agentName + ' - Details';
+        contentEl.innerHTML = panel.innerHTML;
+        
+        overlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeDetailsOverlay(event) {
+        const overlay = document.getElementById('detailsOverlay');
+        overlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    
+    document.querySelectorAll('details').forEach(details => {
+        details.addEventListener('toggle', async function() {
+            if (this.open) {
+                const unrenderedMermaids = this.querySelectorAll('.mermaid:not([data-processed])');
+                for (const el of unrenderedMermaids) {
+                    const source = el.getAttribute('data-mermaid-source');
+                    if (source) {
+                        try {
+                            const uniqueId = 'mermaid-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                            const { svg } = await mermaid.render(uniqueId, source);
+                            el.innerHTML = svg;
+                            el.setAttribute('data-processed', 'true');
+                        } catch (e) {
+                            console.error('Mermaid render error:', e);
+                        }
+                    }
+                }
+            }
+        });
+    });
+
+    
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeSequenceOverlay();
+            closeDetailsOverlay();
+        }
+    });
+
+    
+    
+    (function() {
+        const markdownElements = document.querySelectorAll('.markdown-content');
+        markdownElements.forEach(el => {
+            
+            const rawContent = (el.textContent || el.innerText || '').trim();
+            if (rawContent) {
+                el.innerHTML = marked.parse(rawContent);
+            }
+        });
+    })();
+</script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

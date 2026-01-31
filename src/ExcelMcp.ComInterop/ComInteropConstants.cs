@@ -27,6 +27,13 @@ public static class ComInteropConstants
     public static readonly TimeSpan SaveOperationTimeout = TimeSpan.FromMinutes(5);
 
     /// <summary>
+    /// Default timeout for individual Excel operations (5 minutes).
+    /// Most operations complete in under 30 seconds, but this provides buffer for slow machines.
+    /// Can be overridden when creating a session via timeoutSeconds parameter.
+    /// </summary>
+    public static readonly TimeSpan DefaultOperationTimeout = TimeSpan.FromMinutes(5);
+
+    /// <summary>
     /// Maximum wait time for session creation file lock acquisition (5 seconds).
     /// </summary>
     public static readonly TimeSpan SessionFileLockTimeout = TimeSpan.FromSeconds(5);

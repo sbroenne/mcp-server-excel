@@ -162,7 +162,7 @@ Assert.Contains(list.Items, i => i.Name == "Sheet1");  // ✅ Verify persisted
 dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
 # Diagnostic tests (validate patterns, slow ~20s each)
-dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "RunType=OnDemand&Layer=Diagnostics"
+dotnet test tests/ExcelMcp.Diagnostics.Tests/ExcelMcp.Diagnostics.Tests.csproj --filter "RunType=OnDemand&Layer=Diagnostics"
 
 # VBA tests (manual only - requires VBA trust)
 dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"

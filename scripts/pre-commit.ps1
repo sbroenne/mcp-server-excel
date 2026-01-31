@@ -137,6 +137,55 @@ catch {
 }
 
 Write-Host ""
+Write-Host "🔍 Running CLI actions audit..." -ForegroundColor Cyan
+
+try {
+    $cliAuditScript = Join-Path $rootDir "scripts\audit-cli-actions.ps1"
+    & $cliAuditScript
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "❌ CLI actions audit failed!" -ForegroundColor Red
+        Write-Host "   CLI action catalog must match Core action enums." -ForegroundColor Red
+        Write-Host "   Fix the issues before committing." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "✅ CLI actions audit passed" -ForegroundColor Green
+}
+catch {
+    Write-Host ""
+    Write-Host "❌ Error running CLI actions audit: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
+Write-Host "🔍 Running CLI workflow smoke test..." -ForegroundColor Cyan
+
+try {
+    $cliWorkflowScript = Join-Path $rootDir "scripts\Test-CliWorkflow.ps1"
+    $cliWorkflowOutput = & $cliWorkflowScript 2>&1 | Out-String
+    $cliWorkflowExitCode = $LASTEXITCODE
+
+    if ($cliWorkflowExitCode -ne 0) {
+        Write-Host ""
+        Write-Host "❌ CLI workflow smoke test failed!" -ForegroundColor Red
+        Write-Host "   This test validates the end-to-end CLI workflow." -ForegroundColor Red
+        Write-Host "   Fix the issues before committing." -ForegroundColor Red
+        Write-Host ""
+        Write-Host $cliWorkflowOutput -ForegroundColor Gray
+        exit 1
+    }
+
+    Write-Host "✅ CLI workflow smoke test passed" -ForegroundColor Green
+}
+catch {
+    Write-Host ""
+    Write-Host "❌ Error running CLI workflow smoke test: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
 Write-Host "🔍 Running MCP Server smoke test..." -ForegroundColor Cyan
 
 try {

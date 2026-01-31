@@ -37,9 +37,11 @@ A PivotChart is a single object connected to the Data Model. Creating a PivotTab
 - list: List all charts in workbook (name, type, sheet, data source)
 - read: Get chart details (type, position, series, linked PivotTable)
 - create-from-range: Create chart from worksheet data range
+- create-from-table: Create chart from Excel Table (uses table's data range)
 - create-from-pivottable: Create PivotChart linked to a PivotTable (PREFERRED for Data Model)
 - move: Reposition/resize chart
 - delete: Remove chart
+- fit-to-range: Resize chart to fit within a cell range
 
 **PivotChart workflow**:
 

@@ -495,6 +495,12 @@ These tests are marked `[Trait("RunType", "OnDemand")]` and excluded from regula
 
 - Microsoft VBA Documentation: <https://learn.microsoft.com/en-us/office/vba/api/overview/excel>
 - NetOffice (C# COM wrappers): <https://github.com/NetOfficeFw/NetOffice>
-- Test Files:
-  - `tests/ExcelMcp.Core.Tests/Integration/Diagnostics/PowerQueryComApiBehaviorTests.cs`
-  - `tests/ExcelMcp.Core.Tests/Integration/Diagnostics/DataModelComApiBehaviorTests.cs`
+- Test Files (in `tests/ExcelMcp.Diagnostics.Tests/`):
+  - `Integration/Diagnostics/PowerQueryComApiBehaviorTests.cs`
+  - `Integration/Diagnostics/DataModelComApiBehaviorTests.cs`
+  - `Integration/Diagnostics/PivotTableRefreshBehaviorTests.cs`
+
+**NOTE: Diagnostics tests are excluded from CI. Run manually with:**
+```bash
+dotnet test tests/ExcelMcp.Diagnostics.Tests/ --filter "RunType=OnDemand&Layer=Diagnostics"
+```

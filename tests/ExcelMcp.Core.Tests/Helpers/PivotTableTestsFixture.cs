@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Commands;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -19,7 +18,6 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 public class PivotTableTestsFixture : IAsyncLifetime
 {
     private readonly string _tempDir;
-    private readonly FileCommands _fileCommands = new();
 
     /// <summary>
     /// Temp directory for all test files (auto-cleaned on disposal)
@@ -56,8 +54,11 @@ public class PivotTableTestsFixture : IAsyncLifetime
 
         try
         {
-            var fileCommands = new FileCommands();
-            fileCommands.CreateEmpty(TestFilePath);
+            using (var manager = new SessionManager())
+            {
+                var sessionId = manager.CreateSessionForNewFile(TestFilePath, showExcel: false);
+                manager.CloseSession(sessionId, save: true);
+            }
 
             CreationResult.FileCreated = true;
 
@@ -134,7 +135,9 @@ public class PivotTableTestsFixture : IAsyncLifetime
     {
         var fileName = $"{testName}_{Guid.NewGuid():N}{extension}";
         var filePath = Path.Join(_tempDir, fileName);
-        _fileCommands.CreateEmpty(filePath);
+        using var manager = new SessionManager();
+        var sessionId = manager.CreateSessionForNewFile(filePath, showExcel: false);
+        manager.CloseSession(sessionId, save: true);
         return filePath;
     }
 

@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
@@ -60,8 +59,11 @@ public class TableTestsFixture : IAsyncLifetime
         try
         {
             // TEST 1: File Creation
-            var fileCommands = new FileCommands();
-            fileCommands.CreateEmpty(TestFilePath);
+            using (var manager = new SessionManager())
+            {
+                var sessionId = manager.CreateSessionForNewFile(TestFilePath, showExcel: false);
+                manager.CloseSession(sessionId, save: true);
+            }
 
             CreationResult.FileCreated = true;
 
@@ -161,8 +163,11 @@ public class TableTestsFixture : IAsyncLifetime
         var guid = Guid.NewGuid().ToString("N")[..8];
         var testFile = Path.Join(_tempDir, $"Table_{testName}_{guid}.xlsx");
 
-        var fileCommands = new FileCommands();
-        fileCommands.CreateEmpty(testFile);
+        using (var manager = new SessionManager())
+        {
+            var sessionId = manager.CreateSessionForNewFile(testFile, showExcel: false);
+            manager.CloseSession(sessionId, save: true);
+        }
 
         using var batch = ExcelSession.BeginBatch(testFile);
 

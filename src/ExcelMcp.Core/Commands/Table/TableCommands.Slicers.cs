@@ -425,52 +425,39 @@ public partial class TableCommands
     }
 
     /// <summary>
-    /// Gets the source column name from a Table SlicerCache
+    /// Gets the source column name from a Table SlicerCache.
+    /// Precondition: cache.List == true (verified by caller)
     /// </summary>
     private static string GetSlicerCacheColumnName(dynamic cache)
     {
-        try
-        {
-            // For Table slicers, SourceName contains the column name
-            string? sourceName = cache.SourceName?.ToString();
-            if (!string.IsNullOrEmpty(sourceName))
-                return sourceName;
+        // Per MS docs: SourceName returns the field name for table slicers
+        // https://learn.microsoft.com/en-us/office/vba/api/excel.slicercache.sourcename
+        string? sourceName = cache.SourceName?.ToString();
+        if (!string.IsNullOrEmpty(sourceName))
+            return sourceName;
 
-            // Fallback: parse from cache name (usually "Slicer_ColumnName" format)
-            string cacheName = cache.Name?.ToString() ?? string.Empty;
-            if (cacheName.StartsWith("Slicer_", StringComparison.OrdinalIgnoreCase))
-            {
-                return cacheName[7..]; // Remove "Slicer_" prefix
-            }
-            return cacheName;
-        }
-        catch (COMException)
+        // Fallback: parse from cache name (usually "Slicer_ColumnName" format)
+        string cacheName = cache.Name?.ToString() ?? string.Empty;
+        if (cacheName.StartsWith("Slicer_", StringComparison.OrdinalIgnoreCase))
         {
-            // COM access may fail for certain cache configurations
-            return "Unknown";
+            return cacheName[7..]; // Remove "Slicer_" prefix
         }
+        return cacheName;
     }
 
     /// <summary>
-    /// Gets the connected Table name from a SlicerCache
+    /// Gets the connected Table name from a SlicerCache.
+    /// Precondition: cache.List == true (verified by caller)
     /// </summary>
     private static string GetSlicerCacheTableName(dynamic cache)
     {
+        // Per MS docs: ListObject returns the Table for table slicers
+        // https://learn.microsoft.com/en-us/office/vba/api/excel.slicercache.listobject
         dynamic? listObject = null;
         try
         {
-            // For Table slicers, the cache has a ListObject property
             listObject = cache.ListObject;
-            if (listObject != null)
-            {
-                return listObject.Name?.ToString() ?? "Unknown";
-            }
-            return "Unknown";
-        }
-        catch (COMException)
-        {
-            // COM access may fail for certain cache configurations
-            return "Unknown";
+            return listObject?.Name?.ToString() ?? string.Empty;
         }
         finally
         {
@@ -479,10 +466,12 @@ public partial class TableCommands
     }
 
     /// <summary>
-    /// Checks if a SlicerCache is connected to a specific Table
+    /// Checks if a SlicerCache is connected to a specific Table.
+    /// Precondition: cache.List == true (verified by caller)
     /// </summary>
     private static bool IsSlicerCacheConnectedToTable(dynamic cache, dynamic table)
     {
+        // Per MS docs: ListObject returns the Table for table slicers
         dynamic? cacheListObject = null;
         try
         {
@@ -494,11 +483,6 @@ public partial class TableCommands
             string targetTableName = table.Name?.ToString() ?? string.Empty;
 
             return string.Equals(cacheTableName, targetTableName, StringComparison.OrdinalIgnoreCase);
-        }
-        catch (COMException)
-        {
-            // COM access may fail for certain cache configurations
-            return false;
         }
         finally
         {
@@ -693,24 +677,20 @@ public partial class TableCommands
     /// </summary>
     private static string GetSlicerPosition(dynamic slicer)
     {
+        // Per Microsoft docs: TopLeftCell is on Shape object, not Slicer
+        // https://learn.microsoft.com/en-us/office/vba/api/excel.shape.topleftcell
+        dynamic? shape = null;
         dynamic? topLeftCell = null;
         try
         {
-            topLeftCell = slicer.TopLeftCell;
-            if (topLeftCell != null)
-            {
-                return topLeftCell.Address?.ToString()?.Replace("$", "") ?? string.Empty;
-            }
-            return string.Empty;
-        }
-        catch (COMException)
-        {
-            // COM access may fail for certain slicer configurations
-            return string.Empty;
+            shape = slicer.Shape;
+            topLeftCell = shape.TopLeftCell;
+            return topLeftCell?.Address?.ToString()?.Replace("$", "") ?? string.Empty;
         }
         finally
         {
             ComUtilities.Release(ref topLeftCell);
+            ComUtilities.Release(ref shape);
         }
     }
 

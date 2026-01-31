@@ -20,6 +20,7 @@
 #   - Windows 10/11 with Excel installed
 #   - Excel MCP Server
 #   - Environment: AZURE_OPENAI_ENDPOINT
+#   - agent-benchmark with Agent Skills support (feature/combined-skills-cli branch)
 #
 # =============================================================================
 
@@ -40,7 +41,7 @@ providers:
   - name: azure-openai-gpt5-chat
     type: AZURE
     auth_type: entra_id  # Uses DefaultAzureCredential - no API key needed
-    model: gpt-5.2-chat
+    model: gpt-5.1-chat
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
   # Provider for clarification detection judge (using gpt-4.1 for better accuracy)
@@ -62,6 +63,10 @@ agents:
     servers:
       - name: excel-mcp
     provider: azure-openai-gpt41
+    # Agent Skills: Load excel-mcp skill for server-specific guidance
+    skill:
+      path: "{{SKILL_PATH_MCP}}"
+      file_access: true
     clarification_detection:
       enabled: true
       judge_provider: azure-openai-judge
@@ -69,6 +74,10 @@ agents:
     servers:
       - name: excel-mcp
     provider: azure-openai-gpt5-chat
+    # Agent Skills: Load excel-mcp skill for server-specific guidance
+    skill:
+      path: "{{SKILL_PATH_MCP}}"
+      file_access: true
     clarification_detection:
       enabled: true
       judge_provider: azure-openai-judge

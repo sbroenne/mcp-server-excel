@@ -35,6 +35,7 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     /// <param name="filePath">Path to the Excel file to open</param>
     /// <param name="showExcel">Whether to show the Excel window (default: false for background automation)</param>
+    /// <param name="operationTimeout">Maximum time for any operation in this session (default: 5 minutes)</param>
     /// <returns>Unique session ID for this session</returns>
     /// <exception cref="FileNotFoundException">File does not exist</exception>
     /// <exception cref="InvalidOperationException">Failed to create session or file already open in another session</exception>
@@ -43,7 +44,7 @@ public sealed class SessionManager : IDisposable
     /// <para><b>Same-file prevention:</b> Throws if file is already open in another session.</para>
     /// <para><b>Concurrency:</b> You can create multiple sessions for DIFFERENT files. Operations within each session execute serially.</para>
     /// </remarks>
-    public string CreateSession(string filePath, bool showExcel = false)
+    public string CreateSession(string filePath, bool showExcel = false, TimeSpan? operationTimeout = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -68,7 +69,7 @@ public sealed class SessionManager : IDisposable
         try
         {
             // Create batch session using Core API
-            batch = ExcelSession.BeginBatch(showExcel, filePath);
+            batch = ExcelSession.BeginBatch(showExcel, operationTimeout, filePath);
 
             // Store in active sessions
             if (!_activeSessions.TryAdd(sessionId, batch))
@@ -103,6 +104,96 @@ public sealed class SessionManager : IDisposable
         catch (Exception ex)
         {
             throw new InvalidOperationException($"Failed to create session for '{filePath}': {ex.Message}", ex);
+        }
+        finally
+        {
+            // Dispose batch only if we didn't successfully add it to dictionary
+            batch?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Creates a new Excel file and opens a session for it in one operation.
+    /// This is the preferred method for creating new workbooks with sessions.
+    /// </summary>
+    /// <param name="filePath">Path for the new Excel file (.xlsx or .xlsm)</param>
+    /// <param name="showExcel">Whether to show the Excel window (default: false)</param>
+    /// <param name="operationTimeout">Maximum time for any operation in this session (default: 5 minutes)</param>
+    /// <returns>Unique session ID for this session</returns>
+    /// <exception cref="InvalidOperationException">File already exists, or failed to create session</exception>
+    /// <exception cref="DirectoryNotFoundException">Target directory does not exist</exception>
+    /// <remarks>
+    /// <para><b>Single Excel Start:</b> This method starts Excel only once, creating the file and session together.</para>
+    /// <para><b>File Format:</b> Determined by extension - .xlsm creates macro-enabled workbook.</para>
+    /// <para><b>Directory:</b> Target directory must exist - will not be created automatically.</para>
+    /// </remarks>
+    public string CreateSessionForNewFile(string filePath, bool showExcel = false, TimeSpan? operationTimeout = null)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        string normalizedPath = Path.GetFullPath(filePath);
+
+        // Validate extension
+        string extension = Path.GetExtension(normalizedPath).ToLowerInvariant();
+        if (extension is not (".xlsx" or ".xlsm"))
+        {
+            throw new ArgumentException($"Invalid file extension '{extension}'. Only .xlsx and .xlsm are supported.");
+        }
+
+        // Check if file already exists
+        if (File.Exists(normalizedPath))
+        {
+            throw new InvalidOperationException($"File already exists: {normalizedPath}. Use CreateSession to open existing files.");
+        }
+
+        // Check if file is already open in another session
+        if (_activeFilePaths.ContainsKey(normalizedPath))
+        {
+            throw new InvalidOperationException($"File '{filePath}' is already open in another session.");
+        }
+
+        // Generate unique session ID
+        string sessionId = Guid.NewGuid().ToString("N");
+        bool isMacroEnabled = extension == ".xlsm";
+
+        ExcelBatch? batch = null;
+        try
+        {
+            // Create new workbook and keep session open
+            batch = ExcelBatch.CreateNewWorkbook(normalizedPath, isMacroEnabled, logger: null, showExcel: showExcel, operationTimeout: operationTimeout);
+
+            // Store in active sessions
+            if (!_activeSessions.TryAdd(sessionId, batch))
+            {
+                throw new InvalidOperationException($"Session ID collision: {sessionId}");
+            }
+
+            // Track the file path
+            if (!_activeFilePaths.TryAdd(normalizedPath, sessionId))
+            {
+                _activeSessions.TryRemove(sessionId, out _);
+                throw new InvalidOperationException($"Failed to track file path for session: {sessionId}");
+            }
+
+            if (!_sessionFilePaths.TryAdd(sessionId, normalizedPath))
+            {
+                _activeSessions.TryRemove(sessionId, out _);
+                _activeFilePaths.TryRemove(normalizedPath, out _);
+                throw new InvalidOperationException($"Failed to record session metadata for: {sessionId}");
+            }
+
+            // Initialize operation counter and showExcel flag
+            _activeOperationCounts[sessionId] = 0;
+            _showExcelFlags[sessionId] = showExcel;
+
+            // Success - transfer ownership to dictionary
+            var result = sessionId;
+            batch = null;  // Prevent disposal in finally
+            return result;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to create session for new file '{filePath}': {ex.Message}", ex);
         }
         finally
         {
@@ -304,6 +395,18 @@ public sealed class SessionManager : IDisposable
     /// Gets the number of active sessions.
     /// </summary>
     public int ActiveSessionCount => _activeSessions.Count;
+
+    /// <summary>
+    /// Checks if the Excel process for a session is still alive.
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <returns>True if session exists and Excel process is alive, false otherwise</returns>
+    public bool IsSessionAlive(string sessionId)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId)) return false;
+        if (!_activeSessions.TryGetValue(sessionId, out var batch)) return false;
+        return batch.IsExcelProcessAlive();
+    }
 
     /// <summary>
     /// Gets all active session IDs.

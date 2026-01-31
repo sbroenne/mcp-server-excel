@@ -78,6 +78,7 @@ applyTo: "**"
 | 4. Session code | See testing-strategy for test commands | 3-5 min |
 | 6. COM leaks | Pre-commit hook auto-checks | 1 min |
 | 7. PRs | Always use PRs, never direct commit | Always |
+| 24. Post-change sync | Verify ALL sync points (CLI, SKILLs, READMEs, counts) | 5-10 min |
 
 **During PR Process:**
 | Rule | Action | Time |
@@ -435,6 +436,7 @@ Delete commented-out code (use git history). Exception: Documentation files only
 | 17. MCP error checks | Check result.Success before JsonSerializer.Serialize | Every method |
 | 18. Tool descriptions | Verify XML docs (`/// <summary>`) match tool behavior | Per tool change |
 | 19. PR review comments | Check and fix all automated review comments after creating PR | 5-10 min |
+| 24. Post-change sync | Verify ALL sync points (CLI, SKILLs, READMEs, counts) before commit | 5-10 min |
 
 
 
@@ -774,4 +776,58 @@ run: |
 3. Test if possible (run workflow, run code locally)
 4. If warning is truly false positive, document WHY with evidence
 5. If uncertain, use a simpler approach that doesn't trigger warnings
+
+---
+
+## Rule 24: Post-Change Sync Verification (CRITICAL)
+
+**After adding or modifying any tool/action, ALWAYS verify ALL sync points are updated. This is MANDATORY before commit.**
+
+**Sync Points Checklist:**
+
+When adding a NEW action to an existing tool:
+| Sync Point | Files to Update |
+|------------|-----------------|
+| 1. Enum | `ToolActions.cs` - Add enum value |
+| 2. Mapping | `ActionExtensions.cs` - Add ToActionString() case |
+| 3. Interface | `I*Commands.cs` - Add interface method |
+| 4. Core | `*Commands.*.cs` - Implement method |
+| 5. MCP Server | `Excel*Tool.cs` - Add switch case + handler |
+| 6. CLI Daemon | `ExcelDaemon.cs` - Add switch case |
+| 7. Feature Count | `FEATURES.md` - Update operation count |
+| 8. README Files | All READMEs with operation counts (main, MCP, CLI, mcpb, vscode) |
+| 9. Skills Docs | `skills/shared/excel_*.md` - Document new action |
+
+**Quick Check Commands:**
+```powershell
+# Find all files with operation counts
+grep -r "209 operations\|210 operations\|10 ops\|11 ops" --include="*.md"
+
+# Verify enum/mapping consistency
+# Count enum values vs switch cases in CLI and MCP
+```
+
+**Why Critical:** 
+- MCP tool without CLI = broken parity (agents confused by inconsistent behavior)
+- Outdated READMEs = user confusion about capabilities
+- Skills docs out of sync = LLMs give wrong instructions
+
+**When to Run This Checklist:**
+- After adding ANY new action to ANY tool
+- After adding ANY new tool
+- After removing/deprecating actions
+- Before EVERY commit that touches tool/action code
+
+**Historical Example (Jan 2026):**
+PowerQuery `unload` action was added to:
+- ✅ ToolActions.cs enum
+- ✅ ActionExtensions.cs mapping
+- ✅ IPowerQueryCommands.cs interface
+- ✅ PowerQueryCommands.Lifecycle.cs implementation
+- ✅ ExcelPowerQueryTool.cs MCP handler
+- ❌ ExcelDaemon.cs CLI handler (MISSED!)
+- ❌ FEATURES.md count (MISSED!)
+- ❌ README files (MISSED!)
+
+Result: Caught during commit review, required additional fixes.
 

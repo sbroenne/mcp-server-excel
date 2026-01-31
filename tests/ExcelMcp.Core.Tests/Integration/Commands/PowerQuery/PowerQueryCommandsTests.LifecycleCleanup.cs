@@ -68,7 +68,7 @@ public class PowerQueryLifecycleCleanupTests : IClassFixture<TempDirectoryFixtur
         Assert.Contains(connsBefore.Connections, c => c.Name.Contains($"Query - {queryName}"));
 
         // Act - Unload the query
-        var unloadResult = PowerQueryCommands.Unload(batch, queryName);
+        var unloadResult = _powerQueryCommands.Unload(batch, queryName);
 
         // Assert
         Assert.True(unloadResult.Success, $"Unload failed: {unloadResult.ErrorMessage}");
@@ -117,7 +117,7 @@ public class PowerQueryLifecycleCleanupTests : IClassFixture<TempDirectoryFixtur
         Assert.Contains(connsBefore.Connections, c => c.Name.Contains($"Query - {queryName}"));
 
         // Act - Unload the query
-        var unloadResult = PowerQueryCommands.Unload(batch, queryName);
+        var unloadResult = _powerQueryCommands.Unload(batch, queryName);
 
         // Assert
         Assert.True(unloadResult.Success, $"Unload failed: {unloadResult.ErrorMessage}");

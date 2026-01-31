@@ -105,7 +105,7 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     /// <summary>
     /// Explicit test that validates the fixture creation results.
     /// This makes the data preparation test visible in test results and validates:
-    /// - FileCommands.CreateEmpty()
+    /// - SessionManager.CreateSessionForNewFile()
     /// - Sales data creation
     /// - Batch.Save() persistence
     /// </summary>

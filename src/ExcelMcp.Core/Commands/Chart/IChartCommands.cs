@@ -50,6 +50,30 @@ public interface IChartCommands
         string? chartName = null);
 
     /// <summary>
+    /// Creates a Regular Chart from an Excel Table's data range.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="tableName">Name of the Excel Table</param>
+    /// <param name="sheetName">Worksheet name for chart placement</param>
+    /// <param name="chartType">Chart type from ChartType enum</param>
+    /// <param name="left">Left position in points</param>
+    /// <param name="top">Top position in points</param>
+    /// <param name="width">Width in points (default: 400)</param>
+    /// <param name="height">Height in points (default: 300)</param>
+    /// <param name="chartName">Optional name for the chart</param>
+    /// <returns>Created chart name and configuration</returns>
+    ChartCreateResult CreateFromTable(
+        IExcelBatch batch,
+        string tableName,
+        string sheetName,
+        ChartType chartType,
+        double left,
+        double top,
+        double width = 400,
+        double height = 300,
+        string? chartName = null);
+
+    /// <summary>
     /// Creates a PivotChart from an existing PivotTable.
     /// </summary>
     /// <param name="batch">Excel batch session</param>

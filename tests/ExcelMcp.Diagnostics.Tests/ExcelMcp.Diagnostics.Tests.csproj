@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <NoWarn>$(NoWarn);CS1591;CA1707;IDE0005</NoWarn>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+
+    <!-- Assembly and Namespace Configuration -->
+    <AssemblyName>Sbroenne.ExcelMcp.Diagnostics.Tests</AssemblyName>
+    <RootNamespace>Sbroenne.ExcelMcp.Diagnostics.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="MartinCostello.Logging.XUnit" />
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ExcelMcp.Core\ExcelMcp.Core.csproj" />
+    <ProjectReference Include="..\..\src\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\ExcelMcp.Core.Tests\Helpers\CoreTestHelper.cs" Link="Helpers\CoreTestHelper.cs" />
+    <Compile Include="..\ExcelMcp.Core.Tests\Helpers\TempDirectoryFixture.cs" Link="Helpers\TempDirectoryFixture.cs" />
+  </ItemGroup>
+
+</Project>

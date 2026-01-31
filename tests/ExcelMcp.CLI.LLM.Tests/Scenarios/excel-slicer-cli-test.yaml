@@ -1,0 +1,221 @@
+# =============================================================================
+# Excel Slicer CLI Test - PivotTable AND Table Slicer Operations
+# =============================================================================
+#
+# Tests: Slicer operations via CLI for both PivotTables and Tables
+#
+# Prerequisites:
+#   - Windows 10/11 with Excel installed
+#   - excelcli installed or use dotnet run
+#   - Environment: AZURE_OPENAI_ENDPOINT
+#
+# =============================================================================
+
+criteria:
+  success_rate: 1  # 100% required
+
+ai_summary:
+  enabled: true
+  judge_provider: azure-openai-gpt52-chat
+
+providers:
+  - name: azure-openai-gpt41
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+    retry:
+      retry_on_429: true
+      max_retries: 5
+  - name: azure-openai-gpt52-chat
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-5.1-chat
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+    retry:
+      retry_on_429: true
+      max_retries: 5
+  - name: azure-openai-judge
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-5.1-chat
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+
+servers:
+  - name: excel-cli
+    type: cli
+    command: "{{CLI_COMMAND}}"
+    shell: powershell
+    working_dir: "{{TEMP_DIR}}"
+    tool_prefix: excel
+
+agents:
+  - name: gpt41-agent
+    servers:
+      - name: excel-cli
+    provider: azure-openai-gpt41
+    skill:
+      path: "{{SKILL_PATH_CLI}}"
+      file_access: true
+    clarification_detection:
+      enabled: true
+      judge_provider: azure-openai-judge
+  - name: gpt52-chat-agent
+    servers:
+      - name: excel-cli
+    provider: azure-openai-gpt52-chat
+    skill:
+      path: "{{SKILL_PATH_CLI}}"
+      file_access: true
+    clarification_detection:
+      enabled: true
+      judge_provider: azure-openai-judge
+
+settings:
+  verbose: true
+  max_iterations: 20
+  session_delay: 30s
+
+
+sessions:
+  # ==========================================================================
+  # Session 1: PivotTable Slicer Workflow
+  # ==========================================================================
+  - name: "PivotTable Slicer Workflow"
+    tests:
+      - name: "Setup PivotTable for slicer test"
+        prompt: |
+          I want to test PivotTable slicers.
+
+          Create a new Excel file at {{TEMP_DIR}}/pivottable-slicer-cli-{{randomValue type='UUID'}}.xlsx
+
+          On Sheet1, enter this sales data starting at A1:
+
+          Region, Product, Quarter, Sales
+          North, Laptop, Q1, 15000
+          North, Phone, Q1, 8000
+          North, Laptop, Q2, 18000
+          North, Phone, Q2, 9500
+          South, Laptop, Q1, 12000
+          South, Phone, Q1, 7500
+          South, Laptop, Q2, 14000
+          South, Phone, Q2, 8200
+
+          Convert this to a table called "SalesData".
+
+          Then create a PivotTable on a new sheet called "Analysis" that shows:
+          - Region as rows
+          - Sum of Sales as values
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(pivot|region|sales|created)"
+
+      - name: "Create Region slicer"
+        prompt: |
+          Create a slicer for the Region field on the PivotTable.
+
+          After creating, list all slicers to confirm it was created.
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(slicer|region|created|success)"
+
+      - name: "Filter PivotTable using slicer"
+        prompt: |
+          Use the Region slicer to show only "North" region data.
+
+          After applying the filter, what does the PivotTable show for total North sales?
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(north|filter|slicer|50500|sales)"
+
+      - name: "Delete slicers and close"
+        prompt: |
+          Delete the slicer we created.
+
+          Save and close the file.
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(delete|removed|closed|saved|success)"
+
+
+  # ==========================================================================
+  # Session 2: Table Slicer Workflow
+  # ==========================================================================
+  - name: "Table Slicer Workflow"
+    tests:
+      - name: "Setup Table for slicer test"
+        prompt: |
+          I want to test Table slicers (different from PivotTable slicers).
+
+          Create a new Excel file at {{TEMP_DIR}}/table-slicer-cli-{{randomValue type='UUID'}}.xlsx
+
+          On Sheet1, enter this employee data starting at A1:
+
+          Department, Employee, Status, Salary
+          Engineering, Alice, Active, 85000
+          Engineering, Bob, Active, 92000
+          Marketing, Carol, Active, 78000
+          Marketing, Dave, Inactive, 70000
+          Sales, Eve, Active, 65000
+          Sales, Frank, Inactive, 62000
+
+          Convert this to an Excel table called "Employees".
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(employees|table|created|success)"
+
+      - name: "Create Department slicer on Table"
+        prompt: |
+          Create a Table slicer for the Department column.
+
+          List all Table slicers to confirm it was created.
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(slicer|department|table|created|success)"
+
+      - name: "Filter Table to Engineering only"
+        prompt: |
+          Use the Department slicer to filter the table to show only Engineering employees.
+
+          How many Engineering employees are there?
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(engineering|2|two|filter|alice|bob)"
+
+      - name: "Delete Table slicers and close"
+        prompt: |
+          Delete the Table slicer.
+
+          Save and close the file.
+
+          What's the difference between Table slicers and PivotTable slicers?
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(delete|table|pivot|different|closed|saved)"

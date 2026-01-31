@@ -230,3 +230,8 @@ infrastructure/azure/appinsights.secrets.local
 
 # Local MSBuild properties (secrets, connection strings)
 Directory.Build.props.user
+
+# Skills - generated shared references (copied from skills/shared/ by Build-AgentSkills.ps1)
+# Keep: claude-desktop.md (MCP-specific), README.md (CLI placeholder)
+skills/*
+vscode-extension/skills/*
