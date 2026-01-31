@@ -1099,6 +1099,7 @@ internal sealed class ExcelDaemon : IDisposable
                         _powerQueryCommands.LoadTo(batch, a.QueryName!, loadMode, a.TargetSheet, a.TargetCellAddress);
                     }),
                     PowerQueryAction.GetLoadConfig => SerializeResult(_powerQueryCommands.GetLoadConfig(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!)),
+                    PowerQueryAction.Unload => SerializeResult(_powerQueryCommands.Unload(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!)),
                     _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported powerquery action: {action}" }
                 };
             }

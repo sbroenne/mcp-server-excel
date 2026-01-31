@@ -248,6 +248,88 @@ public partial class ChartCommands : IChartCommands
     }
 
     /// <inheritdoc />
+    public ChartCreateResult CreateFromTable(
+        IExcelBatch batch,
+        string tableName,
+        string sheetName,
+        ChartType chartType,
+        double left,
+        double top,
+        double width = 400,
+        double height = 300,
+        string? chartName = null)
+    {
+        return batch.Execute((ctx, ct) =>
+        {
+            dynamic? table = null;
+            dynamic? tableRange = null;
+            dynamic? worksheet = null;
+            dynamic? shapes = null;
+            dynamic? shape = null;
+            dynamic? chart = null;
+
+            try
+            {
+                // Find the table using CoreLookupHelpers
+                table = CoreLookupHelpers.FindTable(ctx.Book, tableName);
+
+                // Get the table's data range (includes headers)
+                tableRange = table.Range;
+
+                // Get target worksheet
+                worksheet = ctx.Book.Worksheets.Item(sheetName);
+                shapes = worksheet.Shapes;
+
+                // Create chart using AddChart
+                shape = shapes.AddChart(
+                    XlChartType: (int)chartType,
+                    Left: left,
+                    Top: top,
+                    Width: width,
+                    Height: height
+                );
+
+                chart = shape.Chart;
+
+                // Set data source to table's range
+                chart.SetSourceData(tableRange);
+
+                // Set custom name if provided
+                if (!string.IsNullOrWhiteSpace(chartName))
+                {
+                    shape.Name = chartName;
+                }
+
+                string finalName = shape.Name?.ToString() ?? "Chart";
+
+                var result = new ChartCreateResult
+                {
+                    Success = true,
+                    ChartName = finalName,
+                    SheetName = sheetName,
+                    ChartType = chartType,
+                    IsPivotChart = false,
+                    Left = left,
+                    Top = top,
+                    Width = width,
+                    Height = height
+                };
+
+                return result;
+            }
+            finally
+            {
+                if (chart != null) ComUtilities.Release(ref chart!);
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (shapes != null) ComUtilities.Release(ref shapes!);
+                if (worksheet != null) ComUtilities.Release(ref worksheet!);
+                if (tableRange != null) ComUtilities.Release(ref tableRange!);
+                if (table != null) ComUtilities.Release(ref table!);
+            }
+        });
+    }
+
+    /// <inheritdoc />
     public ChartCreateResult CreateFromPivotTable(
         IExcelBatch batch,
         string pivotTableName,

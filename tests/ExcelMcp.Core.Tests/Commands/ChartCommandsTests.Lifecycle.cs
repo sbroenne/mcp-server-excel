@@ -87,6 +87,93 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
     }
 
     [Fact]
+    public void CreateFromTable_ValidTable_CreatesChart()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create test data and table
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            dynamic? listObjects = null;
+            dynamic? table = null;
+
+            try
+            {
+                sheet = ctx.Book.Worksheets.Item(1);
+
+                // Set up data
+                sheet.Range["A1:B4"].Value2 = new object[,] {
+                    { "Category", "Values" },
+                    { "Q1", 100 },
+                    { "Q2", 150 },
+                    { "Q3", 200 }
+                };
+
+                // Create table from range
+                listObjects = sheet.ListObjects;
+                table = listObjects.Add(1, sheet.Range["A1:B4"], null, 1); // xlYes = 1
+                table.Name = "SalesTable";
+
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref table);
+                ComUtilities.Release(ref listObjects);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+
+        // Act
+        var createResult = _commands.CreateFromTable(
+            batch,
+            "SalesTable",
+            "Sheet1",
+            ChartType.ColumnClustered,
+            100,
+            100,
+            400,
+            300,
+            "TableChart");
+
+        // Assert
+        Assert.True(createResult.Success, $"CreateFromTable failed: {createResult.ChartName}");
+        Assert.Equal("TableChart", createResult.ChartName);
+        Assert.Equal("Sheet1", createResult.SheetName);
+        Assert.Equal(ChartType.ColumnClustered, createResult.ChartType);
+        Assert.False(createResult.IsPivotChart);
+
+        // Verify chart exists
+        var charts = _commands.List(batch);
+        Assert.Single(charts);
+        Assert.Equal("TableChart", charts[0].Name);
+    }
+
+    [Fact]
+    public void CreateFromTable_NonExistentTable_ThrowsException()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        // Act & Assert
+        using var batch = ExcelSession.BeginBatch(testFile);
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            _commands.CreateFromTable(
+                batch,
+                "NonExistentTable",
+                "Sheet1",
+                ChartType.ColumnClustered,
+                50,
+                50));
+
+        Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void CreateFromPivotTable_RangePivotTable_CreatesPivotChart()
     {
         // Arrange

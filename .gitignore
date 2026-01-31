@@ -233,11 +233,5 @@ Directory.Build.props.user
 
 # Skills - generated shared references (copied from skills/shared/ by Build-AgentSkills.ps1)
 # Keep: claude-desktop.md (MCP-specific), README.md (CLI placeholder)
-skills/excel-mcp/references/anti-patterns.md
-skills/excel-mcp/references/behavioral-rules.md
-skills/excel-mcp/references/excel_*.md
-skills/excel-mcp/references/workflows.md
-skills/excel-cli/references/anti-patterns.md
-skills/excel-cli/references/behavioral-rules.md
-skills/excel-cli/references/excel_*.md
-skills/excel-cli/references/workflows.md
+skills/*
+vscode-extension/skills/*

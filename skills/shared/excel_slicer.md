@@ -36,8 +36,8 @@ Two distinct slicer types exist:
 **Positioning**:
 
 - `destinationSheet` specifies which worksheet hosts the slicer
-- `position` is `"left,top"` format in points (e.g., `"100,50"`)
-- 72 points = 1 inch
+- `position` is a cell address for top-left corner (e.g., `'E1'`, `'G5'`)
+- The slicer's top-left corner aligns to the specified cell
 - Default position if not specified: Excel chooses
 
 **Common Mistakes**:

@@ -29,6 +29,7 @@ public static class ActionExtensions
         PowerQueryAction.Rename => "rename",
         PowerQueryAction.RefreshAll => "refresh-all",
         PowerQueryAction.LoadTo => "load-to",
+        PowerQueryAction.Unload => "unload",
         _ => throw new ArgumentException($"Unknown PowerQueryAction: {action}")
     };
 
@@ -279,6 +280,7 @@ public static class ActionExtensions
         ChartAction.List => "list",
         ChartAction.Read => "read",
         ChartAction.CreateFromRange => "create-from-range",
+        ChartAction.CreateFromTable => "create-from-table",
         ChartAction.CreateFromPivotTable => "create-from-pivottable",
         ChartAction.Delete => "delete",
         ChartAction.Move => "move",

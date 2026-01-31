@@ -33,7 +33,8 @@ public enum PowerQueryAction
     Update,
     Rename,
     RefreshAll,
-    LoadTo
+    LoadTo,
+    Unload
 }
 
 /// <summary>
@@ -320,6 +321,7 @@ public enum ChartAction
     List,
     Read,
     CreateFromRange,
+    CreateFromTable,
     CreateFromPivotTable,
     Delete,
     Move,
