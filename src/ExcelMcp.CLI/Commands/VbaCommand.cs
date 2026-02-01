@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Daemon;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -35,14 +36,15 @@ internal sealed class VbaCommand : AsyncCommand<VbaCommand.Settings>
         var command = $"vba.{action}";
 
         // Note: property names must match daemon's Args classes (e.g., VbaImportArgs, VbaRunArgs)
+        var vbaCode = ResolveFileOrValue(settings.Code, settings.CodeFile);
         object? args = action switch
         {
             "list" => null,
             "view" => new { moduleName = settings.ModuleName },
-            "import" => new { moduleName = settings.ModuleName, vbaCode = settings.Code },
+            "import" => new { moduleName = settings.ModuleName, vbaCode },
             "delete" => new { moduleName = settings.ModuleName },
             "run" => new { procedureName = settings.MacroName, parameters = ParseParameters(settings.Arguments) },
-            "update" => new { moduleName = settings.ModuleName, vbaCode = settings.Code },
+            "update" => new { moduleName = settings.ModuleName, vbaCode },
             _ => new { moduleName = settings.ModuleName }
         };
 
@@ -86,27 +88,54 @@ internal sealed class VbaCommand : AsyncCommand<VbaCommand.Settings>
         }
     }
 
+    /// <summary>
+    /// Returns file contents if filePath is provided, otherwise returns the direct value.
+    /// </summary>
+    private static string? ResolveFileOrValue(string? directValue, string? filePath)
+    {
+        if (!string.IsNullOrWhiteSpace(filePath))
+        {
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException($"File not found: {filePath}");
+            }
+            return File.ReadAllText(filePath);
+        }
+        return directValue;
+    }
+
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<ACTION>")]
+        [Description("The action to perform (e.g., list, view, import, run, update, delete)")]
         public string Action { get; init; } = string.Empty;
 
         [CommandOption("-s|--session <SESSION>")]
+        [Description("Session ID from 'session open' command")]
         public string SessionId { get; init; } = string.Empty;
 
         [CommandOption("--module <NAME>")]
+        [Description("VBA module name")]
         public string? ModuleName { get; init; }
 
         [CommandOption("--macro <NAME>")]
+        [Description("VBA macro/procedure name to run")]
         public string? MacroName { get; init; }
 
         [CommandOption("--code <CODE>")]
+        [Description("VBA code to import or update")]
         public string? Code { get; init; }
 
+        [CommandOption("--code-file <PATH>")]
+        [Description("Read VBA code from file instead of command line")]
+        public string? CodeFile { get; init; }
+
         [CommandOption("--module-type <TYPE>")]
+        [Description("Module type (Standard, Class, Form)")]
         public string? ModuleType { get; init; }
 
         [CommandOption("--arguments <ARGS>")]
+        [Description("Macro arguments (JSON array or comma-separated)")]
         public string? Arguments { get; init; }
     }
 }

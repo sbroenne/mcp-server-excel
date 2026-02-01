@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Daemon;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -35,12 +36,13 @@ internal sealed class PowerQueryCommand : AsyncCommand<PowerQueryCommand.Setting
         var command = $"powerquery.{action}";
 
         // Note: property names must match daemon's Args classes (e.g., PowerQueryRenameArgs)
+        var mCode = ResolveFileOrValue(settings.MCode, settings.MCodeFile);
         object? args = action switch
         {
             "list" => null,
             "view" => new { queryName = settings.QueryName },
-            "create" => new { queryName = settings.QueryName, mCode = settings.MCode, loadDestination = settings.LoadDestination },
-            "update" => new { queryName = settings.QueryName, mCode = settings.MCode },
+            "create" => new { queryName = settings.QueryName, mCode, loadDestination = settings.LoadDestination },
+            "update" => new { queryName = settings.QueryName, mCode },
             "rename" => new { oldName = settings.QueryName, newName = settings.NewName },
             "delete" => new { queryName = settings.QueryName },
             "refresh" => new { queryName = settings.QueryName },
@@ -70,24 +72,50 @@ internal sealed class PowerQueryCommand : AsyncCommand<PowerQueryCommand.Setting
         }
     }
 
+    /// <summary>
+    /// Returns file contents if filePath is provided, otherwise returns the direct value.
+    /// </summary>
+    private static string? ResolveFileOrValue(string? directValue, string? filePath)
+    {
+        if (!string.IsNullOrWhiteSpace(filePath))
+        {
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException($"File not found: {filePath}");
+            }
+            return File.ReadAllText(filePath);
+        }
+        return directValue;
+    }
+
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<ACTION>")]
+        [Description("The action to perform (e.g., list, view, create, update, refresh)")]
         public string Action { get; init; } = string.Empty;
 
         [CommandOption("-s|--session <SESSION>")]
+        [Description("Session ID from 'session open' command")]
         public string SessionId { get; init; } = string.Empty;
 
         [CommandOption("--query <NAME>")]
+        [Description("Power Query name")]
         public string? QueryName { get; init; }
 
         [CommandOption("--new-name <NAME>")]
+        [Description("New name for rename operation")]
         public string? NewName { get; init; }
 
         [CommandOption("--mcode <CODE>")]
+        [Description("Power Query M code formula")]
         public string? MCode { get; init; }
 
+        [CommandOption("--mcode-file <PATH>")]
+        [Description("Read M code from file instead of command line")]
+        public string? MCodeFile { get; init; }
+
         [CommandOption("--load-destination <DEST>")]
+        [Description("Load destination: worksheet, data-model, both, connection-only")]
         public string? LoadDestination { get; init; }
     }
 }

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Daemon;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -34,11 +35,13 @@ internal sealed class ConnectionCommand : AsyncCommand<ConnectionCommand.Setting
         }
         var command = $"connection.{action}";
 
+        var connectionString = ResolveFileOrValue(settings.ConnectionString, settings.ConnectionStringFile);
+        var commandText = ResolveFileOrValue(settings.CommandText, settings.CommandTextFile);
         object? args = action switch
         {
             "list" => null,
             "view" => new { connectionName = settings.ConnectionName },
-            "create" => new { connectionName = settings.ConnectionName, connectionType = settings.ConnectionType, connectionString = settings.ConnectionString, commandText = settings.CommandText },
+            "create" => new { connectionName = settings.ConnectionName, connectionType = settings.ConnectionType, connectionString, commandText },
             "test" => new { connectionName = settings.ConnectionName },
             "refresh" => new { connectionName = settings.ConnectionName },
             "delete" => new { connectionName = settings.ConnectionName },
@@ -68,39 +71,74 @@ internal sealed class ConnectionCommand : AsyncCommand<ConnectionCommand.Setting
         }
     }
 
+    /// <summary>
+    /// Returns file contents if filePath is provided, otherwise returns the direct value.
+    /// </summary>
+    private static string? ResolveFileOrValue(string? directValue, string? filePath)
+    {
+        if (!string.IsNullOrWhiteSpace(filePath))
+        {
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException($"File not found: {filePath}");
+            }
+            return File.ReadAllText(filePath);
+        }
+        return directValue;
+    }
+
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<ACTION>")]
+        [Description("The action to perform (e.g., list, view, create, refresh)")]
         public string Action { get; init; } = string.Empty;
 
         [CommandOption("-s|--session <SESSION>")]
+        [Description("Session ID from 'session open' command")]
         public string SessionId { get; init; } = string.Empty;
 
         [CommandOption("--connection <NAME>")]
+        [Description("Connection name")]
         public string? ConnectionName { get; init; }
 
         [CommandOption("--connection-type <TYPE>")]
+        [Description("Connection type (e.g., ODBC, OleDb)")]
         public string? ConnectionType { get; init; }
 
         [CommandOption("--connection-string <STRING>")]
+        [Description("Database connection string")]
         public string? ConnectionString { get; init; }
 
+        [CommandOption("--connection-string-file <PATH>")]
+        [Description("Read connection string from file instead of command line")]
+        public string? ConnectionStringFile { get; init; }
+
         [CommandOption("--command-text <TEXT>")]
+        [Description("SQL command or query text")]
         public string? CommandText { get; init; }
 
+        [CommandOption("--command-text-file <PATH>")]
+        [Description("Read SQL command from file instead of command line")]
+        public string? CommandTextFile { get; init; }
+
         [CommandOption("--load-destination <DEST>")]
+        [Description("Load destination: worksheet, data-model, both, connection-only")]
         public string? LoadDestination { get; init; }
 
         [CommandOption("--sheet <NAME>")]
+        [Description("Target worksheet name")]
         public string? SheetName { get; init; }
 
         [CommandOption("--target-cell <ADDRESS>")]
+        [Description("Target cell address for data load")]
         public string? TargetCell { get; init; }
 
         [CommandOption("--refresh-on-open")]
+        [Description("Refresh connection when workbook opens")]
         public bool? RefreshOnOpen { get; init; }
 
         [CommandOption("--enable-refresh")]
+        [Description("Enable manual refresh")]
         public bool? EnableRefresh { get; init; }
     }
 }

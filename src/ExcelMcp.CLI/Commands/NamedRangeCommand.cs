@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Daemon;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -69,21 +70,27 @@ internal sealed class NamedRangeCommand : AsyncCommand<NamedRangeCommand.Setting
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<ACTION>")]
+        [Description("The action to perform (list, read, write, create, update, delete)")]
         public string Action { get; init; } = string.Empty;
 
         [CommandOption("-s|--session <SESSION>")]
+        [Description("Session ID from 'session open' command")]
         public string SessionId { get; init; } = string.Empty;
 
         [CommandOption("--name <NAME>")]
+        [Description("Named range name")]
         public string? Name { get; init; }
 
         [CommandOption("--refers-to <FORMULA>")]
+        [Description("Reference formula (e.g., =Sheet1!$A$1:$C$10)")]
         public string? RefersTo { get; init; }
 
         [CommandOption("--value <VALUE>")]
+        [Description("Value to write to named range")]
         public string? Value { get; init; }
 
         [CommandOption("--sheet-scope <SHEET>")]
+        [Description("Scope named range to specific worksheet")]
         public string? SheetScope { get; init; }
     }
 }

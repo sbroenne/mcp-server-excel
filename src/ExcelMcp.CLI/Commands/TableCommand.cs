@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Daemon;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -37,6 +38,8 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
 
         // Build args based on action
         // Note: property names must match daemon's Args classes (e.g., TableCreateArgs)
+        var csvData = ResolveFileOrValue(settings.CsvData, settings.CsvFile);
+        var daxQuery = ResolveFileOrValue(settings.DaxQuery, settings.DaxQueryFile);
         object? args = action switch
         {
             "list" => null,
@@ -48,11 +51,11 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
             "set-style" => new { tableName = settings.TableName, tableStyle = settings.Style },
             "toggle-totals" => new { tableName = settings.TableName, showTotals = settings.HasHeaders },
             "set-column-total" => new { tableName = settings.TableName, columnName = settings.NewName, totalFunction = settings.Style },
-            "append" => new { tableName = settings.TableName, csvData = settings.CsvData },
+            "append" => new { tableName = settings.TableName, csvData },
             "get-data" => new { tableName = settings.TableName, visibleOnly = settings.VisibleOnly },
             "add-to-datamodel" => new { tableName = settings.TableName },
-            "create-from-dax" => new { sheetName = settings.SheetName, tableName = settings.TableName, daxQuery = settings.DaxQuery, targetCell = settings.Range },
-            "update-dax" => new { tableName = settings.TableName, daxQuery = settings.DaxQuery },
+            "create-from-dax" => new { sheetName = settings.SheetName, tableName = settings.TableName, daxQuery, targetCell = settings.Range },
+            "update-dax" => new { tableName = settings.TableName, daxQuery },
             "get-dax" => new { tableName = settings.TableName },
             _ => new { tableName = settings.TableName }
         };
@@ -84,39 +87,74 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
         }
     }
 
+    /// <summary>
+    /// Returns file contents if filePath is provided, otherwise returns the direct value.
+    /// </summary>
+    private static string? ResolveFileOrValue(string? directValue, string? filePath)
+    {
+        if (!string.IsNullOrWhiteSpace(filePath))
+        {
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException($"File not found: {filePath}");
+            }
+            return File.ReadAllText(filePath);
+        }
+        return directValue;
+    }
+
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<ACTION>")]
+        [Description("The action to perform (e.g., list, create, read, append)")]
         public string Action { get; init; } = string.Empty;
 
         [CommandOption("-s|--session <SESSION>")]
+        [Description("Session ID from 'session open' command")]
         public string SessionId { get; init; } = string.Empty;
 
         [CommandOption("--table <NAME>")]
+        [Description("Table name")]
         public string? TableName { get; init; }
 
         [CommandOption("--sheet <NAME>")]
+        [Description("Target worksheet name")]
         public string? SheetName { get; init; }
 
         [CommandOption("--range <ADDRESS>")]
+        [Description("Cell range address (e.g., A1:C10)")]
         public string? Range { get; init; }
 
         [CommandOption("--new-name <NAME>")]
+        [Description("New name for rename, or column name for set-column-total")]
         public string? NewName { get; init; }
 
         [CommandOption("--style <NAME>")]
+        [Description("Table style name or total function")]
         public string? Style { get; init; }
 
         [CommandOption("--has-headers")]
+        [Description("Table has header row (default: true)")]
         public bool HasHeaders { get; init; } = true;
 
         [CommandOption("--csv-data <DATA>")]
+        [Description("CSV data to append")]
         public string? CsvData { get; init; }
 
+        [CommandOption("--csv-file <PATH>")]
+        [Description("Read CSV data from file instead of command line")]
+        public string? CsvFile { get; init; }
+
         [CommandOption("--visible-only")]
+        [Description("Get only visible data (excludes filtered rows)")]
         public bool VisibleOnly { get; init; }
 
         [CommandOption("--dax-query <QUERY>")]
+        [Description("DAX query for create-from-dax or update-dax")]
         public string? DaxQuery { get; init; }
+
+        [CommandOption("--dax-query-file <PATH>")]
+        [Description("Read DAX query from file instead of command line")]
+        public string? DaxQueryFile { get; init; }
     }
 }

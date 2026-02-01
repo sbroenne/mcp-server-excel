@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Daemon;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -77,18 +78,19 @@ internal sealed class RangeCommand : AsyncCommand<RangeCommand.Settings>
 
     private static object? BuildSetValuesArgs(Settings settings)
     {
-        // Parse values from JSON string
+        // Parse values from JSON string or file
         List<List<object?>>? values = null;
-        if (!string.IsNullOrEmpty(settings.Values))
+        var valuesJson = ResolveFileOrValue(settings.Values, settings.ValuesFile);
+        if (!string.IsNullOrEmpty(valuesJson))
         {
             try
             {
-                values = JsonSerializer.Deserialize<List<List<object?>>>(settings.Values, DaemonProtocol.JsonOptions);
+                values = JsonSerializer.Deserialize<List<List<object?>>>(valuesJson, DaemonProtocol.JsonOptions);
             }
             catch
             {
                 // If not valid JSON array, treat as single value
-                values = [[settings.Values]];
+                values = [[valuesJson]];
             }
         }
 
@@ -100,21 +102,46 @@ internal sealed class RangeCommand : AsyncCommand<RangeCommand.Settings>
         };
     }
 
+    /// <summary>
+    /// Returns file contents if filePath is provided, otherwise returns the direct value.
+    /// </summary>
+    private static string? ResolveFileOrValue(string? directValue, string? filePath)
+    {
+        if (!string.IsNullOrWhiteSpace(filePath))
+        {
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException($"File not found: {filePath}");
+            }
+            return File.ReadAllText(filePath);
+        }
+        return directValue;
+    }
+
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<ACTION>")]
+        [Description("The action to perform (e.g., get-values, set-values, get-used-range)")]
         public string Action { get; init; } = string.Empty;
 
         [CommandOption("-s|--session <SESSION>")]
+        [Description("Session ID from 'session open' command")]
         public string SessionId { get; init; } = string.Empty;
 
         [CommandOption("--sheet <NAME>")]
+        [Description("Target worksheet name")]
         public string? SheetName { get; init; }
 
         [CommandOption("--range <ADDRESS>")]
+        [Description("Cell range address (e.g., A1:C10)")]
         public string? Range { get; init; }
 
         [CommandOption("--values <JSON>")]
+        [Description("Cell values as JSON 2D array")]
         public string? Values { get; init; }
+
+        [CommandOption("--values-file <PATH>")]
+        [Description("Read values JSON from file instead of command line")]
+        public string? ValuesFile { get; init; }
     }
 }

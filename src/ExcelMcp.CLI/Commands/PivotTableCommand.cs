@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Daemon;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -70,30 +71,39 @@ internal sealed class PivotTableCommand : AsyncCommand<PivotTableCommand.Setting
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<ACTION>")]
+        [Description("The action to perform (e.g., list, create-from-range, refresh)")]
         public string Action { get; init; } = string.Empty;
 
         [CommandOption("-s|--session <SESSION>")]
+        [Description("Session ID from 'session open' command")]
         public string SessionId { get; init; } = string.Empty;
 
         [CommandOption("--pivot-table <NAME>")]
+        [Description("PivotTable name")]
         public string? PivotTableName { get; init; }
 
         [CommandOption("--table <NAME>")]
+        [Description("Source table name for PivotTable creation")]
         public string? TableName { get; init; }
 
         [CommandOption("--source-sheet <NAME>")]
+        [Description("Worksheet containing source data")]
         public string? SourceSheet { get; init; }
 
         [CommandOption("--source-range <ADDRESS>")]
+        [Description("Source data range address")]
         public string? SourceRange { get; init; }
 
         [CommandOption("--dest-sheet <NAME>")]
+        [Description("Destination worksheet for PivotTable")]
         public string? DestSheet { get; init; }
 
         [CommandOption("--dest-cell <ADDRESS>")]
+        [Description("Destination cell for PivotTable placement")]
         public string? DestCell { get; init; }
 
         [CommandOption("--layout-style <STYLE>")]
+        [Description("PivotTable layout style")]
         public string? LayoutStyle { get; init; }
     }
 }

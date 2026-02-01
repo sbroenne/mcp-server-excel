@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Daemon;
@@ -130,9 +131,11 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<FILE>")]
+        [Description("Path to the new Excel file to create")]
         public string FilePath { get; init; } = string.Empty;
 
         [CommandOption("--timeout <SECONDS>")]
+        [Description("Session timeout in seconds")]
         public int? TimeoutSeconds { get; init; }
     }
 }
@@ -176,9 +179,11 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<FILE>")]
+        [Description("Path to the Excel file to open")]
         public string FilePath { get; init; } = string.Empty;
 
         [CommandOption("--timeout <SECONDS>")]
+        [Description("Session timeout in seconds")]
         public int? TimeoutSeconds { get; init; }
     }
 }
@@ -216,9 +221,11 @@ internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseCommand.Set
     internal sealed class Settings : CommandSettings
     {
         [CommandOption("-s|--session <SESSION>")]
+        [Description("Session ID to close")]
         public string SessionId { get; init; } = string.Empty;
 
         [CommandOption("--save")]
+        [Description("Save changes before closing")]
         public bool Save { get; init; }
     }
 }
@@ -281,6 +288,7 @@ internal sealed class SessionSaveCommand : AsyncCommand<SessionSaveCommand.Setti
     internal sealed class Settings : CommandSettings
     {
         [CommandOption("-s|--session <SESSION>")]
+        [Description("Session ID to save")]
         public string SessionId { get; init; } = string.Empty;
     }
 }

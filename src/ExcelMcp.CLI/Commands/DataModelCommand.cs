@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Daemon;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -36,6 +37,9 @@ internal sealed class DataModelCommand : AsyncCommand<DataModelCommand.Settings>
         var command = $"datamodel.{action}";
 
         // Note: property names must match daemon's Args classes (e.g., DataModelCreateMeasureArgs)
+        var expression = ResolveFileOrValue(settings.Expression, settings.ExpressionFile);
+        var daxQuery = ResolveFileOrValue(settings.DaxQuery, settings.DaxQueryFile);
+        var dmvQuery = ResolveFileOrValue(settings.DmvQuery, settings.DmvQueryFile);
         object? args = action switch
         {
             "list-tables" => null,
@@ -43,15 +47,15 @@ internal sealed class DataModelCommand : AsyncCommand<DataModelCommand.Settings>
             "list-columns" => new { tableName = settings.TableName },
             "list-measures" => new { tableName = settings.TableName },
             "read" => new { measureName = settings.MeasureName, tableName = settings.TableName },
-            "create-measure" => new { tableName = settings.TableName, measureName = settings.MeasureName, daxFormula = settings.Expression, formatType = settings.FormatString },
-            "update-measure" => new { measureName = settings.MeasureName, tableName = settings.TableName, daxFormula = settings.Expression, formatType = settings.FormatString },
+            "create-measure" => new { tableName = settings.TableName, measureName = settings.MeasureName, daxFormula = expression, formatType = settings.FormatString },
+            "update-measure" => new { measureName = settings.MeasureName, tableName = settings.TableName, daxFormula = expression, formatType = settings.FormatString },
             "delete-measure" => new { measureName = settings.MeasureName, tableName = settings.TableName },
             "rename-table" => new { oldName = settings.TableName, newName = settings.NewName },
             "delete-table" => new { tableName = settings.TableName },
             "read-info" => null,
             "refresh" => null,
-            "evaluate" => new { daxQuery = settings.DaxQuery },
-            "execute-dmv" => new { dmvQuery = settings.DmvQuery },
+            "evaluate" => new { daxQuery },
+            "execute-dmv" => new { dmvQuery },
             _ => new { tableName = settings.TableName }
         };
 
@@ -75,36 +79,74 @@ internal sealed class DataModelCommand : AsyncCommand<DataModelCommand.Settings>
         }
     }
 
+    /// <summary>
+    /// Returns file contents if filePath is provided, otherwise returns the direct value.
+    /// </summary>
+    private static string? ResolveFileOrValue(string? directValue, string? filePath)
+    {
+        if (!string.IsNullOrWhiteSpace(filePath))
+        {
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException($"File not found: {filePath}");
+            }
+            return File.ReadAllText(filePath);
+        }
+        return directValue;
+    }
+
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<ACTION>")]
+        [Description("The action to perform (e.g., list-tables, create-measure, evaluate)")]
         public string Action { get; init; } = string.Empty;
 
         [CommandOption("-s|--session <SESSION>")]
+        [Description("Session ID from 'session open' command")]
         public string SessionId { get; init; } = string.Empty;
 
         [CommandOption("--table <NAME>")]
+        [Description("Data Model table name")]
         public string? TableName { get; init; }
 
         [CommandOption("--measure <NAME>")]
+        [Description("Measure name")]
         public string? MeasureName { get; init; }
 
         [CommandOption("--new-name <NAME>")]
+        [Description("New name for rename operation")]
         public string? NewName { get; init; }
 
         [CommandOption("--expression <DAX>")]
+        [Description("DAX formula for measure")]
         public string? Expression { get; init; }
 
+        [CommandOption("--expression-file <PATH>")]
+        [Description("Read DAX formula from file instead of command line")]
+        public string? ExpressionFile { get; init; }
+
         [CommandOption("--format-string <FORMAT>")]
+        [Description("Number format string for measure")]
         public string? FormatString { get; init; }
 
         [CommandOption("--dax-query <QUERY>")]
+        [Description("DAX query to evaluate")]
         public string? DaxQuery { get; init; }
 
+        [CommandOption("--dax-query-file <PATH>")]
+        [Description("Read DAX query from file instead of command line")]
+        public string? DaxQueryFile { get; init; }
+
         [CommandOption("--dmv-query <QUERY>")]
+        [Description("DMV query to execute")]
         public string? DmvQuery { get; init; }
 
+        [CommandOption("--dmv-query-file <PATH>")]
+        [Description("Read DMV query from file instead of command line")]
+        public string? DmvQueryFile { get; init; }
+
         [CommandOption("--max-rows <COUNT>")]
+        [Description("Maximum rows to return")]
         public int? MaxRows { get; init; }
     }
 }

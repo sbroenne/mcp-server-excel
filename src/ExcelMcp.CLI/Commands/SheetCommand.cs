@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Daemon;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -79,27 +80,35 @@ internal sealed class SheetCommand : AsyncCommand<SheetCommand.Settings>
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<ACTION>")]
+        [Description("The action to perform (e.g., list, create, rename, delete, copy, move)")]
         public string Action { get; init; } = string.Empty;
 
         [CommandOption("-s|--session <SESSION>")]
+        [Description("Session ID from 'session open' command")]
         public string SessionId { get; init; } = string.Empty;
 
         [CommandOption("--sheet <NAME>")]
+        [Description("Worksheet name")]
         public string? SheetName { get; init; }
 
         [CommandOption("--new-name <NAME>")]
+        [Description("New name for rename operation")]
         public string? NewName { get; init; }
 
         [CommandOption("--source-sheet <NAME>")]
+        [Description("Source worksheet for copy operation")]
         public string? SourceSheet { get; init; }
 
         [CommandOption("--target-sheet <NAME>")]
+        [Description("Target worksheet name for copy operation")]
         public string? TargetSheet { get; init; }
 
         [CommandOption("--before-sheet <NAME>")]
+        [Description("Place sheet before this sheet (move)")]
         public string? BeforeSheet { get; init; }
 
         [CommandOption("--after-sheet <NAME>")]
+        [Description("Place sheet after this sheet (move)")]
         public string? AfterSheet { get; init; }
     }
 }

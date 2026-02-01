@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Daemon;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -91,48 +92,63 @@ internal sealed class SlicerCommand : AsyncCommand<SlicerCommand.Settings>
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<ACTION>")]
+        [Description("The action to perform (e.g., create-slicer, list-slicers, set-slicer-selection)")]
         public string Action { get; init; } = string.Empty;
 
         [CommandOption("-s|--session <SESSION>")]
+        [Description("Session ID from 'session open' command")]
         public string SessionId { get; init; } = string.Empty;
 
         [CommandOption("--slicer <NAME>")]
+        [Description("Slicer name")]
         public string? SlicerName { get; init; }
 
         [CommandOption("--pivottable <NAME>")]
+        [Description("PivotTable name for slicer source")]
         public string? PivotTableName { get; init; }
 
         [CommandOption("--table <NAME>")]
+        [Description("Table name for table slicer source")]
         public string? TableName { get; init; }
 
         [CommandOption("--source-field <NAME>")]
+        [Description("PivotTable field name for slicer")]
         public string? SourceFieldName { get; init; }
 
         [CommandOption("--column <NAME>")]
+        [Description("Table column name for table slicer")]
         public string? ColumnName { get; init; }
 
         [CommandOption("--destination-sheet <NAME>")]
+        [Description("Worksheet for slicer placement")]
         public string? DestinationSheet { get; init; }
 
         [CommandOption("--top <VALUE>")]
+        [Description("Top position in points")]
         public double? Top { get; init; }
 
         [CommandOption("--left <VALUE>")]
+        [Description("Left position in points")]
         public double? Left { get; init; }
 
         [CommandOption("--width <VALUE>")]
+        [Description("Width in points")]
         public double? Width { get; init; }
 
         [CommandOption("--height <VALUE>")]
+        [Description("Height in points")]
         public double? Height { get; init; }
 
         [CommandOption("--selected-items <ITEMS>")]
+        [Description("Comma-separated items to select")]
         public string? SelectedItems { get; init; }
 
         [CommandOption("--multi-select")]
+        [Description("Allow multiple item selection")]
         public bool? MultiSelect { get; init; }
 
         [CommandOption("--target-pivottable <NAME>")]
+        [Description("Target PivotTable for slicer connection")]
         public string? TargetPivotTableName { get; init; }
     }
 }

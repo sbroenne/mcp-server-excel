@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Daemon;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -34,9 +35,10 @@ internal sealed class ConditionalFormatCommand : AsyncCommand<ConditionalFormatC
         }
         var command = $"conditionalformat.{action}";
 
+        var formula = ResolveFileOrValue(settings.Formula, settings.FormulaFile);
         object? args = action switch
         {
-            "add-rule" => new { sheetName = settings.SheetName, rangeAddress = settings.Range, ruleType = settings.RuleType, formula = settings.Formula, formatStyle = settings.FormatStyle },
+            "add-rule" => new { sheetName = settings.SheetName, rangeAddress = settings.Range, ruleType = settings.RuleType, formula, formatStyle = settings.FormatStyle },
             "clear-rules" => new { sheetName = settings.SheetName, rangeAddress = settings.Range },
             _ => new { sheetName = settings.SheetName, rangeAddress = settings.Range }
         };
@@ -61,27 +63,54 @@ internal sealed class ConditionalFormatCommand : AsyncCommand<ConditionalFormatC
         }
     }
 
+    /// <summary>
+    /// Returns file contents if filePath is provided, otherwise returns the direct value.
+    /// </summary>
+    private static string? ResolveFileOrValue(string? directValue, string? filePath)
+    {
+        if (!string.IsNullOrWhiteSpace(filePath))
+        {
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException($"File not found: {filePath}");
+            }
+            return File.ReadAllText(filePath);
+        }
+        return directValue;
+    }
+
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<ACTION>")]
+        [Description("The action to perform (add-rule, clear-rules)")]
         public string Action { get; init; } = string.Empty;
 
         [CommandOption("-s|--session <SESSION>")]
+        [Description("Session ID from 'session open' command")]
         public string SessionId { get; init; } = string.Empty;
 
         [CommandOption("--sheet <NAME>")]
+        [Description("Target worksheet name")]
         public string? SheetName { get; init; }
 
         [CommandOption("--range <ADDRESS>")]
+        [Description("Cell range address (e.g., A1:C10)")]
         public string? Range { get; init; }
 
         [CommandOption("--rule-type <TYPE>")]
+        [Description("Conditional format rule type")]
         public string? RuleType { get; init; }
 
         [CommandOption("--formula <FORMULA>")]
+        [Description("Excel formula for rule condition")]
         public string? Formula { get; init; }
 
+        [CommandOption("--formula-file <PATH>")]
+        [Description("Read formula from file instead of command line")]
+        public string? FormulaFile { get; init; }
+
         [CommandOption("--format-style <STYLE>")]
+        [Description("Format style to apply when rule matches")]
         public string? FormatStyle { get; init; }
     }
 }

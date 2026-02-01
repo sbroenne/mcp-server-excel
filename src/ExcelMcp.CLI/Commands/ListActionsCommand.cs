@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Daemon;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -67,6 +68,7 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "[COMMAND]")]
+        [Description("Command name to list actions for (omit to list all commands)")]
         public string? CommandName { get; init; }
     }
 }
