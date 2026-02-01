@@ -125,7 +125,7 @@ This package provides both **CLI** and **MCP Server** interfaces:
 </div>
 </div>
 
-<p><a href="/features/">See all 22 tools and 209 operations →</a></p>
+<p><a href="/features/">See all 22 tools and 210 operations →</a></p>
 
 ## What Can You Do With It?
 
@@ -183,7 +183,7 @@ excelcli -q session close --session 1 --save
 
 ## Documentation
 
-📖 **[Complete Feature Reference](/features/)** — All 22 tools and 209 operations
+📖 **[Complete Feature Reference](/features/)** — All 22 tools and 210 operations
 
 📥 **[Installation Guide](/installation/)** — Setup for VS Code, Claude Desktop, other MCP clients, and CLI
 
