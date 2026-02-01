@@ -212,7 +212,10 @@ public static class ExcelSession
 
                 try
                 {
-                    excel?.Quit();
+                    if (excel != null)
+                    {
+                        excel.Quit();  // excel is Excel.Application COM object
+                    }
                 }
                 catch { }
 
