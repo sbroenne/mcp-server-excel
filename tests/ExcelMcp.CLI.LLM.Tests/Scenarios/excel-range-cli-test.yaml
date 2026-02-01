@@ -97,13 +97,11 @@ sessions:
       - name: "Write and read cells using CLI"
         prompt: |
           1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-range-cli-{{randomValue type='UUID'}}.xlsx
-          2. Write the following data to Sheet1:
-             - A1: "Product"
-             - B1: "Quantity"
-             - C1: "Price"
-             - A2: "Widget"
-             - B2: 10
-             - C2: 5.99
+          2. Write data to Sheet1 range A1:C2 using the values from this JSON file:
+             {{TEST_DIR}}/../Fixtures/range-test-data.json
+
+             IMPORTANT: JSON arrays with commas break CLI argument parsing.
+             You MUST use --values-file with the path above instead of --values with inline JSON.
           3. Read back the data from A1:C2 to verify it was written correctly
           4. Close the file without saving
         assertions:

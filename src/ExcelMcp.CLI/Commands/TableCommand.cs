@@ -29,10 +29,18 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
             return 1;
         }
 
-        if (!ActionValidator.TryNormalizeAction<TableAction>(settings.Action, out var action, out var errorMessage))
+        if (!ActionValidator.TryNormalizeAction<TableAction>(settings.Action, out var action, out _))
         {
-            AnsiConsole.MarkupLine($"[red]{errorMessage}[/]");
-            return 1;
+            // Try TableColumnAction if TableAction doesn't match
+            var validActions = ActionValidator.GetValidActions<TableAction>()
+                .Concat(ActionValidator.GetValidActions<TableColumnAction>())
+                .ToArray();
+
+            if (!ActionValidator.TryNormalizeAction(settings.Action, validActions, out action, out var errorMessage))
+            {
+                AnsiConsole.MarkupLine($"[red]{errorMessage}[/]");
+                return 1;
+            }
         }
         var command = $"table.{action}";
 
@@ -42,6 +50,7 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
         var daxQuery = ResolveFileOrValue(settings.DaxQuery, settings.DaxQueryFile);
         object? args = action switch
         {
+            // TableAction
             "list" => null,
             "create" => new { sheetName = settings.SheetName, tableName = settings.TableName, range = settings.Range, hasHeaders = settings.HasHeaders, tableStyle = settings.Style },
             "read" => new { tableName = settings.TableName },
@@ -49,14 +58,29 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
             "delete" => new { tableName = settings.TableName },
             "resize" => new { tableName = settings.TableName, newRange = settings.Range },
             "set-style" => new { tableName = settings.TableName, tableStyle = settings.Style },
-            "toggle-totals" => new { tableName = settings.TableName, showTotals = settings.HasHeaders },
-            "set-column-total" => new { tableName = settings.TableName, columnName = settings.NewName, totalFunction = settings.Style },
+            "toggle-totals" => new { tableName = settings.TableName, showTotals = settings.ShowTotals },
+            "set-column-total" => new { tableName = settings.TableName, columnName = settings.ColumnName, totalFunction = settings.TotalFunction },
             "append" => new { tableName = settings.TableName, csvData },
             "get-data" => new { tableName = settings.TableName, visibleOnly = settings.VisibleOnly },
             "add-to-datamodel" => new { tableName = settings.TableName },
             "create-from-dax" => new { sheetName = settings.SheetName, tableName = settings.TableName, daxQuery, targetCell = settings.Range },
             "update-dax" => new { tableName = settings.TableName, daxQuery },
             "get-dax" => new { tableName = settings.TableName },
+
+            // TableColumnAction
+            "apply-filter" => new { tableName = settings.TableName, columnName = settings.ColumnName, criteria = settings.Criteria },
+            "apply-filter-values" => new { tableName = settings.TableName, columnName = settings.ColumnName, values = ParseStringList(settings.FilterValues) },
+            "clear-filters" => new { tableName = settings.TableName },
+            "get-filters" => new { tableName = settings.TableName },
+            "add-column" => new { tableName = settings.TableName, columnName = settings.ColumnName, position = settings.ColumnPosition },
+            "remove-column" => new { tableName = settings.TableName, columnName = settings.ColumnName },
+            "rename-column" => new { tableName = settings.TableName, oldName = settings.ColumnName, newName = settings.NewName },
+            "get-structured-reference" => new { tableName = settings.TableName, region = settings.Region, columnName = settings.ColumnName },
+            "sort" => new { tableName = settings.TableName, columnName = settings.ColumnName, ascending = settings.Ascending },
+            "sort-multi" => new { tableName = settings.TableName, sortColumnsJson = settings.SortColumnsJson },
+            "get-column-number-format" => new { tableName = settings.TableName, columnName = settings.ColumnName },
+            "set-column-number-format" => new { tableName = settings.TableName, columnName = settings.ColumnName, formatCode = settings.FormatCode },
+
             _ => new { tableName = settings.TableName }
         };
 
@@ -103,6 +127,19 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
         return directValue;
     }
 
+    private static List<string>? ParseStringList(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return null;
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(input, DaemonProtocol.JsonOptions);
+        }
+        catch
+        {
+            return [.. input.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
+        }
+    }
+
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<ACTION>")]
@@ -113,7 +150,7 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
         [Description("Session ID from 'session open' command")]
         public string SessionId { get; init; } = string.Empty;
 
-        [CommandOption("--table <NAME>")]
+        [CommandOption("--table|--name|--table-name <NAME>")]
         [Description("Table name")]
         public string? TableName { get; init; }
 
@@ -126,16 +163,28 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
         public string? Range { get; init; }
 
         [CommandOption("--new-name <NAME>")]
-        [Description("New name for rename, or column name for set-column-total")]
+        [Description("New name for rename operations")]
         public string? NewName { get; init; }
 
+        [CommandOption("--column <NAME>")]
+        [Description("Column name for column operations")]
+        public string? ColumnName { get; init; }
+
         [CommandOption("--style <NAME>")]
-        [Description("Table style name or total function")]
+        [Description("Table style name")]
         public string? Style { get; init; }
 
         [CommandOption("--has-headers")]
         [Description("Table has header row (default: true)")]
         public bool HasHeaders { get; init; } = true;
+
+        [CommandOption("--show-totals")]
+        [Description("Show totals row")]
+        public bool ShowTotals { get; init; }
+
+        [CommandOption("--total-function <FUNCTION>")]
+        [Description("Total function (Sum, Count, Average, etc.)")]
+        public string? TotalFunction { get; init; }
 
         [CommandOption("--csv-data <DATA>")]
         [Description("CSV data to append")]
@@ -156,5 +205,34 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
         [CommandOption("--dax-query-file <PATH>")]
         [Description("Read DAX query from file instead of command line")]
         public string? DaxQueryFile { get; init; }
+
+        // TableColumnAction settings
+        [CommandOption("--criteria <CRITERIA>")]
+        [Description("Filter criteria expression")]
+        public string? Criteria { get; init; }
+
+        [CommandOption("--filter-values <VALUES>")]
+        [Description("Comma-separated or JSON array of filter values")]
+        public string? FilterValues { get; init; }
+
+        [CommandOption("--column-position <NUMBER>")]
+        [Description("Column position (0-based index)")]
+        public int? ColumnPosition { get; init; }
+
+        [CommandOption("--region <REGION>")]
+        [Description("Structured reference region (All, Data, Headers, Totals)")]
+        public string? Region { get; init; }
+
+        [CommandOption("--ascending")]
+        [Description("Sort ascending (default: true)")]
+        public bool Ascending { get; init; } = true;
+
+        [CommandOption("--sort-columns <JSON>")]
+        [Description("Sort columns JSON for multi-column sort")]
+        public string? SortColumnsJson { get; init; }
+
+        [CommandOption("--format-code <CODE>")]
+        [Description("Number format code (e.g., #,##0.00)")]
+        public string? FormatCode { get; init; }
     }
 }

@@ -32,6 +32,7 @@ public sealed class ActionValidatorTests
         [typeof(ConditionalFormatAction)],
         [typeof(VbaAction)],
         [typeof(DataModelAction)],
+        [typeof(DataModelRelAction)],
         [typeof(SlicerAction)]
     ];
 
@@ -49,6 +50,7 @@ public sealed class ActionValidatorTests
         "conditionalformat",
         "vba",
         "datamodel",
+        "datamodelrel",
         "slicer"
     ];
 

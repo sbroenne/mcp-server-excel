@@ -115,10 +115,8 @@ sessions:
         assertions:
           - type: no_hallucinated_tools
           - type: no_clarification_questions
-          - type: tool_called
-            tool: excel_session
-          - type: tool_called
-            tool: excel_range
+          - type: cli_exit_code_equals
+            expected: 0
           - type: output_regex
             pattern: "(?i)(450000|revenue|net income|formula)"
 
@@ -161,8 +159,8 @@ sessions:
         assertions:
           - type: no_hallucinated_tools
           - type: no_clarification_questions
-          - type: tool_called
-            tool: excel_range
+          - type: cli_exit_code_equals
+            expected: 0
           - type: output_regex
             pattern: "(?i)(variance|455000|formula|recalculate|updated)"
 
@@ -205,9 +203,7 @@ sessions:
         assertions:
           - type: no_hallucinated_tools
           - type: no_clarification_questions
-          - type: tool_called
-            tool: excel_range
-          - type: tool_called
-            tool: excel_session
+          - type: cli_exit_code_equals
+            expected: 0
           - type: output_regex
             pattern: "(?i)(summary|margin|saved|598500|complete)"

@@ -251,6 +251,7 @@ internal sealed class ExcelDaemon : IDisposable
                 "conditionalformat" => await HandleConditionalFormatCommandAsync(action, request),
                 "vba" => await HandleVbaCommandAsync(action, request),
                 "datamodel" => await HandleDataModelCommandAsync(action, request),
+                "datamodelrel" => await HandleDataModelRelCommandAsync(action, request),
                 "slicer" => await HandleSlicerCommandAsync(action, request),
                 _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown command category: {category}" }
             };
@@ -1046,7 +1047,13 @@ internal sealed class ExcelDaemon : IDisposable
                         var a = GetArg<TableSortArgs>(request.Args);
                         _tableCommands.Sort(batch, a.TableName!, a.ColumnName!, a.Ascending ?? true);
                     }),
-                    TableColumnAction.SortMulti => new DaemonResponse { Success = false, ErrorMessage = "sort-multi is not supported by the CLI daemon" },
+                    TableColumnAction.SortMulti => ExecuteVoid(() =>
+                    {
+                        var a = GetArg<TableSortMultiArgs>(request.Args);
+                        var sortColumns = JsonSerializer.Deserialize<List<TableSortColumn>>(a.SortColumnsJson!, DaemonProtocol.JsonOptions)
+                            ?? throw new ArgumentException("sortColumnsJson must be a non-empty array");
+                        _tableCommands.Sort(batch, a.TableName!, sortColumns);
+                    }),
                     TableColumnAction.GetStructuredReference => SerializeResult(() =>
                     {
                         var a = GetArg<TableStructuredRefArgs>(request.Args);
@@ -1320,6 +1327,12 @@ internal sealed class ExcelDaemon : IDisposable
                         var a = GetArg<ChartFromRangeArgs>(request.Args);
                         var chartType = ParseChartType(a.ChartType);
                         return _chartCommands.CreateFromRange(batch, a.SheetName!, a.SourceRange!, chartType, a.Left ?? 0, a.Top ?? 0, a.Width ?? 400, a.Height ?? 300, a.ChartName);
+                    }),
+                    ChartAction.CreateFromTable => SerializeResult(() =>
+                    {
+                        var a = GetArg<ChartFromTableArgs>(request.Args);
+                        var chartType = ParseChartType(a.ChartType);
+                        return _chartCommands.CreateFromTable(batch, a.TableName!, a.SheetName!, chartType, a.Left ?? 0, a.Top ?? 0, a.Width ?? 400, a.Height ?? 300, a.ChartName);
                     }),
                     ChartAction.CreateFromPivotTable => SerializeResult(() =>
                     {
@@ -1725,6 +1738,14 @@ internal sealed class ExcelDaemon : IDisposable
                 };
             }
 
+            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown datamodel action: {action}" };
+        });
+    }
+
+    private Task<DaemonResponse> HandleDataModelRelCommandAsync(string action, DaemonRequest request)
+    {
+        return WithSessionAsync(request.SessionId, batch =>
+        {
             if (TryParseAction<DataModelRelAction>(action, out var relAction))
             {
                 return relAction switch
@@ -1750,11 +1771,11 @@ internal sealed class ExcelDaemon : IDisposable
                         var a = GetArg<DataModelRelationshipArgs>(request.Args);
                         _dataModelCommands.DeleteRelationship(batch, a.FromTable!, a.FromColumn!, a.ToTable!, a.ToColumn!);
                     }),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported datamodel relationship action: {action}" }
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported datamodelrel action: {action}" }
                 };
             }
 
-            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown datamodel action: {action}" };
+            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown datamodelrel action: {action}" };
         });
     }
 
@@ -2043,6 +2064,7 @@ internal sealed class TableAddColumnArgs { public string? TableName { get; set; 
 internal sealed class TableColumnArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } }
 internal sealed class TableRenameColumnArgs { public string? TableName { get; set; } public string? OldName { get; set; } public string? NewName { get; set; } }
 internal sealed class TableSortArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public bool? Ascending { get; set; } }
+internal sealed class TableSortMultiArgs { public string? TableName { get; set; } public string? SortColumnsJson { get; set; } }
 internal sealed class TableColumnFormatArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public string? FormatCode { get; set; } }
 internal sealed class TableDaxArgs { public string? SheetName { get; set; } public string? TableName { get; set; } public string? DaxQuery { get; set; } public string? TargetCell { get; set; } }
 internal sealed class TableUpdateDaxArgs { public string? TableName { get; set; } public string? DaxQuery { get; set; } }
@@ -2080,6 +2102,7 @@ internal sealed class TableStructuredRefArgs { public string? TableName { get; s
 internal sealed class ChartArgs { public string? ChartName { get; set; } }
 internal sealed class ChartFromRangeArgs { public string? SheetName { get; set; } public string? SourceRange { get; set; } public string? ChartType { get; set; } public double? Left { get; set; } public double? Top { get; set; } public double? Width { get; set; } public double? Height { get; set; } public string? ChartName { get; set; } }
 internal sealed class ChartFromPivotArgs { public string? PivotTableName { get; set; } public string? SheetName { get; set; } public string? ChartType { get; set; } public double? Left { get; set; } public double? Top { get; set; } public double? Width { get; set; } public double? Height { get; set; } public string? ChartName { get; set; } }
+internal sealed class ChartFromTableArgs { public string? TableName { get; set; } public string? SheetName { get; set; } public string? ChartType { get; set; } public double? Left { get; set; } public double? Top { get; set; } public double? Width { get; set; } public double? Height { get; set; } public string? ChartName { get; set; } }
 internal sealed class ChartMoveArgs { public string? ChartName { get; set; } public double? Left { get; set; } public double? Top { get; set; } public double? Width { get; set; } public double? Height { get; set; } }
 internal sealed class ChartFitArgs { public string? ChartName { get; set; } public string? SheetName { get; set; } public string? RangeAddress { get; set; } }
 internal sealed class ChartSourceRangeArgs { public string? ChartName { get; set; } public string? SourceRange { get; set; } }

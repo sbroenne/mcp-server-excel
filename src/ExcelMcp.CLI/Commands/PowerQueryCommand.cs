@@ -49,6 +49,7 @@ internal sealed class PowerQueryCommand : AsyncCommand<PowerQueryCommand.Setting
             "refresh-all" => null,
             "load-to" => new { queryName = settings.QueryName, loadDestination = settings.LoadDestination },
             "get-load-config" => new { queryName = settings.QueryName },
+            "unload" => new { queryName = settings.QueryName },
             _ => new { queryName = settings.QueryName }
         };
 

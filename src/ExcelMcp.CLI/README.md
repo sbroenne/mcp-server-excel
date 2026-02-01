@@ -4,11 +4,16 @@
 [![Downloads](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.CLI.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Optional command-line interface for Excel automation without AI assistance.**
+**Command-line interface for Excel automation — preferred by coding agents.**
 
-For advanced users who prefer direct scripting control, the CLI provides 14 command categories with 210 operations matching the MCP Server. Perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
+The CLI provides 14 command categories with 210 operations matching the MCP Server. Uses **64% fewer tokens** than MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 22 tool schemas into context.
 
-**Note:** Most users should use the [MCP Server with AI assistants](../ExcelMcp.McpServer/README.md) for natural language automation.
+| Interface | Best For | Why |
+|-----------|----------|-----|
+| **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | **64% fewer tokens** - single tool, no large schemas |
+| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery, persistent connection |
+
+Also perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
 
 ➡️ **[Learn more and see examples](https://sbroenne.github.io/mcp-server-excel/)**
 

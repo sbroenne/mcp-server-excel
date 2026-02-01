@@ -27,7 +27,7 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 | Interface | Best For | Why |
 |-----------|----------|-----|
 | **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | **64% fewer tokens** - single tool, no large schemas. Better for cost-sensitive, high-throughput automation. |
-| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | **32% faster** - persistent connection, rich tool discovery. Better for interactive, exploratory workflows. |
+| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery. Better for interactive, exploratory workflows. |
 
 <details>
 <summary>📊 Benchmark Results (same task, same model)</summary>

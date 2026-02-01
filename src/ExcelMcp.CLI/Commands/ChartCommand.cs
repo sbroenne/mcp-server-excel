@@ -41,10 +41,11 @@ internal sealed class ChartCommand : AsyncCommand<ChartCommand.Settings>
             "list" => new { sheetName = settings.SheetName },
             "read" => new { sheetName = settings.SheetName, chartName = settings.ChartName },
             "create-from-range" => new { sheetName = settings.SheetName, chartName = settings.ChartName, sourceRange = settings.SourceRange, chartType = settings.ChartType },
+            "create-from-table" => new { tableName = settings.TableName, sheetName = settings.SheetName, chartName = settings.ChartName, chartType = settings.ChartType },
             "create-from-pivottable" => new { pivotTableName = settings.PivotTableName, sheetName = settings.SheetName, chartName = settings.ChartName, chartType = settings.ChartType },
             "delete" => new { sheetName = settings.SheetName, chartName = settings.ChartName },
             "move" => new { chartName = settings.ChartName },
-            "fit-to-range" => new { chartName = settings.ChartName, sheetName = settings.SheetName, rangeAddress = settings.TargetRange },
+            "fit-to-range" => new { chartName = settings.ChartName, sheetName = settings.SheetName, rangeAddress = settings.TargetRange ?? settings.SourceRange },
             _ => new { sheetName = settings.SheetName, chartName = settings.ChartName }
         };
 
@@ -82,7 +83,7 @@ internal sealed class ChartCommand : AsyncCommand<ChartCommand.Settings>
         [Description("Worksheet name")]
         public string? SheetName { get; init; }
 
-        [CommandOption("--chart <NAME>")]
+        [CommandOption("--chart|--chart-name <NAME>")]
         [Description("Chart name")]
         public string? ChartName { get; init; }
 
@@ -90,8 +91,12 @@ internal sealed class ChartCommand : AsyncCommand<ChartCommand.Settings>
         [Description("PivotTable name for chart creation")]
         public string? PivotTableName { get; init; }
 
-        [CommandOption("--source-range <ADDRESS>")]
-        [Description("Source data range address")]
+        [CommandOption("--table <NAME>")]
+        [Description("Table name for create-from-table action")]
+        public string? TableName { get; init; }
+
+        [CommandOption("--source-range|--range <ADDRESS>")]
+        [Description("Source data range address (e.g., A1:D10)")]
         public string? SourceRange { get; init; }
 
         [CommandOption("--target-sheet <NAME>")]

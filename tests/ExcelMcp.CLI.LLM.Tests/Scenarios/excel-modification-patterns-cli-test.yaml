@@ -151,3 +151,44 @@ sessions:
           - type: no_clarification_questions
           - type: output_regex
             pattern: "(?i)(q1 sales report|chart)"
+
+  # ==========================================================================
+  # Session 4: Sheet Modification with Formula Canary
+  # ==========================================================================
+  - name: "Sheet Structural Changes"
+    tests:
+      - name: "Delete row and rename header without rebuilding sheet"
+        prompt: |
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-struct-cli-{{randomValue type='UUID'}}.xlsx and open it
+          2. Put employee data in A1:C5 on Sheet1:
+             Row 1: Name, Department, ID
+             Row 2: Alice, Engineering, =ROW()*100 (formula shows 200)
+             Row 3: Bob, Marketing, =ROW()*100 (formula shows 300)
+             Row 4: Carol, Sales, =ROW()*100 (formula shows 400)
+             Row 5: Dave, Support, =ROW()*100 (formula shows 500)
+          3. Delete the row with "Bob" (row 3), shifting remaining rows up
+          4. Rename the "Department" header (B1) to "Team"
+          5. Read all data including column C to verify:
+             - Alice's ID formula now shows 200 (was row 2, still row 2)
+             - Carol's ID formula now shows 300 (was row 4, shifted to row 3)
+             - Dave's ID formula now shows 400 (was row 5, shifted to row 4)
+             - Bob is gone
+             - Header B1 says "Team"
+          6. Close the file without saving
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          # Canary: Formula results prove rows shifted properly (not cleared and rewritten)
+          - type: output_regex
+            pattern: "(?i)(200)"
+          - type: output_regex
+            pattern: "(?i)(300)"
+          - type: output_regex
+            pattern: "(?i)(400)"
+          # Verify Bob deleted
+          - type: output_regex
+            pattern: "(?i)(alice|carol|dave)"
+          # Verify header renamed
+          - type: output_regex
+            pattern: "(?i)(team)"

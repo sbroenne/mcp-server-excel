@@ -41,12 +41,26 @@ internal sealed class SheetCommand : AsyncCommand<SheetCommand.Settings>
         // Build args based on action
         object? args = action switch
         {
+            // WorksheetAction
             "list" => null,
             "create" => new { sheetName = settings.SheetName },
             "rename" => new { sheetName = settings.SheetName, newName = settings.NewName },
             "delete" => new { sheetName = settings.SheetName },
             "copy" => new { sourceSheet = settings.SourceSheet, targetSheet = settings.TargetSheet },
             "move" => new { sheetName = settings.SheetName, beforeSheet = settings.BeforeSheet, afterSheet = settings.AfterSheet },
+            "copy-to-file" => new { sourceFile = settings.SourceFile, sourceSheet = settings.SourceSheet, targetFile = settings.TargetFile, targetSheetName = settings.TargetSheet, beforeSheet = settings.BeforeSheet, afterSheet = settings.AfterSheet },
+            "move-to-file" => new { sourceFile = settings.SourceFile, sourceSheet = settings.SourceSheet, targetFile = settings.TargetFile, beforeSheet = settings.BeforeSheet, afterSheet = settings.AfterSheet },
+
+            // WorksheetStyleAction
+            "set-tab-color" => new { sheetName = settings.SheetName, red = settings.Red, green = settings.Green, blue = settings.Blue },
+            "get-tab-color" => new { sheetName = settings.SheetName },
+            "clear-tab-color" => new { sheetName = settings.SheetName },
+            "hide" => new { sheetName = settings.SheetName },
+            "very-hide" => new { sheetName = settings.SheetName },
+            "show" => new { sheetName = settings.SheetName },
+            "get-visibility" => new { sheetName = settings.SheetName },
+            "set-visibility" => new { sheetName = settings.SheetName, visibility = settings.Visibility },
+
             _ => null
         };
 
@@ -103,6 +117,14 @@ internal sealed class SheetCommand : AsyncCommand<SheetCommand.Settings>
         [Description("Target worksheet name for copy operation")]
         public string? TargetSheet { get; init; }
 
+        [CommandOption("--source-file <PATH>")]
+        [Description("Source file path for copy-to-file/move-to-file")]
+        public string? SourceFile { get; init; }
+
+        [CommandOption("--target-file <PATH>")]
+        [Description("Target file path for copy-to-file/move-to-file")]
+        public string? TargetFile { get; init; }
+
         [CommandOption("--before-sheet <NAME>")]
         [Description("Place sheet before this sheet (move)")]
         public string? BeforeSheet { get; init; }
@@ -110,5 +132,21 @@ internal sealed class SheetCommand : AsyncCommand<SheetCommand.Settings>
         [CommandOption("--after-sheet <NAME>")]
         [Description("Place sheet after this sheet (move)")]
         public string? AfterSheet { get; init; }
+
+        [CommandOption("--red <VALUE>")]
+        [Description("Red component (0-255) for tab color")]
+        public int? Red { get; init; }
+
+        [CommandOption("--green <VALUE>")]
+        [Description("Green component (0-255) for tab color")]
+        public int? Green { get; init; }
+
+        [CommandOption("--blue <VALUE>")]
+        [Description("Blue component (0-255) for tab color")]
+        public int? Blue { get; init; }
+
+        [CommandOption("--visibility <VALUE>")]
+        [Description("Visibility state: Visible, Hidden, VeryHidden")]
+        public string? Visibility { get; init; }
     }
 }

@@ -52,13 +52,11 @@ internal sealed class Program
         app.Configure(config =>
         {
             config.SetApplicationName("excelcli");
+            config.SetApplicationVersion(GetCurrentVersion());
             config.SetExceptionHandler((ex, _) =>
             {
                 AnsiConsole.MarkupLine($"[red]Unhandled error:[/] {ex.Message.EscapeMarkup()}");
             });
-
-            config.AddCommand<ListActionsCommand>("actions")
-                .WithDescription("List available actions for a command. Usage: excelcli actions <command>");
 
             // Daemon commands
             config.AddBranch("daemon", branch =>
@@ -164,6 +162,12 @@ internal sealed class Program
                     "Data Model operations.",
                     ActionValidator.GetValidActions<DataModelAction>()));
 
+            // DataModel relationship commands
+            config.AddCommand<DataModelRelCommand>("datamodelrel")
+                .WithDescription(DescribeActions(
+                    "Data Model relationship operations.",
+                    ActionValidator.GetValidActions<DataModelRelAction>()));
+
             // Slicer commands
             config.AddCommand<SlicerCommand>("slicer")
                 .WithDescription(DescribeActions(
@@ -230,6 +234,9 @@ internal sealed class Program
         AnsiConsole.MarkupLine("[dim]Excel automation powered by ExcelMcp Core[/]");
         AnsiConsole.MarkupLine("[yellow]Workflow:[/] [green]session open <file>[/] → run commands with [green]--session <id>[/] → [green]session close --save[/].");
         AnsiConsole.MarkupLine("[dim]A background daemon manages sessions for performance.[/]");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("[red]⚠ IMPORTANT:[/] PowerShell breaks on commas in JSON and the 'in' keyword in M code.");
+        AnsiConsole.MarkupLine("[dim]   Use[/] [green]--values-file[/] [dim]and[/] [green]--mcode-file[/] [dim]for complex data.[/]");
         AnsiConsole.WriteLine();
     }
 

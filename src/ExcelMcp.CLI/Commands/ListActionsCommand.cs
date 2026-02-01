@@ -16,6 +16,8 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
     {
         var actionsByCommand = new Dictionary<string, IEnumerable<string>>(StringComparer.OrdinalIgnoreCase)
         {
+            // Session management (REQUIRED FIRST STEP)
+            ["session"] = new[] { "create", "open", "close", "list", "save" },
             ["sheet"] = ActionValidator.GetValidActions<WorksheetAction>()
                 .Concat(ActionValidator.GetValidActions<WorksheetStyleAction>()),
             ["range"] = ActionValidator.GetValidActions<RangeAction>()
@@ -60,7 +62,13 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
             pair => pair.Value.OrderBy(a => a, StringComparer.OrdinalIgnoreCase).ToArray(),
             StringComparer.OrdinalIgnoreCase);
 
-        var payload = new { success = true, commands = all };
+        var payload = new
+        {
+            success = true,
+            workflow = "REQUIRED: 1) session open/create <file> → get sessionId, 2) all commands need --session <id>, 3) session close --save to persist",
+            example = "session create file.xlsx → returns {sessionId:'abc'} → range set-values --session abc --range A1 --values 'Hello' → session close --save --session abc",
+            commands = all
+        };
         Console.WriteLine(JsonSerializer.Serialize(payload, DaemonProtocol.JsonOptions));
         return 0;
     }
