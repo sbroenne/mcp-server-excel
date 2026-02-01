@@ -113,8 +113,9 @@ internal sealed class ExcelDaemon : IDisposable
                 DaemonSecurity.DeleteLockFile();
             }
 
-            _instanceMutex?.ReleaseMutex();
-            _instanceMutex?.Dispose();
+            // _instanceMutex is guaranteed non-null here (method throws if null)
+            _instanceMutex.ReleaseMutex();
+            _instanceMutex.Dispose();
             _instanceMutex = null;
         }
     }
