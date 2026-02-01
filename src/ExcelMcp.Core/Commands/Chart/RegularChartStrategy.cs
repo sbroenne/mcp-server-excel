@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
@@ -17,7 +18,7 @@ public class RegularChartStrategy : IChartStrategy
             var pivotLayout = chart.PivotLayout;
             return pivotLayout == null;
         }
-        catch
+        catch (COMException)
         {
             return true; // No PivotLayout property = Regular chart
         }
@@ -46,9 +47,9 @@ public class RegularChartStrategy : IChartStrategy
             topLeftCell = shape.TopLeftCell;
             info.TopLeftCell = topLeftCell.Address?.ToString();
         }
-        catch
+        catch (COMException)
         {
-            // TopLeftCell not available - optional property
+            // TopLeftCell not available - optional COM property
         }
         finally
         {
@@ -60,9 +61,9 @@ public class RegularChartStrategy : IChartStrategy
             bottomRightCell = shape.BottomRightCell;
             info.BottomRightCell = bottomRightCell.Address?.ToString();
         }
-        catch
+        catch (COMException)
         {
-            // BottomRightCell not available - optional property
+            // BottomRightCell not available - optional COM property
         }
         finally
         {
@@ -73,9 +74,9 @@ public class RegularChartStrategy : IChartStrategy
         {
             info.Placement = Convert.ToInt32(shape.Placement);
         }
-        catch
+        catch (COMException)
         {
-            // Placement not available - optional property
+            // Placement not available - optional COM property
         }
 
         // Count series
@@ -117,9 +118,9 @@ public class RegularChartStrategy : IChartStrategy
             topLeftCell = shape.TopLeftCell;
             info.TopLeftCell = topLeftCell.Address?.ToString();
         }
-        catch
+        catch (COMException)
         {
-            // TopLeftCell not available - optional property
+            // TopLeftCell not available - optional COM property
         }
         finally
         {
@@ -131,9 +132,9 @@ public class RegularChartStrategy : IChartStrategy
             bottomRightCell = shape.BottomRightCell;
             info.BottomRightCell = bottomRightCell.Address?.ToString();
         }
-        catch
+        catch (COMException)
         {
-            // BottomRightCell not available - optional property
+            // BottomRightCell not available - optional COM property
         }
         finally
         {
@@ -144,9 +145,9 @@ public class RegularChartStrategy : IChartStrategy
         {
             info.Placement = Convert.ToInt32(shape.Placement);
         }
-        catch
+        catch (COMException)
         {
-            // Placement not available - optional property
+            // Placement not available - optional COM property
         }
 
         // Get title
@@ -157,9 +158,9 @@ public class RegularChartStrategy : IChartStrategy
                 info.Title = chart.ChartTitle.Text?.ToString() ?? string.Empty;
             }
         }
-        catch
+        catch (COMException)
         {
-            // No title - optional property, safe to ignore
+            // No title - optional COM property, safe to ignore
         }
 
         // Get legend
@@ -167,9 +168,9 @@ public class RegularChartStrategy : IChartStrategy
         {
             info.HasLegend = chart.HasLegend;
         }
-        catch
+        catch (COMException)
         {
-            info.HasLegend = false; // Safe fallback for optional property
+            info.HasLegend = false; // Safe fallback for optional COM property
         }
 
         // Get source range
@@ -178,9 +179,9 @@ public class RegularChartStrategy : IChartStrategy
             dynamic sourceData = chart.ChartArea.Parent.SeriesCollection(1).Formula;
             info.SourceRange = sourceData?.ToString() ?? string.Empty;
         }
-        catch
+        catch (COMException)
         {
-            // No source range or no series - optional, safe to ignore
+            // No source range or no series - optional COM property, safe to ignore
         }
 
         // Get series

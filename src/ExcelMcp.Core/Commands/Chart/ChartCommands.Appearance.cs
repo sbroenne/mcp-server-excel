@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 
@@ -864,20 +865,20 @@ public partial class ChartCommands
                         };
 
                         // Get forward/backward forecast periods
-                        try { info.Forward = trendline.Forward; } catch { }
-                        try { info.Backward = trendline.Backward; } catch { }
-                        try { info.Intercept = trendline.Intercept; } catch { }
+                        try { info.Forward = trendline.Forward; } catch (COMException) { /* Optional COM property */ }
+                        try { info.Backward = trendline.Backward; } catch (COMException) { /* Optional COM property */ }
+                        try { info.Intercept = trendline.Intercept; } catch (COMException) { /* Optional COM property */ }
 
                         // Get order for polynomial trendlines
                         if (info.Type == TrendlineType.Polynomial)
                         {
-                            try { info.Order = Convert.ToInt32(trendline.Order); } catch { }
+                            try { info.Order = Convert.ToInt32(trendline.Order); } catch (COMException) { /* Optional COM property */ }
                         }
 
                         // Get period for moving average
                         if (info.Type == TrendlineType.MovingAverage)
                         {
-                            try { info.Period = Convert.ToInt32(trendline.Period); } catch { }
+                            try { info.Period = Convert.ToInt32(trendline.Period); } catch (COMException) { /* Optional COM property */ }
                         }
 
                         result.Trendlines.Add(info);
