@@ -22,6 +22,12 @@ public static class ResiliencePipelines
     public const int RPC_E_CALL_REJECTED = unchecked((int)0x80010001);          // -2147418111
 
     /// <summary>
+    /// RPC_E_CALL_FAILED - RPC connection failed. Excel is unreachable.
+    /// FATAL ERROR - Do not retry, Excel process must be force-killed.
+    /// </summary>
+    public const int RPC_E_CALL_FAILED = unchecked((int)0x800706BE);            // -2147023170
+
+    /// <summary>
     /// Data Model specific error - intermittent failure during measure/table operations.
     /// See GitHub Issue #315.
     /// </summary>
@@ -88,9 +94,11 @@ public static class ResiliencePipelines
                 Delay = TimeSpan.FromMilliseconds(config.DelayMs),
 
                 ShouldHandle = new PredicateBuilder().Handle<COMException>(ex =>
-                    ex.HResult == RPC_E_SERVERCALL_RETRYLATER ||
-                    ex.HResult == RPC_E_CALL_REJECTED ||
-                    config.AdditionalHResults.Contains(ex.HResult)),
+                    // Only retry transient errors, NOT fatal RPC connection failures
+                    ex.HResult != RPC_E_CALL_FAILED &&
+                    (ex.HResult == RPC_E_SERVERCALL_RETRYLATER ||
+                     ex.HResult == RPC_E_CALL_REJECTED ||
+                     config.AdditionalHResults.Contains(ex.HResult))),
 
                 OnRetry = static _ => ValueTask.CompletedTask
             })

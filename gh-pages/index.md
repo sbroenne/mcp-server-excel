@@ -23,6 +23,7 @@ canonical_url: "https://excelmcpserver.dev/"
       <a href="https://github.com/sbroenne/mcp-server-excel"><img src="https://img.shields.io/github/stars/sbroenne/mcp-server-excel?style=flat&label=GitHub%20Stars" alt="GitHub Stars"></a>
       <a href="https://github.com/sbroenne/mcp-server-excel/releases"><img src="https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total?label=GitHub%20Downloads" alt="GitHub Downloads"></a>
       <a href="https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer"><img src="https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg?label=NuGet%20MCP%20Installs" alt="NuGet MCP Server Installs"></a>
+      <a href="https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI"><img src="https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.CLI.svg?label=NuGet%20CLI%20Installs" alt="NuGet CLI Installs"></a>
     </div>
   </div>
 </div>
@@ -50,6 +51,29 @@ canonical_url: "https://excelmcpserver.dev/"
 **MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands, including Power Query & M, PowerPivot & DAX, VBA macros, PivotTables, Charts, formatting & much more – no Excel programming knowledge required.
 
 It works with any MCP-compatible AI assistant like GitHub Copilot, Claude Desktop, Cursor, Windsurf, etc.
+
+### CLI vs MCP Server
+
+This package provides both **CLI** and **MCP Server** interfaces:
+
+| Interface | Best For | Why |
+|-----------|----------|-----|
+| **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | **64% fewer tokens** - single tool, no large schemas |
+| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | **32% faster** - persistent connection, rich tool discovery |
+
+<details>
+<summary>📊 Benchmark Results (same task, same model)</summary>
+
+| Metric | CLI | MCP Server | Winner |
+|--------|-----|------------|--------|
+| **Tokens** | ~59K | ~163K | 🏆 CLI (64% fewer) |
+| **Runtime** | 23.6s | 16.0s | 🏆 MCP (32% faster) |
+
+**Key insight:** MCP sends 22 tool schemas to the LLM (~100K+ tokens). CLI wraps everything in one tool and offloads guidance to a skill file.
+
+</details>
+
+**Install CLI:** `dotnet tool install -g Sbroenne.ExcelMcp.CLI` (use `-q` flag for clean JSON output)
 
 **🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
 
@@ -101,7 +125,7 @@ It works with any MCP-compatible AI assistant like GitHub Copilot, Claude Deskto
 </div>
 </div>
 
-<p><a href="/features/">See all 22 tools and 206 operations →</a></p>
+<p><a href="/features/">See all 22 tools and 210 operations →</a></p>
 
 ## What Can You Do With It?
 
@@ -146,22 +170,20 @@ dotnet tool install -g Sbroenne.ExcelMcp.CLI
 ```
 
 ```bash
-# Refresh Power Query
-excel-cli pq refresh sales.xlsx --query SalesData
-
-# Export VBA for version control  
-excel-cli vba export macro-workbook.xlsm --module Module1 --output src/vba/
-
-# Read range values
-excel-cli range get-values report.xlsx --sheet Sheet1 --range A1:D10
+# Session-based workflow (keeps Excel open between commands)
+excelcli -q session create report.xlsx    # Returns session ID
+excelcli -q range set-values --session 1 --sheet Sheet1 --range A1 --values '[["Hello","World"]]'
+excelcli -q session close --session 1 --save
 ```
 
-The CLI provides 172 operations across 13 command groups, sharing the same Core engine as the MCP Server.
+**Background Daemon:** A system tray icon appears when the CLI is running. Right-click to view active sessions, close files, or stop the daemon.
+
+📖 **[CLI Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** — Full command reference and examples
 
 
 ## Documentation
 
-📖 **[Complete Feature Reference](/features/)** — All 22 tools and 206 operations
+📖 **[Complete Feature Reference](/features/)** — All 22 tools and 210 operations
 
 📥 **[Installation Guide](/installation/)** — Setup for VS Code, Claude Desktop, other MCP clients, and CLI
 

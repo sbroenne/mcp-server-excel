@@ -282,7 +282,7 @@ function Find-InterfaceForEnum {
     }
 }
 
-$toolActionsPath = "$rootDir/src/ExcelMcp.McpServer/Models/ToolActions.cs"
+$toolActionsPath = "$rootDir/src/ExcelMcp.Core/Models/Actions/ToolActions.cs"
 
 # Dynamically discover all interfaces to check
 $commandsPath = Join-Path $rootDir "src\ExcelMcp.Core\Commands"
@@ -476,7 +476,7 @@ if ($CheckNaming) {
                           "GetColumnNumberFormat", "SetColumnNumberFormat",
                           # Table slicer methods exposed via SlicerAction (cross-interface enum)
                           "CreateTableSlicer", "ListTableSlicers", "SetTableSlicerSelection", "DeleteTableSlicer")
-        "FileAction" = @("CloseWorkbook", "Open", "Save", "Close", "List")  # MCP-specific session actions
+        "FileAction" = @("CloseWorkbook", "Open", "Save", "Close", "List", "Create")  # MCP-specific session actions
         "RangeAction" = @("SetNumberFormatCustom", "InsertCells", "DeleteCells", "InsertRows", "DeleteRows",
                           "InsertColumns", "DeleteColumns", "Find", "Replace", "Sort",
                           "AddHyperlink", "RemoveHyperlink", "ListHyperlinks", "GetHyperlink",

@@ -2,7 +2,7 @@
 #pragma warning disable IDE0005
 using System.Reflection;
 #pragma warning restore IDE0005
-using Sbroenne.ExcelMcp.McpServer.Models;
+using Sbroenne.ExcelMcp.Core.Models.Actions;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -36,7 +36,7 @@ public class ActionEnumCompletenessTests(ITestOutputHelper output)
         // Find all *Action enums in Models namespace
         var actionEnums = typeof(ActionExtensions).Assembly
             .GetTypes()
-            .Where(t => t.IsEnum && t.Name.EndsWith("Action", StringComparison.Ordinal) && t.Namespace == "Sbroenne.ExcelMcp.McpServer.Models")
+            .Where(t => t.IsEnum && t.Name.EndsWith("Action", StringComparison.Ordinal) && t.Namespace == "Sbroenne.ExcelMcp.Core.Models.Actions")
             .ToList();
 
         output.WriteLine($"Found {actionEnums.Count} action enums:");
@@ -112,7 +112,7 @@ public class ActionEnumCompletenessTests(ITestOutputHelper output)
     {
         var actionEnums = typeof(ActionExtensions).Assembly
             .GetTypes()
-            .Where(t => t.IsEnum && t.Name.EndsWith("Action", StringComparison.Ordinal) && t.Namespace == "Sbroenne.ExcelMcp.McpServer.Models")
+            .Where(t => t.IsEnum && t.Name.EndsWith("Action", StringComparison.Ordinal) && t.Namespace == "Sbroenne.ExcelMcp.Core.Models.Actions")
             .ToList();
 
         var failures = new List<string>();
@@ -183,7 +183,7 @@ public class ActionEnumCompletenessTests(ITestOutputHelper output)
     {
         var actionEnums = typeof(ActionExtensions).Assembly
             .GetTypes()
-            .Where(t => t.IsEnum && t.Name.EndsWith("Action", StringComparison.Ordinal) && t.Namespace == "Sbroenne.ExcelMcp.McpServer.Models")
+            .Where(t => t.IsEnum && t.Name.EndsWith("Action", StringComparison.Ordinal) && t.Namespace == "Sbroenne.ExcelMcp.Core.Models.Actions")
             .ToList();
 
         output.WriteLine($"\nExpected tool files with switch statements:");

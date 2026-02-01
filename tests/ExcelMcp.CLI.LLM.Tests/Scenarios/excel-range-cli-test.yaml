@@ -1,0 +1,126 @@
+# =============================================================================
+# Excel Range CLI Test - excelcli range command
+# =============================================================================
+#
+# Tests: excelcli CLI for reading and writing cell data
+#
+# Commands Covered:
+#   - excelcli range set-values: Write data to cells (2D array format)
+#   - excelcli range get-values: Read data from cells
+#   - excelcli range get-used-range: Get the used range in a worksheet
+#   - excelcli range clear-all: Clear all content and formatting
+#
+# Key Validation:
+#   - LLM correctly uses CLI syntax and -q flag for quiet output
+#   - LLM understands how to chain CLI commands
+#   - LLM interprets CLI output correctly
+#
+# Prerequisites:
+#   - Windows 10/11 with Excel installed
+#   - excelcli installed and in PATH (or use dotnet run)
+#   - Environment: AZURE_OPENAI_ENDPOINT
+#   - agent-benchmark with CLI server support (feature/combined-skills-cli branch)
+#
+# =============================================================================
+
+criteria:
+  success_rate: 1  # 100% required
+
+ai_summary:
+  enabled: true
+  judge_provider: azure-openai-judge
+
+providers:
+  - name: azure-openai-gpt41
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+  - name: azure-openai-gpt5-chat
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-5.1-chat
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+  # Provider for clarification detection judge
+  - name: azure-openai-judge
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-4.1
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+
+servers:
+  - name: excel-cli
+    type: cli
+    command: "{{CLI_COMMAND}}"
+    shell: powershell
+    working_dir: "{{TEMP_DIR}}"
+    tool_prefix: excel
+
+agents:
+  - name: gpt41-agent
+    servers:
+      - name: excel-cli
+    provider: azure-openai-gpt41
+    # Agent Skills: Load excel-cli skill for CLI-specific guidance
+    skill:
+      path: "{{SKILL_PATH_CLI}}"
+      file_access: true
+    clarification_detection:
+      enabled: true
+      judge_provider: azure-openai-judge
+  - name: gpt5-chat-agent
+    servers:
+      - name: excel-cli
+    provider: azure-openai-gpt5-chat
+    # Agent Skills: Load excel-cli skill for CLI-specific guidance
+    skill:
+      path: "{{SKILL_PATH_CLI}}"
+      file_access: true
+    clarification_detection:
+      enabled: true
+      judge_provider: azure-openai-judge
+
+settings:
+  verbose: true
+  max_iterations: 15
+
+
+sessions:
+  # ==========================================================================
+  # Session 1: Basic Range Operations via CLI
+  # ==========================================================================
+  - name: "CLI Range Set and Get"
+    tests:
+      - name: "Write and read cells using CLI"
+        prompt: |
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-range-cli-{{randomValue type='UUID'}}.xlsx
+          2. Write data to Sheet1 range A1:C2 using the values from this JSON file:
+             {{TEST_DIR}}/../Fixtures/range-test-data.json
+
+             IMPORTANT: JSON arrays with commas break CLI argument parsing.
+             You MUST use --values-file with the path above instead of --values with inline JSON.
+          3. Read back the data from A1:C2 to verify it was written correctly
+          4. Close the file without saving
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: cli_stdout_contains
+            substring: "Product"
+            description: "Verify the data was read back correctly"
+
+  # ==========================================================================
+  # Session 2: Range Operations with Error Handling
+  # ==========================================================================
+  - name: "CLI Range Error Handling"
+    tests:
+      - name: "Handle invalid range gracefully"
+        prompt: |
+          1. Create a new empty Excel file at {{TEMP_DIR}}/llm-test-range-error-cli-{{randomValue type='UUID'}}.xlsx
+          2. Try to get values from a large range like A1:Z1000 to see what happens
+          3. Then close the file without saving
+        assertions:
+          - type: no_clarification_questions

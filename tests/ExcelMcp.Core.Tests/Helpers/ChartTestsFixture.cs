@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Runtime.CompilerServices;
-using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -17,7 +17,6 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 public class ChartTestsFixture : IAsyncLifetime
 {
     private readonly string _tempDir;
-    private readonly FileCommands _fileCommands = new();
 
     /// <summary>
     /// Temp directory for all test files (auto-cleaned on disposal)
@@ -41,7 +40,12 @@ public class ChartTestsFixture : IAsyncLifetime
     {
         var fileName = $"{testName}_{Guid.NewGuid():N}{extension}";
         var filePath = Path.Join(_tempDir, fileName);
-        _fileCommands.CreateEmpty(filePath);
+
+        // Use SessionManager to create file and immediately close the session
+        using var manager = new SessionManager();
+        var sessionId = manager.CreateSessionForNewFile(filePath, showExcel: false);
+        manager.CloseSession(sessionId, save: true);
+
         return filePath;
     }
 

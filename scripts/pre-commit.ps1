@@ -1,15 +1,16 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Git pre-commit hook to check for COM object leaks, Core Commands coverage, naming consistency, Success flag violations, and MCP Server functionality
+    Git pre-commit hook to check for COM object leaks, Core Commands coverage, naming consistency, Success flag violations, CLI coverage, and MCP Server functionality
 
 .DESCRIPTION
-    Runs five checks before allowing commits:
+    Runs six checks before allowing commits:
     1. COM leak checker - ensures no Excel COM objects are leaked
     2. Coverage audit - ensures 100% Core Commands are exposed via MCP Server
     3. Naming consistency - ensures enum names match Core method names exactly
     4. Success flag validation - ensures Success=true never paired with ErrorMessage (Rule 0)
-    5. Smoke test - validates all 11 MCP tools work correctly
+    5. CLI coverage - ensures all action enums have corresponding CLI commands
+    6. Smoke test - validates all 11 MCP tools work correctly
 
     Ensures code quality and prevents regression.
 
@@ -137,6 +138,78 @@ catch {
 }
 
 Write-Host ""
+Write-Host "🔍 Running CLI coverage check..." -ForegroundColor Cyan
+
+try {
+    $cliCoverageScript = Join-Path $rootDir "scripts\check-cli-coverage.ps1"
+    & $cliCoverageScript
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "❌ CLI coverage check failed!" -ForegroundColor Red
+        Write-Host "   All action enums must have corresponding CLI commands." -ForegroundColor Red
+        Write-Host "   Fix the issues before committing." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "✅ CLI coverage check passed" -ForegroundColor Green
+}
+catch {
+    Write-Host ""
+    Write-Host "❌ Error running CLI coverage check: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
+Write-Host "🔍 Running CLI action switch coverage check..." -ForegroundColor Cyan
+
+try {
+    $cliActionCoverageScript = Join-Path $rootDir "scripts\check-cli-action-coverage.ps1"
+    & $cliActionCoverageScript
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "❌ CLI action switch coverage check failed!" -ForegroundColor Red
+        Write-Host "   Actions requiring args must have explicit switch cases in CLI commands." -ForegroundColor Red
+        Write-Host "   Fix: Add case with correct args (e.g., tableName = settings.TableName)." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "✅ CLI action switch coverage check passed" -ForegroundColor Green
+}
+catch {
+    Write-Host ""
+    Write-Host "❌ Error running CLI action switch coverage check: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
+Write-Host "🔍 Running CLI workflow smoke test..." -ForegroundColor Cyan
+
+try {
+    $cliWorkflowScript = Join-Path $rootDir "scripts\Test-CliWorkflow.ps1"
+    $cliWorkflowOutput = & $cliWorkflowScript 2>&1 | Out-String
+    $cliWorkflowExitCode = $LASTEXITCODE
+
+    if ($cliWorkflowExitCode -ne 0) {
+        Write-Host ""
+        Write-Host "❌ CLI workflow smoke test failed!" -ForegroundColor Red
+        Write-Host "   This test validates the end-to-end CLI workflow." -ForegroundColor Red
+        Write-Host "   Fix the issues before committing." -ForegroundColor Red
+        Write-Host ""
+        Write-Host $cliWorkflowOutput -ForegroundColor Gray
+        exit 1
+    }
+
+    Write-Host "✅ CLI workflow smoke test passed" -ForegroundColor Green
+}
+catch {
+    Write-Host ""
+    Write-Host "❌ Error running CLI workflow smoke test: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
 Write-Host "🔍 Running MCP Server smoke test..." -ForegroundColor Cyan
 
 try {
@@ -144,11 +217,11 @@ try {
     $smokeTestFilter = "FullyQualifiedName~McpServerSmokeTests.SmokeTest_AllTools_E2EWorkflow"
 
     Write-Host "   dotnet test --filter `"$smokeTestFilter`"" -ForegroundColor Gray
-    
+
     # Capture output to verify tests actually ran (dotnet test returns 0 even if no tests match!)
     $testOutput = dotnet test --filter $smokeTestFilter --verbosity minimal 2>&1 | Out-String
     $testExitCode = $LASTEXITCODE
-    
+
     # Check if any tests actually passed (critical - filter typos cause silent failures!)
     # Note: "No test matches" appears for projects without the test, so we check for "Passed"
     if (-not ($testOutput -match "Passed!.*Passed:\s*[1-9]")) {
@@ -161,7 +234,7 @@ try {
         Write-Host $testOutput -ForegroundColor Gray
         exit 1
     }
-    
+
     if ($testExitCode -ne 0) {
         Write-Host ""
         Write-Host "❌ MCP Server smoke test failed! Core functionality is broken." -ForegroundColor Red

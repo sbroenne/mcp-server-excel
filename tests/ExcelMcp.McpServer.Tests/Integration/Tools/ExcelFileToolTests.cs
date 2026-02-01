@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 using System.Text.Json;
-using Sbroenne.ExcelMcp.McpServer.Models;
+using Sbroenne.ExcelMcp.Core.Models.Actions;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
 using Xunit.Abstractions;
@@ -20,18 +20,19 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 public class ExcelFileToolTests(ITestOutputHelper output)
 {
     [Fact]
-    public void CreateEmpty_ProtectedSystemPath_ReturnsJsonError()
+    public void Create_ProtectedSystemPath_ReturnsJsonError()
     {
         // Arrange - path that reliably fails (Windows directory is protected)
         var protectedPath = @"C:\Windows\HelloWorld.xlsx";
 
         // Act
         var result = ExcelFileTool.ExcelFile(
-            FileAction.CreateEmpty,
+            FileAction.Create,
             excelPath: protectedPath,
             sessionId: null,
             save: false,
-            showExcel: false);
+            showExcel: false,
+            timeoutSeconds: 300);
 
         output.WriteLine($"Result: {result}");
 
@@ -40,24 +41,25 @@ public class ExcelFileToolTests(ITestOutputHelper output)
         var json = JsonDocument.Parse(result).RootElement;
         Assert.False(json.GetProperty("success").GetBoolean());
         Assert.True(json.TryGetProperty("errorMessage", out var errorMsg));
-        Assert.Contains("Cannot create file", errorMsg.GetString());
+        Assert.Contains("Cannot create", errorMsg.GetString());
         Assert.True(json.TryGetProperty("isError", out var isError));
         Assert.True(isError.GetBoolean());
     }
 
     [Fact]
-    public void CreateEmpty_InvalidPath_ReturnsJsonError()
+    public void Create_InvalidPath_ReturnsJsonError()
     {
         // Arrange - use a path that will fail (System32, no permission)
         var invalidPath = @"C:\Windows\System32\test.xlsx";
 
         // Act
         var result = ExcelFileTool.ExcelFile(
-            FileAction.CreateEmpty,
+            FileAction.Create,
             excelPath: invalidPath,
             sessionId: null,
             save: false,
-            showExcel: false);
+            showExcel: false,
+            timeoutSeconds: 300);
 
         output.WriteLine($"Result: {result}");
 
@@ -66,21 +68,22 @@ public class ExcelFileToolTests(ITestOutputHelper output)
         var json = JsonDocument.Parse(result).RootElement;
         Assert.False(json.GetProperty("success").GetBoolean());
         Assert.True(json.TryGetProperty("errorMessage", out var errorMsg));
-        Assert.Contains("Cannot create file", errorMsg.GetString());
+        Assert.Contains("Cannot create", errorMsg.GetString());
         Assert.True(json.TryGetProperty("isError", out var isError));
         Assert.True(isError.GetBoolean());
     }
 
     [Fact]
-    public void CreateEmpty_NullPath_ReturnsJsonError()
+    public void Create_NullPath_ReturnsJsonError()
     {
         // Act - null path should be caught and returned as JSON error
         var result = ExcelFileTool.ExcelFile(
-            FileAction.CreateEmpty,
+            FileAction.Create,
             excelPath: null,
             sessionId: null,
             save: false,
-            showExcel: false);
+            showExcel: false,
+            timeoutSeconds: 300);
 
         output.WriteLine($"Result: {result}");
 
@@ -95,20 +98,22 @@ public class ExcelFileToolTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void CreateEmpty_ValidPath_ReturnsSuccess()
+    public void Create_ValidPath_ReturnsSuccessWithSessionId()
     {
         // Arrange - use temp directory
         var tempPath = Path.Join(Path.GetTempPath(), $"ExcelFileToolTest_{Guid.NewGuid():N}.xlsx");
+        string? sessionId = null;
 
         try
         {
             // Act
             var result = ExcelFileTool.ExcelFile(
-                FileAction.CreateEmpty,
+                FileAction.Create,
                 excelPath: tempPath,
                 sessionId: null,
                 save: false,
-                showExcel: false);
+                showExcel: false,
+                timeoutSeconds: 300);
 
             output.WriteLine($"Result: {result}");
 
@@ -117,10 +122,24 @@ public class ExcelFileToolTests(ITestOutputHelper output)
             var json = JsonDocument.Parse(result).RootElement;
             Assert.True(json.GetProperty("success").GetBoolean());
             Assert.True(File.Exists(tempPath), "File should have been created");
+            Assert.True(json.TryGetProperty("sessionId", out var sessionIdElement));
+            sessionId = sessionIdElement.GetString();
+            Assert.NotNull(sessionId);
         }
         finally
         {
-            // Cleanup
+            // Cleanup - close session first
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                ExcelFileTool.ExcelFile(
+                    FileAction.Close,
+                    excelPath: null,
+                    sessionId: sessionId,
+                    save: false,
+                    showExcel: false,
+                    timeoutSeconds: 300);
+            }
+
             if (File.Exists(tempPath))
             {
                 File.Delete(tempPath);
@@ -140,7 +159,8 @@ public class ExcelFileToolTests(ITestOutputHelper output)
             excelPath: fakePath,
             sessionId: null,
             save: false,
-            showExcel: false);
+            showExcel: false,
+            timeoutSeconds: 300);
 
         output.WriteLine($"Result: {result}");
 

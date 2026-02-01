@@ -17,14 +17,13 @@ on:
       - 'Directory.Build.props'
       - 'Directory.Packages.props'
       - '.github/workflows/build-mcp-server.yml'
-  pull_request:
-    branches: [ main ]
     paths:
       - 'src/ExcelMcp.McpServer/**'
       - 'src/ExcelMcp.Core/**'
       - 'src/ExcelMcp.ComInterop/**'
       - 'tests/ExcelMcp.McpServer.Tests/**'
       - 'tests/ExcelMcp.Core.Tests/**'
+      - 'tests/ExcelMcp.Diagnostics.Tests/**'
       - 'tests/ExcelMcp.ComInterop.Tests/**'
       - 'global.json'
       - 'Directory.Build.props'

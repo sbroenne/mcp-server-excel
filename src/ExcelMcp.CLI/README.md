@@ -4,11 +4,16 @@
 [![Downloads](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.CLI.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Optional command-line interface for Excel automation without AI assistance.**
+**Command-line interface for Excel automation — preferred by coding agents.**
 
-For advanced users who prefer direct scripting control, the CLI provides 13 command categories with 206 operations matching the MCP Server (22 tools with 206 operations). Perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
+The CLI provides 14 command categories with 210 operations matching the MCP Server. Uses **64% fewer tokens** than MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 22 tool schemas into context.
 
-**Note:** Most users should use the [MCP Server with AI assistants](../ExcelMcp.McpServer/README.md) for natural language automation.
+| Interface | Best For | Why |
+|-----------|----------|-----|
+| **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | **64% fewer tokens** - single tool, no large schemas |
+| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery, persistent connection |
+
+Also perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
 
 ➡️ **[Learn more and see examples](https://sbroenne.github.io/mcp-server-excel/)**
 
@@ -29,11 +34,15 @@ excelcli --version
 excelcli --help
 ```
 
-> 🔁 **Session Workflow:** Always start with `excelcli session open <file>` (captures the session id), pass `--session-id <id>` to other commands, then `excelcli session save <id>` (optional) and `excelcli session close <id>` when finished. The CLI reuses the same Excel instance through that lifecycle.
+> 🔁 **Session Workflow:** Always start with `excelcli session open <file>` (captures the session id), pass `--session-id <id>` to other commands, then `excelcli session close <id> --save` when finished. The CLI reuses the same Excel instance through that lifecycle.
 
-### Update to Latest Version
+### Check for Updates
 
 ```bash
+# Check if newer version is available
+excelcli version --check
+
+# Update if available
 dotnet tool update --global Sbroenne.ExcelMcp.CLI
 ```
 
@@ -42,6 +51,18 @@ dotnet tool update --global Sbroenne.ExcelMcp.CLI
 ```bash
 dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 ```
+
+## 🤫 Quiet Mode (Agent-Friendly)
+
+For scripting and coding agents, use `-q`/`--quiet` to suppress banner and output JSON only:
+
+```bash
+excelcli -q session open data.xlsx
+excelcli -q range get-values --session 1 --sheet Sheet1 --range A1:B2
+excelcli -q session close --session 1 --save
+```
+
+Banner auto-suppresses when stdout is piped or redirected.
 
 ## 🆘 Built-in Help
 
@@ -78,26 +99,28 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **206 operations** across 13 categories:
+ExcelMcp.CLI provides **210 operations** across 14 command categories:
 
-📚 **[Complete Feature Reference →](../../FEATURES.md)** - Full MCP Server documentation (206 operations)
+📚 **[Complete Feature Reference →](../../FEATURES.md)** - Full documentation with all operations
 
 **Quick Reference:**
 
 | Category | Operations | Examples |
 |----------|-----------|----------|
-| **File & Session** | 5 | `create-empty`, `session open`, `session save`, `session close`, `session list` |
-| **Worksheets** | 16 | `sheet list`, `sheet create`, `sheet rename`, `sheet copy`, `sheet move`, `sheet copy-to-file`, `sheet move-to-file`, `sheet set-tab-color`, `sheet get-visibility` |
-| **Power Query** | 10 | `powerquery list`, `powerquery create`, `powerquery refresh`, `powerquery update`, `powerquery rename` |
-| **Ranges** | 42 | `range get-values`, `range set-values`, `range copy`, `range find`, `range merge-cells`, `range add-hyperlink` |
+| **File & Session** | 6 | `session create`, `session open`, `session close`, `session list` |
+| **Worksheets** | 16 | `sheet list`, `sheet create`, `sheet rename`, `sheet copy`, `sheet move`, `sheet copy-to-file` |
+| **Power Query** | 10 | `powerquery list`, `powerquery create`, `powerquery refresh`, `powerquery update` |
+| **Ranges** | 42 | `range get-values`, `range set-values`, `range copy`, `range find`, `range merge-cells` |
 | **Conditional Formatting** | 2 | `conditionalformat add-rule`, `conditionalformat clear-rules` |
-| **Excel Tables** | 27 | `table create`, `table apply-filter`, `table get-data`, `table sort`, `table add-column`, `table create-from-dax`, `table update-dax` |
-| **Charts** | 26 | `chart create-from-range`, `chart add-series`, `chart set-chart-type`, `chart show-legend`, `chart add-trendline`, `chart list-trendlines` |
-| **PivotTables** | 30 | `pivottable create-from-range`, `pivottable add-row-field`, `pivottable refresh`, `pivottable list-calculated-fields`, `pivottable create-calculated-member` |
-| **Data Model** | 18 | `datamodel create-measure`, `datamodel create-relationship`, `datamodel refresh`, `datamodel evaluate`, `datamodel delete-table`, `datamodel read-relationship` |
+| **Excel Tables** | 27 | `table create`, `table apply-filter`, `table get-data`, `table sort`, `table add-column` |
+| **Charts** | 14 | `chart create-from-range`, `chart list`, `chart delete`, `chart move`, `chart fit-to-range` |
+| **Chart Config** | 14 | `chartconfig set-title`, `chartconfig add-series`, `chartconfig set-style`, `chartconfig data-labels` |
+| **PivotTables** | 30 | `pivottable create-from-range`, `pivottable add-row-field`, `pivottable refresh` |
+| **Slicers** | 8 | `slicer create-slicer`, `slicer list-slicers`, `slicer set-slicer-selection` |
+| **Data Model** | 19 | `datamodel create-measure`, `datamodel create-relationship`, `datamodel evaluate` |
 | **Connections** | 9 | `connection list`, `connection refresh`, `connection test` |
 | **Named Ranges** | 6 | `namedrange create`, `namedrange read`, `namedrange write`, `namedrange update` |
-| **VBA** | 7 | `vba list`, `vba import`, `vba run`, `vba update` |
+| **VBA** | 6 | `vba list`, `vba import`, `vba run`, `vba update` |
 
 **Note:** CLI uses session commands for multi-operation workflows.
 
@@ -105,7 +128,7 @@ ExcelMcp.CLI provides **206 operations** across 13 categories:
 
 ## SESSION LIFECYCLE (Open/Save/Close)
 
-The CLI uses an explicit session-based workflow where you open a file, perform operations, and save or close:
+The CLI uses an explicit session-based workflow where you open a file, perform operations, and optionally save before closing:
 
 ```bash
 # 1. Open a session
@@ -119,19 +142,34 @@ excelcli session list
 excelcli sheet create --session-id 550e8400-e29b-41d4-a716-446655440000 --sheet "NewSheet"
 excelcli powerquery list --session-id 550e8400-e29b-41d4-a716-446655440000
 
-# 4. Save changes and keep session open
-excelcli session save 550e8400-e29b-41d4-a716-446655440000
+# 4. Close and save changes
+excelcli session close 550e8400-e29b-41d4-a716-446655440000 --save
 
-# 5. Close session and discard changes
+# OR: Close and discard changes (no --save flag)
 excelcli session close 550e8400-e29b-41d4-a716-446655440000
 ```
 
 ### Session Lifecycle Benefits
 
-- **Explicit control** - Know exactly when changes are persisted
+- **Explicit control** - Know exactly when changes are persisted with `--save`
 - **Batch efficiency** - Keep single Excel instance open for multiple operations (75-90% faster)
-- **Flexibility** - Save strategically or discard changes entirely
+- **Flexibility** - Save and close in one command, or close without saving
 - **Clean resource management** - Automatic Excel cleanup when session closes
+
+### Background Daemon & System Tray
+
+When you run your first CLI command, a **background daemon** starts automatically. The daemon:
+
+- **Manages Excel COM** - Keeps Excel instance alive between commands (no restart overhead)
+- **Shows system tray icon** - Look for the Excel CLI icon in your Windows taskbar notification area
+- **Tracks sessions** - Right-click the tray icon to see active sessions and close them
+
+**Tray Icon Features:**
+- 📋 **View sessions** - Double-click to see active session count
+- 💾 **Close sessions** - Right-click → Sessions → select file → "Save & Close" or "Close"
+- 🛑 **Stop daemon** - Right-click → "Stop Daemon" (prompts if sessions are open)
+
+The daemon auto-stops after 5 minutes of inactivity (no active sessions).
 
 ---
 
@@ -299,11 +337,8 @@ excelcli powerquery create --session-id $SESSION_ID --query "CleanSales" --m-fil
 # 5. Create PivotTable
 excelcli pivottable create-from-range --session-id $SESSION_ID --source-sheet Sales --source-range A1:E1000 --dest-sheet Summary --dest-cell A1 --name SalesPivot
 
-# 6. Save changes
-excelcli session save $SESSION_ID
-
-# 7. Close session
-excelcli session close $SESSION_ID
+# 6. Save and close session
+excelcli session close $SESSION_ID --save
 ```
 
 ### Worksheet Management
@@ -407,8 +442,10 @@ This is a security setting that must be manually enabled. ExcelMcp.CLI never mod
 For macro-enabled workbooks, use `.xlsm` extension:
 
 ```bash
-excelcli create-empty macros.xlsm
-excelcli vba-import macros.xlsm "Module1" code.vba
+excelcli session create macros.xlsm
+# Returns session ID (e.g., 1)
+excelcli vba import --session 1 --file code.vba
+excelcli session close --session 1 --save
 ```
 
 ---
@@ -467,8 +504,7 @@ foreach ($file in $files) {
     $session = excelcli session open $file.Name | Select-String "Session ID: (.+)" | ForEach-Object { $_.Matches.Groups[1].Value }
     excelcli powerquery refresh --session-id $session --query "Sales Data"
     excelcli datamodel refresh --session-id $session
-    excelcli session save $session
-    excelcli session close $session
+    excelcli session close $session --save
 }
 ```
 
@@ -484,8 +520,7 @@ foreach ($file in $files) {
     SESSION=$(excelcli session open data.xlsx | grep "Session ID:" | cut -d' ' -f3)
     excelcli powerquery create --session-id $SESSION --query "Query1" --m-file queries/query1.pq
     excelcli powerquery refresh --session-id $SESSION --query "Query1"
-    excelcli session save $SESSION
-    excelcli session close $SESSION
+    excelcli session close $SESSION --save
 ```
 
 

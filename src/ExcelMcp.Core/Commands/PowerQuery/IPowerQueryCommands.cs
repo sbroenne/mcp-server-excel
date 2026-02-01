@@ -103,6 +103,15 @@ public interface IPowerQueryCommands
     /// <param name="newName">Desired new name</param>
     /// <returns>Result with objectType=power-query and normalized names</returns>
     RenameResult Rename(IExcelBatch batch, string oldName, string newName);
+
+    /// <summary>
+    /// Converts query to connection-only by removing data from all destinations.
+    /// Removes worksheet ListObjects AND Data Model connections, but keeps the query definition.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="queryName">Name of the query to unload</param>
+    /// <returns>Operation result</returns>
+    OperationResult Unload(IExcelBatch batch, string queryName);
 }
 
 

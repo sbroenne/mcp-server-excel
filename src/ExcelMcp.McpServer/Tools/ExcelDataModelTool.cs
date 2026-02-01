@@ -16,6 +16,11 @@ public static partial class ExcelDataModelTool
     /// <summary>
     /// Data Model (Power Pivot) - DAX measures and table management.
     ///
+    /// CRITICAL: WORKSHEET TABLES AND DATA MODEL ARE SEPARATE!
+    /// - After excel_table(append) changes, Data Model still has OLD data
+    /// - MUST call excel_datamodel(refresh) to sync changes
+    /// - Power Query refresh auto-syncs (no manual refresh needed)
+    ///
     /// PREREQUISITE: Tables must be added to the Data Model first.
     /// Use excel_table with add-to-datamodel action to add worksheet tables,
     /// or excel_powerquery to import and load data directly to the Data Model.

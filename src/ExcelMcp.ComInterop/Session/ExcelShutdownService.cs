@@ -196,6 +196,17 @@ public static class ExcelShutdownService
                         ComInteropConstants.ExcelQuitTimeout, fileName, attemptNumber);
                     lastException = new TimeoutException($"Excel.Quit() timed out after {ComInteropConstants.ExcelQuitTimeout} for {fileName}");
                 }
+                catch (COMException ex) when (ex.HResult == ResiliencePipelines.RPC_E_CALL_FAILED)
+                {
+                    // Fatal RPC connection failure - Excel is unreachable
+                    logger.LogError(ex,
+                        "Excel RPC connection FAILED (0x800706BE) for {FileName}. " +
+                        "Excel is unreachable - this is a FATAL error that cannot be retried. " +
+                        "Proceeding with forced COM cleanup. Excel process should be force-killed by caller.",
+                        fileName);
+                    lastException = ex;
+                    // Don't retry - RPC connection is dead, Excel is gone
+                }
                 catch (COMException ex)
                 {
                     // All retry attempts exhausted or non-retriable error

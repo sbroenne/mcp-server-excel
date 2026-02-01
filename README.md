@@ -2,7 +2,8 @@
 
 [![VS Code Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/sbroenne.excel-mcp?label=VS%20Code%20Installs)](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)
 [![Downloads](https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total?label=GitHub%20Downloads)](https://github.com/sbroenne/mcp-server-excel/releases)
-[![NuGet Downloads - MCP Server](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg?label=Nuget%20MCP%20Server%20Installs)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
+[![NuGet Downloads - MCP Server](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg?label=NuGet%20MCP%20Server)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
+[![NuGet Downloads - CLI](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.CLI.svg?label=NuGet%20CLI)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
 
 [![Build MCP Server](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-mcp-server.yml/badge.svg)](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-mcp-server.yml)
 [![Build CLI](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-cli.yml/badge.svg)](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-cli.yml)
@@ -17,7 +18,41 @@
 
 **Automate Excel with AI - A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.**
 
-**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (22 tools with 206 operations).
+**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (22 tools with 210 operations).
+
+### CLI vs MCP Server
+
+This package provides both **CLI** and **MCP Server** interfaces. Choose based on your use case:
+
+| Interface | Best For | Why |
+|-----------|----------|-----|
+| **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | **64% fewer tokens** - single tool, no large schemas. Better for cost-sensitive, high-throughput automation. |
+| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery. Better for interactive, exploratory workflows. |
+
+<details>
+<summary>📊 Benchmark Results (same task, same model)</summary>
+
+| Metric | CLI | MCP Server | Winner |
+|--------|-----|------------|--------|
+| **Tokens** | ~59K | ~163K | 🏆 CLI (64% fewer) |
+| **Runtime** | 23.6s | 16.0s | 🏆 MCP (32% faster) |
+| **Tool Calls** | 12 | 11 | Tie |
+
+**Key insight:** MCP sends 22 tool schemas to the LLM on each request (~100K+ tokens). CLI wraps everything in one `excel_execute` tool and offloads guidance to a skill file.
+
+[View benchmark test →](tests/ExcelMcp.CLI.LLM.Tests/Scenarios/excel-cli-vs-mcp-comparison.yaml)
+
+</details>
+
+**Installation:**
+```bash
+# CLI for coding agents
+dotnet tool install --global Sbroenne.ExcelMcp.CLI
+excelcli --help
+
+# MCP Server for AI assistants (or use VS Code extension)
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+```
 
 **🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
 
@@ -49,9 +84,9 @@ Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/
 
 ## 🎯 What You Can Do
 
-**22 specialized tools with 206 operations:**
+**22 specialized tools with 210 operations:**
 
-- 🔄 **Power Query** (1 tool, 10 ops) - Atomic workflows, M code management, load destinations
+- 🔄 **Power Query** (1 tool, 11 ops) - Atomic workflows, M code management, load destinations
 - 📊 **Data Model/DAX** (2 tools, 18 ops) - Measures with auto-formatted DAX, relationships, model structure
 - 🎨 **Excel Tables** (2 tools, 27 ops) - Lifecycle, filtering, sorting, structured references
 - 📈 **PivotTables** (3 tools, 30 ops) - Creation, fields, aggregations, calculated members/fields
@@ -65,7 +100,7 @@ Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/
 - �️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
 - �🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
 
-📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 206 operations
+📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 210 operations
 
 
 ## 💬 Example Prompts
@@ -107,9 +142,30 @@ Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/
 
 ## 📋 Additional Information
 
-### CLI for Direct Automation
+### CLI for Coding Agents (Recommended)
 
-ExcelMcp includes a CLI interface for Excel automation without AI assistance. This is useful for RPA workflows, CI/CD pipelines, or batch processing scripts. Run `excelcli --help` for a categorized list of commands, or `excelcli sheet --help` (replace `sheet`) to view action-specific options. **Always follow the session pattern:** `excelcli session open <file>` → run commands with `--session <id>` → `excelcli session save/close <id>`. See **[CLI Guide](src/ExcelMcp.CLI/README.md)** for complete documentation.
+**For coding agents like GitHub Copilot, Cursor, and Windsurf, use the CLI instead of MCP Server.** CLI invocations are more token-efficient: they avoid loading large tool schemas into the model context, allowing agents to act through concise commands.
+
+```bash
+# Install CLI
+dotnet tool install --global Sbroenne.ExcelMcp.CLI
+
+# Agent workflow (use -q for clean JSON output)
+excelcli -q session open C:\Data\Report.xlsx    # Returns {"sessionId":1,...}
+excelcli -q range set-values --session 1 --sheet Sheet1 --range A1 --values-json '[["Hello"]]'
+excelcli -q session save --session 1
+excelcli -q session close --session 1
+```
+
+**Key features:**
+- `-q` / `--quiet` flag for clean JSON output (no banner)
+- Auto-suppresses banner when output is piped
+- All commands output parseable JSON
+- Session pattern for efficient Excel reuse
+
+Run `excelcli --help` for all commands, or `excelcli <command> --help` for action-specific options.
+
+📚 **[CLI Skill for Agents →](skills/excel-cli/SKILL.md)** | **[CLI Guide →](src/ExcelMcp.CLI/README.md)**
 
 ### Agent Skills (Cross-Platform AI Guidance)
 

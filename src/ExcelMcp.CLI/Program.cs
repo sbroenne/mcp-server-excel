@@ -1,25 +1,8 @@
-using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 using Sbroenne.ExcelMcp.CLI.Commands;
-using Sbroenne.ExcelMcp.CLI.Commands.Chart;
-using Sbroenne.ExcelMcp.CLI.Commands.ConditionalFormatting;
-using Sbroenne.ExcelMcp.CLI.Commands.Connection;
-using Sbroenne.ExcelMcp.CLI.Commands.DataModel;
-using Sbroenne.ExcelMcp.CLI.Commands.File;
-using Sbroenne.ExcelMcp.CLI.Commands.NamedRange;
-using Sbroenne.ExcelMcp.CLI.Commands.PivotTable;
-using Sbroenne.ExcelMcp.CLI.Commands.PowerQuery;
-using Sbroenne.ExcelMcp.CLI.Commands.Range;
-using Sbroenne.ExcelMcp.CLI.Commands.Session;
-using Sbroenne.ExcelMcp.CLI.Commands.Sheet;
-using Sbroenne.ExcelMcp.CLI.Commands.Table;
-using Sbroenne.ExcelMcp.CLI.Commands.Vba;
+using Sbroenne.ExcelMcp.CLI.Daemon;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
-using Sbroenne.ExcelMcp.CLI.Infrastructure.Session;
-using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Commands.Chart;
-using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
-using Sbroenne.ExcelMcp.Core.Commands.Range;
-using Sbroenne.ExcelMcp.Core.Commands.Table;
+using Sbroenne.ExcelMcp.Core.Models.Actions;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -28,81 +11,173 @@ namespace Sbroenne.ExcelMcp.CLI;
 internal sealed class Program
 {
     private static readonly string[] VersionFlags = ["--version", "-v"];
+    private static readonly string[] QuietFlags = ["--quiet", "-q"];
 
-    private static int Main(string[] args)
+    private static async Task<int> Main(string[] args)
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-        if (args.Length == 0)
+        // Handle daemon run command before Spectre.Console
+        if (args.Length >= 2 && args[0] == "daemon" && args[1] == "run")
         {
-            RenderHeader();
+            return await RunDaemonAsync();
+        }
+
+        // Determine if we should show the banner:
+        // - Not when --quiet/-q flag is passed
+        // - Not when output is redirected (piped to another process or file)
+        var isQuiet = args.Any(arg => QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase));
+        var isPiped = Console.IsOutputRedirected;
+        var showBanner = !isQuiet && !isPiped;
+
+        // Remove --quiet/-q from args before passing to Spectre.Console.Cli
+        var filteredArgs = args.Where(arg => !QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)).ToArray();
+
+        if (filteredArgs.Length == 0)
+        {
+            if (showBanner) RenderHeader();
             AnsiConsole.MarkupLine("[dim]No command supplied. Use [green]--help[/] for usage examples.[/]");
             return 0;
         }
 
-        if (args.Any(arg => VersionFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)))
+        if (filteredArgs.Any(arg => VersionFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)))
         {
-            VersionReporter.WriteVersion();
-            return 0;
+            return await HandleVersionAsync();
         }
 
-        RenderHeader();
+        if (showBanner) RenderHeader();
 
-        var services = new ServiceCollection();
-        ConfigureServices(services);
-
-        var registrar = new TypeRegistrar(services);
-        var app = new CommandApp(registrar);
+        var app = new CommandApp();
 
         app.Configure(config =>
         {
             config.SetApplicationName("excelcli");
+            config.SetApplicationVersion(GetCurrentVersion());
             config.SetExceptionHandler((ex, _) =>
             {
                 AnsiConsole.MarkupLine($"[red]Unhandled error:[/] {ex.Message.EscapeMarkup()}");
             });
-            config.ValidateExamples();
-            config.AddCommand<VersionCommand>("version")
-                .WithDescription("Display excelcli version information.");
 
-            config.AddBranch("session", branch =>
+            // Daemon commands
+            config.AddBranch("daemon", branch =>
             {
-                branch.SetDescription("Open, save, close, and list Excel sessions to reuse a single Excel process.");
-                branch.AddCommand<SessionOpenCommand>("open");
-                branch.AddCommand<SessionSaveCommand>("save");
-                branch.AddCommand<SessionCloseCommand>("close");
-                branch.AddCommand<SessionListCommand>("list");
+                branch.SetDescription("Daemon management. The daemon holds Excel sessions across CLI invocations.");
+                branch.AddCommand<DaemonStartCommand>("start")
+                    .WithDescription("Start the daemon in the background.");
+                branch.AddCommand<DaemonStopCommand>("stop")
+                    .WithDescription("Stop the daemon.");
+                branch.AddCommand<DaemonStatusCommand>("status")
+                    .WithDescription("Show daemon status and active sessions.");
             });
 
-            config.AddCommand<CreateEmptyFileCommand>("create-empty")
-                .WithDescription("Create a new empty workbook on disk (use --overwrite to replace existing files).");
-            config.AddCommand<PowerQueryCommand>("powerquery")
-                .WithDescription("Manage Power Query M code: list, import/export, update, and refresh queries.");
-            config.AddCommand<RangeCommand>("range")
-                .WithDescription("Work with worksheet ranges for values, formulas, formatting, validation, and hyperlinks.");
+            // Session commands
+            config.AddBranch("session", branch =>
+            {
+                branch.SetDescription("Session management. WORKFLOW: open -> use sessionId -> close (--save to persist).");
+                branch.AddCommand<SessionCreateCommand>("create")
+                    .WithDescription("Create a new Excel file, open it, and create a session.");
+                branch.AddCommand<SessionOpenCommand>("open")
+                    .WithDescription("Open an Excel file and create a session.");
+                branch.AddCommand<SessionCloseCommand>("close")
+                    .WithDescription("Close a session. Use --save to persist changes.");
+                branch.AddCommand<SessionListCommand>("list")
+                    .WithDescription("List active sessions.");
+                branch.AddCommand<SessionSaveCommand>("save")
+                    .WithDescription("Save a session without closing it.");
+            });
+
+            // Sheet commands
             config.AddCommand<SheetCommand>("sheet")
-                .WithDescription("Manage worksheet lifecycle, tab colors, and visibility within a session.");
-            config.AddCommand<NamedRangeCommand>("namedrange")
-                .WithDescription("Create, update, delete, and list named ranges/parameters.");
-            config.AddCommand<ConditionalFormattingCommand>("conditionalformat")
-                .WithDescription("Add or clear conditional formatting rules on ranges.");
+                .WithDescription(DescribeActions(
+                    "Worksheet operations.",
+                    ActionValidator.GetValidActions<WorksheetAction>()
+                        .Concat(ActionValidator.GetValidActions<WorksheetStyleAction>())));
+
+            // Range commands
+            config.AddCommand<RangeCommand>("range")
+                .WithDescription(DescribeActions(
+                    "Range operations.",
+                    ActionValidator.GetValidActions<RangeAction>()
+                        .Concat(ActionValidator.GetValidActions<RangeEditAction>())
+                        .Concat(ActionValidator.GetValidActions<RangeFormatAction>())
+                        .Concat(ActionValidator.GetValidActions<RangeLinkAction>())));
+
+            // Table commands
             config.AddCommand<TableCommand>("table")
-                .WithDescription("Automate Excel Tables: create, resize, filter, sort, and manage totals.");
+                .WithDescription(DescribeActions(
+                    "Table operations.",
+                    ActionValidator.GetValidActions<TableAction>()));
+
+            // PowerQuery commands
+            config.AddCommand<PowerQueryCommand>("powerquery")
+                .WithDescription(DescribeActions(
+                    "Power Query operations.",
+                    ActionValidator.GetValidActions<PowerQueryAction>()));
+
+            // PivotTable commands
             config.AddCommand<PivotTableCommand>("pivottable")
-                .WithDescription("Create and configure PivotTables, fields, and refresh behavior.");
+                .WithDescription(DescribeActions(
+                    "PivotTable operations.",
+                    ActionValidator.GetValidActions<PivotTableAction>()));
+
+            // Chart commands
             config.AddCommand<ChartCommand>("chart")
-                .WithDescription("Create and manage Excel charts (Regular and PivotCharts).");
+                .WithDescription(DescribeActions(
+                    "Chart operations.",
+                    ActionValidator.GetValidActions<ChartAction>()));
+
+            // ChartConfig commands
+            config.AddCommand<ChartConfigCommand>("chartconfig")
+                .WithDescription(DescribeActions(
+                    "Chart configuration.",
+                    ActionValidator.GetValidActions<ChartConfigAction>()));
+
+            // Connection commands
             config.AddCommand<ConnectionCommand>("connection")
-                .WithDescription("Inspect, refresh, and update workbook data connections (OLEDB/ODBC/Text/Web).");
-            config.AddCommand<DataModelCommand>("datamodel")
-                .WithDescription("Create DAX measures/relationships and inspect the Power Pivot Data Model.");
+                .WithDescription(DescribeActions(
+                    "Connection operations.",
+                    ActionValidator.GetValidActions<ConnectionAction>()));
+
+            // NamedRange commands
+            config.AddCommand<NamedRangeCommand>("namedrange")
+                .WithDescription(DescribeActions(
+                    "Named range operations.",
+                    ActionValidator.GetValidActions<NamedRangeAction>()));
+
+            // ConditionalFormat commands
+            config.AddCommand<ConditionalFormatCommand>("conditionalformat")
+                .WithDescription(DescribeActions(
+                    "Conditional formatting.",
+                    ActionValidator.GetValidActions<ConditionalFormatAction>()));
+
+            // VBA commands
             config.AddCommand<VbaCommand>("vba")
-                .WithDescription("List, export/import, update, and run VBA modules or macros.");
+                .WithDescription(DescribeActions(
+                    "VBA operations.",
+                    ActionValidator.GetValidActions<VbaAction>()));
+
+            // DataModel commands
+            config.AddCommand<DataModelCommand>("datamodel")
+                .WithDescription(DescribeActions(
+                    "Data Model operations.",
+                    ActionValidator.GetValidActions<DataModelAction>()));
+
+            // DataModel relationship commands
+            config.AddCommand<DataModelRelCommand>("datamodelrel")
+                .WithDescription(DescribeActions(
+                    "Data Model relationship operations.",
+                    ActionValidator.GetValidActions<DataModelRelAction>()));
+
+            // Slicer commands
+            config.AddCommand<SlicerCommand>("slicer")
+                .WithDescription(DescribeActions(
+                    "Slicer operations.",
+                    ActionValidator.GetValidActions<SlicerAction>()));
         });
 
         try
         {
-            return app.Run(args);
+            return app.Run(filteredArgs);
         }
         catch (CommandRuntimeException ex)
         {
@@ -120,31 +195,98 @@ internal sealed class Program
         }
     }
 
-    private static void ConfigureServices(IServiceCollection services)
+    private static async Task<int> RunDaemonAsync()
     {
-        services.AddSingleton<SessionService>();
-        services.AddSingleton<ISessionService>(sp => sp.GetRequiredService<SessionService>());
-        services.AddSingleton<ICliConsole, SpectreCliConsole>();
-        services.AddSingleton<IFileCommands, FileCommands>();
-        services.AddSingleton<IDataModelCommands, DataModelCommands>();
-        services.AddSingleton<IPowerQueryCommands>(sp => new PowerQueryCommands(sp.GetRequiredService<IDataModelCommands>()));
-        services.AddSingleton<IRangeCommands, RangeCommands>();
-        services.AddSingleton<ISheetCommands, SheetCommands>();
-        services.AddSingleton<INamedRangeCommands, NamedRangeCommands>();
-        services.AddSingleton<ITableCommands, TableCommands>();
-        services.AddSingleton<IPivotTableCommands, PivotTableCommands>();
-        services.AddSingleton<IChartCommands, ChartCommands>();
-        services.AddSingleton<IConditionalFormattingCommands, ConditionalFormattingCommands>();
-        services.AddSingleton<IConnectionCommands, ConnectionCommands>();
-        services.AddSingleton<IVbaCommands, VbaCommands>();
+        using var daemon = new ExcelDaemon();
+
+        // Handle Ctrl+C and process termination gracefully
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true; // Prevent immediate termination
+            daemon.RequestShutdown();
+        };
+
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            daemon.RequestShutdown();
+        };
+
+        try
+        {
+            await daemon.RunAsync();
+            return 0;
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("already running"))
+        {
+            Console.Error.WriteLine("Daemon is already running.");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Daemon error: {ex.Message}");
+            return 1;
+        }
     }
 
     private static void RenderHeader()
     {
-        AnsiConsole.Write(new FigletText("Excel CLI").Color(Color.Blue));
+        AnsiConsole.Write(new FigletText("Excel CLI").Color(Spectre.Console.Color.Blue));
         AnsiConsole.MarkupLine("[dim]Excel automation powered by ExcelMcp Core[/]");
-        AnsiConsole.MarkupLine("[yellow]Workflow:[/] [green]session open <file>[/] → run commands with [green]--session <id>[/] → [green]session save[/] (optional) → [green]session close[/].");
-        AnsiConsole.MarkupLine("[dim]Most commands expect an active session so they can reuse the same Excel instance.[/]");
+        AnsiConsole.MarkupLine("[yellow]Workflow:[/] [green]session open <file>[/] → run commands with [green]--session <id>[/] → [green]session close --save[/].");
+        AnsiConsole.MarkupLine("[dim]A background daemon manages sessions for performance.[/]");
         AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("[red]⚠ IMPORTANT:[/] PowerShell breaks on commas in JSON and the 'in' keyword in M code.");
+        AnsiConsole.MarkupLine("[dim]   Use[/] [green]--values-file[/] [dim]and[/] [green]--mcode-file[/] [dim]for complex data.[/]");
+        AnsiConsole.WriteLine();
+    }
+
+    private static string DescribeActions(string baseDescription, IEnumerable<string> actions)
+    {
+        var actionList = string.Join(", ", actions);
+        return $"{baseDescription} Actions: {actionList}.";
+    }
+
+    private static async Task<int> HandleVersionAsync()
+    {
+        var currentVersion = GetCurrentVersion();
+        var latestVersion = await NuGetVersionChecker.GetLatestVersionAsync();
+        var updateAvailable = latestVersion != null && CompareVersions(currentVersion, latestVersion) < 0;
+
+        // Always show banner for version output
+        RenderHeader();
+
+        // Show friendly update message if available
+        if (updateAvailable)
+        {
+            AnsiConsole.MarkupLine($"[yellow]⚠ Update available:[/] [dim]{currentVersion}[/] → [green]{latestVersion}[/]");
+            AnsiConsole.MarkupLine($"[cyan]Run:[/] [white]dotnet tool update --global Sbroenne.ExcelMcp.CLI[/]");
+            AnsiConsole.MarkupLine($"[cyan]Release notes:[/] [blue]https://github.com/sbroenne/mcp-server-excel/releases/latest[/]");
+        }
+        else if (latestVersion != null)
+        {
+            AnsiConsole.MarkupLine($"[green]✓ You're running the latest version:[/] [white]{currentVersion}[/]");
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[yellow]⚠ Could not check for updates[/]");
+            AnsiConsole.MarkupLine($"[dim]Current version: {currentVersion}[/]");
+        }
+
+        return 0;
+    }
+
+    private static string GetCurrentVersion()
+    {
+        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+        var informational = assembly.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        // Strip git hash suffix (e.g., "1.2.0+abc123" -> "1.2.0")
+        return informational?.Split('+')[0] ?? assembly.GetName().Version?.ToString() ?? "0.0.0";
+    }
+
+    private static int CompareVersions(string current, string latest)
+    {
+        if (Version.TryParse(current, out var currentVer) && Version.TryParse(latest, out var latestVer))
+            return currentVer.CompareTo(latestVer);
+        return string.Compare(current, latest, StringComparison.Ordinal);
     }
 }

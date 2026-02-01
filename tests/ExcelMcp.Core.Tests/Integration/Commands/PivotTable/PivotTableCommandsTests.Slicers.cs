@@ -353,4 +353,134 @@ public partial class PivotTableCommandsTests
         Assert.NotNull(slicerResult.ConnectedPivotTables);
         Assert.Contains("ConnectedPivot", slicerResult.ConnectedPivotTables);
     }
+
+    /// <summary>
+    /// Tests that slicer Position is returned as a valid cell reference.
+    /// This test catches bugs where Position is empty due to incorrect COM API usage.
+    /// Bug context: TopLeftCell is on Slicer.Shape, not Slicer directly.
+    /// </summary>
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void CreateSlicer_ReturnsValidPosition()
+    {
+        // Arrange
+        var testFile = CreateTestFileWithData(nameof(CreateSlicer_ReturnsValidPosition));
+
+        var logger = _loggerFactory.CreateLogger<ExcelBatch>();
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
+
+        // Create PivotTable
+        var createResult = _pivotCommands.CreateFromRange(
+            batch, "SalesData", "A1:D6", "SalesData", "F2", "PositionTestPivot");
+        Assert.True(createResult.Success, $"Failed to create PivotTable: {createResult.ErrorMessage}");
+        _pivotCommands.AddRowField(batch, "PositionTestPivot", "Region");
+
+        // Act - Create slicer at I2
+        var slicerResult = _pivotCommands.CreateSlicer(
+            batch, "PositionTestPivot", "Region", "PositionTestSlicer", "SalesData", "I2");
+
+        // Assert - Position must be a valid cell reference, not empty
+        Assert.True(slicerResult.Success, $"CreateSlicer failed: {slicerResult.ErrorMessage}");
+        Assert.False(string.IsNullOrEmpty(slicerResult.Position),
+            "Slicer Position should not be empty - verify Shape.TopLeftCell API is used correctly");
+        Assert.Matches(@"^[A-Z]+\d+$", slicerResult.Position); // e.g., "I2", "AA10"
+    }
+
+    /// <summary>
+    /// Tests that ListSlicers returns valid Position for each slicer.
+    /// </summary>
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void ListSlicers_ReturnsValidPositionForEachSlicer()
+    {
+        // Arrange
+        var testFile = CreateTestFileWithData(nameof(ListSlicers_ReturnsValidPositionForEachSlicer));
+
+        var logger = _loggerFactory.CreateLogger<ExcelBatch>();
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
+
+        // Create PivotTable with two slicers
+        var createResult = _pivotCommands.CreateFromRange(
+            batch, "SalesData", "A1:D6", "SalesData", "F2", "ListPosTestPivot");
+        Assert.True(createResult.Success, $"Failed to create PivotTable: {createResult.ErrorMessage}");
+        _pivotCommands.AddRowField(batch, "ListPosTestPivot", "Region");
+        _pivotCommands.AddRowField(batch, "ListPosTestPivot", "Product");
+
+        _pivotCommands.CreateSlicer(batch, "ListPosTestPivot", "Region", "ListPosSlicer1", "SalesData", "I2");
+        _pivotCommands.CreateSlicer(batch, "ListPosTestPivot", "Product", "ListPosSlicer2", "SalesData", "K2");
+
+        // Act
+        var listResult = _pivotCommands.ListSlicers(batch);
+
+        // Assert - All slicers should have valid positions
+        Assert.True(listResult.Success, $"ListSlicers failed: {listResult.ErrorMessage}");
+        foreach (var slicer in listResult.Slicers)
+        {
+            Assert.False(string.IsNullOrEmpty(slicer.Position),
+                $"Slicer '{slicer.Name}' has empty Position - verify Shape.TopLeftCell API");
+        }
+    }
+
+    /// <summary>
+    /// Tests that FieldName is returned correctly (not "Unknown").
+    /// This test catches bugs where SourceName property access fails silently.
+    /// </summary>
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void CreateSlicer_ReturnsCorrectFieldName()
+    {
+        // Arrange
+        var testFile = CreateTestFileWithData(nameof(CreateSlicer_ReturnsCorrectFieldName));
+
+        var logger = _loggerFactory.CreateLogger<ExcelBatch>();
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
+
+        // Create PivotTable
+        var createResult = _pivotCommands.CreateFromRange(
+            batch, "SalesData", "A1:D6", "SalesData", "F2", "FieldNameTestPivot");
+        Assert.True(createResult.Success, $"Failed to create PivotTable: {createResult.ErrorMessage}");
+        _pivotCommands.AddRowField(batch, "FieldNameTestPivot", "Region");
+
+        // Act - Create slicer for "Region" field
+        var slicerResult = _pivotCommands.CreateSlicer(
+            batch, "FieldNameTestPivot", "Region", "FieldNameTestSlicer", "SalesData", "I2");
+
+        // Assert - FieldName must match the field name, not be "Unknown"
+        Assert.True(slicerResult.Success, $"CreateSlicer failed: {slicerResult.ErrorMessage}");
+        Assert.NotEqual("Unknown", slicerResult.FieldName);
+        Assert.Equal("Region", slicerResult.FieldName);
+    }
+
+    /// <summary>
+    /// Tests that ConnectedPivotTables is returned correctly (not empty).
+    /// This test catches bugs where PivotTables collection access fails silently.
+    /// </summary>
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void ListSlicers_ReturnsCorrectConnectedPivotTables()
+    {
+        // Arrange
+        var testFile = CreateTestFileWithData(nameof(ListSlicers_ReturnsCorrectConnectedPivotTables));
+
+        var logger = _loggerFactory.CreateLogger<ExcelBatch>();
+        using var batch = new ExcelBatch(new[] { testFile }, logger);
+
+        // Create PivotTable
+        var createResult = _pivotCommands.CreateFromRange(
+            batch, "SalesData", "A1:D6", "SalesData", "F2", "ConnPivotTestPivot");
+        Assert.True(createResult.Success, $"Failed to create PivotTable: {createResult.ErrorMessage}");
+        _pivotCommands.AddRowField(batch, "ConnPivotTestPivot", "Region");
+        _pivotCommands.CreateSlicer(batch, "ConnPivotTestPivot", "Region", "ConnPivotTestSlicer", "SalesData", "I2");
+
+        // Act
+        var listResult = _pivotCommands.ListSlicers(batch);
+
+        // Assert - ConnectedPivotTables must contain our PivotTable
+        Assert.True(listResult.Success, $"ListSlicers failed: {listResult.ErrorMessage}");
+        var slicer = listResult.Slicers.FirstOrDefault(s => s.Name == "ConnPivotTestSlicer");
+        Assert.NotNull(slicer);
+        Assert.NotNull(slicer.ConnectedPivotTables);
+        Assert.NotEmpty(slicer.ConnectedPivotTables);
+        Assert.Contains("ConnPivotTestPivot", slicer.ConnectedPivotTables);
+    }
 }

@@ -400,10 +400,19 @@ public partial class PivotTableCommands
     }
 
     /// <summary>
-    /// Checks if a SlicerCache is connected to a specific PivotTable
+    /// Checks if a SlicerCache is connected to a specific PivotTable.
+    /// Returns false for Table slicers (cache.List == true) since they don't connect to PivotTables.
     /// </summary>
     private static bool IsSlicerCacheConnectedToPivot(dynamic cache, dynamic targetPivot)
     {
+        // Per MS docs: List property is true for Table slicers, false for PivotTable slicers
+        // https://learn.microsoft.com/en-us/office/vba/api/excel.slicercache.list
+        // Table slicers don't connect to PivotTables
+        if (cache.List == true)
+        {
+            return false;
+        }
+
         dynamic? pivotTables = null;
         try
         {
@@ -427,11 +436,6 @@ public partial class PivotTableCommands
                     ComUtilities.Release(ref pt);
                 }
             }
-            return false;
-        }
-        catch (COMException)
-        {
-            // PivotTables collection may not be accessible for this cache type
             return false;
         }
         finally
@@ -517,21 +521,20 @@ public partial class PivotTableCommands
             ComUtilities.Release(ref parent);
         }
 
-        // Get position (top-left cell)
+        // Get position (top-left cell) - per Microsoft docs, TopLeftCell is on Shape object
+        // https://learn.microsoft.com/en-us/office/vba/api/excel.shape.topleftcell
+        dynamic? shape = null;
         dynamic? topLeftCell = null;
         try
         {
-            topLeftCell = slicer.TopLeftCell;
-            info.Position = topLeftCell.Address?.ToString()?.Replace("$", "") ?? string.Empty;
-        }
-        catch (COMException)
-        {
-            // TopLeftCell may not be available for floating slicers
-            info.Position = string.Empty;
+            shape = slicer.Shape;
+            topLeftCell = shape.TopLeftCell;
+            info.Position = topLeftCell?.Address?.ToString()?.Replace("$", "") ?? string.Empty;
         }
         finally
         {
             ComUtilities.Release(ref topLeftCell);
+            ComUtilities.Release(ref shape);
         }
 
         // Get selected and available items from cache
@@ -569,21 +572,20 @@ public partial class PivotTableCommands
             ComUtilities.Release(ref parent);
         }
 
-        // Get position
+        // Get position - per Microsoft docs, TopLeftCell is on Shape object
+        // https://learn.microsoft.com/en-us/office/vba/api/excel.shape.topleftcell
+        dynamic? shape = null;
         dynamic? topLeftCell = null;
         try
         {
-            topLeftCell = slicer.TopLeftCell;
-            result.Position = topLeftCell.Address?.ToString()?.Replace("$", "") ?? string.Empty;
-        }
-        catch (COMException)
-        {
-            // TopLeftCell may not be available for floating slicers
-            result.Position = string.Empty;
+            shape = slicer.Shape;
+            topLeftCell = shape.TopLeftCell;
+            result.Position = topLeftCell?.Address?.ToString()?.Replace("$", "") ?? string.Empty;
         }
         finally
         {
             ComUtilities.Release(ref topLeftCell);
+            ComUtilities.Release(ref shape);
         }
 
         // Get items
@@ -655,13 +657,21 @@ public partial class PivotTableCommands
     }
 
     /// <summary>
-    /// Gets names of PivotTables connected to a SlicerCache
+    /// Gets names of PivotTables connected to a SlicerCache.
+    /// Returns empty list for Table slicers (cache.List == true).
     /// </summary>
     private static List<string> GetConnectedPivotTableNames(dynamic cache)
     {
         var names = new List<string>();
-        dynamic? pivotTables = null;
 
+        // Per MS docs: List property is true for Table slicers
+        // Table slicers don't have PivotTables collection
+        if (cache.List == true)
+        {
+            return names;
+        }
+
+        dynamic? pivotTables = null;
         try
         {
             pivotTables = cache.PivotTables;
@@ -683,10 +693,6 @@ public partial class PivotTableCommands
                     ComUtilities.Release(ref pt);
                 }
             }
-        }
-        catch (COMException)
-        {
-            // PivotTables collection may not be accessible for certain cache types
         }
         finally
         {

@@ -590,13 +590,17 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
 
     private static List<string> GetValidAggregationsForDataType(string dataType)
     {
+        // NOTE: "Unknown" type includes calculated fields where we can't determine the data type.
+        // Calculated fields typically produce numeric results, so we allow all numeric aggregations.
+        // If the aggregation is truly invalid, Excel COM will throw an error at runtime.
         return dataType switch
         {
             "Number" => ["Sum", "Count", "Average", "Max", "Min", "Product", "CountNumbers", "StdDev", "StdDevP", "Var", "VarP"],
             "Date" => ["Count", "CountNumbers", "Max", "Min"],
             "Text" => ["Count"],
             "Boolean" => ["Count", "Sum"],
-            _ => ["Count"]
+            // Unknown = calculated fields or fields we can't inspect - allow all numeric operations
+            _ => ["Sum", "Count", "Average", "Max", "Min", "Product", "CountNumbers", "StdDev", "StdDevP", "Var", "VarP"]
         };
     }
 

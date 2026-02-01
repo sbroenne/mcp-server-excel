@@ -105,12 +105,14 @@ agents:
 
 ### Using PowerShell Runner (Recommended)
 
+From the repository root:
+
 ```powershell
 # Run all tests
-.\Run-LLMTests.ps1 -Build
+.\scripts\Run-LLMTests.ps1 -Component mcp -Build
 
 # Run a specific scenario
-.\Run-LLMTests.ps1 -Scenario excel-file-worksheet-test.yaml
+.\scripts\Run-LLMTests.ps1 -Component mcp -Scenario excel-file-worksheet-test.yaml
 ```
 
 ### Using agent-benchmark Directly
@@ -140,7 +142,6 @@ ExcelMcp.McpServer.LLM.Tests/
 │   ├── excel-powerquery-datamodel-test.yaml  # Complete BI workflow
 │   └── excel-modification-patterns-test.yaml # Incremental update validation
 ├── output/                                # Test artifacts (git-ignored)
-├── Run-LLMTests.ps1                       # PowerShell test runner
 ├── llm-tests.config.json                  # Shared configuration defaults
 ├── llm-tests.config.local.json            # Personal settings (git-ignored)
 ├── llm-tests.config.schema.json           # JSON schema for config files

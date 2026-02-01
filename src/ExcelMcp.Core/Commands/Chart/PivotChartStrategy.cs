@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
@@ -17,7 +18,7 @@ public class PivotChartStrategy : IChartStrategy
             var pivotLayout = chart.PivotLayout;
             return pivotLayout != null;
         }
-        catch
+        catch (COMException)
         {
             return false;
         }
@@ -46,9 +47,9 @@ public class PivotChartStrategy : IChartStrategy
             topLeftCell = shape.TopLeftCell;
             info.TopLeftCell = topLeftCell.Address?.ToString();
         }
-        catch
+        catch (COMException)
         {
-            // TopLeftCell not available - optional property
+            // TopLeftCell not available - optional COM property
         }
         finally
         {
@@ -60,9 +61,9 @@ public class PivotChartStrategy : IChartStrategy
             bottomRightCell = shape.BottomRightCell;
             info.BottomRightCell = bottomRightCell.Address?.ToString();
         }
-        catch
+        catch (COMException)
         {
-            // BottomRightCell not available - optional property
+            // BottomRightCell not available - optional COM property
         }
         finally
         {
@@ -73,9 +74,9 @@ public class PivotChartStrategy : IChartStrategy
         {
             info.Placement = Convert.ToInt32(shape.Placement);
         }
-        catch
+        catch (COMException)
         {
-            // Placement not available - optional property
+            // Placement not available - optional COM property
         }
 
         // Get linked PivotTable name
@@ -138,9 +139,9 @@ public class PivotChartStrategy : IChartStrategy
             topLeftCell = shape.TopLeftCell;
             info.TopLeftCell = topLeftCell.Address?.ToString();
         }
-        catch
+        catch (COMException)
         {
-            // TopLeftCell not available - optional property
+            // TopLeftCell not available - optional COM property
         }
         finally
         {
@@ -152,9 +153,9 @@ public class PivotChartStrategy : IChartStrategy
             bottomRightCell = shape.BottomRightCell;
             info.BottomRightCell = bottomRightCell.Address?.ToString();
         }
-        catch
+        catch (COMException)
         {
-            // BottomRightCell not available - optional property
+            // BottomRightCell not available - optional COM property
         }
         finally
         {
@@ -165,9 +166,9 @@ public class PivotChartStrategy : IChartStrategy
         {
             info.Placement = Convert.ToInt32(shape.Placement);
         }
-        catch
+        catch (COMException)
         {
-            // Placement not available - optional property
+            // Placement not available - optional COM property
         }
 
         // Get linked PivotTable name
@@ -196,7 +197,7 @@ public class PivotChartStrategy : IChartStrategy
         {
             info.HasLegend = chart.HasLegend;
         }
-        catch
+        catch (COMException)
         {
             info.HasLegend = false;
         }

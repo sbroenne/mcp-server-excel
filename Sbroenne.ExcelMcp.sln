@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExcelMcp.ComInterop", "src\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExcelMcp.ComInterop.Tests", "tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj", "{F5341F98-D6ED-4C71-8F75-676F59AA47B0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExcelMcp.Diagnostics.Tests", "tests\ExcelMcp.Diagnostics.Tests\ExcelMcp.Diagnostics.Tests.csproj", "{6C5A9F6E-5B5E-4A7A-9E98-6DF1F5A8B3A2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -129,6 +131,18 @@ Global
 		{F5341F98-D6ED-4C71-8F75-676F59AA47B0}.Release|x64.Build.0 = Release|Any CPU
 		{F5341F98-D6ED-4C71-8F75-676F59AA47B0}.Release|x86.ActiveCfg = Release|Any CPU
 		{F5341F98-D6ED-4C71-8F75-676F59AA47B0}.Release|x86.Build.0 = Release|Any CPU
+		{6C5A9F6E-5B5E-4A7A-9E98-6DF1F5A8B3A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6C5A9F6E-5B5E-4A7A-9E98-6DF1F5A8B3A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6C5A9F6E-5B5E-4A7A-9E98-6DF1F5A8B3A2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6C5A9F6E-5B5E-4A7A-9E98-6DF1F5A8B3A2}.Debug|x64.Build.0 = Debug|Any CPU
+		{6C5A9F6E-5B5E-4A7A-9E98-6DF1F5A8B3A2}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6C5A9F6E-5B5E-4A7A-9E98-6DF1F5A8B3A2}.Debug|x86.Build.0 = Debug|Any CPU
+		{6C5A9F6E-5B5E-4A7A-9E98-6DF1F5A8B3A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6C5A9F6E-5B5E-4A7A-9E98-6DF1F5A8B3A2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6C5A9F6E-5B5E-4A7A-9E98-6DF1F5A8B3A2}.Release|x64.ActiveCfg = Release|Any CPU
+		{6C5A9F6E-5B5E-4A7A-9E98-6DF1F5A8B3A2}.Release|x64.Build.0 = Release|Any CPU
+		{6C5A9F6E-5B5E-4A7A-9E98-6DF1F5A8B3A2}.Release|x86.ActiveCfg = Release|Any CPU
+		{6C5A9F6E-5B5E-4A7A-9E98-6DF1F5A8B3A2}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -142,5 +156,6 @@ Global
 		{FFEFF3B4-C490-4255-8A47-C1FFA23A97D7} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{022C9DE3-8F8F-4F3F-8F7A-7480932288C3} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{F5341F98-D6ED-4C71-8F75-676F59AA47B0} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{6C5A9F6E-5B5E-4A7A-9E98-6DF1F5A8B3A2} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

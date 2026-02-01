@@ -1,0 +1,292 @@
+# =============================================================================
+# Power Query & Data Model CLI Test
+# =============================================================================
+#
+# Tests: Complete BI workflow via CLI - Import → Model → Analyze → Visualize
+#
+# This is a SINGLE SESSION with multiple tests that build on each other.
+# Each test continues from where the previous one left off.
+# The LLM remembers the file and context from previous tests.
+#
+# Workflow:
+#   Test 1: Create file and set up data
+#   Test 2: Add to Data Model and create measures
+#   Test 3: Create PivotTable from Data Model
+#   Test 4: Add chart visualization
+#   Test 5: Final analysis and close
+#
+# Prerequisites:
+#   - Windows 10/11 with Excel installed
+#   - excelcli installed or use dotnet run
+#   - Environment: AZURE_OPENAI_ENDPOINT
+#
+# =============================================================================
+
+criteria:
+  success_rate: 1  # 100% required
+
+ai_summary:
+  enabled: true
+  judge_provider: azure-openai-judge
+
+providers:
+  - name: azure-openai-gpt52-chat
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-5.1-chat
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+    rate_limits:
+      requests_per_minute: 60
+      tokens_per_minute: 150000
+    retry:
+      retry_on_429: true
+      max_retries: 5
+  - name: azure-openai-judge
+    type: AZURE
+    auth_type: entra_id
+    model: gpt-5.1-chat
+    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
+    version: 2025-01-01-preview
+    rate_limits:
+      requests_per_minute: 60
+      tokens_per_minute: 150000
+    retry:
+      retry_on_429: true
+      max_retries: 5
+
+servers:
+  - name: excel-cli
+    type: cli
+    command: "{{CLI_COMMAND}}"
+    shell: powershell
+    working_dir: "{{TEMP_DIR}}"
+    tool_prefix: excel
+
+agents:
+  - name: gpt52-chat-agent
+    servers:
+      - name: excel-cli
+    provider: azure-openai-gpt52-chat
+    skill:
+      path: "{{SKILL_PATH_CLI}}"
+      file_access: true
+    system_prompt: |
+      You are {{AGENT_NAME}}, an Excel automation agent using {{PROVIDER_NAME}}.
+
+      RULES:
+      - Execute tasks immediately without asking for confirmation
+      - Never ask clarifying questions - make reasonable assumptions and proceed
+      - Never show Excel to the user - keep it hidden
+      - Format Excel files professionally (proper column widths, headers, number formats, cell styles)
+      - Always format data ranges as Excel Tables (not plain ranges)
+      - Report results after completion
+    clarification_detection:
+      enabled: true
+      judge_provider: azure-openai-judge
+
+settings:
+  verbose: true
+  max_iterations: 20
+
+
+sessions:
+  # ==========================================================================
+  # Multi-Table Star Schema - Related tables workflow
+  # ==========================================================================
+  - name: "Star Schema Analysis"
+    tests:
+      # ----------------------------------------------------------------------
+      # Step 1: Create Products dimension table
+      # ----------------------------------------------------------------------
+      - name: "Create Products dimension"
+        prompt: |
+          I need to set up a proper star schema for analysis.
+
+          Create a new Excel file at {{TEMP_DIR}}/star-schema-cli-{{randomValue type='UUID'}}.xlsx
+
+          Create a sheet called "Products" and write the data from this JSON file to range A1:
+          {{TEST_DIR}}/../Fixtures/products-dimension.json
+
+          IMPORTANT: JSON arrays with commas break CLI argument parsing.
+          You MUST use --values-file with the path above instead of --values with inline JSON.
+
+          Then make it a table called "Products" and add it to the Data Model.
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(products|table|data model|success)"
+
+      # ----------------------------------------------------------------------
+      # Step 2: Create Orders fact table
+      # ----------------------------------------------------------------------
+      - name: "Create Orders fact table"
+        prompt: |
+          Now let's add the transaction data.
+
+          Create a new sheet called "Orders" and write the data from this JSON file to range A1:
+          {{TEST_DIR}}/../Fixtures/orders-fact.json
+
+          IMPORTANT: JSON arrays with commas break CLI argument parsing.
+          You MUST use --values-file with the path above.
+
+          Then make it a table called "Orders" and add it to the Data Model.
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(orders|table|data model|success)"
+
+      # ----------------------------------------------------------------------
+      # Step 3: Create relationship between tables
+      # ----------------------------------------------------------------------
+      - name: "Create table relationship"
+        prompt: |
+          Now link the tables together.
+
+          Create a relationship between the Orders and Products tables using ProductID.
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(relationship|productid|created|success)"
+
+      # ----------------------------------------------------------------------
+      # Step 4: Analyze across related tables with PivotTable
+      # ----------------------------------------------------------------------
+      - name: "Cross-table PivotTable analysis"
+        prompt: |
+          Now for the analysis! Create a PivotTable on a new sheet that shows:
+          - Product Categories as rows (from the Products table)
+          - Sum of Quantity as the values (from the Orders table)
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(pivot|electronics|furniture|category)"
+
+      # ----------------------------------------------------------------------
+      # Step 5: Add chart and close
+      # ----------------------------------------------------------------------
+      - name: "Add pie chart and close"
+        prompt: |
+          Add a pie chart showing the quantity distribution by category.
+
+          Save and close the file.
+
+          Which category had more orders - Electronics or Furniture?
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(pie|chart|saved|closed|success)"
+
+
+  # ==========================================================================
+  # Power Query Import - Import Amazon Sales data (1400+ products)
+  # ==========================================================================
+  - name: "Power Query Amazon Sales Analysis"
+    tests:
+      # ----------------------------------------------------------------------
+      # Step 1: Import product data using Power Query with fixture file
+      # ----------------------------------------------------------------------
+      - name: "Import Products with Power Query"
+        prompt: |
+          I want to analyze product sales data using Power Query.
+
+          Create a new Excel file at {{TEMP_DIR}}/products-analysis-cli-{{randomValue type='UUID'}}.xlsx
+
+          Use Power Query to create a query named "Products" using the M code from this file:
+          {{TEST_DIR}}/../Fixtures/products-powerquery.m
+
+          IMPORTANT: M code contains special characters that break CLI parsing.
+          You MUST use --mcode-file with the path above. Do NOT try inline --mcode.
+
+          Load the query to a worksheet (the default behavior).
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(power.?query|products|success|created)"
+
+      # ----------------------------------------------------------------------
+      # Step 2: Add to Data Model for analysis
+      # ----------------------------------------------------------------------
+      - name: "Build star schema from flat data"
+        prompt: |
+          The Products data from the Power Query is on a worksheet as an Excel Table, but I need it in Power Pivot (the Data Model) for DAX analysis.
+
+          Add the Products table to the Data Model so I can create DAX measures on it.
+
+          After adding to the Data Model, analyze the data structure:
+          - Which columns are dimensions (descriptive attributes for slicing/filtering)?
+          - Which columns are facts/measures (numeric values to aggregate)?
+
+          Confirm the table is now in the Data Model and ready for DAX measures.
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(dimension|fact|data.?model|added)"
+
+      # ----------------------------------------------------------------------
+      # Step 3: Add measures to the star schema
+      # ----------------------------------------------------------------------
+      - name: "Add DAX measures"
+        prompt: |
+          Now create some useful DAX measures on your Products table in the Data Model:
+
+          1. Average Rating: AVERAGE(Products[Rating])
+          2. Total Products: COUNTROWS(Products)
+          3. Average Price: AVERAGE(Products[Price])
+          4. Total Revenue: SUM(Products[Price])
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(measure|rating|price|revenue|created)"
+
+      # ----------------------------------------------------------------------
+      # Step 4: Create PivotTable using the star schema
+      # ----------------------------------------------------------------------
+      - name: "Analyze products by category"
+        prompt: |
+          Create a PivotTable on a new sheet using your star schema.
+
+          Show product categories as rows with Total Products and Average Rating as values.
+
+          Which category has the most products and what's their average rating?
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(pivot|category|rating|products)"
+
+      # ----------------------------------------------------------------------
+      # Step 5: Add chart and save
+      # ----------------------------------------------------------------------
+      - name: "Add chart and close"
+        prompt: |
+          Add a bar chart showing:
+          - Categories on the X-axis
+          - Total Products and Average Rating as values
+
+          Save and close the file.
+
+          Summarize the star schema you built: how many dimension tables, fact tables, relationships, and measures did you create?
+        assertions:
+          - type: cli_exit_code_equals
+            expected: 0
+          - type: no_clarification_questions
+          - type: output_regex
+            pattern: "(?i)(chart|star.?schema|dimension|fact|relationship|measure|saved|closed)"

@@ -25,6 +25,7 @@ on:
       - 'src/ExcelMcp.ComInterop/**'
       - 'tests/ExcelMcp.CLI.Tests/**'
       - 'tests/ExcelMcp.Core.Tests/**'
+      - 'tests/ExcelMcp.Diagnostics.Tests/**'
       - 'tests/ExcelMcp.ComInterop.Tests/**'
       - 'global.json'
       - 'Directory.Build.props'
@@ -63,13 +64,13 @@ jobs:
     - name: Verify CLI build
       run: |
         # Check excelcli main executable
-        if (Test-Path "src/ExcelMcp.CLI/bin/Release/net10.0/excelcli.exe") {
+        if (Test-Path "src/ExcelMcp.CLI/bin/Release/net10.0-windows/excelcli.exe") {
           Write-Output "✅ excelcli.exe built successfully"
-          $version = (Get-Item "src/ExcelMcp.CLI/bin/Release/net10.0/excelcli.exe").VersionInfo.FileVersion
+          $version = (Get-Item "src/ExcelMcp.CLI/bin/Release/net10.0-windows/excelcli.exe").VersionInfo.FileVersion
           Write-Output "Version: $version"
 
           # Test CLI help command (safe - no Excel COM required)
-          $helpOutput = & "src/ExcelMcp.CLI/bin/Release/net10.0/excelcli.exe" --help 2>&1
+          $helpOutput = & "src/ExcelMcp.CLI/bin/Release/net10.0-windows/excelcli.exe" --help 2>&1
           $exitCode = $LASTEXITCODE
 
           if ($exitCode -eq 0) {
@@ -100,4 +101,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ExcelMcp-CLI-${{ github.sha }}
-        path: src/ExcelMcp.CLI/bin/Release/net10.0/
+        path: src/ExcelMcp.CLI/bin/Release/net10.0-windows/

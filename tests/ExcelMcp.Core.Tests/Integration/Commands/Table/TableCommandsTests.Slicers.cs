@@ -308,5 +308,167 @@ public partial class TableCommandsTests
         Assert.Equal("Table", slicerResult.SourceType);
     }
 
+    /// <summary>
+    /// Tests that slicer Position is returned as a valid cell reference.
+    /// This test catches bugs where Position is empty due to incorrect COM API usage.
+    /// Bug context: TopLeftCell is on Slicer.Shape, not Slicer directly.
+    /// </summary>
+    [Fact]
+    public void CreateTableSlicer_ReturnsValidPosition()
+    {
+        // Arrange
+        var testFile = _fixture.CreateModificationTestFile();
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Act - Create slicer at F2
+        var slicerResult = _tableCommands.CreateTableSlicer(
+            batch, "SalesTable", "Region", "PositionTestSlicer", "Sales", "F2");
+
+        // Assert - Position must be a valid cell reference, not empty
+        Assert.True(slicerResult.Success, $"CreateTableSlicer failed: {slicerResult.ErrorMessage}");
+        Assert.False(string.IsNullOrEmpty(slicerResult.Position),
+            "Slicer Position should not be empty - verify Shape.TopLeftCell API is used correctly");
+        Assert.Matches(@"^[A-Z]+\d+$", slicerResult.Position); // e.g., "F2", "AA10"
+    }
+
+    /// <summary>
+    /// Tests that ListTableSlicers returns valid Position for each slicer.
+    /// </summary>
+    [Fact]
+    public void ListTableSlicers_ReturnsValidPositionForEachSlicer()
+    {
+        // Arrange
+        var testFile = _fixture.CreateModificationTestFile();
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Create slicers at different positions
+        _tableCommands.CreateTableSlicer(batch, "SalesTable", "Region", "ListPosSlicer1", "Sales", "F2");
+        _tableCommands.CreateTableSlicer(batch, "SalesTable", "Product", "ListPosSlicer2", "Sales", "H2");
+
+        // Act
+        var listResult = _tableCommands.ListTableSlicers(batch);
+
+        // Assert - All slicers should have valid positions
+        Assert.True(listResult.Success, $"ListTableSlicers failed: {listResult.ErrorMessage}");
+        foreach (var slicer in listResult.Slicers)
+        {
+            Assert.False(string.IsNullOrEmpty(slicer.Position),
+                $"Slicer '{slicer.Name}' has empty Position - verify Shape.TopLeftCell API");
+        }
+    }
+
+    /// <summary>
+    /// Tests that FieldName is returned correctly (not "Unknown").
+    /// This test catches bugs where SourceName property access fails silently.
+    /// </summary>
+    [Fact]
+    public void CreateTableSlicer_ReturnsCorrectFieldName()
+    {
+        // Arrange
+        var testFile = _fixture.CreateModificationTestFile();
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Act - Create slicer for "Region" column
+        var slicerResult = _tableCommands.CreateTableSlicer(
+            batch, "SalesTable", "Region", "FieldNameTestSlicer", "Sales", "F2");
+
+        // Assert - FieldName must match the column name, not be "Unknown"
+        Assert.True(slicerResult.Success, $"CreateTableSlicer failed: {slicerResult.ErrorMessage}");
+        Assert.NotEqual("Unknown", slicerResult.FieldName);
+        Assert.Equal("Region", slicerResult.FieldName);
+    }
+
+    /// <summary>
+    /// Tests that ConnectedTable is returned correctly (not "Unknown" or empty).
+    /// This test catches bugs where ListObject property access fails silently.
+    /// </summary>
+    [Fact]
+    public void ListTableSlicers_ReturnsCorrectConnectedTable()
+    {
+        // Arrange
+        var testFile = _fixture.CreateModificationTestFile();
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        _tableCommands.CreateTableSlicer(batch, "SalesTable", "Region", "ConnTableTestSlicer", "Sales", "F2");
+
+        // Act
+        var listResult = _tableCommands.ListTableSlicers(batch);
+
+        // Assert - ConnectedTable must be the actual table name
+        Assert.True(listResult.Success, $"ListTableSlicers failed: {listResult.ErrorMessage}");
+        var slicer = listResult.Slicers.FirstOrDefault(s => s.Name == "ConnTableTestSlicer");
+        Assert.NotNull(slicer);
+        Assert.NotEqual("Unknown", slicer.ConnectedTable);
+        Assert.NotEqual(string.Empty, slicer.ConnectedTable);
+        Assert.Equal("SalesTable", slicer.ConnectedTable);
+    }
+
+    /// <summary>
+    /// Tests rapid sequential operations: create slicer, then immediately list slicers.
+    /// This mimics MCP/LLM patterns where operations are called in rapid succession.
+    /// Tests for timing issues and COM object availability.
+    /// </summary>
+    [Fact]
+    public void RapidSequentialOperations_CreateThenList_ReturnsValidPosition()
+    {
+        // Arrange
+        var testFile = _fixture.CreateModificationTestFile();
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Act - Create slicer then IMMEDIATELY list (mimics MCP agent pattern)
+        var createResult = _tableCommands.CreateTableSlicer(
+            batch, "SalesTable", "Region", "RapidTestSlicer", "Sales", "F2");
+        Assert.True(createResult.Success, $"CreateTableSlicer failed: {createResult.ErrorMessage}");
+
+        // Immediately call list - no delay (this is how MCP agents work)
+        var listResult = _tableCommands.ListTableSlicers(batch);
+
+        // Assert - Both operations must succeed with valid data
+        Assert.True(listResult.Success, $"ListTableSlicers failed: {listResult.ErrorMessage}");
+        var slicer = listResult.Slicers.FirstOrDefault(s => s.Name == "RapidTestSlicer");
+        Assert.NotNull(slicer);
+        Assert.False(string.IsNullOrEmpty(slicer.Position),
+            "Slicer Position empty after rapid create+list - possible COM timing issue");
+        Assert.NotEqual("Unknown", slicer.FieldName);
+        Assert.Equal("SalesTable", slicer.ConnectedTable);
+    }
+
+    /// <summary>
+    /// Tests multiple rapid operations in sequence to stress test COM object handling.
+    /// Create multiple slicers, then list all, then set selection on each.
+    /// </summary>
+    [Fact]
+    public void RapidSequentialOperations_MultipleSlicers_AllReturnValidData()
+    {
+        // Arrange
+        var testFile = _fixture.CreateModificationTestFile();
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Act - Create 3 slicers in rapid succession (using columns that exist in test data)
+        var slicer1 = _tableCommands.CreateTableSlicer(batch, "SalesTable", "Region", "RapidSlicer1", "Sales", "F2");
+        var slicer2 = _tableCommands.CreateTableSlicer(batch, "SalesTable", "Product", "RapidSlicer2", "Sales", "H2");
+        var slicer3 = _tableCommands.CreateTableSlicer(batch, "SalesTable", "Amount", "RapidSlicer3", "Sales", "J2");
+
+        Assert.True(slicer1.Success, $"CreateTableSlicer 1 failed: {slicer1.ErrorMessage}");
+        Assert.True(slicer2.Success, $"CreateTableSlicer 2 failed: {slicer2.ErrorMessage}");
+        Assert.True(slicer3.Success, $"CreateTableSlicer 3 failed: {slicer3.ErrorMessage}");
+
+        // Immediately list all slicers
+        var listResult = _tableCommands.ListTableSlicers(batch);
+
+        // Assert - All 3 slicers must have valid data
+        Assert.True(listResult.Success, $"ListTableSlicers failed: {listResult.ErrorMessage}");
+        Assert.True(listResult.Slicers.Count >= 3, $"Expected at least 3 slicers, got {listResult.Slicers.Count}");
+
+        foreach (var name in new[] { "RapidSlicer1", "RapidSlicer2", "RapidSlicer3" })
+        {
+            var slicer = listResult.Slicers.FirstOrDefault(s => s.Name == name);
+            Assert.NotNull(slicer);
+            Assert.False(string.IsNullOrEmpty(slicer.Position),
+                $"Slicer '{name}' has empty Position after rapid operations");
+            Assert.NotEqual("Unknown", slicer.FieldName);
+        }
+    }
+
     #endregion
 }

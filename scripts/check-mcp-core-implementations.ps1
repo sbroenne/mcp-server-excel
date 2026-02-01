@@ -45,35 +45,52 @@ function Get-InterfaceMethodNames {
 
 # Known intentional exceptions (documented in CORE-METHOD-RENAMING-SUMMARY.md)
 $knownExceptions = @{
-    "FileAction" = @("CloseWorkbook", "Open", "Save", "Close", "List")  # Session management actions (MCP-specific)
+    "FileAction" = @("CloseWorkbook", "Open", "Save", "Close", "List", "Create")  # Session management actions (MCP-specific)
     "TableAction" = @("ApplyFilterValues", "SortMulti")  # Composite operations
+    "TableColumnAction" = @("ApplyFilterValues", "SortMulti")  # Composite operations
     "RangeAction" = @("SetNumberFormatCustom")  # Maps to SetNumberFormat Core method (intentional name difference for LLM usability)
 }
 
-# Define mappings: Enum -> Core Interface File
+# Define mappings: Enum -> Core Interface File(s)
 $mappings = @{
-    "FileAction" = "src/ExcelMcp.Core/Commands/IFileCommands.cs"
-    "PowerQueryAction" = "src/ExcelMcp.Core/Commands/PowerQuery/IPowerQueryCommands.cs"
-    "WorksheetAction" = "src/ExcelMcp.Core/Commands/Sheet/ISheetCommands.cs"
-    "TableAction" = "src/ExcelMcp.Core/Commands/Table/ITableCommands.cs"
-    "DataModelAction" = "src/ExcelMcp.Core/Commands/DataModel/IDataModelCommands.cs"
-    "VbaAction" = "src/ExcelMcp.Core/Commands/Vba/IVbaCommands.cs"
-    "ConnectionAction" = "src/ExcelMcp.Core/Commands/Connection/IConnectionCommands.cs"
-    "NamedRangeAction" = "src/ExcelMcp.Core/Commands/NamedRange/INamedRangeCommands.cs"
-    "PivotTableAction" = "src/ExcelMcp.Core/Commands/PivotTable/IPivotTableCommands.cs"
-    "RangeAction" = "src/ExcelMcp.Core/Commands/Range/IRangeCommands.cs"
+    "FileAction" = @("src/ExcelMcp.Core/Commands/IFileCommands.cs")
+    "PowerQueryAction" = @("src/ExcelMcp.Core/Commands/PowerQuery/IPowerQueryCommands.cs")
+    "WorksheetAction" = @("src/ExcelMcp.Core/Commands/Sheet/ISheetCommands.cs")
+    "WorksheetStyleAction" = @("src/ExcelMcp.Core/Commands/Sheet/ISheetCommands.cs")
+    "RangeAction" = @("src/ExcelMcp.Core/Commands/Range/IRangeCommands.cs")
+    "RangeEditAction" = @("src/ExcelMcp.Core/Commands/Range/IRangeCommands.cs")
+    "RangeFormatAction" = @("src/ExcelMcp.Core/Commands/Range/IRangeCommands.cs")
+    "RangeLinkAction" = @("src/ExcelMcp.Core/Commands/Range/IRangeCommands.cs")
+    "TableAction" = @("src/ExcelMcp.Core/Commands/Table/ITableCommands.cs")
+    "TableColumnAction" = @("src/ExcelMcp.Core/Commands/Table/ITableCommands.cs")
+    "DataModelAction" = @("src/ExcelMcp.Core/Commands/DataModel/IDataModelCommands.cs")
+    "DataModelRelAction" = @("src/ExcelMcp.Core/Commands/DataModel/IDataModelCommands.cs")
+    "VbaAction" = @("src/ExcelMcp.Core/Commands/Vba/IVbaCommands.cs")
+    "ConnectionAction" = @("src/ExcelMcp.Core/Commands/Connection/IConnectionCommands.cs")
+    "NamedRangeAction" = @("src/ExcelMcp.Core/Commands/NamedRange/INamedRangeCommands.cs")
+    "PivotTableAction" = @("src/ExcelMcp.Core/Commands/PivotTable/IPivotTableCommands.cs")
+    "PivotTableFieldAction" = @("src/ExcelMcp.Core/Commands/PivotTable/IPivotTableCommands.cs")
+    "PivotTableCalcAction" = @("src/ExcelMcp.Core/Commands/PivotTable/IPivotTableCommands.cs")
+    "ChartAction" = @("src/ExcelMcp.Core/Commands/Chart/IChartCommands.cs")
+    "ChartConfigAction" = @("src/ExcelMcp.Core/Commands/Chart/IChartCommands.cs")
+    "SlicerAction" = @(
+        "src/ExcelMcp.Core/Commands/PivotTable/IPivotTableCommands.cs",
+        "src/ExcelMcp.Core/Commands/Table/ITableCommands.cs"
+    )
 }
 
 # Read ToolActions.cs to extract enum values
-$toolActionsFile = Join-Path $rootDir "src/ExcelMcp.McpServer/Models/ToolActions.cs"
+$toolActionsFile = Join-Path $rootDir "src/ExcelMcp.Core/Models/Actions/ToolActions.cs"
 $toolActionsContent = Get-Content $toolActionsFile -Raw
 
 foreach ($enumName in $mappings.Keys) {
-    $interfaceFile = Join-Path $rootDir $mappings[$enumName]
+    $interfaceFiles = $mappings[$enumName] | ForEach-Object { Join-Path $rootDir $_ }
 
     # Check if Core interface file exists
-    if (-not (Test-Path $interfaceFile)) {
-        Write-Host "  ⚠️  Warning: Core interface not found: $interfaceFile" -ForegroundColor Yellow
+    $existingInterfaces = $interfaceFiles | Where-Object { Test-Path $_ }
+    if ($existingInterfaces.Count -eq 0) {
+        $missing = $interfaceFiles -join ", "
+        Write-Host "  ⚠️  Warning: Core interface(s) not found: $missing" -ForegroundColor Yellow
         continue
     }
 
@@ -85,12 +102,14 @@ foreach ($enumName in $mappings.Keys) {
             $_.Trim() -replace '//.*$', '' | Where-Object { $_ -match '^\w+$' }
         }
 
-        # Read Core interface and extract method names
-        $interfaceContent = Get-Content $interfaceFile -Raw
-        $methodNames = Get-InterfaceMethodNames -InterfaceContent $interfaceContent
+        # Read Core interfaces and extract method names
         $methodSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-        foreach ($methodName in $methodNames) {
-            [void]$methodSet.Add($methodName)
+        foreach ($interfacePath in $existingInterfaces) {
+            $interfaceContent = Get-Content $interfacePath -Raw
+            $methodNames = Get-InterfaceMethodNames -InterfaceContent $interfaceContent
+            foreach ($methodName in $methodNames) {
+                [void]$methodSet.Add($methodName)
+            }
         }
 
         # Check each enum value has a corresponding method (async or sync)
@@ -119,7 +138,7 @@ foreach ($enumName in $mappings.Keys) {
         if ($missingMethods.Count -gt 0) {
             $errors += "❌ $enumName has actions without Core implementations:"
             foreach ($missing in $missingMethods) {
-                $errors += "   - $missing (expected ${missing}Async in $($mappings[$enumName]))"
+                $errors += "   - $missing (expected ${missing}Async in $($mappings[$enumName] -join ', '))"
             }
         } else {
             Write-Host "  ✅ $enumName - all $($enumValues.Count) actions have Core implementations" -ForegroundColor Green

@@ -22,14 +22,23 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </remarks>
 internal sealed class ExcelBatch : IExcelBatch
 {
+    // P/Invoke for getting process ID from window handle
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
     private readonly string _workbookPath; // Primary workbook path
     private readonly string[] _allWorkbookPaths; // All workbook paths (includes primary)
     private readonly bool _showExcel; // Whether to show Excel window
+    private readonly bool _createNewFile; // Whether to create a new file instead of opening existing
+    private readonly bool _isMacroEnabled; // For new files: whether to create .xlsm (macro-enabled)
+    private readonly TimeSpan _operationTimeout; // Timeout for individual operations
     private readonly ILogger<ExcelBatch> _logger;
     private readonly Channel<Func<Task>> _workQueue;
     private readonly Thread _staThread;
     private readonly CancellationTokenSource _shutdownCts;
     private int _disposed; // 0 = not disposed, 1 = disposed (using int for Interlocked.CompareExchange)
+    private int? _excelProcessId; // Excel.exe process ID for force-kill if needed
+    private bool _operationTimedOut; // Track if an operation timed out for aggressive cleanup
 
     // COM state (STA thread only)
     private dynamic? _excel;
@@ -44,7 +53,31 @@ internal sealed class ExcelBatch : IExcelBatch
     /// <param name="workbookPaths">Paths to Excel workbooks. First path is the primary workbook.</param>
     /// <param name="logger">Optional logger for diagnostic output. If null, uses NullLogger (no output).</param>
     /// <param name="showExcel">Whether to show the Excel window (default: false for background automation).</param>
-    public ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger = null, bool showExcel = false)
+    /// <param name="operationTimeout">Timeout for individual operations. Default: 5 minutes.</param>
+    public ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger = null, bool showExcel = false, TimeSpan? operationTimeout = null)
+        : this(workbookPaths, logger, showExcel, createNewFile: false, isMacroEnabled: false, operationTimeout: operationTimeout)
+    {
+    }
+
+    /// <summary>
+    /// Creates a new ExcelBatch that creates a new workbook file instead of opening an existing one.
+    /// The file is saved immediately after creation, then kept open in the session.
+    /// </summary>
+    /// <param name="filePath">Path where the new Excel file will be created.</param>
+    /// <param name="isMacroEnabled">Whether to create .xlsm (macro-enabled) format.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    /// <param name="showExcel">Whether to show the Excel window.</param>
+    /// <param name="operationTimeout">Timeout for individual operations. Default: 5 minutes.</param>
+    /// <returns>ExcelBatch instance with the new workbook open.</returns>
+    internal static ExcelBatch CreateNewWorkbook(string filePath, bool isMacroEnabled, ILogger<ExcelBatch>? logger = null, bool showExcel = false, TimeSpan? operationTimeout = null)
+    {
+        return new ExcelBatch([filePath], logger, showExcel, createNewFile: true, isMacroEnabled: isMacroEnabled, operationTimeout: operationTimeout);
+    }
+
+    /// <summary>
+    /// Private constructor that handles both opening existing files and creating new ones.
+    /// </summary>
+    private ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger, bool showExcel, bool createNewFile, bool isMacroEnabled, TimeSpan? operationTimeout = null)
     {
         if (workbookPaths == null || workbookPaths.Length == 0)
             throw new ArgumentException("At least one workbook path is required", nameof(workbookPaths));
@@ -52,6 +85,9 @@ internal sealed class ExcelBatch : IExcelBatch
         _allWorkbookPaths = workbookPaths;
         _workbookPath = workbookPaths[0]; // Primary workbook
         _showExcel = showExcel;
+        _createNewFile = createNewFile;
+        _isMacroEnabled = isMacroEnabled;
+        _operationTimeout = operationTimeout ?? ComInteropConstants.DefaultOperationTimeout;
         _logger = logger ?? NullLogger<ExcelBatch>.Instance;
         _shutdownCts = new CancellationTokenSource();
 
@@ -83,33 +119,96 @@ internal sealed class ExcelBatch : IExcelBatch
                 tempExcel.Visible = _showExcel;
                 tempExcel.DisplayAlerts = false;
 
+                // Capture Excel process ID for force-kill scenarios (hung Excel, dead RPC connection)
+                try
+                {
+                    // Excel.Application.Hwnd returns the window handle
+                    // Use GetWindowThreadProcessId to get process ID directly from Hwnd
+                    // This works even for hidden Excel windows (Visible=false)
+                    int hwnd = tempExcel.Hwnd;
+                    if (hwnd != 0)
+                    {
+                        uint processId = 0;
+                        _ = GetWindowThreadProcessId(new IntPtr(hwnd), out processId);
+                        if (processId != 0)
+                        {
+                            _excelProcessId = (int)processId;
+                            _logger.LogDebug("Captured Excel process ID via Hwnd: {ProcessId}", _excelProcessId);
+                        }
+                    }
+
+                    // Fallback: If Hwnd method failed, try finding newest EXCEL.EXE process
+                    if (!_excelProcessId.HasValue)
+                    {
+                        var excelProcesses = System.Diagnostics.Process.GetProcessesByName("EXCEL")
+                            .OrderByDescending(p => p.StartTime)
+                            .ToList();
+                        if (excelProcesses.Count > 0)
+                        {
+                            _excelProcessId = excelProcesses[0].Id;
+                            _logger.LogDebug("Captured Excel process ID via fallback (newest): {ProcessId}", _excelProcessId);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to capture Excel process ID. Force-kill will not be available.");
+                }
+
                 // Disable macro security warnings for unattended automation
                 // msoAutomationSecurityForceDisable = 3 (disable all macros, no prompts)
                 // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
                 tempExcel.AutomationSecurity = 3; // msoAutomationSecurityForceDisable
 
-                // Open all workbooks in the same Excel instance
+                // Open or create workbooks in the same Excel instance
                 var tempWorkbooks = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase);
                 dynamic? primaryWorkbook = null;
 
                 foreach (var path in _allWorkbookPaths)
                 {
-                    // CRITICAL: Check if file is locked at OS level BEFORE attempting Excel COM open
-                    FileAccessValidator.ValidateFileNotLocked(path);
-
-                    // Open workbook with Excel COM
                     dynamic wb;
-                    try
+                    string normalizedPath = Path.GetFullPath(path);
+
+                    if (_createNewFile)
                     {
-                        wb = tempExcel.Workbooks.Open(path);
+                        // CREATE NEW FILE: Use Add() + SaveAs() instead of Open()
+                        // Validate directory exists (do not create automatically)
+                        string? directory = Path.GetDirectoryName(normalizedPath);
+                        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                        {
+                            throw new DirectoryNotFoundException($"Directory does not exist: '{directory}'. Create the directory first before creating Excel files.");
+                        }
+
+                        wb = tempExcel.Workbooks.Add();
+
+                        // SaveAs with appropriate format
+                        if (_isMacroEnabled)
+                        {
+                            wb.SaveAs(normalizedPath, ComInteropConstants.XlOpenXmlWorkbookMacroEnabled);
+                        }
+                        else
+                        {
+                            wb.SaveAs(normalizedPath, ComInteropConstants.XlOpenXmlWorkbook);
+                        }
                     }
-                    catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
+                    else
                     {
-                        // Excel Error 1004 - File is already open or locked
-                        throw FileAccessValidator.CreateFileLockedError(path, ex);
+                        // OPEN EXISTING FILE: Validate and open
+                        // CRITICAL: Check if file is locked at OS level BEFORE attempting Excel COM open
+                        FileAccessValidator.ValidateFileNotLocked(path);
+
+                        // Open workbook with Excel COM
+                        try
+                        {
+                            wb = tempExcel.Workbooks.Open(path);
+                        }
+                        catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
+                        {
+                            // Excel Error 1004 - File is already open or locked
+                            throw FileAccessValidator.CreateFileLockedError(path, ex);
+                        }
                     }
 
-                    string normalizedPath = Path.GetFullPath(path);
                     tempWorkbooks[normalizedPath] = wb;
 
                     if (path == _workbookPath)
@@ -254,6 +353,27 @@ internal sealed class ExcelBatch : IExcelBatch
 
     public ILogger Logger => _logger;
 
+    public int? ExcelProcessId => _excelProcessId;
+
+    public TimeSpan OperationTimeout => _operationTimeout;
+
+    public bool IsExcelProcessAlive()
+    {
+        if (_disposed != 0) return false;
+        if (!_excelProcessId.HasValue) return false;
+
+        try
+        {
+            var proc = System.Diagnostics.Process.GetProcessById(_excelProcessId.Value);
+            return !proc.HasExited;
+        }
+        catch (ArgumentException)
+        {
+            // Process ID doesn't exist - process has terminated
+            return false;
+        }
+    }
+
     public IReadOnlyDictionary<string, dynamic> Workbooks
     {
         get
@@ -339,14 +459,29 @@ internal sealed class ExcelBatch : IExcelBatch
             writeTask.AsTask().GetAwaiter().GetResult();
         }
 
-        // Wait for operation to complete (caller controls cancellation)
+        // Wait for operation to complete with timeout
+        // Combine caller's cancellation token with operation timeout
         try
         {
-            return tcs.Task.WaitAsync(cancellationToken).GetAwaiter().GetResult();
+            using var timeoutCts = new CancellationTokenSource(_operationTimeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
+            return tcs.Task.WaitAsync(linkedCts.Token).GetAwaiter().GetResult();
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Timeout occurred (not caller cancellation)
+            _logger.LogError("Operation timed out after {Timeout} for {FileName}", _operationTimeout, Path.GetFileName(_workbookPath));
+            _operationTimedOut = true; // Mark timeout for aggressive cleanup during disposal
+            throw new TimeoutException(
+                $"Excel operation timed out after {_operationTimeout.TotalSeconds} seconds for '{Path.GetFileName(_workbookPath)}'. " +
+                "Excel may be unresponsive or the operation is taking longer than expected. " +
+                "Consider increasing timeoutSeconds when opening the session.");
         }
         catch (OperationCanceledException)
         {
             _logger.LogDebug("Operation cancelled for {FileName}", Path.GetFileName(_workbookPath));
+            _operationTimedOut = true; // Mark timeout for aggressive cleanup during disposal
             throw;
         }
     }
@@ -395,23 +530,76 @@ internal sealed class ExcelBatch : IExcelBatch
         // Wait for STA thread to finish cleanup (with timeout)
         if (_staThread != null && _staThread.IsAlive)
         {
-            _logger.LogDebug("[Thread {CallingThread}] Calling Join() with {Timeout} timeout on STA={STAThread}, file={FileName}", callingThread, ComInteropConstants.StaThreadJoinTimeout, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath));
+            // Use shorter timeout if operation timed out (Excel is likely hung)
+            var joinTimeout = _operationTimedOut
+                ? TimeSpan.FromSeconds(10)  // Aggressive: 10 seconds when operation timed out
+                : ComInteropConstants.StaThreadJoinTimeout;  // Normal: 45 seconds
+
+            var reasonSuffix = _operationTimedOut ? " (operation timed out - aggressive cleanup)" : "";
+            _logger.LogDebug(
+                "[Thread {CallingThread}] Calling Join() with {Timeout} timeout on STA={STAThread}, file={FileName}{Reason}",
+                callingThread, joinTimeout, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath), reasonSuffix);
 
             // CRITICAL: StaThreadJoinTimeout >= ExcelQuitTimeout + margin (currently 45 seconds total).
             // The join must wait at least as long as CloseAndQuit() can take, otherwise Dispose() returns
             // before Excel has finished closing, causing "file still open" issues in subsequent operations.
-            if (!_staThread.Join(ComInteropConstants.StaThreadJoinTimeout))
+            if (!_staThread.Join(joinTimeout))
             {
-                // STA thread didn't exit - log error but don't throw
-                // This means Excel is severely stuck (exceeded quit timeout + margin)
+                // STA thread didn't exit - Excel cleanup is severely stuck
+                var reasonForError = _operationTimedOut ? " (operation previously timed out)" : "";
                 _logger.LogError(
                     "[Thread {CallingThread}] STA thread (Id={STAThread}) did NOT exit within {Timeout} for {FileName}. " +
-                    "This indicates Excel cleanup is severely stuck (exceeded quit timeout + margin). " +
-                    "Process will leak.",
-                    callingThread, _staThread.ManagedThreadId, ComInteropConstants.StaThreadJoinTimeout, Path.GetFileName(_workbookPath));
+                    "Excel cleanup is severely stuck{Reason}. Attempting force-kill.",
+                    callingThread, _staThread.ManagedThreadId, joinTimeout, Path.GetFileName(_workbookPath), reasonForError);
 
-                // Don't throw - disposal should not fail. Log the leak and continue.
-                // OS will clean up when process exits.
+                // Force-kill the hung Excel process
+                if (_excelProcessId.HasValue)
+                {
+                    try
+                    {
+                        var excelProcess = System.Diagnostics.Process.GetProcessById(_excelProcessId.Value);
+                        _logger.LogWarning(
+                            "[Thread {CallingThread}] Force-killing Excel process {ProcessId} for {FileName}",
+                            callingThread, _excelProcessId.Value, Path.GetFileName(_workbookPath));
+
+                        excelProcess.Kill();
+                        excelProcess.WaitForExit(5000); // Wait up to 5 seconds for process to die
+
+                        _logger.LogInformation(
+                            "[Thread {CallingThread}] Successfully force-killed Excel process {ProcessId}",
+                            callingThread, _excelProcessId.Value);
+
+                        // Now wait briefly for STA thread to exit after process killed
+                        if (_staThread.Join(TimeSpan.FromSeconds(5)))
+                        {
+                            _logger.LogDebug("[Thread {CallingThread}] STA thread exited after force-kill", callingThread);
+                        }
+                        else
+                        {
+                            _logger.LogWarning(
+                                "[Thread {CallingThread}] STA thread still stuck even after force-kill. Thread leak.",
+                                callingThread);
+                        }
+                    }
+                    catch (ArgumentException)
+                    {
+                        _logger.LogWarning(
+                            "[Thread {CallingThread}] Excel process {ProcessId} not found (already exited?)",
+                            callingThread, _excelProcessId.Value);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex,
+                            "[Thread {CallingThread}] Failed to force-kill Excel process {ProcessId}",
+                            callingThread, _excelProcessId.Value);
+                    }
+                }
+                else
+                {
+                    _logger.LogError(
+                        "[Thread {CallingThread}] No Excel process ID captured - cannot force-kill. Process will leak.",
+                        callingThread);
+                }
             }
         }
         else

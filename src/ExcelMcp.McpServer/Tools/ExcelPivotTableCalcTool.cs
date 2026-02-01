@@ -18,8 +18,10 @@ public static partial class ExcelPivotTableCalcTool
     /// PivotTable calculated fields/members, layout configuration, and data extraction.
     ///
     /// CALCULATED FIELDS (for regular PivotTables):
-    /// - Create custom fields using formulas like '=Revenue-Cost'
+    /// - Create custom fields using formulas like '=Revenue-Cost' or '=Quantity*UnitPrice'
     /// - Can reference existing fields by name
+    /// - After creating, use excel_pivottable_field AddValueField to add to Values area
+    /// - For complex multi-table calculations, prefer DAX measures with excel_datamodel
     ///
     /// CALCULATED MEMBERS (for OLAP/Data Model PivotTables only):
     /// - Create using MDX expressions

@@ -1,0 +1,8 @@
+# LLM Test Artifacts
+output/
+TestResults/
+agent-benchmark.exe
+agent-benchmark.zip
+
+# Personal configuration (use llm-tests.config.local.json for your settings)
+llm-tests.config.local.json

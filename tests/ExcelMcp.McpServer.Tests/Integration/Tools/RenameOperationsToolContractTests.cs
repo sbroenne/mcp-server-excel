@@ -71,10 +71,10 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
 
         _output.WriteLine($"✓ Connected to server: {_client.ServerInfo?.Name} v{_client.ServerInfo?.Version}");
 
-        // Create a fresh workbook via MCP
+        // Create a fresh workbook and open session in one call (Create)
         var createJson = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
-            ["action"] = "CreateEmpty",
+            ["action"] = "Create",
             ["path"] = _testExcelFile
         });
 
@@ -82,22 +82,10 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         Assert.True(createDoc.RootElement.GetProperty("success").GetBoolean(),
             $"Failed to create test file: {createJson}");
 
-        _output.WriteLine($"✓ Created test file: {_testExcelFile}");
-
-        // Open a session to get sessionId for subsequent calls
-        var openJson = await CallToolAsync("excel_file", new Dictionary<string, object?>
-        {
-            ["action"] = "Open",
-            ["path"] = _testExcelFile
-        });
-
-        var openDoc = JsonDocument.Parse(openJson);
-        Assert.True(openDoc.RootElement.GetProperty("success").GetBoolean(),
-            $"Failed to open session: {openJson}");
-
-        _sessionId = openDoc.RootElement.GetProperty("sessionId").GetString();
+        _sessionId = createDoc.RootElement.GetProperty("sessionId").GetString();
         Assert.NotNull(_sessionId);
-        _output.WriteLine($"✓ Session opened: {_sessionId}");
+
+        _output.WriteLine($"✓ Created test file and opened session: {_sessionId}");
     }
 
     #region Power Query Rename Contract Tests

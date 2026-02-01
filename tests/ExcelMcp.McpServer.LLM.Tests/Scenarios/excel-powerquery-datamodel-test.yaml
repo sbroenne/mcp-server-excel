@@ -30,21 +30,15 @@ ai_summary:
   judge_provider: azure-openai-judge
 
 providers:
-  - name: azure-openai-gpt41
-    type: AZURE
-    auth_type: entra_id
-    model: gpt-4.1
-    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
-    version: 2025-01-01-preview
-    retry:
-      retry_on_429: true
-      max_retries: 5
   - name: azure-openai-gpt52-chat
     type: AZURE
     auth_type: entra_id
-    model: gpt-5.2-chat
+    model: gpt-5.1-chat
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
+    rate_limits:
+      requests_per_minute: 60
+      tokens_per_minute: 150000
     retry:
       retry_on_429: true
       max_retries: 5
@@ -52,38 +46,31 @@ providers:
   - name: azure-openai-judge
     type: AZURE
     auth_type: entra_id
-    model:  gpt-5.2-chat
+    model:  gpt-5.1-chat
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
+    rate_limits:
+      requests_per_minute: 60
+      tokens_per_minute: 150000
+    retry:
+      retry_on_429: true
+      max_retries: 5
 
 servers:
   - name: excel-mcp
     type: stdio
     command: "{{SERVER_COMMAND}}"
-    server_delay: 30s
+    server_delay: 10s
 
 agents:
-  - name: gpt41-agent
-    servers:
-      - name: excel-mcp
-    provider: azure-openai-gpt41
-    system_prompt: |
-      You are {{AGENT_NAME}}, an Excel automation agent using {{PROVIDER_NAME}}.
-
-      RULES:
-      - Execute tasks immediately without asking for confirmation
-      - Never ask clarifying questions - make reasonable assumptions and proceed
-      - Never show Excel to the user - keep it hidden
-      - Format Excel files professionally (proper column widths, headers, number formats, cell styles)
-      - Always format data ranges as Excel Tables (not plain ranges)
-      - Report results after completion
-    clarification_detection:
-      enabled: true
-      judge_provider: azure-openai-judge
   - name: gpt52-chat-agent
     servers:
       - name: excel-mcp
     provider: azure-openai-gpt52-chat
+    # Agent Skills: Load excel-mcp skill for server-specific guidance
+    skill:
+      path: "{{SKILL_PATH_MCP}}"
+      file_access: true
     system_prompt: |
       You are {{AGENT_NAME}}, an Excel automation agent using {{PROVIDER_NAME}}.
 
@@ -104,108 +91,6 @@ settings:
 
 
 sessions:
-  # ==========================================================================
-  # Complete BI Dashboard Build - Progressive workflow
-  # Each test builds on the previous one within the same session
-  # ==========================================================================
-  - name: "Sales Dashboard Build"
-    tests:
-      # ----------------------------------------------------------------------
-      # Step 1: Create the workbook and enter raw data
-      # ----------------------------------------------------------------------
-      - name: "Create workbook with sales data"
-        prompt: |
-          I want to build a sales analysis dashboard. Let's start by creating a new workbook.
-
-          Create a new Excel file at {{TEST_RESULTS_PATH}}/sales-dashboard-{{randomValue type='UUID'}}.xlsx
-
-          Then enter this quarterly sales data starting at A1:
-
-          Region, Quarter, Product, Revenue, Units
-          North, Q1, Laptops, 45000, 30
-          North, Q1, Phones, 28000, 70
-          North, Q2, Laptops, 52000, 35
-          North, Q2, Phones, 31000, 80
-          South, Q1, Laptops, 38000, 25
-          South, Q1, Phones, 24000, 60
-          South, Q2, Laptops, 48000, 32
-          South, Q2, Phones, 29000, 75
-
-          Convert this data into an Excel table called "Sales"
-        assertions:
-          - type: no_hallucinated_tools
-          - type: no_clarification_questions
-          - type: output_regex
-            pattern: "(?i)(sales|table|created|success)"
-
-      # ----------------------------------------------------------------------
-      # Step 2: Add to Data Model and create measures
-      # ----------------------------------------------------------------------
-      - name: "Add to Data Model with measures"
-        prompt: |
-          Great! Now I want to analyze this data using the Data Model.
-
-          Add the Sales table to the Data Model.
-
-          Then create these measures:
-          - Total Revenue - sum of all revenue
-          - Total Units - sum of all units sold
-          - Revenue Per Unit - average revenue per unit
-        assertions:
-          - type: no_hallucinated_tools
-          - type: no_clarification_questions
-          - type: output_regex
-            pattern: "(?i)(measure|revenue|units|data model|created)"
-
-      # ----------------------------------------------------------------------
-      # Step 3: Create PivotTable from Data Model
-      # ----------------------------------------------------------------------
-      - name: "Create PivotTable analysis"
-        prompt: |
-          Now let's analyze the data. Create a PivotTable on a new sheet using the Data Model.
-
-          Set it up to show:
-          - Regions as rows
-          - Quarters as columns
-          - Total Revenue as the values
-
-          Which region performed better in Q2?
-
-        assertions:
-          - type: no_hallucinated_tools
-          - type: no_clarification_questions
-          - type: output_regex
-            pattern: "(?i)(pivot|north|south|q2|revenue)"
-
-      # ----------------------------------------------------------------------
-      # Step 4: Add chart visualization
-      # ----------------------------------------------------------------------
-      - name: "Add chart for visualization"
-        prompt: |
-          Perfect! Now add a column chart based on the PivotTable to visualize the revenue by region and quarter.
-
-          Give the chart a title like "Quarterly Revenue by Region"
-        assertions:
-          - type: no_hallucinated_tools
-          - type: no_clarification_questions
-          - type: output_regex
-            pattern: "(?i)(chart|column|revenue|created)"
-
-      # ----------------------------------------------------------------------
-      # Step 5: Save and summarize
-      # ----------------------------------------------------------------------
-      - name: "Save and close"
-        prompt: |
-          Save and close the file.
-
-          Give me a summary: how many measures did we create, and which region had better Q2 revenue?
-        assertions:
-          - type: no_hallucinated_tools
-          - type: no_clarification_questions
-          - type: output_regex
-            pattern: "(?i)(measure|north|south|saved|closed)"
-
-
   # ==========================================================================
   # Multi-Table Star Schema - Related tables workflow
   # ==========================================================================

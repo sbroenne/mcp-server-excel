@@ -46,7 +46,7 @@ public class PowerQueryWorksheetCleanupTests : IClassFixture<TempDirectoryFixtur
     /// <summary>
     /// Verifies that LoadToTable creates a properly named connection following
     /// the "Query - {queryName}" pattern, not a generic name like "Connection".
-    /// 
+    ///
     /// This is a regression test for the bug where ListObjects.Add() was creating
     /// connections with generic names instead of proper Power Query naming.
     /// </summary>
@@ -287,7 +287,7 @@ public class PowerQueryWorksheetCleanupTests : IClassFixture<TempDirectoryFixtur
         Assert.Contains(connectionsBefore.Connections, c => c.Name == $"Query - {queryName}");
 
         // Act - Unload
-        var unloadResult = PowerQueryCommands.Unload(batch, queryName);
+        var unloadResult = _powerQueryCommands.Unload(batch, queryName);
         Assert.True(unloadResult.Success, $"Unload failed: {unloadResult.ErrorMessage}");
 
         // Assert
@@ -589,7 +589,7 @@ in
         Assert.Single(connsAfterCreate.Connections, c => c.IsPowerQuery);
 
         // Unload
-        PowerQueryCommands.Unload(batch, queryName);
+        _powerQueryCommands.Unload(batch, queryName);
 
         var connsAfterUnload = _connectionCommands.List(batch);
         Assert.DoesNotContain(connsAfterUnload.Connections, c => c.IsPowerQuery);

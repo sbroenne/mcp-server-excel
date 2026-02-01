@@ -69,13 +69,25 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
 
         _output.WriteLine($"✓ Connected to server: {_client.ServerInfo?.Name} v{_client.ServerInfo?.Version}");
 
-        // Create a test Excel file
-        _ = await CallToolAsync("excel_file", new Dictionary<string, object?>
+        // Create a test Excel file and open session
+        var createResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
-            ["action"] = "CreateEmpty",
+            ["action"] = "Create",
             ["path"] = _testExcelFile
         });
         _output.WriteLine($"Created test file: {_testExcelFile}");
+
+        // Close the session immediately - we only need the file to exist for the tests
+        if (createResult.TryGetProperty("sessionId", out var sessionIdProp))
+        {
+            var sessionId = sessionIdProp.GetString();
+            await CallToolAsync("excel_file", new Dictionary<string, object?>
+            {
+                ["action"] = "Close",
+                ["sessionId"] = sessionId,
+                ["save"] = false
+            });
+        }
     }
 
     public async Task DisposeAsync()

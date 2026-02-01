@@ -4,11 +4,69 @@ All notable changes to ExcelMcp will be documented in this file.
 
 This changelog covers all components:
 - **MCP Server** - Model Context Protocol server for AI assistants
-- **CLI** - Command-line interface for scripting
+- **CLI** - Command-line interface for scripting and coding agents
 - **VS Code Extension** - One-click installation with bundled MCP Server
 - **MCPB** - Claude Desktop bundle for one-click installation
 
 ## [Unreleased]
+
+### Added
+
+#### CLI Redesign (Breaking Change)
+- **Complete CLI Rewrite** (#387): Redesigned CLI for coding agents and scripting - **NOT backwards compatible**
+  - 14 unified command categories with 210 operations matching MCP Server
+  - All commands now use `--session-id` parameter (was positional in some commands)
+  - Comprehensive `--help` descriptions on all commands synced with MCP tool descriptions
+  - All `--file` parameters support both new file creation and existing files
+  - New `excelcli list-actions` command to discover all available operations
+  - Exit code standardization (0=success, 1=error, 2=validation)
+
+- **Quiet Mode**: `-q`/`--quiet` flag suppresses banner for agent-friendly JSON-only output
+  - Auto-detects piped/redirected stdout and suppresses banner automatically
+
+- **Version Check**: `excelcli version --check` queries NuGet to show if update available
+
+- **Session Close --save**: Single `--save` flag for atomic save-and-close workflow
+  - Replaces separate save + close sequence for cleaner scripting
+
+- **CLI Action Coverage Pre-commit Check**: New `check-cli-action-coverage.ps1` script
+  - Ensures CLI switch statements cover ALL action strings from ActionExtensions.cs
+  - Prevents "action not handled" bugs from reaching production
+  - Validates 210 operations across 21 CLI commands
+
+#### MCP Server Enhancements  
+- **Session Operation Timeout** (#388): Configurable timeout prevents infinite hangs
+  - New `timeoutSeconds` parameter on `excel_file(open)` and `excel_file(create)` actions
+  - Default: 300 seconds (5 minutes), configurable range: 10-3600 seconds
+  - Applies to ALL operations within session; exceeding timeout throws `TimeoutException`
+
+- **Create Action** (#385): Renamed `create-and-open` to simpler `create` action
+  - Single-action file creation and session opening
+  - Performance: ~3.8 seconds (vs ~7-8 seconds with separate create+open)
+
+- **PowerQuery Unload Action**: New `unload` action removes data from all load destinations
+  - Keeps query definition intact while clearing worksheet/model data
+
+#### Testing & Quality
+- **LLM Integration Tests**: Comprehensive agent-benchmark test suite for CLI
+  - 9 test scenarios covering all major Excel operations
+  - Chart positioning, PivotTable layout, Power Query, slicers, tables, ranges
+  - Financial report automation workflow tests
+
+- **Agent Skills**: New structured skills documentation for AI assistants
+  - `skills/excel-cli/` - CLI-specific skill with commands reference
+  - `skills/excel-mcp/` - MCP Server skill with tools reference
+  - `skills/shared/` - Shared workflows, anti-patterns, behavioral rules
+
+### Fixed
+- **Calculated Field Bug**: Fixed PivotTable calculated field creation error
+- **COM Diagnostics**: Improved error reporting for COM object lifecycle issues
+
+### Changed
+- CLI timeout option uses `--timeout <seconds>` (was `--timeout-seconds`)
+- All CLI commands now require explicit `--session-id` parameter
+
+## [1.5.13] - 2025-01-24
 
 ### Added
 - **Chart Formatting** (#384): Enhanced chart formatting capabilities
@@ -29,11 +87,6 @@ This changelog covers all components:
 
 ### Added
 - Added Agent Skill to all artifacts
-
-## [1.5.9] - 2025-01-20
-
-### Fixed
-- **CreateEmpty Error Handling** (#372): File creation errors now return proper JSON with `isError: true` instead of crashing
 
 ### Changed
 - **MCPB Submission Compliance**: Bundle now includes LICENSE and CHANGELOG.md per Anthropic requirements
