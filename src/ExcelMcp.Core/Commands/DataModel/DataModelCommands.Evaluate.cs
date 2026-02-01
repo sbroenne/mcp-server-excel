@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.DataModel;
@@ -67,7 +69,17 @@ public partial class DataModelCommands
                 }
 
                 // Execute the DAX EVALUATE query directly via ADO
-                recordset = adoConnection.Execute(daxQuery);
+                // Wrap in try-catch to provide helpful error message when MSOLAP is missing
+                try
+                {
+                    recordset = adoConnection.Execute(daxQuery);
+                }
+                catch (COMException ex) when (ex.HResult == unchecked((int)0x80040154))
+                {
+                    // REGDB_E_CLASSNOTREG (0x80040154) = "Class not registered"
+                    // This occurs when MSOLAP provider is not installed
+                    throw new InvalidOperationException(DataModelErrorMessages.MsolapProviderNotInstalled(), ex);
+                }
 
                 // Get field (column) information
                 fields = recordset.Fields;

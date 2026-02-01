@@ -9,6 +9,11 @@ Complete installation instructions for the ExcelMcp MCP Server and CLI tool.
 - **Microsoft Excel 2016 or later** (Desktop version - Office 365, Professional Plus, or Standalone)
 - **.NET 10 Runtime or SDK** (not required for VS Code Extension or MCPB - they bundle it)
 
+### Optional (for specific features)
+- **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
+  - Easiest: Install [Power BI Desktop](https://powerbi.microsoft.com/desktop) (includes MSOLAP)
+  - Alternative: [Microsoft OLE DB Driver for Analysis Services](https://learn.microsoft.com/analysis-services/client-libraries)
+
 ### Recommended
 - Windows 11 for best performance
 - Office 365 with latest updates
