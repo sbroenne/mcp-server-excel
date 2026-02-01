@@ -35,6 +35,64 @@ Server-specific guidance for Excel MCP Server. Tools are auto-discovered - this 
 - Excel files must not be open in another Excel instance
 - VBA operations require "Trust access to VBA project object model" enabled in Excel Trust Center
 
+## CRITICAL: Execution Rules (MUST FOLLOW)
+
+**NEVER ask clarifying questions.** Make reasonable assumptions and execute immediately.
+
+**Common scenarios where you MUST NOT ask - just do it:**
+
+| Instead of Asking | DO THIS |
+|-------------------|---------|
+| "Which file should I use?" | Call `excel_file(list)` to discover open sessions |
+| "Where should I create the PivotTable?" | Create a new sheet with descriptive name |
+| "What table should I use?" | Call `excel_table(list)` to discover tables |
+| "Should I add this to the Data Model?" | Yes, if DAX measures are needed |
+| "What format should I use?" | Use professional defaults (currency, dates, etc.) |
+
+**ALWAYS call tools instead of explaining:**
+
+| DON'T | DO |
+|-------|-----|
+| "I would use excel_slicer to filter..." | CALL `excel_slicer(set-slicer-selection)` |
+| "You can use excel_datamodel to create measures..." | CALL `excel_datamodel(create-measure)` |
+| "The revenue calculation would be..." | CALL the tool, then REPORT the actual result |
+
+**When uncertain:**
+1. List first: `excel_file(list)`, `excel_table(list)`, `excel_worksheet(list)`
+2. Read metadata: `excel_table(read)`, `excel_datamodel(list-tables)`
+3. Then execute the operation with discovered information
+
+## Tool Selection Quick Reference
+
+**Which tool for which task:**
+
+| Task | Tool | Key Action |
+|------|------|------------|
+| Create/open/save workbooks | `excel_file` | open, create, close |
+| Write/read cell data | `excel_range` | set-values, get-values |
+| Create tables from data | `excel_table` | create |
+| Add data to existing table | `excel_table` | append (use csvData param) |
+| Add table to Power Pivot | `excel_table` | add-to-datamodel |
+| Create DAX formulas | `excel_datamodel` | create-measure |
+| Query Data Model | `excel_datamodel` | evaluate |
+| Create PivotTables | `excel_pivottable` | create, create-from-datamodel |
+| Filter with slicers | `excel_slicer` | set-slicer-selection |
+| Create charts | `excel_chart` | create-from-range |
+| Import external data | `excel_powerquery` | create, refresh |
+
+**Multi-step workflows - FOLLOW THIS ORDER:**
+
+```
+Data Analysis:
+excel_range(set-values) → excel_table(create) → excel_table(add-to-datamodel) → excel_datamodel(create-measure) → excel_pivottable(create-from-datamodel)
+
+Filtering:
+excel_slicer(create-slicer) → excel_slicer(set-slicer-selection)
+
+External Data:
+excel_powerquery(create) → excel_powerquery(refresh) → [Data Model ready]
+```
+
 ## Session Workflow
 
 1. **Open/Create**: 
@@ -88,6 +146,38 @@ Always convert tabular data to Excel Tables, not plain ranges:
 5. **Check Results**: Always check `success` and `errorMessage` in responses
 6. **Follow Suggestions**: Act on `suggestedNextActions` when provided
 
+## CRITICAL: Error Recovery (NEVER ASK - TRY ALTERNATIVES)
+
+**When a tool returns an error, TRY AN ALTERNATIVE APPROACH. Never ask the user what to do.**
+
+| Error Message | DON'T Ask | DO This Instead |
+|---------------|-----------|-----------------|
+| "Data Model returns old values" | "Should I refresh?" | Call `excel_datamodel(refresh)` then retry |
+| "Table not found in Data Model" | "Should I add it?" | Call `excel_table(add-to-datamodel)` first |
+| "Field not found" | "What field name is correct?" | Call `excel_table(read)` to discover fields |
+| "Query already exists" | "Should I update it?" | Use `excel_powerquery(update)` instead of `create` |
+
+**Error recovery patterns:**
+
+```
+# Pattern 1: DAX query returns stale data after table changes
+ERROR: DAX evaluate returns old values
+FIX:
+  excel_datamodel(refresh)
+  excel_datamodel(evaluate, daxQuery="...")
+
+# Pattern 2: Measure creation fails - table not in Data Model
+ERROR: "Table 'Sales' not found"
+FIX:
+  excel_table(add-to-datamodel, tableName="Sales")
+  excel_datamodel(create-measure, ...)
+
+# Pattern 3: Power Query create fails - query exists
+ERROR: "Query 'MyQuery' already exists"
+FIX:
+  excel_powerquery(update, queryName="MyQuery", ...)
+```
+
 ## Data Model Workflow
 
 Tables must be in the Data Model before DAX measures work:
@@ -100,6 +190,41 @@ Tables must be in the Data Model before DAX measures work:
 - NO calculated tables - use Power Query instead
 - NO calculated columns via COM API - use Power Query or DAX measures
 - Measures and relationships work fully
+
+## CRITICAL: Data Model Sync After Table Changes
+
+**Worksheet tables and Data Model are SEPARATE!** Changes don't auto-sync.
+
+```
+AFTER adding rows to worksheet table:
+excel_table(append, ...)       # Worksheet updated
+excel_datamodel(refresh)       # REQUIRED: Sync changes to Data Model
+excel_datamodel(evaluate, ...) # Now returns updated values
+```
+
+**Skip refresh only when:** Power Query is the source (`excel_powerquery(refresh)` refreshes both)
+
+## PivotTable Calculated Fields
+
+For computed values in PivotTables, you have two options:
+
+**Option 1: Calculated Field (simple, single-table)**
+```
+excel_pivottable_calc(CreateCalculatedField, fieldName="Revenue", formula="=Quantity*UnitPrice")
+excel_pivottable_field(AddValueField, fieldName="Revenue", aggregationFunction="Sum")
+```
+
+**Option 2: DAX Measure (complex, multi-table, reusable)**
+```
+excel_table(add-to-datamodel, tableName="Sales")
+excel_datamodel(create-measure, daxFormula="SUMX(Sales, Sales[Quantity]*Sales[UnitPrice])")
+excel_pivottable(create-from-datamodel, ...)
+```
+
+**When to use DAX instead:**
+- Multi-table calculations (need relationships)
+- Complex logic (time intelligence, YTD, etc.)
+- Reusable across multiple PivotTables
 
 ## Power Query Workflow
 
@@ -193,6 +318,7 @@ See `references/` for detailed guidance:
 - @references/workflows.md - Production patterns
 - @references/behavioral-rules.md - Execution guidelines
 - @references/anti-patterns.md - Common mistakes
+- @references/excel_pivottable.md - PivotTable operations and calculated field limitations
 - @references/excel_powerquery.md - Power Query specifics
 - @references/excel_datamodel.md - Data Model/DAX specifics
 - @references/excel_table.md - Table operations

@@ -88,6 +88,15 @@ public static class ExcelToolsBase
             throw new InvalidOperationException(errorMessage);
         }
 
+        // Check if Excel process is still alive before executing operation
+        if (!batch.IsExcelProcessAlive())
+        {
+            throw new InvalidOperationException(
+                $"Session '{sessionId}' is stale: Excel process has terminated. " +
+                "The session was likely corrupted by a COM error or timeout. " +
+                "Recovery: Close this session with excel_file(action='close') and create a new one with excel_file(action='open').");
+        }
+
         // Track operation start/end to prevent premature session close
         SessionManager.BeginOperation(sessionId);
         try
@@ -184,6 +193,20 @@ public static class ExcelToolsBase
         }
         catch (Exception ex)
         {
+            // Log COM exceptions to stderr for diagnostic capture
+            if (ex is System.Runtime.InteropServices.COMException comEx)
+            {
+                Console.Error.WriteLine($"[ExcelMcp] COM Exception in {toolName}/{actionName}: HResult=0x{comEx.HResult:X8}, Message={comEx.Message}");
+                if (ex.StackTrace != null)
+                {
+                    Console.Error.WriteLine($"[ExcelMcp] StackTrace: {ex.StackTrace[..Math.Min(500, ex.StackTrace.Length)]}");
+                }
+            }
+            else if (ex.InnerException is System.Runtime.InteropServices.COMException innerComEx)
+            {
+                Console.Error.WriteLine($"[ExcelMcp] Inner COM Exception in {toolName}/{actionName}: HResult=0x{innerComEx.HResult:X8}, Message={innerComEx.Message}");
+            }
+
             if (customHandler != null)
             {
                 var custom = customHandler(ex);
@@ -251,6 +274,7 @@ public static class ExcelToolsBase
     /// <summary>
     /// Serializes a tool error response with consistent structure.
     /// Uses short property names for token efficiency: ok=success, err=errorMessage, ie=isError
+    /// Includes detailed COM exception info for diagnostics.
     /// </summary>
     /// <param name="actionName">Action string (kebab-case) included in message.</param>
     /// <param name="excelPath">Optional Excel path context.</param>
@@ -262,11 +286,34 @@ public static class ExcelToolsBase
             ? $"{actionName} failed for '{excelPath}': {ex.Message}"
             : $"{actionName} failed: {ex.Message}";
 
+        // Add detailed COM exception info for diagnostics
+        string? exceptionType = ex.GetType().Name;
+        string? hresult = null;
+        string? innerError = null;
+
+        if (ex is System.Runtime.InteropServices.COMException comEx)
+        {
+            hresult = $"0x{comEx.HResult:X8}";
+            errorMessage += $" [COM Error: {hresult}]";
+        }
+
+        if (ex.InnerException != null)
+        {
+            innerError = ex.InnerException.Message;
+            if (ex.InnerException is System.Runtime.InteropServices.COMException innerComEx)
+            {
+                innerError += $" [COM: 0x{innerComEx.HResult:X8}]";
+            }
+        }
+
         var payload = new
         {
             ok = false,
             err = errorMessage,
-            ie = true
+            ie = true,
+            exType = exceptionType,
+            hr = hresult,
+            inner = innerError
         };
 
         return JsonSerializer.Serialize(payload, JsonOptions);

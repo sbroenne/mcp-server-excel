@@ -403,5 +403,72 @@ public partial class TableCommandsTests
         Assert.Equal("SalesTable", slicer.ConnectedTable);
     }
 
+    /// <summary>
+    /// Tests rapid sequential operations: create slicer, then immediately list slicers.
+    /// This mimics MCP/LLM patterns where operations are called in rapid succession.
+    /// Tests for timing issues and COM object availability.
+    /// </summary>
+    [Fact]
+    public void RapidSequentialOperations_CreateThenList_ReturnsValidPosition()
+    {
+        // Arrange
+        var testFile = _fixture.CreateModificationTestFile();
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Act - Create slicer then IMMEDIATELY list (mimics MCP agent pattern)
+        var createResult = _tableCommands.CreateTableSlicer(
+            batch, "SalesTable", "Region", "RapidTestSlicer", "Sales", "F2");
+        Assert.True(createResult.Success, $"CreateTableSlicer failed: {createResult.ErrorMessage}");
+
+        // Immediately call list - no delay (this is how MCP agents work)
+        var listResult = _tableCommands.ListTableSlicers(batch);
+
+        // Assert - Both operations must succeed with valid data
+        Assert.True(listResult.Success, $"ListTableSlicers failed: {listResult.ErrorMessage}");
+        var slicer = listResult.Slicers.FirstOrDefault(s => s.Name == "RapidTestSlicer");
+        Assert.NotNull(slicer);
+        Assert.False(string.IsNullOrEmpty(slicer.Position),
+            "Slicer Position empty after rapid create+list - possible COM timing issue");
+        Assert.NotEqual("Unknown", slicer.FieldName);
+        Assert.Equal("SalesTable", slicer.ConnectedTable);
+    }
+
+    /// <summary>
+    /// Tests multiple rapid operations in sequence to stress test COM object handling.
+    /// Create multiple slicers, then list all, then set selection on each.
+    /// </summary>
+    [Fact]
+    public void RapidSequentialOperations_MultipleSlicers_AllReturnValidData()
+    {
+        // Arrange
+        var testFile = _fixture.CreateModificationTestFile();
+        using var batch = ExcelSession.BeginBatch(testFile);
+
+        // Act - Create 3 slicers in rapid succession (using columns that exist in test data)
+        var slicer1 = _tableCommands.CreateTableSlicer(batch, "SalesTable", "Region", "RapidSlicer1", "Sales", "F2");
+        var slicer2 = _tableCommands.CreateTableSlicer(batch, "SalesTable", "Product", "RapidSlicer2", "Sales", "H2");
+        var slicer3 = _tableCommands.CreateTableSlicer(batch, "SalesTable", "Amount", "RapidSlicer3", "Sales", "J2");
+
+        Assert.True(slicer1.Success, $"CreateTableSlicer 1 failed: {slicer1.ErrorMessage}");
+        Assert.True(slicer2.Success, $"CreateTableSlicer 2 failed: {slicer2.ErrorMessage}");
+        Assert.True(slicer3.Success, $"CreateTableSlicer 3 failed: {slicer3.ErrorMessage}");
+
+        // Immediately list all slicers
+        var listResult = _tableCommands.ListTableSlicers(batch);
+
+        // Assert - All 3 slicers must have valid data
+        Assert.True(listResult.Success, $"ListTableSlicers failed: {listResult.ErrorMessage}");
+        Assert.True(listResult.Slicers.Count >= 3, $"Expected at least 3 slicers, got {listResult.Slicers.Count}");
+
+        foreach (var name in new[] { "RapidSlicer1", "RapidSlicer2", "RapidSlicer3" })
+        {
+            var slicer = listResult.Slicers.FirstOrDefault(s => s.Name == name);
+            Assert.NotNull(slicer);
+            Assert.False(string.IsNullOrEmpty(slicer.Position),
+                $"Slicer '{name}' has empty Position after rapid operations");
+            Assert.NotEqual("Unknown", slicer.FieldName);
+        }
+    }
+
     #endregion
 }

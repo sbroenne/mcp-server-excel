@@ -44,9 +44,10 @@ public static partial class TableTool
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10'). Required for: create, resize. Optional targetCell for: create-from-dax (default: 'A1')</param>
     /// <param name="newName">New name for the table. Required for: rename. Column name for: set-column-total</param>
     /// <param name="hasHeaders">For 'create': true if first row contains column headers (default: true). For 'toggle-totals': true to show totals row, false to hide.</param>
-    /// <param name="styleName">Multi-purpose string parameter: Table style name for 'create'/'set-style' (e.g., 'TableStyleMedium2'). Total function for 'set-column-total' (Sum, Average, Count, etc.). CSV data for 'append'.</param>
+    /// <param name="styleName">Table style name for 'create'/'set-style' (e.g., 'TableStyleMedium2'). Total function for 'set-column-total' (Sum, Average, Count, etc.).</param>
     /// <param name="visibleOnly">For 'get-data': true to return only visible (non-filtered) rows. Default: false (all rows)</param>
     /// <param name="daxQuery">DAX EVALUATE query for 'create-from-dax' and 'update-dax' actions (e.g., 'EVALUATE SUMMARIZE(...))'</param>
+    /// <param name="csvData">CSV data for 'append' action. Simple format: comma-separated values, newline-separated rows. First row should match table column order.</param>
     [McpServerTool(Name = "excel_table", Title = "Excel Table Operations", Destructive = true)]
     [McpMeta("category", "data")]
     [McpMeta("requiresSession", true)]
@@ -61,7 +62,8 @@ public static partial class TableTool
         [DefaultValue(true)] bool hasHeaders,
         [DefaultValue(null)] string? styleName,
         [DefaultValue(false)] bool visibleOnly,
-        [DefaultValue(null)] string? daxQuery)
+        [DefaultValue(null)] string? daxQuery,
+        [DefaultValue(null)] string? csvData)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_table",
@@ -81,7 +83,7 @@ public static partial class TableTool
                     TableAction.Resize => ResizeTable(tableCommands, sessionId, tableName, rangeAddress),
                     TableAction.ToggleTotals => ToggleTotals(tableCommands, sessionId, tableName, hasHeaders),
                     TableAction.SetColumnTotal => SetColumnTotal(tableCommands, sessionId, tableName, newName, styleName),
-                    TableAction.Append => AppendRows(tableCommands, sessionId, tableName, styleName),
+                    TableAction.Append => AppendRows(tableCommands, sessionId, tableName, csvData),
                     TableAction.GetData => GetData(tableCommands, sessionId, tableName, visibleOnly),
                     TableAction.SetStyle => SetTableStyle(tableCommands, sessionId, tableName, styleName),
                     TableAction.AddToDataModel => AddToDataModel(tableCommands, sessionId, tableName),

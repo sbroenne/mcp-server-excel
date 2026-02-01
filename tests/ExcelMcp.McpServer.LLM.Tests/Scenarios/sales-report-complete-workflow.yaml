@@ -26,42 +26,42 @@ ai_summary:
   judge_provider: azure-openai-judge
 
 providers:
-  - name: azure-openai-gpt41
-    type: AZURE
-    auth_type: entra_id
-    model: gpt-4.1
-    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
-    version: 2025-01-01-preview
-    rate_limits:
-      requests_per_minute: 300
-      tokens_per_minute: 300000
-    retry:
-      retry_on_429: true
-      max_retries: 5
   - name: azure-openai-gpt5-chat
     type: AZURE
     auth_type: entra_id
     model: gpt-5.1-chat
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
+    rate_limits:
+      requests_per_minute: 60
+      tokens_per_minute: 150000
+    retry:
+      retry_on_429: true
+      max_retries: 5
   - name: azure-openai-judge
     type: AZURE
     auth_type: entra_id
     model: gpt-4.1
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
+    rate_limits:
+      requests_per_minute: 60
+      tokens_per_minute: 150000
+    retry:
+      retry_on_429: true
+      max_retries: 5
 
 servers:
   - name: excel-mcp
     type: stdio
     command: "{{SERVER_COMMAND}}"
-    server_delay: 30s
+    server_delay: 10s
 
 agents:
-  - name: gpt41-agent
+  - name: gpt5-chat-agent
     servers:
       - name: excel-mcp
-    provider: azure-openai-gpt41
+    provider: azure-openai-gpt5-chat
     skill:
       path: "{{SKILL_PATH_MCP}}"
       file_access: true

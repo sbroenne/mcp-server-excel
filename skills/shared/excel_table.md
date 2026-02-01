@@ -15,7 +15,7 @@ To analyze worksheet data with DAX measures:
 - read: Get table metadata (range, columns, style, row counts)
 - get-data: Get actual table DATA as 2D array (use visibleOnly=true for filtered data)
 - add-to-datamodel: Add an existing worksheet table to Power Pivot for DAX analysis
-- append: Add rows to existing table (CSV format via style parameter)
+- append: Add rows to existing table (requires csvData parameter)
 - resize: Change table range (expand/contract)
 - delete: Remove table (keeps data, removes table formatting)
 - **create-from-dax**: Create table populated by a DAX EVALUATE query from Data Model
@@ -66,6 +66,7 @@ Example DAX queries for create-from-dax:
 
 **Server-specific quirks**:
 
-- Style parameter is overloaded: table style name OR total function OR CSV data (context-dependent)
+- Style parameter is overloaded: table style name OR total function (context-dependent)
+- csvData parameter: dedicated parameter for append action (CSV format: comma-separated, newline-separated rows)
 - visibleOnly parameter only applies to get-data action
 - Table names must be unique within workbook (Excel requirement)

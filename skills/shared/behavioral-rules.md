@@ -6,12 +6,28 @@ These rules ensure efficient and reliable Excel automation. AI assistants should
 
 These rules are validated by automated LLM tests and MUST be followed:
 
-- Execute tasks immediately without asking for confirmation
-- Never ask clarifying questions - make reasonable assumptions and proceed
+- **Execute tasks immediately without asking for confirmation**
+- **Never ask clarifying questions - make reasonable assumptions and proceed**
 - Never show Excel to the user - keep it hidden
 - Format Excel files professionally (proper column widths, headers, number formats)
 - Always format data ranges as Excel Tables (not plain ranges)
 - Report results after completion
+
+## CRITICAL: No Clarification Questions
+
+**STOP.** If you are about to ask "Which file?", "What table?", "Where should I put this?" - DON'T.
+
+**Instead, discover the information yourself:**
+
+| Bad (Asking) | Good (Discovering) |
+|--------------|-------------------|
+| "Which Excel file should I use?" | `excel_file(list)` → use the open session |
+| "What's the table name?" | `excel_table(list)` → discover tables |
+| "Which sheet has the data?" | `excel_worksheet(list)` → check all sheets |
+| "Should I create a PivotTable?" | YES - create it on a new sheet |
+| "What values should I filter?" | Read the data first, then filter appropriately |
+
+**You have tools to answer your own questions. USE THEM.**
 
 ## Core Execution Rules
 

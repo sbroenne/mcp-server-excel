@@ -37,21 +37,15 @@ ai_summary:
   judge_provider: azure-openai-gpt52-chat
 
 providers:
-  - name: azure-openai-gpt41
-    type: AZURE
-    auth_type: entra_id
-    model: gpt-4.1
-    baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
-    version: 2025-01-01-preview
-    retry:
-      retry_on_429: true
-      max_retries: 5
   - name: azure-openai-gpt52-chat
     type: AZURE
     auth_type: entra_id
     model: gpt-5.1-chat
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
+    rate_limits:
+      requests_per_minute: 60
+      tokens_per_minute: 150000
     retry:
       retry_on_429: true
       max_retries: 5
@@ -62,29 +56,17 @@ providers:
     model: gpt-5.1-chat
     baseUrl: "{{AZURE_OPENAI_ENDPOINT}}"
     version: 2025-01-01-preview
+    rate_limits:
+      requests_per_minute: 60
+      tokens_per_minute: 150000
 
 servers:
   - name: excel-mcp
     type: stdio
     command: "{{SERVER_COMMAND}}"
-    server_delay: 30s
+    server_delay: 10s
 
 agents:
-  - name: gpt41-agent
-    servers:
-      - name: excel-mcp
-    provider: azure-openai-gpt41
-    system_prompt: |
-      You are {{AGENT_NAME}}, an Excel automation agent using {{PROVIDER_NAME}}.
-
-      RULES:
-      - Execute tasks immediately without asking for confirmation
-      - Never ask clarifying questions - make reasonable assumptions and proceed
-      - Never show Excel to the user - keep it hidden
-      - Report results after completion
-    clarification_detection:
-      enabled: true
-      judge_provider: azure-openai-judge
   - name: gpt52-chat-agent
     servers:
       - name: excel-mcp

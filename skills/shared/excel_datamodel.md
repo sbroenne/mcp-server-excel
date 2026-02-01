@@ -5,6 +5,33 @@
 The Data Model (Power Pivot) only contains tables that were explicitly added.
 You CANNOT create DAX measures on tables that aren't in the Data Model.
 
+## CRITICAL: Data Model Sync (Worksheet Tables)
+
+**Worksheet tables and Data Model tables are SEPARATE copies!**
+
+When you append/modify a worksheet table, the Data Model does NOT auto-update.
+You MUST explicitly refresh the Data Model to sync changes.
+
+```
+# WRONG: Data still shows old values
+excel_table(append, tableName="Sales", csvData="...")  # Worksheet updated
+excel_datamodel(evaluate, daxQuery="...")               # Returns OLD values!
+
+# CORRECT: Refresh Data Model after worksheet changes
+excel_table(append, tableName="Sales", csvData="...")  # Worksheet updated
+excel_datamodel(refresh)                                 # Sync to Data Model
+excel_datamodel(evaluate, daxQuery="...")               # Returns NEW values!
+```
+
+**When refresh is automatic:**
+- `excel_powerquery(refresh)` refreshes BOTH Power Query AND Data Model
+- Tables loaded via Power Query auto-sync on Power Query refresh
+
+**When refresh is REQUIRED:**
+- After `excel_table(append)` to worksheet table
+- After `excel_range(set-values)` that modifies table data
+- After any manual/direct worksheet edits
+
 ## Excel Power Pivot Limitations (vs SSAS/Power BI)
 
 | Feature | Power BI/SSAS | Excel Power Pivot | Workaround |

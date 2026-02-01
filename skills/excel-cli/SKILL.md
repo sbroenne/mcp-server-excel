@@ -23,6 +23,20 @@ documentation: https://excelmcpserver.dev/
 
 # Excel Automation with excelcli
 
+## CRITICAL: Execution Rules (MUST FOLLOW)
+
+**NEVER ask clarifying questions.** Make reasonable assumptions and execute immediately.
+
+**Common scenarios - just do it:**
+
+| Instead of Asking | DO THIS |
+|-------------------|---------|
+| "Which file should I use?" | Run `excelcli -q session list` to discover open sessions |
+| "What table should I use?" | Run `excelcli -q table list --session <id>` |
+| "Which sheet has the data?" | Run `excelcli -q worksheet list --session <id>` |
+
+**ALWAYS run commands instead of explaining. You have CLI commands to answer your own questions - USE THEM.**
+
 ## Quick Start
 
 ```powershell

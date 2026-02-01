@@ -78,8 +78,8 @@ $ReportsDir = Join-Path $TestDir "TestResults"
 # Build command string (forward slashes for YAML compatibility)
 $ProjectPathForYaml = $ProjectPath -replace '\\', '/'
 
-# For MCP Server, use dotnet run (no daemon conflicts)
-# For CLI, use the built exe directly (daemon locks DLLs during dotnet run rebuild)
+# For both MCP Server and CLI, use pre-built exe for fast startup
+# This avoids 60s+ cold start from dotnet run compilation
 if ($Component -eq "cli") {
     $ExePath = Join-Path $SrcDir "bin\Release\net10.0-windows\excelcli.exe"
     if (-not $Build -and -not (Test-Path $ExePath)) {
@@ -88,7 +88,13 @@ if ($Component -eq "cli") {
     }
     $ServerCommand = ($ExePath -replace '\\', '/')
 } else {
-    $ServerCommand = "dotnet run --project $ProjectPathForYaml -c Release --"
+    # MCP Server - use pre-built exe to avoid 60s+ dotnet run compilation delay
+    $ExePath = Join-Path $SrcDir "bin\Release\net10.0\Sbroenne.ExcelMcp.McpServer.exe"
+    if (-not $Build -and -not (Test-Path $ExePath)) {
+        Write-Host "MCP Server exe not found. Building first..." -ForegroundColor Cyan
+        $Build = $true
+    }
+    $ServerCommand = ($ExePath -replace '\\', '/')
 }
 
 # Load configuration from test directory
@@ -177,13 +183,10 @@ if (-not (Test-Path $ProjectPath)) {
     exit 1
 }
 
-# For CLI, verify the exe exists after build
-if ($Component -eq "cli") {
-    $ExePath = Join-Path $SrcDir "bin\Release\net10.0-windows\excelcli.exe"
-    if (-not (Test-Path $ExePath)) {
-        Write-Error "CLI exe not found at: $ExePath. Run with -Build flag."
-        exit 1
-    }
+# Verify exe exists after build (both CLI and MCP use pre-built exe now)
+if (-not (Test-Path $ExePath)) {
+    Write-Error "$ComponentName exe not found at: $ExePath. Run with -Build flag."
+    exit 1
 }
 
 # Download agent-benchmark if needed (executable mode only)

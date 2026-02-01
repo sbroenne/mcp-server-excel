@@ -46,7 +46,7 @@ public class PowerQueryWorksheetCleanupTests : IClassFixture<TempDirectoryFixtur
     /// <summary>
     /// Verifies that LoadToTable creates a properly named connection following
     /// the "Query - {queryName}" pattern, not a generic name like "Connection".
-    /// 
+    ///
     /// This is a regression test for the bug where ListObjects.Add() was creating
     /// connections with generic names instead of proper Power Query naming.
     /// </summary>
