@@ -210,14 +210,7 @@ public static class ExcelSession
                 }
                 catch { }
 
-                try
-                {
-                    if (excel != null)
-                    {
-                        excel.Quit();  // excel is Excel.Application COM object
-                    }
-                }
-                catch { }
+                ComUtilities.TryQuitExcel(excel);
 
                 ComUtilities.Release(ref workbook!);
                 ComUtilities.Release(ref excel!);

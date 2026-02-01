@@ -48,6 +48,32 @@ public static class ComUtilities
     }
 
     /// <summary>
+    /// Safely attempts to quit an Excel application COM object.
+    /// This is a fire-and-forget cleanup helper - errors are swallowed.
+    /// </summary>
+    /// <param name="excel">The Excel.Application COM object (dynamic)</param>
+    /// <remarks>
+    /// Use this for cleanup scenarios where you want to quit Excel but don't
+    /// need to handle or report errors. For production shutdown with retry
+    /// logic, use ExcelShutdownService.CloseAndQuit instead.
+    /// </remarks>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "CS8602", Justification = "Dynamic COM interop - Quit exists on Excel.Application")]
+    public static void TryQuitExcel(dynamic? excel)
+    {
+        if (excel == null) return;
+
+        try
+        {
+            // Excel.Application.Quit() - dynamic invocation on COM object
+            excel.Quit();
+        }
+        catch
+        {
+            // Swallow errors during cleanup - Excel may already be gone
+        }
+    }
+
+    /// <summary>
     /// Finds a Power Query by name in the workbook
     /// </summary>
     /// <param name="workbook">Excel workbook COM object</param>
