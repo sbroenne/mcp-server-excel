@@ -182,7 +182,7 @@ jobs:
       run: |
         $version = $env:VERSION
         New-Item -ItemType Directory -Path "release/ExcelMcp-CLI-$version" -Force
-        Copy-Item "src/ExcelMcp.CLI/bin/Release/net10.0/*" "release/ExcelMcp-CLI-$version/" -Recurse
+        Copy-Item "src/ExcelMcp.CLI/bin/Release/net10.0-windows/*" "release/ExcelMcp-CLI-$version/" -Recurse
         Copy-Item "README.md" "release/ExcelMcp-CLI-$version/"
         Copy-Item "LICENSE" "release/ExcelMcp-CLI-$version/"
         Compress-Archive -Path "release/ExcelMcp-CLI-$version/*" -DestinationPath "ExcelMcp-CLI-$version-windows.zip"
