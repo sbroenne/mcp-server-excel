@@ -127,13 +127,12 @@ internal sealed class ExcelDaemon : IDisposable
 
             // Run Windows Forms message loop - this blocks until Application.Exit() is called
             Application.Run();
-
-            _tray.Dispose();
-            _tray = null;
         }
-        catch
+        finally
         {
-            // Tray errors shouldn't crash the daemon
+            // Ensure _tray is disposed even if exception occurs
+            _tray?.Dispose();
+            _tray = null;
         }
     }
 

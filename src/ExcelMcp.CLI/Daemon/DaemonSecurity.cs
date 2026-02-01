@@ -81,11 +81,12 @@ internal static class DaemonSecurity
             return null;
         }
 
+        bool acquired = false;
         try
         {
-            if (!mutex.WaitOne(0))
+            acquired = mutex.WaitOne(0);
+            if (!acquired)
             {
-                mutex.Dispose();
                 return null;
             }
             return mutex;
@@ -93,7 +94,16 @@ internal static class DaemonSecurity
         catch (AbandonedMutexException)
         {
             // Previous instance crashed, we can take over
+            acquired = true;
             return mutex;
+        }
+        finally
+        {
+            // Dispose mutex if we didn't acquire it (exception case)
+            if (!acquired)
+            {
+                mutex.Dispose();
+            }
         }
     }
 
