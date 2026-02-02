@@ -102,7 +102,7 @@ Follow [Keep a Changelog](https://keepachangelog.com/) format:
 
 **DO NOT manually edit package.json version** - The unified release workflow handles this:
 
-```bash
+```powershell
 # Create and push tag - workflow releases ALL components with same version
 git tag v1.5.7
 git push origin v1.5.7
@@ -121,7 +121,7 @@ Unified workflow automatically:
 
 For local testing only, use npm version commands:
 
-```bash
+```powershell
 npm version patch   # 1.0.0 → 1.0.1
 npm version minor   # 1.0.0 → 1.1.0
 npm version major   # 1.0.0 → 2.0.0
@@ -179,7 +179,7 @@ Check these files when updating command syntax:
 
 Before committing, search for outdated command references:
 
-```bash
+```powershell
 # Search for incorrect dnx references
 grep -r "dnx" vscode-extension/
 
@@ -193,7 +193,7 @@ grep -r "dnx" vscode-extension/
 
 ### Building and Testing
 
-```bash
+```powershell
 # Install dependencies
 npm install
 
@@ -230,7 +230,7 @@ npm run package
 
 1. **Update root CHANGELOG.md** with new features/fixes for all components
 2. **Create and push version tag** (releases ALL components):
-   ```bash
+   ```powershell
    git tag v1.5.7
    git push origin v1.5.7
    ```
@@ -240,7 +240,7 @@ npm run package
 
 If automated workflow fails:
 
-```bash
+```powershell
 # Login to marketplace
 npx @vscode/vsce login <publisher-name>
 

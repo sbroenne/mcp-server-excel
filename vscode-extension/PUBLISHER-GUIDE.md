@@ -95,7 +95,7 @@ This guide walks you through publishing your VS Code extension to the marketplac
 **Now you're ready to publish!**
 
 1. **Update version in package.json** (if needed):
-   ```bash
+   ```powershell
    cd vscode-extension
    npm version 1.0.0  # or patch, minor, major
    ```
@@ -103,14 +103,14 @@ This guide walks you through publishing your VS Code extension to the marketplac
 2. **Update CHANGELOG.md** with release notes
 
 3. **Commit changes**:
-   ```bash
+   ```powershell
    git add .
    git commit -m "Prepare v1.0.0 release"
    git push
    ```
 
 4. **Create and push version tag** (releases ALL components):
-   ```bash
+   ```powershell
    git tag v1.0.0
    git push origin v1.0.0
    ```
@@ -136,7 +136,7 @@ This guide walks you through publishing your VS Code extension to the marketplac
 
 Once you've done the above setup once, publishing new versions is easy:
 
-```bash
+```powershell
 # 1. Make your code changes
 # ... edit files ...
 
@@ -207,7 +207,7 @@ git push origin v1.0.1
 
 **Solution:**
 - Increment version in package.json:
-  ```bash
+  ```powershell
   npm version patch  # 1.0.0 → 1.0.1
   ```
 - You cannot republish the same version

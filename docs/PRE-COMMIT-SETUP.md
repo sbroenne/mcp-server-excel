@@ -20,7 +20,7 @@ This repository includes automated pre-commit checks to prevent code quality iss
 The bash hook at `.git/hooks/pre-commit` works automatically if you have Git Bash installed (default with Git for Windows).
 
 **Test it:**
-```bash
+```powershell
 bash .git/hooks/pre-commit
 ```
 
@@ -87,7 +87,7 @@ See `.github/instructions/coverage-prevention-strategy.instructions.md` for deta
 
 If you absolutely must commit without passing the checks (NOT recommended):
 
-```bash
+```powershell
 git commit --no-verify -m "Emergency commit message"
 ```
 
@@ -118,7 +118,7 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
 
 ### Hook not running automatically
 Verify the file is executable:
-```bash
+```powershell
 chmod +x .git/hooks/pre-commit
 ```
 

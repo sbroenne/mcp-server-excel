@@ -831,3 +831,40 @@ PowerQuery `unload` action was added to:
 
 Result: Caught during commit review, required additional fixes.
 
+---
+
+## Rule 25: Use PowerShell Syntax in Documentation (CRITICAL)
+
+**ExcelMcp is Windows-only. ALL documentation code blocks MUST use PowerShell syntax, NOT bash.**
+
+```markdown
+# ❌ WRONG: bash syntax
+```bash
+dotnet build
+excelcli sheet list --file "test.xlsx"
+```
+
+# ✅ CORRECT: PowerShell syntax
+```powershell
+dotnet build
+excelcli sheet list --file "test.xlsx"
+```
+```
+
+**Why Critical:**
+- ExcelMcp requires Windows + Excel COM interop
+- bash syntax confuses Windows users
+- PowerShell is the native Windows shell
+- Syntax highlighting differs between bash/powershell
+
+**Enforcement:**
+- Use `powershell` or `pwsh` code fence, NEVER `bash` or `sh`
+- Exception: Docker/Linux-specific docs (e.g., GitHub Actions runners on Linux)
+- Review all new .md files for bash code blocks before commit
+
+**Quick Check:**
+```powershell
+# Find all bash code blocks in markdown files
+Select-String -Path "**/*.md" -Pattern '```bash' -Recurse
+```
+

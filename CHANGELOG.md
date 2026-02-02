@@ -10,12 +10,14 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.5.14] - 2025-02-01
+
 ### Added
 
 #### CLI Redesign (Breaking Change)
 - **Complete CLI Rewrite** (#387): Redesigned CLI for coding agents and scripting - **NOT backwards compatible**
   - 14 unified command categories with 210 operations matching MCP Server
-  - All commands now use `--session-id` parameter (was positional in some commands)
+  - All commands now use `--session` parameter (was positional in some commands)
   - Comprehensive `--help` descriptions on all commands synced with MCP tool descriptions
   - All `--file` parameters support both new file creation and existing files
   - New `excelcli list-actions` command to discover all available operations
@@ -64,7 +66,7 @@ This changelog covers all components:
 
 ### Changed
 - CLI timeout option uses `--timeout <seconds>` (was `--timeout-seconds`)
-- All CLI commands now require explicit `--session-id` parameter
+- All CLI commands now require explicit `--session` parameter
 
 ## [1.5.13] - 2025-01-24
 

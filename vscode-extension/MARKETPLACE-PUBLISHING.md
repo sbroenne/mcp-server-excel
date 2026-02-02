@@ -84,7 +84,7 @@ To test the release workflow:
 
 1. Ensure the `VSCE_TOKEN` secret is configured
 2. Push a test tag (this will trigger release of ALL components):
-   ```bash
+   ```powershell
    git tag v0.0.1-test
    git push origin v0.0.1-test
    ```
@@ -110,7 +110,7 @@ To test the release workflow:
 
 If automated publishing fails, you can publish manually:
 
-```bash
+```powershell
 cd vscode-extension
 npm install -g @vscode/vsce
 vsce login <publisher-name>

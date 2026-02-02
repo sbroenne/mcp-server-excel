@@ -1232,7 +1232,7 @@ await rangeCommands.SetValuesAsync(batch, "Sheet1", "A1:B3", [
 
 ### CLI Examples
 
-```bash
+```powershell
 # Single cell - CLI may simplify to scalar for user convenience
 excelcli range-get-values file.xlsx Sheet1 A1
 # Output: 100 (CLI unpacks [[100]] to scalar)
@@ -1310,7 +1310,7 @@ public class RangeHyperlinkResult : ResultBase
 
 ### Phase 1 Commands (Replacing cell-*, hyperlink-*, and sheet data commands)
 
-```bash
+```powershell
 # === VALUE OPERATIONS (replaces cell-get-value, cell-set-value, sheet-read, sheet-write) ===
 excelcli range-get-values <file.xlsx> <sheet> <range>                # Output: JSON or table
 excelcli range-set-values <file.xlsx> <sheet> <range> <data.csv>     # CLI-ONLY: Reads CSV, converts to 2D array
@@ -1338,7 +1338,7 @@ excelcli range-get-hyperlink <file.xlsx> <sheet> <cell>
 
 ### Removed Commands
 
-```bash
+```powershell
 # ❌ DELETED - Use range-* commands instead
 cell-get-value
 cell-set-value

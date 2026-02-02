@@ -125,13 +125,13 @@ The workflow has `id-token: write` permission enabled for OIDC authentication.
 ### Creating a New Release
 
 1. **Ensure all changes are merged to main**
-   ```bash
+   ```powershell
    git checkout main
    git pull origin main
    ```
 
 2. **Create and push a version tag**
-   ```bash
+   ```powershell
    git tag mcp-v1.0.10
    git push origin mcp-v1.0.10
    ```
@@ -218,7 +218,7 @@ Once published, the server will be:
 If the automated workflow fails, you can publish manually:
 
 ### 1. Install MCP Publisher
-```bash
+```powershell
 # Windows PowerShell
 $arch = if ([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture -eq "Arm64") { "arm64" } else { "amd64" }
 Invoke-WebRequest -Uri "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_windows_$arch.tar.gz" -OutFile "mcp-publisher.tar.gz"
@@ -226,7 +226,7 @@ tar xf mcp-publisher.tar.gz
 ```
 
 ### 2. Authenticate
-```bash
+```powershell
 ./mcp-publisher login github
 ```
 
@@ -234,7 +234,7 @@ tar xf mcp-publisher.tar.gz
 Edit `src/ExcelMcp.McpServer/.mcp/server.json` and update the version fields.
 
 ### 4. Publish
-```bash
+```powershell
 cd src/ExcelMcp.McpServer
 ../../mcp-publisher publish
 ```

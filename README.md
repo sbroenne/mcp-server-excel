@@ -27,7 +27,7 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 | Interface | Best For | Why |
 |-----------|----------|-----|
 | **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | **64% fewer tokens** - single tool, no large schemas. Better for cost-sensitive, high-throughput automation. |
-| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery. Better for interactive, exploratory workflows. |
+| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery, persistent connection. Better for interactive, exploratory workflows. |
 
 <details>
 <summary>📊 Benchmark Results (same task, same model)</summary>
@@ -35,17 +35,14 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 | Metric | CLI | MCP Server | Winner |
 |--------|-----|------------|--------|
 | **Tokens** | ~59K | ~163K | 🏆 CLI (64% fewer) |
-| **Runtime** | 23.6s | 16.0s | 🏆 MCP (32% faster) |
-| **Tool Calls** | 12 | 11 | Tie |
+
 
 **Key insight:** MCP sends 22 tool schemas to the LLM on each request (~100K+ tokens). CLI wraps everything in one `excel_execute` tool and offloads guidance to a skill file.
-
-[View benchmark test →](tests/ExcelMcp.CLI.LLM.Tests/Scenarios/excel-cli-vs-mcp-comparison.yaml)
 
 </details>
 
 **Installation:**
-```bash
+```powershell
 # CLI for coding agents
 dotnet tool install --global Sbroenne.ExcelMcp.CLI
 excelcli --help
@@ -146,13 +143,13 @@ Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/
 
 **For coding agents like GitHub Copilot, Cursor, and Windsurf, use the CLI instead of MCP Server.** CLI invocations are more token-efficient: they avoid loading large tool schemas into the model context, allowing agents to act through concise commands.
 
-```bash
+```powershell
 # Install CLI
 dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 # Agent workflow (use -q for clean JSON output)
 excelcli -q session open C:\Data\Report.xlsx    # Returns {"sessionId":1,...}
-excelcli -q range set-values --session 1 --sheet Sheet1 --range A1 --values-json '[["Hello"]]'
+excelcli -q range set-values --session 1 --sheet Sheet1 --range A1 --values '[["Hello"]]'
 excelcli -q session save --session 1
 excelcli -q session close --session 1
 ```
@@ -169,18 +166,13 @@ Run `excelcli --help` for all commands, or `excelcli <command> --help` for actio
 
 ### Agent Skills (Cross-Platform AI Guidance)
 
-ExcelMcp includes an **Agent Skills** package for cross-platform AI assistant guidance. Skills enable GitHub Copilot, Claude Code, Cursor, Windsurf, Gemini CLI, and other agents to effectively use Excel MCP Server.
+Skills are auto-installed by the VS Code extension. For other platforms:
 
-| Platform | Installation |
-|----------|--------------|
-| **GitHub Copilot** | Auto-installed by VS Code extension to `~/.copilot/skills/` |
-| **Claude Code** | Copy [CLAUDE.md](skills/CLAUDE.md) to project root |
-| **Cursor** | Copy [.cursorrules](skills/.cursorrules) to project root |
-| **Others** | `npx add-skill sbroenne/mcp-server-excel` or download from releases |
+```powershell
+npx add-skill sbroenne/mcp-server-excel
+```
 
-📚 **[Agent Skills →](skills/README.md)** | 📄 **[SKILL.md →](skills/excel-mcp/SKILL.md)** | ⚙️ **[CLAUDE.md →](skills/CLAUDE.md)**
-
-For VS Code Copilot, enable the setting `chat.useAgentSkills` to load skills.
+📚 **[Agent Skills →](skills/README.md)**
 
 
 

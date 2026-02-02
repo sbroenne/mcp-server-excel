@@ -104,7 +104,7 @@ Trusted publishing requires packages to exist on NuGet.org before configuration.
 
 **Option A: Manual Publishing (Recommended)**
 
-```bash
+```powershell
 # Build the package
 dotnet pack src/ExcelMcp.ComInterop/ExcelMcp.ComInterop.csproj -c Release -o ./nupkg
 
@@ -182,7 +182,7 @@ After configuration:
 
 ### Standard Release Commands
 
-```bash
+```powershell
 # 1. Ensure main branch is up to date
 git checkout main
 git pull
@@ -217,7 +217,7 @@ git push origin cli-v1.1.0
 
 ### Quick Release (All Components with Single Tag)
 
-```bash
+```powershell
 # Create and push unified tag - releases ALL components (MCP Server, CLI, VS Code Extension, MCPB)
 git tag v1.2.2 -m "Release v1.2.2"
 git push origin v1.2.2
@@ -257,7 +257,7 @@ Release 4: cominterop-v1.1.0, core-v1.2.0, mcp-v1.2.0, cli-v1.2.0  (Core + wrapp
 
 ### Build Packages Locally
 
-```bash
+```powershell
 # Build all packages
 dotnet pack src/ExcelMcp.ComInterop/ExcelMcp.ComInterop.csproj -c Release -o ./nupkg
 dotnet pack src/ExcelMcp.Core/ExcelMcp.Core.csproj -c Release -o ./nupkg
@@ -267,7 +267,7 @@ dotnet pack src/ExcelMcp.CLI/ExcelMcp.CLI.csproj -c Release -o ./nupkg
 
 ### Test Local Installation
 
-```bash
+```powershell
 # Install .NET tool from local package
 dotnet tool install --global Sbroenne.ExcelMcp.CLI --add-source ./nupkg --version 1.0.0
 
@@ -280,7 +280,7 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 
 ### Validate Package Contents
 
-```bash
+```powershell
 # Extract package (NuGet packages are ZIP files)
 unzip -l ./nupkg/Sbroenne.ExcelMcp.Core.1.0.0.nupkg
 

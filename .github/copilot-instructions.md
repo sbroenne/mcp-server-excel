@@ -37,7 +37,7 @@
 ## 🎯 Quick Reference
 
 ### Test Commands
-```bash
+```powershell
 # ⚠️ CRITICAL: Integration tests take 45+ MINUTES for full suite
 # ALWAYS use surgical testing - test only what you changed!
 

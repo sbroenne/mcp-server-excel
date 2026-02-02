@@ -63,7 +63,7 @@ Before creating a release tag, update `CHANGELOG.md`:
 
 ### 2. Create Release Tag
 
-```bash
+```powershell
 # Ensure you're on main with latest changes
 git checkout main
 git pull origin main

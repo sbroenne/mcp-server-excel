@@ -1569,7 +1569,7 @@ This design ensures **incremental value delivery** while maintaining the high qu
 ### Usage Examples
 
 **CLI Example:**
-```bash
+```powershell
 # Create a DAX measure
 excelcli dm-create-measure Sales.xlsx Sales "Total Sales" "SUM(Sales[Amount])" --format "#,##0.00"
 

@@ -314,7 +314,7 @@ You are a code reviewer. Analyze code for:
 
 ### Installation
 
-```bash
+```powershell
 # From GitHub shorthand
 npx add-skill vercel-labs/agent-skills
 
@@ -402,48 +402,114 @@ Follows the add-skill specification format.
 
 ## Best Practices
 
-### Skill Design Principles
+> **Source:** Official documentation from [agentskills.io](https://agentskills.io/specification), [Claude Code](https://code.claude.com/docs/en/skills), [VS Code Copilot](https://code.visualstudio.com/docs/copilot/copilot-customization), and [vercel-labs/skills](https://github.com/vercel-labs/skills) - researched 2026-02-02.
 
-1. **Single Responsibility** - Each skill should focus on one domain
-2. **Clear Triggers** - Include trigger terms in description
-3. **Minimal Dependencies** - Avoid requiring specific tools when possible
-4. **Reference Documentation** - Use `references/` for supporting files
-5. **Version Control** - Use semantic versioning
+### Official Specification Requirements
 
-### Effective Descriptions
+From **agentskills.io/specification**:
+
+| Field | Required | Constraints |
+|-------|----------|-------------|
+| `name` | Yes | 1-64 chars, lowercase alphanumeric + hyphens, no leading/trailing hyphens, no `--` |
+| `description` | Yes | 1-1024 chars, describes WHAT + WHEN to use |
+| `license` | No | License name or reference to bundled file |
+| `compatibility` | No | 1-500 chars, environment requirements (OS, packages, network) |
+| `metadata` | No | Key-value map for custom properties |
+| `allowed-tools` | No | Space-delimited pre-approved tools (experimental) |
+
+### SKILL.md Size Guidelines (OFFICIAL)
+
+From **agentskills.io** and **Claude Code docs**:
+
+| Layer | Token Budget | Content |
+|-------|-------------|---------|
+| Metadata | ~100 tokens | `name` + `description` (loaded at startup for ALL skills) |
+| Instructions | **< 5000 tokens** | Full SKILL.md body (loaded when skill activated) |
+| Resources | As needed | Files in `scripts/`, `references/`, `assets/` |
+
+**Official recommendation:** Keep SKILL.md **under 500 lines**. Move detailed reference material to separate files.
+
+### Progressive Disclosure Pattern
+
+From **agentskills.io**:
+
+1. **Discovery:** Agents load only `name` + `description` at startup
+2. **Activation:** When task matches description, agent reads full SKILL.md
+3. **Execution:** Agent follows instructions, loading referenced files as needed
+
+**Why this matters:** Keep main skill lean. Don't front-load everything.
+
+### Effective Descriptions (Official Examples)
+
+From **agentskills.io/specification**:
 
 ```yaml
-# Good - includes trigger terms
-description: Extract text and tables from PDF files, fill forms, merge documents. Use when working with PDF files, forms, or document extraction.
+# Good - describes WHAT + WHEN with keywords
+description: Extracts text and tables from PDF files, fills PDF forms, and merges multiple PDFs. Use when working with PDF documents or when the user mentions PDFs, forms, or document extraction.
 
 # Bad - vague
-description: Helps with documents.
+description: Helps with PDFs.
 ```
 
-### Structure Guidelines
+### Using the `compatibility` Field
+
+From **agentskills.io** - use this for platform/environment requirements:
+
+```yaml
+---
+name: excel-automation
+description: Automate Excel workbooks with Power Query, VBA, and data operations.
+compatibility: Requires Windows + Microsoft Excel 2016+ (COM interop). Does NOT work on macOS/Linux.
+---
+```
+
+### Directory Structure (Official)
+
+From **agentskills.io**:
 
 ```
 skill-name/
-├── SKILL.md           # Main file (required)
-├── REFERENCE.md       # API reference (optional)
-├── EXAMPLES.md        # Usage examples (optional)
-├── references/        # Additional docs
-│   ├── api.md
-│   └── patterns.md
-└── scripts/           # Utility scripts
-    ├── validate.py
-    └── setup.sh
+├── SKILL.md           # Required - instructions + metadata
+├── scripts/           # Optional - executable code
+├── references/        # Optional - detailed documentation
+└── assets/            # Optional - templates, resources
 ```
+
+### Skill Content Types (Claude Code)
+
+From **code.claude.com/docs/en/skills**:
+
+| Type | Purpose | Invocation |
+|------|---------|------------|
+| **Reference** | Knowledge Claude applies to current work (conventions, patterns) | Auto-loaded when relevant |
+| **Task** | Step-by-step instructions for specific actions (deploy, commit) | Manual via `/skill-name` |
+
+Use `disable-model-invocation: true` for tasks you want manual control over.
 
 ### Cross-Platform Compatibility
 
-When creating skills for multiple agents:
+Skills work across 38+ agents including:
+- GitHub Copilot: `.github/skills/` or `~/.copilot/skills/`
+- Claude Code: `.claude/skills/` or `~/.claude/skills/`
+- Cursor: `.cursor/skills/`
+- OpenCode, Codex, Windsurf, Roo Code, etc.
 
-1. Use the common SKILL.md frontmatter fields (`name`, `description`)
+**To maximize compatibility:**
+1. Use only standard frontmatter fields (`name`, `description`, `compatibility`)
 2. Keep instructions in standard Markdown
 3. Avoid agent-specific features in shared content
-4. Use conditional sections for agent-specific guidance
-5. Test with `add-skill --list` before publishing
+4. Test with `npx skills add <repo> --list` before publishing
+
+### CLI Skills: Emphasize Discovery
+
+For CLI-based skills, don't document every parameter. Emphasize `--help`:
+
+```markdown
+## Core Principle
+Use `--help` for parameters. `excelcli <command> --help` is the authoritative source.
+```
+
+**Why:** CLI help is always current; documentation gets stale.
 
 ---
 
@@ -460,4 +526,5 @@ When creating skills for multiple agents:
 
 | Date | Change |
 |------|--------|
+| 2026-02 | Added SKILL.md size guidelines, requirements visibility, CLI discovery patterns |
 | 2025-01 | Initial research document |

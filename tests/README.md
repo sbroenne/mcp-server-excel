@@ -4,7 +4,7 @@
 
 ## Quick Start
 
-```bash
+```powershell
 # Development (fast feedback - excludes VBA tests)
 dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
@@ -60,7 +60,7 @@ Diagnostics tests are research/exploratory tests in `ExcelMcp.Diagnostics.Tests`
 - `RunType=OnDemand`
 
 **Run diagnostics tests locally:**
-```bash
+```powershell
 # All diagnostics tests
 dotnet test tests/ExcelMcp.Diagnostics.Tests/ --filter "RunType=OnDemand&Layer=Diagnostics"
 
@@ -75,7 +75,7 @@ dotnet test tests/ExcelMcp.Diagnostics.Tests/ --filter "Feature=PowerQuery&RunTy
 
 ## Feature-Specific Tests
 
-```bash
+```powershell
 # Test specific feature only
 dotnet test --filter "Feature=PowerQuery&RunType!=OnDemand"
 dotnet test --filter "Feature=DataModel&RunType!=OnDemand"
@@ -143,7 +143,7 @@ Run VBA tests manually when:
 
 ### How to Run VBA Tests
 
-```bash
+```powershell
 # Run ONLY VBA tests
 dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
 

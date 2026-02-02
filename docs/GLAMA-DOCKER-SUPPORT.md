@@ -34,7 +34,7 @@ The Docker image is purely for **tool discovery and inspection** by Glama.ai's r
 
 If you want to test the Docker build locally:
 
-```bash
+```powershell
 # Build the image
 docker build -t mcp-server-excel:test .
 
@@ -53,7 +53,7 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 
 To use Excel MCP for real automation, install locally on Windows:
 
-```bash
+```powershell
 # Via NPX (recommended)
 npx @anthropic-ai/excel-mcp-server
 

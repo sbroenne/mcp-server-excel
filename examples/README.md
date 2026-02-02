@@ -2,9 +2,9 @@
 
 This directory contains example scripts demonstrating ExcelMcp.CLI features.
 
-## Batch Mode Demo
+## Session Mode Demo
 
-The batch mode demo shows how to use batch sessions for high-performance multi-operation workflows.
+The session mode demo shows how to use sessions for high-performance multi-operation workflows.
 
 ### Requirements
 
@@ -14,48 +14,48 @@ The batch mode demo shows how to use batch sessions for high-performance multi-o
 ### Running the Demo
 
 **Linux/macOS/WSL:**
-```bash
-./batch-mode-demo.sh
+```powershell
+./session-demo.sh
 ```
 
 **Windows PowerShell:**
 ```powershell
-.\batch-mode-demo.ps1
+.\session-demo.ps1
 ```
 
 ### What the Demo Does
 
-1. Creates a test workbook (`test-batch.xlsx`)
-2. Starts a batch session and captures the batch ID
+1. Creates a test workbook (`test-session.xlsx`)
+2. Opens a session and captures the session ID
 3. Performs multiple operations using the same Excel instance:
    - Creates 3 worksheets (Sales, Customers, Products)
    - Lists worksheets
    - Lists Power Queries
-4. Lists active batch sessions
-5. Commits the batch (saves all changes)
+4. Lists active sessions
+5. Closes the session with `--save` (saves all changes)
 6. Verifies changes were saved
 
 ### Expected Performance
 
-Batch mode is **75-90% faster** than running individual commands because:
+Session mode is **75-90% faster** than running individual commands because:
 - Only one Excel instance is opened
 - No file open/close overhead between operations
 - All changes committed atomically
 
 ### Cleanup
 
-```bash
-rm test-batch.xlsx
+```powershell
+rm test-session.xlsx
 ```
 
 Or in PowerShell:
 ```powershell
-Remove-Item test-batch.xlsx
+Remove-Item test-session.xlsx
 ```
 
 ## Use Cases
 
-Batch mode is ideal for:
+Session mode is ideal for:
 - **RPA workflows** - Automated report generation
 - **Data pipelines** - ETL operations with multiple steps
 - **Testing** - Setting up test data across multiple sheets
