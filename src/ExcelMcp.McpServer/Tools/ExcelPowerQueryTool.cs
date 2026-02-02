@@ -39,7 +39,8 @@ public static partial class ExcelPowerQueryTool
     /// <param name="action">Action to perform</param>
     /// <param name="sessionId">Session ID from excel_file 'open' action. Required for all Power Query operations.</param>
     /// <param name="queryName">Power Query name (required for most actions)</param>
-    /// <param name="mCode">Raw Power Query M code (inline string). Required for create and update actions.</param>
+    /// <param name="mCode">Raw Power Query M code (inline string). Required for create, update, evaluate actions (unless mCodeFile is provided).</param>
+    /// <param name="mCodeFile">Full path to .m or .pq file containing M code. Alternative to mCode parameter - use for large/complex queries.</param>
     /// <param name="targetSheet">Target worksheet name (when loadDestination is 'worksheet' or 'both')</param>
     /// <param name="targetCellAddress">Top-left cell for create/load-to actions when placing data on an existing worksheet (e.g., 'B5'). Only used when load destination is 'worksheet' or 'both'.</param>
     /// <param name="loadDestination">Load destination for query: 'worksheet' (DEFAULT - load to worksheet as table), 'data-model' (load to Power Pivot), 'both' (load to both), 'connection-only' (don't load data)</param>
@@ -53,6 +54,7 @@ public static partial class ExcelPowerQueryTool
         string sessionId,
         [DefaultValue(null)] string? queryName,
         [DefaultValue(null)] string? mCode,
+        [DefaultValue(null)] string? mCodeFile,
         [DefaultValue(null)] string? targetSheet,
         [DefaultValue(null)] string? targetCellAddress,
         [DefaultValue(null)] string? loadDestination,
@@ -67,6 +69,9 @@ public static partial class ExcelPowerQueryTool
                 var dataModelCommands = new DataModelCommands();
                 var powerQueryCommands = new PowerQueryCommands(dataModelCommands);
 
+                // Resolve M code from file if provided
+                var resolvedMCode = ResolveFileOrValue(mCode, mCodeFile);
+
                 return action switch
                 {
                     PowerQueryAction.List => ListPowerQueriesAsync(powerQueryCommands, sessionId),
@@ -77,12 +82,12 @@ public static partial class ExcelPowerQueryTool
                     PowerQueryAction.Rename => RenamePowerQueryAsync(powerQueryCommands, sessionId, queryName, newName),
 
                     // Atomic Operations
-                    PowerQueryAction.Create => CreatePowerQueryAsync(powerQueryCommands, sessionId, queryName, mCode, loadDestination, targetSheet, targetCellAddress),
-                    PowerQueryAction.Update => UpdatePowerQueryAsync(powerQueryCommands, sessionId, queryName, mCode),
+                    PowerQueryAction.Create => CreatePowerQueryAsync(powerQueryCommands, sessionId, queryName, resolvedMCode, loadDestination, targetSheet, targetCellAddress),
+                    PowerQueryAction.Update => UpdatePowerQueryAsync(powerQueryCommands, sessionId, queryName, resolvedMCode),
                     PowerQueryAction.LoadTo => LoadToPowerQueryAsync(powerQueryCommands, sessionId, queryName, loadDestination, targetSheet, targetCellAddress),
                     PowerQueryAction.RefreshAll => RefreshAllPowerQueriesAsync(powerQueryCommands, sessionId),
                     PowerQueryAction.Unload => UnloadPowerQueryAsync(powerQueryCommands, sessionId, queryName),
-                    PowerQueryAction.Evaluate => EvaluatePowerQueryAsync(powerQueryCommands, sessionId, mCode),
+                    PowerQueryAction.Evaluate => EvaluatePowerQueryAsync(powerQueryCommands, sessionId, resolvedMCode),
 
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
@@ -463,5 +468,21 @@ public static partial class ExcelPowerQueryTool
 
     private static bool RequiresWorksheet(PowerQueryLoadMode loadMode) =>
         loadMode == PowerQueryLoadMode.LoadToTable || loadMode == PowerQueryLoadMode.LoadToBoth;
+
+    /// <summary>
+    /// Returns file contents if filePath is provided, otherwise returns the direct value.
+    /// </summary>
+    private static string? ResolveFileOrValue(string? directValue, string? filePath)
+    {
+        if (!string.IsNullOrWhiteSpace(filePath))
+        {
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException($"M code file not found: {filePath}");
+            }
+            return File.ReadAllText(filePath);
+        }
+        return directValue;
+    }
 }
 
