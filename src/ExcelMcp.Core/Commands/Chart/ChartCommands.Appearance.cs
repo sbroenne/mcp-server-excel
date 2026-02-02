@@ -918,20 +918,14 @@ public partial class ChartCommands
         string? name = null)
     {
         // Validate type-specific parameters
-        if (type == TrendlineType.Polynomial)
+        if (type == TrendlineType.Polynomial && (!order.HasValue || order.Value < 2 || order.Value > 6))
         {
-            if (!order.HasValue || order.Value < 2 || order.Value > 6)
-            {
-                throw new ArgumentException("Polynomial trendline requires order parameter (2-6).");
-            }
+            throw new ArgumentException("Polynomial trendline requires order parameter (2-6).");
         }
 
-        if (type == TrendlineType.MovingAverage)
+        if (type == TrendlineType.MovingAverage && (!period.HasValue || period.Value < 2))
         {
-            if (!period.HasValue || period.Value < 2)
-            {
-                throw new ArgumentException("Moving average trendline requires period parameter (2 or greater).");
-            }
+            throw new ArgumentException("Moving average trendline requires period parameter (2 or greater).");
         }
 
         return batch.Execute((ctx, ct) =>
