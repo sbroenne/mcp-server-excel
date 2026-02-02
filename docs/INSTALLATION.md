@@ -402,6 +402,8 @@ After installation:
 
 Agent Skills provide domain-specific guidance to AI coding assistants, helping them use Excel MCP Server more effectively.
 
+> **Note:** Agent Skills are for **coding agents** (GitHub Copilot, Claude Code, Cursor). **Claude Desktop** uses MCP Prompts instead (included automatically via the MCP Server).
+
 **VS Code Extension:** Skills are installed automatically to `~/.copilot/skills/`.
 
 **Other Platforms (Claude Code, Cursor, Windsurf, etc.):**
