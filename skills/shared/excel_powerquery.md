@@ -28,6 +28,7 @@ Alternative path (for existing worksheet tables):
 
 - create: Import NEW query using inline `mCode` (FAILS if query already exists - use update instead)
 - update: Update EXISTING query M code + refresh data (use this if query exists)
+- evaluate: Execute M code directly, return results WITHOUT creating a permanent query (test before create!)
 - rename: Change query name (requires both `queryName` and `newName` parameters)
 - load-to: Loads to worksheet or data model or both (not just config change) - CHECKS for sheet conflicts
 - unload: Removes data from ALL destinations (worksheet AND Data Model) - keeps query definition
@@ -48,6 +49,22 @@ Alternative path (for existing worksheet tables):
 - Query doesn't exist? → Use create
 - Query already exists? → Use update (create will error "already exists")
 - Not sure? → Check with list action first, then use update if exists or create if new
+
+**RECOMMENDED WORKFLOW - Always evaluate before create**:
+
+1. `evaluate` → verify data looks correct (catches syntax errors, missing sources, wrong columns)
+2. `create` → stores validated query in workbook
+
+Skip evaluate only for trivial literal tables (`#table` with hardcoded values).
+
+**IF CREATE/UPDATE FAILS**: Use `evaluate` to get detailed Power Query error message, fix code, retry.
+This avoids polluting the workbook with broken queries and gives better error messages than COM exceptions.
+
+**Additional evaluate use cases**:
+
+- Execute one-off queries without creating permanent queries
+- Ad-hoc data exploration or debugging M code transformations
+- Returns tabular data (columns, rows) in JSON - no cleanup needed
 
 **List action and IsConnectionOnly**:
 

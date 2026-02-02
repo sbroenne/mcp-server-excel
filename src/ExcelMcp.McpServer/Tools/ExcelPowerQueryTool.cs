@@ -15,6 +15,12 @@ public static partial class ExcelPowerQueryTool
     /// <summary>
     /// Power Query M code and data loading.
     ///
+    /// RECOMMENDED WORKFLOW: Always evaluate M code before creating permanent queries:
+    /// 1. evaluate → verify data looks correct (catches syntax errors, missing sources, etc.)
+    /// 2. create → stores validated query in workbook
+    /// Skip evaluate only for trivial literal tables (#table with hardcoded values).
+    /// IF CREATE/UPDATE FAILS: Use evaluate to get detailed Power Query error message, fix code, retry.
+    ///
     /// BEST PRACTICE: Use 'list' before creating. Prefer 'update' over delete+recreate to preserve load settings.
     ///
     /// DATETIME COLUMNS: Always include Table.TransformColumnTypes() in M code to set column types explicitly.
@@ -76,6 +82,7 @@ public static partial class ExcelPowerQueryTool
                     PowerQueryAction.LoadTo => LoadToPowerQueryAsync(powerQueryCommands, sessionId, queryName, loadDestination, targetSheet, targetCellAddress),
                     PowerQueryAction.RefreshAll => RefreshAllPowerQueriesAsync(powerQueryCommands, sessionId),
                     PowerQueryAction.Unload => UnloadPowerQueryAsync(powerQueryCommands, sessionId, queryName),
+                    PowerQueryAction.Evaluate => EvaluatePowerQueryAsync(powerQueryCommands, sessionId, mCode),
 
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
                 };
@@ -416,6 +423,28 @@ public static partial class ExcelPowerQueryTool
             result.Action,
             result.FilePath,
             result.Message,
+            result.ErrorMessage
+        }, ExcelToolsBase.JsonOptions);
+    }
+
+    private static string EvaluatePowerQueryAsync(
+        PowerQueryCommands commands,
+        string sessionId,
+        string? mCode)
+    {
+        if (string.IsNullOrEmpty(mCode))
+            throw new ArgumentException("mCode is required for evaluate action", nameof(mCode));
+
+        var result = ExcelToolsBase.WithSession(sessionId,
+            batch => commands.Evaluate(batch, mCode));
+
+        return JsonSerializer.Serialize(new
+        {
+            result.Success,
+            result.Columns,
+            result.Rows,
+            result.RowCount,
+            result.ColumnCount,
             result.ErrorMessage
         }, ExcelToolsBase.JsonOptions);
     }

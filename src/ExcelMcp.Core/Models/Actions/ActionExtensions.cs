@@ -30,6 +30,7 @@ public static class ActionExtensions
         PowerQueryAction.RefreshAll => "refresh-all",
         PowerQueryAction.LoadTo => "load-to",
         PowerQueryAction.Unload => "unload",
+        PowerQueryAction.Evaluate => "evaluate",
         _ => throw new ArgumentException($"Unknown PowerQueryAction: {action}")
     };
 

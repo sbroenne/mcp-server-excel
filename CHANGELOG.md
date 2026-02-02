@@ -10,6 +10,23 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### Fixed
+
+- **Power Query Refresh Error Propagation** (#399): Fixed bug where `refresh` action returned `success: true` even when Power Query had formula errors
+  - ROOT CAUSE: `Connection.Refresh()` silently swallows errors for worksheet queries (InModel=false)
+  - FIX: Now uses `QueryTable.Refresh(false)` for worksheet queries which properly throws errors
+  - Data Model queries (InModel=true) continue using `Connection.Refresh()` which does throw errors
+  - Errors now surface clearly: `"[Expression.Error] The name 'Source' wasn't recognized..."`
+
+### Added
+
+- **Power Query Evaluate** (#400): New `evaluate` action to execute M code directly and return results
+  - Execute arbitrary M code without creating a permanent query
+  - Returns tabular results (columns, rows) in JSON format
+  - Automatically cleans up temporary query and worksheet
+  - Errors propagate properly (e.g., invalid M syntax throws with error message)
+  - Example: `excelcli powerquery evaluate --file data.xlsx --mcode "let Source = #table({\"Name\",...})"`
+
 ## [1.5.14] - 2025-02-01
 
 ### Added

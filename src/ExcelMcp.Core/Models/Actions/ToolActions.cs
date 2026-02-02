@@ -34,7 +34,8 @@ public enum PowerQueryAction
     Rename,
     RefreshAll,
     LoadTo,
-    Unload
+    Unload,
+    Evaluate
 }
 
 /// <summary>

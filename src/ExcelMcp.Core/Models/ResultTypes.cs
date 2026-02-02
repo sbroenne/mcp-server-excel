@@ -1355,6 +1355,45 @@ public class PowerQueryErrorCheckResult : ResultBase
     public string? Message { get; set; }
 }
 
+/// <summary>
+/// Result for evaluating Power Query M code and returning results
+/// </summary>
+/// <remarks>
+/// Property names: mc=MCode, cols=Columns, rows=Rows, rc=RowCount, cc=ColumnCount
+/// </remarks>
+public class PowerQueryEvaluateResult : ResultBase
+{
+    /// <summary>
+    /// The M code that was evaluated
+    /// </summary>
+    [JsonPropertyName("mc")]
+    public string MCode { get; set; } = "";
+
+    /// <summary>
+    /// Column names from the query result
+    /// </summary>
+    [JsonPropertyName("cols")]
+    public List<string> Columns { get; set; } = [];
+
+    /// <summary>
+    /// Data rows from the query result (2D array matching Columns order)
+    /// </summary>
+    [JsonPropertyName("rows")]
+    public List<List<object?>> Rows { get; set; } = [];
+
+    /// <summary>
+    /// Number of rows returned
+    /// </summary>
+    [JsonPropertyName("rc")]
+    public int RowCount { get; set; }
+
+    /// <summary>
+    /// Number of columns returned
+    /// </summary>
+    [JsonPropertyName("cc")]
+    public int ColumnCount { get; set; }
+}
+
 #region Connection Result Types
 
 /// <summary>

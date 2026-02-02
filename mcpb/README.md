@@ -12,7 +12,7 @@ Excel MCP Server lets you automate Excel through conversation with Claude:
 - **Format & Style** - Conditional formatting, number formats, table styles
 - **Automate** - VBA macros, batch operations, data refresh
 
-**22 tools with 210 operations** for comprehensive Excel automation.
+**22 tools with 211 operations** for comprehensive Excel automation.
 
 ## Requirements
 

@@ -1107,6 +1107,7 @@ internal sealed class ExcelDaemon : IDisposable
                     }),
                     PowerQueryAction.GetLoadConfig => SerializeResult(_powerQueryCommands.GetLoadConfig(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!)),
                     PowerQueryAction.Unload => SerializeResult(_powerQueryCommands.Unload(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!)),
+                    PowerQueryAction.Evaluate => SerializeResult(_powerQueryCommands.Evaluate(batch, GetArg<PowerQueryEvaluateArgs>(request.Args).MCode!)),
                     _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported powerquery action: {action}" }
                 };
             }
@@ -2075,6 +2076,7 @@ internal sealed class PowerQueryCreateArgs { public string? QueryName { get; set
 internal sealed class PowerQueryUpdateArgs { public string? QueryName { get; set; } public string? MCode { get; set; } public bool? Refresh { get; set; } }
 internal sealed class PowerQueryRenameArgs { public string? OldName { get; set; } public string? NewName { get; set; } }
 internal sealed class PowerQueryLoadToArgs { public string? QueryName { get; set; } public string? LoadDestination { get; set; } public string? TargetSheet { get; set; } public string? TargetCellAddress { get; set; } }
+internal sealed class PowerQueryEvaluateArgs { public string? MCode { get; set; } }
 
 // PivotTable
 internal sealed class PivotTableArgs { public string? PivotTableName { get; set; } }
