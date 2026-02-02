@@ -125,8 +125,8 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: read
-      packages: write
-      id-token: write
+      # Note: No NuGet publishing - CLI requires net10.0-windows which
+      # is not supported by PackAsTool. Distribution via ZIP only.
 
     steps:
     - uses: actions/checkout@v4
@@ -159,24 +159,10 @@ jobs:
     - name: Build
       run: dotnet build src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-restore
 
-    - name: Pack NuGet
-      run: dotnet pack src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-build --output ./nupkg
-
-    - name: NuGet Login (OIDC)
-      uses: NuGet/login@v1
-      id: nuget-login
-      with:
-        user: ${{ secrets.NUGET_USER }}
-
-    - name: Publish to NuGet.org
-      run: |
-        $version = $env:VERSION
-        dotnet nuget push "nupkg/Sbroenne.ExcelMcp.CLI.$version.nupkg" `
-          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} `
-          --source https://api.nuget.org/v3/index.json `
-          --skip-duplicate
-        Write-Output "Published Sbroenne.ExcelMcp.CLI.$version to NuGet.org"
-      shell: pwsh
+    # Note: CLI cannot be published as a NuGet tool because it requires
+    # net10.0-windows + UseWindowsForms for Excel COM interop.
+    # PackAsTool doesn't support platform-specific targets.
+    # Distribution is via ZIP files only.
 
     - name: Create Release Package
       run: |
@@ -501,12 +487,13 @@ jobs:
 
         **NuGet (.NET Tool)**
         ```powershell
-        # MCP Server
+        # MCP Server (cross-platform tool)
         dotnet tool install --global Sbroenne.ExcelMcp.McpServer
-
-        # CLI
-        dotnet tool install --global Sbroenne.ExcelMcp.CLI
         ```
+
+        **CLI (Windows Only)**
+        Download `ExcelMcp-CLI-${{ env.VERSION }}-windows.zip` below and extract to your PATH.
+        (CLI requires Windows + Excel COM interop, so cannot be a NuGet tool)
 
         **Agent Skills** (for AI coding assistants)
         - **MCP Skill**: Download `excel-mcp-skill-v${{ env.VERSION }}.zip` - for conversational AI (Claude Desktop, VS Code Chat)

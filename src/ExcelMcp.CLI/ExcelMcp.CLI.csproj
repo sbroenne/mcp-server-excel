@@ -32,9 +32,9 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPublishable>true</IsPublishable>
 
-    <!-- .NET Tool Configuration -->
-    <PackAsTool>true</PackAsTool>
-    <ToolCommandName>excelcli</ToolCommandName>
+    <!-- Note: CLI cannot be a .NET tool (PackAsTool) because it requires
+         net10.0-windows + UseWindowsForms for Excel COM interop.
+         Distribution is via ZIP files only. -->
 
     <!-- Package Validation -->
     <EnablePackageValidation>true</EnablePackageValidation>
