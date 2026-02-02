@@ -66,6 +66,18 @@ agents:
   - name: gpt52-chat-agent
     servers:
       - name: excel-mcp
+        # Filter to only tools needed for this test (reduces schema size = faster LLM response)
+        allowed_tools:
+          - excel_file
+          - excel_worksheet
+          - excel_range
+          - excel_table
+          - excel_powerquery
+          - excel_datamodel
+          - excel_datamodel_rel
+          - excel_pivottable
+          - excel_pivottable_field
+          - excel_chart
     provider: azure-openai-gpt52-chat
     # Agent Skills: Load excel-mcp skill for server-specific guidance
     skill:
