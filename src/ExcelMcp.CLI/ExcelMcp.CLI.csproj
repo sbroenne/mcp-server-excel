@@ -100,4 +100,19 @@
     <InternalsVisibleTo Include="Sbroenne.ExcelMcp.CLI.Tests" />
   </ItemGroup>
 
+  <!-- Workaround for NETSDK1146: PackAsTool doesn't support net10.0-windows -->
+  <!-- See: https://github.com/dotnet/sdk/issues/12055#issuecomment-2125927648 -->
+  <Target Name="HackBeforePackToolValidation" BeforeTargets="_PackToolValidation">
+    <PropertyGroup>
+      <TargetPlatformIdentifier></TargetPlatformIdentifier>
+      <TargetPlatformMoniker></TargetPlatformMoniker>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="HackAfterPackToolValidation" AfterTargets="_PackToolValidation" BeforeTargets="PackTool">
+    <PropertyGroup>
+      <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
+    </PropertyGroup>
+  </Target>
+
 </Project>
