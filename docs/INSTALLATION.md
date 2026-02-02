@@ -408,7 +408,7 @@ Agent Skills provide domain-specific guidance to AI coding assistants, helping t
 
 **Other Platforms (Claude Code, Cursor, Windsurf, etc.):**
 
-```bash
+```powershell
 # Cross-platform installation
 npx add-skill sbroenne/mcp-server-excel
 

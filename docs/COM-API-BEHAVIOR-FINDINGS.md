@@ -479,7 +479,7 @@ listObject.Refresh();
 
 Run diagnostic tests on demand:
 
-```bash
+```powershell
 # Power Query diagnostics
 dotnet test --filter "FullyQualifiedName~PowerQueryComApiBehaviorTests"
 
@@ -501,6 +501,6 @@ These tests are marked `[Trait("RunType", "OnDemand")]` and excluded from regula
   - `Integration/Diagnostics/PivotTableRefreshBehaviorTests.cs`
 
 **NOTE: Diagnostics tests are excluded from CI. Run manually with:**
-```bash
+```powershell
 dotnet test tests/ExcelMcp.Diagnostics.Tests/ --filter "RunType=OnDemand&Layer=Diagnostics"
 ```

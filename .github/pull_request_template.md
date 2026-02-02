@@ -28,7 +28,7 @@ Relates to #[issue number]
 - [ ] Build produces zero warnings
 
 ## Test Commands
-```bash
+```powershell
 # Commands used for testing
 ExcelMcp command1 "test.xlsx"
 ExcelMcp command2 "test.xlsx" "param"

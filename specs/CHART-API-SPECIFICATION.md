@@ -779,7 +779,7 @@ for (int i = 1; i <= chartObjects.Count; i++)
 
 ## CLI Commands
 
-```bash
+```powershell
 # === LIFECYCLE ===
 excelcli chart list <session-id>
 excelcli chart read <session-id> <chart-name>

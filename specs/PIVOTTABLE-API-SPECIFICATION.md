@@ -913,7 +913,7 @@ await pivotCommands.SetFieldFilterAsync(batch, "SalesPivot", "Region",
 
 ### Phase 1 Commands
 
-```bash
+```powershell
 # === LIFECYCLE OPERATIONS ===
 excelcli pivot-list <file.xlsx>
 excelcli pivot-info <file.xlsx> <pivot-name>
@@ -954,7 +954,7 @@ excelcli pivot-set-subtotals <file.xlsx> <pivot-name> <field-name> <show:true|fa
 
 ### Phase 2 Commands
 
-```bash
+```powershell
 # === GROUPING OPERATIONS ===
 excelcli pivot-group-date-field <file.xlsx> <pivot-name> <field-name> <years|quarters|months|days> [start-date] [end-date]
 excelcli pivot-group-numeric-field <file.xlsx> <pivot-name> <field-name> <start-value> <end-value> <interval>

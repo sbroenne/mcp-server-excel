@@ -60,7 +60,7 @@ vscode.lm.registerMcpServerDefinitionProvider('excelmcp', {
 
 ## Building
 
-```bash
+```powershell
 npm install          # Install dependencies
 npm run compile      # Compile TypeScript
 npm run watch        # Watch mode for development
@@ -72,7 +72,7 @@ npm run package      # Create VSIX package
 
 The extension includes a self-contained MCP server executable. To update it:
 
-```bash
+```powershell
 # 1. Navigate to MCP server project
 cd d:\source\mcp-server-excel\src\ExcelMcp.McpServer
 
@@ -93,7 +93,7 @@ The extension uses a bundled MCP server executable. For development testing:
 
 The extension uses a bundled MCP server executable. For development testing:
 
-```bash
+```powershell
 # Option 1: Use bundled executable (matches production)
 # - Extension will use: extension-path/bin/Sbroenne.ExcelMcp.McpServer.exe
 # - No additional setup needed
@@ -112,7 +112,7 @@ bin/Sbroenne.ExcelMcp.McpServer.exe --help
 ### Manual Testing
 
 1. **Build the extension**:
-   ```bash
+   ```powershell
    npm run compile
    ```
 
@@ -137,7 +137,7 @@ bin/Sbroenne.ExcelMcp.McpServer.exe --help
 ### Package Testing
 
 1. **Package the extension**:
-   ```bash
+   ```powershell
    npm run package
    ```
 
@@ -156,7 +156,7 @@ bin/Sbroenne.ExcelMcp.McpServer.exe --help
 
 The extension is automatically published to the VS Code Marketplace when a version tag is pushed:
 
-```bash
+```powershell
 # 1. Create and push tag (releases ALL components with same version)
 git tag vX.Y.Z
 git push --tags
@@ -255,7 +255,7 @@ Follow [Keep a Changelog](https://keepachangelog.com/) format:
 
 To create a GitHub release without marketplace publishing:
 
-```bash
+```powershell
 cd vscode-extension
 npm run package
 # Upload the .vsix file manually to GitHub releases
@@ -266,7 +266,7 @@ npm run package
 **Automatic Version Management** (Recommended):
 The unified release workflow automatically updates version numbers from git tags:
 
-```bash
+```powershell
 # Just create and push the tag - workflow does the rest for ALL components
 git tag v1.2.3
 git push --tags
@@ -281,7 +281,7 @@ The workflow will:
 **Manual Version Updates** (if needed):
 If you need to update the version locally before tagging:
 
-```bash
+```powershell
 npm version patch   # Bumps 1.0.0 → 1.0.1
 npm version minor   # Bumps 1.0.0 → 1.1.0
 npm version major   # Bumps 1.0.0 → 2.0.0
@@ -298,7 +298,7 @@ Follow Semantic Versioning (SemVer):
 
 ### Updating Dependencies
 
-```bash
+```powershell
 npm outdated                    # Check for updates
 npm update                      # Update minor/patch
 npm install @types/vscode@latest --save-dev  # Update major

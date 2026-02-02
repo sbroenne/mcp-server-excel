@@ -52,29 +52,6 @@ canonical_url: "https://excelmcpserver.dev/"
 
 It works with any MCP-compatible AI assistant like GitHub Copilot, Claude Desktop, Cursor, Windsurf, etc.
 
-### CLI vs MCP Server
-
-This package provides both **CLI** and **MCP Server** interfaces:
-
-| Interface | Best For | Why |
-|-----------|----------|-----|
-| **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | **64% fewer tokens** - single tool, no large schemas |
-| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | **32% faster** - persistent connection, rich tool discovery |
-
-<details>
-<summary>📊 Benchmark Results (same task, same model)</summary>
-
-| Metric | CLI | MCP Server | Winner |
-|--------|-----|------------|--------|
-| **Tokens** | ~59K | ~163K | 🏆 CLI (64% fewer) |
-| **Runtime** | 23.6s | 16.0s | 🏆 MCP (32% faster) |
-
-**Key insight:** MCP sends 22 tool schemas to the LLM (~100K+ tokens). CLI wraps everything in one tool and offloads guidance to a skill file.
-
-</details>
-
-**Install CLI:** `dotnet tool install -g Sbroenne.ExcelMcp.CLI` (use `-q` flag for clean JSON output)
-
 **🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
 
 **💡 Interactive Development** - Watch Excel update in real-time as AI works. Say "Show me Excel while you work" and see every change live - create a query, watch it populate, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
@@ -161,15 +138,37 @@ Ask your AI assistant to automate Excel tasks using natural language:
 <p>AI applies number formats, conditional formatting, and structured table styling.</p>
 </div>
 
+## CLI vs MCP Server
+
+This package provides both **CLI** and **MCP Server** interfaces. Choose based on your use case:
+
+| Interface | Best For | Why |
+|-----------|----------|-----|
+| **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | **64% fewer tokens** - single tool, no large schemas. Better for cost-sensitive, high-throughput automation. |
+| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery, persistent connection. Better for interactive, exploratory workflows. |
+
+<details>
+<summary>📊 Benchmark Results (same task, same model)</summary>
+
+| Metric | CLI | MCP Server | Winner |
+|--------|-----|------------|--------|
+| **Tokens** | ~59K | ~163K | 🏆 CLI (64% fewer) |
+
+
+**Key insight:** MCP sends 22 tool schemas to the LLM on each request (~100K+ tokens). CLI wraps everything in one `excel_execute` tool and offloads guidance to a skill file.
+
+</details>
+
+
 ## CLI Tool (Optional)
 
-For scripting, RPA workflows, and CI/CD pipelines — automate Excel without AI:
+For coding agents, scripting, RPA workflows, and CI/CD pipelines — automate Excel with or  without AI:
 
-```bash
+```powershell
 dotnet tool install -g Sbroenne.ExcelMcp.CLI
 ```
 
-```bash
+```powershell
 # Session-based workflow (keeps Excel open between commands)
 excelcli -q session create report.xlsx    # Returns session ID
 excelcli -q range set-values --session 1 --sheet Sheet1 --range A1 --values '[["Hello","World"]]'
@@ -193,18 +192,13 @@ excelcli -q session close --session 1 --save
 
 ## Agent Skills
 
-Agent Skills provide domain-specific guidance to AI coding assistants, helping them use Excel MCP Server more effectively.
+Skills are auto-installed by the VS Code extension. For other platforms:
 
-| Platform | Installation |
-|----------|-------------|
-| **GitHub Copilot** | Automatic via VS Code extension |
-| **Claude Desktop** | Included in MCPB bundle |
-| **Claude Code** | `npx add-skill sbroenne/mcp-server-excel -a claude-code` |
-| **Cursor** | `npx add-skill sbroenne/mcp-server-excel -a cursor` |
-| **Windsurf** | `npx add-skill sbroenne/mcp-server-excel -a windsurf` |
-| **All Platforms** | `npx add-skill sbroenne/mcp-server-excel` |
+```powershell
+npx add-skill sbroenne/mcp-server-excel
+```
 
-Skills can also be downloaded from [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest).
+📚 **[More details →](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/README.md)**
 
 ## More Information
 

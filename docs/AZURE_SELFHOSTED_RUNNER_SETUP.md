@@ -351,14 +351,14 @@ Copy-Item "C:\actions-runner\.credentials" "C:\Backup\.credentials.bak"
 **Solution:** Use GitHub CLI instead of curl
 
 **Before (Failed):**
-```bash
+```powershell
 curl -L -X POST \
   -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
   https://api.github.com/repos/.../actions/runners/registration-token
 ```
 
 **After (Fixed):**
-```bash
+```powershell
 gh api --method POST \
   /repos/${{ github.repository }}/actions/runners/registration-token \
   --jq '.token'
@@ -416,22 +416,22 @@ gh api --method POST \
 **Cannot connect to VM:**
 
 1. **Check VM is running:**
-   ```bash
+   ```powershell
    az vm get-instance-view --resource-group rg-excel-runner --name vm-excel-runner-01 --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus" -o tsv
    ```
 
 2. **Start VM if stopped:**
-   ```bash
+   ```powershell
    az vm start --resource-group rg-excel-runner --name vm-excel-runner-01
    ```
 
 3. **Verify NSG rules allow your IP:**
-   ```bash
+   ```powershell
    az network nsg rule list --resource-group rg-excel-runner --nsg-name vm-excel-runner-01NSG --query "[?name=='RDP'].{Name:name,Priority:priority,SourceAddressPrefix:sourceAddressPrefix}" -o table
    ```
 
 4. **Update NSG rule to allow your current IP:**
-   ```bash
+   ```powershell
    MY_IP=$(curl -s https://api.ipify.org)
    az network nsg rule update --resource-group rg-excel-runner --nsg-name vm-excel-runner-01NSG --name RDP --source-address-prefix "$MY_IP/32"
    ```
@@ -445,18 +445,18 @@ gh api --method POST \
    - Filter by VM resource
 
 2. **Verify auto-shutdown working:**
-   ```bash
+   ```powershell
    az vm show --resource-group rg-excel-runner --name vm-excel-runner-01 --query "autoShutdownConfiguration"
    ```
 
 3. **Stop VM completely when not needed:**
-   ```bash
+   ```powershell
    az vm stop --resource-group rg-excel-runner --name vm-excel-runner-01
    az vm deallocate --resource-group rg-excel-runner --name vm-excel-runner-01  # Important: Deallocate to stop compute billing
    ```
 
 4. **Downgrade VM size if underutilized:**
-   ```bash
+   ```powershell
    # Resize to B2s (cheapest)
    az vm resize --resource-group rg-excel-runner --name vm-excel-runner-01 --size Standard_B2s
    ```
@@ -508,13 +508,13 @@ gh api --method POST \
 ### Delete Azure Resources
 
 **Remove all infrastructure:**
-```bash
+```powershell
 # Delete resource group (removes VM, disk, network, etc.)
 az group delete --name rg-excel-runner --yes --no-wait
 ```
 
 **Verify deletion:**
-```bash
+```powershell
 az group list --query "[?name=='rg-excel-runner']" -o table
 ```
 
@@ -600,7 +600,7 @@ az vm deallocate --resource-group rg-excel-runner --name vm-excel-runner-01
 ### Strategy 3: Use Spot Instances (Advanced)
 
 **Lower cost but VM can be evicted:**
-```bash
+```powershell
 az vm create \
   --resource-group rg-excel-runner \
   --name vm-excel-runner-spot \
@@ -615,7 +615,7 @@ az vm create \
 ### Strategy 4: Resize Based on Load
 
 **Scale up for heavy workloads:**
-```bash
+```powershell
 # Before intensive tests
 az vm resize --resource-group rg-excel-runner --name vm-excel-runner-01 --size Standard_D2s_v3
 
@@ -639,7 +639,7 @@ az vm resize --resource-group rg-excel-runner --name vm-excel-runner-01 --size S
 ## Quick Reference Commands
 
 **Start/Stop VM:**
-```bash
+```powershell
 az vm start --resource-group rg-excel-runner --name vm-excel-runner-01
 az vm stop --resource-group rg-excel-runner --name vm-excel-runner-01
 az vm deallocate --resource-group rg-excel-runner --name vm-excel-runner-01
@@ -666,7 +666,7 @@ Get-Process excel -ErrorAction SilentlyContinue | Stop-Process -Force
 ```
 
 **Check Azure costs:**
-```bash
+```powershell
 az consumption usage list --resource-group rg-excel-runner --query "[].{Resource:instanceName,Cost:pretaxCost}" -o table
 ```
 
@@ -676,7 +676,7 @@ az consumption usage list --resource-group rg-excel-runner --query "[].{Resource
 - Navigate to VM → Click **Start** or **Stop**
 
 **Azure CLI:**
-```bash
+```powershell
 # Stop VM (deallocate to save costs)
 az vm deallocate --resource-group rg-excel-runner --name vm-excel-runner-01
 
