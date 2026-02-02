@@ -418,11 +418,11 @@ npx add-skill sbroenne/mcp-server-excel -a cursor
 ```
 
 **Manual Installation:**
-1. Download `excel-mcp-skills-{version}.zip` from [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+1. Download `excel-cli-skill-v{version}.zip` from [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 2. Extract to your AI assistant's skills directory:
-   - Copilot: `~/.copilot/skills/excel-mcp/`
-   - Claude Code: `.claude/skills/excel-mcp/`
-   - Cursor: `.cursor/skills/excel-mcp/`
+   - Copilot: `~/.copilot/skills/excel-cli/`
+   - Claude Code: `.claude/skills/excel-cli/`
+   - Cursor: `.cursor/skills/excel-cli/`
 
 **See:** [Agent Skills Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/README.md)
 
