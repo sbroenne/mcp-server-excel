@@ -102,7 +102,7 @@ It works with any MCP-compatible AI assistant like GitHub Copilot, Claude Deskto
 </div>
 </div>
 
-<p><a href="/features/">See all 22 tools and 210 operations →</a></p>
+<p><a href="/features/">See all 22 tools and 211 operations →</a></p>
 
 ## What Can You Do With It?
 
@@ -182,7 +182,7 @@ excelcli -q session close --session 1 --save
 
 ## Documentation
 
-📖 **[Complete Feature Reference](/features/)** — All 22 tools and 210 operations
+📖 **[Complete Feature Reference](/features/)** — All 22 tools and 211 operations
 
 📥 **[Installation Guide](/installation/)** — Setup for VS Code, Claude Desktop, other MCP clients, and CLI
 

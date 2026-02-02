@@ -112,6 +112,15 @@ public interface IPowerQueryCommands
     /// <param name="queryName">Name of the query to unload</param>
     /// <returns>Operation result</returns>
     OperationResult Unload(IExcelBatch batch, string queryName);
+
+    /// <summary>
+    /// Evaluates M code and returns the result data without creating a permanent query.
+    /// Creates a temporary query, executes it, reads the results, then cleans up.
+    /// Useful for testing M code snippets and getting preview data.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="mCode">Raw M code to evaluate</param>
+    /// <returns>Result containing evaluated data as columns/rows</returns>
+    /// <exception cref="InvalidOperationException">Thrown when M code has errors</exception>
+    PowerQueryEvaluateResult Evaluate(IExcelBatch batch, string mCode);
 }
-
-

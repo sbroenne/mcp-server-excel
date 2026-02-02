@@ -155,6 +155,29 @@ public partial class TableCommands
                 // Get the range to convert to table
                 rangeObj = sheet.Range[range];
 
+                // Auto-expand single cell to current region (common UX pattern)
+                // This allows users to specify just "A1" instead of the full range
+                dynamic? currentRegion = null;
+                try
+                {
+                    // Check if single cell (no colon in address = single cell)
+                    if (!range.Contains(':'))
+                    {
+                        currentRegion = rangeObj.CurrentRegion;
+                        if (currentRegion != null && currentRegion.Cells.Count > 1)
+                        {
+                            // Use the expanded current region instead
+                            ComUtilities.Release(ref rangeObj);
+                            rangeObj = currentRegion;
+                            currentRegion = null; // Don't release twice
+                        }
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref currentRegion);
+                }
+
                 listObjects = sheet.ListObjects;
 
                 // Create table using numeric constant (xlSrcRange = 1)

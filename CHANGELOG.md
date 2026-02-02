@@ -10,6 +10,38 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### Fixed
+
+- **Power Query Refresh Error Propagation** (#399): Fixed bug where `refresh` action returned `success: true` even when Power Query had formula errors
+  - ROOT CAUSE: `Connection.Refresh()` silently swallows errors for worksheet queries (InModel=false)
+  - FIX: Now uses `QueryTable.Refresh(false)` for worksheet queries which properly throws errors
+  - Data Model queries (InModel=true) continue using `Connection.Refresh()` which does throw errors
+  - Errors now surface clearly: `"[Expression.Error] The name 'Source' wasn't recognized..."`
+
+- **Table Create Auto-Expand from Single Cell**: Fixed issue where `table create --range A1` created single-cell table
+  - ROOT CAUSE: Excel's `ListObjects.Add()` doesn't auto-expand from a single cell
+  - FIX: Now uses `Range.CurrentRegion` when single cell provided, capturing all contiguous data
+  - Prevents Data Model issues where tables only contain header column
+
+### Added
+
+- **Power Query Evaluate** (#400): New `evaluate` action to execute M code directly and return results
+  - Execute arbitrary M code without creating a permanent query
+  - Returns tabular results (columns, rows) in JSON format
+  - Automatically cleans up temporary query and worksheet
+  - Errors propagate properly (e.g., invalid M syntax throws with error message)
+  - Example: `excelcli powerquery evaluate --file data.xlsx --mcode "let Source = #table({\"Name\",...})"`
+
+- **MCP Power Query mCodeFile Parameter**: Read M code from file instead of inline string
+  - New `mCodeFile` parameter on `excel_powerquery` tool for `create`, `update`, `evaluate` actions
+  - Avoids JSON escaping issues with complex M code containing special characters
+  - File takes precedence if both `mCode` and `mCodeFile` provided
+
+- **MCP VBA vbaCodeFile Parameter**: Read VBA code from file instead of inline string
+  - New `vbaCodeFile` parameter on `excel_vba` tool for `create-module`, `update-module` actions
+  - Handles VBA code with quotes and special characters cleanly
+  - File takes precedence if both `vbaCode` and `vbaCodeFile` provided
+
 ## [1.5.14] - 2025-02-01
 
 ### Added

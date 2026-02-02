@@ -50,6 +50,7 @@ internal sealed class PowerQueryCommand : AsyncCommand<PowerQueryCommand.Setting
             "load-to" => new { queryName = settings.QueryName, loadDestination = settings.LoadDestination },
             "get-load-config" => new { queryName = settings.QueryName },
             "unload" => new { queryName = settings.QueryName },
+            "evaluate" => new { mCode },
             _ => new { queryName = settings.QueryName }
         };
 
@@ -92,7 +93,7 @@ internal sealed class PowerQueryCommand : AsyncCommand<PowerQueryCommand.Setting
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<ACTION>")]
-        [Description("The action to perform (e.g., list, view, create, update, refresh)")]
+        [Description("The action to perform (e.g., list, view, create, update, refresh, evaluate)")]
         public string Action { get; init; } = string.Empty;
 
         [CommandOption("-s|--session <SESSION>")]

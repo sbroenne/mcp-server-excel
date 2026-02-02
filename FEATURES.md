@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**22 specialized tools with 210 operations for comprehensive Excel automation**
+**22 specialized tools with 211 operations for comprehensive Excel automation**
 
 ---
 
@@ -15,7 +15,7 @@
 
 ---
 
-## 🔄 Power Query & M Code (11 operations)
+## 🔄 Power Query & M Code (12 operations)
 
 **Atomic Operations** - Single-call workflows:
 - **List:** List all Power Query queries in workbook
@@ -29,6 +29,7 @@
 - **Get Load Config:** Get current load configuration
 - **Unload:** Remove data from all destinations (keeps query definition)
 - **Delete:** Remove Power Query from workbook
+- **Evaluate:** Execute M code directly and return results (without creating a permanent query)
 
 **Automatic M-Code Formatting:** M code is automatically formatted on write operations (Create, Update) using the powerqueryformatter.com API (by mogularGmbH, MIT License). Read operations return M code as stored in Excel. Formatting adds ~100-500ms network latency but dramatically improves readability with proper indentation, spacing, and line breaks. Graceful fallback returns original M code if formatting fails.
 
@@ -390,7 +391,7 @@
 | Category | Operations |
 |----------|-----------|
 | File Operations | 6 |
-| Power Query | 10 |
+| Power Query | 12 |
 | Data Model/DAX | 19 |
 | Excel Tables | 27 |
 | PivotTables | 30 |
@@ -402,7 +403,7 @@
 | VBA Macros | 6 |
 | Slicers | 8 |
 | Conditional Formatting | 2 |
-| **Total** | **209** |
+| **Total** | **211** |
 
 ---
 

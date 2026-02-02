@@ -18,7 +18,7 @@
 
 **Automate Excel with AI - A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.**
 
-**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (22 tools with 210 operations).
+**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (22 tools with 211 operations).
 
 ### CLI vs MCP Server
 
@@ -81,7 +81,7 @@ Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/
 
 ## 🎯 What You Can Do
 
-**22 specialized tools with 210 operations:**
+**22 specialized tools with 211 operations:**
 
 - 🔄 **Power Query** (1 tool, 11 ops) - Atomic workflows, M code management, load destinations
 - 📊 **Data Model/DAX** (2 tools, 18 ops) - Measures with auto-formatted DAX, relationships, model structure
@@ -97,7 +97,7 @@ Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/
 - �️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
 - �🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
 
-📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 210 operations
+📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 211 operations
 
 
 ## 💬 Example Prompts

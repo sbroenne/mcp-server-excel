@@ -44,8 +44,15 @@ public partial class PowerQueryCommands
                     throw new InvalidOperationException($"Query '{queryName}' not found.");
                 }
 
-                // Refresh the query - exceptions propagate naturally
-                RefreshConnectionByQueryName(ctx.Book, queryName);
+                // Refresh the query - exceptions propagate from both:
+                // - QueryTable.Refresh() for worksheet queries
+                // - Connection.Refresh() for Data Model queries
+                bool refreshed = RefreshConnectionByQueryName(ctx.Book, queryName);
+
+                if (!refreshed)
+                {
+                    throw new InvalidOperationException($"Could not find connection or table for query '{queryName}'.");
+                }
 
                 result.HasErrors = false;
                 result.Success = true;
