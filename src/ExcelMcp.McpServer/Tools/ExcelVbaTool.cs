@@ -24,6 +24,7 @@ public static partial class ExcelVbaTool
     /// <param name="sessionId">Session ID from excel_file 'open' action (required for all VBA operations)</param>
     /// <param name="moduleName">VBA module name or procedure name (format: 'Module.Procedure' for run)</param>
     /// <param name="vbaCode">VBA code content as string (for import/update actions)</param>
+    /// <param name="vbaCodeFile">Full path to .bas or .vba file containing VBA code. Alternative to vbaCode parameter - use for large/complex modules.</param>
     /// <param name="parameters">Parameters for VBA procedure execution (comma-separated)</param>
     [McpServerTool(Name = "excel_vba", Title = "Excel VBA Operations", Destructive = true)]
     [McpMeta("category", "automation")]
@@ -35,6 +36,7 @@ public static partial class ExcelVbaTool
         string sessionId,
         [DefaultValue(null)] string? moduleName,
         [DefaultValue(null)] string? vbaCode,
+        [DefaultValue(null)] string? vbaCodeFile,
         [DefaultValue(null)] string? parameters)
     {
         return ExcelToolsBase.ExecuteToolAction(
@@ -45,13 +47,16 @@ public static partial class ExcelVbaTool
             {
                 var vbaCommands = new VbaCommands();
 
+                // Resolve VBA code from file if provided
+                var resolvedVbaCode = ResolveFileOrValue(vbaCode, vbaCodeFile);
+
                 // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
                 return action switch
                 {
                     VbaAction.List => ListVbaScriptsAsync(vbaCommands, sessionId),
                     VbaAction.View => ViewVbaScriptAsync(vbaCommands, sessionId, moduleName),
-                    VbaAction.Import => ImportVbaScriptAsync(vbaCommands, sessionId, moduleName, vbaCode),
-                    VbaAction.Update => UpdateVbaScriptAsync(vbaCommands, sessionId, moduleName, vbaCode),
+                    VbaAction.Import => ImportVbaScriptAsync(vbaCommands, sessionId, moduleName, resolvedVbaCode),
+                    VbaAction.Update => UpdateVbaScriptAsync(vbaCommands, sessionId, moduleName, resolvedVbaCode),
                     VbaAction.Run => RunVbaScriptAsync(vbaCommands, sessionId, moduleName, parameters),
                     VbaAction.Delete => DeleteVbaScriptAsync(vbaCommands, sessionId, moduleName),
                     _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
@@ -194,6 +199,22 @@ public static partial class ExcelVbaTool
             moduleName,
             message = $"Deleted VBA module '{moduleName}'."
         }, ExcelToolsBase.JsonOptions);
+    }
+
+    /// <summary>
+    /// Returns file contents if filePath is provided, otherwise returns the direct value.
+    /// </summary>
+    private static string? ResolveFileOrValue(string? directValue, string? filePath)
+    {
+        if (!string.IsNullOrWhiteSpace(filePath))
+        {
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException($"VBA code file not found: {filePath}");
+            }
+            return File.ReadAllText(filePath);
+        }
+        return directValue;
     }
 }
 
