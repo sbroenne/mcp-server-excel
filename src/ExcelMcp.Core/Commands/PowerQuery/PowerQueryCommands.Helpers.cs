@@ -114,9 +114,9 @@ public partial class PowerQueryCommands
                             {
                                 queryTable = listObject.QueryTable;
                             }
-                            catch
+                            catch (System.Runtime.InteropServices.COMException)
                             {
-                                // ListObject doesn't have a QueryTable
+                                // ListObject doesn't have a QueryTable - expected for user-created tables
                                 continue;
                             }
 
