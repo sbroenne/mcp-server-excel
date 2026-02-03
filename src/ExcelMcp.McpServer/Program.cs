@@ -150,12 +150,11 @@ public class Program
                 var updateInfo = await Infrastructure.McpServerVersionChecker.CheckForUpdateAsync();
                 if (updateInfo != null)
                 {
-                    var logger = host.Services.GetService<ILogger<Program>>();
-                    logger?.LogInformation(
-                        "MCP Server update available: {CurrentVersion} -> {LatestVersion}. " +
-                        "Run: dotnet tool update --global Sbroenne.ExcelMcp.McpServer",
-                        updateInfo.CurrentVersion,
-                        updateInfo.LatestVersion);
+                    // Log to stderr directly - this is a non-critical notification
+                    // Using Console.Error avoids CA1848 analyzer warning about LoggerMessage delegates
+                    await Console.Error.WriteLineAsync(
+                        $"[Info] MCP Server update available: {updateInfo.CurrentVersion} -> {updateInfo.LatestVersion}. " +
+                        "Run: dotnet tool update --global Sbroenne.ExcelMcp.McpServer");
                 }
             }
             catch

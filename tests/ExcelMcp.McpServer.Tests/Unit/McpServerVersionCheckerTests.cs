@@ -1,4 +1,3 @@
-using Sbroenne.ExcelMcp.McpServer.Infrastructure;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
@@ -15,9 +14,8 @@ public sealed class McpServerVersionCheckerTests
         // This test depends on NuGetVersionChecker actually checking NuGet
         // In a real scenario, we might want to mock this, but for now we'll test
         // that the method doesn't throw and returns a reasonable result
-        
-        var updateInfo = await McpServerVersionChecker.CheckForUpdateAsync();
-        
+        var updateInfo = await Infrastructure.McpServerVersionChecker.CheckForUpdateAsync();
+
         // The result can be null (if no update or network error) or an UpdateInfo object
         // We just verify it doesn't throw and the result is valid
         if (updateInfo != null)
@@ -33,9 +31,8 @@ public sealed class McpServerVersionCheckerTests
     {
         // With a very short cancellation token, we should get a timeout/cancellation
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(1));
-        
-        var updateInfo = await McpServerVersionChecker.CheckForUpdateAsync(cts.Token);
-        
+        var updateInfo = await Infrastructure.McpServerVersionChecker.CheckForUpdateAsync(cts.Token);
+
         // Should return null on timeout/cancellation (fails silently)
         Assert.Null(updateInfo);
     }
@@ -43,8 +40,8 @@ public sealed class McpServerVersionCheckerTests
     [Fact]
     public void GetCurrentVersion_ReturnsNonEmptyString()
     {
-        var version = McpServerVersionChecker.GetCurrentVersion();
-        
+        var version = Infrastructure.McpServerVersionChecker.GetCurrentVersion();
+
         Assert.NotNull(version);
         Assert.NotEmpty(version);
         Assert.NotEqual("0.0.0", version); // Should have a real version from assembly
@@ -53,7 +50,7 @@ public sealed class McpServerVersionCheckerTests
     [Fact]
     public void UpdateInfo_GetUpdateMessage_IncludesVersions()
     {
-        var updateInfo = new UpdateInfo
+        var updateInfo = new Infrastructure.UpdateInfo
         {
             CurrentVersion = "1.0.0",
             LatestVersion = "1.1.0",
@@ -70,7 +67,7 @@ public sealed class McpServerVersionCheckerTests
     [Fact]
     public void UpdateInfo_GetUpdateMessage_ContainsUpdateInstructions()
     {
-        var updateInfo = new UpdateInfo
+        var updateInfo = new Infrastructure.UpdateInfo
         {
             CurrentVersion = "1.0.0",
             LatestVersion = "1.1.0",

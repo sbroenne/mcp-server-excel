@@ -71,7 +71,7 @@ internal sealed class UpdateInfo
     public required string LatestVersion { get; init; }
     public required bool UpdateAvailable { get; init; }
 
-    public string GetNotificationTitle() => "Excel CLI Update Available";
+    public static string GetNotificationTitle() => "Excel CLI Update Available";
 
     public string GetNotificationMessage() =>
         $"Version {LatestVersion} is available (current: {CurrentVersion}).\n" +

@@ -15,9 +15,8 @@ public sealed class DaemonVersionCheckerTests
         // This test depends on NuGetVersionChecker actually checking NuGet
         // In a real scenario, we might want to mock this, but for now we'll test
         // that the method doesn't throw and returns a reasonable result
-        
         var updateInfo = await DaemonVersionChecker.CheckForUpdateAsync();
-        
+
         // The result can be null (if no update or network error) or an UpdateInfo object
         // We just verify it doesn't throw and the result is valid
         if (updateInfo != null)
@@ -33,9 +32,8 @@ public sealed class DaemonVersionCheckerTests
     {
         // With a very short cancellation token, we should get a timeout/cancellation
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(1));
-        
         var updateInfo = await DaemonVersionChecker.CheckForUpdateAsync(cts.Token);
-        
+
         // Should return null on timeout/cancellation (fails silently)
         Assert.Null(updateInfo);
     }
@@ -43,14 +41,8 @@ public sealed class DaemonVersionCheckerTests
     [Fact]
     public void UpdateInfo_GetNotificationTitle_ReturnsExpectedFormat()
     {
-        var updateInfo = new UpdateInfo
-        {
-            CurrentVersion = "1.0.0",
-            LatestVersion = "1.1.0",
-            UpdateAvailable = true
-        };
-
-        var title = updateInfo.GetNotificationTitle();
+        // GetNotificationTitle is static, doesn't need an instance
+        var title = UpdateInfo.GetNotificationTitle();
 
         Assert.Equal("Excel CLI Update Available", title);
     }

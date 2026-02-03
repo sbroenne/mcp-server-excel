@@ -139,7 +139,7 @@ internal sealed class ExcelDaemon : IDisposable
                     if (updateInfo != null && _tray != null)
                     {
                         _tray.ShowUpdateNotification(
-                            updateInfo.GetNotificationTitle(),
+                            Infrastructure.UpdateInfo.GetNotificationTitle(),
                             updateInfo.GetNotificationMessage());
                     }
                 }

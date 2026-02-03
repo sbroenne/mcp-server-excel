@@ -5,7 +5,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Infrastructure;
 /// <summary>
 /// Checks for MCP Server updates and provides version information.
 /// </summary>
-internal static class McpServerVersionChecker
+public static class McpServerVersionChecker
 {
     /// <summary>
     /// Checks for updates and returns update information if available.
@@ -68,7 +68,7 @@ internal static class McpServerVersionChecker
 /// <summary>
 /// Information about an available update.
 /// </summary>
-internal sealed class UpdateInfo
+public sealed class UpdateInfo
 {
     public required string CurrentVersion { get; init; }
     public required string LatestVersion { get; init; }
