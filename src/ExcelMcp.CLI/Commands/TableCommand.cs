@@ -60,7 +60,7 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
             "set-style" => new { tableName = settings.TableName, tableStyle = settings.Style },
             "toggle-totals" => new { tableName = settings.TableName, showTotals = settings.ShowTotals },
             "set-column-total" => new { tableName = settings.TableName, columnName = settings.ColumnName, totalFunction = settings.TotalFunction },
-            "append" => new { tableName = settings.TableName, csvData },
+            "append" => new { tableName = settings.TableName, rows = ParseCsvToRows(csvData) },
             "get-data" => new { tableName = settings.TableName, visibleOnly = settings.VisibleOnly },
             "add-to-datamodel" => new { tableName = settings.TableName },
             "create-from-dax" => new { sheetName = settings.SheetName, tableName = settings.TableName, daxQuery, targetCell = settings.Range },
@@ -125,6 +125,33 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
             return File.ReadAllText(filePath);
         }
         return directValue;
+    }
+
+    /// <summary>
+    /// Parses CSV data into a 2D list of rows for table append.
+    /// Supports JSON array format or simple CSV lines.
+    /// </summary>
+    private static List<List<object?>>? ParseCsvToRows(string? csvData)
+    {
+        if (string.IsNullOrWhiteSpace(csvData)) return null;
+
+        // Try JSON array format first: [["a", 1], ["b", 2]]
+        try
+        {
+            return JsonSerializer.Deserialize<List<List<object?>>>(csvData, DaemonProtocol.JsonOptions);
+        }
+        catch
+        {
+            // Fall back to CSV parsing: each line is a row, comma-separated values
+            var lines = csvData.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+            var rows = new List<List<object?>>();
+            foreach (var line in lines)
+            {
+                var values = line.Split(',').Select(v => (object?)v.Trim()).ToList();
+                rows.Add(values);
+            }
+            return rows.Count > 0 ? rows : null;
+        }
     }
 
     private static List<string>? ParseStringList(string? input)

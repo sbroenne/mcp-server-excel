@@ -41,13 +41,13 @@ internal sealed class PowerQueryCommand : AsyncCommand<PowerQueryCommand.Setting
         {
             "list" => null,
             "view" => new { queryName = settings.QueryName },
-            "create" => new { queryName = settings.QueryName, mCode, loadDestination = settings.LoadDestination },
+            "create" => new { queryName = settings.QueryName, mCode, loadDestination = settings.LoadDestination, targetSheet = settings.TargetSheet, targetCellAddress = settings.TargetCell },
             "update" => new { queryName = settings.QueryName, mCode },
             "rename" => new { oldName = settings.QueryName, newName = settings.NewName },
             "delete" => new { queryName = settings.QueryName },
             "refresh" => new { queryName = settings.QueryName },
             "refresh-all" => null,
-            "load-to" => new { queryName = settings.QueryName, loadDestination = settings.LoadDestination },
+            "load-to" => new { queryName = settings.QueryName, loadDestination = settings.LoadDestination, targetSheet = settings.TargetSheet, targetCellAddress = settings.TargetCell },
             "get-load-config" => new { queryName = settings.QueryName },
             "unload" => new { queryName = settings.QueryName },
             "evaluate" => new { mCode },
@@ -119,5 +119,13 @@ internal sealed class PowerQueryCommand : AsyncCommand<PowerQueryCommand.Setting
         [CommandOption("--load-destination <DEST>")]
         [Description("Load destination: worksheet, data-model, both, connection-only")]
         public string? LoadDestination { get; init; }
+
+        [CommandOption("--target-sheet <NAME>")]
+        [Description("Target worksheet for data load")]
+        public string? TargetSheet { get; init; }
+
+        [CommandOption("--target-cell <ADDRESS>")]
+        [Description("Target cell address for data load (e.g., A1)")]
+        public string? TargetCell { get; init; }
     }
 }

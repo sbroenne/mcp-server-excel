@@ -47,7 +47,7 @@ internal sealed class ConnectionCommand : AsyncCommand<ConnectionCommand.Setting
             "delete" => new { connectionName = settings.ConnectionName },
             "load-to" => new { connectionName = settings.ConnectionName, loadDestination = settings.LoadDestination, sheetName = settings.SheetName, targetCell = settings.TargetCell },
             "get-properties" => new { connectionName = settings.ConnectionName },
-            "set-properties" => new { connectionName = settings.ConnectionName, refreshOnOpen = settings.RefreshOnOpen, enableRefresh = settings.EnableRefresh },
+            "set-properties" => new { connectionName = settings.ConnectionName, connectionString, commandText, description = settings.Description, backgroundQuery = settings.BackgroundQuery, refreshOnFileOpen = settings.RefreshOnOpen, savePassword = settings.SavePassword, refreshPeriod = settings.RefreshPeriod },
             _ => new { connectionName = settings.ConnectionName }
         };
 
@@ -140,5 +140,21 @@ internal sealed class ConnectionCommand : AsyncCommand<ConnectionCommand.Setting
         [CommandOption("--enable-refresh")]
         [Description("Enable manual refresh")]
         public bool? EnableRefresh { get; init; }
+
+        [CommandOption("--description <TEXT>")]
+        [Description("Connection description")]
+        public string? Description { get; init; }
+
+        [CommandOption("--background-query")]
+        [Description("Run query in background")]
+        public bool? BackgroundQuery { get; init; }
+
+        [CommandOption("--save-password")]
+        [Description("Save password in connection string")]
+        public bool? SavePassword { get; init; }
+
+        [CommandOption("--refresh-period <MINUTES>")]
+        [Description("Auto-refresh period in minutes (0 to disable)")]
+        public int? RefreshPeriod { get; init; }
     }
 }
