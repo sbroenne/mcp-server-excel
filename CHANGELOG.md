@@ -10,6 +10,9 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.6.4] - 2026-02-03
+
+
 ### Fixed
 
 - **COM Timeout with Data Model Dependencies** (#412): Fixed timeout when setting formulas/values that trigger Data Model recalculation

@@ -426,6 +426,16 @@ internal sealed class ExcelBatch : IExcelBatch
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
 
+        // Check if Excel process is still alive before attempting operation
+        if (!IsExcelProcessAlive())
+        {
+            _logger.LogError("Excel process is no longer running for workbook {FileName}", Path.GetFileName(_workbookPath));
+            throw new InvalidOperationException(
+                $"Excel process is no longer running for workbook '{Path.GetFileName(_workbookPath)}'. " +
+                "The Excel application may have been closed manually or crashed. " +
+                "Please close this session and create a new one.");
+        }
+
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         // Post operation to STA thread synchronously
