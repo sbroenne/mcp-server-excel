@@ -195,7 +195,11 @@ excelcli -q session close --session 1 --save
 Skills are auto-installed by the VS Code extension. For other platforms:
 
 ```powershell
-npx add-skill sbroenne/mcp-server-excel
+# CLI skill (for coding agents - Copilot, Cursor, Windsurf)
+npx add-skill sbroenne/mcp-server-excel --skill excel-cli
+
+# MCP skill (for conversational AI - Claude Desktop, VS Code Chat)
+npx add-skill sbroenne/mcp-server-excel --skill excel-mcp
 ```
 
 📚 **[More details →](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/README.md)**

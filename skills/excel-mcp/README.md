@@ -36,7 +36,7 @@ Extract to your AI assistant's skills directory:
 
 Or use npx:
 ```bash
-npx add-skill sbroenne/mcp-server-excel -a claude-code
+npx add-skill sbroenne/mcp-server-excel --skill excel-mcp -a claude-code
 ```
 
 ## Contents
