@@ -55,12 +55,48 @@ function Copy-SharedReferences {
         New-Item -ItemType Directory -Path $RefsDir -Force | Out-Null
     }
 
-    # Copy all shared files
+    # Define which files each skill needs (based on SKILL.md @references/)
+    $SkillReferences = @{
+        "excel-cli" = @(
+            "behavioral-rules.md"
+            "anti-patterns.md"
+            "workflows.md"
+        )
+        "excel-mcp" = @(
+            "behavioral-rules.md"
+            "anti-patterns.md"
+            "workflows.md"
+            "excel_chart.md"
+            "excel_conditionalformat.md"
+            "excel_datamodel.md"
+            "excel_powerquery.md"
+            "excel_range.md"
+            "excel_slicer.md"
+            "excel_table.md"
+            "excel_worksheet.md"
+        )
+    }
+
+    # Get the list of files for this skill
+    $FilesToCopy = $SkillReferences[$SkillName]
+    if (-not $FilesToCopy) {
+        Write-Warning "No reference files defined for skill: $SkillName"
+        return
+    }
+
+    # Copy only the files this skill needs
     if (Test-Path $SharedDir) {
-        Get-ChildItem -Path $SharedDir -File | ForEach-Object {
-            Copy-Item -Path $_.FullName -Destination $RefsDir -Force
+        $CopiedCount = 0
+        foreach ($fileName in $FilesToCopy) {
+            $sourceFile = Join-Path $SharedDir $fileName
+            if (Test-Path $sourceFile) {
+                Copy-Item -Path $sourceFile -Destination $RefsDir -Force
+                $CopiedCount++
+            } else {
+                Write-Warning "Reference file not found in shared: $fileName"
+            }
         }
-        Write-Host "  Copied shared references to $SkillName/references/" -ForegroundColor Green
+        Write-Host "  Copied $CopiedCount shared references to $SkillName/references/" -ForegroundColor Green
     } else {
         Write-Warning "Shared directory not found: $SharedDir"
     }
