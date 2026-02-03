@@ -509,9 +509,11 @@ jobs:
         ```
 
         **Agent Skills** (for AI coding assistants)
-        - **MCP Skill**: Download `excel-mcp-skill-v${{ env.VERSION }}.zip` - for conversational AI (Claude Desktop, VS Code Chat)
         - **CLI Skill**: Download `excel-cli-skill-v${{ env.VERSION }}.zip` - for coding agents (Copilot, Cursor, Windsurf)
-        - Or use: `npx add-skill sbroenne/mcp-server-excel`
+        - **MCP Skill**: Download `excel-mcp-skill-v${{ env.VERSION }}.zip` - for conversational AI (Claude Desktop, VS Code Chat)
+        - Or install via npx:
+          - `npx add-skill sbroenne/mcp-server-excel --skill excel-cli` (coding agents)
+          - `npx add-skill sbroenne/mcp-server-excel --skill excel-mcp` (conversational AI)
 
         ### Requirements
         - Windows OS

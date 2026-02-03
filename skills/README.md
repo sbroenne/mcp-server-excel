@@ -62,19 +62,28 @@ Enable skills in VS Code settings:
 
 ### Method 2: npx add-skill (Cross-Platform)
 
-```bash
-# Install for all supported agents
-npx add-skill sbroenne/mcp-server-excel
+**Important:** The repository contains TWO separate skills. You must specify which one to install using the `--skill` flag.
 
-# Install for specific agent
-npx add-skill sbroenne/mcp-server-excel -a claude-code
-npx add-skill sbroenne/mcp-server-excel -a cursor
+```bash
+# Install CLI skill (recommended for coding agents - Copilot, Cursor, Windsurf)
+npx add-skill sbroenne/mcp-server-excel --skill excel-cli
+
+# Install MCP skill (for conversational AI - Claude Desktop, VS Code Chat)
+npx add-skill sbroenne/mcp-server-excel --skill excel-mcp
+
+# Install BOTH skills (if you use multiple tools)
+npx add-skill sbroenne/mcp-server-excel --skill excel-cli
+npx add-skill sbroenne/mcp-server-excel --skill excel-mcp
+
+# Install for specific agent (optional)
+npx add-skill sbroenne/mcp-server-excel --skill excel-cli -a cursor
+npx add-skill sbroenne/mcp-server-excel --skill excel-mcp -a claude-code
 
 # Install globally (user-wide)
-npx add-skill sbroenne/mcp-server-excel --global
+npx add-skill sbroenne/mcp-server-excel --skill excel-cli --global
 
 # Install to current project
-npx add-skill sbroenne/mcp-server-excel --local
+npx add-skill sbroenne/mcp-server-excel --skill excel-cli --local
 ```
 
 ### Method 3: GitHub Release Download

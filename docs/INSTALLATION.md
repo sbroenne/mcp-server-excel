@@ -404,25 +404,41 @@ Agent Skills provide domain-specific guidance to AI coding assistants, helping t
 
 > **Note:** Agent Skills are for **coding agents** (GitHub Copilot, Claude Code, Cursor). **Claude Desktop** uses MCP Prompts instead (included automatically via the MCP Server).
 
+### Two Skills for Different Use Cases
+
+| Skill | Target | Best For |
+|-------|--------|----------|
+| **excel-cli** | CLI Tool | **Coding agents** (Copilot, Cursor, Windsurf) - token-efficient, `excelcli --help` discoverable |
+| **excel-mcp** | MCP Server | **Conversational AI** (Claude Desktop, VS Code Chat) - rich tool schemas, exploratory workflows |
+
 **VS Code Extension:** Skills are installed automatically to `~/.copilot/skills/`.
 
 **Other Platforms (Claude Code, Cursor, Windsurf, etc.):**
 
 ```powershell
-# Cross-platform installation
-npx add-skill sbroenne/mcp-server-excel
+# Install CLI skill (recommended for coding agents - Copilot, Cursor, Windsurf)
+npx add-skill sbroenne/mcp-server-excel --skill excel-cli
 
-# Install for specific agent
-npx add-skill sbroenne/mcp-server-excel -a claude-code
-npx add-skill sbroenne/mcp-server-excel -a cursor
+# Install MCP skill (for conversational AI - Claude Desktop, VS Code Chat)
+npx add-skill sbroenne/mcp-server-excel --skill excel-mcp
+
+# Install BOTH skills (run both commands if you use multiple tools)
+npx add-skill sbroenne/mcp-server-excel --skill excel-cli
+npx add-skill sbroenne/mcp-server-excel --skill excel-mcp
+
+# Target specific agent (optional)
+npx add-skill sbroenne/mcp-server-excel --skill excel-cli -a claude-code
+npx add-skill sbroenne/mcp-server-excel --skill excel-cli -a cursor
 ```
 
 **Manual Installation:**
-1. Download `excel-cli-skill-v{version}.zip` from [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+1. Download the skill package from [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest):
+   - `excel-cli-skill-v{version}.zip` - for CLI tool (coding agents)
+   - `excel-mcp-skill-v{version}.zip` - for MCP Server (conversational AI)
 2. Extract to your AI assistant's skills directory:
-   - Copilot: `~/.copilot/skills/excel-cli/`
-   - Claude Code: `.claude/skills/excel-cli/`
-   - Cursor: `.cursor/skills/excel-cli/`
+   - Copilot: `~/.copilot/skills/excel-cli/` or `~/.copilot/skills/excel-mcp/`
+   - Claude Code: `.claude/skills/excel-cli/` or `.claude/skills/excel-mcp/`
+   - Cursor: `.cursor/skills/excel-cli/` or `.cursor/skills/excel-mcp/`
 
 **See:** [Agent Skills Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/README.md)
 
