@@ -54,7 +54,7 @@ public class Program
             }
             if (arg is "-v" or "--version")
             {
-                ShowVersion();
+                await ShowVersionAsync();
                 return 0;
             }
         }
@@ -138,6 +138,31 @@ public class Program
 
         // Initialize telemetry client for static access
         InitializeTelemetryClient(host.Services);
+
+        // Check for updates on startup (non-blocking, logs to stderr)
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                // Wait briefly to avoid interfering with startup
+                await Task.Delay(TimeSpan.FromSeconds(2));
+
+                var updateInfo = await Infrastructure.McpServerVersionChecker.CheckForUpdateAsync();
+                if (updateInfo != null)
+                {
+                    var logger = host.Services.GetService<ILogger<Program>>();
+                    logger?.LogInformation(
+                        "MCP Server update available: {CurrentVersion} -> {LatestVersion}. " +
+                        "Run: dotnet tool update --global Sbroenne.ExcelMcp.McpServer",
+                        updateInfo.CurrentVersion,
+                        updateInfo.LatestVersion);
+                }
+            }
+            catch
+            {
+                // Fail silently - version check should never interfere with server operation
+            }
+        });
 
         try
         {
@@ -277,12 +302,27 @@ public class Program
     }
 
     /// <summary>
-    /// Shows version information.
+    /// Shows version information and checks for updates.
     /// </summary>
-    private static void ShowVersion()
+    private static async Task ShowVersionAsync()
     {
-        var version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0";
-        Console.WriteLine($"Excel MCP Server v{version}");
+        var currentVersion = Infrastructure.McpServerVersionChecker.GetCurrentVersion();
+        Console.WriteLine($"Excel MCP Server v{currentVersion}");
+
+        // Check for updates (non-blocking, 5-second timeout)
+        var updateInfo = await Infrastructure.McpServerVersionChecker.CheckForUpdateAsync();
+        if (updateInfo != null)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"Update available: {updateInfo.CurrentVersion} -> {updateInfo.LatestVersion}");
+            Console.WriteLine("Run: dotnet tool update --global Sbroenne.ExcelMcp.McpServer");
+            Console.WriteLine("Release notes: https://github.com/sbroenne/mcp-server-excel/releases/latest");
+        }
+        else
+        {
+            // Check completed but no update available (or check failed silently)
+            // Don't show anything - keep output clean for scripting
+        }
     }
 }
 

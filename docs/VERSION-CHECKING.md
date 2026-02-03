@@ -82,7 +82,83 @@ The current implementation uses classic balloon tips. For Windows 11, consider u
 2. **Benefits**: Richer content, action buttons, Windows 11 Action Center integration
 3. **Migration**: Keep balloon tip as fallback for older Windows versions
 
-## MCP Server Version Handling
+## MCP Server Version Checking
+
+### Manual Version Check
+
+Users can check for updates at any time using the `--version` flag:
+
+```powershell
+Sbroenne.ExcelMcp.McpServer.exe --version
+```
+
+This command:
+1. Displays current version information
+2. Checks NuGet for the latest version (non-blocking, 5-second timeout)
+3. Shows update message if an update is available
+4. Provides the exact command to update
+
+**Example output when update is available:**
+```
+Excel MCP Server v1.0.0
+
+Update available: 1.0.0 -> 1.1.0
+Run: dotnet tool update --global Sbroenne.ExcelMcp.McpServer
+Release notes: https://github.com/sbroenne/mcp-server-excel/releases/latest
+```
+
+### Automatic Startup Logging
+
+When the MCP Server starts, it automatically checks for updates in the background:
+
+1. **Timing**: Check occurs 2 seconds after server startup
+2. **Non-blocking**: Version check runs asynchronously and never blocks server operations
+3. **Silent on failure**: If the check fails (network error, timeout), no log message is shown
+4. **stderr logging**: If an update is available, a log message is written to stderr
+
+**Log Message:**
+```
+info: Sbroenne.ExcelMcp.McpServer.Program[0]
+      MCP Server update available: 1.0.0 -> 1.1.0. Run: dotnet tool update --global Sbroenne.ExcelMcp.McpServer
+```
+
+**Why stderr?** The MCP protocol uses stdio for communication (stdin/stdout), so all logging goes to stderr to avoid interfering with the protocol.
+
+### Implementation Details
+
+**Components:**
+
+1. **`NuGetVersionChecker.cs`** - NuGet API client
+   - Queries `https://api.nuget.org/v3-flatcontainer/sbroenne.excelmcp.mcpserver/index.json`
+   - Returns latest non-prerelease version
+   - 5-second timeout (inherited from HttpClient)
+
+2. **`McpServerVersionChecker.cs`** - Version checking logic
+   - `CheckForUpdateAsync()` - Compares current version with latest NuGet version
+   - `GetCurrentVersion()` - Extracts version from assembly metadata
+   - Returns `UpdateInfo` if update available, `null` otherwise
+
+3. **`Program.cs`** - Integration points
+   - `ShowVersionAsync()` - Enhanced --version flag with update check
+   - Startup background task - Logs update info to stderr via ILogger
+
+**Best Practices Followed:**
+
+1. **Non-intrusive**: Background check, no blocking, stderr logging only
+2. **Non-blocking**: Runs asynchronously after server is fully initialized
+3. **Fail-safe**: All errors caught and ignored - never impacts server operation
+4. **MCP-compliant**: Uses stderr for logging (stdio reserved for protocol)
+5. **Actionable**: Message includes exact command to update
+
+### Future Enhancements (Optional)
+
+For MCP Server, considerations for future improvements:
+
+1. **Configuration**: Allow disabling version check via environment variable
+2. **Check frequency**: Track last check time, only check once per day
+3. **MCP notification**: Consider adding a custom notification mechanism via MCP protocol
+
+## MCP Server Version Handling (Protocol)
 
 ### Protocol Version Negotiation
 
@@ -131,30 +207,46 @@ Adding a separate version check mechanism would:
 
 ### Unit Tests
 
-**Location**: `tests/ExcelMcp.CLI.Tests/Unit/DaemonVersionCheckerTests.cs`
+**CLI Location**: `tests/ExcelMcp.CLI.Tests/Unit/DaemonVersionCheckerTests.cs`
+**MCP Server Location**: `tests/ExcelMcp.McpServer.Tests/Unit/McpServerVersionCheckerTests.cs`
 
 Tests verify:
 1. Version comparison logic
 2. Graceful failure handling (network errors, timeouts)
 3. UpdateInfo message formatting
-4. Notification message content
+4. Notification/log message content
 
-**Run tests:**
+**Run CLI tests:**
 ```powershell
 dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj --filter "Feature=VersionCheck"
 ```
 
+**Run MCP Server tests:**
+```powershell
+dotnet test tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj --filter "Feature=VersionCheck"
+```
+
 ### Manual Testing
 
-**Test daemon notification:**
+**Test CLI daemon notification:**
 1. Start daemon: `excelcli daemon start`
 2. Wait 5 seconds after startup
 3. If update is available, Windows notification should appear in system tray
 
-**Test version flag:**
+**Test CLI version flag:**
 1. Run: `excelcli --version`
 2. Verify output shows current version and checks NuGet
 3. If update available, message includes update command
+
+**Test MCP Server version flag:**
+1. Run: `Sbroenne.ExcelMcp.McpServer.exe --version`
+2. Verify output shows current version and checks NuGet
+3. If update available, message includes update command
+
+**Test MCP Server startup logging:**
+1. Start MCP Server and redirect stderr: `Sbroenne.ExcelMcp.McpServer.exe 2> server.log`
+2. Wait 2 seconds after startup
+3. Check `server.log` for update message (if update is available)
 
 ## Configuration
 
@@ -169,15 +261,23 @@ These would require adding configuration to `DaemonVersionChecker` or daemon set
 
 ## Troubleshooting
 
-**No notification shown:**
+**CLI - No notification shown:**
 - Check: Is an update actually available? Run `excelcli --version` to verify
 - Check: Network connectivity (version check requires internet to reach NuGet)
 - Check: Daemon logs for any errors during version check
 
+**MCP Server - No log message shown:**
+- Check: Is an update actually available? Run `Sbroenne.ExcelMcp.McpServer.exe --version` to verify
+- Check: Network connectivity (version check requires internet to reach NuGet)
+- Check: stderr output is not being suppressed (redirect stderr to see messages)
+- Note: Only logs if update is available - no message if up-to-date
+
 **Update command fails:**
 - Ensure you have internet connectivity
 - Verify NuGet package manager is working: `dotnet tool list --global`
-- Try updating manually: `dotnet tool update --global Sbroenne.ExcelMcp.CLI`
+- Try updating manually: 
+  - CLI: `dotnet tool update --global Sbroenne.ExcelMcp.CLI`
+  - MCP Server: `dotnet tool update --global Sbroenne.ExcelMcp.McpServer`
 
 **Version check takes too long:**
 - Timeout is 5 seconds by default (from `NuGetVersionChecker`)
