@@ -1,8 +1,8 @@
 # GitHub Copilot Instructions - ExcelMcp
 
-> **Optimized for AI Coding Agents** - Modular, path-specific instructions
+> **🎯 Optimized for AI Coding Agents** - Modular, path-specific instructions
 
-## Critical Files (Read These First)
+## 📋 Critical Files (Read These First)
 
 **ALWAYS read when working on code:**
 - [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) - 19 mandatory rules (Success flag, COM cleanup, tests, etc.)
@@ -34,11 +34,11 @@
 
 ---
 
-## Quick Reference
+## 🎯 Quick Reference
 
 ### Test Commands
 ```powershell
-# CRITICAL: Integration tests take 45+ MINUTES for full suite
+# ⚠️ CRITICAL: Integration tests take 45+ MINUTES for full suite
 # ALWAYS use surgical testing - test only what you changed!
 
 # Fast feedback (excludes VBA) - Still takes 10-15 minutes
@@ -59,44 +59,44 @@ dotnet test --filter "RunType=OnDemand"
 // Let exceptions propagate naturally - batch.Execute() handles them via TaskCompletionSource
 public DataType Method(IExcelBatch batch, string arg1)
 {
- return batch.Execute((ctx, ct) => {
- dynamic? item = null;
- try {
- // Operation code here
- item = ctx.Book.SomeObject;
- // For CRUD: return void (throws on error)
- // For queries: return actual data
- return someData;
- }
- finally {
- // ONLY finally blocks for COM cleanup
- ComUtilities.Release(ref item!);
- }
- // NO catch blocks that return error results
- });
+    return batch.Execute((ctx, ct) => {
+        dynamic? item = null;
+        try {
+            // Operation code here
+            item = ctx.Book.SomeObject;
+            // For CRUD: return void (throws on error)
+            // For queries: return actual data
+            return someData;
+        }
+        finally {
+            // ✅ ONLY finally blocks for COM cleanup
+            ComUtilities.Release(ref item!);
+        }
+        // ❌ NO catch blocks that return error results
+    });
 }
 
 
 // CLI: Wrap Core calls
 public int Method(string[] args)
 {
- try {
- using var batch = ExcelSession.BeginBatch(filePath);
- _coreCommands.Method(batch, arg1);
- return 0;
- } catch (Exception ex) {
- AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
- return 1;
- }
+    try {
+        using var batch = ExcelSession.BeginBatch(filePath);
+        _coreCommands.Method(batch, arg1);
+        return 0;
+    } catch (Exception ex) {
+        AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message.EscapeMarkup()}");
+        return 1;
+    }
 }
 
 // Tests: Use batch API
 [Fact]
 public void TestMethod()
 {
- using var batch = ExcelSession.BeginBatch(_testFile);
- var result = _commands.Method(batch, args);
- Assert.NotNull(result); // Or other appropriate assertion
+    using var batch = ExcelSession.BeginBatch(_testFile);
+    var result = _commands.Method(batch, args);
+    Assert.NotNull(result); // Or other appropriate assertion
 }
 ```
 
@@ -108,7 +108,7 @@ public void TestMethod()
 
 ---
 
-## Key Lessons (Update After Major Work)
+## 🔄 Key Lessons (Update After Major Work)
 
 **Success Flag:** NEVER `Success = true` with `ErrorMessage`. Set Success in try block, always false in catch.
 
@@ -128,7 +128,7 @@ public void TestMethod()
 
 ---
 
-## How Path-Specific Instructions Work
+## 📚 How Path-Specific Instructions Work
 
 GitHub Copilot auto-loads instructions based on files you're editing:
 

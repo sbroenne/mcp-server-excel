@@ -6,8 +6,8 @@ This directory contains Infrastructure as Code (IaC) for automating the deployme
 
 **Deploy directly from GitHub UI!**
 
-**Setup Guide:** [`GITHUB_ACTIONS_DEPLOYMENT.md`](GITHUB_ACTIONS_DEPLOYMENT.md) 
-**Manual Installation:** [`docs/AZURE_SELFHOSTED_RUNNER_SETUP.md`](../../docs/AZURE_SELFHOSTED_RUNNER_SETUP.md#manual-installation)
+📚 **Setup Guide:** [`GITHUB_ACTIONS_DEPLOYMENT.md`](GITHUB_ACTIONS_DEPLOYMENT.md)  
+🔧 **Manual Installation:** [`docs/AZURE_SELFHOSTED_RUNNER_SETUP.md`](../../docs/AZURE_SELFHOSTED_RUNNER_SETUP.md#manual-installation)
 
 **Quick steps:**
 1. Create Azure App Registration with OIDC (one-time, 10 minutes)
@@ -20,11 +20,11 @@ This directory contains Infrastructure as Code (IaC) for automating the deployme
 **If deployment fails:** Use the manual installation guide to configure the runner on an existing VM.
 
 **Benefits:**
-- **Simple** - No complex token management
-- **Secure OIDC authentication** - no Azure client secrets stored
-- **Audit trail** in Actions logs
-- **Repeatable and version-controlled**
-- **Improved error handling** - External script with detailed logging
+- ✅ **Simple** - No complex token management
+- ✅ **Secure OIDC authentication** - no Azure client secrets stored
+- ✅ **Audit trail** in Actions logs
+- ✅ **Repeatable and version-controlled**
+- ✅ **Improved error handling** - External script with detailed logging
 
 ---
 
@@ -41,14 +41,14 @@ This directory contains Infrastructure as Code (IaC) for automating the deployme
 
 ### GitHub Coding Agent Compatibility
 
-**YES** - GitHub Coding Agents can use this runner in Agent mode:
+**✅ YES** - GitHub Coding Agents can use this runner in Agent mode:
 
 1. **Runner labels:** `self-hosted`, `windows`, `excel`
 2. **Available 24/7** for immediate workflow execution
 3. **Coding agents access runner same way as workflows:**
- - When you push code in VS Code Agent mode
- - Workflows using `runs-on: [self-hosted, windows, excel]`
- - Manual workflow triggers via Actions tab
+   - When you push code in VS Code Agent mode
+   - Workflows using `runs-on: [self-hosted, windows, excel]`
+   - Manual workflow triggers via Actions tab
 
 **How it works:**
 - GitHub Coding Agent pushes commits → triggers workflow → runs on your self-hosted runner
@@ -59,8 +59,8 @@ This directory contains Infrastructure as Code (IaC) for automating the deployme
 
 - **Location:** Sweden Central
 - **VM Size:** Standard_B2ms (2 vCPUs, 8 GB RAM)
- - 8GB RAM required for reliable Excel automation
- - Burstable performance for cost efficiency
+  - 8GB RAM required for reliable Excel automation
+  - Burstable performance for cost efficiency
 - **Uptime:** 24/7 (VM runs continuously for immediate test execution)
 
 ### Software Installed Automatically
@@ -83,9 +83,9 @@ This directory contains Infrastructure as Code (IaC) for automating the deployme
 
 ```
 infrastructure/azure/
-├── azure-runner.bicep # Main Bicep template
-├── GITHUB_ACTIONS_DEPLOYMENT.md # Setup and deployment guide
-└── README.md # This file
+├── azure-runner.bicep                # Main Bicep template
+├── GITHUB_ACTIONS_DEPLOYMENT.md      # Setup and deployment guide
+└── README.md                         # This file
 ```
 
 ## Configuration
@@ -95,7 +95,7 @@ infrastructure/azure/
 | Size | vCPUs | RAM | Monthly Cost (Sweden Central 24/7) | Use Case |
 |------|-------|-----|-----------------------------------|----------|
 | Standard_B2s | 2 | 4 GB | ~$40 | Too small for Excel |
-| **Standard_B2ms** | **2** | **8 GB** | **~$61** | **Recommended** |
+| **Standard_B2ms** | **2** | **8 GB** | **~$61** | **Recommended** ⭐ |
 | Standard_B4ms | 4 | 16 GB | ~$120 | Overkill for testing |
 
 **Note:** 8GB RAM is required for reliable Excel COM automation with multiple test projects.
@@ -106,7 +106,7 @@ infrastructure/azure/
 |--------|---------------------------|-------|
 | East US | ~$51 | Cheapest |
 | West Europe | ~$58 | EU data residency |
-| **Sweden Central** | **~$61** | **Selected** |
+| **Sweden Central** | **~$61** | **Selected** ⭐ |
 | North Europe | ~$58 | EU alternative |
 
 **Cost:** ~$61/month for 24/7 operation in Sweden Central
@@ -168,7 +168,7 @@ cd C:\actions-runner
 
 Auto-updates enabled. Manual check:
 ```powershell
-sconfig # Option 6: Download and Install Updates
+sconfig  # Option 6: Download and Install Updates
 ```
 
 ### Update Office/Excel
@@ -241,6 +241,6 @@ This removes VM, disks, network resources, and stops all charges.
 
 ---
 
-**Cost Estimate:** ~$30/month with auto-shutdown 
-**Setup Time:** 5 min deploy + 30 min Excel install 
+**Cost Estimate:** ~$30/month with auto-shutdown  
+**Setup Time:** 5 min deploy + 30 min Excel install  
 **Maintenance:** ~15 min/month

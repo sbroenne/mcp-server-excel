@@ -2,7 +2,7 @@
 
 This guide shows how to deploy the Azure VM using GitHub Actions with **OIDC (OpenID Connect)** for secure Azure authentication.
 
-> **Alternative:** If automated deployment fails, use the manual installation guide: [`docs/AZURE_SELFHOSTED_RUNNER_SETUP.md`](../../docs/AZURE_SELFHOSTED_RUNNER_SETUP.md#manual-installation)
+> **💡 Alternative:** If automated deployment fails, use the manual installation guide: [`docs/AZURE_SELFHOSTED_RUNNER_SETUP.md`](../../docs/AZURE_SELFHOSTED_RUNNER_SETUP.md#manual-installation)
 
 ## Prerequisites
 
@@ -25,9 +25,9 @@ SUBSCRIPTION_ID=$(az account show --query id --output tsv)
 
 # Create app registration
 APP_ID=$(az ad app create \
- --display-name "github-excel-runner-oidc" \
- --query appId \
- --output tsv)
+  --display-name "github-excel-runner-oidc" \
+  --query appId \
+  --output tsv)
 
 echo "App ID: $APP_ID"
 
@@ -36,25 +36,25 @@ az ad sp create --id $APP_ID
 
 # Add federated credential for GitHub Actions
 az ad app federated-credential create \
- --id $APP_ID \
- --parameters "{
- \"name\": \"github-excel-runner\",
- \"issuer\": \"https://token.actions.githubusercontent.com\",
- \"subject\": \"repo:sbroenne/mcp-server-excel:ref:refs/heads/main\",
- \"audiences\": [\"api://AzureADTokenExchange\"]
- }"
+  --id $APP_ID \
+  --parameters "{
+    \"name\": \"github-excel-runner\",
+    \"issuer\": \"https://token.actions.githubusercontent.com\",
+    \"subject\": \"repo:sbroenne/mcp-server-excel:ref:refs/heads/main\",
+    \"audiences\": [\"api://AzureADTokenExchange\"]
+  }"
 
 # Assign Contributor role to subscription
 az role assignment create \
- --assignee $APP_ID \
- --role Contributor \
- --scope /subscriptions/$SUBSCRIPTION_ID
+  --assignee $APP_ID \
+  --role Contributor \
+  --scope /subscriptions/$SUBSCRIPTION_ID
 
 # Get tenant ID
 TENANT_ID=$(az account show --query tenantId --output tsv)
 
 echo ""
-echo "Setup complete! Add these to GitHub Secrets:"
+echo "✅ Setup complete! Add these to GitHub Secrets:"
 echo "AZURE_CLIENT_ID: $APP_ID"
 echo "AZURE_TENANT_ID: $TENANT_ID"
 echo "AZURE_SUBSCRIPTION_ID: $SUBSCRIPTION_ID"
@@ -64,24 +64,24 @@ echo "AZURE_SUBSCRIPTION_ID: $SUBSCRIPTION_ID"
 
 1. Go to **Azure Active Directory** → **App registrations**
 2. Click **New registration**
- - Name: `github-excel-runner-oidc`
- - Click **Register**
+   - Name: `github-excel-runner-oidc`
+   - Click **Register**
 3. Note the **Application (client) ID** and **Directory (tenant) ID**
 4. Go to **Certificates & secrets** → **Federated credentials**
 5. Click **Add credential**
- - Federated credential scenario: **GitHub Actions deploying Azure resources**
- - Organization: `sbroenne`
- - Repository: `mcp-server-excel`
- - Entity type: **Branch**
- - GitHub branch name: `main`
- - Name: `github-excel-runner`
- - Click **Add**
+   - Federated credential scenario: **GitHub Actions deploying Azure resources**
+   - Organization: `sbroenne`
+   - Repository: `mcp-server-excel`
+   - Entity type: **Branch**
+   - GitHub branch name: `main`
+   - Name: `github-excel-runner`
+   - Click **Add**
 6. Go to **Subscriptions** → Select your subscription → **Access control (IAM)**
 7. Click **Add role assignment**
- - Role: **Contributor**
- - Assign access to: **User, group, or service principal**
- - Select: `github-excel-runner-oidc`
- - Click **Review + assign**
+   - Role: **Contributor**
+   - Assign access to: **User, group, or service principal**
+   - Select: `github-excel-runner-oidc`
+   - Click **Review + assign**
 
 ### Step 2: Add Azure Information to GitHub Secrets
 
@@ -108,8 +108,8 @@ Before deploying, you need a runner registration token:
 3. Click **New self-hosted runner**
 4. Select **Windows** as the OS
 5. Copy the token from the configuration command (starts with `A...`)
- - **Important**: Token expires after 1 hour - use it immediately
- - Token format: Long alphanumeric string (e.g., `A3E7G...`)
+   - ⚠️ **Important**: Token expires after 1 hour - use it immediately
+   - Token format: Long alphanumeric string (e.g., `A3E7G...`)
 
 ### Deploy via GitHub Actions UI
 
@@ -117,9 +117,9 @@ Before deploying, you need a runner registration token:
 2. Select **Deploy Azure Self-Hosted Runner** workflow
 3. Click **Run workflow**
 4. Fill in the parameters:
- - **Resource Group:** `rg-excel-runner` (or your preference)
- - **Admin Password:** Strong password for VM (e.g., `MySecurePass123!`)
- - **Runner Token:** Paste the token you copied from Settings → Actions → Runners
+   - **Resource Group:** `rg-excel-runner` (or your preference)
+   - **Admin Password:** Strong password for VM (e.g., `MySecurePass123!`)
+   - **Runner Token:** Paste the token you copied from Settings → Actions → Runners
 5. Click **Run workflow**
 
 **Deployment takes ~5 minutes**
@@ -129,10 +129,10 @@ Before deploying, you need a runner registration token:
 1. Check workflow run for VM FQDN (displayed in logs)
 2. RDP to the VM using the FQDN and credentials
 3. Install Office 365 Excel (30 minutes):
- - Sign in to https://portal.office.com
- - Install Office 365 apps
- - Select Excel only during installation
- - Activate with your Office 365 account
+   - Sign in to https://portal.office.com
+   - Install Office 365 apps
+   - Select Excel only during installation
+   - Activate with your Office 365 account
 4. Reboot VM
 5. Runner auto-starts and registers with GitHub
 
@@ -151,15 +151,15 @@ Should show:
 ## Why This Approach?
 
 **Benefits:**
-- **Simple** - Just get a runner token and deploy
-- **Secure Azure authentication** - Uses OIDC (no client secrets)
-- **No credential rotation** - Azure federated credentials don't expire
-- **Repeatable** - Same process every time
-- **Audit trail** - Every deployment logged in GitHub Actions
+- ✅ **Simple** - Just get a runner token and deploy
+- ✅ **Secure Azure authentication** - Uses OIDC (no client secrets)
+- ✅ **No credential rotation** - Azure federated credentials don't expire
+- ✅ **Repeatable** - Same process every time
+- ✅ **Audit trail** - Every deployment logged in GitHub Actions
 
 **Trade-offs:**
-- **Manual token generation** - Need to get a new token each time (expires after 1 hour)
-- **Not fully automated** - Requires manual step before deployment
+- ⚠️ **Manual token generation** - Need to get a new token each time (expires after 1 hour)
+- ⚠️ **Not fully automated** - Requires manual step before deployment
 
 **This is the simplest approach for occasional deployments.** If you deploy frequently, consider setting up a GitHub App or PAT for automated token generation.
 
@@ -227,9 +227,9 @@ Or use Azure Portal → Resource Groups → Delete
 
 1. **Use OIDC for Azure** instead of service principal credentials (more secure)
 2. **Runner Token Security**:
- - Never commit runner tokens to code
- - Tokens expire after 1 hour
- - Generate new token for each deployment
+   - Never commit runner tokens to code
+   - Tokens expire after 1 hour
+   - Generate new token for each deployment
 3. **Limit service principal** to specific resource group
 4. **Enable Azure Security Center** for VM monitoring
 5. **Review permissions** regularly
@@ -243,5 +243,5 @@ Or use Azure Portal → Resource Groups → Delete
 
 ---
 
-**Deployment time:** 5 min (automated) + 30 min (Excel install) 
+**Deployment time:** 5 min (automated) + 30 min (Excel install)  
 **Cost:** ~$61/month

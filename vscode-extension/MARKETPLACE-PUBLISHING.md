@@ -13,35 +13,35 @@ The release workflow requires the following secret to be configured in your GitH
 **How to create:**
 
 1. **Create a Microsoft Account** (if you don't have one)
- - Go to https://login.live.com/
+   - Go to https://login.live.com/
 
 2. **Create an Azure DevOps organization**
- - Go to https://dev.azure.com/
- - Sign in with your Microsoft account
- - Create a new organization (if needed)
+   - Go to https://dev.azure.com/
+   - Sign in with your Microsoft account
+   - Create a new organization (if needed)
 
 3. **Create a Personal Access Token (PAT)**
- - In Azure DevOps, go to User Settings (top right) → Personal Access Tokens
- - Click "New Token"
- - Name: `VS Code Marketplace Publishing`
- - Organization: Select your organization
- - Expiration: Custom defined (e.g., 1 year)
- - Scopes: Select "Custom defined" → Check "Marketplace (Manage)"
- - Click "Create"
- - **Copy the token** (you won't see it again!)
+   - In Azure DevOps, go to User Settings (top right) → Personal Access Tokens
+   - Click "New Token"
+   - Name: `VS Code Marketplace Publishing`
+   - Organization: Select your organization
+   - Expiration: Custom defined (e.g., 1 year)
+   - Scopes: Select "Custom defined" → Check "Marketplace (Manage)"
+   - Click "Create"
+   - **Copy the token** (you won't see it again!)
 
 4. **Create a publisher account** (if you don't have one)
- - Go to https://marketplace.visualstudio.com/manage
- - Click "Create publisher"
- - Publisher ID: Should match `package.json` publisher field (e.g., `sbroenne`)
- - Display name, description, etc.
+   - Go to https://marketplace.visualstudio.com/manage
+   - Click "Create publisher"
+   - Publisher ID: Should match `package.json` publisher field (e.g., `sbroenne`)
+   - Display name, description, etc.
 
 5. **Add to GitHub Secrets**
- - Go to your GitHub repo → Settings → Secrets and variables → Actions
- - Click "New repository secret"
- - Name: `VSCE_TOKEN`
- - Value: Paste your PAT from step 3
- - Click "Add secret"
+   - Go to your GitHub repo → Settings → Secrets and variables → Actions
+   - Click "New repository secret"
+   - Name: `VSCE_TOKEN`
+   - Value: Paste your PAT from step 3
+   - Click "Add secret"
 
 ## Workflow Behavior
 
@@ -68,14 +68,14 @@ The GitHub release notes will show:
 ```
 ### Publishing Status
 
-- Published to VS Code Marketplace
+- ✅ Published to VS Code Marketplace
 ```
 
 Or if token is not configured:
 ```
 ### Publishing Status
 
-- Not published to VS Code Marketplace
+- ❌ Not published to VS Code Marketplace
 ```
 
 ## Testing the Workflow
@@ -84,10 +84,10 @@ To test the release workflow:
 
 1. Ensure the `VSCE_TOKEN` secret is configured
 2. Push a test tag (this will trigger release of ALL components):
- ```powershell
- git tag v0.0.1-test
- git push origin v0.0.1-test
- ```
+   ```powershell
+   git tag v0.0.1-test
+   git push origin v0.0.1-test
+   ```
 3. Go to GitHub Actions and watch the unified workflow run
 4. Check that the release was created and marketplace publishing succeeded
 

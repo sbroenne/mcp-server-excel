@@ -1,6 +1,6 @@
 # ExcelMcp Tests
 
-> **No Traditional Unit Tests**: ExcelMcp has no unit tests. Integration tests ARE our unit tests because Excel COM cannot be meaningfully mocked. See [`docs/ADR-001-NO-UNIT-TESTS.md`](../docs/ADR-001-NO-UNIT-TESTS.md) for full architectural rationale.
+> **⚠️ No Traditional Unit Tests**: ExcelMcp has no unit tests. Integration tests ARE our unit tests because Excel COM cannot be meaningfully mocked. See [`docs/ADR-001-NO-UNIT-TESTS.md`](../docs/ADR-001-NO-UNIT-TESTS.md) for full architectural rationale.
 
 ## Quick Start
 
@@ -29,22 +29,22 @@ dotnet test --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
 
 ```
 tests/
-├── ExcelMcp.Core.Tests/ # Core business logic (Integration)
-├── ExcelMcp.Diagnostics.Tests/ # Excel COM behavior research (OnDemand, Manual)
-├── ExcelMcp.McpServer.Tests/ # MCP protocol layer (Integration)
-├── ExcelMcp.McpServer.LLM.Tests/ # LLM agent behavior validation (Manual)
-├── ExcelMcp.CLI.Tests/ # CLI wrapper (Integration)
-└── ExcelMcp.ComInterop.Tests/ # COM utilities (OnDemand)
+├── ExcelMcp.Core.Tests/           # Core business logic (Integration)
+├── ExcelMcp.Diagnostics.Tests/    # Excel COM behavior research (OnDemand, Manual)
+├── ExcelMcp.McpServer.Tests/      # MCP protocol layer (Integration)
+├── ExcelMcp.McpServer.LLM.Tests/  # LLM agent behavior validation (Manual)
+├── ExcelMcp.CLI.Tests/            # CLI wrapper (Integration)
+└── ExcelMcp.ComInterop.Tests/     # COM utilities (OnDemand)
 ```
 
 ## Test Categories
 
 | Category | Speed | Requirements | Run By Default |
 |----------|-------|--------------|----------------|
-| **Integration** | Medium (10-20 min) | Excel + Windows | Yes (local) |
-| **OnDemand** | Slow (3-5 min) | Excel + Windows | No (explicit only) |
-| **Diagnostics** | Slow (varies) | Excel + Windows | No (manual, excluded from CI) |
-| **LLM Tests** | Slow (varies) | Excel + Azure OpenAI | No (manual only) |
+| **Integration** | Medium (10-20 min) | Excel + Windows | ✅ Yes (local) |
+| **OnDemand** | Slow (3-5 min) | Excel + Windows | ❌ No (explicit only) |
+| **Diagnostics** | Slow (varies) | Excel + Windows | ❌ No (manual, excluded from CI) |
+| **LLM Tests** | Slow (varies) | Excel + Azure OpenAI | ❌ No (manual only) |
 
 ## Diagnostics Tests
 
@@ -56,7 +56,7 @@ Diagnostics tests are research/exploratory tests in `ExcelMcp.Diagnostics.Tests`
 - Test alternative approaches to complex Excel operations
 
 **Trait markers:**
-- `Layer=Diagnostics` 
+- `Layer=Diagnostics`  
 - `RunType=OnDemand`
 
 **Run diagnostics tests locally:**
@@ -157,13 +157,13 @@ All VBA tests are tagged with `[Trait("Feature", "VBA")]` or `[Trait("Feature", 
 
 ```
 tests/ExcelMcp.Core.Tests/Integration/Commands/Script/
- - ScriptCommandsTests.cs
- - ScriptCommandsTests.Lifecycle.cs
- - VbaTrustDetectionTests.ScriptCommands.cs
- - VbaTrustDetectionTests.cs
+  - ScriptCommandsTests.cs
+  - ScriptCommandsTests.Lifecycle.cs
+  - VbaTrustDetectionTests.ScriptCommands.cs
+  - VbaTrustDetectionTests.cs
 
 tests/ExcelMcp.CLI.Tests/Integration/Commands/
- - ScriptAndSetupCommandsTests.cs
+  - ScriptAndSetupCommandsTests.cs
 ```
 
 ### VBA Trust Setup
@@ -182,10 +182,10 @@ Get-ItemProperty -Path "HKCU:\Software\Microsoft\Office\16.0\Excel\Security" -Na
 
 ## Key Principles
 
-- **File Isolation** - Each test creates unique file (no sharing)
-- **Binary Assertions** - Pass OR fail, never "accept both"
-- **Verify Excel State** - Always verify actual Excel state after operations
-- **No SaveAsync** - Unless testing persistence (see [Rule 14](../.github/instructions/critical-rules.instructions.md#rule-14-no-saveasync-unless-testing-persistence))
+- ✅ **File Isolation** - Each test creates unique file (no sharing)
+- ✅ **Binary Assertions** - Pass OR fail, never "accept both"
+- ✅ **Verify Excel State** - Always verify actual Excel state after operations
+- ❌ **No SaveAsync** - Unless testing persistence (see [Rule 14](../.github/instructions/critical-rules.instructions.md#rule-14-no-saveasync-unless-testing-persistence))
 
 ## Getting Help
 

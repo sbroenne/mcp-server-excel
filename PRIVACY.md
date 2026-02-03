@@ -22,11 +22,11 @@ ExcelMcp collects **limited, anonymous telemetry** to improve the software. Here
 
 ### What We DO NOT Collect
 
-- **File contents** - We never collect data from your Excel files
-- **File names or paths** - File paths are hashed locally; actual paths are never transmitted
-- **Personal information** - No names, emails, or account information
-- **Spreadsheet data** - Cell values, formulas, and data remain completely private
-- **User accounts** - No registration or sign-in required
+- ❌ **File contents** - We never collect data from your Excel files
+- ❌ **File names or paths** - File paths are hashed locally; actual paths are never transmitted
+- ❌ **Personal information** - No names, emails, or account information
+- ❌ **Spreadsheet data** - Cell values, formulas, and data remain completely private
+- ❌ **User accounts** - No registration or sign-in required
 
 ### Purpose of Telemetry
 

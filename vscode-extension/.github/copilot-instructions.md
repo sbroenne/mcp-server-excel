@@ -61,8 +61,8 @@ DO NOT use for: CSV files (use standard file tools), Google Sheets, or non-Excel
 ### Batch Updates (Multiple Items)
 ```
 # Use bulk data operations - set entire ranges at once:
-excel_range(action: 'set-values', values: [[1,2,3], [4,5,6]]) # NOT cell-by-cell
-excel_range(action: 'set-formulas', formulas: [['=A1', '=B1']]) # Multiple formulas at once
+excel_range(action: 'set-values', values: [[1,2,3], [4,5,6]])  # NOT cell-by-cell
+excel_range(action: 'set-formulas', formulas: [['=A1', '=B1']])  # Multiple formulas at once
 ```
 
 ---

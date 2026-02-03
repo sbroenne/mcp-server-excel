@@ -7,25 +7,25 @@ canonical_url: "https://excelmcpserver.dev/"
 ---
 
 <div class="hero">
- <div class="container">
- <div class="hero-content">
- <img src="{{ '/assets/images/icon.png' | relative_url }}" alt="Excel MCP Server Icon" class="hero-icon">
- <h1 class="hero-title">Excel MCP Server</h1>
- <p class="hero-subtitle">Automate Excel with AI via GitHub Copilot, Claude, and other MCP clients — including Power Query, DAX, VBA, PowerPivot, and Tables.</p>
- </div>
- </div>
+  <div class="container">
+    <div class="hero-content">
+      <img src="{{ '/assets/images/icon.png' | relative_url }}" alt="Excel MCP Server Icon" class="hero-icon">
+      <h1 class="hero-title">Excel MCP Server</h1>
+      <p class="hero-subtitle">Automate Excel with AI via GitHub Copilot, Claude, and other MCP clients — including Power Query, DAX, VBA, PowerPivot, and Tables.</p>
+    </div>
+  </div>
 </div>
 
 <div class="badges-section">
- <div class="container">
- <div class="hero-badges">
- <a href="https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp"><img src="https://img.shields.io/visual-studio-marketplace/i/sbroenne.excel-mcp?label=VS%20Code%20Installs" alt="VS Code Marketplace Installs"></a>
- <a href="https://github.com/sbroenne/mcp-server-excel"><img src="https://img.shields.io/github/stars/sbroenne/mcp-server-excel?style=flat&label=GitHub%20Stars" alt="GitHub Stars"></a>
- <a href="https://github.com/sbroenne/mcp-server-excel/releases"><img src="https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total?label=GitHub%20Downloads" alt="GitHub Downloads"></a>
- <a href="https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer"><img src="https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg?label=NuGet%20MCP%20Installs" alt="NuGet MCP Server Installs"></a>
- <a href="https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI"><img src="https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.CLI.svg?label=NuGet%20CLI%20Installs" alt="NuGet CLI Installs"></a>
- </div>
- </div>
+  <div class="container">
+    <div class="hero-badges">
+      <a href="https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp"><img src="https://img.shields.io/visual-studio-marketplace/i/sbroenne.excel-mcp?label=VS%20Code%20Installs" alt="VS Code Marketplace Installs"></a>
+      <a href="https://github.com/sbroenne/mcp-server-excel"><img src="https://img.shields.io/github/stars/sbroenne/mcp-server-excel?style=flat&label=GitHub%20Stars" alt="GitHub Stars"></a>
+      <a href="https://github.com/sbroenne/mcp-server-excel/releases"><img src="https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total?label=GitHub%20Downloads" alt="GitHub Downloads"></a>
+      <a href="https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer"><img src="https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg?label=NuGet%20MCP%20Installs" alt="NuGet MCP Server Installs"></a>
+      <a href="https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI"><img src="https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.CLI.svg?label=NuGet%20CLI%20Installs" alt="NuGet CLI Installs"></a>
+    </div>
+  </div>
 </div>
 
 <div class="container content-section" markdown="1">
@@ -34,33 +34,33 @@ canonical_url: "https://excelmcpserver.dev/"
 **Automate Excel with AI - A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.**
 
 <div class="quick-install-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 24px 0;">
- <div style="text-align: center;">
- <p><strong>VS Code / GitHub Copilot</strong></p>
- <a href="https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp" class="button-link">Install Extension</a>
- </div>
- <div style="text-align: center;">
- <p><strong>Claude Desktop</strong></p>
- <a href="https://github.com/sbroenne/mcp-server-excel/releases/latest" class="button-link">One-Click Install</a>
- </div>
- <div style="text-align: center;">
- <p><strong>Cursor, Windsurf, etc.</strong></p>
- <a href="/installation/" class="button-link">Installation Guide</a>
- </div>
+  <div style="text-align: center;">
+    <p><strong>VS Code / GitHub Copilot</strong></p>
+    <a href="https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp" class="button-link">Install Extension</a>
+  </div>
+  <div style="text-align: center;">
+    <p><strong>Claude Desktop</strong></p>
+    <a href="https://github.com/sbroenne/mcp-server-excel/releases/latest" class="button-link">One-Click Install</a>
+  </div>
+  <div style="text-align: center;">
+    <p><strong>Cursor, Windsurf, etc.</strong></p>
+    <a href="/installation/" class="button-link">Installation Guide</a>
+  </div>
 </div>
 
 **MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands, including Power Query & M, PowerPivot & DAX, VBA macros, PivotTables, Charts, formatting & much more – no Excel programming knowledge required.
 
 It works with any MCP-compatible AI assistant like GitHub Copilot, Claude Desktop, Cursor, Windsurf, etc.
 
-**100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
+**🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
 
-**Interactive Development** - Watch Excel update in real-time as AI works. Say "Show me Excel while you work" and see every change live - create a query, watch it populate, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
+**💡 Interactive Development** - Watch Excel update in real-time as AI works. Say "Show me Excel while you work" and see every change live - create a query, watch it populate, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
 
 <div class="video-preview">
- <a href="https://youtu.be/B6eIQ5BIbNc" target="_blank" title="Watch Excel MCP Server intro video">
- <img src="https://img.youtube.com/vi/B6eIQ5BIbNc/maxresdefault.jpg" alt="Excel MCP Server intro video thumbnail" style="max-width: 560px; width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
- <p style="text-align: center; margin-top: 8px;">▶️ Watch the intro video (1 min)</p>
- </a>
+  <a href="https://youtu.be/B6eIQ5BIbNc" target="_blank" title="Watch Excel MCP Server intro video">
+    <img src="https://img.youtube.com/vi/B6eIQ5BIbNc/maxresdefault.jpg" alt="Excel MCP Server intro video thumbnail" style="max-width: 560px; width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+    <p style="text-align: center; margin-top: 8px;">▶️ Watch the intro video (1 min)</p>
+  </a>
 </div>
 
 ## Key Features
@@ -115,13 +115,13 @@ Ask your AI assistant to automate Excel tasks using natural language:
 </div>
 
 <div class="example-section">
-<h4>PivotTables & Charts</h4>
+<h4>📊 PivotTables & Charts</h4>
 <p><strong>You:</strong> "Create a PivotTable showing total sales by Product, then add a bar chart to visualize the results."</p>
 <p>AI creates the PivotTable with proper field configuration and adds a linked chart.</p>
 </div>
 
 <div class="example-section">
-<h4>Power Query & Data Model</h4>
+<h4>🔄 Power Query & Data Model</h4>
 <p><strong>You:</strong> "Use Power Query to import products.csv, load it to the Data Model, and create measures for Total Revenue and Average Rating."</p>
 <p>AI imports the data, adds it to Power Pivot, and creates DAX measures ready for analysis.</p>
 </div>
@@ -133,7 +133,7 @@ Ask your AI assistant to automate Excel tasks using natural language:
 </div>
 
 <div class="example-section">
-<h4>Formatting & Tables</h4>
+<h4>🎨 Formatting & Tables</h4>
 <p><strong>You:</strong> "Format the Price column as currency, highlight values over $500 in green, and convert this to an Excel Table."</p>
 <p>AI applies number formats, conditional formatting, and structured table styling.</p>
 </div>
@@ -148,7 +148,7 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 | **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery, persistent connection. Better for interactive, exploratory workflows. |
 
 <details>
-<summary>Benchmark Results (same task, same model)</summary>
+<summary>📊 Benchmark Results (same task, same model)</summary>
 
 | Metric | CLI | MCP Server | Winner |
 |--------|-----|------------|--------|
@@ -162,7 +162,7 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 
 ## CLI Tool (Optional)
 
-For coding agents, scripting, RPA workflows, and CI/CD pipelines — automate Excel with or without AI:
+For coding agents, scripting, RPA workflows, and CI/CD pipelines — automate Excel with or  without AI:
 
 ```powershell
 dotnet tool install -g Sbroenne.ExcelMcp.CLI
@@ -170,25 +170,25 @@ dotnet tool install -g Sbroenne.ExcelMcp.CLI
 
 ```powershell
 # Session-based workflow (keeps Excel open between commands)
-excelcli -q session create report.xlsx # Returns session ID
+excelcli -q session create report.xlsx    # Returns session ID
 excelcli -q range set-values --session 1 --sheet Sheet1 --range A1 --values '[["Hello","World"]]'
 excelcli -q session close --session 1 --save
 ```
 
 **Background Daemon:** A system tray icon appears when the CLI is running. Right-click to view active sessions, close files, or stop the daemon.
 
-**[CLI Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** — Full command reference and examples
+📖 **[CLI Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** — Full command reference and examples
 
 
 ## Documentation
 
-**[Complete Feature Reference](/features/)** — All 22 tools and 211 operations
+📖 **[Complete Feature Reference](/features/)** — All 22 tools and 211 operations
 
 📥 **[Installation Guide](/installation/)** — Setup for VS Code, Claude Desktop, other MCP clients, and CLI
 
 🤖 **[Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/README.md)** — Cross-platform AI guidance for Copilot, Claude Code, Cursor, Windsurf
 
-**[Changelog](/changelog/)** — Release notes and version history
+📋 **[Changelog](/changelog/)** — Release notes and version history
 
 ## Agent Skills
 
@@ -198,7 +198,7 @@ Skills are auto-installed by the VS Code extension. For other platforms:
 npx add-skill sbroenne/mcp-server-excel
 ```
 
-**[More details →](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/README.md)**
+📚 **[More details →](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/README.md)**
 
 ## More Information
 
@@ -215,7 +215,7 @@ Other projects by the author:
 - [RVToolsMerge](https://github.com/sbroenne/RvToolsMerge) — Merge and anonymize VMware RVTools exports.
 - [Azure Retail Prices Exporter](https://github.com/sbroenne/azureretailprices-exporter) — Daily automated Azure pricing data exports with FX rates
 - [AWS CUR Anonymize](https://github.com/sbroenne/aws-cur-anonymize) — Anonymize AWS Cost & Usage Reports for secure sharing
- 
+  
 <footer>
 <div class="container">
 <p><strong>Excel MCP Server</strong> — MIT License — © 2024-2025</p>

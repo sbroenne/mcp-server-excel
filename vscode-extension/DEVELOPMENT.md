@@ -5,20 +5,20 @@
 ```
 vscode-extension/
 ├── src/
-│ └── extension.ts # Extension entry point
-├── out/ # Compiled JavaScript
-│ ├── extension.js
-│ └── extension.js.map
-├── package.json # Extension manifest
-├── tsconfig.json # TypeScript config
-├── eslint.config.mjs # Linting rules
-├── README.md # Extension documentation
-├── CHANGELOG.md # Version history
-├── INSTALL.md # Installation guide
-├── LICENSE # MIT License
-├── icon.png # 128x128 extension icon
-├── icon.svg # SVG source
-└── excelmcp-1.0.0.vsix # Packaged extension
+│   └── extension.ts          # Extension entry point
+├── out/                       # Compiled JavaScript
+│   ├── extension.js
+│   └── extension.js.map
+├── package.json               # Extension manifest
+├── tsconfig.json             # TypeScript config
+├── eslint.config.mjs         # Linting rules
+├── README.md                 # Extension documentation
+├── CHANGELOG.md              # Version history
+├── INSTALL.md                # Installation guide
+├── LICENSE                   # MIT License
+├── icon.png                  # 128x128 extension icon
+├── icon.svg                  # SVG source
+└── excelmcp-1.0.0.vsix      # Packaged extension
 ```
 
 ## Key Implementation Details
@@ -29,16 +29,16 @@ The extension uses VS Code's `mcpServerDefinitionProvider` contribution point:
 
 ```typescript
 vscode.lm.registerMcpServerDefinitionProvider('excelmcp', {
- provideMcpServerDefinitions: async () => {
- return [
- new vscode.McpStdioServerDefinition(
- 'Excel MCP Server',
- 'dotnet',
- ['tool', 'run', 'mcp-excel'],
- {} // Optional environment variables
- )
- ];
- }
+  provideMcpServerDefinitions: async () => {
+    return [
+      new vscode.McpStdioServerDefinition(
+        'Excel MCP Server',
+        'dotnet',
+        ['tool', 'run', 'mcp-excel'],
+        {} // Optional environment variables
+      )
+    ];
+  }
 })
 ```
 
@@ -52,20 +52,20 @@ vscode.lm.registerMcpServerDefinitionProvider('excelmcp', {
 
 - **Runtime**: None - Uses `dotnet tool run` command from .NET SDK
 - **Dev Dependencies**:
- - `@types/vscode@^1.105.0` - VS Code API types
- - `@types/node@^22.0.0` - Node.js types
- - `typescript@^5.9.0` - TypeScript compiler
- - `@vscode/vsce@^3.0.0` - Extension packaging tool
- - `eslint` + `typescript-eslint` - Code quality
+  - `@types/vscode@^1.105.0` - VS Code API types
+  - `@types/node@^22.0.0` - Node.js types
+  - `typescript@^5.9.0` - TypeScript compiler
+  - `@vscode/vsce@^3.0.0` - Extension packaging tool
+  - `eslint` + `typescript-eslint` - Code quality
 
 ## Building
 
 ```powershell
-npm install # Install dependencies
-npm run compile # Compile TypeScript
-npm run watch # Watch mode for development
-npm run lint # Run ESLint
-npm run package # Create VSIX package
+npm install          # Install dependencies
+npm run compile      # Compile TypeScript
+npm run watch        # Watch mode for development
+npm run lint         # Run ESLint
+npm run package      # Create VSIX package
 ```
 
 ## Building Bundled Executable
@@ -112,43 +112,43 @@ bin/Sbroenne.ExcelMcp.McpServer.exe --help
 ### Manual Testing
 
 1. **Build the extension**:
- ```powershell
- npm run compile
- ```
+   ```powershell
+   npm run compile
+   ```
 
 2. **Press F5 in VS Code** (opens Extension Development Host)
 
 3. **Check the Debug Console** for activation logs:
- - `ExcelMcp extension is now active`
- - `ExcelMcp: .NET runtime available at ...`
- - `ExcelMcp: MCP server tool installation/update initiated`
- - NO errors about "Cannot read properties of undefined"
+   - ✅ `ExcelMcp extension is now active`
+   - ✅ `ExcelMcp: .NET runtime available at ...`
+   - ✅ `ExcelMcp: MCP server tool installation/update initiated`
+   - ❌ NO errors about "Cannot read properties of undefined"
 
 4. **In the Extension Development Host**:
- - Check if extension is loaded: Extensions panel
- - Check if MCP server is registered: Settings → MCP
- - Ask GitHub Copilot to list Excel tools
+   - Check if extension is loaded: Extensions panel
+   - Check if MCP server is registered: Settings → MCP
+   - Ask GitHub Copilot to list Excel tools
 
 5. **Check Developer Tools Console** (Ctrl+Shift+I):
- - Go to Console tab
- - Look for "ExcelMcp:" messages
- - Verify no errors
+   - Go to Console tab
+   - Look for "ExcelMcp:" messages
+   - Verify no errors
 
 ### Package Testing
 
 1. **Package the extension**:
- ```powershell
- npm run package
- ```
+   ```powershell
+   npm run package
+   ```
 
 2. **Install from VSIX**:
- - `Ctrl+Shift+P` → "Install from VSIX"
- - Select `excelmcp-1.0.0.vsix`
+   - `Ctrl+Shift+P` → "Install from VSIX"
+   - Select `excelmcp-1.0.0.vsix`
 
 3. **Verify**:
- - Extension appears in Extensions panel
- - Welcome message shows on first activation
- - GitHub Copilot can access Excel tools
+   - Extension appears in Extensions panel
+   - Welcome message shows on first activation
+   - GitHub Copilot can access Excel tools
 
 ## Publishing
 
@@ -163,13 +163,13 @@ git push --tags
 ```
 
 The GitHub Actions workflow will automatically:
-- **Extract version from tag** (e.g., `v1.5.7` → `1.5.7`)
-- **Update package.json version** using `npm version` (no manual editing needed)
-- **Update CHANGELOG.md** with release date
-- **Build and package the extension**
-- **Publish to VS Code Marketplace** (if `VSCE_TOKEN` secret is configured)
-- **Build all other components** (MCP Server, CLI, MCPB)
-- **Create unified GitHub release** with all artifacts
+- ✅ **Extract version from tag** (e.g., `v1.5.7` → `1.5.7`)
+- ✅ **Update package.json version** using `npm version` (no manual editing needed)
+- ✅ **Update CHANGELOG.md** with release date
+- ✅ **Build and package the extension**
+- ✅ **Publish to VS Code Marketplace** (if `VSCE_TOKEN` secret is configured)
+- ✅ **Build all other components** (MCP Server, CLI, MCPB)
+- ✅ **Create unified GitHub release** with all artifacts
 
 **Important**: The workflow manages version numbers - you don't need to manually update `package.json` before tagging. The unified release workflow (`.github/workflows/release.yml`) releases all components together.
 
@@ -282,9 +282,9 @@ The workflow will:
 If you need to update the version locally before tagging:
 
 ```powershell
-npm version patch # Bumps 1.0.0 → 1.0.1
-npm version minor # Bumps 1.0.0 → 1.1.0
-npm version major # Bumps 1.0.0 → 2.0.0
+npm version patch   # Bumps 1.0.0 → 1.0.1
+npm version minor   # Bumps 1.0.0 → 1.1.0
+npm version major   # Bumps 1.0.0 → 2.0.0
 ```
 
 Follow Semantic Versioning (SemVer):
@@ -299,9 +299,9 @@ Follow Semantic Versioning (SemVer):
 ### Updating Dependencies
 
 ```powershell
-npm outdated # Check for updates
-npm update # Update minor/patch
-npm install @types/vscode@latest --save-dev # Update major
+npm outdated                    # Check for updates
+npm update                      # Update minor/patch
+npm install @types/vscode@latest --save-dev  # Update major
 ```
 
 ### VS Code API Updates
@@ -351,10 +351,10 @@ The extension includes:
 - Bundled .NET 10 self-contained MCP server (~41 MB)
 
 Benefits of bundled approach:
-- Zero-setup installation (no separate tool download required)
-- Version compatibility guaranteed (extension includes matching MCP server)
-- Works offline after installation
-- No dependency on dotnet tool installations
+- ✅ Zero-setup installation (no separate tool download required)
+- ✅ Version compatibility guaranteed (extension includes matching MCP server)
+- ✅ Works offline after installation
+- ✅ No dependency on dotnet tool installations
 
 ## Future Enhancements
 
