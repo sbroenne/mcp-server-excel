@@ -38,6 +38,37 @@ applyTo: "**"
 - No background or silent commits allowed.
 - Document this rule in all agent and automation instructions.
 
+## Rule 26: No Confidential Information in Commits/PRs (CRITICAL)
+
+**NEVER include confidential project names, file names, customer names, or internal references in commit messages, PR descriptions, or issue descriptions.**
+
+**Why Critical:** Git history and GitHub issues/PRs are public or semi-public. Confidential information in commits persists forever in git history and is difficult to remove.
+
+**Forbidden in commits/PRs/issues:**
+- Customer project names (e.g., "CP Toolkit", "Contoso Deal")
+- Specific file paths from customer projects (e.g., "MSX Plan.xlsx", "Milestone_Export")
+- Internal tool names that reveal customer context
+- Any information that could identify a specific customer engagement
+
+**Allowed:**
+- Generic descriptions ("a Power Query", "an Excel workbook")
+- Technical details that don't identify the source ("a column with a hyphen in the name")
+- Error messages and stack traces (sanitized of paths/names)
+
+**Example:**
+```
+# ❌ WRONG: Reveals confidential project
+Discovered while debugging Milestone_Export query in CP Toolkit's MSX Plan.xlsx
+
+# ✅ CORRECT: Generic description
+Discovered while debugging a Power Query that referenced a column with a hyphen
+```
+
+**Enforcement:**
+- Review all commit messages before pushing
+- Review all PR/issue descriptions before submitting
+- If confidential info is committed, immediately amend or rebase to remove it
+
 
 ## Quick Reference (Grouped by Context)
 
@@ -79,6 +110,7 @@ applyTo: "**"
 | 6. COM leaks | Pre-commit hook auto-checks | 1 min |
 | 7. PRs | Always use PRs, never direct commit | Always |
 | 24. Post-change sync | Verify ALL sync points (CLI, SKILLs, READMEs, counts) | 5-10 min |
+| 26. No confidential info | No customer/project names in commits/PRs/issues | Always |
 
 **During PR Process:**
 | Rule | Action | Time |
