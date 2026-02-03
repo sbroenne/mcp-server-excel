@@ -2,7 +2,7 @@
 
 ## Stefan Broenner
 
-**Email**: [stefan_broenner@yahoo.com](mailto:stefan_broenner@yahoo.com) 
+**Email**: [stefan_broenner@yahoo.com](mailto:stefan_broenner@yahoo.com)  
 **GitHub**: [sbroenne](https://github.com/sbroenne)
 
 ### About the Author

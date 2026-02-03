@@ -21,7 +21,7 @@ You need to make sure that the `Features.md` file is up-to-date with the latest 
 
 ### Tool & Action Counts Must Match
 
-**IMPORTANT: CLI has FEWER tools/operations than MCP Server!**
+**⚠️ IMPORTANT: CLI has FEWER tools/operations than MCP Server!**
 
 **ALWAYS count tools/operations BEFORE updating any README. Never use hardcoded numbers from memory.**
 
@@ -32,17 +32,17 @@ Before updating counts, verify by counting:
 - **Operations**: Count separately for each - they differ!
 
 Sync counts across:
- - GitHub Project About: https://github.com/sbroenne/mcp-server-excel (use the GitHub CLI to update)
- - `/README.md`
- - `/src/ExcelMcp.McpServer/README.md`
- - `/src/ExcelMcp.CLI/README.md`
- - `/vscode-extension/README.md`
- - `/gh-pages/index.md`
- - `/FEATURES.md`
+  - GitHub Project About: https://github.com/sbroenne/mcp-server-excel (use the GitHub CLI to update)
+  - `/README.md`
+  - `/src/ExcelMcp.McpServer/README.md`
+  - `/src/ExcelMcp.CLI/README.md`
+  - `/vscode-extension/README.md`
+  - `/gh-pages/index.md`
+  - `/FEATURES.md`
 
 ### Operation Lists Must Be Complete
 
-**IMPORTANT: Where operation lists are documented, they MUST match the actual code!**
+**⚠️ IMPORTANT: Where operation lists are documented, they MUST match the actual code!**
 
 The `gh-pages/index.md` file contains detailed tables of all operations for each tool. When adding/removing operations:
 

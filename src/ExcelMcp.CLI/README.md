@@ -19,7 +19,7 @@ Also perfect for RPA workflows, CI/CD pipelines, batch processing, and automated
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Installation (.NET Global Tool - Recommended)
 
@@ -74,22 +74,22 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ---
 
-## Key Features
+## ✨ Key Features
 
-### Excel Development Automation
+### 🔧 Excel Development Automation
 - **Power Query Management** - Export, import, update, and version control M code
 - **VBA Development** - Manage VBA modules, run macros, automated testing
 - **Data Model & DAX** - Create measures, manage relationships, Power Pivot operations
 - **PivotTable Automation** - Create, configure, and manage PivotTables programmatically
 - **Conditional Formatting** - Add rules (cell value, expression-based), clear formatting
 
-### Data Operations
+### 📊 Data Operations
 - **Worksheet Management** - Create, rename, copy, delete sheets with tab colors and visibility
 - **Range Operations** - Read/write values, formulas, formatting, validation
 - **Excel Tables** - Lifecycle management, filtering, sorting, structured references
 - **Connection Management** - OLEDB, ODBC, Text, Web connections with testing
 
-### Production Ready
+### 🛡️ Production Ready
 - **Zero Corruption Risk** - Uses Excel's native COM API (not file manipulation)
 - **Error Handling** - Comprehensive validation and helpful error messages
 - **CI/CD Integration** - Perfect for automated workflows and testing
@@ -97,11 +97,11 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ---
 
-## Command Categories
+## 📋 Command Categories
 
 ExcelMcp.CLI provides **211 operations** across 14 command categories:
 
-**[Complete Feature Reference →](../../FEATURES.md)** - Full documentation with all operations
+📚 **[Complete Feature Reference →](../../FEATURES.md)** - Full documentation with all operations
 
 **Quick Reference:**
 
@@ -165,7 +165,7 @@ When you run your first CLI command, a **background daemon** starts automaticall
 - **Tracks sessions** - Right-click the tray icon to see active sessions and close them
 
 **Tray Icon Features:**
-- **View sessions** - Double-click to see active session count
+- 📋 **View sessions** - Double-click to see active session count
 - 💾 **Close sessions** - Right-click → Sessions → select file → "Save & Close" or "Close"
 - 🛑 **Stop daemon** - Right-click → "Stop Daemon" (prompts if sessions are open)
 
@@ -173,29 +173,29 @@ The daemon auto-stops after 5 minutes of inactivity (no active sessions).
 
 ---
 
-## Command Reference
+## 💡 Command Reference
 
 **Use `excelcli <command> --help` for complete parameter documentation.** The CLI help is always in sync with the code.
 
 ```powershell
-excelcli --help # List all commands
-excelcli session --help # Session lifecycle (open, close, save, list)
-excelcli powerquery --help # Power Query operations
-excelcli range --help # Cell/range operations
-excelcli table --help # Excel Table operations
-excelcli pivottable --help # PivotTable operations
-excelcli datamodel --help # Data Model & DAX
-excelcli vba --help # VBA module management
+excelcli --help              # List all commands
+excelcli session --help      # Session lifecycle (open, close, save, list)
+excelcli powerquery --help   # Power Query operations
+excelcli range --help        # Cell/range operations
+excelcli table --help        # Excel Table operations
+excelcli pivottable --help   # PivotTable operations
+excelcli datamodel --help    # Data Model & DAX
+excelcli vba --help          # VBA module management
 ```
 
 ### Typical Workflows
 
 **Session-based automation (recommended):**
 ```powershell
-excelcli -q session open report.xlsx # Returns session ID
+excelcli -q session open report.xlsx           # Returns session ID
 excelcli -q sheet create --session 1 --sheet "Summary"
 excelcli -q range set-values --session 1 --sheet Summary --range A1 --values '[["Hello"]]'
-excelcli -q session close --session 1 --save # Persist changes
+excelcli -q session close --session 1 --save   # Persist changes
 ```
 
 **Power Query ETL:**
@@ -255,7 +255,7 @@ excelcli session close --session 1 --save
 
 ---
 
-## Complete Documentation
+## 📖 Complete Documentation
 
 - **[NuGet Package](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)** - .NET Global Tool installation
 - **[GitHub Repository](https://github.com/sbroenne/mcp-server-excel)** - Source code and issues
@@ -298,7 +298,7 @@ dotnet tool list --global
 
 ---
 
-## Advanced Usage
+## 🛠️ Advanced Usage
 
 ### Scripting & Automation
 
@@ -306,10 +306,10 @@ dotnet tool list --global
 # PowerShell script example
 $files = Get-ChildItem *.xlsx
 foreach ($file in $files) {
- $session = excelcli session open $file.Name | Select-String "Session ID: (.+)" | ForEach-Object { $_.Matches.Groups[1].Value }
- excelcli powerquery refresh --session $session --query "Sales Data"
- excelcli datamodel refresh --session $session
- excelcli session close $session --save
+    $session = excelcli session open $file.Name | Select-String "Session ID: (.+)" | ForEach-Object { $_.Matches.Groups[1].Value }
+    excelcli powerquery refresh --session $session --query "Sales Data"
+    excelcli datamodel refresh --session $session
+    excelcli session close $session --save
 }
 ```
 
@@ -318,18 +318,18 @@ foreach ($file in $files) {
 ```yaml
 # GitHub Actions example
 - name: Install ExcelMcp.CLI
- run: dotnet tool install --global Sbroenne.ExcelMcp.CLI
+  run: dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 - name: Process Excel Files
- run: |
- SESSION=$(excelcli session open data.xlsx | grep "Session ID:" | cut -d' ' -f3)
- excelcli powerquery create --session $SESSION --query "Query1" --mcode-file queries/query1.pq
- excelcli powerquery refresh --session $SESSION --query "Query1"
- excelcli session close $SESSION --save
+  run: |
+    SESSION=$(excelcli session open data.xlsx | grep "Session ID:" | cut -d' ' -f3)
+    excelcli powerquery create --session $SESSION --query "Query1" --mcode-file queries/query1.pq
+    excelcli powerquery refresh --session $SESSION --query "Query1"
+    excelcli session close $SESSION --save
 ```
 
 
-## Tested Scenarios
+## ✅ Tested Scenarios
 
 The CLI ships with real Excel-backed integration tests that exercise the session lifecycle plus worksheet creation/listing flows through the same commands you run locally. Execute them with:
 
@@ -349,7 +349,7 @@ These tests open actual workbooks, issue `session open/list/close`, and call `ex
 
 ---
 
-## License
+## 📄 License
 
 MIT License - see [LICENSE](../../LICENSE) for details.
 

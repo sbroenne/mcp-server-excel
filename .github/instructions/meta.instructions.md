@@ -9,9 +9,9 @@ applyTo: ".github/**/*.md,.github/instructions/**"
 ## Quick Rules for Maintainers
 
 ### File Naming
-- MUST end with `.instructions.md`
-- Use descriptive names: `excel-com-interop.instructions.md`
-- DON'T use generic names: `notes.instructions.md`
+- ✅ MUST end with `.instructions.md`
+- ✅ Use descriptive names: `excel-com-interop.instructions.md`
+- ❌ DON'T use generic names: `notes.instructions.md`
 
 ### Frontmatter Required
 ```markdown
@@ -24,15 +24,15 @@ applyTo: "**/*.cs,**/*.csproj"
 
 ### Content Focus
 **Write FOR the LLM** (actionable instructions):
-- "When X, run command Y"
-- "Follow these N steps"
-- Quick reference tables
-- /code examples
+- ✅ "When X, run command Y"
+- ✅ "Follow these N steps"
+- ✅ Quick reference tables
+- ✅ ✅/❌ code examples
 
 **Don't write ABOUT the system** (documentation):
-- "The problem we solved was..."
-- "This strategy has 5 layers..."
-- Historical context
+- ❌ "The problem we solved was..."
+- ❌ "This strategy has 5 layers..."
+- ❌ Historical context
 
 ### Testing
 1. Open file matching `applyTo` pattern

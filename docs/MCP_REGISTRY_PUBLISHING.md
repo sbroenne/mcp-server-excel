@@ -18,25 +18,25 @@ This is the MCP registry metadata file that describes the server:
 
 ```json
 {
- "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
- "name": "io.github.sbroenne/mcp-server-excel",
- "title": "Excel COM Automation",
- "description": "Excel COM automation - Power Query, DAX measures, VBA, Tables, ranges, connections",
- "version": "1.0.0",
- "packages": [
- {
- "registryType": "nuget",
- "identifier": "Sbroenne.ExcelMcp.McpServer",
- "version": "1.0.0",
- "transport": {
- "type": "stdio"
- }
- }
- ],
- "repository": {
- "url": "https://github.com/sbroenne/mcp-server-excel",
- "source": "github"
- }
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "name": "io.github.sbroenne/mcp-server-excel",
+  "title": "Excel COM Automation",
+  "description": "Excel COM automation - Power Query, DAX measures, VBA, Tables, ranges, connections",
+  "version": "1.0.0",
+  "packages": [
+    {
+      "registryType": "nuget",
+      "identifier": "Sbroenne.ExcelMcp.McpServer",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ],
+  "repository": {
+    "url": "https://github.com/sbroenne/mcp-server-excel",
+    "source": "github"
+  }
 }
 ```
 
@@ -125,26 +125,26 @@ The workflow has `id-token: write` permission enabled for OIDC authentication.
 ### Creating a New Release
 
 1. **Ensure all changes are merged to main**
- ```powershell
- git checkout main
- git pull origin main
- ```
+   ```powershell
+   git checkout main
+   git pull origin main
+   ```
 
 2. **Create and push a version tag**
- ```powershell
- git tag mcp-v1.0.10
- git push origin mcp-v1.0.10
- ```
+   ```powershell
+   git tag mcp-v1.0.10
+   git push origin mcp-v1.0.10
+   ```
 
 3. **Monitor the workflow**
- - Go to GitHub Actions
- - Watch the "Release MCP Server" workflow
- - Verify all steps complete successfully
+   - Go to GitHub Actions
+   - Watch the "Release MCP Server" workflow
+   - Verify all steps complete successfully
 
 4. **Verify publication**
- - **NuGet**: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer
- - **MCP Registry**: https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel
- - **GitHub Release**: https://github.com/sbroenne/mcp-server-excel/releases
+   - **NuGet**: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer
+   - **MCP Registry**: https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel
+   - **GitHub Release**: https://github.com/sbroenne/mcp-server-excel/releases
 
 ### Version Numbering
 

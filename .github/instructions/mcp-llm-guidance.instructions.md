@@ -41,7 +41,7 @@ LLMs already know Excel, JSON, and MCP protocol. They need server-specific patte
 
 ## What to Exclude
 
-**DON'T explain:**
+**❌ DON'T explain:**
 - Excel concepts (ranges, formulas, cells)
 - JSON syntax
 - Programming basics (arrays, null, types)
@@ -73,11 +73,11 @@ LLMs already know Excel, JSON, and MCP protocol. They need server-specific patte
 
 ## Length Guidelines
 
-- One markdown file per tool
-- 50-150 lines total per tool
-- Focus on disambiguation, not explanation
-- Don't write Excel tutorials
-- Don't explain JSON syntax
+- ✅ One markdown file per tool
+- ✅ 50-150 lines total per tool
+- ✅ Focus on disambiguation, not explanation
+- ❌ Don't write Excel tutorials
+- ❌ Don't explain JSON syntax
 
 ## Format Guidelines
 
@@ -93,10 +93,10 @@ LLMs already know Excel, JSON, and MCP protocol. They need server-specific patte
 - Example values in quotes ("A1", "SalesData")
 
 **What to emphasize:**
-- Action catalog (most important)
-- Tool selection (when to use this vs others)
-- Server quirks (non-obvious behavior)
-- Common mistakes (server-specific pitfalls)
+- ⭐ Action catalog (most important)
+- ⭐ Tool selection (when to use this vs others)
+- ⭐ Server quirks (non-obvious behavior)
+- ⚠️ Common mistakes (server-specific pitfalls)
 
 ## Completions (Autocomplete) - NOT IMPLEMENTED
 
@@ -109,9 +109,9 @@ LLMs already know Excel, JSON, and MCP protocol. They need server-specific patte
 **Purpose**: Guide users to provide ALL needed information before calling tools
 
 **Current State**:
-- Elicitations stored as `.md` files in `Content/Elicitations/` directory
-- Loader implemented: `MarkdownLoader.LoadElicitation()`
-- Used in `ExcelElicitationPrompts.cs`
+- ✅ Elicitations stored as `.md` files in `Content/Elicitations/` directory
+- ✅ Loader implemented: `MarkdownLoader.LoadElicitation()`
+- ✅ Used in `ExcelElicitationPrompts.cs`
 
 **File structure**:
 ```markdown
@@ -162,22 +162,22 @@ ASK USER FOR MISSING INFO before calling [tool_name].
 ## Success Criteria
 
 A good prompt:
-- Lists all valid action values
-- Disambiguates similar actions
-- Explains server-specific quirks
-- Helps choose between tools
-- Under 150 lines
-- Doesn't teach Excel concepts
-- Doesn't show JSON syntax
-- Doesn't duplicate schema info
+- ✅ Lists all valid action values
+- ✅ Disambiguates similar actions
+- ✅ Explains server-specific quirks
+- ✅ Helps choose between tools
+- ✅ Under 150 lines
+- ❌ Doesn't teach Excel concepts
+- ❌ Doesn't show JSON syntax
+- ❌ Doesn't duplicate schema info
 
 ## Architecture Summary
 
 | Guidance Type | Format | Why | Status |
 |---------------|--------|-----|--------|
-| **Prompts** | .md files | Static content, read once | Implemented |
-| **Completions** | N/A | SDK auto-generates enum values | Not implemented |
-| **Elicitations** | .md files | Static checklists | Implemented |
-| **Workflow Guidance** | C# static methods | Dynamic, runtime context | Keep as C# |
+| **Prompts** | .md files | Static content, read once | ✅ Implemented |
+| **Completions** | N/A | SDK auto-generates enum values | ❌ Not implemented |
+| **Elicitations** | .md files | Static checklists | ✅ Implemented |
+| **Workflow Guidance** | C# static methods | Dynamic, runtime context | ✅ Keep as C# |
 
 **Keep it short. Keep it specific. Keep it server-focused.**

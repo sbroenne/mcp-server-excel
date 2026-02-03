@@ -1,6 +1,6 @@
 # Azure Self-Hosted Runner Setup for Excel Integration Testing
 
-> **STATUS: DISABLED** - The Azure self-hosted runner has been undeployed and the integration tests workflow is currently disabled. The workflows `integration-tests.yml` and `deploy-azure-runner.yml` have been renamed to `.disabled` extension. To re-enable, rename them back to `.yml` and redeploy the Azure runner infrastructure.
+> **⚠️ STATUS: DISABLED** - The Azure self-hosted runner has been undeployed and the integration tests workflow is currently disabled. The workflows `integration-tests.yml` and `deploy-azure-runner.yml` have been renamed to `.disabled` extension. To re-enable, rename them back to `.yml` and redeploy the Azure runner infrastructure.
 
 > **Purpose:** Enable full Excel COM integration testing in CI/CD using Azure-hosted Windows VM with Microsoft Excel
 
@@ -10,9 +10,9 @@
 
 | Scenario | Guide | Time |
 |----------|-------|------|
-| **New setup (no VM)** | [Automated Deployment](#automated-deployment-recommended) | 5 min + 30 min Excel |
-| **Manual setup (existing VM)** | [Manual Installation](#manual-installation) | 15 min + 30 min Excel |
-| **Infrastructure details** | [`infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md`](../infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md) | Reference |
+| **🚀 New setup (no VM)** | [Automated Deployment](#automated-deployment-recommended) | 5 min + 30 min Excel |
+| **🔧 Manual setup (existing VM)** | [Manual Installation](#manual-installation) | 15 min + 30 min Excel |
+| **📖 Infrastructure details** | [`infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md`](../infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md) | Reference |
 | **🔍 Infrastructure code** | [`infrastructure/azure/README.md`](../infrastructure/azure/README.md) | Reference |
 
 ---
@@ -25,25 +25,25 @@ ExcelMcp requires Microsoft Excel for integration testing. GitHub-hosted runners
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ GitHub Repository │
-│ │
-│ ┌──────────────────────────────────────────┐ │
-│ │ .github/workflows/integration-tests.yml │ │
-│ │ runs-on: [self-hosted, windows, excel] │ │
-│ └────────────────┬─────────────────────────┘ │
+│ GitHub Repository                                        │
+│                                                          │
+│  ┌──────────────────────────────────────────┐          │
+│  │ .github/workflows/integration-tests.yml  │          │
+│  │ runs-on: [self-hosted, windows, excel]   │          │
+│  └────────────────┬─────────────────────────┘          │
 └───────────────────┼──────────────────────────────────────┘
- │
- ▼
+                    │
+                    ▼
 ┌─────────────────────────────────────────────────────────┐
-│ Azure Windows VM │
-│ │
-│ ┌──────────────────────────────────────────┐ │
-│ │ GitHub Actions Runner Service │ │
-│ │ - Windows Server 2022 │ │
-│ │ - .NET 10 SDK │ │
-│ │ - Microsoft Excel (Office 365) │ │
-│ │ - Self-hosted runner agent │ │
-│ └──────────────────────────────────────────┘ │
+│ Azure Windows VM                                         │
+│                                                          │
+│  ┌──────────────────────────────────────────┐          │
+│  │ GitHub Actions Runner Service            │          │
+│  │ - Windows Server 2022                    │          │
+│  │ - .NET 10 SDK                            │          │
+│  │ - Microsoft Excel (Office 365)           │          │
+│  │ - Self-hosted runner agent               │          │
+│  └──────────────────────────────────────────┘          │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -51,13 +51,13 @@ ExcelMcp requires Microsoft Excel for integration testing. GitHub-hosted runners
 
 ## Automated Deployment (Recommended)
 
-**Fastest way to deploy - only manual step is installing Excel!**
+**✨ Fastest way to deploy - only manual step is installing Excel!**
 
 **What gets automated:**
-- VM provisioning (Standard_B2s, 4GB RAM - cheapest suitable option)
-- .NET 10 SDK installation
-- GitHub Actions runner installation & configuration
-- Network security configuration
+- ✅ VM provisioning (Standard_B2s, 4GB RAM - cheapest suitable option)
+- ✅ .NET 10 SDK installation
+- ✅ GitHub Actions runner installation & configuration
+- ✅ Network security configuration
 - ⏭️ **Manual:** Office 365 Excel installation (you must do this via RDP)
 
 **Complete guide:** [`infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md`](../infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md)
@@ -126,7 +126,7 @@ New-Item -Path C:\actions-runner -ItemType Directory -Force
 Set-Location C:\actions-runner
 
 # Download latest runner
-$runnerVersion = "2.321.0" # Check GitHub for latest version
+$runnerVersion = "2.321.0"  # Check GitHub for latest version
 Invoke-WebRequest -Uri "https://github.com/actions/runner/releases/download/v$runnerVersion/actions-runner-win-x64-$runnerVersion.zip" -OutFile "actions-runner.zip"
 
 # Extract
@@ -168,17 +168,17 @@ Get-Service actions.runner.*
 
 ```powershell
 try {
- $excel = New-Object -ComObject Excel.Application
- $version = $excel.Version
- Write-Host "Excel Version: $version" -ForegroundColor Green
- $excel.Quit()
- [System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null
+    $excel = New-Object -ComObject Excel.Application
+    $version = $excel.Version
+    Write-Host "✅ Excel Version: $version" -ForegroundColor Green
+    $excel.Quit()
+    [System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null
 } catch {
- Write-Host "Excel not accessible: $_" -ForegroundColor Red
+    Write-Host "❌ Excel not accessible: $_" -ForegroundColor Red
 }
 ```
 
-Expected: `Excel Version: 16.0`
+Expected: `✅ Excel Version: 16.0`
 
 #### 8. Verify Runner Registration
 
@@ -233,9 +233,9 @@ Get-EventLog -LogName Application -Source actions.runner.* -Newest 20
 - Standard_D2s_v3 (2 vCPUs, 8 GB): ~$70/month
 
 **Cost optimization:**
-- Use B2s (cheapest suitable VM)
-- Enable auto-shutdown at 7 PM (saves ~50%)
-- Use East US region (cheapest)
+- ✅ Use B2s (cheapest suitable VM)
+- ✅ Enable auto-shutdown at 7 PM (saves ~50%)
+- ✅ Use East US region (cheapest)
 - Deallocate when not in use: ~$5/month (storage only)
 
 ---
@@ -251,12 +251,12 @@ If you prefer using Azure Portal instead of automation:
 1. Sign in to https://portal.azure.com
 2. Create a resource → Virtual Machine
 3. Configure:
- - Resource Group: `rg-excel-runner`
- - VM Name: `vm-excel-runner-01`
- - Region: East US (cheapest)
- - Image: Windows Server 2022 Datacenter
- - Size: Standard_B2s (2 vCPUs, 4 GB RAM)
- - Authentication: Set username/password
+   - Resource Group: `rg-excel-runner`
+   - VM Name: `vm-excel-runner-01`
+   - Region: East US (cheapest)
+   - Image: Windows Server 2022 Datacenter
+   - Size: Standard_B2s (2 vCPUs, 4 GB RAM)
+   - Authentication: Set username/password
 4. Networking: Allow RDP (3389)
 5. Management: Enable auto-shutdown at 7 PM
 6. Review + Create
@@ -293,7 +293,7 @@ Get-Content "C:\actions-runner\_diag\Runner_*.log" -Tail 50
 .\svc.cmd stop
 
 # Download new version
-$newVersion = "2.322.0" # Check GitHub for latest
+$newVersion = "2.322.0"  # Check GitHub for latest
 Invoke-WebRequest -Uri "https://github.com/actions/runner/releases/download/v$newVersion/actions-runner-win-x64-$newVersion.zip" -OutFile "actions-runner-new.zip"
 
 # Backup old version
@@ -326,7 +326,7 @@ Get-Process | Where-Object { $_.ProcessName -like "*excel*" -or $_.ProcessName -
 # VM → Auto-shutdown → Change time → Save
 
 # Azure CLI
-az vm auto-shutdown --resource-group rg-excel-runner --name vm-excel-runner-01 --time 1900 # 7 PM
+az vm auto-shutdown --resource-group rg-excel-runner --name vm-excel-runner-01 --time 1900  # 7 PM
 ```
 
 ### Backup Runner Configuration
@@ -353,15 +353,15 @@ Copy-Item "C:\actions-runner\.credentials" "C:\Backup\.credentials.bak"
 **Before (Failed):**
 ```powershell
 curl -L -X POST \
- -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
- https://api.github.com/repos/.../actions/runners/registration-token
+  -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+  https://api.github.com/repos/.../actions/runners/registration-token
 ```
 
 **After (Fixed):**
 ```powershell
 gh api --method POST \
- /repos/${{ github.repository }}/actions/runners/registration-token \
- --jq '.token'
+  /repos/${{ github.repository }}/actions/runners/registration-token \
+  --jq '.token'
 ```
 
 **Why It Works:** The GitHub CLI (`gh`) has proper authentication mechanisms that work with runner operations, while direct API calls are blocked for security reasons.
@@ -386,104 +386,104 @@ gh api --method POST \
 **Solutions:**
 
 1. **Excel not activated:**
- ```powershell
- # Launch Excel manually once
- Start-Process excel -Wait
- # Sign in with Office 365 account
- ```
+   ```powershell
+   # Launch Excel manually once
+   Start-Process excel -Wait
+   # Sign in with Office 365 account
+   ```
 
 2. **VBA trust not enabled:**
- ```powershell
- # Set VBA trust registry key
- Set-ItemProperty -Path "HKCU:\Software\Microsoft\Office\16.0\Excel\Security" -Name "AccessVBOM" -Value 1
- ```
+   ```powershell
+   # Set VBA trust registry key
+   Set-ItemProperty -Path "HKCU:\Software\Microsoft\Office\16.0\Excel\Security" -Name "AccessVBOM" -Value 1
+   ```
 
 3. **Protected view blocking files:**
- ```powershell
- # Disable protected view
- $pvPath = "HKCU:\Software\Microsoft\Office\16.0\Excel\Security\ProtectedView"
- Set-ItemProperty -Path $pvPath -Name "DisableInternetFilesInPV" -Value 1
- ```
+   ```powershell
+   # Disable protected view
+   $pvPath = "HKCU:\Software\Microsoft\Office\16.0\Excel\Security\ProtectedView"
+   Set-ItemProperty -Path $pvPath -Name "DisableInternetFilesInPV" -Value 1
+   ```
 
 4. **Excel processes not cleaned up:**
- ```powershell
- # Add cleanup step to workflow
- Get-Process excel -ErrorAction SilentlyContinue | Stop-Process -Force
- ```
+   ```powershell
+   # Add cleanup step to workflow
+   Get-Process excel -ErrorAction SilentlyContinue | Stop-Process -Force
+   ```
 
 ### RDP Connection Issues
 
 **Cannot connect to VM:**
 
 1. **Check VM is running:**
- ```powershell
- az vm get-instance-view --resource-group rg-excel-runner --name vm-excel-runner-01 --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus" -o tsv
- ```
+   ```powershell
+   az vm get-instance-view --resource-group rg-excel-runner --name vm-excel-runner-01 --query "instanceView.statuses[?starts_with(code, 'PowerState/')].displayStatus" -o tsv
+   ```
 
 2. **Start VM if stopped:**
- ```powershell
- az vm start --resource-group rg-excel-runner --name vm-excel-runner-01
- ```
+   ```powershell
+   az vm start --resource-group rg-excel-runner --name vm-excel-runner-01
+   ```
 
 3. **Verify NSG rules allow your IP:**
- ```powershell
- az network nsg rule list --resource-group rg-excel-runner --nsg-name vm-excel-runner-01NSG --query "[?name=='RDP'].{Name:name,Priority:priority,SourceAddressPrefix:sourceAddressPrefix}" -o table
- ```
+   ```powershell
+   az network nsg rule list --resource-group rg-excel-runner --nsg-name vm-excel-runner-01NSG --query "[?name=='RDP'].{Name:name,Priority:priority,SourceAddressPrefix:sourceAddressPrefix}" -o table
+   ```
 
 4. **Update NSG rule to allow your current IP:**
- ```powershell
- MY_IP=$(curl -s https://api.ipify.org)
- az network nsg rule update --resource-group rg-excel-runner --nsg-name vm-excel-runner-01NSG --name RDP --source-address-prefix "$MY_IP/32"
- ```
+   ```powershell
+   MY_IP=$(curl -s https://api.ipify.org)
+   az network nsg rule update --resource-group rg-excel-runner --nsg-name vm-excel-runner-01NSG --name RDP --source-address-prefix "$MY_IP/32"
+   ```
 
 ### High Azure Costs
 
 **Monthly bill higher than expected:**
 
 1. **Check VM running time:**
- - Azure Portal → Cost Management → Cost analysis
- - Filter by VM resource
+   - Azure Portal → Cost Management → Cost analysis
+   - Filter by VM resource
 
 2. **Verify auto-shutdown working:**
- ```powershell
- az vm show --resource-group rg-excel-runner --name vm-excel-runner-01 --query "autoShutdownConfiguration"
- ```
+   ```powershell
+   az vm show --resource-group rg-excel-runner --name vm-excel-runner-01 --query "autoShutdownConfiguration"
+   ```
 
 3. **Stop VM completely when not needed:**
- ```powershell
- az vm stop --resource-group rg-excel-runner --name vm-excel-runner-01
- az vm deallocate --resource-group rg-excel-runner --name vm-excel-runner-01 # Important: Deallocate to stop compute billing
- ```
+   ```powershell
+   az vm stop --resource-group rg-excel-runner --name vm-excel-runner-01
+   az vm deallocate --resource-group rg-excel-runner --name vm-excel-runner-01  # Important: Deallocate to stop compute billing
+   ```
 
 4. **Downgrade VM size if underutilized:**
- ```powershell
- # Resize to B2s (cheapest)
- az vm resize --resource-group rg-excel-runner --name vm-excel-runner-01 --size Standard_B2s
- ```
+   ```powershell
+   # Resize to B2s (cheapest)
+   az vm resize --resource-group rg-excel-runner --name vm-excel-runner-01 --size Standard_B2s
+   ```
 
 ### Excel Automation Errors
 
 **Tests failing with COM errors:**
 
 1. **DCOM permissions:**
- ```powershell
- # Run as Administrator
- dcomcnfg
- # Component Services → Computers → My Computer → DCOM Config → Microsoft Excel Application
- # Right-click → Properties → Identity → The interactive user
- ```
+   ```powershell
+   # Run as Administrator
+   dcomcnfg
+   # Component Services → Computers → My Computer → DCOM Config → Microsoft Excel Application
+   # Right-click → Properties → Identity → The interactive user
+   ```
 
 2. **Excel hanging:**
- ```powershell
- # Add timeout to test configuration
- # In test code: Disable background save, disable add-ins
- ```
+   ```powershell
+   # Add timeout to test configuration
+   # In test code: Disable background save, disable add-ins
+   ```
 
 3. **File locks:**
- ```powershell
- # Ensure tests dispose Excel objects properly
- # Check for orphan Excel processes: Get-Process excel
- ```
+   ```powershell
+   # Ensure tests dispose Excel objects properly
+   # Check for orphan Excel processes: Get-Process excel
+   ```
 
 ---
 
@@ -534,12 +534,12 @@ If you only stop VM: **~$5/month** (storage costs remain)
 2. **Use strong admin password** (16+ characters, mixed case, numbers, symbols)
 3. **Enable auto-shutdown** to reduce exposure time
 4. **Keep Windows updated:**
- ```powershell
- # Check for updates
- Install-Module PSWindowsUpdate -Force
- Get-WindowsUpdate
- Install-WindowsUpdate -AcceptAll -AutoReboot
- ```
+   ```powershell
+   # Check for updates
+   Install-Module PSWindowsUpdate -Force
+   Get-WindowsUpdate
+   Install-WindowsUpdate -AcceptAll -AutoReboot
+   ```
 
 ### GitHub Secrets Management
 
@@ -602,12 +602,12 @@ az vm deallocate --resource-group rg-excel-runner --name vm-excel-runner-01
 **Lower cost but VM can be evicted:**
 ```powershell
 az vm create \
- --resource-group rg-excel-runner \
- --name vm-excel-runner-spot \
- --priority Spot \
- --max-price 0.05 \
- --eviction-policy Deallocate \
- # ... other parameters
+  --resource-group rg-excel-runner \
+  --name vm-excel-runner-spot \
+  --priority Spot \
+  --max-price 0.05 \
+  --eviction-policy Deallocate \
+  # ... other parameters
 ```
 
 **Best for:** Non-critical test runs, can tolerate interruptions
@@ -702,7 +702,7 @@ az vm start --resource-group rg-excel-runner --name vm-excel-runner-01
 C:\actions-runner\svc.cmd stop
 
 # Download latest version
-$runnerVersion = "2.321.0" # Update to latest
+$runnerVersion = "2.321.0"  # Update to latest
 Invoke-WebRequest -Uri "https://github.com/actions/runner/releases/download/v$runnerVersion/actions-runner-win-x64-$runnerVersion.zip" -OutFile "C:\actions-runner\actions-runner-new.zip"
 
 # Extract to temp location
@@ -769,35 +769,35 @@ Get-Process excel -ErrorAction SilentlyContinue | Stop-Process -Force
 
 - Ensure Office 365 license is active
 - Re-activate Excel if needed:
- ```powershell
- Start-Process excel
- # Sign in interactively via RDP
- ```
+  ```powershell
+  Start-Process excel
+  # Sign in interactively via RDP
+  ```
 
 ## Security Best Practices
 
 1. **Restrict Runner to Private Repos Only**
- - Go to **Settings** → **Actions** → **Runner groups**
- - Ensure runner group only allows private repositories
+   - Go to **Settings** → **Actions** → **Runner groups**
+   - Ensure runner group only allows private repositories
 
 2. **Use Dedicated Service Account**
- - Create Azure AD user specifically for runner
- - Apply principle of least privilege
+   - Create Azure AD user specifically for runner
+   - Apply principle of least privilege
 
 3. **Regular Updates**
- - Enable Windows Update
- - Update runner agent monthly
- - Update Excel/Office monthly
+   - Enable Windows Update
+   - Update runner agent monthly
+   - Update Excel/Office monthly
 
 4. **Secrets Management**
- - Never hardcode credentials in workflows
- - Use GitHub Secrets for sensitive data
- - Rotate runner registration tokens
+   - Never hardcode credentials in workflows
+   - Use GitHub Secrets for sensitive data
+   - Rotate runner registration tokens
 
 5. **Network Isolation**
- - Use Azure Bastion instead of RDP (enterprise)
- - Restrict NSG to minimum required ports
- - Consider private VNet for runner
+   - Use Azure Bastion instead of RDP (enterprise)
+   - Restrict NSG to minimum required ports
+   - Consider private VNet for runner
 
 ## Alternative Solutions
 
@@ -820,34 +820,34 @@ Cost comparison needed before adoption.
 ## Cost Optimization Strategies
 
 1. **Scheduled Start/Stop**
- - Use Azure Automation runbooks
- - Start VM 30 min before scheduled test run
- - Stop VM after tests complete
+   - Use Azure Automation runbooks
+   - Start VM 30 min before scheduled test run
+   - Stop VM after tests complete
 
 2. **Spot VMs**
- - Save up to 90% on VM costs
- - Acceptable for non-critical test runs
- - Risk: VM can be evicted by Azure
+   - Save up to 90% on VM costs
+   - Acceptable for non-critical test runs
+   - Risk: VM can be evicted by Azure
 
 3. **Reserved Instances**
- - 1-year commitment: ~40% savings
- - 3-year commitment: ~60% savings
- - Only if runner runs 24/7
+   - 1-year commitment: ~40% savings
+   - 3-year commitment: ~60% savings
+   - Only if runner runs 24/7
 
 4. **B-Series Burstable VMs**
- - Lower base cost
- - Suitable for intermittent workloads
- - May impact test performance
+   - Lower base cost
+   - Suitable for intermittent workloads
+   - May impact test performance
 
 ## Next Steps
 
 After setup:
 
-1. Test runner with simple workflow
-2. Run integration tests manually
-3. Configure auto-shutdown to reduce costs
-4. Set up monitoring/alerting
-5. Document runner in team wiki
+1. ✅ Test runner with simple workflow
+2. ✅ Run integration tests manually
+3. ✅ Configure auto-shutdown to reduce costs
+4. ✅ Set up monitoring/alerting
+5. ✅ Document runner in team wiki
 
 ## Additional Resources
 

@@ -100,7 +100,7 @@ Issue: #[number]
 3. User docs - [what updated]
 
 ### Backwards Compatibility
-Fully backwards compatible - [how]
+✅ Fully backwards compatible - [how]
 
 ### User Impact
 [Workflow improvements]

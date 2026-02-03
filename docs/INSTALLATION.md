@@ -11,8 +11,8 @@ Complete installation instructions for the ExcelMcp MCP Server and CLI tool.
 
 ### Optional (for specific features)
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
- - Easiest: Install [Power BI Desktop](https://powerbi.microsoft.com/desktop) (includes MSOLAP)
- - Alternative: [Microsoft OLE DB Driver for Analysis Services](https://learn.microsoft.com/analysis-services/client-libraries)
+  - Easiest: Install [Power BI Desktop](https://powerbi.microsoft.com/desktop) (includes MSOLAP)
+  - Alternative: [Microsoft OLE DB Driver for Analysis Services](https://learn.microsoft.com/analysis-services/client-libraries)
 
 ### Recommended
 - Windows 11 for best performance
@@ -28,16 +28,16 @@ Complete installation instructions for the ExcelMcp MCP Server and CLI tool.
 **Best for:** GitHub Copilot users, beginners, anyone wanting automatic configuration
 
 1. **Install the Extension**
- - Open VS Code
- - Press `Ctrl+Shift+X` (Extensions)
- - Search for **"ExcelMcp"**
- - Click **Install**
+   - Open VS Code
+   - Press `Ctrl+Shift+X` (Extensions)
+   - Search for **"ExcelMcp"**
+   - Click **Install**
 
 2. **That's It!**
- - Extension automatically installs .NET 10 runtime
- - Bundles MCP server (no separate installation needed)
- - Auto-configures GitHub Copilot
- - Shows quick start guide on first launch
+   - Extension automatically installs .NET 10 runtime
+   - Bundles MCP server (no separate installation needed)
+   - Auto-configures GitHub Copilot
+   - Shows quick start guide on first launch
 
 **Marketplace Link:** [Excel MCP VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)
 
@@ -55,7 +55,7 @@ That's it! The MCPB bundle includes everything needed - no .NET installation req
 
 ---
 
-## Manual Installation & Configuration (MCP Server)
+## Manual Installation  & Configuration (MCP Server)
 
 **Best for:** Other MCP clients (Cursor, Windsurf, Cline), advanced users
 
@@ -95,11 +95,11 @@ Create `.vscode/mcp.json` in your workspace:
 
 ```json
 {
- "servers": {
- "excel": {
- "command": "mcp-excel"
- }
- }
+  "servers": {
+    "excel": {
+      "command": "mcp-excel"
+    }
+  }
 }
 ```
 
@@ -109,11 +109,11 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 
 ```json
 {
- "servers": {
- "excel": {
- "command": "mcp-excel"
- }
- }
+  "servers": {
+    "excel": {
+      "command": "mcp-excel"
+    }
+  }
 }
 ```
 
@@ -125,13 +125,13 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 
 ```json
 {
- "mcpServers": {
- "excel": {
- "command": "mcp-excel",
- "args": [],
- "env": {}
- }
- }
+  "mcpServers": {
+    "excel": {
+      "command": "mcp-excel",
+      "args": [],
+      "env": {}
+    }
+  }
 }
 ```
 
@@ -146,13 +146,13 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 
 ```json
 {
- "mcpServers": {
- "excel": {
- "command": "mcp-excel",
- "args": [],
- "env": {}
- }
- }
+  "mcpServers": {
+    "excel": {
+      "command": "mcp-excel",
+      "args": [],
+      "env": {}
+    }
+  }
 }
 ```
 
@@ -166,13 +166,13 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 
 ```json
 {
- "mcpServers": {
- "excel": {
- "command": "mcp-excel",
- "args": [],
- "env": {}
- }
- }
+  "mcpServers": {
+    "excel": {
+      "command": "mcp-excel",
+      "args": [],
+      "env": {}
+    }
+  }
 }
 ```
 
@@ -181,18 +181,18 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 **For Windsurf:**
 
 1. Open Windsurf Settings
-2. Navigate to MCP Servers configuration 
+2. Navigate to MCP Servers configuration  
 3. Add this configuration:
 
 ```json
 {
- "mcpServers": {
- "excel": {
- "command": "mcp-excel",
- "args": [],
- "env": {}
- }
- }
+  "mcpServers": {
+    "excel": {
+      "command": "mcp-excel",
+      "args": [],
+      "env": {}
+    }
+  }
 }
 ```
 
@@ -205,9 +205,9 @@ Restart your MCP client, then ask:
 Create an empty Excel file called "test.xlsx"
 ```
 
-If it works, you're all set! 
+If it works, you're all set! 🎉
 
-**Tip:** Want to watch the AI work? Ask:
+**💡 Tip:** Want to watch the AI work? Ask:
 ```
 Show me Excel while you work on test.xlsx
 ```
@@ -391,9 +391,9 @@ After installation:
 1. **Learn the basics:** Try simple commands like creating worksheets, setting values
 2. **Explore features:** See [README](https://github.com/sbroenne/mcp-server-excel#readme) for complete feature list
 3. **Read the guides:**
- - [MCP Server Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.McpServer/README.md)
- - [CLI Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)
- - [Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-mcp/SKILL.md) - Cross-platform AI guidance
+   - [MCP Server Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.McpServer/README.md)
+   - [CLI Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)
+   - [Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-mcp/SKILL.md) - Cross-platform AI guidance
 4. **Join the community:** Star the repo, report issues, contribute improvements
 
 ---
@@ -420,12 +420,12 @@ npx add-skill sbroenne/mcp-server-excel -a cursor
 **Manual Installation:**
 1. Download `excel-cli-skill-v{version}.zip` from [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 2. Extract to your AI assistant's skills directory:
- - Copilot: `~/.copilot/skills/excel-cli/`
- - Claude Code: `.claude/skills/excel-cli/`
- - Cursor: `.cursor/skills/excel-cli/`
+   - Copilot: `~/.copilot/skills/excel-cli/`
+   - Claude Code: `.claude/skills/excel-cli/`
+   - Cursor: `.cursor/skills/excel-cli/`
 
 **See:** [Agent Skills Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/README.md)
 
 ---
 
-**Happy automating! **
+**Happy automating! 🚀**

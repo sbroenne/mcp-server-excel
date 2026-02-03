@@ -72,7 +72,7 @@ Quick reference:
 
 ## Workflow Config Updates
 
-**Update ALL workflows when changing:**
+**⚠️ Update ALL workflows when changing:**
 - .NET SDK version (`global.json` + all workflows)
 - Assembly/package names (`.csproj` + workflow references)
 - Runtime requirements (target framework + release notes)

@@ -27,14 +27,14 @@ await using var batch = await session.BeginBatchAsync();
 
 await batch.ExecuteAsync<int>(async (ctx, ct) => 
 {
- // Access Excel workbook through ctx.Book
- dynamic worksheets = ctx.Book.Worksheets;
- dynamic sheet = worksheets.Item[1];
- 
- // Perform Excel operations
- sheet.Name = "UpdatedSheet";
- 
- return 0;
+    // Access Excel workbook through ctx.Book
+    dynamic worksheets = ctx.Book.Worksheets;
+    dynamic sheet = worksheets.Item[1];
+    
+    // Perform Excel operations
+    sheet.Name = "UpdatedSheet";
+    
+    return 0;
 });
 
 await batch.Save();
@@ -55,8 +55,8 @@ await batch.Save();
 
 ## Platform Support
 
-- Windows x64
-- Windows ARM64
-- Linux (Excel COM not available)
-- macOS (Excel COM not available)
+- ✅ Windows x64
+- ✅ Windows ARM64
+- ❌ Linux (Excel COM not available)
+- ❌ macOS (Excel COM not available)
 

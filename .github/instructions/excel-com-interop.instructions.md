@@ -28,54 +28,54 @@ applyTo: "src/ExcelMcp.Core/**/*.cs"
 **Core Commands: NEVER wrap operations in try-catch blocks that return error results. Let exceptions propagate naturally.**
 
 ```csharp
-// WRONG: Catching and wrapping exceptions
+// ❌ WRONG: Catching and wrapping exceptions
 public async Task<OperationResult> CreateAsync(IExcelBatch batch, string name)
 {
- try
- {
- return await batch.Execute((ctx, ct) => {
- var item = ctx.Create(name);
- return ValueTask.FromResult(new OperationResult { Success = true });
- });
- }
- catch (Exception ex)
- {
- // WRONG: Double-wrapping suppresses the exception
- return new OperationResult { Success = false, ErrorMessage = ex.Message };
- }
+    try
+    {
+        return await batch.Execute((ctx, ct) => {
+            var item = ctx.Create(name);
+            return ValueTask.FromResult(new OperationResult { Success = true });
+        });
+    }
+    catch (Exception ex)
+    {
+        // ❌ WRONG: Double-wrapping suppresses the exception
+        return new OperationResult { Success = false, ErrorMessage = ex.Message };
+    }
 }
 
-// CORRECT: Let batch.Execute() handle exceptions via TaskCompletionSource
+// ✅ CORRECT: Let batch.Execute() handle exceptions via TaskCompletionSource
 public async Task<OperationResult> CreateAsync(IExcelBatch batch, string name)
 {
- return await batch.Execute((ctx, ct) => {
- var item = ctx.Create(name);
- return ValueTask.FromResult(new OperationResult { Success = true });
- });
- // Exception flows to batch.Execute() → caught via TaskCompletionSource
- // → Returns OperationResult { Success = false, ErrorMessage }
+    return await batch.Execute((ctx, ct) => {
+        var item = ctx.Create(name);
+        return ValueTask.FromResult(new OperationResult { Success = true });
+    });
+    // Exception flows to batch.Execute() → caught via TaskCompletionSource
+    // → Returns OperationResult { Success = false, ErrorMessage }
 }
 
-// CORRECT: Finally blocks are the right place for COM resource cleanup
+// ✅ CORRECT: Finally blocks are the right place for COM resource cleanup
 public async Task<OperationResult> ComplexAsync(IExcelBatch batch, string name)
 {
- dynamic? temp = null;
- try
- {
- return await batch.Execute((ctx, ct) => {
- temp = ctx.CreateTemp(name);
- // ... operation ...
- return ValueTask.FromResult(new OperationResult { Success = true });
- });
- }
- finally
- {
- // Finally for resource cleanup, NOT catch for error handling
- if (temp != null)
- {
- ComUtilities.Release(ref temp!);
- }
- }
+    dynamic? temp = null;
+    try
+    {
+        return await batch.Execute((ctx, ct) => {
+            temp = ctx.CreateTemp(name);
+            // ... operation ...
+            return ValueTask.FromResult(new OperationResult { Success = true });
+        });
+    }
+    finally
+    {
+        // ✅ Finally for resource cleanup, NOT catch for error handling
+        if (temp != null)
+        {
+            ComUtilities.Release(ref temp!);
+        }
+    }
 }
 ```
 
@@ -86,27 +86,27 @@ public async Task<OperationResult> ComplexAsync(IExcelBatch batch, string name)
 - Exception occurs at correct layer (batch), not suppressed at method level
 
 **Safe Exception Handling (Keep these):**
-- Loop continuations: `catch { continue; }` (safe, recovers loop)
-- Optional property access: `catch { value = null; }` (safe, uses fallback)
-- Specific error routing: `catch (COMException ex) when (ex.HResult == code) { ... }` (specific, not general)
-- Finally blocks: Resource cleanup for COM objects (always needed)
+- ✅ Loop continuations: `catch { continue; }` (safe, recovers loop)
+- ✅ Optional property access: `catch { value = null; }` (safe, uses fallback)
+- ✅ Specific error routing: `catch (COMException ex) when (ex.HResult == code) { ... }` (specific, not general)
+- ✅ Finally blocks: Resource cleanup for COM objects (always needed)
 
 **Pattern to Remove:**
-- `catch (Exception ex) { return new Result { Success = false, ErrorMessage = ex.Message }; }`
+- ❌ `catch (Exception ex) { return new Result { Success = false, ErrorMessage = ex.Message }; }`
 
 **Architecture:**
 ```
 Core Command (NO try-catch wrapping)
- └─> await batch.Execute()
- └─> TaskCompletionSource captures exception
- └─> Returns OperationResult { Success = false, ErrorMessage }
+  └─> await batch.Execute()
+      └─> TaskCompletionSource captures exception
+          └─> Returns OperationResult { Success = false, ErrorMessage }
 ```
 
 ---
 
 ## Resource Management
 
-### Unified Shutdown Pattern (Current Standard)
+### ✅ Unified Shutdown Pattern (Current Standard)
 
 **All workbook close and Excel quit operations use `ExcelShutdownService` with resilient retry:**
 
@@ -150,9 +150,9 @@ ExcelShutdownService.CloseAndQuit(workbook, excel, save: true, filePath, logger)
 **Timeout Architecture (Proper Layering):**
 ```
 Overall Quit Timeout: 30 seconds (outer)
- └─> Resilient Retry: 6 attempts with exponential backoff (inner, ~6s max)
- └─> Individual Quit() calls
- └─> STA Thread Join: 45 seconds (ExcelQuitTimeout + 15s margin)
+  └─> Resilient Retry: 6 attempts with exponential backoff (inner, ~6s max)
+      └─> Individual Quit() calls
+  └─> STA Thread Join: 45 seconds (ExcelQuitTimeout + 15s margin)
 ```
 - **30s quit timeout**: Catches truly hung Excel (modal dialogs, deadlocks) via CancellationToken
 - **6-attempt retry**: Handles transient COM busy states within the 30s window
@@ -162,37 +162,37 @@ Overall Quit Timeout: 30 seconds (outer)
 
 **ALWAYS use try-finally for COM object cleanup. NEVER use catch blocks to swallow exceptions.**
 
-### WRONG Patterns
+### ❌ WRONG Patterns
 
 ```csharp
 // WRONG #1: COM cleanup in try block (won't execute if exception occurs)
 try
 {
- dynamic pivotLayout = chart.PivotLayout;
- dynamic pivotTable = pivotLayout.PivotTable;
- name = pivotTable.Name?.ToString() ?? string.Empty;
- ComUtilities.Release(ref pivotTable!); // Won't execute if exception above!
- ComUtilities.Release(ref pivotLayout!);
+    dynamic pivotLayout = chart.PivotLayout;
+    dynamic pivotTable = pivotLayout.PivotTable;
+    name = pivotTable.Name?.ToString() ?? string.Empty;
+    ComUtilities.Release(ref pivotTable!);  // ❌ Won't execute if exception above!
+    ComUtilities.Release(ref pivotLayout!);
 }
 catch
 {
- name = "(unknown)"; // Swallows exception, causes COM leak
+    name = "(unknown)";  // ❌ Swallows exception, causes COM leak
 }
 
 // WRONG #2: Empty catch block (swallows exceptions silently)
 try
 {
- dynamic item = GetItem();
- // ... operations ...
- ComUtilities.Release(ref item!);
+    dynamic item = GetItem();
+    // ... operations ...
+    ComUtilities.Release(ref item!);
 }
 catch
 {
- // Empty catch - swallows exception, no cleanup
+    // ❌ Empty catch - swallows exception, no cleanup
 }
 ```
 
-### CORRECT Pattern
+### ✅ CORRECT Pattern
 
 ```csharp
 // CORRECT: Finally block ensures cleanup regardless of exceptions
@@ -200,17 +200,17 @@ dynamic? pivotLayout = null;
 dynamic? pivotTable = null;
 try
 {
- pivotLayout = chart.PivotLayout;
- pivotTable = pivotLayout.PivotTable;
- name = pivotTable.Name?.ToString() ?? string.Empty;
+    pivotLayout = chart.PivotLayout;
+    pivotTable = pivotLayout.PivotTable;
+    name = pivotTable.Name?.ToString() ?? string.Empty;
 }
 finally
 {
- // ALWAYS executes - exception or no exception
- if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
- if (pivotLayout != null) ComUtilities.Release(ref pivotLayout!);
+    // ✅ ALWAYS executes - exception or no exception
+    if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
+    if (pivotLayout != null) ComUtilities.Release(ref pivotLayout!);
 }
-// Exception propagates naturally to batch.Execute()
+// ✅ Exception propagates naturally to batch.Execute()
 ```
 
 **Pattern Requirements:**
@@ -236,49 +236,49 @@ finally
 
 ### 1. Excel Collections Are 1-Based
 ```csharp
-// WRONG: collection.Item(0) 
-// CORRECT: collection.Item(1)
+// ❌ WRONG: collection.Item(0)  
+// ✅ CORRECT: collection.Item(1)
 for (int i = 1; i <= collection.Count; i++) { var item = collection.Item(i); }
 ```
 
 ### 2. Named Range Format
 ```csharp
-// WRONG: namesCollection.Add("Param", "Sheet1!A1"); // Missing =
-// CORRECT: namesCollection.Add("Param", "=Sheet1!A1");
+// ❌ WRONG: namesCollection.Add("Param", "Sheet1!A1");  // Missing =
+// ✅ CORRECT: namesCollection.Add("Param", "=Sheet1!A1");
 string ref = reference.StartsWith("=") ? reference : $"={reference}";
 ```
 
 ### 3. Power Query Loading
 ```csharp
-// WRONG: listObjects.Add(...) // Causes "Value does not fall within expected range"
-// CORRECT: Use QueryTables with synchronous refresh
+// ❌ WRONG: listObjects.Add(...)  // Causes "Value does not fall within expected range"
+// ✅ CORRECT: Use QueryTables with synchronous refresh
 string cs = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
 dynamic qt = sheet.QueryTables.Add(cs, sheet.Range["A1"], commandText);
-qt.Refresh(false); // CRITICAL: false = synchronous, ensures persistence
+qt.Refresh(false);  // CRITICAL: false = synchronous, ensures persistence
 ```
 
 ### 4. QueryTable Persistence Pattern
 
-**RefreshAll() does NOT persist QueryTables!**
+**⚠️ RefreshAll() does NOT persist QueryTables!**
 
 ```csharp
-// WRONG: workbook.RefreshAll(); workbook.Save(); // QueryTable lost on reopen
-// CORRECT: queryTable.Refresh(false); workbook.Save(); // Persists properly
+// ❌ WRONG: workbook.RefreshAll(); workbook.Save();  // QueryTable lost on reopen
+// ✅ CORRECT: queryTable.Refresh(false); workbook.Save();  // Persists properly
 ```
 
 **Why:** `RefreshAll()` is async. Individual `qt.Refresh(false)` is synchronous and required for disk persistence.
 
 ### 5. Numeric Property Type Conversions
 
-**ALL Excel COM numeric properties return `double`, NOT `int`!**
+**⚠️ ALL Excel COM numeric properties return `double`, NOT `int`!**
 
 ```csharp
-// WRONG: Implicit conversion fails at runtime
-int orientation = field.Orientation; // Runtime error: Cannot convert double to int
-int position = field.Position; // Runtime error: Cannot convert double to int
-int function = field.Function; // Runtime error: Cannot convert double to int
+// ❌ WRONG: Implicit conversion fails at runtime
+int orientation = field.Orientation;  // Runtime error: Cannot convert double to int
+int position = field.Position;        // Runtime error: Cannot convert double to int
+int function = field.Function;        // Runtime error: Cannot convert double to int
 
-// CORRECT: Explicit conversion required
+// ✅ CORRECT: Explicit conversion required
 int orientation = Convert.ToInt32(field.Orientation);
 int position = Convert.ToInt32(field.Position);
 int comFunction = Convert.ToInt32(field.Function);
@@ -296,10 +296,10 @@ int comFunction = Convert.ToInt32(field.Function);
 // RefreshDate can be DateTime OR double (OLE date)
 private static DateTime? GetRefreshDateSafe(dynamic refreshDate)
 {
- if (refreshDate == null) return null;
- if (refreshDate is DateTime dt) return dt;
- if (refreshDate is double dbl) return DateTime.FromOADate(dbl);
- return null;
+    if (refreshDate == null) return null;
+    if (refreshDate is DateTime dt) return dt;
+    if (refreshDate is double dbl) return DateTime.FromOADate(dbl);
+    return null;
 }
 ```
 
@@ -309,7 +309,7 @@ private static DateTime? GetRefreshDateSafe(dynamic refreshDate)
 ```csharp
 catch (COMException ex) when (ex.HResult == -2147417851)
 {
- // RPC_E_SERVERCALL_RETRYLATER - Excel is busy
+    // RPC_E_SERVERCALL_RETRYLATER - Excel is busy
 }
 ```
 
@@ -318,35 +318,35 @@ catch (COMException ex) when (ex.HResult == -2147417851)
 ### Read Data
 ```csharp
 dynamic range = sheet.Range["A1:D10"];
-object[,] values = range.Value2; // 2D array, 1-based indexing
+object[,] values = range.Value2;  // 2D array, 1-based indexing
 ```
 
 ### Write Data
 ```csharp
 object[,] data = new object[rows, cols];
 dynamic range = sheet.Range[startCell, endCell];
-range.Value2 = data; // Bulk write
+range.Value2 = data;  // Bulk write
 ```
 
 ### Refresh Query
 ```csharp
-// NEVER: workbook.RefreshAll(); // Hangs!
-// CORRECT: targetConnection.Refresh();
+// ❌ NEVER: workbook.RefreshAll();  // Hangs!
+// ✅ CORRECT: targetConnection.Refresh();
 ```
 
 ## Connection Type Discrepancy
 
-**Excel COM runtime types don't match spec!**
+**⚠️ Excel COM runtime types don't match spec!**
 ```csharp
-if (connType == 3 || connType == 4) { // TEXT files report as type 4 (WEB)
- try { var conn = connection.TextConnection; }
- catch { var conn = connection.WebConnection; }
+if (connType == 3 || connType == 4) {  // TEXT files report as type 4 (WEB)
+    try { var conn = connection.TextConnection; }
+    catch { var conn = connection.WebConnection; }
 }
 ```
 
 ## Data Model (Power Pivot) API Limitations
 
-**KNOWN LIMITATION: Hidden columns, relationships, and measures cannot be detected via Excel COM API**
+**⚠️ KNOWN LIMITATION: Hidden columns, relationships, and measures cannot be detected via Excel COM API**
 
 When objects are marked "Hidden from client tools" in Power Pivot, the Excel COM API provides no way to detect this or retrieve them.
 
@@ -383,4 +383,4 @@ When objects are marked "Hidden from client tools" in Power Pivot, the Excel COM
 | Assuming enum types | Numeric properties return `double`, convert to enum |
 | Using TOM/XMLA for Data Model | Not accessible from Excel COM - use only ModelTable/ModelTableColumn APIs |
 
-**Reference:** [Excel Object Model](https://docs.microsoft.com/en-us/office/vba/api/overview/excel)
+**📚 Reference:** [Excel Object Model](https://docs.microsoft.com/en-us/office/vba/api/overview/excel)
