@@ -4,7 +4,7 @@ Agent Skill for AI coding assistants using the Excel CLI tool (`excelcli`).
 
 ## Best For
 
-- **Coding agents** (GitHub Copilot, Cursor, Windsurf)
+- **Coding agents** (GitHub Copilot, Cursor, Windsurf, Codex, Gemini CLI, and 38+ more)
 - Token-efficient workflows (no large tool schemas)
 - Discoverable via `excelcli --help`
 - Scriptable in PowerShell pipelines, CI/CD, batch processing
@@ -44,11 +44,13 @@ Extract to your AI assistant's skills directory:
 | **Cursor** | `.cursor/skills/excel-cli/` |
 | **Windsurf** | `.windsurf/skills/excel-cli/` |
 | **Gemini CLI** | `.gemini/skills/excel-cli/` |
+| **Codex** | `.codex/skills/excel-cli/` |
+| **And 36+ more** | Via `npx skills` |
 | **Goose** | `.goose/skills/excel-cli/` |
 
 Or use npx:
 ```bash
-npx add-skill sbroenne/mcp-server-excel --skill excel-cli -a cursor
+npx skills add sbroenne/mcp-server-excel --skill excel-cli -a cursor
 ```
 
 ## Contents

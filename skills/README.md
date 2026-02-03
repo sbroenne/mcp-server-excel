@@ -45,7 +45,9 @@ Agent Skills are reusable instruction sets that extend AI coding assistants with
 | **Cursor** | `.cursor/skills/excel-mcp/` | Manual or npx |
 | **Windsurf** | `.windsurf/skills/excel-mcp/` | Manual or npx |
 | **Gemini CLI** | `.gemini/skills/excel-mcp/` | Manual or npx |
+| **Codex** | `.codex/skills/excel-mcp/` | Manual or npx |
 | **Goose** | `.goose/skills/excel-mcp/` | Manual or npx |
+| **And 36+ more** | Via `npx skills` | Manual or npx |
 
 ## Installation Methods
 
@@ -60,31 +62,33 @@ Enable skills in VS Code settings:
 }
 ```
 
-### Method 2: npx add-skill (Cross-Platform)
+### Method 2: npx skills (Cross-Platform)
 
 **Important:** The repository contains TWO separate skills. You must specify which one to install using the `--skill` flag.
 
 ```bash
-# Install CLI skill (recommended for coding agents - Copilot, Cursor, Windsurf)
-npx add-skill sbroenne/mcp-server-excel --skill excel-cli
+# Install CLI skill (recommended for coding agents - Copilot, Cursor, Windsurf, Codex, etc.)
+npx skills add sbroenne/mcp-server-excel --skill excel-cli
 
 # Install MCP skill (for conversational AI - Claude Desktop, VS Code Chat)
-npx add-skill sbroenne/mcp-server-excel --skill excel-mcp
+npx skills add sbroenne/mcp-server-excel --skill excel-mcp
 
 # Install BOTH skills (if you use multiple tools)
-npx add-skill sbroenne/mcp-server-excel --skill excel-cli
-npx add-skill sbroenne/mcp-server-excel --skill excel-mcp
+npx skills add sbroenne/mcp-server-excel --skill excel-cli
+npx skills add sbroenne/mcp-server-excel --skill excel-mcp
 
-# Install for specific agent (optional)
-npx add-skill sbroenne/mcp-server-excel --skill excel-cli -a cursor
-npx add-skill sbroenne/mcp-server-excel --skill excel-mcp -a claude-code
+# Install for specific agent (optional - auto-detects if omitted)
+npx skills add sbroenne/mcp-server-excel --skill excel-cli -a cursor
+npx skills add sbroenne/mcp-server-excel --skill excel-mcp -a claude-code
 
 # Install globally (user-wide)
-npx add-skill sbroenne/mcp-server-excel --skill excel-cli --global
+npx skills add sbroenne/mcp-server-excel --skill excel-cli --global
 
 # Install to current project
-npx add-skill sbroenne/mcp-server-excel --skill excel-cli --local
+npx skills add sbroenne/mcp-server-excel --skill excel-cli --local
 ```
+
+**Supported agents:** claude-code, github-copilot, cursor, windsurf, gemini-cli, codex, goose, cline, continue, replit, and 33+ more. Run `npx skills add --help` to see the full list.
 
 ### Method 3: GitHub Release Download
 
@@ -92,7 +96,7 @@ Download the skill package for your use case from [GitHub Releases](https://gith
 
 | Package | Best For |
 |---------|----------|
-| `excel-cli-skill-vX.X.X.zip` | **Coding agents** (Copilot, Cursor, Windsurf) |
+| `excel-cli-skill-vX.X.X.zip` | **Coding agents** (Copilot, Cursor, Windsurf, Codex, etc.) |
 | `excel-mcp-skill-vX.X.X.zip` | **Conversational AI** (Claude Desktop, VS Code Chat) |
 
 Extract to the appropriate directory for your AI assistant:
@@ -100,6 +104,9 @@ Extract to the appropriate directory for your AI assistant:
 - Claude Code: `.claude/skills/excel-mcp/` or `.claude/skills/excel-cli/`
 - Cursor: `.cursor/skills/excel-mcp/` or `.cursor/skills/excel-cli/`
 - Windsurf: `.windsurf/skills/excel-mcp/` or `.windsurf/skills/excel-cli/`
+- Gemini CLI: `.gemini/skills/excel-mcp/` or `.gemini/skills/excel-cli/`
+- Codex: `.codex/skills/excel-mcp/` or `.codex/skills/excel-cli/`
+- Other agents: See agent documentation for skills directory location
 
 ### Method 4: Git Clone (Development)
 

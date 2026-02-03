@@ -7,7 +7,7 @@
 1. [Overview](#overview)
 2. [VS Code / GitHub Copilot Skills](#vs-code--github-copilot-skills)
 3. [Claude Code Skills](#claude-code-skills)
-4. [Cross-Platform Skills (add-skill)](#cross-platform-skills-add-skill)
+4. [Cross-Platform Skills (npx skills)](#cross-platform-skills-npx-skills)
 5. [Other AI Assistants](#other-ai-assistants)
 6. [Comparison Matrix](#comparison-matrix)
 7. [Best Practices](#best-practices)
@@ -310,22 +310,22 @@ You are a code reviewer. Analyze code for:
 
 ---
 
-## Cross-Platform Skills (add-skill)
+## Cross-Platform Skills (npx skills)
 
 ### Installation
 
 ```powershell
 # From GitHub shorthand
-npx add-skill vercel-labs/agent-skills
+npx skills add vercel-labs/agent-skills
 
 # From specific skill
-npx add-skill vercel-labs/agent-skills --skill frontend-design
+npx skills add vercel-labs/agent-skills --skill frontend-design
 
 # Install globally
-npx add-skill vercel-labs/agent-skills --global
+npx skills add vercel-labs/agent-skills --global
 
 # Install for specific agents
-npx add-skill vercel-labs/agent-skills -a claude-code -a cursor
+npx skills add vercel-labs/agent-skills -a claude-code -a cursor
 ```
 
 ### Supported Agents
@@ -335,11 +335,13 @@ npx add-skill vercel-labs/agent-skills -a claude-code -a cursor
 | `claude-code` | `.claude/skills/` | `~/.claude/skills/` |
 | `cursor` | `.cursor/skills/` | `~/.cursor/skills/` |
 | `github-copilot` | `.copilot/skills/` | `~/.copilot/skills/` |
+| `codex` | `.codex/skills/` | `~/.codex/skills/` |
+| `gemini-cli` | `.gemini/skills/` | `~/.gemini/skills/` |
 | `opencode` | `.opencode/skills/` | `~/.opencode/skills/` |
 | `windsurf` | `.windsurf/skills/` | `~/.windsurf/skills/` |
-| `gemini-cli` | `.gemini/skills/` | `~/.gemini/skills/` |
 | `kilo` | `.kilo/skills/` | `~/.kilo/skills/` |
 | `goose` | `.goose/skills/` | `~/.goose/skills/` |
+| **And 34+ more** | See `npx skills add --help` | See `npx skills add --help` |
 
 ### Skill Discovery Locations
 
@@ -380,7 +382,7 @@ Uses similar SKILL.md format to other agents.
 
 **Configuration:** `.gemini/skills/` directory
 
-Follows the add-skill specification format.
+Follows the npx skills specification format.
 
 ---
 
@@ -517,7 +519,7 @@ Use `--help` for parameters. `excelcli <command> --help` is the authoritative so
 
 - [VS Code Copilot Customization](https://code.visualstudio.com/docs/copilot/customization)
 - [Claude Code Skills Documentation](https://code.claude.com/docs/en/skills)
-- [add-skill CLI](https://github.com/vercel-labs/add-skill)
+- [skills CLI](https://github.com/vercel-labs/skills) (formerly add-skill)
 - [MCP Server Protocol](https://modelcontextprotocol.io/)
 
 ---
@@ -526,5 +528,6 @@ Use `--help` for parameters. `excelcli <command> --help` is the authoritative so
 
 | Date | Change |
 |------|--------|
+| 2026-02 | Updated `add-skill` references to `skills` (command renamed), expanded agent support list |
 | 2026-02 | Added SKILL.md size guidelines, requirements visibility, CLI discovery patterns |
 | 2025-01 | Initial research document |

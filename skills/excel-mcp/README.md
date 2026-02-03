@@ -32,11 +32,13 @@ Extract to your AI assistant's skills directory:
 | **Cursor** | `.cursor/skills/excel-mcp/` |
 | **Windsurf** | `.windsurf/skills/excel-mcp/` |
 | **Gemini CLI** | `.gemini/skills/excel-mcp/` |
+| **Codex** | `.codex/skills/excel-mcp/` |
+| **And 36+ more** | Via `npx skills` |
 | **Goose** | `.goose/skills/excel-mcp/` |
 
 Or use npx:
 ```bash
-npx add-skill sbroenne/mcp-server-excel --skill excel-mcp -a claude-code
+npx skills add sbroenne/mcp-server-excel --skill excel-mcp -a claude-code
 ```
 
 ## Contents
