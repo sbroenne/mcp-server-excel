@@ -123,6 +123,21 @@ Alternative path (for existing worksheet tables):
 
 ## M Code - Server-Specific Notes
 
+### Column/Field Name Quoting (CRITICAL)
+
+M code requires special syntax for identifiers containing hyphens, spaces, or special characters:
+
+| Column Name | Syntax | Notes |
+|-------------|--------|-------|
+| `Amount` | `[Amount]` | Simple names work without quotes |
+| `Non-Recurring` | `[#"Non-Recurring"]` | **Hyphen requires `#"..."` quoting** |
+| `List Price (USD)` | `[#"List Price (USD)"]` | Spaces/parens require quoting |
+| `Service Level 1` | `[#"Service Level 1"]` | Spaces require quoting |
+
+**Common mistake:** `[Non-Recurring]` parses as `[Non] - [Recurring]` (subtraction!) and fails with cryptic "The name 'X' wasn't recognized" errors.
+
+**Rule:** If a column name contains anything other than letters, numbers, and underscores, use `[#"Column Name"]` syntax.
+
 ### Reading Named Ranges (parameters)
 
 ```m
