@@ -170,7 +170,7 @@ dotnet tool install -g Sbroenne.ExcelMcp.CLI
 
 ```powershell
 # Session-based workflow (keeps Excel open between commands)
-excelcli -q session create report.xlsx    # Returns session ID
+excelcli -q session open report.xlsx     # Returns session ID
 excelcli -q range set-values --session 1 --sheet Sheet1 --range A1 --values '[["Hello","World"]]'
 excelcli -q session close --session 1 --save
 ```

@@ -226,18 +226,19 @@ This opens Excel visibly so you can see every change in real-time - great for de
 dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 # Verify installation
-excel-mcp --version
+excelcli --version
 ```
 
 ### Quick Test
 
 ```powershell
-# Create a test workbook
-excel-mcp file-create --file "test.xlsx"
-
-# List worksheets
-excel-mcp sheet-list --file "test.xlsx"
+# Session-based workflow (keeps Excel open between commands)
+excelcli -q session open test.xlsx        # Returns session ID
+excelcli -q sheet list --session 1        # List worksheets
+excelcli -q session close --session 1 --save
 ```
+
+> **💡 Tip:** Use `-q` (quiet mode) to suppress banner and get JSON output only - perfect for scripting and automation.
 
 **CLI Documentation:** [CLI Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)
 
@@ -254,7 +255,7 @@ dotnet tool list --global | Select-String "ExcelMcp"
 
 **CLI:**
 ```powershell
-excel-mcp --version
+excelcli --version
 ```
 
 ### Update MCP Server
@@ -280,7 +281,7 @@ dotnet tool list --global | Select-String "ExcelMcp"
 dotnet tool update --global Sbroenne.ExcelMcp.CLI
 
 # Verify
-excel-mcp --version
+excelcli --version
 ```
 ### Troubleshooting Updates
 
