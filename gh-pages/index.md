@@ -162,8 +162,6 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 
 ## CLI Tool (Optional)
 
-For coding agents, scripting, RPA workflows, and CI/CD pipelines — automate Excel with or  without AI:
-
 ```powershell
 dotnet tool install -g Sbroenne.ExcelMcp.CLI
 ```
