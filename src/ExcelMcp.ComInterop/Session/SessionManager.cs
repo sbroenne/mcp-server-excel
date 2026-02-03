@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
@@ -28,7 +30,17 @@ public sealed class SessionManager : IDisposable
     private readonly ConcurrentDictionary<string, string> _sessionFilePaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, int> _activeOperationCounts = new();
     private readonly ConcurrentDictionary<string, bool> _showExcelFlags = new();
+    private readonly ILogger<SessionManager> _logger;
     private bool _disposed;
+
+    /// <summary>
+    /// Creates a new SessionManager with optional logging.
+    /// </summary>
+    /// <param name="logger">Optional logger for diagnostics</param>
+    public SessionManager(ILogger<SessionManager>? logger = null)
+    {
+        _logger = logger ?? NullLogger<SessionManager>.Instance;
+    }
 
     /// <summary>
     /// Creates a new session for the specified Excel file.
@@ -206,9 +218,10 @@ public sealed class SessionManager : IDisposable
 
     /// <summary>
     /// Gets an active session by ID.
+    /// If the session exists but Excel has died, it is automatically cleaned up and null is returned.
     /// </summary>
     /// <param name="sessionId">Session ID returned from CreateSession</param>
-    /// <returns>IExcelBatch instance, or null if session not found</returns>
+    /// <returns>IExcelBatch instance, or null if session not found or Excel process is dead</returns>
     public IExcelBatch? GetSession(string sessionId)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -218,8 +231,58 @@ public sealed class SessionManager : IDisposable
             return null;
         }
 
-        _activeSessions.TryGetValue(sessionId, out var batch);
+        if (!_activeSessions.TryGetValue(sessionId, out var batch))
+        {
+            return null;
+        }
+
+        // Check if Excel process is still alive
+        if (!batch.IsExcelProcessAlive())
+        {
+            _logger?.LogWarning("Session {SessionId} has dead Excel process, auto-cleaning up", sessionId);
+            CleanupDeadSession(sessionId, batch);
+            return null;
+        }
+
         return batch;
+    }
+
+    /// <summary>
+    /// Cleans up a session whose Excel process has died.
+    /// This removes all tracking data and disposes the batch (best effort).
+    /// </summary>
+    private void CleanupDeadSession(string sessionId, IExcelBatch batch)
+    {
+        // Remove from active sessions
+        _activeSessions.TryRemove(sessionId, out _);
+
+        // Remove file path metadata so it can be opened again
+        if (_sessionFilePaths.TryRemove(sessionId, out var normalizedPath))
+        {
+            _activeFilePaths.TryRemove(normalizedPath, out _);
+        }
+        else
+        {
+            var filePathEntry = _activeFilePaths.FirstOrDefault(kvp => kvp.Value == sessionId);
+            if (!filePathEntry.Equals(default(KeyValuePair<string, string>)))
+            {
+                _activeFilePaths.TryRemove(filePathEntry.Key, out _);
+            }
+        }
+
+        // Clean up operation tracking data
+        _activeOperationCounts.TryRemove(sessionId, out _);
+        _showExcelFlags.TryRemove(sessionId, out _);
+
+        // Dispose the batch (best effort - process is already dead)
+        try
+        {
+            batch.Dispose();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Error disposing dead session {SessionId} (expected - process is dead)", sessionId);
+        }
     }
 
     /// <summary>
@@ -393,11 +456,13 @@ public sealed class SessionManager : IDisposable
 
     /// <summary>
     /// Gets the number of active sessions.
+    /// Note: This count may include dead sessions. Use <see cref="GetActiveSessions"/> for accurate count.
     /// </summary>
     public int ActiveSessionCount => _activeSessions.Count;
 
     /// <summary>
     /// Checks if the Excel process for a session is still alive.
+    /// If the session exists but Excel has died, it is automatically cleaned up.
     /// </summary>
     /// <param name="sessionId">Session ID</param>
     /// <returns>True if session exists and Excel process is alive, false otherwise</returns>
@@ -405,25 +470,60 @@ public sealed class SessionManager : IDisposable
     {
         if (string.IsNullOrWhiteSpace(sessionId)) return false;
         if (!_activeSessions.TryGetValue(sessionId, out var batch)) return false;
-        return batch.IsExcelProcessAlive();
+
+        if (batch.IsExcelProcessAlive())
+        {
+            return true;
+        }
+
+        // Auto-cleanup dead session
+        _logger?.LogWarning("Session {SessionId} has dead Excel process, auto-cleaning up during IsSessionAlive check", sessionId);
+        CleanupDeadSession(sessionId, batch);
+        return false;
     }
 
     /// <summary>
     /// Gets all active session IDs.
+    /// Note: This property does not filter dead sessions. Use <see cref="GetActiveSessions"/> for filtered results.
     /// </summary>
     public IEnumerable<string> ActiveSessionIds => _activeSessions.Keys.ToList();
 
     /// <summary>
     /// Returns a snapshot of active sessions with associated workbook paths.
+    /// Dead sessions (where Excel process has died) are automatically cleaned up and excluded.
     /// </summary>
     public IReadOnlyList<SessionDescriptor> GetActiveSessions()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var snapshot = new List<SessionDescriptor>(_sessionFilePaths.Count);
+        var deadSessions = new List<(string sessionId, IExcelBatch batch)>();
+
         foreach (var kvp in _sessionFilePaths)
         {
-            snapshot.Add(new SessionDescriptor(kvp.Key, kvp.Value));
+            var sessionId = kvp.Key;
+
+            // Check if session is still alive
+            if (_activeSessions.TryGetValue(sessionId, out var batch))
+            {
+                if (batch.IsExcelProcessAlive())
+                {
+                    snapshot.Add(new SessionDescriptor(sessionId, kvp.Value));
+                }
+                else
+                {
+                    // Mark for cleanup (don't cleanup during iteration)
+                    deadSessions.Add((sessionId, batch));
+                }
+            }
+            // If not in _activeSessions but in _sessionFilePaths, skip (orphaned metadata)
+        }
+
+        // Clean up dead sessions after iteration
+        foreach (var (sessionId, batch) in deadSessions)
+        {
+            _logger?.LogWarning("Session {SessionId} has dead Excel process, auto-cleaning up during GetActiveSessions", sessionId);
+            CleanupDeadSession(sessionId, batch);
         }
 
         return snapshot;
