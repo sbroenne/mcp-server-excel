@@ -47,7 +47,7 @@ internal sealed class ConnectionCommand : AsyncCommand<ConnectionCommand.Setting
             "delete" => new { connectionName = settings.ConnectionName },
             "load-to" => new { connectionName = settings.ConnectionName, loadDestination = settings.LoadDestination, sheetName = settings.SheetName, targetCell = settings.TargetCell },
             "get-properties" => new { connectionName = settings.ConnectionName },
-            "set-properties" => new { connectionName = settings.ConnectionName, refreshOnOpen = settings.RefreshOnOpen, enableRefresh = settings.EnableRefresh },
+            "set-properties" => new { connectionName = settings.ConnectionName, connectionString, commandText, refreshOnOpen = settings.RefreshOnOpen, enableRefresh = settings.EnableRefresh },
             _ => new { connectionName = settings.ConnectionName }
         };
 
