@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Daemon;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -38,6 +39,16 @@ internal sealed class SheetCommand : AsyncCommand<SheetCommand.Settings>
         }
         var command = $"sheet.{action}";
 
+        // For set-tab-color, validate hex color first (if provided)
+        if (action == "set-tab-color" && !string.IsNullOrWhiteSpace(settings.Color))
+        {
+            if (!TryParseHexColor(settings.Color, out _, out _, out _))
+            {
+                AnsiConsole.MarkupLine($"[red]Error: Invalid hex color '{settings.Color}'. Expected format: #RRGGBB (e.g., #FFD966) or #RGB (e.g., #FD9)[/]");
+                return 1;
+            }
+        }
+
         // Build args based on action
         object? args = action switch
         {
@@ -52,7 +63,7 @@ internal sealed class SheetCommand : AsyncCommand<SheetCommand.Settings>
             "move-to-file" => new { sourceFile = settings.SourceFile, sourceSheet = settings.SourceSheet, targetFile = settings.TargetFile, beforeSheet = settings.BeforeSheet, afterSheet = settings.AfterSheet },
 
             // WorksheetStyleAction
-            "set-tab-color" => new { sheetName = settings.SheetName, red = settings.Red, green = settings.Green, blue = settings.Blue },
+            "set-tab-color" => BuildSetTabColorArgs(settings),
             "get-tab-color" => new { sheetName = settings.SheetName },
             "clear-tab-color" => new { sheetName = settings.SheetName },
             "hide" => new { sheetName = settings.SheetName },
@@ -89,6 +100,53 @@ internal sealed class SheetCommand : AsyncCommand<SheetCommand.Settings>
             Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, DaemonProtocol.JsonOptions));
             return 1;
         }
+    }
+
+    /// <summary>
+    /// Tries to parse a hex color string (#RRGGBB or #RGB) into RGB components.
+    /// </summary>
+    private static bool TryParseHexColor(string color, out int red, out int green, out int blue)
+    {
+        red = green = blue = 0;
+        var hex = color.TrimStart('#');
+
+        // Support 3-char shorthand (#RGB → #RRGGBB)
+        if (hex.Length == 3)
+        {
+            hex = $"{hex[0]}{hex[0]}{hex[1]}{hex[1]}{hex[2]}{hex[2]}";
+        }
+
+        if (hex.Length != 6)
+        {
+            return false;
+        }
+
+        return int.TryParse(hex[..2], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out red) &&
+               int.TryParse(hex[2..4], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out green) &&
+               int.TryParse(hex[4..6], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out blue);
+    }
+
+    /// <summary>
+    /// Builds the set-tab-color args.
+    /// If --color is provided, it takes precedence over --red/--green/--blue.
+    /// Assumes hex color validation was already done.
+    /// </summary>
+    private static object BuildSetTabColorArgs(Settings settings)
+    {
+        int? red = settings.Red;
+        int? green = settings.Green;
+        int? blue = settings.Blue;
+
+        // If --color hex is provided, use it (takes precedence over individual RGB)
+        if (!string.IsNullOrWhiteSpace(settings.Color) &&
+            TryParseHexColor(settings.Color, out var r, out var g, out var b))
+        {
+            red = r;
+            green = g;
+            blue = b;
+        }
+
+        return new { sheetName = settings.SheetName, red, green, blue };
     }
 
     internal sealed class Settings : CommandSettings
@@ -144,6 +202,10 @@ internal sealed class SheetCommand : AsyncCommand<SheetCommand.Settings>
         [CommandOption("--blue <VALUE>")]
         [Description("Blue component (0-255) for tab color")]
         public int? Blue { get; init; }
+
+        [CommandOption("--color <HEX>")]
+        [Description("Hex color for tab color (e.g., #FFD966). Overrides --red/--green/--blue if provided.")]
+        public string? Color { get; init; }
 
         [CommandOption("--visibility <VALUE>")]
         [Description("Visibility state: Visible, Hidden, VeryHidden")]
