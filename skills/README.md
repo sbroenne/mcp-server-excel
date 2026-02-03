@@ -121,18 +121,19 @@ cp -r mcp-server-excel/skills/excel-mcp ~/.copilot/skills/
 ```
 skills/
 ├── README.md                    # This file
-├── shared/                      # Shared behavioral guidance (source of truth)
-│   ├── behavioral-rules.md      # Core execution rules
-│   ├── anti-patterns.md         # Common mistakes to avoid
-│   ├── workflows.md             # Production workflow patterns
-│   ├── excel_powerquery.md      # Power Query specifics
-│   ├── excel_datamodel.md       # Data Model/DAX specifics
-│   ├── excel_table.md           # Table operations
-│   ├── excel_range.md           # Range operations
-│   ├── excel_worksheet.md       # Worksheet operations
-│   ├── excel_chart.md           # Chart operations
-│   ├── excel_slicer.md          # Slicer operations
-│   └── excel_conditionalformat.md # Conditional formatting
+├── shared/                      # Shared behavioral guidance
+│   ├── README.md                # Explains sync relationship with MCP Server
+│   ├── behavioral-rules.md      # Core execution rules (skills-only)
+│   ├── anti-patterns.md         # Common mistakes to avoid (skills-only)
+│   ├── workflows.md             # Production workflow patterns (skills-only)
+│   ├── excel_powerquery.md      # Power Query specifics (synced from MCP Server)
+│   ├── excel_datamodel.md       # Data Model/DAX specifics (synced from MCP Server)
+│   ├── excel_table.md           # Table operations (synced from MCP Server)
+│   ├── excel_range.md           # Range operations (synced from MCP Server)
+│   ├── excel_worksheet.md       # Worksheet operations (synced from MCP Server)
+│   ├── excel_chart.md           # Chart operations (synced from MCP Server)
+│   ├── excel_slicer.md          # Slicer operations (synced from MCP Server)
+│   └── excel_conditionalformat.md # Conditional formatting (synced from MCP Server)
 ├── excel-mcp/                   # MCP Server skill package
 │   ├── SKILL.md                 # Primary skill definition (MCP tools)
 │   ├── README.md                # MCP skill installation guide
@@ -150,7 +151,7 @@ skills/
 └── .cursorrules                 # Cursor-specific rules
 ```
 
-**Note:** Shared behavioral guidance lives in `shared/` and is copied to each skill's `references/` folder during packaging. For local development, run `./scripts/Build-AgentSkills.ps1 -PopulateReferences` to populate the references folders.
+**Important:** Tool-specific guidance files (`excel_*.md`) are synchronized from MCP Server prompts at `src/ExcelMcp.McpServer/Prompts/Content/`. These files are the source of truth and embedded in the MCP Server. For synchronization, run `./scripts/Sync-McpPromptsToSkills.ps1`. For local development, run `./scripts/Build-AgentSkills.ps1 -PopulateReferences` to populate the references folders.
 
 ## Platform-Specific Files
 

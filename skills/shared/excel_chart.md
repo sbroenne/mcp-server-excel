@@ -1,150 +1,91 @@
-# Excel Charts Reference
+````markdown
+# excel_chart - Server Quirks
 
-## Tools
+**CRITICAL: Always position charts to avoid overlapping data!**
 
-- **`excel_chart`**: Create charts, manage positioning and data sources
-- **`excel_chart_config`**: Configure chart appearance, formatting, and analysis features
+Before creating a chart:
+1. **Check used range**: `excel_range(action: 'get-used-range')` → know where data ends
+2. **Use targetRange (PREFERRED)**: Position chart by cell reference in one step
+3. **Or use coordinates**: Set `left` and `top` explicitly (don't rely on defaults)
 
-## Chart Creation
-
-### From Range
-```
-excel_chart(create-from-range, chartType, sourceRange, sheetName)
-```
-Best for: Simple data in worksheet ranges
-
-### From PivotTable (PivotChart)
-```
-excel_chart(create-from-pivottable, pivotTableName)
-```
-Best for: Data Model data - creates a single PivotChart object (don't create separate PivotTable + Chart)
-
-### From Table
-```
-excel_chart(create-from-table, tableName, chartType)
-```
-Best for: Excel Tables with structured references
-
-## Chart Types
-
-Common types: `ColumnClustered`, `Line`, `Pie`, `Bar`, `Area`, `XYScatter`, `Doughnut`
-
-Specialized: `Waterfall`, `Funnel`, `Treemap`, `Sunburst`, `BoxWhisker`, `Histogram`, `Pareto`
-
-## Configuration Actions (excel_chart_config)
-
-### Series Management
-- `add-series`: Add data series with valuesRange and optional categoryRange
-- `remove-series`: Remove series by index (1-based)
-- `set-source-range`: Replace entire chart data source
-
-### Titles and Labels
-- `set-title`: Set chart title (empty string hides)
-- `set-axis-title`: Set axis labels (Category, Value, CategorySecondary, ValueSecondary)
-- `set-data-labels`: Configure data labels (position, showValue, showCategory, showPercentage, showSeriesName, showLegendKey)
-
-### Axis Formatting
-- `get-axis-scale`: Get min, max, majorUnit, minorUnit, and auto flags
-- `set-axis-scale`: Configure scale properties
-- `get-axis-number-format`: Get current tick label format
-- `set-axis-number-format`: Format axis numbers (e.g., `"$#,##0,,\"M\""` for millions)
-
-### Gridlines
-- `get-gridlines`: Check visibility state
-- `set-gridlines`: Show/hide major/minor gridlines
-
-### Series Formatting
-- `set-series-format`: Configure markers (style, size, foregroundColor, backgroundColor)
-
-### Trendlines
-- `list-trendlines`: View all trendlines on a series
-- `add-trendline`: Add Linear, Exponential, Logarithmic, Polynomial, Power, or MovingAverage trendline
-- `delete-trendline`: Remove trendline by index
-- `set-trendline`: Configure display (equation, R² value) and forecasting (forward, backward periods)
-
-### Styling
-- `show-legend`: Control legend visibility and position (Bottom, Corner, Top, Right, Left)
-- `set-style`: Apply Excel chart styles (1-48)
-
-## Trendline Details
-
-### Types
-| Type | Use Case | Requirements |
-|------|----------|--------------|
-| Linear | Straight-line trends | None |
-| Exponential | Growth/decay patterns | Positive values |
-| Logarithmic | Rapid initial change | Positive values |
-| Polynomial | Curves with peaks/valleys | Order parameter (2-6) |
-| Power | Accelerating rates | Positive values |
-| MovingAverage | Smooth fluctuations | Period parameter (2+) |
-
-### Parameters
-- **order**: Required for Polynomial (2-6, default 2)
-- **period**: Required for MovingAverage (2+, default 2)
-- **forward/backward**: Forecast periods ahead/behind data
-- **intercept**: Force trend through specific Y value
-- **displayEquation**: Show formula on chart
-- **displayRSquared**: Show R² goodness-of-fit value
-
-## Common Workflows
-
-### Create Chart with Formatting
-```
-1. excel_chart(create-from-range) → chartName
-2. excel_chart_config(set-title, title="Monthly Sales")
-3. excel_chart_config(set-axis-title, axis="Value", title="Revenue ($)")
-4. excel_chart_config(set-axis-number-format, axis="Value", numberFormat="$#,##0")
-5. excel_chart_config(set-data-labels, position="OutsideEnd", showValue=true)
-```
-
-### Add Analysis
-```
-1. excel_chart_config(add-trendline, trendlineType="Linear", displayEquation=true, displayRSquared=true)
-2. excel_chart_config(set-trendline, forward=3) # Forecast 3 periods ahead
-```
-
-## Best Practices
-
-1. **PivotCharts for Data Model**: Use `create-from-pivottable` not PivotTable + separate chart
-2. **Format numbers**: Set axis number format for readability
-3. **Use gridlines sparingly**: Minor gridlines often add clutter
-4. **Trendlines for insights**: Add R² to show fit quality
-5. **Data labels placement**: `OutsideEnd` for bar charts, `Center` for pie charts
-
-## Chart Positioning (CRITICAL)
-
-**ALWAYS position charts to avoid overlapping data:**
-
-### Use targetRange (PREFERRED - One Step)
+**Positioning with targetRange (recommended)**:
 ```
 excel_chart(create-from-range, sourceRange='A1:B10', chartType='Line', targetRange='F2:K15')
 ```
-Creates chart AND positions it to cell range in one call.
+Creates chart AND positions it to F2:K15 in one call.
 
-### Check Used Range First
+**Positioning with coordinates**:
 ```
-excel_range(action: 'get-used-range') → e.g., "Sheet1!A1:D20"
-```
-
-### Position with Coordinates
-```
-excel_chart(create-from-range, sourceRange: 'A1:B10', left: 360, top: 20)
-# left/top in points (72 points = 1 inch)
+Data in A1:D10 → Chart at row 12 (below) or column F (right)
+- Below: top = (lastRow + 2) * 15 points (estimate row height)
+- Right: left = (lastCol + 2) * 60 points (estimate col width)
 ```
 
-### Use FitToRange (After Creation)
+---
+
+**Charting Data Model data - use PivotChart directly!**
+
+When visualizing Data Model data:
+
+- **Use**: `excel_chart create-from-pivottable` (creates a PivotChart)
+- **NOT**: Create PivotTable → Create separate Chart from PivotTable range
+
+A PivotChart is a single object connected to the Data Model. Creating a PivotTable + separate chart creates two objects unnecessarily.
+
+**Action disambiguation**:
+
+- list: List all charts in workbook (name, type, sheet, data source)
+- read: Get chart details (type, position, series, linked PivotTable)
+- create-from-range: Create chart from worksheet data range
+- create-from-table: Create chart from Excel Table (uses table's data range)
+- create-from-pivottable: Create PivotChart linked to a PivotTable (PREFERRED for Data Model)
+- move: Reposition/resize chart
+- delete: Remove chart
+- fit-to-range: Resize chart to fit within a cell range
+
+**PivotChart workflow**:
+
 ```
-excel_chart(create-from-range, ...) -> chartName
-excel_chart(fit-to-range, chartName, rangeAddress: 'F2:K15')
-# Reposition existing chart to cell range
+Step 1: Have data in Data Model (via excel_table add-to-datamodel or excel_powerquery)
+Step 2: Create PivotTable: excel_pivottable(action: 'create', ...)
+Step 3: Create PivotChart: excel_chart(action: 'create-from-pivottable', pivotTableName: '...')
 ```
 
-### Position Estimates
-- Rows: ~15 points per row (varies with row height)
-- Columns: ~60 points per column (varies with column width)
-- Default chart: 400x300 points
+Or if you only need the chart (no PivotTable visible):
+- Create a PivotTable on a hidden sheet, then create PivotChart from it
 
-### Positioning Workflow
-1. `get-used-range` -> Identify data boundaries
-2. **Option A (Preferred)**: Use `targetRange='F2:K15'` in create call
-3. **Option B**: Calculate `(lastRow + 2) * 15` for top, or `(lastCol + 2) * 60` for left
+**Chart types** (70+ available):
+
+| Category | Common Types |
+|----------|--------------|
+| Column | ColumnClustered, ColumnStacked, Column3D |
+| Line | Line, LineMarkers, LineStacked |
+| Pie | Pie, Pie3D, PieExploded, Doughnut |
+| Bar | BarClustered, BarStacked |
+| Area | Area, AreaStacked |
+| Scatter | XYScatter, XYScatterLines |
+
+**Positioning**:
+
+- Units: Points (72 points = 1 inch)
+- Default size: 400×300 points
+- Use left/top parameters for placement
+- **Always check used range first to avoid overlaps**
+
+**Related tools**:
+
+| Goal | Tool |
+|------|------|
+| Configure series, titles, legends | excel_chart_config |
+| Create source PivotTable | excel_pivottable |
+| Display data as table instead | excel_table create-from-dax |
+| Position chart in empty area | excel_chart_config set-placement or fit-to-range |
+
+**Common mistakes**:
+
+- Creating PivotTable + Chart instead of PivotChart (unnecessary complexity)
+- Creating chart from range when Data Model data is available
+- Forgetting to create PivotTable first for PivotChart
+- **Placing charts at default position (overlaps data!)**
+
+````
