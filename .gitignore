@@ -13,6 +13,7 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+tmp/
 
 # Visual Studio 2015/2017 cache/options
 .vs/
