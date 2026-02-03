@@ -169,12 +169,14 @@ Run `excelcli --help` for all commands, or `excelcli <command> --help` for actio
 Skills are auto-installed by the VS Code extension. For other platforms:
 
 ```powershell
-# CLI skill (for coding agents - Copilot, Cursor, Windsurf)
-npx add-skill sbroenne/mcp-server-excel --skill excel-cli
+# CLI skill (for coding agents - Copilot, Cursor, Windsurf, Codex, etc.)
+npx skills add sbroenne/mcp-server-excel --skill excel-cli
 
 # MCP skill (for conversational AI - Claude Desktop, VS Code Chat)
-npx add-skill sbroenne/mcp-server-excel --skill excel-mcp
+npx skills add sbroenne/mcp-server-excel --skill excel-mcp
 ```
+
+**Supports 43+ agents including:** claude-code, github-copilot, cursor, windsurf, gemini-cli, codex, goose, and more.
 
 📚 **[Agent Skills →](skills/README.md)**
 

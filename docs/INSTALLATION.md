@@ -244,6 +244,33 @@ excelcli -q session close --session 1 --save
 
 ---
 
+## Agent Skills Installation (Cross-Platform)
+
+**Best for:** Adding AI guidance to coding agents (Copilot, Cursor, Windsurf, Claude Code, Gemini, Codex, etc.)
+
+Skills are auto-installed by the VS Code extension. For other platforms:
+
+```powershell
+# CLI skill (for coding agents - token-efficient workflows)
+npx skills add sbroenne/mcp-server-excel --skill excel-cli
+
+# MCP skill (for conversational AI - rich tool schemas)
+npx skills add sbroenne/mcp-server-excel --skill excel-mcp
+
+# Install for specific agents
+npx skills add sbroenne/mcp-server-excel --skill excel-cli -a cursor
+npx skills add sbroenne/mcp-server-excel --skill excel-mcp -a claude-code
+
+# Install globally (user-wide)
+npx skills add sbroenne/mcp-server-excel --skill excel-cli --global
+```
+
+**Supports 43+ agents** including claude-code, github-copilot, cursor, windsurf, gemini-cli, codex, goose, cline, continue, replit, and more.
+
+**📚 [Agent Skills Guide →](../skills/README.md)**
+
+---
+
 ## Updating ExcelMcp
 
 ### Check Installed Version
@@ -414,22 +441,22 @@ Agent Skills provide domain-specific guidance to AI coding assistants, helping t
 
 **VS Code Extension:** Skills are installed automatically to `~/.copilot/skills/`.
 
-**Other Platforms (Claude Code, Cursor, Windsurf, etc.):**
+**Other Platforms (Claude Code, Cursor, Windsurf, Gemini, Codex, etc.):**
 
 ```powershell
-# Install CLI skill (recommended for coding agents - Copilot, Cursor, Windsurf)
-npx add-skill sbroenne/mcp-server-excel --skill excel-cli
+# Install CLI skill (recommended for coding agents - Copilot, Cursor, Windsurf, Codex, etc.)
+npx skills add sbroenne/mcp-server-excel --skill excel-cli
 
 # Install MCP skill (for conversational AI - Claude Desktop, VS Code Chat)
-npx add-skill sbroenne/mcp-server-excel --skill excel-mcp
+npx skills add sbroenne/mcp-server-excel --skill excel-mcp
 
 # Install BOTH skills (run both commands if you use multiple tools)
-npx add-skill sbroenne/mcp-server-excel --skill excel-cli
-npx add-skill sbroenne/mcp-server-excel --skill excel-mcp
+npx skills add sbroenne/mcp-server-excel --skill excel-cli
+npx skills add sbroenne/mcp-server-excel --skill excel-mcp
 
-# Target specific agent (optional)
-npx add-skill sbroenne/mcp-server-excel --skill excel-cli -a claude-code
-npx add-skill sbroenne/mcp-server-excel --skill excel-cli -a cursor
+# Target specific agent (optional - auto-detects if omitted)
+npx skills add sbroenne/mcp-server-excel --skill excel-cli -a claude-code
+npx skills add sbroenne/mcp-server-excel --skill excel-cli -a cursor
 ```
 
 **Manual Installation:**
