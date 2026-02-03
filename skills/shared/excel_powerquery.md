@@ -1,5 +1,31 @@
 # excel_powerquery - Server Quirks
 
+## 🚀 RECOMMENDED DEVELOPMENT WORKFLOW (ALWAYS USE THIS)
+
+**Test BEFORE persisting - avoid polluting workbooks with broken queries:**
+
+```
+Step 1: evaluate → Test M code, verify results (catches syntax errors, missing sources)
+Step 2: create/update → Store VALIDATED query in workbook
+Step 3: refresh/load-to → Load data to destination (worksheet/data-model)
+```
+
+**Why this workflow:**
+- `evaluate` executes M code WITHOUT creating permanent query (test-then-commit)
+- Returns actual data preview with columns and rows in JSON
+- Better error messages than COM exceptions from create/update
+- No cleanup needed - temporary objects auto-deleted
+- Skip evaluate only for trivial literal tables (`#table` with hardcoded values)
+
+**IF CREATE/UPDATE FAILS**: Use `evaluate` to get detailed Power Query error message, fix code, retry.
+
+**Additional evaluate use cases:**
+- Execute one-off queries without creating permanent queries
+- Ad-hoc data exploration or debugging M code transformations
+- Quick testing during development (like REPL for M code)
+
+---
+
 **Automatic M-Code Formatting**:
 
 - Create and Update operations automatically format M code using powerqueryformatter.com API
@@ -26,9 +52,9 @@ Alternative path (for existing worksheet tables):
 
 **Action disambiguation**:
 
+- **evaluate**: ⭐ **USE THIS FIRST** - Execute M code directly, return results WITHOUT creating a permanent query (test before create/update!)
 - create: Import NEW query using inline `mCode` (FAILS if query already exists - use update instead)
 - update: Update EXISTING query M code + refresh data (use this if query exists)
-- evaluate: Execute M code directly, return results WITHOUT creating a permanent query (test before create!)
 - rename: Change query name (requires both `queryName` and `newName` parameters)
 - load-to: Loads to worksheet or data model or both (not just config change) - CHECKS for sheet conflicts
 - unload: Removes data from ALL destinations (worksheet AND Data Model) - keeps query definition
@@ -49,22 +75,7 @@ Alternative path (for existing worksheet tables):
 - Query doesn't exist? → Use create
 - Query already exists? → Use update (create will error "already exists")
 - Not sure? → Check with list action first, then use update if exists or create if new
-
-**RECOMMENDED WORKFLOW - Always evaluate before create**:
-
-1. `evaluate` → verify data looks correct (catches syntax errors, missing sources, wrong columns)
-2. `create` → stores validated query in workbook
-
-Skip evaluate only for trivial literal tables (`#table` with hardcoded values).
-
-**IF CREATE/UPDATE FAILS**: Use `evaluate` to get detailed Power Query error message, fix code, retry.
-This avoids polluting the workbook with broken queries and gives better error messages than COM exceptions.
-
-**Additional evaluate use cases**:
-
-- Execute one-off queries without creating permanent queries
-- Ad-hoc data exploration or debugging M code transformations
-- Returns tabular data (columns, rows) in JSON - no cleanup needed
+- **ALWAYS evaluate M code FIRST** to catch errors before persisting
 
 **List action and IsConnectionOnly**:
 
@@ -87,6 +98,7 @@ This avoids polluting the workbook with broken queries and gives better error me
 
 **Common mistakes**:
 
+- ⚠️ **Skipping evaluate** → Create/update with untested M code (ERROR: pollutes workbook with broken queries)
 - Using create on existing query → ERROR "Query 'X' already exists" (should use update)
 - Using update on new query → ERROR "Query 'X' not found" (should use create)
 - Calling LoadTo without checking if sheet exists (will error if sheet exists)

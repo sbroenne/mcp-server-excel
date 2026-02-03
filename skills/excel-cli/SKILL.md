@@ -64,14 +64,22 @@ excelcli -q table add-to-datamodel --session 1 --table Sales  # Step 1
 excelcli -q datamodel create-measure --session 1 ...          # Step 2 - NOW works
 ```
 
-### Rule 5: Power Query Refresh
+### Rule 5: Power Query Development Lifecycle
 
-`powerquery create` imports M code but does NOT execute it:
+**BEST PRACTICE: Test M code before creating permanent queries**
 
 ```powershell
+# Step 1: Test M code without persisting (catches errors early)
+excelcli -q powerquery evaluate --session 1 --mcode-file query.m
+
+# Step 2: Create permanent query with validated code
 excelcli -q powerquery create --session 1 --query Q1 --mcode-file query.m
-excelcli -q powerquery refresh --session 1 --query Q1  # NOW data loads
+
+# Step 3: Load data to destination
+excelcli -q powerquery refresh --session 1 --query Q1
 ```
+
+**Why evaluate first:** Better error messages than COM exceptions, see actual data preview, avoids broken queries in workbook.
 
 ### Rule 6: Report File Errors Immediately
 

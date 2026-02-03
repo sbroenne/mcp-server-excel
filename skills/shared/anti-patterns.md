@@ -233,3 +233,66 @@ excel_datamodel(action: 'create-measure', ...)  // Works
 | Use in DAX/PivotTables | `data-model` |
 | Both viewing and DAX | `both` |
 | Intermediate staging | `connection-only` |
+
+## Skipping Power Query Evaluate Anti-Pattern
+
+### The Problem
+
+Creating or updating Power Query queries without testing M code first:
+
+```
+❌ WRONG: Creating permanent query with untested M code
+
+excel_powerquery(action: 'create', mCode: '...', ...)
+// M code has syntax error → COM exception with cryptic message
+// Now workbook is polluted with broken query
+```
+
+This causes:
+- Broken queries persisted in workbook
+- Cryptic COM exceptions instead of helpful M error messages
+- Need manual Excel cleanup to remove broken queries
+- Wasted time debugging in wrong layer
+
+### The Solution
+
+Always evaluate M code BEFORE creating permanent queries:
+
+```
+✅ CORRECT: Test-first development workflow
+
+// Step 1: Test M code without persisting
+excel_powerquery(action: 'evaluate', mCode: '...')
+// → Returns actual data preview with columns and rows
+// → Better error messages if M code has issues
+
+// Step 2: Create permanent query with validated code
+excel_powerquery(action: 'create', mCode: '...', ...)
+
+// Step 3: Load data to destination
+excel_powerquery(action: 'refresh', ...)
+```
+
+**Benefits:**
+- Catch syntax errors and missing sources BEFORE persisting
+- See actual data preview (columns, sample rows)
+- Better error messages than COM exceptions
+- No cleanup needed - temporary objects auto-deleted
+- Like a REPL for M code
+
+### When Evaluate IS Optional
+
+- Trivial literal tables: `#table({"Column1"}, {{123}})`
+- M code already validated in previous evaluate call
+- Copying known-working query from another workbook
+
+### When to Retry With Evaluate
+
+If create/update fails with COM error, use evaluate to get detailed Power Query error message:
+
+```
+excel_powerquery(action: 'create', ...)  // → COM exception
+excel_powerquery(action: 'evaluate', mCode: '...')  // → Detailed M error
+// Fix M code based on error
+excel_powerquery(action: 'create', ...)  // → Success
+```

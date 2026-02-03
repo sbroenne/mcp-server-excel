@@ -1,5 +1,28 @@
 # excel_powerquery - Server Quirks
 
+# excel_powerquery - Server Quirks
+
+## 🚀 BEST PRACTICE: Test-First Development Workflow
+
+**ALWAYS evaluate M code before creating permanent queries:**
+
+```
+1. evaluate → Test M code without persisting (catches syntax errors, validates data sources)
+2. create/update → Store validated query in workbook
+3. refresh/load-to → Load data to destination
+```
+
+**Why evaluate first:**
+- No permanent query created - test-then-commit approach
+- Better error messages than COM exceptions
+- See actual data preview (columns + sample rows)
+- No cleanup needed - temporary objects auto-deleted
+- Like a REPL for M code
+
+**When to skip evaluate:** Only for trivial literal tables (`#table` with hardcoded values).
+
+---
+
 **Automatic M-Code Formatting**:
 
 - Create and Update operations automatically format M code using powerqueryformatter.com API
@@ -26,9 +49,9 @@ Alternative path (for existing worksheet tables):
 
 **Action disambiguation**:
 
+- **evaluate**: ⭐ **TEST FIRST** - Execute M code directly WITHOUT creating permanent query (catches errors before persisting!)
 - create: Import NEW query using inline `mCode` (FAILS if query already exists - use update instead)
 - update: Update EXISTING query M code + refresh data (use this if query exists)
-- evaluate: Execute M code directly, return results WITHOUT creating a permanent query (test before create!)
 - rename: Change query name (requires both `queryName` and `newName` parameters)
 - load-to: Loads to worksheet or data model or both (not just config change) - CHECKS for sheet conflicts
 - unload: Removes data from ALL destinations (worksheet AND Data Model) - keeps query definition
@@ -49,6 +72,7 @@ Alternative path (for existing worksheet tables):
 - Query doesn't exist? → Use create
 - Query already exists? → Use update (create will error "already exists")
 - Not sure? → Check with list action first, then use update if exists or create if new
+- **CRITICAL**: Always evaluate M code FIRST to validate before persisting
 
 **RECOMMENDED WORKFLOW - Always evaluate before create**:
 
@@ -87,6 +111,7 @@ This avoids polluting the workbook with broken queries and gives better error me
 
 **Common mistakes**:
 
+- ⚠️ **Skipping evaluate** → Creating/updating with untested M code (pollutes workbook, cryptic COM errors)
 - Using create on existing query → ERROR "Query 'X' already exists" (should use update)
 - Using update on new query → ERROR "Query 'X' not found" (should use create)
 - Calling LoadTo without checking if sheet exists (will error if sheet exists)

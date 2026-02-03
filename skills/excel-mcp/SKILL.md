@@ -85,14 +85,24 @@ Step 2: excel_table(action: 'add-to-datamodel') → Table in Data Model
 Step 3: excel_datamodel(action: 'create-measure') → NOW this works
 ```
 
-### Rule 6: Power Query Refresh
+### Rule 6: Power Query Development Lifecycle
 
-`excel_powerquery(action: 'create')` imports M code but does NOT execute it:
+**BEST PRACTICE: Test-First Workflow**
 
 ```
-Step 1: excel_powerquery(action: 'create', ...) → Query created
-Step 2: excel_powerquery(action: 'refresh', queryName: '...') → Data loaded
+1. excel_powerquery(action: 'evaluate', mCode: '...') → Test WITHOUT persisting
+2. excel_powerquery(action: 'create', ...) → Store validated query
+3. excel_powerquery(action: 'refresh', ...) → Load data
 ```
+
+**Why evaluate first:**
+- Catches syntax errors and missing sources BEFORE creating permanent queries
+- Better error messages than COM exceptions from create/update
+- See actual data preview (columns + sample rows)
+- No cleanup needed - like a REPL for M code
+- Skip only for trivial literal tables
+
+**Common mistake:** Creating/updating without evaluate → pollutes workbook with broken queries
 
 ### Rule 7: Targeted Updates Over Delete-Rebuild
 
