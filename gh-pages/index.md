@@ -162,15 +162,13 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 
 ## CLI Tool (Optional)
 
-For coding agents, scripting, RPA workflows, and CI/CD pipelines — automate Excel with or  without AI:
-
 ```powershell
 dotnet tool install -g Sbroenne.ExcelMcp.CLI
 ```
 
 ```powershell
 # Session-based workflow (keeps Excel open between commands)
-excelcli -q session create report.xlsx    # Returns session ID
+excelcli -q session open report.xlsx     # Returns session ID
 excelcli -q range set-values --session 1 --sheet Sheet1 --range A1 --values '[["Hello","World"]]'
 excelcli -q session close --session 1 --save
 ```
@@ -195,7 +193,11 @@ excelcli -q session close --session 1 --save
 Skills are auto-installed by the VS Code extension. For other platforms:
 
 ```powershell
-npx add-skill sbroenne/mcp-server-excel
+# CLI skill (for coding agents - Copilot, Cursor, Windsurf)
+npx add-skill sbroenne/mcp-server-excel --skill excel-cli
+
+# MCP skill (for conversational AI - Claude Desktop, VS Code Chat)
+npx add-skill sbroenne/mcp-server-excel --skill excel-mcp
 ```
 
 📚 **[More details →](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/README.md)**
