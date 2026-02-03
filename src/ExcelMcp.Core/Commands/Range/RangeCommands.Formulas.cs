@@ -95,12 +95,25 @@ public partial class RangeCommands
         return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
+            int originalCalculation = -1; // xlCalculationAutomatic = -4105, xlCalculationManual = -4135
+            bool calculationChanged = false;
+
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
                 if (range == null)
                 {
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
+                }
+
+                // CRITICAL: Temporarily disable automatic calculation to prevent Excel from
+                // hanging when formulas reference Data Model/DAX query tables or complex calculations.
+                // Without this, setting formulas that trigger recalculation can block the COM interface.
+                originalCalculation = ctx.App.Calculation;
+                if (originalCalculation != -4135) // xlCalculationManual
+                {
+                    ctx.App.Calculation = -4135; // xlCalculationManual
+                    calculationChanged = true;
                 }
 
                 // Convert List<List<string>> to 2D array
@@ -136,6 +149,18 @@ public partial class RangeCommands
             }
             finally
             {
+                // Restore original calculation mode
+                if (calculationChanged && originalCalculation != -1)
+                {
+                    try
+                    {
+                        ctx.App.Calculation = originalCalculation;
+                    }
+                    catch
+                    {
+                        // Ignore errors restoring calculation mode - not critical
+                    }
+                }
                 ComUtilities.Release(ref range);
             }
         });
