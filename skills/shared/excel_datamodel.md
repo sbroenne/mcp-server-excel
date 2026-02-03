@@ -5,25 +5,56 @@
 The Data Model (Power Pivot) only contains tables that were explicitly added.
 You CANNOT create DAX measures on tables that aren't in the Data Model.
 
-## Displaying Data Model Data - Choose the Right Output
+## MSOLAP Prerequisite (for evaluate/execute-dmv)
 
-| Goal | Best Tool | Why |
-|------|-----------|-----|
-| **Flat query results** | `excel_table create-from-dax` | Clean tabular display, no PivotTable UI |
-| **Static reports/snapshots** | `excel_table create-from-dax` | DAX does aggregation, table just displays |
-| **Data for formulas** | `excel_table create-from-dax` | Use structured references like `=SUM(Sales[Amount])` |
-| **Interactive drill-down** | `excel_pivottable` | User can regroup, filter, expand/collapse |
-| **Cross-tabulation (rows × columns)** | `excel_pivottable` | Matrix layout with row/column fields |
+**The `evaluate` and `execute-dmv` actions require Microsoft Analysis Services OLE DB Provider (MSOLAP).**
 
-**Rule**: Prefer `excel_table create-from-dax` for displaying query results.
-Use `excel_pivottable` only when the user needs interactive analysis capabilities.
+If you see "Class not registered" (0x80040154) error, install one of:
+1. **Power BI Desktop** (recommended - includes MSOLAP): https://powerbi.microsoft.com/desktop
+2. **Microsoft OLE DB Driver for Analysis Services**: https://learn.microsoft.com/analysis-services/client-libraries
+3. **SQL Server Analysis Services client tools**
 
-## Charting Data Model Data - Use PivotChart Directly
+After installation, restart Excel and try again.
 
-**WRONG**: Create PivotTable → Create separate Chart from PivotTable data
-**RIGHT**: Use `excel_chart create-from-pivottable` to create a PivotChart directly
+## CRITICAL: Data Model Sync (Worksheet Tables)
 
-A PivotChart is a single object connected to the Data Model. Creating a PivotTable + separate chart is unnecessary extra work.
+**Worksheet tables and Data Model tables are SEPARATE copies!**
+
+When you append/modify a worksheet table, the Data Model does NOT auto-update.
+You MUST explicitly refresh the Data Model to sync changes.
+
+```
+# WRONG: Data still shows old values
+excel_table(append, tableName="Sales", csvData="...")  # Worksheet updated
+excel_datamodel(evaluate, daxQuery="...")               # Returns OLD values!
+
+# CORRECT: Refresh Data Model after worksheet changes
+excel_table(append, tableName="Sales", csvData="...")  # Worksheet updated
+excel_datamodel(refresh)                                 # Sync to Data Model
+excel_datamodel(evaluate, daxQuery="...")               # Returns NEW values!
+```
+
+**When refresh is automatic:**
+- `excel_powerquery(refresh)` refreshes BOTH Power Query AND Data Model
+- Tables loaded via Power Query auto-sync on Power Query refresh
+
+**When refresh is REQUIRED:**
+- After `excel_table(append)` to worksheet table
+- After `excel_range(set-values)` that modifies table data
+- After any manual/direct worksheet edits
+
+## Excel Power Pivot Limitations (vs SSAS/Power BI)
+
+| Feature | Power BI/SSAS | Excel Power Pivot | Workaround |
+|---------|---------------|-------------------|------------|
+| Calculated Tables | DAX: `MyTable = FILTER(...)` | NOT SUPPORTED | Use Power Query to create the table |
+| Calculated Columns | DAX: `Table[Col] = ...` | NO COM API access | Use Power Query or DAX measures |
+| Measures | Full support | Full support | - |
+| Relationships | Full support | Full support | - |
+
+**Key Insight**: Excel's COM API cannot create or modify calculated columns. If you need computed columns:
+1. **Preferred**: Add the column in Power Query (computed at refresh time)
+2. **Alternative**: Use a DAX measure instead (computed at query time)
 
 **How to add tables to the Data Model**:
 
@@ -157,6 +188,33 @@ COUNTROWS(TableName)
 // Calculated ratio
 DIVIDE(SUM(Sales[Revenue]), SUM(Sales[Units]), 0)
 ```
+
+## Displaying Data Model Data - Choose the Right Output
+
+| Goal | Best Tool | Why |
+|------|-----------|-----|
+| **Flat query results** | `excel_table create-from-dax` | Clean tabular display, no PivotTable UI |
+| **Static reports/snapshots** | `excel_table create-from-dax` | DAX does aggregation, table just displays |
+| **Data for formulas** | `excel_table create-from-dax` | Use structured references like `=SUM(Sales[Amount])` |
+| **Interactive drill-down** | `excel_pivottable` | User can regroup, filter, expand/collapse |
+| **Cross-tabulation (rows × columns)** | `excel_pivottable` | Matrix layout with row/column fields |
+
+**Rule**: Prefer `excel_table create-from-dax` for displaying query results.
+Use `excel_pivottable` only when the user needs interactive analysis capabilities.
+
+## Charting Data Model Data - Use PivotChart Directly
+
+**WRONG**: Create PivotTable → Create separate Chart from PivotTable data
+**RIGHT**: Use `excel_chart create-from-pivottable` to create a PivotChart directly
+
+A PivotChart is a single object connected to the Data Model. Creating a PivotTable + separate chart is unnecessary extra work and creates two objects to maintain.
+
+## Star Schema Architecture
+
+**Why use DAX over Power Query for calculations?**
+
+- DAX recalculates on refresh without re-running Power Query
+- Useful when lookup/rate tables change frequently
 
 **Common mistakes**:
 

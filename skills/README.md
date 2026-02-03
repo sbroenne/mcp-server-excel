@@ -45,9 +45,7 @@ Agent Skills are reusable instruction sets that extend AI coding assistants with
 | **Cursor** | `.cursor/skills/excel-mcp/` | Manual or npx |
 | **Windsurf** | `.windsurf/skills/excel-mcp/` | Manual or npx |
 | **Gemini CLI** | `.gemini/skills/excel-mcp/` | Manual or npx |
-| **Codex** | `.codex/skills/excel-mcp/` | Manual or npx |
 | **Goose** | `.goose/skills/excel-mcp/` | Manual or npx |
-| **And 36+ more** | Via `npx skills` | Manual or npx |
 
 ## Installation Methods
 
@@ -62,33 +60,31 @@ Enable skills in VS Code settings:
 }
 ```
 
-### Method 2: npx skills (Cross-Platform)
+### Method 2: npx add-skill (Cross-Platform)
 
 **Important:** The repository contains TWO separate skills. You must specify which one to install using the `--skill` flag.
 
 ```bash
-# Install CLI skill (recommended for coding agents - Copilot, Cursor, Windsurf, Codex, etc.)
-npx skills add sbroenne/mcp-server-excel --skill excel-cli
+# Install CLI skill (recommended for coding agents - Copilot, Cursor, Windsurf)
+npx add-skill sbroenne/mcp-server-excel --skill excel-cli
 
 # Install MCP skill (for conversational AI - Claude Desktop, VS Code Chat)
-npx skills add sbroenne/mcp-server-excel --skill excel-mcp
+npx add-skill sbroenne/mcp-server-excel --skill excel-mcp
 
 # Install BOTH skills (if you use multiple tools)
-npx skills add sbroenne/mcp-server-excel --skill excel-cli
-npx skills add sbroenne/mcp-server-excel --skill excel-mcp
+npx add-skill sbroenne/mcp-server-excel --skill excel-cli
+npx add-skill sbroenne/mcp-server-excel --skill excel-mcp
 
-# Install for specific agent (optional - auto-detects if omitted)
-npx skills add sbroenne/mcp-server-excel --skill excel-cli -a cursor
-npx skills add sbroenne/mcp-server-excel --skill excel-mcp -a claude-code
+# Install for specific agent (optional)
+npx add-skill sbroenne/mcp-server-excel --skill excel-cli -a cursor
+npx add-skill sbroenne/mcp-server-excel --skill excel-mcp -a claude-code
 
 # Install globally (user-wide)
-npx skills add sbroenne/mcp-server-excel --skill excel-cli --global
+npx add-skill sbroenne/mcp-server-excel --skill excel-cli --global
 
 # Install to current project
-npx skills add sbroenne/mcp-server-excel --skill excel-cli --local
+npx add-skill sbroenne/mcp-server-excel --skill excel-cli --local
 ```
-
-**Supported agents:** claude-code, github-copilot, cursor, windsurf, gemini-cli, codex, goose, cline, continue, replit, and 33+ more. Run `npx skills add --help` to see the full list.
 
 ### Method 3: GitHub Release Download
 
@@ -96,7 +92,7 @@ Download the skill package for your use case from [GitHub Releases](https://gith
 
 | Package | Best For |
 |---------|----------|
-| `excel-cli-skill-vX.X.X.zip` | **Coding agents** (Copilot, Cursor, Windsurf, Codex, etc.) |
+| `excel-cli-skill-vX.X.X.zip` | **Coding agents** (Copilot, Cursor, Windsurf) |
 | `excel-mcp-skill-vX.X.X.zip` | **Conversational AI** (Claude Desktop, VS Code Chat) |
 
 Extract to the appropriate directory for your AI assistant:
@@ -104,9 +100,6 @@ Extract to the appropriate directory for your AI assistant:
 - Claude Code: `.claude/skills/excel-mcp/` or `.claude/skills/excel-cli/`
 - Cursor: `.cursor/skills/excel-mcp/` or `.cursor/skills/excel-cli/`
 - Windsurf: `.windsurf/skills/excel-mcp/` or `.windsurf/skills/excel-cli/`
-- Gemini CLI: `.gemini/skills/excel-mcp/` or `.gemini/skills/excel-cli/`
-- Codex: `.codex/skills/excel-mcp/` or `.codex/skills/excel-cli/`
-- Other agents: See agent documentation for skills directory location
 
 ### Method 4: Git Clone (Development)
 
@@ -121,19 +114,18 @@ cp -r mcp-server-excel/skills/excel-mcp ~/.copilot/skills/
 ```
 skills/
 ├── README.md                    # This file
-├── shared/                      # Shared behavioral guidance
-│   ├── README.md                # Explains sync relationship with MCP Server
-│   ├── behavioral-rules.md      # Core execution rules (skills-only)
-│   ├── anti-patterns.md         # Common mistakes to avoid (skills-only)
-│   ├── workflows.md             # Production workflow patterns (skills-only)
-│   ├── excel_powerquery.md      # Power Query specifics (synced from MCP Server)
-│   ├── excel_datamodel.md       # Data Model/DAX specifics (synced from MCP Server)
-│   ├── excel_table.md           # Table operations (synced from MCP Server)
-│   ├── excel_range.md           # Range operations (synced from MCP Server)
-│   ├── excel_worksheet.md       # Worksheet operations (synced from MCP Server)
-│   ├── excel_chart.md           # Chart operations (synced from MCP Server)
-│   ├── excel_slicer.md          # Slicer operations (synced from MCP Server)
-│   └── excel_conditionalformat.md # Conditional formatting (synced from MCP Server)
+├── shared/                      # Shared behavioral guidance (source of truth)
+│   ├── behavioral-rules.md      # Core execution rules
+│   ├── anti-patterns.md         # Common mistakes to avoid
+│   ├── workflows.md             # Production workflow patterns
+│   ├── excel_powerquery.md      # Power Query specifics
+│   ├── excel_datamodel.md       # Data Model/DAX specifics
+│   ├── excel_table.md           # Table operations
+│   ├── excel_range.md           # Range operations
+│   ├── excel_worksheet.md       # Worksheet operations
+│   ├── excel_chart.md           # Chart operations
+│   ├── excel_slicer.md          # Slicer operations
+│   └── excel_conditionalformat.md # Conditional formatting
 ├── excel-mcp/                   # MCP Server skill package
 │   ├── SKILL.md                 # Primary skill definition (MCP tools)
 │   ├── README.md                # MCP skill installation guide
@@ -151,7 +143,7 @@ skills/
 └── .cursorrules                 # Cursor-specific rules
 ```
 
-**Important:** Tool-specific guidance files (`excel_*.md`) are synchronized from MCP Server prompts at `src/ExcelMcp.McpServer/Prompts/Content/`. These files are the source of truth and embedded in the MCP Server. For synchronization, run `./scripts/Sync-McpPromptsToSkills.ps1`. For local development, run `./scripts/Build-AgentSkills.ps1 -PopulateReferences` to populate the references folders.
+**Note:** Shared behavioral guidance lives in `shared/` and is copied to each skill's `references/` folder during packaging. For local development, run `./scripts/Build-AgentSkills.ps1 -PopulateReferences` to populate the references folders.
 
 ## Platform-Specific Files
 
