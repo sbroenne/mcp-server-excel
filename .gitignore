@@ -13,6 +13,7 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+tmp/
 
 # Visual Studio 2015/2017 cache/options
 .vs/
@@ -231,7 +232,12 @@ infrastructure/azure/appinsights.secrets.local
 # Local MSBuild properties (secrets, connection strings)
 Directory.Build.props.user
 
-# Skills - generated shared references (copied from skills/shared/ by Build-AgentSkills.ps1)
-# Keep: claude-desktop.md (MCP-specific), README.md (CLI placeholder)
-skills/*
+# Skills - generated references in excel-cli/references and excel-mcp/references (copied by Build-AgentSkills.ps1)
+# Keep MCP-specific: claude-desktop.md
+# Keep CLI-specific: README.md
+# Keep all of skills/shared/ (source of truth, synced from MCP Server prompts)
+skills/excel-cli/references/*.md
+skills/excel-mcp/references/*.md
+!skills/excel-cli/references/README.md
+!skills/excel-mcp/references/claude-desktop.md
 vscode-extension/skills/*

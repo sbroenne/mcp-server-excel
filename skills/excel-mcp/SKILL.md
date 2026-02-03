@@ -140,11 +140,14 @@ Error responses include actionable hints:
 
 See `references/` for detailed guidance:
 
+- @references/behavioral-rules.md - Core execution rules and LLM guidelines
 - @references/anti-patterns.md - Common mistakes to avoid
 - @references/workflows.md - Data Model constraints and patterns
-- @references/excel_pivottable.md - PivotTable operations
-- @references/excel_powerquery.md - Power Query specifics
-- @references/excel_datamodel.md - Data Model/DAX specifics
-- @references/excel_table.md - Table operations
 - @references/excel_chart.md - Charts and formatting
+- @references/excel_conditionalformat.md - Conditional formatting operations
+- @references/excel_datamodel.md - Data Model/DAX specifics
+- @references/excel_powerquery.md - Power Query specifics
+- @references/excel_range.md - Range operations and number formats
 - @references/excel_slicer.md - Slicer operations
+- @references/excel_table.md - Table operations
+- @references/excel_worksheet.md - Worksheet operations

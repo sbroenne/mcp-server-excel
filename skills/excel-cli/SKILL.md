@@ -101,6 +101,7 @@ If you see "File not found" or "Path not found" - STOP and report to user. Don't
 
 ## Reference Documentation
 
+- @references/behavioral-rules.md - Core execution rules and LLM guidelines
 - @references/anti-patterns.md - Common mistakes to avoid
 - @references/workflows.md - Data Model constraints and patterns
 
