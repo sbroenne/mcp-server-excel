@@ -10,8 +10,17 @@ This changelog covers all components:
 
 ## [Unreleased]
 
-## [1.6.4] - 2026-02-03
+### Fixed
 
+- **Dead Session Detection** (#414): Auto-detect and cleanup sessions when Excel process dies
+  - ROOT CAUSE: `SessionManager` never checked if Excel process was alive, leaving dead sessions in dictionary
+  - FIX: `GetSession()`, `GetActiveSessions()`, and `IsSessionAlive()` now check process health and auto-cleanup
+  - `ExcelBatch.Execute()` validates Excel is alive before queueing operations
+  - Users now get clear error: "Excel process is no longer running" instead of confusing timeouts
+  - Dead sessions no longer block reopening the same file
+  - Affects both CLI and MCP Server (shared `SessionManager`)
+
+## [1.6.4] - 2026-02-03
 
 ### Fixed
 
