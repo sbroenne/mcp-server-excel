@@ -22,20 +22,14 @@ public static class ExcelToolsBase
 
     /// <summary>
     /// JSON serializer options optimized for LLM token efficiency.
-    /// Uses compact formatting and short property names to reduce token consumption.
+    /// Uses compact formatting to reduce token consumption.
     /// </summary>
     /// <remarks>
     /// Token optimization settings:
     /// - WriteIndented = false: Removes whitespace (saves ~20% tokens)
     /// - DefaultIgnoreCondition = WhenWritingNull: Omits null properties
-    /// - PropertyNamingPolicy = CamelCase: Consistent naming
+    /// - PropertyNamingPolicy = CamelCase: Consistent naming (e.g., success, errorMessage, filePath)
     /// - JsonStringEnumConverter: Human-readable enum values
-    ///
-    /// Property names use [JsonPropertyName] attributes on result types:
-    /// - ok: Success
-    /// - err: ErrorMessage
-    /// - fp: FilePath
-    /// - act: Action
     /// </remarks>
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -273,7 +267,7 @@ public static class ExcelToolsBase
 
     /// <summary>
     /// Serializes a tool error response with consistent structure.
-    /// Uses short property names for token efficiency: ok=success, err=errorMessage, ie=isError
+    /// Uses camelCase property names matching JsonNamingPolicy: success, errorMessage, isError.
     /// Includes detailed COM exception info for diagnostics.
     /// </summary>
     /// <param name="actionName">Action string (kebab-case) included in message.</param>
@@ -308,12 +302,12 @@ public static class ExcelToolsBase
 
         var payload = new
         {
-            ok = false,
-            err = errorMessage,
-            ie = true,
-            exType = exceptionType,
-            hr = hresult,
-            inner = innerError
+            success = false,
+            errorMessage,
+            isError = true,
+            exceptionType,
+            hresult,
+            innerError
         };
 
         return JsonSerializer.Serialize(payload, JsonOptions);

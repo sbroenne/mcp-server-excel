@@ -235,9 +235,6 @@ internal sealed class Program
         AnsiConsole.MarkupLine("[yellow]Workflow:[/] [green]session open <file>[/] → run commands with [green]--session <id>[/] → [green]session close --save[/].");
         AnsiConsole.MarkupLine("[dim]A background daemon manages sessions for performance.[/]");
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("[red]⚠ IMPORTANT:[/] PowerShell breaks on commas in JSON and the 'in' keyword in M code.");
-        AnsiConsole.MarkupLine("[dim]   Use[/] [green]--values-file[/] [dim]and[/] [green]--mcode-file[/] [dim]for complex data.[/]");
-        AnsiConsole.WriteLine();
     }
 
     private static string DescribeActions(string baseDescription, IEnumerable<string> actions)

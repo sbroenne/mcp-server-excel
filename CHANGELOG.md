@@ -10,7 +10,20 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### Changed
+
+- **JSON Property Names Reverted** (#417): Removed short property name mappings for better readability
+  - JSON output now uses camelCase C# property names (e.g., `success`, `errorMessage`, `filePath`)
+  - Removed 433 `[JsonPropertyName]` attributes from model files
+  - LLMs and humans can now read JSON without consulting a mapping table
+
 ### Fixed
+
+- **CLI Banner Cleanup**: Removed PowerShell warning from startup banner
+  - Guidance moved to skill documentation (Rule 2: Use File-Based Input)
+  - CLI output is now cleaner and less cluttered
+
+## [1.6.5] - 2026-02-03
 
 - **Dead Session Detection** (#414): Auto-detect and cleanup sessions when Excel process dies
   - ROOT CAUSE: `SessionManager` never checked if Excel process was alive, leaving dead sessions in dictionary
