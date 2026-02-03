@@ -198,6 +198,19 @@ internal sealed class DaemonTray : IDisposable
         _notifyIcon.ShowBalloonTip(3000, title, message, icon);
     }
 
+    /// <summary>
+    /// Shows an update notification to the user.
+    /// Thread-safe - can be called from any thread.
+    /// </summary>
+    public void ShowUpdateNotification(string title, string message)
+    {
+        if (_disposed) return;
+
+        // ShowBalloon is thread-safe for NotifyIcon in Windows Forms
+        // The underlying Win32 shell notification API handles cross-thread calls
+        ShowBalloon(title, message, ToolTipIcon.Info);
+    }
+
     private void StopDaemon()
     {
         var sessions = _sessionManager.GetActiveSessions();

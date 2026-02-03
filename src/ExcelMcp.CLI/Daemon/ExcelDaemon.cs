@@ -126,6 +126,29 @@ internal sealed class ExcelDaemon : IDisposable
         {
             _tray = new DaemonTray(_sessionManager, RequestShutdown);
 
+            // Check for updates asynchronously after tray is initialized
+            // This runs in the background and doesn't block daemon startup
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    // Wait a bit after startup to avoid slowing down daemon initialization
+                    await Task.Delay(TimeSpan.FromSeconds(5));
+
+                    var updateInfo = await Infrastructure.DaemonVersionChecker.CheckForUpdateAsync();
+                    if (updateInfo != null && _tray != null)
+                    {
+                        _tray.ShowUpdateNotification(
+                            Infrastructure.UpdateInfo.GetNotificationTitle(),
+                            updateInfo.GetNotificationMessage());
+                    }
+                }
+                catch
+                {
+                    // Fail silently - version check should never interfere with daemon operation
+                }
+            });
+
             // Run Windows Forms message loop - this blocks until Application.Exit() is called
             Application.Run();
         }
