@@ -111,6 +111,7 @@ Discovered while debugging a Power Query that referenced a column with a hyphen
 | 7. PRs | Always use PRs, never direct commit | Always |
 | 24. Post-change sync | Verify ALL sync points (CLI, SKILLs, READMEs, counts) | 5-10 min |
 | 26. No confidential info | No customer/project names in commits/PRs/issues | Always |
+| 27. CHANGELOG | Update CHANGELOG.md before merging PRs | 2-5 min |
 
 **During PR Process:**
 | Rule | Action | Time |
@@ -899,4 +900,54 @@ excelcli sheet list --file "test.xlsx"
 # Find all bash code blocks in markdown files
 Select-String -Path "**/*.md" -Pattern '```bash' -Recurse
 ```
+
+---
+
+## Rule 27: Update CHANGELOG Before Merging PRs (CRITICAL)
+
+**ALWAYS update CHANGELOG.md before merging any PR that adds features, fixes bugs, or makes breaking changes.**
+
+**Why Critical:** 
+- Users and LLMs rely on CHANGELOG to understand what changed
+- Release workflow extracts version notes from CHANGELOG
+- Missing entries make releases incomplete and confusing
+- Git history is not a substitute for curated change documentation
+
+**What Requires CHANGELOG Entry:**
+- ✅ Bug fixes (with issue number)
+- ✅ New features or actions
+- ✅ Breaking changes
+- ✅ Significant behavior changes
+- ✅ New pre-commit checks or tooling
+- ❌ Internal refactoring (no user-visible change)
+- ❌ Documentation-only changes (unless significant)
+- ❌ Test-only changes
+
+**Format (Keep a Changelog):**
+```markdown
+## [Unreleased]
+
+### Added
+- **Feature Name** (#issue): Brief description
+
+### Fixed
+- **Bug Title** (#issue): Brief description
+  - ROOT CAUSE: What caused it
+  - FIX: How it was fixed
+
+### Changed
+- **Change Title**: Brief description
+```
+
+**Process:**
+1. Before merging PR, check if changes need CHANGELOG entry
+2. Add entry under `## [Unreleased]` section
+3. Use appropriate category: Added, Fixed, Changed, Removed, Security
+4. Include issue/PR number for traceability
+5. Commit CHANGELOG update with the PR or as final commit before merge
+
+**Enforcement:**
+- Review CHANGELOG.md before every PR merge
+- Agent must ask: "Does this change need a CHANGELOG entry?"
+- Merging without CHANGELOG update for user-visible changes = bug
 
