@@ -198,6 +198,25 @@ internal sealed class DaemonTray : IDisposable
         _notifyIcon.ShowBalloonTip(3000, title, message, icon);
     }
 
+    /// <summary>
+    /// Shows an update notification to the user.
+    /// Can be called from any thread (will invoke on UI thread if needed).
+    /// </summary>
+    public void ShowUpdateNotification(string title, string message)
+    {
+        if (_disposed) return;
+
+        // Ensure we're on the UI thread
+        if (_notifyIcon.InvokeRequired)
+        {
+            _notifyIcon.Invoke(() => ShowBalloon(title, message, ToolTipIcon.Info));
+        }
+        else
+        {
+            ShowBalloon(title, message, ToolTipIcon.Info);
+        }
+    }
+
     private void StopDaemon()
     {
         var sessions = _sessionManager.GetActiveSessions();
