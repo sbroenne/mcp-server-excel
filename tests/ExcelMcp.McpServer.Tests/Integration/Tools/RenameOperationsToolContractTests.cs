@@ -337,15 +337,14 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         });
         _output.WriteLine($"Response: {json}");
 
-        // Assert - should return JSON with success=false or ok=false, NOT throw exception
+        // Assert - should return JSON with success=false, NOT throw exception
         var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
-        // Check for either "success" or "ok" property (tool responses use different formats)
-        bool isFailed = (root.TryGetProperty("success", out var successProp) && !successProp.GetBoolean())
-                     || (root.TryGetProperty("ok", out var okProp) && !okProp.GetBoolean());
-        Assert.True(isFailed, "Expected success=false or ok=false for empty name");
-        Assert.True(root.TryGetProperty("errorMessage", out _) || root.TryGetProperty("err", out _), "Expected errorMessage or err property");
+        // Check for "success" property
+        bool isFailed = root.TryGetProperty("success", out var successProp) && !successProp.GetBoolean();
+        Assert.True(isFailed, "Expected success=false for empty name");
+        Assert.True(root.TryGetProperty("errorMessage", out _), "Expected errorMessage property");
     }
 
     #endregion

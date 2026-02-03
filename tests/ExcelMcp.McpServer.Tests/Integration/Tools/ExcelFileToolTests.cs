@@ -91,9 +91,9 @@ public class ExcelFileToolTests(ITestOutputHelper output)
         Assert.NotNull(result);
         var json = JsonDocument.Parse(result).RootElement;
 
-        // ExecuteToolAction uses "ok" and "err" for error responses
-        Assert.False(json.GetProperty("ok").GetBoolean());
-        Assert.True(json.TryGetProperty("err", out var errorMsg));
+        // ExecuteToolAction uses "success" and "errorMessage" for error responses
+        Assert.False(json.GetProperty("success").GetBoolean());
+        Assert.True(json.TryGetProperty("errorMessage", out var errorMsg));
         Assert.Contains("excelPath is required", errorMsg.GetString());
     }
 

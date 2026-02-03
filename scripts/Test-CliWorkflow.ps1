@@ -109,7 +109,7 @@ Test-Step "Set values (A1:C4)" {
     & $cli -q range set-values --session $sessionId --sheet Sheet1 --range A1:C4 --values $values | ConvertFrom-Json
 } -Verify {
     param($r)
-    $r.ok -eq $true
+    $r.success -eq $true
 }
 
 # 3. Get values back
@@ -117,17 +117,17 @@ $getData = Test-Step "Get values (verify roundtrip)" {
     & $cli -q range get-values --session $sessionId --sheet Sheet1 --range A1:C4 | ConvertFrom-Json
 } -Verify {
     param($r)
-    $r.ok -eq $true -and $r.d[0][0] -eq "Product"
+    $r.success -eq $true -and $r.values[0][0] -eq "Product"
 }
 
-Write-Host "  First cell: $($getData.d[0][0])" -ForegroundColor Gray
+Write-Host "  First cell: $($getData.values[0][0])" -ForegroundColor Gray
 
 # 4. Create table (use --table not --name)
 Test-Step "Create table 'SalesData'" {
     & $cli -q table create --session $sessionId --sheet Sheet1 --range A1:C4 --table SalesData --has-headers | ConvertFrom-Json
 } -Verify {
     param($r)
-    $r.success -eq $true -or $r.tableName -eq "SalesData" -or $r.ok -eq $true
+    $r.success -eq $true -or $r.tableName -eq "SalesData"
 }
 
 # 5. List tables
@@ -135,11 +135,11 @@ $tables = Test-Step "List tables" {
     & $cli -q table list --session $sessionId | ConvertFrom-Json
 } -Verify {
     param($r)
-    $r.ok -eq $true -or $r.ts -ne $null
+    $r.success -eq $true -or $r.tables -ne $null
 }
 
-if ($tables.ts) {
-    Write-Host "  Tables: $($tables.ts.Count)" -ForegroundColor Gray
+if ($tables.tables) {
+    Write-Host "  Tables: $($tables.tables.Count)" -ForegroundColor Gray
 }
 
 # 6. Create chart
@@ -147,7 +147,7 @@ Test-Step "Create chart (below data)" {
     & $cli -q chart create-from-range --session $sessionId --sheet Sheet1 --source-range A1:C4 --chart-type column --chart "SalesChart" | ConvertFrom-Json
 } -Verify {
     param($r)
-    $r.ok -eq $true -or $r.chartName -eq "SalesChart"
+    $r.success -eq $true -or $r.chartName -eq "SalesChart"
 }
 
 # 7. List charts

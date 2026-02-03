@@ -7,31 +7,22 @@ namespace Sbroenne.ExcelMcp.Core.Models;
 /// NOTE: Core commands should NOT set SuggestedNextActions (workflow guidance is MCP/CLI layer responsibility).
 /// Exceptions propagate naturally to batch.Execute() which converts them to OperationResult { Success = false }.
 /// </summary>
-/// <remarks>
-/// Property names are intentionally short to minimize JSON token count for LLM efficiency:
-/// - ok: Success
-/// - err: ErrorMessage
-/// - fp: FilePath
-/// </remarks>
 public abstract class ResultBase
 {
     /// <summary>
     /// Indicates whether the operation was successful
     /// </summary>
-    [JsonPropertyName("ok")]
     public bool Success { get; set; }
 
     /// <summary>
     /// Error message if operation failed
     /// </summary>
-    [JsonPropertyName("err")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ErrorMessage { get; set; }
 
     /// <summary>
     /// File path of the Excel file
     /// </summary>
-    [JsonPropertyName("fp")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? FilePath { get; set; }
 }
@@ -44,14 +35,12 @@ public class OperationResult : ResultBase
     /// <summary>
     /// Action that was performed
     /// </summary>
-    [JsonPropertyName("act")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Action { get; set; }
 
     /// <summary>
     /// Success message describing what was done
     /// </summary>
-    [JsonPropertyName("msg")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Message { get; set; }
 }
@@ -59,40 +48,32 @@ public class OperationResult : ResultBase
 /// <summary>
 /// Result for rename operations across Core features
 /// </summary>
-/// <remarks>
-/// Property names: ot=ObjectType, on=OldName, nn=NewName, non=NormalizedOldName, nnn=NormalizedNewName
-/// </remarks>
 public class RenameResult : ResultBase
 {
     /// <summary>
     /// Type of object being renamed (power-query, data-model-table)
     /// </summary>
-    [JsonPropertyName("ot")]
     public string ObjectType { get; set; } = string.Empty;
 
     /// <summary>
     /// Original name provided by the caller
     /// </summary>
-    [JsonPropertyName("on")]
     public string OldName { get; set; } = string.Empty;
 
     /// <summary>
     /// Desired new name provided by the caller
     /// </summary>
-    [JsonPropertyName("nn")]
     public string NewName { get; set; } = string.Empty;
 
     /// <summary>
     /// Trimmed old name used for comparisons
     /// </summary>
-    [JsonPropertyName("non")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string NormalizedOldName { get; set; } = string.Empty;
 
     /// <summary>
     /// Trimmed new name used for comparisons
     /// </summary>
-    [JsonPropertyName("nnn")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string NormalizedNewName { get; set; } = string.Empty;
 }
@@ -100,42 +81,32 @@ public class RenameResult : ResultBase
 /// <summary>
 /// Result for listing worksheets
 /// </summary>
-/// <remarks>
-/// Property names: ws=Worksheets
-/// </remarks>
 public class WorksheetListResult : ResultBase
 {
     /// <summary>
     /// List of worksheets in the workbook
     /// </summary>
-    [JsonPropertyName("ws")]
     public List<WorksheetInfo> Worksheets { get; set; } = [];
 }
 
 /// <summary>
 /// Information about a worksheet
 /// </summary>
-/// <remarks>
-/// Property names: n=Name, i=Index, v=Visible
-/// </remarks>
 public class WorksheetInfo
 {
     /// <summary>
     /// Name of the worksheet
     /// </summary>
-    [JsonPropertyName("n")]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
     /// Index of the worksheet (1-based)
     /// </summary>
-    [JsonPropertyName("i")]
     public int Index { get; set; }
 
     /// <summary>
     /// Whether the worksheet is visible
     /// </summary>
-    [JsonPropertyName("v")]
     public bool Visible { get; set; }
 }
 
@@ -168,34 +139,29 @@ public class TabColorResult : ResultBase
     /// <summary>
     /// Whether the sheet has a tab color set
     /// </summary>
-    [JsonPropertyName("hc")]
     public bool HasColor { get; set; }
 
     /// <summary>
     /// Red component (0-255), null if no color
     /// </summary>
-    [JsonPropertyName("r")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? Red { get; set; }
 
     /// <summary>
     /// Green component (0-255), null if no color
     /// </summary>
-    [JsonPropertyName("g")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? Green { get; set; }
 
     /// <summary>
     /// Blue component (0-255), null if no color
     /// </summary>
-    [JsonPropertyName("b")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? Blue { get; set; }
 
     /// <summary>
     /// Hex color string (#RRGGBB), null if no color
     /// </summary>
-    [JsonPropertyName("hex")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? HexColor { get; set; }
 }
@@ -208,13 +174,11 @@ public class SheetVisibilityResult : ResultBase
     /// <summary>
     /// Visibility level
     /// </summary>
-    [JsonPropertyName("vis")]
     public SheetVisibility Visibility { get; set; }
 
     /// <summary>
     /// Visibility name (Visible, Hidden, VeryHidden)
     /// </summary>
-    [JsonPropertyName("vn")]
     public string VisibilityName { get; set; } = string.Empty;
 }
 
@@ -226,37 +190,31 @@ public class WorksheetDataResult : ResultBase
     /// <summary>
     /// Name of the worksheet
     /// </summary>
-    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Range that was read
     /// </summary>
-    [JsonPropertyName("ra")]
     public string Range { get; set; } = string.Empty;
 
     /// <summary>
     /// Data rows and columns
     /// </summary>
-    [JsonPropertyName("d")]
     public List<List<object?>> Data { get; set; } = [];
 
     /// <summary>
     /// Column headers
     /// </summary>
-    [JsonPropertyName("h")]
     public List<string> Headers { get; set; } = [];
 
     /// <summary>
     /// Number of rows
     /// </summary>
-    [JsonPropertyName("r")]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns
     /// </summary>
-    [JsonPropertyName("c")]
     public int ColumnCount { get; set; }
 }
 
@@ -268,7 +226,6 @@ public class PowerQueryListResult : ResultBase
     /// <summary>
     /// List of Power Queries in the workbook
     /// </summary>
-    [JsonPropertyName("qs")]
     public List<PowerQueryInfo> Queries { get; set; } = [];
 }
 
@@ -280,25 +237,21 @@ public class PowerQueryInfo
     /// <summary>
     /// Name of the Power Query
     /// </summary>
-    [JsonPropertyName("n")]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
     /// Full M code formula
     /// </summary>
-    [JsonPropertyName("fm")]
     public string Formula { get; set; } = string.Empty;
 
     /// <summary>
     /// Preview of the formula (first 80 characters)
     /// </summary>
-    [JsonPropertyName("fp")]
     public string FormulaPreview { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether the query is connection-only
     /// </summary>
-    [JsonPropertyName("co")]
     public bool IsConnectionOnly { get; set; }
 }
 
@@ -310,25 +263,21 @@ public class PowerQueryViewResult : ResultBase
     /// <summary>
     /// Name of the Power Query
     /// </summary>
-    [JsonPropertyName("qn")]
     public string QueryName { get; set; } = string.Empty;
 
     /// <summary>
     /// Full M code
     /// </summary>
-    [JsonPropertyName("mc")]
     public string MCode { get; set; } = string.Empty;
 
     /// <summary>
     /// Number of characters in the M code
     /// </summary>
-    [JsonPropertyName("cc")]
     public int CharacterCount { get; set; }
 
     /// <summary>
     /// Whether the query is connection-only
     /// </summary>
-    [JsonPropertyName("co")]
     public bool IsConnectionOnly { get; set; }
 }
 
@@ -366,32 +315,27 @@ public class PowerQueryLoadConfigResult : ResultBase
     /// <summary>
     /// Name of the query
     /// </summary>
-    [JsonPropertyName("qn")]
     public string QueryName { get; set; } = string.Empty;
 
     /// <summary>
     /// Current load mode
     /// </summary>
-    [JsonPropertyName("lm")]
     public PowerQueryLoadMode LoadMode { get; set; }
 
     /// <summary>
     /// Target worksheet name (if LoadToTable or LoadToBoth)
     /// </summary>
-    [JsonPropertyName("ts")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? TargetSheet { get; set; }
 
     /// <summary>
     /// Whether the query has an active connection
     /// </summary>
-    [JsonPropertyName("hc")]
     public bool HasConnection { get; set; }
 
     /// <summary>
     /// Whether the query is loaded to data model
     /// </summary>
-    [JsonPropertyName("dm")]
     public bool IsLoadedToDataModel { get; set; }
 }
 
@@ -404,37 +348,31 @@ public class PowerQueryLoadToDataModelResult : OperationResult
     /// <summary>
     /// Name of the query
     /// </summary>
-    [JsonPropertyName("qn")]
     public string QueryName { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether the load configuration was successfully applied
     /// </summary>
-    [JsonPropertyName("ca")]
     public bool ConfigurationApplied { get; set; }
 
     /// <summary>
     /// Whether data was actually loaded to the Data Model
     /// </summary>
-    [JsonPropertyName("dl")]
     public bool DataLoadedToModel { get; set; }
 
     /// <summary>
     /// Number of rows loaded to the Data Model (0 if not loaded)
     /// </summary>
-    [JsonPropertyName("rl")]
     public int RowsLoaded { get; set; }
 
     /// <summary>
     /// Total number of tables in the Data Model after operation
     /// </summary>
-    [JsonPropertyName("tc")]
     public int TablesInDataModel { get; set; }
 
     /// <summary>
     /// Overall workflow status: "Complete" | "Failed" | "Partial"
     /// </summary>
-    [JsonPropertyName("ws")]
     public string WorkflowStatus { get; set; } = "Failed";
 }
 
@@ -447,37 +385,31 @@ public class PowerQueryLoadToTableResult : OperationResult
     /// <summary>
     /// Name of the query
     /// </summary>
-    [JsonPropertyName("qn")]
     public string QueryName { get; set; } = string.Empty;
 
     /// <summary>
     /// Name of the target worksheet
     /// </summary>
-    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether the load configuration was successfully applied
     /// </summary>
-    [JsonPropertyName("ca")]
     public bool ConfigurationApplied { get; set; }
 
     /// <summary>
     /// Whether data was actually loaded to the worksheet table
     /// </summary>
-    [JsonPropertyName("dl")]
     public bool DataLoadedToTable { get; set; }
 
     /// <summary>
     /// Number of rows loaded to the worksheet table (0 if not loaded)
     /// </summary>
-    [JsonPropertyName("rl")]
     public int RowsLoaded { get; set; }
 
     /// <summary>
     /// Overall workflow status: "Complete" | "Failed" | "Partial"
     /// </summary>
-    [JsonPropertyName("ws")]
     public string WorkflowStatus { get; set; } = "Failed";
 }
 
@@ -490,55 +422,46 @@ public class PowerQueryLoadToBothResult : OperationResult
     /// <summary>
     /// Name of the query
     /// </summary>
-    [JsonPropertyName("qn")]
     public string QueryName { get; set; } = string.Empty;
 
     /// <summary>
     /// Name of the target worksheet
     /// </summary>
-    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether the load configuration was successfully applied
     /// </summary>
-    [JsonPropertyName("ca")]
     public bool ConfigurationApplied { get; set; }
 
     /// <summary>
     /// Whether data was actually loaded to the worksheet table
     /// </summary>
-    [JsonPropertyName("dlt")]
     public bool DataLoadedToTable { get; set; }
 
     /// <summary>
     /// Whether data was actually loaded to the Data Model
     /// </summary>
-    [JsonPropertyName("dlm")]
     public bool DataLoadedToModel { get; set; }
 
     /// <summary>
     /// Number of rows loaded to the worksheet table (0 if not loaded)
     /// </summary>
-    [JsonPropertyName("rlt")]
     public int RowsLoadedToTable { get; set; }
 
     /// <summary>
     /// Number of rows loaded to the Data Model (0 if not loaded)
     /// </summary>
-    [JsonPropertyName("rlm")]
     public int RowsLoadedToModel { get; set; }
 
     /// <summary>
     /// Total number of tables in the Data Model after operation
     /// </summary>
-    [JsonPropertyName("tc")]
     public int TablesInDataModel { get; set; }
 
     /// <summary>
     /// Overall workflow status: "Complete" | "Failed" | "Partial"
     /// </summary>
-    [JsonPropertyName("ws")]
     public string WorkflowStatus { get; set; } = "Failed";
 }
 
@@ -551,45 +474,38 @@ public class PowerQueryCreateResult : OperationResult
     /// <summary>
     /// Name of the created query
     /// </summary>
-    [JsonPropertyName("qn")]
     public string QueryName { get; set; } = string.Empty;
 
     /// <summary>
     /// Load destination applied
     /// </summary>
-    [JsonPropertyName("ld")]
     public PowerQueryLoadMode LoadDestination { get; set; }
 
     /// <summary>
     /// Target worksheet name (if LoadToTable or LoadToBoth)
     /// </summary>
-    [JsonPropertyName("wsn")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? WorksheetName { get; set; }
 
     /// <summary>
     /// Target cell address used when loading to a worksheet (e.g., "A1")
     /// </summary>
-    [JsonPropertyName("tca")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? TargetCellAddress { get; set; }
 
     /// <summary>
     /// Whether the query was created successfully
     /// </summary>
-    [JsonPropertyName("qc")]
     public bool QueryCreated { get; set; }
 
     /// <summary>
     /// Whether data was loaded (true for all except ConnectionOnly)
     /// </summary>
-    [JsonPropertyName("dl")]
     public bool DataLoaded { get; set; }
 
     /// <summary>
     /// Number of rows loaded (0 if ConnectionOnly)
     /// </summary>
-    [JsonPropertyName("rl")]
     public int RowsLoaded { get; set; }
 }
 
@@ -602,45 +518,38 @@ public class PowerQueryLoadResult : OperationResult
     /// <summary>
     /// Name of the query
     /// </summary>
-    [JsonPropertyName("qn")]
     public string QueryName { get; set; } = string.Empty;
 
     /// <summary>
     /// Load destination applied
     /// </summary>
-    [JsonPropertyName("ld")]
     public PowerQueryLoadMode LoadDestination { get; set; }
 
     /// <summary>
     /// Target worksheet name (if applicable)
     /// </summary>
-    [JsonPropertyName("wsn")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? WorksheetName { get; set; }
 
     /// <summary>
     /// Target cell address used for the worksheet load destination (null defaults to A1)
     /// </summary>
-    [JsonPropertyName("tca")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? TargetCellAddress { get; set; }
 
     /// <summary>
     /// Whether load configuration was applied
     /// </summary>
-    [JsonPropertyName("ca")]
     public bool ConfigurationApplied { get; set; }
 
     /// <summary>
     /// Whether data was refreshed
     /// </summary>
-    [JsonPropertyName("dr")]
     public bool DataRefreshed { get; set; }
 
     /// <summary>
     /// Number of rows loaded
     /// </summary>
-    [JsonPropertyName("rl")]
     public int RowsLoaded { get; set; }
 }
 
@@ -653,19 +562,16 @@ public class PowerQueryValidationResult : ResultBase
     /// <summary>
     /// Whether the M code syntax is valid
     /// </summary>
-    [JsonPropertyName("iv")]
     public bool IsValid { get; set; }
 
     /// <summary>
     /// Validation errors (if any)
     /// </summary>
-    [JsonPropertyName("ve")]
     public List<string> ValidationErrors { get; set; } = [];
 
     /// <summary>
     /// M code expression that was validated
     /// </summary>
-    [JsonPropertyName("mc")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? MCodeExpression { get; set; }
 }
@@ -678,7 +584,6 @@ public class NamedRangeListResult : ResultBase
     /// <summary>
     /// List of named ranges/parameters
     /// </summary>
-    [JsonPropertyName("nrs")]
     public List<NamedRangeInfo> NamedRanges { get; set; } = [];
 }
 
@@ -690,26 +595,22 @@ public class NamedRangeInfo
     /// <summary>
     /// Name of the named range
     /// </summary>
-    [JsonPropertyName("n")]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
     /// What the named range refers to
     /// </summary>
-    [JsonPropertyName("rt")]
     public string RefersTo { get; set; } = string.Empty;
 
     /// <summary>
     /// Current value
     /// </summary>
-    [JsonPropertyName("v")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public object? Value { get; set; }
 
     /// <summary>
     /// Type of the value
     /// </summary>
-    [JsonPropertyName("vt")]
     public string ValueType { get; set; } = string.Empty;
 }
 
@@ -721,26 +622,22 @@ public class NamedRangeValue
     /// <summary>
     /// Name of the named range
     /// </summary>
-    [JsonPropertyName("n")]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
     /// What the named range refers to
     /// </summary>
-    [JsonPropertyName("rt")]
     public string RefersTo { get; set; } = string.Empty;
 
     /// <summary>
     /// Current value
     /// </summary>
-    [JsonPropertyName("v")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public object? Value { get; set; }
 
     /// <summary>
     /// Type of the value
     /// </summary>
-    [JsonPropertyName("vt")]
     public string ValueType { get; set; } = string.Empty;
 }
 
@@ -752,26 +649,22 @@ public class NamedRangeValueResult : ResultBase
     /// <summary>
     /// Name of the named range
     /// </summary>
-    [JsonPropertyName("nrn")]
     public string NamedRangeName { get; set; } = string.Empty;
 
     /// <summary>
     /// Current value
     /// </summary>
-    [JsonPropertyName("v")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public object? Value { get; set; }
 
     /// <summary>
     /// Type of the value
     /// </summary>
-    [JsonPropertyName("vt")]
     public string ValueType { get; set; } = string.Empty;
 
     /// <summary>
     /// What the named range refers to
     /// </summary>
-    [JsonPropertyName("rt")]
     public string RefersTo { get; set; } = string.Empty;
 }
 
@@ -783,7 +676,6 @@ public class VbaListResult : ResultBase
     /// <summary>
     /// List of VBA scripts
     /// </summary>
-    [JsonPropertyName("sc")]
     public List<ScriptInfo> Scripts { get; set; } = [];
 }
 
@@ -795,31 +687,26 @@ public class VbaViewResult : ResultBase
     /// <summary>
     /// Module name
     /// </summary>
-    [JsonPropertyName("mn")]
     public string ModuleName { get; set; } = string.Empty;
 
     /// <summary>
     /// Module type
     /// </summary>
-    [JsonPropertyName("mt")]
     public string ModuleType { get; set; } = string.Empty;
 
     /// <summary>
     /// Complete VBA code
     /// </summary>
-    [JsonPropertyName("cd")]
     public string Code { get; set; } = string.Empty;
 
     /// <summary>
     /// Number of lines in the module
     /// </summary>
-    [JsonPropertyName("lc")]
     public int LineCount { get; set; }
 
     /// <summary>
     /// List of procedures in the module
     /// </summary>
-    [JsonPropertyName("pr")]
     public List<string> Procedures { get; set; } = [];
 }
 
@@ -831,25 +718,21 @@ public class ScriptInfo
     /// <summary>
     /// Name of the script module
     /// </summary>
-    [JsonPropertyName("n")]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
     /// Type of the script module
     /// </summary>
-    [JsonPropertyName("t")]
     public string Type { get; set; } = string.Empty;
 
     /// <summary>
     /// Number of lines in the module
     /// </summary>
-    [JsonPropertyName("lc")]
     public int LineCount { get; set; }
 
     /// <summary>
     /// List of procedures in the module
     /// </summary>
-    [JsonPropertyName("pr")]
     public List<string> Procedures { get; set; } = [];
 }
 
@@ -861,43 +744,36 @@ public class FileValidationInfo
     /// <summary>
     /// Full file path being validated
     /// </summary>
-    [JsonPropertyName("fp")]
     public string FilePath { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether the file exists
     /// </summary>
-    [JsonPropertyName("ex")]
     public bool Exists { get; set; }
 
     /// <summary>
     /// Size of the file in bytes
     /// </summary>
-    [JsonPropertyName("sz")]
     public long Size { get; set; }
 
     /// <summary>
     /// File extension
     /// </summary>
-    [JsonPropertyName("ext")]
     public string Extension { get; set; } = string.Empty;
 
     /// <summary>
     /// Last modification time
     /// </summary>
-    [JsonPropertyName("lm")]
     public DateTime LastModified { get; set; }
 
     /// <summary>
     /// Whether the file is a valid Excel workbook
     /// </summary>
-    [JsonPropertyName("iv")]
     public bool IsValid { get; set; }
 
     /// <summary>
     /// Optional message describing validation outcome (missing file, invalid extension, etc.)
     /// </summary>
-    [JsonPropertyName("msg")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Message { get; set; }
 }
@@ -910,26 +786,22 @@ public class CellValueResult : ResultBase
     /// <summary>
     /// Address of the cell (e.g., A1)
     /// </summary>
-    [JsonPropertyName("ca")]
     public string CellAddress { get; set; } = string.Empty;
 
     /// <summary>
     /// Current value of the cell
     /// </summary>
-    [JsonPropertyName("v")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public object? Value { get; set; }
 
     /// <summary>
     /// Type of the value
     /// </summary>
-    [JsonPropertyName("vt")]
     public string ValueType { get; set; } = string.Empty;
 
     /// <summary>
     /// Formula in the cell, if any
     /// </summary>
-    [JsonPropertyName("f")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Formula { get; set; }
 }
@@ -937,117 +809,93 @@ public class CellValueResult : ResultBase
 /// <summary>
 /// Result for Excel range value operations
 /// </summary>
-/// <remarks>
-/// Property names: sn=SheetName, ra=RangeAddress, d=Values (data), r=RowCount, c=ColumnCount
-/// </remarks>
 public class RangeValueResult : ResultBase
 {
     /// <summary>
     /// Sheet name
     /// </summary>
-    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Range address (e.g., A1:D10)
     /// </summary>
-    [JsonPropertyName("ra")]
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
     /// 2D array of cell values (row-major order)
     /// </summary>
-    [JsonPropertyName("d")]
     public List<List<object?>> Values { get; set; } = [];
 
     /// <summary>
     /// Number of rows in the range
     /// </summary>
-    [JsonPropertyName("r")]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns in the range
     /// </summary>
-    [JsonPropertyName("c")]
     public int ColumnCount { get; set; }
 }
 
 /// <summary>
 /// Result for Excel range formula operations
 /// </summary>
-/// <remarks>
-/// Property names: sn=SheetName, ra=RangeAddress, f=Formulas, d=Values, r=RowCount, c=ColumnCount
-/// </remarks>
 public class RangeFormulaResult : ResultBase
 {
     /// <summary>
     /// Sheet name
     /// </summary>
-    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Range address (e.g., A1:D10)
     /// </summary>
-    [JsonPropertyName("ra")]
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
     /// 2D array of cell formulas (row-major order, empty string if no formula)
     /// </summary>
-    [JsonPropertyName("f")]
     public List<List<string>> Formulas { get; set; } = [];
 
     /// <summary>
     /// 2D array of cell values (calculated results)
     /// </summary>
-    [JsonPropertyName("d")]
     public List<List<object?>> Values { get; set; } = [];
 
     /// <summary>
     /// Number of rows in the range
     /// </summary>
-    [JsonPropertyName("r")]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns in the range
     /// </summary>
-    [JsonPropertyName("c")]
     public int ColumnCount { get; set; }
 }
 
 /// <summary>
 /// Result for range find operations
 /// </summary>
-/// <remarks>
-/// Property names: sn=SheetName, ra=RangeAddress
-/// </remarks>
 public class RangeFindResult : ResultBase
 {
     /// <summary>
     /// Sheet name
     /// </summary>
-    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Range address that was searched
     /// </summary>
-    [JsonPropertyName("ra")]
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
     /// Search value
     /// </summary>
-    [JsonPropertyName("sv")]
     public string SearchValue { get; set; } = string.Empty;
 
     /// <summary>
     /// List of matching cells
     /// </summary>
-    [JsonPropertyName("mc")]
     public List<RangeCell> MatchingCells { get; set; } = [];
 }
 
@@ -1059,25 +907,21 @@ public class RangeCell
     /// <summary>
     /// Cell address (e.g., "A5")
     /// </summary>
-    [JsonPropertyName("a")]
     public string Address { get; set; } = string.Empty;
 
     /// <summary>
     /// Row number (1-based)
     /// </summary>
-    [JsonPropertyName("r")]
     public int Row { get; set; }
 
     /// <summary>
     /// Column number (1-based)
     /// </summary>
-    [JsonPropertyName("c")]
     public int Column { get; set; }
 
     /// <summary>
     /// Cell value
     /// </summary>
-    [JsonPropertyName("v")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public object? Value { get; set; }
 }
@@ -1090,59 +934,50 @@ public class RangeInfoResult : ResultBase
     /// <summary>
     /// Sheet name
     /// </summary>
-    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Absolute address from Excel COM (e.g., "$A$1:$D$10")
     /// </summary>
-    [JsonPropertyName("a")]
     public string Address { get; set; } = string.Empty;
 
     /// <summary>
     /// Number of rows (Excel COM: range.Rows.Count)
     /// </summary>
-    [JsonPropertyName("r")]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns (Excel COM: range.Columns.Count)
     /// </summary>
-    [JsonPropertyName("c")]
     public int ColumnCount { get; set; }
 
     /// <summary>
     /// Number format code (Excel COM: range.NumberFormat, first cell)
     /// </summary>
-    [JsonPropertyName("nf")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? NumberFormat { get; set; }
 
     /// <summary>
     /// Left position of the range in points (Excel COM: range.Left). 72 points = 1 inch.
     /// </summary>
-    [JsonPropertyName("l")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public double? Left { get; set; }
 
     /// <summary>
     /// Top position of the range in points (Excel COM: range.Top). 72 points = 1 inch.
     /// </summary>
-    [JsonPropertyName("t")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public double? Top { get; set; }
 
     /// <summary>
     /// Width of the range in points (Excel COM: range.Width). 72 points = 1 inch.
     /// </summary>
-    [JsonPropertyName("w")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public double? Width { get; set; }
 
     /// <summary>
     /// Height of the range in points (Excel COM: range.Height). 72 points = 1 inch.
     /// </summary>
-    [JsonPropertyName("h")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public double? Height { get; set; }
 }
@@ -1155,19 +990,16 @@ public class RangeHyperlinkResult : ResultBase
     /// <summary>
     /// Sheet name
     /// </summary>
-    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Range or cell address
     /// </summary>
-    [JsonPropertyName("ra")]
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
     /// List of hyperlinks
     /// </summary>
-    [JsonPropertyName("hl")]
     public List<HyperlinkInfo> Hyperlinks { get; set; } = [];
 }
 
@@ -1179,31 +1011,26 @@ public class RangeStyleResult : ResultBase
     /// <summary>
     /// Sheet name
     /// </summary>
-    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Range address (e.g., A1:D10)
     /// </summary>
-    [JsonPropertyName("ra")]
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
     /// Current style name applied to the range (first cell)
     /// </summary>
-    [JsonPropertyName("st")]
     public string StyleName { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether this is a built-in Excel style
     /// </summary>
-    [JsonPropertyName("bi")]
     public bool IsBuiltInStyle { get; set; }
 
     /// <summary>
     /// Additional style information if available
     /// </summary>
-    [JsonPropertyName("sd")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? StyleDescription { get; set; }
 }
@@ -1216,25 +1043,21 @@ public class VbaTrustResult : ResultBase
     /// <summary>
     /// Whether VBA project access is trusted
     /// </summary>
-    [JsonPropertyName("it")]
     public bool IsTrusted { get; set; }
 
     /// <summary>
     /// Number of VBA components found (when checking trust)
     /// </summary>
-    [JsonPropertyName("cc")]
     public int ComponentCount { get; set; }
 
     /// <summary>
     /// Registry paths where trust was set
     /// </summary>
-    [JsonPropertyName("rp")]
     public List<string> RegistryPathsSet { get; set; } = [];
 
     /// <summary>
     /// Manual setup instructions if automated setup failed
     /// </summary>
-    [JsonPropertyName("mi")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ManualInstructions { get; set; }
 }
@@ -1276,37 +1099,31 @@ public class PowerQueryRefreshResult : ResultBase
     /// <summary>
     /// Name of the query that was refreshed
     /// </summary>
-    [JsonPropertyName("qn")]
     public string QueryName { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether query has errors after refresh attempt
     /// </summary>
-    [JsonPropertyName("he")]
     public bool HasErrors { get; set; }
 
     /// <summary>
     /// List of error messages detected
     /// </summary>
-    [JsonPropertyName("em")]
     public List<string> ErrorMessages { get; set; } = [];
 
     /// <summary>
     /// When the refresh was attempted
     /// </summary>
-    [JsonPropertyName("rt")]
     public DateTime RefreshTime { get; set; }
 
     /// <summary>
     /// Whether this is a connection-only query
     /// </summary>
-    [JsonPropertyName("co")]
     public bool IsConnectionOnly { get; set; }
 
     /// <summary>
     /// Worksheet name where data was loaded (if applicable)
     /// </summary>
-    [JsonPropertyName("ls")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? LoadedToSheet { get; set; }
 }
@@ -1319,38 +1136,32 @@ public class PowerQueryErrorCheckResult : ResultBase
     /// <summary>
     /// Name of the query checked
     /// </summary>
-    [JsonPropertyName("qn")]
     public string QueryName { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether errors were detected
     /// </summary>
-    [JsonPropertyName("he")]
     public bool HasErrors { get; set; }
 
     /// <summary>
     /// List of error messages
     /// </summary>
-    [JsonPropertyName("em")]
     public List<string> ErrorMessages { get; set; } = [];
 
     /// <summary>
     /// Category of error (Authentication, Connectivity, Privacy, Syntax, Permissions, Unknown)
     /// </summary>
-    [JsonPropertyName("ec")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ErrorCategory { get; set; }
 
     /// <summary>
     /// Whether this is a connection-only query
     /// </summary>
-    [JsonPropertyName("co")]
     public bool IsConnectionOnly { get; set; }
 
     /// <summary>
     /// Additional message
     /// </summary>
-    [JsonPropertyName("msg")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Message { get; set; }
 }
@@ -1358,39 +1169,31 @@ public class PowerQueryErrorCheckResult : ResultBase
 /// <summary>
 /// Result for evaluating Power Query M code and returning results
 /// </summary>
-/// <remarks>
-/// Property names: mc=MCode, cols=Columns, rows=Rows, rc=RowCount, cc=ColumnCount
-/// </remarks>
 public class PowerQueryEvaluateResult : ResultBase
 {
     /// <summary>
     /// The M code that was evaluated
     /// </summary>
-    [JsonPropertyName("mc")]
     public string MCode { get; set; } = "";
 
     /// <summary>
     /// Column names from the query result
     /// </summary>
-    [JsonPropertyName("cols")]
     public List<string> Columns { get; set; } = [];
 
     /// <summary>
     /// Data rows from the query result (2D array matching Columns order)
     /// </summary>
-    [JsonPropertyName("rows")]
     public List<List<object?>> Rows { get; set; } = [];
 
     /// <summary>
     /// Number of rows returned
     /// </summary>
-    [JsonPropertyName("rc")]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns returned
     /// </summary>
-    [JsonPropertyName("cc")]
     public int ColumnCount { get; set; }
 }
 
@@ -1404,7 +1207,6 @@ public class ConnectionListResult : ResultBase
     /// <summary>
     /// List of connections in the workbook
     /// </summary>
-    [JsonPropertyName("cn")]
     public List<ConnectionInfo> Connections { get; set; } = [];
 }
 
@@ -1416,45 +1218,38 @@ public class ConnectionInfo
     /// <summary>
     /// Connection name
     /// </summary>
-    [JsonPropertyName("n")]
     public string Name { get; init; } = "";
 
     /// <summary>
     /// Connection description
     /// </summary>
-    [JsonPropertyName("d")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Description { get; init; }
 
     /// <summary>
     /// Connection type (OLEDB, ODBC, XML, Text, Web, DataFeed, Model, Worksheet, NoSource)
     /// </summary>
-    [JsonPropertyName("t")]
     public string Type { get; init; } = "";
 
     /// <summary>
     /// Last refresh date/time (if available)
     /// </summary>
-    [JsonPropertyName("lr")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public DateTime? LastRefresh { get; init; }
 
     /// <summary>
     /// Whether the connection refreshes in background
     /// </summary>
-    [JsonPropertyName("bq")]
     public bool BackgroundQuery { get; init; }
 
     /// <summary>
     /// Whether the connection refreshes when file opens
     /// </summary>
-    [JsonPropertyName("ro")]
     public bool RefreshOnFileOpen { get; init; }
 
     /// <summary>
     /// Whether this is a Power Query connection
     /// </summary>
-    [JsonPropertyName("pq")]
     public bool IsPowerQuery { get; init; }
 }
 
@@ -1466,45 +1261,38 @@ public class ConnectionViewResult : ResultBase
     /// <summary>
     /// Connection name
     /// </summary>
-    [JsonPropertyName("cn")]
     public string ConnectionName { get; set; } = "";
 
     /// <summary>
     /// Connection type (OLEDB, ODBC, XML, Text, Web, DataFeed, Model, Worksheet, NoSource)
     /// </summary>
-    [JsonPropertyName("t")]
     public string Type { get; set; } = "";
 
     /// <summary>
     /// Connection string (SANITIZED - passwords masked)
     /// </summary>
-    [JsonPropertyName("cs")]
     public string ConnectionString { get; set; } = "";
 
     /// <summary>
     /// Command text (SQL query, M code reference, etc.)
     /// </summary>
-    [JsonPropertyName("ct")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? CommandText { get; set; }
 
     /// <summary>
     /// Command type (SQL, Table, Default, etc.)
     /// </summary>
-    [JsonPropertyName("cty")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? CommandType { get; set; }
 
     /// <summary>
     /// Whether this is a Power Query connection
     /// </summary>
-    [JsonPropertyName("pq")]
     public bool IsPowerQuery { get; set; }
 
     /// <summary>
     /// Full connection definition as JSON
     /// </summary>
-    [JsonPropertyName("dj")]
     public string DefinitionJson { get; set; } = "";
 }
 
@@ -1516,31 +1304,26 @@ public class ConnectionPropertiesResult : ResultBase
     /// <summary>
     /// Connection name
     /// </summary>
-    [JsonPropertyName("cn")]
     public string ConnectionName { get; set; } = "";
 
     /// <summary>
     /// Whether the connection refreshes in background
     /// </summary>
-    [JsonPropertyName("bq")]
     public bool BackgroundQuery { get; set; }
 
     /// <summary>
     /// Whether the connection refreshes when file opens
     /// </summary>
-    [JsonPropertyName("ro")]
     public bool RefreshOnFileOpen { get; set; }
 
     /// <summary>
     /// Whether password is saved with connection
     /// </summary>
-    [JsonPropertyName("sp")]
     public bool SavePassword { get; set; }
 
     /// <summary>
     /// Refresh period in minutes (0 = no automatic refresh)
     /// </summary>
-    [JsonPropertyName("rp")]
     public int RefreshPeriod { get; set; }
 }
 
@@ -1556,7 +1339,6 @@ public class DataModelTableListResult : ResultBase
     /// <summary>
     /// List of tables in the Data Model
     /// </summary>
-    [JsonPropertyName("tbl")]
     public List<DataModelTableInfo> Tables { get; set; } = [];
 }
 
@@ -1568,19 +1350,16 @@ public class DataModelTableInfo
     /// <summary>
     /// Table name
     /// </summary>
-    [JsonPropertyName("n")]
     public string Name { get; init; } = "";
 
     /// <summary>
     /// Source query or connection name
     /// </summary>
-    [JsonPropertyName("src")]
     public string SourceName { get; init; } = "";
 
     /// <summary>
     /// Number of rows in the table
     /// </summary>
-    [JsonPropertyName("rc")]
     public int RecordCount { get; init; }
 }
 
@@ -1592,7 +1371,6 @@ public class DataModelMeasureListResult : ResultBase
     /// <summary>
     /// List of DAX measures in the model
     /// </summary>
-    [JsonPropertyName("ms")]
     public List<DataModelMeasureInfo> Measures { get; set; } = [];
 }
 
@@ -1604,25 +1382,21 @@ public class DataModelMeasureInfo
     /// <summary>
     /// Measure name
     /// </summary>
-    [JsonPropertyName("n")]
     public string Name { get; init; } = "";
 
     /// <summary>
     /// Table name where measure is defined
     /// </summary>
-    [JsonPropertyName("tn")]
     public string Table { get; init; } = "";
 
     /// <summary>
     /// DAX formula preview (truncated for display)
     /// </summary>
-    [JsonPropertyName("fp")]
     public string FormulaPreview { get; init; } = "";
 
     /// <summary>
     /// Measure description (if available)
     /// </summary>
-    [JsonPropertyName("d")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Description { get; init; }
 }
@@ -1636,27 +1410,23 @@ public class MeasureFormatInfo
     /// <summary>
     /// Format type: General, Currency, Decimal, Percentage, WholeNumber, Scientific, Boolean, Date
     /// </summary>
-    [JsonPropertyName("t")]
     public string Type { get; set; } = "General";
 
     /// <summary>
     /// Currency symbol (e.g., "$", "€", "£"). Only present for Currency format.
     /// </summary>
-    [JsonPropertyName("sym")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Symbol { get; set; }
 
     /// <summary>
     /// Number of decimal places. Present for Currency, Decimal, Percentage formats.
     /// </summary>
-    [JsonPropertyName("dp")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? DecimalPlaces { get; set; }
 
     /// <summary>
     /// Whether to use thousand separator (e.g., 1,000 vs 1000). Present for numeric formats.
     /// </summary>
-    [JsonPropertyName("ts")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? UseThousandSeparator { get; set; }
 }
@@ -1669,25 +1439,21 @@ public class DataModelMeasureViewResult : ResultBase
     /// <summary>
     /// Measure name
     /// </summary>
-    [JsonPropertyName("mn")]
     public string MeasureName { get; set; } = "";
 
     /// <summary>
     /// Table name where measure is defined
     /// </summary>
-    [JsonPropertyName("tn")]
     public string TableName { get; set; } = "";
 
     /// <summary>
     /// Complete DAX formula
     /// </summary>
-    [JsonPropertyName("df")]
     public string DaxFormula { get; set; } = "";
 
     /// <summary>
     /// Measure description
     /// </summary>
-    [JsonPropertyName("d")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Description { get; set; }
 
@@ -1695,14 +1461,12 @@ public class DataModelMeasureViewResult : ResultBase
     /// Format information extracted from ModelFormat* COM objects.
     /// Contains Type, Symbol, DecimalPlaces, UseThousandSeparator as applicable.
     /// </summary>
-    [JsonPropertyName("fi")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public MeasureFormatInfo? FormatInfo { get; set; }
 
     /// <summary>
     /// Number of characters in DAX formula
     /// </summary>
-    [JsonPropertyName("cc")]
     public int CharacterCount { get; set; }
 }
 
@@ -1714,7 +1478,6 @@ public class DataModelRelationshipListResult : ResultBase
     /// <summary>
     /// List of relationships in the model
     /// </summary>
-    [JsonPropertyName("rl")]
     public List<DataModelRelationshipInfo> Relationships { get; set; } = [];
 }
 
@@ -1726,7 +1489,6 @@ public class DataModelRelationshipViewResult : ResultBase
     /// <summary>
     /// The relationship details
     /// </summary>
-    [JsonPropertyName("r")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public DataModelRelationshipInfo? Relationship { get; set; }
 }
@@ -1739,31 +1501,26 @@ public class DataModelRelationshipInfo
     /// <summary>
     /// Source table name (foreign key side)
     /// </summary>
-    [JsonPropertyName("ft")]
     public string FromTable { get; init; } = "";
 
     /// <summary>
     /// Source column name (foreign key)
     /// </summary>
-    [JsonPropertyName("fc")]
     public string FromColumn { get; init; } = "";
 
     /// <summary>
     /// Target table name (primary key side)
     /// </summary>
-    [JsonPropertyName("tt")]
     public string ToTable { get; init; } = "";
 
     /// <summary>
     /// Target column name (primary key)
     /// </summary>
-    [JsonPropertyName("tc")]
     public string ToColumn { get; init; } = "";
 
     /// <summary>
     /// Whether this relationship is active
     /// </summary>
-    [JsonPropertyName("ia")]
     public bool IsActive { get; init; }
 }
 
@@ -1775,20 +1532,17 @@ public class DataModelValidationResult : ResultBase
     /// <summary>
     /// Whether the DAX formula is valid
     /// </summary>
-    [JsonPropertyName("iv")]
     public bool IsValid { get; set; }
 
     /// <summary>
     /// Validation error message (if not valid)
     /// </summary>
-    [JsonPropertyName("ve")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ValidationError { get; set; }
 
     /// <summary>
     /// DAX formula that was validated
     /// </summary>
-    [JsonPropertyName("df")]
     public string DaxFormula { get; set; } = "";
 }
 
@@ -1800,7 +1554,6 @@ public class DataModelCalculatedColumnListResult : ResultBase
     /// <summary>
     /// List of calculated columns in the model
     /// </summary>
-    [JsonPropertyName("cc")]
     public List<DataModelCalculatedColumnInfo> CalculatedColumns { get; set; } = [];
 }
 
@@ -1812,31 +1565,26 @@ public class DataModelCalculatedColumnInfo
     /// <summary>
     /// Column name
     /// </summary>
-    [JsonPropertyName("n")]
     public string Name { get; init; } = "";
 
     /// <summary>
     /// Table name where column is defined
     /// </summary>
-    [JsonPropertyName("tn")]
     public string Table { get; init; } = "";
 
     /// <summary>
     /// DAX formula preview (truncated for display)
     /// </summary>
-    [JsonPropertyName("fp")]
     public string FormulaPreview { get; init; } = "";
 
     /// <summary>
     /// Data type of the column
     /// </summary>
-    [JsonPropertyName("dt")]
     public string DataType { get; init; } = "";
 
     /// <summary>
     /// Column description (if available)
     /// </summary>
-    [JsonPropertyName("d")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Description { get; init; }
 }
@@ -1849,150 +1597,121 @@ public class DataModelCalculatedColumnViewResult : ResultBase
     /// <summary>
     /// Column name
     /// </summary>
-    [JsonPropertyName("cn")]
     public string ColumnName { get; set; } = "";
 
     /// <summary>
     /// Table name where column is defined
     /// </summary>
-    [JsonPropertyName("tn")]
     public string TableName { get; set; } = "";
 
     /// <summary>
     /// Complete DAX formula
     /// </summary>
-    [JsonPropertyName("df")]
     public string DaxFormula { get; set; } = "";
 
     /// <summary>
     /// Column description
     /// </summary>
-    [JsonPropertyName("d")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Description { get; set; }
 
     /// <summary>
     /// Data type of the column
     /// </summary>
-    [JsonPropertyName("dt")]
     public string DataType { get; set; } = "";
 
     /// <summary>
     /// Number of characters in DAX formula
     /// </summary>
-    [JsonPropertyName("cc")]
     public int CharacterCount { get; set; }
 }
 
 /// <summary>
 /// Result for DAX EVALUATE query execution
 /// </summary>
-/// <remarks>
-/// Property names: dq=DaxQuery, cols=Columns, rows=Rows, rc=RowCount, cc=ColumnCount
-/// </remarks>
 public class DaxEvaluateResult : ResultBase
 {
     /// <summary>
     /// The DAX EVALUATE query that was executed
     /// </summary>
-    [JsonPropertyName("dq")]
     public string DaxQuery { get; set; } = "";
 
     /// <summary>
     /// Column names from the query result (fully qualified: Table[Column])
     /// </summary>
-    [JsonPropertyName("cols")]
     public List<string> Columns { get; set; } = [];
 
     /// <summary>
     /// Data rows from the query result (2D array matching Columns order)
     /// </summary>
-    [JsonPropertyName("rows")]
     public List<List<object?>> Rows { get; set; } = [];
 
     /// <summary>
     /// Number of rows returned
     /// </summary>
-    [JsonPropertyName("rc")]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns returned
     /// </summary>
-    [JsonPropertyName("cc")]
     public int ColumnCount { get; set; }
 }
 
 /// <summary>
 /// Result for DMV (Dynamic Management View) query execution
 /// </summary>
-/// <remarks>
-/// Property names: dmv=DmvQuery, cols=Columns, rows=Rows, rc=RowCount, cc=ColumnCount
-/// </remarks>
 public class DmvQueryResult : ResultBase
 {
     /// <summary>
     /// The DMV query that was executed
     /// </summary>
-    [JsonPropertyName("dmv")]
     public string DmvQuery { get; set; } = "";
 
     /// <summary>
     /// Column names from the query result
     /// </summary>
-    [JsonPropertyName("cols")]
     public List<string> Columns { get; set; } = [];
 
     /// <summary>
     /// Data rows from the query result (2D array matching Columns order)
     /// </summary>
-    [JsonPropertyName("rows")]
     public List<List<object?>> Rows { get; set; } = [];
 
     /// <summary>
     /// Number of rows returned
     /// </summary>
-    [JsonPropertyName("rc")]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns returned
     /// </summary>
-    [JsonPropertyName("cc")]
     public int ColumnCount { get; set; }
 }
 
 /// <summary>
 /// Result for getting DAX query information from a table
 /// </summary>
-/// <remarks>
-/// Property names: tn=TableName, dq=DaxQuery, hdc=HasDaxConnection
-/// </remarks>
 public class TableDaxInfoResult : ResultBase
 {
     /// <summary>
     /// Name of the Excel Table
     /// </summary>
-    [JsonPropertyName("tn")]
     public string TableName { get; set; } = "";
 
     /// <summary>
     /// DAX EVALUATE query backing this table (if any)
     /// </summary>
-    [JsonPropertyName("dq")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? DaxQuery { get; set; }
 
     /// <summary>
     /// Whether this table is backed by a DAX query
     /// </summary>
-    [JsonPropertyName("hdc")]
     public bool HasDaxConnection { get; set; }
 
     /// <summary>
     /// Name of the model connection (if DAX-backed)
     /// </summary>
-    [JsonPropertyName("mcn")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ModelConnectionName { get; set; }
 }
@@ -2004,30 +1723,22 @@ public class TableDaxInfoResult : ResultBase
 /// <summary>
 /// Result for listing Excel Tables
 /// </summary>
-/// <remarks>
-/// Property names: ts=Tables
-/// </remarks>
 public class TableListResult : ResultBase
 {
     /// <summary>
     /// List of Excel Tables in the workbook
     /// </summary>
-    [JsonPropertyName("ts")]
     public List<TableInfo> Tables { get; set; } = [];
 }
 
 /// <summary>
 /// Result for getting detailed information about an Excel Table
 /// </summary>
-/// <remarks>
-/// Property names: t=Table
-/// </remarks>
 public class TableInfoResult : ResultBase
 {
     /// <summary>
     /// Detailed information about the Excel Table
     /// </summary>
-    [JsonPropertyName("t")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public TableInfo? Table { get; set; }
 }
@@ -2035,103 +1746,83 @@ public class TableInfoResult : ResultBase
 /// <summary>
 /// Information about an Excel Table (ListObject)
 /// </summary>
-/// <remarks>
-/// Property names: n=Name, sn=SheetName, ra=Range, hh=HasHeaders, st=TableStyle, r=RowCount, c=ColumnCount, cols=Columns, tot=ShowTotals
-/// </remarks>
 public class TableInfo
 {
     /// <summary>
     /// Name of the table
     /// </summary>
-    [JsonPropertyName("n")]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
     /// Worksheet containing the table
     /// </summary>
-    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Range address of the table (e.g., "A1:D10")
     /// </summary>
-    [JsonPropertyName("ra")]
     public string Range { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether the table has headers
     /// </summary>
-    [JsonPropertyName("hh")]
     public bool HasHeaders { get; set; } = true;
 
     /// <summary>
     /// Table style name (e.g., "TableStyleMedium2")
     /// </summary>
-    [JsonPropertyName("st")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? TableStyle { get; set; }
 
     /// <summary>
     /// Number of rows (excluding header)
     /// </summary>
-    [JsonPropertyName("r")]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns
     /// </summary>
-    [JsonPropertyName("c")]
     public int ColumnCount { get; set; }
 
     /// <summary>
     /// Column names (if table has headers)
     /// </summary>
-    [JsonPropertyName("cols")]
     public List<string> Columns { get; set; } = [];
 
     /// <summary>
     /// Whether the table has a total row
     /// </summary>
-    [JsonPropertyName("tot")]
     public bool ShowTotals { get; set; }
 }
 
 /// <summary>
 /// Result for reading Excel Table data
 /// </summary>
-/// <remarks>
-/// Property names: tn=TableName, h=Headers, d=Data, r=RowCount, c=ColumnCount
-/// </remarks>
 public class TableDataResult : ResultBase
 {
     /// <summary>
     /// Name of the table
     /// </summary>
-    [JsonPropertyName("tn")]
     public string TableName { get; set; } = string.Empty;
 
     /// <summary>
     /// Column headers
     /// </summary>
-    [JsonPropertyName("h")]
     public List<string> Headers { get; set; } = [];
 
     /// <summary>
     /// Data rows (each row is a list of cell values)
     /// </summary>
-    [JsonPropertyName("d")]
     public List<List<object?>> Data { get; set; } = [];
 
     /// <summary>
     /// Number of rows (excluding header)
     /// </summary>
-    [JsonPropertyName("r")]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns
     /// </summary>
-    [JsonPropertyName("c")]
     public int ColumnCount { get; set; }
 }
 
@@ -2143,19 +1834,16 @@ public class TableFilterResult : ResultBase
     /// <summary>
     /// Name of the table
     /// </summary>
-    [JsonPropertyName("tn")]
     public string TableName { get; set; } = string.Empty;
 
     /// <summary>
     /// Filter information for each column
     /// </summary>
-    [JsonPropertyName("cf")]
     public List<ColumnFilter> ColumnFilters { get; set; } = [];
 
     /// <summary>
     /// Whether any filters are active
     /// </summary>
-    [JsonPropertyName("hf")]
     public bool HasActiveFilters { get; set; }
 }
 
@@ -2167,32 +1855,27 @@ public class ColumnFilter
     /// <summary>
     /// Column name
     /// </summary>
-    [JsonPropertyName("cn")]
     public string ColumnName { get; set; } = string.Empty;
 
     /// <summary>
     /// Column index (1-based)
     /// </summary>
-    [JsonPropertyName("ci")]
     public int ColumnIndex { get; set; }
 
     /// <summary>
     /// Whether this column has an active filter
     /// </summary>
-    [JsonPropertyName("if")]
     public bool IsFiltered { get; set; }
 
     /// <summary>
     /// Filter criteria (if single criteria)
     /// </summary>
-    [JsonPropertyName("cr")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Criteria { get; set; }
 
     /// <summary>
     /// Filter values (if multiple values)
     /// </summary>
-    [JsonPropertyName("fv")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<string>? FilterValues { get; set; }
 }
@@ -2236,50 +1919,42 @@ public class TableStructuredReferenceResult : ResultBase
     /// <summary>
     /// Name of the table
     /// </summary>
-    [JsonPropertyName("tn")]
     public string TableName { get; set; } = string.Empty;
 
     /// <summary>
     /// Table region requested
     /// </summary>
-    [JsonPropertyName("rg")]
     public TableRegion Region { get; set; }
 
     /// <summary>
     /// Excel range address for the region (e.g., "$A$1:$D$100")
     /// </summary>
-    [JsonPropertyName("ra")]
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
     /// Structured reference formula (e.g., "SalesTable[#Data]")
     /// </summary>
-    [JsonPropertyName("sr")]
     public string StructuredReference { get; set; } = string.Empty;
 
     /// <summary>
     /// Sheet name where the table is located
     /// </summary>
-    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Column name (if requesting specific column reference)
     /// </summary>
-    [JsonPropertyName("cn")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ColumnName { get; set; }
 
     /// <summary>
     /// Number of rows in the region
     /// </summary>
-    [JsonPropertyName("r")]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns in the region
     /// </summary>
-    [JsonPropertyName("c")]
     public int ColumnCount { get; set; }
 }
 
@@ -2291,13 +1966,11 @@ public class TableSortColumn
     /// <summary>
     /// Column name to sort by
     /// </summary>
-    [JsonPropertyName("cn")]
     public string ColumnName { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether to sort in ascending order (true) or descending (false)
     /// </summary>
-    [JsonPropertyName("asc")]
     public bool Ascending { get; set; } = true;
 }
 
@@ -2313,39 +1986,33 @@ public class HyperlinkInfo
     /// <summary>
     /// Cell address containing the hyperlink
     /// </summary>
-    [JsonPropertyName("ca")]
     public string CellAddress { get; set; } = string.Empty;
 
     /// <summary>
     /// Hyperlink URL or file path
     /// </summary>
-    [JsonPropertyName("a")]
     public string Address { get; set; } = string.Empty;
 
     /// <summary>
     /// Sub-address within the target (e.g., sheet reference)
     /// </summary>
-    [JsonPropertyName("sa")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? SubAddress { get; set; }
 
     /// <summary>
     /// Display text (visible text in cell)
     /// </summary>
-    [JsonPropertyName("dt")]
     public string DisplayText { get; set; } = string.Empty;
 
     /// <summary>
     /// Tooltip/ScreenTip text
     /// </summary>
-    [JsonPropertyName("st")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ScreenTip { get; set; }
 
     /// <summary>
     /// Whether the hyperlink points to another location in the workbook
     /// </summary>
-    [JsonPropertyName("int")]
     public bool IsInternal { get; set; }
 }
 
@@ -2357,19 +2024,16 @@ public class HyperlinkListResult : ResultBase
     /// <summary>
     /// List of hyperlinks in the worksheet
     /// </summary>
-    [JsonPropertyName("hl")]
     public List<HyperlinkInfo> Hyperlinks { get; set; } = [];
 
     /// <summary>
     /// Total count of hyperlinks
     /// </summary>
-    [JsonPropertyName("c")]
     public int Count { get; set; }
 
     /// <summary>
     /// Sheet name
     /// </summary>
-    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 }
 
@@ -2381,26 +2045,22 @@ public class HyperlinkInfoResult : ResultBase
     /// <summary>
     /// Hyperlink information (null if no hyperlink exists)
     /// </summary>
-    [JsonPropertyName("h")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public HyperlinkInfo? Hyperlink { get; set; }
 
     /// <summary>
     /// Whether a hyperlink exists at the specified cell
     /// </summary>
-    [JsonPropertyName("hh")]
     public bool HasHyperlink { get; set; }
 
     /// <summary>
     /// Sheet name
     /// </summary>
-    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Cell address
     /// </summary>
-    [JsonPropertyName("ca")]
     public string CellAddress { get; set; } = string.Empty;
 }
 
@@ -2416,31 +2076,26 @@ public class RangeNumberFormatResult : ResultBase
     /// <summary>
     /// Sheet name
     /// </summary>
-    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Range address (e.g., A1:D10)
     /// </summary>
-    [JsonPropertyName("ra")]
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
     /// 2D array of number format codes (matches range dimensions)
     /// </summary>
-    [JsonPropertyName("f")]
     public List<List<string>> Formats { get; set; } = [];
 
     /// <summary>
     /// Number of rows in the range
     /// </summary>
-    [JsonPropertyName("r")]
     public int RowCount { get; set; }
 
     /// <summary>
     /// Number of columns in the range
     /// </summary>
-    [JsonPropertyName("c")]
     public int ColumnCount { get; set; }
 }
 
@@ -2456,99 +2111,84 @@ public class RangeValidationResult : ResultBase
     /// <summary>
     /// Sheet name
     /// </summary>
-    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Range address
     /// </summary>
-    [JsonPropertyName("ra")]
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether the range has validation
     /// </summary>
-    [JsonPropertyName("hv")]
     public bool HasValidation { get; set; }
 
     /// <summary>
     /// Validation type (list, whole, decimal, date, time, textlength, custom)
     /// </summary>
-    [JsonPropertyName("vt")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ValidationType { get; set; }
 
     /// <summary>
     /// Validation operator (between, equal, greaterthan, etc.)
     /// </summary>
-    [JsonPropertyName("vo")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ValidationOperator { get; set; }
 
     /// <summary>
     /// First formula/value
     /// </summary>
-    [JsonPropertyName("f1")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Formula1 { get; set; }
 
     /// <summary>
     /// Second formula/value (for Between operator)
     /// </summary>
-    [JsonPropertyName("f2")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Formula2 { get; set; }
 
     /// <summary>
     /// Whether to ignore blank cells
     /// </summary>
-    [JsonPropertyName("ib")]
     public bool IgnoreBlank { get; set; }
 
     /// <summary>
     /// Whether to show input message
     /// </summary>
-    [JsonPropertyName("sim")]
     public bool ShowInputMessage { get; set; }
 
     /// <summary>
     /// Input message title
     /// </summary>
-    [JsonPropertyName("it")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? InputTitle { get; set; }
 
     /// <summary>
     /// Input message text
     /// </summary>
-    [JsonPropertyName("im")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? InputMessage { get; set; }
 
     /// <summary>
     /// Whether to show error alert
     /// </summary>
-    [JsonPropertyName("sea")]
     public bool ShowErrorAlert { get; set; }
 
     /// <summary>
     /// Error alert style (stop, warning, information)
     /// </summary>
-    [JsonPropertyName("es")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ErrorStyle { get; set; }
 
     /// <summary>
     /// Error alert title
     /// </summary>
-    [JsonPropertyName("et")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ErrorTitle { get; set; }
 
     /// <summary>
     /// Error alert message text
     /// </summary>
-    [JsonPropertyName("vem")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ValidationErrorMessage { get; set; }
 }
@@ -2565,19 +2205,16 @@ public class RangeMergeInfoResult : ResultBase
     /// <summary>
     /// Sheet name
     /// </summary>
-    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Range address
     /// </summary>
-    [JsonPropertyName("ra")]
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether the range contains merged cells
     /// </summary>
-    [JsonPropertyName("im")]
     public bool IsMerged { get; set; }
 }
 
@@ -2589,19 +2226,16 @@ public class RangeLockInfoResult : ResultBase
     /// <summary>
     /// Sheet name
     /// </summary>
-    [JsonPropertyName("sn")]
     public string SheetName { get; set; } = string.Empty;
 
     /// <summary>
     /// Range address
     /// </summary>
-    [JsonPropertyName("ra")]
     public string RangeAddress { get; set; } = string.Empty;
 
     /// <summary>
     /// Whether the cells are locked
     /// </summary>
-    [JsonPropertyName("il")]
     public bool IsLocked { get; set; }
 }
 
