@@ -1,6 +1,6 @@
 # excel_powerquery - Server Quirks
 
-## 🚀 RECOMMENDED DEVELOPMENT WORKFLOW (ALWAYS USE THIS)
+## RECOMMENDED DEVELOPMENT WORKFLOW (ALWAYS USE THIS)
 
 **Test BEFORE persisting - avoid polluting workbooks with broken queries:**
 
@@ -52,7 +52,7 @@ Alternative path (for existing worksheet tables):
 
 **Action disambiguation**:
 
-- **evaluate**: ⭐ **USE THIS FIRST** - Execute M code directly, return results WITHOUT creating a permanent query (test before create/update!)
+- **evaluate**: **CRITICAL - USE THIS FIRST** - Execute M code directly, return results WITHOUT creating a permanent query (test before create/update!)
 - create: Import NEW query using inline `mCode` (FAILS if query already exists - use update instead)
 - update: Update EXISTING query M code + refresh data (use this if query exists)
 - rename: Change query name (requires both `queryName` and `newName` parameters)
@@ -98,7 +98,7 @@ Alternative path (for existing worksheet tables):
 
 **Common mistakes**:
 
-- ⚠️ **Skipping evaluate** → Create/update with untested M code (ERROR: pollutes workbook with broken queries)
+- **WARNING: Skipping evaluate** → Create/update with untested M code (ERROR: pollutes workbook with broken queries)
 - Using create on existing query → ERROR "Query 'X' already exists" (should use update)
 - Using update on new query → ERROR "Query 'X' not found" (should use create)
 - Calling LoadTo without checking if sheet exists (will error if sheet exists)

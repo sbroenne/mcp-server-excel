@@ -2,7 +2,7 @@
 
 # excel_powerquery - Server Quirks
 
-## 🚀 BEST PRACTICE: Test-First Development Workflow
+## BEST PRACTICE: Test-First Development Workflow
 
 **ALWAYS evaluate M code before creating permanent queries:**
 
@@ -49,7 +49,7 @@ Alternative path (for existing worksheet tables):
 
 **Action disambiguation**:
 
-- **evaluate**: ⭐ **TEST FIRST** - Execute M code directly WITHOUT creating permanent query (catches errors before persisting!)
+- **evaluate**: **CRITICAL - TEST FIRST** - Execute M code directly WITHOUT creating permanent query (catches errors before persisting!)
 - create: Import NEW query using inline `mCode` (FAILS if query already exists - use update instead)
 - update: Update EXISTING query M code + refresh data (use this if query exists)
 - rename: Change query name (requires both `queryName` and `newName` parameters)
@@ -111,7 +111,7 @@ This avoids polluting the workbook with broken queries and gives better error me
 
 **Common mistakes**:
 
-- ⚠️ **Skipping evaluate** → Creating/updating with untested M code (pollutes workbook, cryptic COM errors)
+- **WARNING: Skipping evaluate** → Creating/updating with untested M code (pollutes workbook, cryptic COM errors)
 - Using create on existing query → ERROR "Query 'X' already exists" (should use update)
 - Using update on new query → ERROR "Query 'X' not found" (should use create)
 - Calling LoadTo without checking if sheet exists (will error if sheet exists)
