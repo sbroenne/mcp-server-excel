@@ -15,13 +15,17 @@ public static partial class ExcelPowerQueryTool
     /// <summary>
     /// Power Query M code and data loading.
     ///
-    /// RECOMMENDED WORKFLOW: Always evaluate M code before creating permanent queries:
-    /// 1. evaluate → verify data looks correct (catches syntax errors, missing sources, etc.)
-    /// 2. create → stores validated query in workbook
+    /// TEST-FIRST DEVELOPMENT WORKFLOW (BEST PRACTICE):
+    /// 1. evaluate → Test M code WITHOUT persisting (catches syntax errors, validates sources, shows data preview)
+    /// 2. create/update → Store VALIDATED query in workbook
+    /// 3. refresh/load-to → Load data to destination
+    /// 
+    /// WHY EVALUATE FIRST: Better error messages than COM exceptions, see actual data preview, 
+    /// no cleanup needed, avoids polluting workbook with broken queries. 
     /// Skip evaluate only for trivial literal tables (#table with hardcoded values).
-    /// IF CREATE/UPDATE FAILS: Use evaluate to get detailed Power Query error message, fix code, retry.
     ///
-    /// BEST PRACTICE: Use 'list' before creating. Prefer 'update' over delete+recreate to preserve load settings.
+    /// IF CREATE/UPDATE FAILS: Use evaluate to get detailed Power Query error message, fix code, retry.
+    /// This is the RECOMMENDED way to debug M code issues - evaluate gives you the actual M engine error.
     ///
     /// DATETIME COLUMNS: Always include Table.TransformColumnTypes() in M code to set column types explicitly.
     /// Without explicit types, dates may be stored as numbers and Data Model relationships may fail.

@@ -6,6 +6,17 @@ applyTo: "src/ExcelMcp.McpServer/**/*.cs"
 
 > **All action methods are synchronous.** Tool signatures are `async Task<string>` only to satisfy MCP SDK requirements, but action method implementations use NO async/await.
 
+## LLM-Facing Content Rules
+
+**NO EMOJIS in LLM-consumed content** - Never use emoji characters in:
+- Tool XML comments (`/// <summary>`) - MCP SDK extracts these
+- MCP Prompt files (`Prompts/Content/*.md`) - Direct LLM consumption
+- Any code documentation consumed by LLMs
+
+**Use plain text markers:** "IMPORTANT:", "WARNING:", "NOTE:", "CRITICAL:", "TIP:"
+
+**DO keep emojis in user-facing content:** READMEs, FEATURES.md, user documentation, examples - humans appreciate visual aids.
+
 ## Implementation Patterns
 
 ### Action-Based Routing

@@ -35,6 +35,14 @@ Excel's Power Pivot has key limitations compared to Power BI/SSAS:
 ```
 Skipping step 1 causes "table not found" errors.
 
+### Power Query Development Lifecycle
+```
+1. excel_powerquery evaluate (test M code without persisting - catches errors early)
+2. excel_powerquery create/update (store validated query in workbook)
+3. excel_powerquery refresh/load-to (load data to destination)
+```
+Skipping step 1 causes broken queries in workbook and cryptic COM errors.
+
 ### Parameter Setup for Power Query
 ```
 1. excel_worksheet create (e.g., "_Setup")
