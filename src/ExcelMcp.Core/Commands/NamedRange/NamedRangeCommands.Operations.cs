@@ -94,6 +94,9 @@ public partial class NamedRangeCommands
         {
             dynamic? nameObj = null;
             dynamic? refersToRange = null;
+            int originalCalculation = -1; // xlCalculationAutomatic = -4105, xlCalculationManual = -4135
+            bool calculationChanged = false;
+
             try
             {
                 nameObj = ComUtilities.FindName(ctx.Book, paramName);
@@ -103,6 +106,16 @@ public partial class NamedRangeCommands
                 }
 
                 refersToRange = nameObj.RefersToRange;
+
+                // CRITICAL: Temporarily disable automatic calculation to prevent Excel from
+                // hanging when changed parameter values trigger dependent formulas that reference Data Model/DAX.
+                // Without this, setting values can block the COM interface during recalculation.
+                originalCalculation = ctx.App.Calculation;
+                if (originalCalculation != -4135) // xlCalculationManual
+                {
+                    ctx.App.Calculation = -4135; // xlCalculationManual
+                    calculationChanged = true;
+                }
 
                 // Try to parse as number, otherwise set as text
                 if (double.TryParse(value, out double numValue))
@@ -122,6 +135,18 @@ public partial class NamedRangeCommands
             }
             finally
             {
+                // Restore original calculation mode
+                if (calculationChanged && originalCalculation != -1)
+                {
+                    try
+                    {
+                        ctx.App.Calculation = originalCalculation;
+                    }
+                    catch
+                    {
+                        // Ignore errors restoring calculation mode - not critical
+                    }
+                }
                 ComUtilities.Release(ref refersToRange);
                 ComUtilities.Release(ref nameObj);
             }

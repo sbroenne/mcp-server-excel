@@ -12,6 +12,24 @@ This changelog covers all components:
 
 ### Fixed
 
+- **COM Timeout with Data Model Dependencies** (#412): Fixed timeout when setting formulas/values that trigger Data Model recalculation
+  - ROOT CAUSE: Excel's automatic calculation blocks COM interface during DAX recalculation
+  - FIX: Temporarily disable calculation mode (xlCalculationManual) during write operations
+  - Affected methods: `SetFormulas`, `SetValues`, `Table.Append`, `NamedRange.Write`
+  - Formulas like `=INDEX(KPIs[Total_ACR],1)` now work without "The operation was canceled" error
+
+## [1.6.3] - 2026-02-03
+
+### Documentation
+
+- **M Code Identifier Quoting** (#407): Added guidance for special characters in Power Query identifiers
+- **PowerQuery Eval-First Workflow** (#405): Updated documentation with eval-first pattern
+- **CLI Command Name Fix** (#403): Fixed CLI command name in agent skills installation docs
+
+## [1.6.2] - 2026-02-02
+
+### Fixed
+
 - **Power Query Refresh Error Propagation** (#399): Fixed bug where `refresh` action returned `success: true` even when Power Query had formula errors
   - ROOT CAUSE: `Connection.Refresh()` silently swallows errors for worksheet queries (InModel=false)
   - FIX: Now uses `QueryTable.Refresh(false)` for worksheet queries which properly throws errors
@@ -41,6 +59,20 @@ This changelog covers all components:
   - New `vbaCodeFile` parameter on `excel_vba` tool for `create-module`, `update-module` actions
   - Handles VBA code with quotes and special characters cleanly
   - File takes precedence if both `vbaCode` and `vbaCodeFile` provided
+
+## [1.6.1] - 2026-02-01
+
+### Fixed
+
+- **CLI PackAsTool Workaround** (#396): Fixed CLI packaging issue with net10.0-windows target
+- **CI Duplicate Paths** (#394): Removed duplicate paths key in build workflow
+
+## [1.6.0] - 2026-02-01
+
+### Fixed
+
+- **MCPB Skills Key** (#392): Removed unsupported 'skills' key from manifest
+- **Data Model MSOLAP Error** (#391): Better error message when MSOLAP provider is missing
 
 ## [1.5.14] - 2025-02-01
 

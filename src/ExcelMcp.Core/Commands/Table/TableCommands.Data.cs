@@ -23,6 +23,9 @@ public partial class TableCommands
             dynamic? table = null;
             dynamic? sheet = null;
             dynamic? dataBodyRange = null;
+            int originalCalculation = -1; // xlCalculationAutomatic = -4105, xlCalculationManual = -4135
+            bool calculationChanged = false;
+
             try
             {
                 table = FindTable(ctx.Book, tableName);
@@ -60,6 +63,16 @@ public partial class TableCommands
                 int columnCount = table.ListColumns.Count;
                 int rowsToAdd = rows.Count;
 
+                // CRITICAL: Temporarily disable automatic calculation to prevent Excel from
+                // hanging when appended data triggers dependent formulas that reference Data Model/DAX.
+                // Without this, setting values can block the COM interface during recalculation.
+                originalCalculation = ctx.App.Calculation;
+                if (originalCalculation != -4135) // xlCalculationManual
+                {
+                    ctx.App.Calculation = -4135; // xlCalculationManual
+                    calculationChanged = true;
+                }
+
                 // Write data to cells below the table
                 for (int i = 0; i < rows.Count; i++)
                 {
@@ -76,6 +89,20 @@ public partial class TableCommands
                         {
                             ComUtilities.Release(ref cell);
                         }
+                    }
+                }
+
+                // Restore calculation before resize so the table can recalculate after the operation
+                if (calculationChanged && originalCalculation != -1)
+                {
+                    try
+                    {
+                        ctx.App.Calculation = originalCalculation;
+                        calculationChanged = false; // Mark as restored
+                    }
+                    catch
+                    {
+                        // Ignore errors restoring calculation mode - will try again in finally
                     }
                 }
 
@@ -99,6 +126,18 @@ public partial class TableCommands
             }
             finally
             {
+                // Restore original calculation mode if not already restored
+                if (calculationChanged && originalCalculation != -1)
+                {
+                    try
+                    {
+                        ctx.App.Calculation = originalCalculation;
+                    }
+                    catch
+                    {
+                        // Ignore errors restoring calculation mode - not critical
+                    }
+                }
                 ComUtilities.Release(ref dataBodyRange);
                 ComUtilities.Release(ref sheet);
                 ComUtilities.Release(ref table);
