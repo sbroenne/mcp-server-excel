@@ -135,21 +135,21 @@ Create an Excel file called "test.xlsx"
 ### Server Not Responding
 
 1. **Verify installation:**
-   ```powershell
-   dotnet tool list --global | Select-String "ExcelMcp"
-   ```
+ ```powershell
+ dotnet tool list --global | Select-String "ExcelMcp"
+ ```
 
 2. **Check .NET is installed:**
-   ```powershell
-   dotnet --version
-   # Should show 10.0.x or higher
-   ```
+ ```powershell
+ dotnet --version
+ # Should show 10.0.x or higher
+ ```
 
 3. **Reinstall if needed:**
-   ```powershell
-   dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
-   dotnet tool install --global Sbroenne.ExcelMcp.McpServer
-   ```
+ ```powershell
+ dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
+ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+ ```
 
 ### Excel Not Found
 

@@ -31,9 +31,9 @@ The ExcelMcp VS Code Extension provides one-click installation of the ExcelMcp M
 1. **You maintain**: Keep root CHANGELOG.md updated with changes as you make them
 2. **Version number must match tag**: Use the version you'll tag (e.g., `1.5.7`)
 3. **Workflow extracts automatically**: When you push tag `v1.5.7`, the unified workflow:
-   - Extracts the section for that version from CHANGELOG.md for release notes
-   - Updates package.json version to `1.5.7`
-   - Builds and releases ALL components (MCP Server, CLI, VS Code Extension, MCPB)
+ - Extracts the section for that version from CHANGELOG.md for release notes
+ - Updates package.json version to `1.5.7`
+ - Builds and releases ALL components (MCP Server, CLI, VS Code Extension, MCPB)
 
 ### Example Workflow
 
@@ -122,9 +122,9 @@ Unified workflow automatically:
 For local testing only, use npm version commands:
 
 ```powershell
-npm version patch   # 1.0.0 → 1.0.1
-npm version minor   # 1.0.0 → 1.1.0
-npm version major   # 1.0.0 → 2.0.0
+npm version patch # 1.0.0 → 1.0.1
+npm version minor # 1.0.0 → 1.1.0
+npm version major # 1.0.0 → 2.0.0
 ```
 
 **Important:** Don't commit manual version changes - they're for testing only.
@@ -138,12 +138,12 @@ npm version major   # 1.0.0 → 2.0.0
 **VS Code Marketplace displays:**
 
 1. **package.json metadata**:
-   - `displayName` - Title shown in marketplace
-   - `description` - Subtitle/summary
-   - `icon` - Extension icon (128x128px minimum)
-   - `categories` - Marketplace categories
-   - `keywords` - Search terms
-   - `publisher` - Publisher ID
+ - `displayName` - Title shown in marketplace
+ - `description` - Subtitle/summary
+ - `icon` - Extension icon (128x128px minimum)
+ - `categories` - Marketplace categories
+ - `keywords` - Search terms
+ - `publisher` - Publisher ID
 
 2. **README.md** - Main description page (features, installation, docs)
 3. **CHANGELOG.md** - Changelog tab in marketplace
@@ -151,10 +151,10 @@ npm version major   # 1.0.0 → 2.0.0
 
 ### Critical Files for Marketplace
 
-- ✅ **README.md** - Keep up-to-date with accurate commands and features
-- ✅ **CHANGELOG.md** - Maintain version history
-- ✅ **package.json** - Ensure metadata is accurate
-- ✅ **icon.png** - High-quality 128x128px PNG
+- **README.md** - Keep up-to-date with accurate commands and features
+- **CHANGELOG.md** - Maintain version history
+- **package.json** - Ensure metadata is accurate
+- **icon.png** - High-quality 128x128px PNG
 
 ---
 
@@ -230,10 +230,10 @@ npm run package
 
 1. **Update root CHANGELOG.md** with new features/fixes for all components
 2. **Create and push version tag** (releases ALL components):
-   ```powershell
-   git tag v1.5.7
-   git push origin v1.5.7
-   ```
+ ```powershell
+ git tag v1.5.7
+ git push origin v1.5.7
+ ```
 3. **Unified GitHub Actions workflow handles the rest**
 
 ### Manual Publishing (Emergency Only)
@@ -252,21 +252,21 @@ npx @vscode/vsce publish
 
 ## Common Mistakes to Avoid
 
-### ❌ Don't Do This
+### Don't Do This
 
 1. **Don't manually edit package.json version** before tagging
-   - Workflow updates it automatically from tag
-   
+ - Workflow updates it automatically from tag
+ 
 2. **Don't use dnx commands in documentation**
-   - Extension uses `dotnet tool run mcp-excel`
-   
+ - Extension uses `dotnet tool run mcp-excel`
+ 
 3. **Don't forget to update CHANGELOG.md**
-   - Marketplace shows changelog - keep it current
-   
+ - Marketplace shows changelog - keep it current
+ 
 4. **Don't commit with outdated version references**
-   - Check README.md, DEVELOPMENT.md for correct command syntax
+ - Check README.md, DEVELOPMENT.md for correct command syntax
 
-### ✅ Do This
+### Do This
 
 1. **Keep CHANGELOG.md updated** as you develop
 2. **Use correct command syntax** (`dotnet tool run mcp-excel`)

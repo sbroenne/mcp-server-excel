@@ -2,11 +2,11 @@
 Brief description of what this PR does.
 
 ## Type of Change
-- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
-- [ ] ✨ New feature (non-breaking change which adds functionality)
-- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] 📚 Documentation update
-- [ ] 🔧 Maintenance (dependency updates, code cleanup, etc.)
+- [ ] Bug fix (non-breaking change which fixes an issue)
+- [ ] New feature (non-breaking change which adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] Documentation update
+- [ ] Maintenance (dependency updates, code cleanup, etc.)
 
 ## Related Issues
 Closes #[issue number]
@@ -37,7 +37,7 @@ ExcelMcp command2 "test.xlsx" "param"
 ## Screenshots (if applicable)
 [Add screenshots showing the new functionality]
 
-## Core Commands Coverage Checklist ⚠️
+## Core Commands Coverage Checklist 
 
 **Does this PR add or modify Core Commands methods?** [ ] Yes [ ] No
 

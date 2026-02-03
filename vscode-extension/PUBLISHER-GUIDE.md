@@ -20,11 +20,11 @@ This guide walks you through publishing your VS Code extension to the marketplac
 1. **Go to Azure DevOps**: https://dev.azure.com/
 2. **Sign in** with your Microsoft account (or create one at https://login.live.com/)
 3. **Create a new organization** (if prompted):
-   - Organization name: Can be anything (e.g., "MyPublishing")
-   - Region: Choose closest to you
-   - Click "Continue"
+ - Organization name: Can be anything (e.g., "MyPublishing")
+ - Region: Choose closest to you
+ - Click "Continue"
 
-**✅ You now have an Azure DevOps organization**
+**You now have an Azure DevOps organization**
 
 ---
 
@@ -35,20 +35,20 @@ This guide walks you through publishing your VS Code extension to the marketplac
 1. **In Azure DevOps**, click your profile icon (top right) → **Personal Access Tokens**
 2. Click **"+ New Token"**
 3. **Configure the token:**
-   - **Name**: `VS Code Marketplace Publishing`
-   - **Organization**: Select your organization from dropdown
-   - **Expiration**: Custom defined → 1 year (you'll need to renew annually)
-   - **Scopes**: 
-     - Click **"Custom defined"**
-     - Scroll down to **"Marketplace"**
-     - Check **"Manage"** (this includes Acquire and Publish)
-   - **Important**: Only select Marketplace → Manage, nothing else needed
+ - **Name**: `VS Code Marketplace Publishing`
+ - **Organization**: Select your organization from dropdown
+ - **Expiration**: Custom defined → 1 year (you'll need to renew annually)
+ - **Scopes**: 
+ - Click **"Custom defined"**
+ - Scroll down to **"Marketplace"**
+ - Check **"Manage"** (this includes Acquire and Publish)
+ - **Important**: Only select Marketplace → Manage, nothing else needed
 4. Click **"Create"**
 5. **CRITICAL**: Copy the token immediately and save it securely
-   - You'll only see this once!
-   - If you lose it, you'll need to create a new one
+ - You'll only see this once!
+ - If you lose it, you'll need to create a new one
 
-**✅ You now have a PAT token** (keep it safe, you'll use it in Step 4)
+**You now have a PAT token** (keep it safe, you'll use it in Step 4)
 
 ---
 
@@ -60,16 +60,16 @@ This guide walks you through publishing your VS Code extension to the marketplac
 2. **Sign in** with the same Microsoft account from Step 1
 3. Click **"Create publisher"**
 4. **Fill in the form:**
-   - **Publisher ID**: `sbroenne` (must match the `publisher` field in `package.json`)
-     - ⚠️ This MUST be exactly what's in your package.json
-     - ⚠️ Cannot be changed later
-     - Can only contain letters, numbers, and hyphens
-   - **Display name**: `Stefan Broenne` (shown to users)
-   - **Description**: Brief description of your publisher account
-   - **Logo** (optional): Upload a square image (recommended 128x128px)
+ - **Publisher ID**: `sbroenne` (must match the `publisher` field in `package.json`)
+ - This MUST be exactly what's in your package.json
+ - Cannot be changed later
+ - Can only contain letters, numbers, and hyphens
+ - **Display name**: `Stefan Broenne` (shown to users)
+ - **Description**: Brief description of your publisher account
+ - **Logo** (optional): Upload a square image (recommended 128x128px)
 5. Click **"Create"**
 
-**✅ You now have a publisher account**
+**You now have a publisher account**
 
 ---
 
@@ -82,11 +82,11 @@ This guide walks you through publishing your VS Code extension to the marketplac
 3. In left sidebar, click **Secrets and variables** → **Actions**
 4. Click **"New repository secret"**
 5. **Configure the secret:**
-   - **Name**: `VSCE_TOKEN` (exactly this, case-sensitive)
-   - **Value**: Paste the PAT from Step 2
+ - **Name**: `VSCE_TOKEN` (exactly this, case-sensitive)
+ - **Value**: Paste the PAT from Step 2
 6. Click **"Add secret"**
 
-**✅ GitHub Actions can now publish to the marketplace**
+**GitHub Actions can now publish to the marketplace**
 
 ---
 
@@ -95,40 +95,40 @@ This guide walks you through publishing your VS Code extension to the marketplac
 **Now you're ready to publish!**
 
 1. **Update version in package.json** (if needed):
-   ```powershell
-   cd vscode-extension
-   npm version 1.0.0  # or patch, minor, major
-   ```
+ ```powershell
+ cd vscode-extension
+ npm version 1.0.0 # or patch, minor, major
+ ```
 
 2. **Update CHANGELOG.md** with release notes
 
 3. **Commit changes**:
-   ```powershell
-   git add .
-   git commit -m "Prepare v1.0.0 release"
-   git push
-   ```
+ ```powershell
+ git add .
+ git commit -m "Prepare v1.0.0 release"
+ git push
+ ```
 
 4. **Create and push version tag** (releases ALL components):
-   ```powershell
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
+ ```powershell
+ git tag v1.0.0
+ git push origin v1.0.0
+ ```
 
 5. **Watch the magic happen**:
-   - Go to **Actions** tab in GitHub
-   - Watch the "Release All Components" workflow run
-   - It will:
-     - Build all components (MCP Server, CLI, VS Code Extension, MCPB)
-     - Publish to NuGet (MCP Server, CLI)
-     - Publish to VS Code Marketplace
-     - Create unified GitHub release with all artifacts
+ - Go to **Actions** tab in GitHub
+ - Watch the "Release All Components" workflow run
+ - It will:
+ - Build all components (MCP Server, CLI, VS Code Extension, MCPB)
+ - Publish to NuGet (MCP Server, CLI)
+ - Publish to VS Code Marketplace
+ - Create unified GitHub release with all artifacts
 
 6. **Verify publication** (takes 5-15 minutes):
-   - VS Code Marketplace: https://marketplace.visualstudio.com/items?itemName=sbroenne.excelmcp
-   - Or search "ExcelMcp" in VS Code Extensions panel
+ - VS Code Marketplace: https://marketplace.visualstudio.com/items?itemName=sbroenne.excelmcp
+ - Or search "ExcelMcp" in VS Code Extensions panel
 
-**✅ Your extension is now live on the marketplace!**
+**Your extension is now live on the marketplace!**
 
 ---
 
@@ -142,7 +142,7 @@ Once you've done the above setup once, publishing new versions is easy:
 
 # 2. Update version
 cd vscode-extension
-npm version patch  # or minor, or major
+npm version patch # or minor, or major
 
 # 3. Update root CHANGELOG.md
 # Add release notes under new version
@@ -175,41 +175,41 @@ git push origin v1.0.1
 
 ## Common First-Time Issues
 
-### ❌ "Publisher 'sbroenne' not found"
+### "Publisher 'sbroenne' not found"
 
 **Solution:** 
 - Go to https://marketplace.visualstudio.com/manage
 - Verify you created a publisher with ID `sbroenne` (exact match to package.json)
 - Make sure you're signed in with the correct Microsoft account
 
-### ❌ "Personal Access Token expired or invalid"
+### "Personal Access Token expired or invalid"
 
 **Solution:**
 - Create a new PAT following Step 2
 - Update GitHub secret `VSCE_TOKEN` with new token
 
-### ❌ "Extension validation failed"
+### "Extension validation failed"
 
 **Solution:**
 - Check `package.json` has all required fields:
-  - `publisher`: Must match your marketplace publisher ID
-  - `name`: Extension identifier
-  - `displayName`: User-friendly name
-  - `description`: Brief description
-  - `version`: Semantic version
-  - `engines.vscode`: VS Code version requirement
-  - `repository`: GitHub repository URL
-  - `license`: License type
+ - `publisher`: Must match your marketplace publisher ID
+ - `name`: Extension identifier
+ - `displayName`: User-friendly name
+ - `description`: Brief description
+ - `version`: Semantic version
+ - `engines.vscode`: VS Code version requirement
+ - `repository`: GitHub repository URL
+ - `license`: License type
 - Icon must be PNG (not SVG)
 - README images must use HTTPS URLs
 
-### ❌ "Cannot publish - version already exists"
+### "Cannot publish - version already exists"
 
 **Solution:**
 - Increment version in package.json:
-  ```powershell
-  npm version patch  # 1.0.0 → 1.0.1
-  ```
+ ```powershell
+ npm version patch # 1.0.0 → 1.0.1
+ ```
 - You cannot republish the same version
 
 ---
@@ -220,19 +220,19 @@ git push origin v1.0.1
 
 1. Go to https://marketplace.visualstudio.com/manage/publishers/sbroenne
 2. Click "Edit" to update:
-   - Display name
-   - Description
-   - Logo
-   - Contact links
+ - Display name
+ - Description
+ - Logo
+ - Contact links
 
 ### View Extension Statistics
 
 1. Go to https://marketplace.visualstudio.com/manage/publishers/sbroenne
 2. Click on your extension
 3. See:
-   - Download/install counts
-   - Ratings and reviews
-   - Usage trends
+ - Download/install counts
+ - Ratings and reviews
+ - Usage trends
 
 ### Respond to Reviews
 
@@ -272,4 +272,4 @@ git push origin v1.0.1
 - [ ] Watched GitHub Actions workflow succeed
 - [ ] Verified extension appears on marketplace (wait 5-15 min)
 
-**🎉 Once all checked, you're a published VS Code extension author!**
+**Once all checked, you're a published VS Code extension author!**

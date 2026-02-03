@@ -28,9 +28,9 @@ The session mode demo shows how to use sessions for high-performance multi-opera
 1. Creates a test workbook (`test-session.xlsx`)
 2. Opens a session and captures the session ID
 3. Performs multiple operations using the same Excel instance:
-   - Creates 3 worksheets (Sales, Customers, Products)
-   - Lists worksheets
-   - Lists Power Queries
+ - Creates 3 worksheets (Sales, Customers, Products)
+ - Lists worksheets
+ - Lists Power Queries
 4. Lists active sessions
 5. Closes the session with `--save` (saves all changes)
 6. Verifies changes were saved
