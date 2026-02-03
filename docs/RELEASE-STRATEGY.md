@@ -15,7 +15,7 @@ All four ExcelMcp components are released together with a single version tag:
 
 ## Unified Release Workflow
 
-**Workflow**: `.github/workflows/release.yml`  
+**Workflow**: `.github/workflows/release.yml` 
 **Trigger**: Tags matching `v*` (e.g., `v1.5.6`)
 
 ### What Gets Released

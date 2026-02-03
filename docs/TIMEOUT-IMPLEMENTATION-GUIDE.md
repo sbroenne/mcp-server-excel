@@ -35,14 +35,14 @@ private static readonly TimeSpan MaxOperationTimeout = TimeSpan.FromMinutes(5);
 
 ```csharp
 Task<T> Execute<T>(
-    Func<ExcelContext, CancellationToken, T> operation,
-    CancellationToken cancellationToken = default,
-    TimeSpan? timeout = null);  // ← NEW: Optional timeout parameter
+ Func<ExcelContext, CancellationToken, T> operation,
+ CancellationToken cancellationToken = default,
+ TimeSpan? timeout = null); // ← NEW: Optional timeout parameter
 
 Task<T> ExecuteAsync<T>(
-    Func<ExcelContext, CancellationToken, Task<T>> operation,
-    CancellationToken cancellationToken = default,
-    TimeSpan? timeout = null);  // ← NEW: Optional timeout parameter
+ Func<ExcelContext, CancellationToken, Task<T>> operation,
+ CancellationToken cancellationToken = default,
+ TimeSpan? timeout = null); // ← NEW: Optional timeout parameter
 ```
 
 ### Timeout Enforcement Pattern
@@ -50,8 +50,8 @@ Task<T> ExecuteAsync<T>(
 ```csharp
 // Clamp timeout between default and max
 var effectiveTimeout = timeout.HasValue
-    ? TimeSpan.FromMilliseconds(Math.Min(timeout.Value.TotalMilliseconds, MaxOperationTimeout.TotalMilliseconds))
-    : DefaultOperationTimeout;
+ ? TimeSpan.FromMilliseconds(Math.Min(timeout.Value.TotalMilliseconds, MaxOperationTimeout.TotalMilliseconds))
+ : DefaultOperationTimeout;
 
 // Create linked cancellation token (operation + timeout)
 using var timeoutCts = new CancellationTokenSource(effectiveTimeout);
@@ -66,19 +66,19 @@ return await tcs.Task.WaitAsync(linkedCts.Token);
 ```csharp
 catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
 {
-    var duration = DateTime.UtcNow - startTime;
-    var usedMaxTimeout = effectiveTimeout >= MaxOperationTimeout;
+ var duration = DateTime.UtcNow - startTime;
+ var usedMaxTimeout = effectiveTimeout >= MaxOperationTimeout;
 
-    Console.Error.WriteLine($"[EXCEL-BATCH] TIMEOUT after {duration.TotalSeconds:F1}s (limit: {effectiveTimeout.TotalMinutes:F1}min, max: {usedMaxTimeout})");
+ Console.Error.WriteLine($"[EXCEL-BATCH] TIMEOUT after {duration.TotalSeconds:F1}s (limit: {effectiveTimeout.TotalMinutes:F1}min, max: {usedMaxTimeout})");
 
-    var message = usedMaxTimeout
-        ? $"Excel operation exceeded maximum timeout of {MaxOperationTimeout.TotalMinutes} minutes (actual: {duration.TotalMinutes:F1} min). " +
-          "This indicates Excel is hung, unresponsive, or the operation is too complex. " +
-          "Check if Excel is showing a dialog or consider breaking the operation into smaller steps."
-        : $"Excel operation timed out after {effectiveTimeout.TotalMinutes} minutes (actual: {duration.TotalMinutes:F1} min). " +
-          $"For large datasets or complex operations, more time may be needed (maximum: {MaxOperationTimeout.TotalMinutes} min).";
+ var message = usedMaxTimeout
+ ? $"Excel operation exceeded maximum timeout of {MaxOperationTimeout.TotalMinutes} minutes (actual: {duration.TotalMinutes:F1} min). " +
+ "This indicates Excel is hung, unresponsive, or the operation is too complex. " +
+ "Check if Excel is showing a dialog or consider breaking the operation into smaller steps."
+ : $"Excel operation timed out after {effectiveTimeout.TotalMinutes} minutes (actual: {duration.TotalMinutes:F1} min). " +
+ $"For large datasets or complex operations, more time may be needed (maximum: {MaxOperationTimeout.TotalMinutes} min).";
 
-    throw new TimeoutException(message);
+ throw new TimeoutException(message);
 }
 ```
 
@@ -93,15 +93,15 @@ All result types now inherit LLM guidance fields:
 ```csharp
 public abstract class ResultBase
 {
-    public bool Success { get; set; }
-    public string? ErrorMessage { get; set; }
-    public string? FilePath { get; set; }
+ public bool Success { get; set; }
+ public string? ErrorMessage { get; set; }
+ public string? FilePath { get; set; }
 
-    // ✨ NEW: LLM Guidance Fields
-    public List<string>? SuggestedNextActions { get; set; }
-    public Dictionary<string, object>? OperationContext { get; set; }
-    public bool IsRetryable { get; set; } = true;
-    public string? RetryGuidance { get; set; }
+ // NEW: LLM Guidance Fields
+ public List<string>? SuggestedNextActions { get; set; }
+ public Dictionary<string, object>? OperationContext { get; set; }
+ public bool IsRetryable { get; set; } = true;
+ public string? RetryGuidance { get; set; }
 }
 ```
 
@@ -117,14 +117,14 @@ For operations that typically take longer (refresh, data loading), Core commands
 // In PowerQueryCommands.cs
 public async Task<PowerQueryRefreshResult> RefreshAsync(IExcelBatch batch, string queryName)
 {
-    // Heavy operation: request extended timeout (5 minutes)
-    return await batch.Execute<PowerQueryRefreshResult>(
-        (ctx, ct) => {
-            // Refresh logic...
-            return result;
-        },
-        timeout: TimeSpan.FromMinutes(5)  // ← Request 5 min (will be clamped to max)
-    );
+ // Heavy operation: request extended timeout (5 minutes)
+ return await batch.Execute<PowerQueryRefreshResult>(
+ (ctx, ct) => {
+ // Refresh logic...
+ return result;
+ },
+ timeout: TimeSpan.FromMinutes(5) // ← Request 5 min (will be clamped to max)
+ );
 }
 ```
 
@@ -136,52 +136,52 @@ MCP tools should catch `TimeoutException` and enrich with operation-specific gui
 // In ExcelPowerQueryTool.cs
 private static async Task<string> RefreshPowerQueryAsync(...)
 {
-    try
-    {
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.RefreshAsync(batch, queryName));
+ try
+ {
+ var result = await ExcelToolsBase.WithBatchAsync(
+ batchId,
+ excelPath,
+ save: true,
+ async (batch) => await commands.RefreshAsync(batch, queryName));
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-    catch (TimeoutException ex)
-    {
-        // Enrich with operation-specific guidance
-        var result = new PowerQueryRefreshResult
-        {
-            Success = false,
-            ErrorMessage = ex.Message,
-            QueryName = queryName,
-            FilePath = excelPath,
-            
-            // ✨ Add LLM guidance
-            SuggestedNextActions = new List<string>
-            {
-                "Check if Excel is showing a 'Privacy Level' dialog or other modal dialogs",
-                "Verify the data source is accessible (network connection, database availability)",
-                "Consider breaking query into smaller steps if processing large datasets",
-                "Use batch mode (begin_excel_batch) if not already using it"
-            },
-            
-            OperationContext = new Dictionary<string, object>
-            {
-                { "OperationType", "PowerQuery.Refresh" },
-                { "QueryName", queryName },
-                { "TimeoutReached", true },
-                { "UsedMaxTimeout", ex.Message.Contains("maximum timeout") }
-            },
-            
-            IsRetryable = !ex.Message.Contains("maximum timeout"),  // Don't retry max timeout
-            
-            RetryGuidance = ex.Message.Contains("maximum timeout")
-                ? "Operation reached maximum timeout - do not retry. Check for Excel dialogs or break into smaller operations."
-                : "Operation can be retried with longer timeout (up to 5 minutes) if data source is slow."
-        };
+ return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+ }
+ catch (TimeoutException ex)
+ {
+ // Enrich with operation-specific guidance
+ var result = new PowerQueryRefreshResult
+ {
+ Success = false,
+ ErrorMessage = ex.Message,
+ QueryName = queryName,
+ FilePath = excelPath,
+ 
+ // Add LLM guidance
+ SuggestedNextActions = new List<string>
+ {
+ "Check if Excel is showing a 'Privacy Level' dialog or other modal dialogs",
+ "Verify the data source is accessible (network connection, database availability)",
+ "Consider breaking query into smaller steps if processing large datasets",
+ "Use batch mode (begin_excel_batch) if not already using it"
+ },
+ 
+ OperationContext = new Dictionary<string, object>
+ {
+ { "OperationType", "PowerQuery.Refresh" },
+ { "QueryName", queryName },
+ { "TimeoutReached", true },
+ { "UsedMaxTimeout", ex.Message.Contains("maximum timeout") }
+ },
+ 
+ IsRetryable = !ex.Message.Contains("maximum timeout"), // Don't retry max timeout
+ 
+ RetryGuidance = ex.Message.Contains("maximum timeout")
+ ? "Operation reached maximum timeout - do not retry. Check for Excel dialogs or break into smaller operations."
+ : "Operation can be retried with longer timeout (up to 5 minutes) if data source is slow."
+ };
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
+ return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+ }
 }
 ```
 
@@ -193,12 +193,12 @@ For quick operations (list, get, create), use default 2-minute timeout:
 // In PowerQueryCommands.cs
 public async Task<PowerQueryListResult> ListAsync(IExcelBatch batch)
 {
-    // Light operation: use default timeout (no parameter needed)
-    return await batch.Execute<PowerQueryListResult>((ctx, ct) =>
-    {
-        // List logic...
-        return result;
-    });  // ← Default 2 min timeout
+ // Light operation: use default timeout (no parameter needed)
+ return await batch.Execute<PowerQueryListResult>((ctx, ct) =>
+ {
+ // List logic...
+ return result;
+ }); // ← Default 2 min timeout
 }
 ```
 
@@ -250,10 +250,10 @@ Or on timeout:
 
 - [ ] Wrap Core command calls in try-catch for `TimeoutException`
 - [ ] Create enriched result with:
-  - [ ] `SuggestedNextActions` (operation-specific steps)
-  - [ ] `OperationContext` (timeout details, operation type)
-  - [ ] `IsRetryable = false` for max timeout cases
-  - [ ] `RetryGuidance` with actionable advice
+ - [ ] `SuggestedNextActions` (operation-specific steps)
+ - [ ] `OperationContext` (timeout details, operation type)
+ - [ ] `IsRetryable = false` for max timeout cases
+ - [ ] `RetryGuidance` with actionable advice
 - [ ] Return JSON serialized result (don't re-throw)
 
 ### For CLI Commands
@@ -270,79 +270,79 @@ Or on timeout:
 // Core Command (PowerQueryCommands.Refresh.cs)
 public async Task<PowerQueryRefreshResult> RefreshAsync(IExcelBatch batch, string queryName)
 {
-    var result = new PowerQueryRefreshResult
-    {
-        FilePath = batch.WorkbookPath,
-        QueryName = queryName,
-        RefreshTime = DateTime.Now
-    };
+ var result = new PowerQueryRefreshResult
+ {
+ FilePath = batch.WorkbookPath,
+ QueryName = queryName,
+ RefreshTime = DateTime.Now
+ };
 
-    return await batch.Execute<PowerQueryRefreshResult>(
-        (ctx, ct) =>
-        {
-            // Refresh logic (omitted for brevity)
-            result.Success = true;
-            return result;
-        },
-        timeout: TimeSpan.FromMinutes(5)  // ← Request extended timeout
-    );
+ return await batch.Execute<PowerQueryRefreshResult>(
+ (ctx, ct) =>
+ {
+ // Refresh logic (omitted for brevity)
+ result.Success = true;
+ return result;
+ },
+ timeout: TimeSpan.FromMinutes(5) // ← Request extended timeout
+ );
 }
 
 // MCP Tool (ExcelPowerQueryTool.cs)
 private static async Task<string> RefreshPowerQueryAsync(
-    PowerQueryCommands commands, 
-    string excelPath, 
-    string? queryName, 
-    string? batchId)
+ PowerQueryCommands commands, 
+ string excelPath, 
+ string? queryName, 
+ string? batchId)
 {
-    if (string.IsNullOrEmpty(queryName))
-        throw new ModelContextProtocol.McpException("queryName is required for refresh action");
+ if (string.IsNullOrEmpty(queryName))
+ throw new ModelContextProtocol.McpException("queryName is required for refresh action");
 
-    try
-    {
-        var result = await ExcelToolsBase.WithBatchAsync(
-            batchId,
-            excelPath,
-            save: true,
-            async (batch) => await commands.RefreshAsync(batch, queryName));
+ try
+ {
+ var result = await ExcelToolsBase.WithBatchAsync(
+ batchId,
+ excelPath,
+ save: true,
+ async (batch) => await commands.RefreshAsync(batch, queryName));
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-    catch (TimeoutException ex)
-    {
-        var result = new PowerQueryRefreshResult
-        {
-            Success = false,
-            ErrorMessage = ex.Message,
-            QueryName = queryName,
-            FilePath = excelPath,
-            RefreshTime = DateTime.Now,
-            
-            SuggestedNextActions = new List<string>
-            {
-                "Check if Excel is showing a 'Privacy Level' dialog",
-                "Verify the data source is accessible",
-                "Consider using smaller data ranges if processing large datasets",
-                "Use batch mode (begin_excel_batch) if not already"
-            },
-            
-            OperationContext = new Dictionary<string, object>
-            {
-                { "OperationType", "PowerQuery.Refresh" },
-                { "QueryName", queryName },
-                { "TimeoutReached", true },
-                { "UsedMaxTimeout", ex.Message.Contains("maximum timeout") }
-            },
-            
-            IsRetryable = !ex.Message.Contains("maximum timeout"),
-            
-            RetryGuidance = ex.Message.Contains("maximum timeout")
-                ? "Maximum timeout reached - do not retry automatically. Manual intervention needed."
-                : "Retry with same timeout acceptable if transient issue suspected."
-        };
+ return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+ }
+ catch (TimeoutException ex)
+ {
+ var result = new PowerQueryRefreshResult
+ {
+ Success = false,
+ ErrorMessage = ex.Message,
+ QueryName = queryName,
+ FilePath = excelPath,
+ RefreshTime = DateTime.Now,
+ 
+ SuggestedNextActions = new List<string>
+ {
+ "Check if Excel is showing a 'Privacy Level' dialog",
+ "Verify the data source is accessible",
+ "Consider using smaller data ranges if processing large datasets",
+ "Use batch mode (begin_excel_batch) if not already"
+ },
+ 
+ OperationContext = new Dictionary<string, object>
+ {
+ { "OperationType", "PowerQuery.Refresh" },
+ { "QueryName", queryName },
+ { "TimeoutReached", true },
+ { "UsedMaxTimeout", ex.Message.Contains("maximum timeout") }
+ },
+ 
+ IsRetryable = !ex.Message.Contains("maximum timeout"),
+ 
+ RetryGuidance = ex.Message.Contains("maximum timeout")
+ ? "Maximum timeout reached - do not retry automatically. Manual intervention needed."
+ : "Retry with same timeout acceptable if transient issue suspected."
+ };
 
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
+ return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+ }
 }
 ```
 
@@ -358,9 +358,9 @@ Test timeout clamping logic:
 [Fact]
 public void Execute_TimeoutClamping_LimitsToMax()
 {
-    var requestedTimeout = TimeSpan.FromMinutes(10);  // Request 10 min
-    var effectiveTimeout = Math.Min(requestedTimeout.TotalMilliseconds, MaxOperationTimeout.TotalMilliseconds);
-    Assert.Equal(TimeSpan.FromMinutes(5), TimeSpan.FromMilliseconds(effectiveTimeout));  // Clamped to 5 min
+ var requestedTimeout = TimeSpan.FromMinutes(10); // Request 10 min
+ var effectiveTimeout = Math.Min(requestedTimeout.TotalMilliseconds, MaxOperationTimeout.TotalMilliseconds);
+ Assert.Equal(TimeSpan.FromMinutes(5), TimeSpan.FromMilliseconds(effectiveTimeout)); // Clamped to 5 min
 }
 ```
 
@@ -372,17 +372,17 @@ Test actual timeout behavior:
 [Fact]
 public async Task Execute_ExceedsTimeout_ThrowsTimeoutException()
 {
-    await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-    
-    // Operation that takes 3 seconds with 1-second timeout
-    await Assert.ThrowsAsync<TimeoutException>(async () =>
-    {
-        await batch.Execute<int>((ctx, ct) =>
-        {
-            Thread.Sleep(3000);  // Simulate slow operation
-            return 0;
-        }, timeout: TimeSpan.FromSeconds(1));
-    });
+ await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+ 
+ // Operation that takes 3 seconds with 1-second timeout
+ await Assert.ThrowsAsync<TimeoutException>(async () =>
+ {
+ await batch.Execute<int>((ctx, ct) =>
+ {
+ Thread.Sleep(3000); // Simulate slow operation
+ return 0;
+ }, timeout: TimeSpan.FromSeconds(1));
+ });
 }
 ```
 
@@ -438,5 +438,5 @@ public async Task Execute_ExceedsTimeout_ThrowsTimeoutException()
 
 ---
 
-**Last Updated:** 2025-01-XX  
+**Last Updated:** 2025-01-XX 
 **Author:** AI Agent + User Collaboration

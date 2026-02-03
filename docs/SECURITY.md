@@ -4,9 +4,9 @@
 
 We currently support the following versions of ExcelMcp with security updates:
 
-| Version | Supported          |
+| Version | Supported |
 | ------- | ------------------ |
-| 1.x.x   | :white_check_mark: |
+| 1.x.x | :white_check_mark: |
 
 ## Reporting a Vulnerability
 
@@ -17,10 +17,10 @@ We take security seriously. If you discover a security vulnerability in Sbroenne
 1. **Do NOT create a public GitHub issue** for security vulnerabilities
 2. Send an email to: [stefan_broenner@yahoo.com](mailto:stefan_broenner@yahoo.com)
 3. Include the following information:
-   - Description of the vulnerability
-   - Steps to reproduce the issue
-   - Potential impact
-   - Suggested fix (if you have one)
+ - Description of the vulnerability
+ - Steps to reproduce the issue
+ - Potential impact
+ - Suggested fix (if you have one)
 
 ### What to Expect
 
@@ -36,7 +36,7 @@ We take security seriously. If you discover a security vulnerability in Sbroenne
 ExcelMcp implements comprehensive security measures:
 
 - **Input Validation**: All file paths validated with length limits (32767 chars) and extension restrictions
-- **File Size Limits**: 1GB maximum file size to prevent DoS attacks  
+- **File Size Limits**: 1GB maximum file size to prevent DoS attacks 
 - **Path Security**: `Path.GetFullPath()` prevents path traversal attacks
 - **Resource Protection**: Protection against memory exhaustion and process hanging
 - **Code Analysis**: Enhanced security rules enforced (CA2100, CA3003, CA3006, etc.)

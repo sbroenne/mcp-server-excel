@@ -9,7 +9,7 @@
 - CI/CD validation
 - Documentation updates
 
-## 📋 **Standard Development Workflow**
+## **Standard Development Workflow**
 
 ### 1. **Create Feature Branch**
 
@@ -20,7 +20,7 @@ git checkout -b feature/your-feature-name
 # Or for bug fixes
 git checkout -b fix/issue-description
 
-# Or for documentation updates  
+# Or for documentation updates 
 git checkout -b docs/update-description
 ```
 
@@ -34,7 +34,7 @@ git add .
 git commit -m "Add feature X with tests and documentation
 
 - Implement core functionality
-- Add comprehensive unit tests  
+- Add comprehensive unit tests 
 - Update command documentation
 - Include usage examples"
 ```
@@ -52,11 +52,11 @@ git push origin feature/your-feature-name
 2. Click **"New Pull Request"**
 3. Select your feature branch
 4. Fill out the PR template:
-   - **Clear title** describing the change
-   - **Detailed description** of what was changed and why
-   - **Testing information** - what tests were added/run
-   - **Breaking changes** - if any
-   - **Documentation updates** - what docs were updated
+ - **Clear title** describing the change
+ - **Detailed description** of what was changed and why
+ - **Testing information** - what tests were added/run
+ - **Breaking changes** - if any
+ - **Documentation updates** - what docs were updated
 
 ### 5. **PR Review Process**
 
@@ -77,7 +77,7 @@ git branch -d feature/your-feature-name
 git push origin --delete feature/your-feature-name
 ```
 
-## 🏷️ **Release Process**
+## **Release Process**
 
 ### Creating a New Release
 
@@ -96,17 +96,17 @@ git push origin v1.1.0
 ```
 
 1. **Automated Release Workflow**:
-   - ✅ Updates version numbers in project files
-   - ✅ Builds the release binaries  
-   - ✅ Creates GitHub release with ZIP file
-   - ✅ Updates release notes
+ - Updates version numbers in project files
+ - Builds the release binaries 
+ - Creates GitHub release with ZIP file
+ - Updates release notes
 
 ### Version Numbering
 
 We follow [Semantic Versioning](https://semver.org/):
 
 - **Major** (v2.0.0): Breaking changes
-- **Minor** (v1.1.0): New features, backward compatible  
+- **Minor** (v1.1.0): New features, backward compatible 
 - **Patch** (v1.0.1): Bug fixes, backward compatible
 
 ## 🔒 **Branch Protection Rules**
@@ -127,18 +127,18 @@ ExcelMcp uses a **production-ready three-tier testing approach** with organized 
 ```
 tests/
 ├── ExcelMcp.Core.Tests/
-│   ├── Unit/           # Fast tests, no Excel required (~2-5 sec)
-│   ├── Integration/    # Medium speed, requires Excel (~1-15 min)
-│   └── RoundTrip/      # Slow, comprehensive workflows (~3-10 min each)
+│ ├── Unit/ # Fast tests, no Excel required (~2-5 sec)
+│ ├── Integration/ # Medium speed, requires Excel (~1-15 min)
+│ └── RoundTrip/ # Slow, comprehensive workflows (~3-10 min each)
 ├── ExcelMcp.Diagnostics.Tests/
-│   └── Integration/Diagnostics/ # Research tests, manual only (excluded from CI)
+│ └── Integration/Diagnostics/ # Research tests, manual only (excluded from CI)
 ├── ExcelMcp.McpServer.Tests/
-│   ├── Unit/           # Fast tests, no server required  
-│   ├── Integration/    # Medium speed, requires MCP server
-│   └── RoundTrip/      # Slow, end-to-end protocol testing
+│ ├── Unit/ # Fast tests, no server required 
+│ ├── Integration/ # Medium speed, requires MCP server
+│ └── RoundTrip/ # Slow, end-to-end protocol testing
 └── ExcelMcp.CLI.Tests/
-    ├── Unit/           # Fast tests, no Excel required
-    └── Integration/    # Medium speed, requires Excel & CLI
+ ├── Unit/ # Fast tests, no Excel required
+ └── Integration/ # Medium speed, requires Excel & CLI
 ```
 
 ### **Development Workflow Commands**
@@ -164,17 +164,17 @@ dotnet test --filter "RunType=OnDemand"
 
 ### **Test Categories & Guidelines**
 
-**⚠️ No Unit Tests** - See `docs/ADR-001-NO-UNIT-TESTS.md` for architectural rationale
+**No Unit Tests** - See `docs/ADR-001-NO-UNIT-TESTS.md` for architectural rationale
 
 **Integration Tests (`Category=Integration`)**
-- ✅ Test business logic with real Excel COM interaction
-- ✅ Medium speed (10-20 minutes for full suite)
-- ✅ Requires Excel installation
-- ✅ These ARE our unit tests (Excel COM cannot be mocked)
-- ✅ Run specific features during development
-- ✅ Slow execution (3-10 minutes each)
-- ✅ Verifies actual Excel state changes
-- ✅ Comprehensive scenario coverage
+- Test business logic with real Excel COM interaction
+- Medium speed (10-20 minutes for full suite)
+- Requires Excel installation
+- These ARE our unit tests (Excel COM cannot be mocked)
+- Run specific features during development
+- Slow execution (3-10 minutes each)
+- Verifies actual Excel state changes
+- Comprehensive scenario coverage
 
 ### **Adding New Tests**
 
@@ -187,17 +187,17 @@ When creating tests, follow these placement guidelines:
 [Trait("Layer", "Core")]
 public class CommandLogicTests 
 {
-    // Tests business logic without Excel
+ // Tests business logic without Excel
 }
 
-// Integration Test Example  
+// Integration Test Example 
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
 [Trait("Feature", "PowerQuery")]
 [Trait("RequiresExcel", "true")]
 public class PowerQueryCommandsTests
 {
-    // Tests single Excel operations
+ // Tests single Excel operations
 }
 
 // Round Trip Test Example
@@ -207,7 +207,7 @@ public class PowerQueryCommandsTests
 [Trait("RequiresExcel", "true")]
 public class VbaWorkflowTests
 {
-    // Tests complete workflows: import → run → verify → export
+ // Tests complete workflows: import → run → verify → export
 }
 ```
 
@@ -226,12 +226,12 @@ dotnet build -c Release
 ```
 
 **For Complex Features:**
-- ✅ Add integration tests for all Excel operations
-- ✅ Test round-trip persistence (create → save → reload → verify)
-- ✅ Update documentation
-- ✅ No unit tests needed (see ADR-001-NO-UNIT-TESTS.md)
+- Add integration tests for all Excel operations
+- Test round-trip persistence (create → save → reload → verify)
+- Update documentation
+- No unit tests needed (see ADR-001-NO-UNIT-TESTS.md)
 
-## 📋 **MCP Server Configuration Management**
+## **MCP Server Configuration Management**
 
 ### **CRITICAL: Keep server.json in Sync**
 
@@ -239,11 +239,11 @@ When modifying MCP Server functionality, **you must update** `src/ExcelMcp.McpSe
 
 #### **When to Update server.json:**
 
-- ✅ **Adding new MCP tools** - Add tool definition to `"tools"` array
-- ✅ **Modifying tool parameters** - Update `inputSchema` and `properties`
-- ✅ **Changing tool descriptions** - Update `description` fields
-- ✅ **Adding new capabilities** - Update `"capabilities"` section
-- ✅ **Changing requirements** - Update `"environment"."requirements"`
+- **Adding new MCP tools** - Add tool definition to `"tools"` array
+- **Modifying tool parameters** - Update `inputSchema` and `properties`
+- **Changing tool descriptions** - Update `description` fields
+- **Adding new capabilities** - Update `"capabilities"` section
+- **Changing requirements** - Update `"environment"."requirements"`
 
 #### **server.json Synchronization Checklist:**
 
@@ -264,53 +264,53 @@ dnx Sbroenne.ExcelMcp.McpServer --yes
 
 ```json
 {
-  "version": "2.0.0",          // ← Updated by release workflow
-  "tools": [                   // ← Must match Tools/*.cs implementations
-    {
-      "name": "excel_file",    // ← Must match [McpServerTool] attribute
-      "description": "...",    // ← Keep description accurate
-      "inputSchema": {         // ← Must match method parameters
-        "properties": {
-          "action": { ... },   // ← Must match actual actions supported
-          "filePath": { ... }   // ← Must match parameter types
-        }
-      }
-    }
-  ]
+ "version": "2.0.0", // ← Updated by release workflow
+ "tools": [ // ← Must match Tools/*.cs implementations
+ {
+ "name": "excel_file", // ← Must match [McpServerTool] attribute
+ "description": "...", // ← Keep description accurate
+ "inputSchema": { // ← Must match method parameters
+ "properties": {
+ "action": { ... }, // ← Must match actual actions supported
+ "filePath": { ... } // ← Must match parameter types
+ }
+ }
+ }
+ ]
 }
 ```
 
 #### **Common server.json Update Scenarios:**
 
 1. **Adding New Tool:**
-   ```csharp
-   // In Tools/NewTool.cs
-   [McpServerTool]
-   public async Task<string> NewTool(string action, string parameter)
-   ```
-   ```json
-   // Add to server.json tools array
-   {
-     "name": "excel_newtool",
-     "description": "New functionality description",
-     "inputSchema": { ... }
-   }
-   ```
+ ```csharp
+ // In Tools/NewTool.cs
+ [McpServerTool]
+ public async Task<string> NewTool(string action, string parameter)
+ ```
+ ```json
+ // Add to server.json tools array
+ {
+ "name": "excel_newtool",
+ "description": "New functionality description",
+ "inputSchema": { ... }
+ }
+ ```
 
 2. **Adding Action to Existing Tool:**
-   ```csharp
-   // In existing tool method
-   case "new-action":
-     return HandleNewAction(parameter);
-   ```
-   ```json
-   // Update inputSchema properties.action enum
-   "action": {
-     "enum": ["list", "create", "new-action"]  // ← Add new action
-   }
-   ```
+ ```csharp
+ // In existing tool method
+ case "new-action":
+ return HandleNewAction(parameter);
+ ```
+ ```json
+ // Update inputSchema properties.action enum
+ "action": {
+ "enum": ["list", "create", "new-action"] // ← Add new action
+ }
+ ```
 
-## �📝 **PR Template Checklist**
+## �**PR Template Checklist**
 
 When creating a PR, verify:
 
@@ -325,26 +325,26 @@ When creating a PR, verify:
 
 ## 🚫 **What NOT to Do**
 
-- ❌ **Don't commit directly to `main`**
-- ❌ **Don't create releases without PRs**
-- ❌ **Don't skip tests**
-- ❌ **Don't ignore build warnings**
-- ❌ **Don't update version numbers manually** (release workflow handles this)
+- **Don't commit directly to `main`**
+- **Don't create releases without PRs**
+- **Don't skip tests**
+- **Don't ignore build warnings**
+- **Don't update version numbers manually** (release workflow handles this)
 
-## 💡 **Tips for Good PRs**
+## **Tips for Good PRs**
 
 ### Commit Messages
 
 ```text
-✅ Good: "Add PowerQuery batch refresh command with error handling"
-❌ Bad: "fix stuff"
+Good: "Add PowerQuery batch refresh command with error handling"
+Bad: "fix stuff"
 ```
 
 ### PR Titles
 
-```text  
-✅ Good: "Add batch operations for Power Query refresh"
-❌ Bad: "Update code"
+```text 
+Good: "Add batch operations for Power Query refresh"
+Bad: "Update code"
 ```
 
 ### PR Size
@@ -353,7 +353,7 @@ When creating a PR, verify:
 - **Break large changes** into smaller, reviewable chunks
 - **Include tests and docs** in the same PR as the feature
 
-## 🔧 **Local Development Setup**
+## **Local Development Setup**
 
 ```powershell
 # Clone the repository
@@ -373,7 +373,7 @@ dotnet build -c Release
 .\src\ExcelMcp.CLI\bin\Release\net10.0\excelcli.exe --version
 ```
 
-## 📊 **Application Insights / Telemetry Setup**
+## **Application Insights / Telemetry Setup**
 
 ExcelMcp uses Azure Application Insights (Classic SDK with WorkerService integration) for anonymous usage telemetry and crash reporting. Telemetry is **opt-out** (enabled by default in release builds).
 
@@ -461,19 +461,19 @@ The release workflow sets this as an environment variable, and MSBuild embeds it
 
 ```text
 Build Time:
-  MSBuild → reads AppInsightsConnectionString → generates TelemetryConfig.g.cs
+ MSBuild → reads AppInsightsConnectionString → generates TelemetryConfig.g.cs
 
 Runtime:
-  MCP Tool Invocation
-      │
-      ▼
-  ExcelMcpTelemetry.TrackToolInvocation()
-      │ (tracks: tool, action, duration, success)
-      ▼
-  SensitiveDataRedactingProcessor
-      │ (removes: paths, credentials, emails)
-      ▼
-  TelemetryClient → Application Insights
+ MCP Tool Invocation
+ │
+ ▼
+ ExcelMcpTelemetry.TrackToolInvocation()
+ │ (tracks: tool, action, duration, success)
+ ▼
+ SensitiveDataRedactingProcessor
+ │ (removes: paths, credentials, emails)
+ ▼
+ TelemetryClient → Application Insights
 ```
 
 ### **Files Overview**
@@ -532,9 +532,9 @@ While the Excel automation core cannot be trimmed, we modernized the OLE Message
 | `CoRegisterMessageFilter` | `[DllImport]` | `[LibraryImport]` |
 
 **Benefits:**
-- ✅ Compile-time marshalling code generation
-- ✅ No runtime IL stub generation for the message filter
-- ✅ Better diagnostics and debugging
+- Compile-time marshalling code generation
+- No runtime IL stub generation for the message filter
+- Better diagnostics and debugging
 
 ### **Suppressed Warnings**
 

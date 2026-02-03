@@ -9,7 +9,7 @@ These patterns cause data loss, poor performance, or user frustration. Avoid the
 Deleting entire structures to make small changes:
 
 ```
-❌ WRONG: User wants to update cell B5
+WRONG: User wants to update cell B5
 
 excel_table(action: 'delete', tableName: 'SalesData')
 excel_range(action: 'set-values', values: [[entire dataset with B5 fixed]])
@@ -29,7 +29,7 @@ This destroys:
 Use targeted modifications:
 
 ```
-✅ CORRECT: Update only the changed cell
+CORRECT: Update only the changed cell
 
 excel_range(action: 'set-values', rangeAddress: 'B5', values: [[newValue]])
 ```
@@ -47,7 +47,7 @@ excel_range(action: 'set-values', rangeAddress: 'B5', values: [[newValue]])
 Asking for confirmation on every operation:
 
 ```
-❌ WRONG:
+WRONG:
 
 User: "Create a sales report"
 AI: "Would you like me to create a new Excel file for the sales report?"
@@ -65,7 +65,7 @@ AI: "The file has been created. Would you like me to add headers?"
 Execute with reasonable defaults, report results:
 
 ```
-✅ CORRECT:
+CORRECT:
 
 User: "Create a sales report"
 AI: "Created sales report at C:\Users\You\Documents\sales_report.xlsx with the following structure:
@@ -88,7 +88,7 @@ What data would you like to add?"
 Reading entire range, modifying in memory, writing entire range back:
 
 ```
-❌ WRONG: Update one cell by rewriting thousands
+WRONG: Update one cell by rewriting thousands
 
 data = excel_range(action: 'get-values', rangeAddress: 'A1:Z1000')
 data[4][1] = "new value"  // Modify row 5, column B
@@ -106,7 +106,7 @@ This:
 Write only the changed cells:
 
 ```
-✅ CORRECT: Direct cell update
+CORRECT: Direct cell update
 
 excel_range(action: 'set-values', rangeAddress: 'B5', values: [["new value"]])
 ```
@@ -118,7 +118,7 @@ excel_range(action: 'set-values', rangeAddress: 'B5', values: [["new value"]])
 Opening files without closing them:
 
 ```
-❌ WRONG: Session accumulation
+WRONG: Session accumulation
 
 excel_file(action: 'open', filePath: 'file1.xlsx')  // Session 1
 excel_file(action: 'open', filePath: 'file2.xlsx')  // Session 2
@@ -137,7 +137,7 @@ Results:
 Always close sessions:
 
 ```
-✅ CORRECT: Proper lifecycle
+CORRECT: Proper lifecycle
 
 session1 = excel_file(action: 'open', excelPath: 'file1.xlsx')
 // ... work with file1 ...
@@ -155,7 +155,7 @@ excel_file(action: 'close', sessionId: session2, save: true)
 Retrying failed operations without reading the error:
 
 ```
-❌ WRONG: Blind retry
+WRONG: Blind retry
 
 excel_datamodel(action: 'create-measure', ...) → Error: Table not in Data Model
 excel_datamodel(action: 'create-measure', ...) → Error: Table not in Data Model
@@ -167,7 +167,7 @@ excel_datamodel(action: 'create-measure', ...) → Error: Table not in Data Mode
 Read and act on error context:
 
 ```
-✅ CORRECT: Error-driven correction
+CORRECT: Error-driven correction
 
 excel_datamodel(action: 'create-measure', ...) 
 → Error: Table 'Sales' not in Data Model
@@ -184,7 +184,7 @@ excel_datamodel(action: 'create-measure', ...)  // Now succeeds
 Using locale-specific format codes:
 
 ```
-❌ WRONG: German/European format
+WRONG: German/European format
 
 excel_range(action: 'set-number-format', formatCode: '#.##0,00')  // German
 excel_range(action: 'set-number-format', formatCode: '# ##0,00')  // French
@@ -195,7 +195,7 @@ excel_range(action: 'set-number-format', formatCode: '# ##0,00')  // French
 Always use US format codes (Excel translates automatically):
 
 ```
-✅ CORRECT: US format codes (universal)
+CORRECT: US format codes (universal)
 
 excel_range(action: 'set-number-format', formatCode: '#,##0.00')
 ```
@@ -209,7 +209,7 @@ Excel displays the result in the user's locale setting, but the API requires US 
 Wrong load destination for the workflow:
 
 ```
-❌ WRONG: Loading to worksheet when DAX is needed
+WRONG: Loading to worksheet when DAX is needed
 
 excel_powerquery(action: 'create', loadDestination: 'worksheet', ...)
 excel_datamodel(action: 'create-measure', ...)  // FAILS: table not in Data Model
@@ -220,7 +220,7 @@ excel_datamodel(action: 'create-measure', ...)  // FAILS: table not in Data Mode
 Match load destination to workflow:
 
 ```
-✅ CORRECT: Load to Data Model for DAX workflows
+CORRECT: Load to Data Model for DAX workflows
 
 excel_powerquery(action: 'create', loadDestination: 'data-model', ...)
 excel_powerquery(action: 'refresh', ...)
@@ -241,7 +241,7 @@ excel_datamodel(action: 'create-measure', ...)  // Works
 Creating or updating Power Query queries without testing M code first:
 
 ```
-❌ WRONG: Creating permanent query with untested M code
+WRONG: Creating permanent query with untested M code
 
 excel_powerquery(action: 'create', mCode: '...', ...)
 // M code has syntax error → COM exception with cryptic message
@@ -259,7 +259,7 @@ This causes:
 Always evaluate M code BEFORE creating permanent queries:
 
 ```
-✅ CORRECT: Test-first development workflow
+CORRECT: Test-first development workflow
 
 // Step 1: Test M code without persisting
 excel_powerquery(action: 'evaluate', mCode: '...')

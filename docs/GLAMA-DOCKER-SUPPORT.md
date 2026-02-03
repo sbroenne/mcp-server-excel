@@ -13,7 +13,7 @@ The `Dockerfile` in the repository root enables Glama.ai to:
 
 ## Important Limitations
 
-> **⚠️ The Docker container CANNOT perform actual Excel operations.**
+> **The Docker container CANNOT perform actual Excel operations.**
 
 Excel MCP requires:
 - **Windows OS** - COM interop is Windows-only

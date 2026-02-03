@@ -37,10 +37,10 @@ Agent Skills are reusable instruction sets that extend AI coding assistants with
 ```
 ~/.copilot/skills/
 ├── {skill-name}/
-│   ├── SKILL.md              # Main skill definition (required)
-│   └── references/           # Optional supporting files
-│       ├── api-reference.md
-│       └── examples.md
+│ ├── SKILL.md # Main skill definition (required)
+│ └── references/ # Optional supporting files
+│ ├── api-reference.md
+│ └── examples.md
 ```
 
 ### SKILL.md Format
@@ -52,8 +52,8 @@ description: Brief description of what this Skill does and when to use it
 license: MIT
 version: 1.0.0
 tags:
-  - keyword1
-  - keyword2
+ - keyword1
+ - keyword2
 repository: https://github.com/owner/repo
 documentation: https://docs.example.com
 ---
@@ -90,8 +90,8 @@ List related tools and when to use them.
 
 ```json
 {
-  "chat.useAgentSkills": true,
-  "github.copilot.chat.codeGeneration.useInstructionFiles": true
+ "chat.useAgentSkills": true,
+ "github.copilot.chat.codeGeneration.useInstructionFiles": true
 }
 ```
 
@@ -146,10 +146,10 @@ description: Generate an implementation plan for features
 tools: ['fetch', 'githubRepo', 'search', 'usages']
 model: Claude Sonnet 4
 handoffs:
-  - label: Implement Plan
-    agent: agent
-    prompt: Implement the plan outlined above.
-    send: false
+ - label: Implement Plan
+ agent: agent
+ prompt: Implement the plan outlined above.
+ send: false
 ---
 
 # Planning Instructions
@@ -165,15 +165,15 @@ You are in planning mode. Generate an implementation plan...
 ```
 .claude/skills/
 ├── {skill-name}/
-│   ├── SKILL.md              # Main skill definition (required)
-│   ├── REFERENCE.md          # Optional reference docs
-│   └── scripts/              # Optional utility scripts
-│       └── validate.py
+│ ├── SKILL.md # Main skill definition (required)
+│ ├── REFERENCE.md # Optional reference docs
+│ └── scripts/ # Optional utility scripts
+│ └── validate.py
 
 # Or global skills:
 ~/.claude/skills/
 └── {skill-name}/
-    └── SKILL.md
+ └── SKILL.md
 ```
 
 ### SKILL.md Format
@@ -186,11 +186,11 @@ allowed-tools: Read, Grep, Glob, Bash(python:*)
 user-invocable: true
 context: fork
 hooks:
-  PreToolUse:
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "./scripts/security-check.sh"
+ PreToolUse:
+ - matcher: "Bash"
+ hooks:
+ - type: command
+ command: "./scripts/security-check.sh"
 ---
 
 # Your Skill Name
@@ -222,10 +222,10 @@ allowed-tools: Read, Grep, Glob
 
 # Array format
 allowed-tools:
-  - Read
-  - Grep
-  - Glob
-  - Bash(python:*)  # Only allow python commands
+ - Read
+ - Grep
+ - Glob
+ - Bash(python:*) # Only allow python commands
 ```
 
 ### File Imports
@@ -249,11 +249,11 @@ Located in `.claude/commands/`:
 description: Review code for quality issues
 allowed-tools: Bash(git add:*), Bash(git status:*)
 hooks:
-  PreToolUse:
-    - matcher: "Bash"
-      hooks:
-        - type: command
-          command: "./scripts/pre-review.sh"
+ PreToolUse:
+ - matcher: "Bash"
+ hooks:
+ - type: command
+ command: "./scripts/pre-review.sh"
 ---
 
 ## Context
@@ -469,10 +469,10 @@ From **agentskills.io**:
 
 ```
 skill-name/
-├── SKILL.md           # Required - instructions + metadata
-├── scripts/           # Optional - executable code
-├── references/        # Optional - detailed documentation
-└── assets/            # Optional - templates, resources
+├── SKILL.md # Required - instructions + metadata
+├── scripts/ # Optional - executable code
+├── references/ # Optional - detailed documentation
+└── assets/ # Optional - templates, resources
 ```
 
 ### Skill Content Types (Claude Code)

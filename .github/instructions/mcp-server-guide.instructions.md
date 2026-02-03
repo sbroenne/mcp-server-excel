@@ -14,18 +14,18 @@ applyTo: "src/ExcelMcp.McpServer/**/*.cs"
 [McpServerTool]
 public async Task<string> ExcelPowerQuery(string action, string excelPath, ...)
 {
-    return action.ToLowerInvariant() switch
-    {
-        "list" => List(...),      // Synchronous methods
-        "view" => View(...),      // No await!
-        _ => ThrowUnknownAction(action, "list", "view", ...)
-    };
+ return action.ToLowerInvariant() switch
+ {
+ "list" => List(...), // Synchronous methods
+ "view" => View(...), // No await!
+ _ => ThrowUnknownAction(action, "list", "view", ...)
+ };
 }
 ```
 
 ### Error Handling (MANDATORY)
 
-**⚠️ CRITICAL: MCP tools must return JSON responses with `isError: true` for business errors, NOT throw exceptions!**
+**CRITICAL: MCP tools must return JSON responses with `isError: true` for business errors, NOT throw exceptions!**
 
 This follows the official MCP specification which defines two error mechanisms:
 
@@ -35,32 +35,32 @@ This follows the official MCP specification which defines two error mechanisms:
 ```csharp
 private static string SomeAction(Commands commands, string excelPath, string? param, string? batchId)
 {
-    // 1. Validate parameters (throw McpException for invalid input - PROTOCOL ERROR)
-    if (string.IsNullOrEmpty(param))
-        throw new ModelContextProtocol.McpException("param is required for action");
+ // 1. Validate parameters (throw McpException for invalid input - PROTOCOL ERROR)
+ if (string.IsNullOrEmpty(param))
+ throw new ModelContextProtocol.McpException("param is required for action");
 
-    // 2. Call Core Command via WithSession
-    var result = ExcelToolsBase.WithSession(
-        batchId,
-        batch => commands.Some(batch, param));
+ // 2. Call Core Command via WithSession
+ var result = ExcelToolsBase.WithSession(
+ batchId,
+ batch => commands.Some(batch, param));
 
-    // 3. ✅ CORRECT: Always return JSON - let result.Success indicate business errors
-    // MCP clients receive: { "success": false, "errorMessage": "...", "isError": true }
-    return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+ // 3. CORRECT: Always return JSON - let result.Success indicate business errors
+ // MCP clients receive: { "success": false, "errorMessage": "...", "isError": true }
+ return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
 }
 ```
 
 **When to Throw McpException:**
-- ✅ **Parameter validation** - missing required params, invalid formats (pre-conditions)
-- ✅ **File not found** - workbook doesn't exist (pre-conditions)
-- ✅ **Batch not found** - invalid batch session (pre-conditions)
-- ❌ **NOT for business logic errors** - table not found, query failed, connection error, etc.
+- **Parameter validation** - missing required params, invalid formats (pre-conditions)
+- **File not found** - workbook doesn't exist (pre-conditions)
+- **Batch not found** - invalid batch session (pre-conditions)
+- **NOT for business logic errors** - table not found, query failed, connection error, etc.
 
 **Why This Pattern:**
-- ✅ MCP spec requires business errors return JSON with `isError: true` flag
-- ✅ HTTP 200 + JSON error = client can parse and handle gracefully
-- ✅ Core Commands return result objects with `Success` flag - serialize them directly!
-- ❌ Throwing exceptions for business errors = harder for MCP clients to handle programmatically
+- MCP spec requires business errors return JSON with `isError: true` flag
+- HTTP 200 + JSON error = client can parse and handle gracefully
+- Core Commands return result objects with `Success` flag - serialize them directly!
+- Throwing exceptions for business errors = harder for MCP clients to handle programmatically
 
 **Example - Business Error (return JSON):**
 ```csharp
@@ -69,12 +69,12 @@ private static string SomeAction(Commands commands, string excelPath, string? pa
 return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
 // Client receives via MCP protocol:
 // {
-//   "jsonrpc": "2.0",
-//   "id": 4,
-//   "result": {
-//     "content": [{"type": "text", "text": "{\"success\": false, \"errorMessage\": \"Table 'Sales' not found\"}"}],
-//     "isError": true
-//   }
+// "jsonrpc": "2.0",
+// "id": 4,
+// "result": {
+// "content": [{"type": "text", "text": "{\"success\": false, \"errorMessage\": \"Table 'Sales' not found\"}"}],
+// "isError": true
+// }
 // }
 ```
 
@@ -83,7 +83,7 @@ return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
 // Missing required parameter - PROTOCOL ERROR
 if (string.IsNullOrWhiteSpace(tableName))
 {
-    throw new ModelContextProtocol.McpException("tableName is required for create-from-table action");
+ throw new ModelContextProtocol.McpException("tableName is required for create-from-table action");
 }
 // Client receives: JSON-RPC error with HTTP error code
 ```
@@ -96,50 +96,50 @@ if (string.IsNullOrWhiteSpace(tableName))
 [McpServerTool]
 public static async Task<string> ExcelTool(ToolAction action, ...)
 {
-    try
-    {
-        return action switch
-        {
-            ToolAction.Action1 => Action1(...),  // Synchronous methods
-            _ => throw new ModelContextProtocol.McpException($"Unknown action: {action}")
-        };
-    }
-    catch (ModelContextProtocol.McpException)
-    {
-        throw; // Re-throw MCP exceptions as-is
-    }
-    catch (TimeoutException ex)
-    {
-        // Enrich timeout errors with operation-specific guidance
-        var result = new OperationResult
-        {
-            Success = false,
-            ErrorMessage = ex.Message,
-            FilePath = excelPath,
-            Action = action.ToActionString(),
-            SuggestedNextActions = new List<string>
-            {
-                "Check if Excel is showing a dialog or prompt",
-                "Verify data source connectivity",
-                "For large datasets, operation may need more time"
-            },
-            OperationContext = new Dictionary<string, object>
-            {
-                { "OperationType", "ToolName.ActionName" },
-                { "TimeoutReached", true }
-            },
-            IsRetryable = !ex.Message.Contains("maximum timeout"),
-            RetryGuidance = ex.Message.Contains("maximum timeout")
-                ? "Maximum timeout reached. Check connectivity manually."
-                : "Retry acceptable if issue is transient."
-        };
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-    catch (Exception ex)
-    {
-        ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
-        throw; // Unreachable but satisfies compiler
-    }
+ try
+ {
+ return action switch
+ {
+ ToolAction.Action1 => Action1(...), // Synchronous methods
+ _ => throw new ModelContextProtocol.McpException($"Unknown action: {action}")
+ };
+ }
+ catch (ModelContextProtocol.McpException)
+ {
+ throw; // Re-throw MCP exceptions as-is
+ }
+ catch (TimeoutException ex)
+ {
+ // Enrich timeout errors with operation-specific guidance
+ var result = new OperationResult
+ {
+ Success = false,
+ ErrorMessage = ex.Message,
+ FilePath = excelPath,
+ Action = action.ToActionString(),
+ SuggestedNextActions = new List<string>
+ {
+ "Check if Excel is showing a dialog or prompt",
+ "Verify data source connectivity",
+ "For large datasets, operation may need more time"
+ },
+ OperationContext = new Dictionary<string, object>
+ {
+ { "OperationType", "ToolName.ActionName" },
+ { "TimeoutReached", true }
+ },
+ IsRetryable = !ex.Message.Contains("maximum timeout"),
+ RetryGuidance = ex.Message.Contains("maximum timeout")
+ ? "Maximum timeout reached. Check connectivity manually."
+ : "Retry acceptable if issue is transient."
+ };
+ return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+ }
+ catch (Exception ex)
+ {
+ ExcelToolsBase.ThrowInternalError(ex, action.ToActionString(), excelPath);
+ throw; // Unreachable but satisfies compiler
+ }
 }
 ```
 
@@ -152,36 +152,36 @@ public static async Task<string> ExcelTool(ToolAction action, ...)
 [McpServerTool]
 public static async Task<string> ExcelPowerQuery(string action, ...)
 {
-    // Action methods: synchronous (no await!)
-    return action.ToLowerInvariant() switch
-    {
-        "list" => List(...),        // ✅ Synchronous
-        "view" => View(...),        // ✅ Synchronous
-        _ => throw new McpException("Unknown action")
-    };
+ // Action methods: synchronous (no await!)
+ return action.ToLowerInvariant() switch
+ {
+ "list" => List(...), // Synchronous
+ "view" => View(...), // Synchronous
+ _ => throw new McpException("Unknown action")
+ };
 }
 
 // Action methods are synchronous:
 private static string List(Commands commands, string sessionId)
 {
-    var result = ExcelToolsBase.WithSession(sessionId,
-        batch => commands.List(batch));  // No await needed
-    return JsonSerializer.Serialize(result, JsonOptions);
+ var result = ExcelToolsBase.WithSession(sessionId,
+ batch => commands.List(batch)); // No await needed
+ return JsonSerializer.Serialize(result, JsonOptions);
 }
 ```
 
 ### JSON Serialization
 
 ```csharp
-// ✅ ALWAYS use JsonSerializer
+// ALWAYS use JsonSerializer
 return JsonSerializer.Serialize(result, JsonOptions);
 
-// ❌ NEVER manual JSON strings
+// NEVER manual JSON strings
 ```
 
 ## JSON Deserialization & COM Marshalling
 
-**⚠️ CRITICAL:** MCP deserializes JSON arrays to `JsonElement`, NOT primitives. Excel COM requires proper types.
+**CRITICAL:** MCP deserializes JSON arrays to `JsonElement`, NOT primitives. Excel COM requires proper types.
 
 **Problem:** `values: [["text", 123, true]]` → `List<List<object?>>` where each object is `JsonElement`.
 
@@ -190,18 +190,18 @@ return JsonSerializer.Serialize(result, JsonOptions);
 ```csharp
 private static object ConvertToCellValue(object? value)
 {
-    if (value is System.Text.Json.JsonElement jsonElement)
-    {
-        return jsonElement.ValueKind switch
-        {
-            JsonValueKind.String => jsonElement.GetString() ?? string.Empty,
-            JsonValueKind.Number => jsonElement.TryGetInt64(out var i64) ? i64 : jsonElement.GetDouble(),
-            JsonValueKind.True => true,
-            JsonValueKind.False => false,
-            _ => string.Empty
-        };
-    }
-    return value;
+ if (value is System.Text.Json.JsonElement jsonElement)
+ {
+ return jsonElement.ValueKind switch
+ {
+ JsonValueKind.String => jsonElement.GetString() ?? string.Empty,
+ JsonValueKind.Number => jsonElement.TryGetInt64(out var i64) ? i64 : jsonElement.GetDouble(),
+ JsonValueKind.True => true,
+ JsonValueKind.False => false,
+ _ => string.Empty
+ };
+ }
+ return value;
 }
 ```
 
@@ -222,13 +222,13 @@ private static object ConvertToCellValue(object? value)
 
 ## Error Message Style
 
-**❌ WRONG: Verbose guidance (LLM doesn't need step-by-step instructions)**
+**WRONG: Verbose guidance (LLM doesn't need step-by-step instructions)**
 ```csharp
 errorMessage = "Operation failed. This usually means: (1) Sheet doesn't exist, (2) Range invalid, or (3) Session closed. " +
-               "Use excel_worksheet(action: 'list') to verify sheet exists, then excel_file(action: 'list') to check sessions.";
+ "Use excel_worksheet(action: 'list') to verify sheet exists, then excel_file(action: 'list') to check sessions.";
 ```
 
-**✅ CORRECT: State facts (LLM determines next action)**
+**CORRECT: State facts (LLM determines next action)**
 ```csharp
 errorMessage = $"Cannot read range '{range}' on sheet '{sheet}': {ex.Message}";
 ```
@@ -237,38 +237,38 @@ errorMessage = $"Cannot read range '{range}' on sheet '{sheet}': {ex.Message}";
 
 ## Common Mistakes to Avoid
 
-### ❌ MISTAKE: Throwing Exceptions for Business Errors
+### MISTAKE: Throwing Exceptions for Business Errors
 ```csharp
-// ❌ WRONG: Throws exception for business logic errors (violates MCP spec)
+// WRONG: Throws exception for business logic errors (violates MCP spec)
 var result = commands.Some(batch, param);
 if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
 {
-    throw new ModelContextProtocol.McpException($"action failed: {result.ErrorMessage}");
+ throw new ModelContextProtocol.McpException($"action failed: {result.ErrorMessage}");
 }
 return JsonSerializer.Serialize(result, JsonOptions);
 ```
 
-### ✅ CORRECT: Always Return JSON
+### CORRECT: Always Return JSON
 ```csharp
-// ✅ CORRECT: Return JSON for both success and failure
+// CORRECT: Return JSON for both success and failure
 var result = commands.Some(batch, param);
 return JsonSerializer.Serialize(result, JsonOptions);
 // Client receives: {"success": false, "errorMessage": "..."} with isError: true
 ```
 
-### ❌ MISTAKE: Not Validating Parameters
+### MISTAKE: Not Validating Parameters
 ```csharp
-// ❌ WRONG: Missing parameter validation
-var result = commands.Some(batch, param);  // param might be null!
+// WRONG: Missing parameter validation
+var result = commands.Some(batch, param); // param might be null!
 return JsonSerializer.Serialize(result, JsonOptions);
 ```
 
-### ✅ CORRECT: Validate Parameters Early
+### CORRECT: Validate Parameters Early
 ```csharp
-// ✅ CORRECT: Validate before calling Core Commands
+// CORRECT: Validate before calling Core Commands
 if (string.IsNullOrWhiteSpace(param))
 {
-    throw new ModelContextProtocol.McpException("param is required for this action");
+ throw new ModelContextProtocol.McpException("param is required for this action");
 }
 var result = commands.Some(batch, param);
 return JsonSerializer.Serialize(result, JsonOptions);
@@ -294,17 +294,17 @@ Before committing MCP tool changes:
 **Two types of LLM guidance:**
 
 1. **Tool Descriptions** (XML documentation `/// <summary>` on tool methods):
-   - MCP SDK extracts XML comments and includes in tool schema
-   - LLMs see when browsing available tools
-   - Brief, action-oriented reference
-   - **ALWAYS visible** - shown every time tool is considered
-   - Must be kept synchronized with actual tool behavior
+ - MCP SDK extracts XML comments and includes in tool schema
+ - LLMs see when browsing available tools
+ - Brief, action-oriented reference
+ - **ALWAYS visible** - shown every time tool is considered
+ - Must be kept synchronized with actual tool behavior
 
 2. **Prompt Files** (`.md` files in `Prompts/Content/`):
-   - Exposed as separate MCP Prompts via `[McpServerPrompt]`
-   - LLMs request explicitly when needed
-   - Detailed workflows, checklists, disambiguation
-   - **On-demand** - loaded only when LLM requests the prompt
+ - Exposed as separate MCP Prompts via `[McpServerPrompt]`
+ - LLMs request explicitly when needed
+ - Detailed workflows, checklists, disambiguation
+ - **On-demand** - loaded only when LLM requests the prompt
 
 **Critical:** When changing tool behavior, update BOTH:
 - The XML documentation (`/// <summary>`) on the tool method
@@ -313,16 +313,16 @@ Before committing MCP tool changes:
 ### Keeping Descriptions Up-to-Date
 
 **When updating a tool, verify:**
-1. ✅ Tool purpose and use cases are clear
-2. ✅ Server-specific behavior is documented (defaults, quirks, important notes)
-3. ✅ Performance guidance (batch mode) is accurate
-4. ✅ Related tools referenced correctly
-5. ✅ Non-enum parameter guidance is complete (loadDestination options, format codes, etc.)
+1. Tool purpose and use cases are clear
+2. Server-specific behavior is documented (defaults, quirks, important notes)
+3. Performance guidance (batch mode) is accurate
+4. Related tools referenced correctly
+5. Non-enum parameter guidance is complete (loadDestination options, format codes, etc.)
 
 **What NOT to include in descriptions:**
-- ❌ **Enum action lists** - MCP SDK auto-generates enum values in schema (LLMs see them automatically)
-- ❌ **Parameter types** - Schema provides this
-- ❌ **Required/optional flags** - Schema provides this
+- **Enum action lists** - MCP SDK auto-generates enum values in schema (LLMs see them automatically)
+- **Parameter types** - Schema provides this
+- **Required/optional flags** - Schema provides this
 
 **Example - Good tool description:**
 ```csharp
@@ -340,11 +340,11 @@ Before committing MCP tool changes:
 /// Use excel_datamodel tool for DAX measures after loading to Data Model.
 /// </summary>
 ```
-✅ Describes purpose and use cases
-✅ Documents server-specific defaults
-✅ Explains non-enum parameter values
-✅ References related tools
-❌ Does NOT list enum actions (SDK provides)
+Describes purpose and use cases
+Documents server-specific defaults
+Explains non-enum parameter values
+References related tools
+Does NOT list enum actions (SDK provides)
 
 ## LLM Guidance Development
 

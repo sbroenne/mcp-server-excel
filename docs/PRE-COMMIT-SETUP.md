@@ -46,32 +46,32 @@ pwsh -ExecutionPolicy Bypass -File "scripts/pre-commit.ps1"
 
 ### Branch Protection Violation
 ```
-❌ BLOCKED: Cannot commit directly to 'main' branch!
+BLOCKED: Cannot commit directly to 'main' branch!
 
-   Rule 6: All Changes Via Pull Requests
-   'Never commit to main. Create feature branch → PR → CI/CD + review → merge.'
+ Rule 6: All Changes Via Pull Requests
+ 'Never commit to main. Create feature branch → PR → CI/CD + review → merge.'
 
-   To fix:
-   1. git stash                                    # Save your changes
-   2. git checkout -b feature/your-feature-name    # Create feature branch
-   3. git stash pop                                # Restore changes
-   4. git add <files>                              # Stage changes
-   5. git commit -m 'your message'                 # Commit to feature branch
+ To fix:
+ 1. git stash # Save your changes
+ 2. git checkout -b feature/your-feature-name # Create feature branch
+ 3. git stash pop # Restore changes
+ 4. git add <files> # Stage changes
+ 5. git commit -m 'your message' # Commit to feature branch
 ```
 
 **Fix:** Follow the 5 steps above to move your work to a feature branch.
 
 ### COM Leak Detected
 ```
-❌ COM object leaks detected! Fix them before committing.
+COM object leaks detected! Fix them before committing.
 ```
 
 **Fix:** Run `.\scripts\check-com-leaks.ps1` to see which files have leaks, then add proper `finally` blocks with `ComUtilities.Release(ref obj!)` calls.
 
 ### Coverage Gap Detected
 ```
-❌ Coverage gaps detected! All Core methods must be exposed via MCP Server.
-   Fix the gaps before committing (add enum values and mappings).
+Coverage gaps detected! All Core methods must be exposed via MCP Server.
+ Fix the gaps before committing (add enum values and mappings).
 ```
 
 **Fix:** Follow the 5-step process:
@@ -91,7 +91,7 @@ If you absolutely must commit without passing the checks (NOT recommended):
 git commit --no-verify -m "Emergency commit message"
 ```
 
-**⚠️ Warning:** This should only be used in emergencies. Coverage gaps and COM leaks must be fixed before merging to main.
+**Warning:** This should only be used in emergencies. Coverage gaps and COM leaks must be fixed before merging to main.
 
 ## Testing the Hook
 
@@ -127,9 +127,9 @@ chmod +x .git/hooks/pre-commit
 These same checks run in CI/CD pipelines:
 - `check-com-leaks.ps1` runs in build workflow
 - `audit-core-coverage.ps1` runs **after every build** in:
-  - `build-mcp-server.yml` - MCP Server builds
-  - `build-cli.yml` - CLI builds  
-  - `integration-tests.yml` - Integration test runs
+ - `build-mcp-server.yml` - MCP Server builds
+ - `build-cli.yml` - CLI builds 
+ - `integration-tests.yml` - Integration test runs
 
 **Pipeline enforcement ensures:**
 - Pre-commit hook provides **instant local feedback**

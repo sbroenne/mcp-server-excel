@@ -1,8 +1,8 @@
 # ADR-001: Why ExcelMcp Has No Traditional Unit Tests
 
-**Status**: Accepted  
-**Date**: 2025-11-02  
-**Decision Makers**: Architecture Team  
+**Status**: Accepted 
+**Date**: 2025-11-02 
+**Decision Makers**: Architecture Team 
 **Stakeholders**: Development Team, Code Reviewers, Contributors
 
 ---
@@ -21,17 +21,17 @@ This ADR documents our architectural decision and the reasoning behind our testi
 
 ### What We DON'T Do
 
-❌ Mock Excel COM objects  
-❌ Write unit tests for business logic  
-❌ Test internal methods in isolation  
-❌ Separate "unit" from "integration" concerns  
+Mock Excel COM objects 
+Write unit tests for business logic 
+Test internal methods in isolation 
+Separate "unit" from "integration" concerns 
 
 ### What We DO Do
 
-✅ Write comprehensive integration tests against real Excel  
-✅ Test every operation with actual Excel workbooks  
-✅ Verify behavior through COM API interactions  
-✅ Run tests on CI/CD with Excel installed (Azure self-hosted runner)  
+Write comprehensive integration tests against real Excel 
+Test every operation with actual Excel workbooks 
+Verify behavior through COM API interactions 
+Run tests on CI/CD with Excel installed (Azure self-hosted runner) 
 
 ---
 
@@ -44,13 +44,13 @@ This ADR documents our architectural decision and the reasoning behind our testi
 ```csharp
 public async Task<OperationResult> CreateWorksheet(IExcelBatch batch, string sheetName)
 {
-    return await batch.ExecuteAsync((ctx, ct) => 
-    {
-        dynamic sheets = ctx.Book.Worksheets;  // COM object
-        dynamic newSheet = sheets.Add();       // COM method
-        newSheet.Name = sheetName;             // COM property
-        return new OperationResult { Success = true };
-    });
+ return await batch.ExecuteAsync((ctx, ct) => 
+ {
+ dynamic sheets = ctx.Book.Worksheets; // COM object
+ dynamic newSheet = sheets.Add(); // COM method
+ newSheet.Name = sheetName; // COM property
+ return new OperationResult { Success = true };
+ });
 }
 ```
 
@@ -58,15 +58,15 @@ public async Task<OperationResult> CreateWorksheet(IExcelBatch batch, string she
 
 ```csharp
 // Option 1: Mock the COM object
-var mockBook = new Mock<dynamic>();  // ❌ Cannot mock dynamic COM objects
-mockBook.Setup(b => b.Worksheets).Returns(...);  // ❌ Runtime binding fails
+var mockBook = new Mock<dynamic>(); // Cannot mock dynamic COM objects
+mockBook.Setup(b => b.Worksheets).Returns(...); // Runtime binding fails
 
 // Option 2: Test without Excel
 [Fact]
 public void CreateWorksheet_ReturnsSuccess()
 {
-    var result = CreateWorksheet(null!, "Test");  // ❌ What are we testing?
-    Assert.True(result.Success);  // ❌ This proves nothing!
+ var result = CreateWorksheet(null!, "Test"); // What are we testing?
+ Assert.True(result.Success); // This proves nothing!
 }
 ```
 
@@ -115,10 +115,10 @@ This pattern is **normal and correct** for COM/browser/external system automatio
 ```csharp
 public static string ValidateAndNormalizePath(string path)
 {
-    if (string.IsNullOrWhiteSpace(path))
-        throw new ArgumentException("Path cannot be null");
-    
-    return Path.GetFullPath(path);  // .NET handles validation
+ if (string.IsNullOrWhiteSpace(path))
+ throw new ArgumentException("Path cannot be null");
+ 
+ return Path.GetFullPath(path); // .NET handles validation
 }
 ```
 
@@ -131,8 +131,8 @@ public static string ValidateAndNormalizePath(string path)
 [Fact]
 public void ValidatePath_WithTraversal_ThrowsException()
 {
-    Assert.Throws<ArgumentException>(() => 
-        PathValidator.ValidateAndNormalizePath("../../etc/passwd"));
+ Assert.Throws<ArgumentException>(() => 
+ PathValidator.ValidateAndNormalizePath("../../etc/passwd"));
 }
 ```
 
@@ -149,7 +149,7 @@ public void ValidatePath_WithTraversal_ThrowsException()
 ```csharp
 public class RangeValueResult : ResultBase
 {
-    public List<List<object?>> Values { get; set; }
+ public List<List<object?>> Values { get; set; }
 }
 
 // MCP SDK serializes this to JSON automatically
@@ -160,9 +160,9 @@ public class RangeValueResult : ResultBase
 [Fact]
 public void RangeValueResult_SerializesToJson()
 {
-    var result = new RangeValueResult { Values = [[1, 2]] };
-    var json = JsonSerializer.Serialize(result);
-    Assert.Contains("[[1,2]]", json);
+ var result = new RangeValueResult { Values = [[1, 2]] };
+ var json = JsonSerializer.Serialize(result);
+ Assert.Contains("[[1,2]]", json);
 }
 ```
 
@@ -180,33 +180,33 @@ public void RangeValueResult_SerializesToJson()
 [Fact]
 public async Task CreateWorksheet_ValidName_CreatesSheet()
 {
-    // Arrange
-    var testFile = await CreateUniqueTestFile(".xlsx");
-    
-    // Act
-    await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-    var result = await _commands.CreateAsync(batch, "Sales");
-    await batch.Save();
-    
-    // Assert - Round-trip validation
-    Assert.True(result.Success);
-    
-    await using var batch2 = await ExcelSession.BeginBatchAsync(testFile);
-    var list = await _commands.ListAsync(batch2);
-    Assert.Contains(list.Items, s => s.Name == "Sales");
+ // Arrange
+ var testFile = await CreateUniqueTestFile(".xlsx");
+ 
+ // Act
+ await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+ var result = await _commands.CreateAsync(batch, "Sales");
+ await batch.Save();
+ 
+ // Assert - Round-trip validation
+ Assert.True(result.Success);
+ 
+ await using var batch2 = await ExcelSession.BeginBatchAsync(testFile);
+ var list = await _commands.ListAsync(batch2);
+ Assert.Contains(list.Items, s => s.Name == "Sales");
 }
 ```
 
 **What this ACTUALLY tests**:
-1. ✅ Excel session management (ExcelSession.BeginBatchAsync)
-2. ✅ COM object lifecycle (Workbooks.Open, Worksheets.Add)
-3. ✅ Batch transaction handling (IExcelBatch)
-4. ✅ Error handling (COM exceptions)
-5. ✅ Resource cleanup (IDisposable, COM release)
-6. ✅ Persistence (workbook.Save)
-7. ✅ Re-opening workbooks (validates saved state)
-8. ✅ Business logic (worksheet creation)
-9. ✅ API contract (ISheetCommands interface)
+1. Excel session management (ExcelSession.BeginBatchAsync)
+2. COM object lifecycle (Workbooks.Open, Worksheets.Add)
+3. Batch transaction handling (IExcelBatch)
+4. Error handling (COM exceptions)
+5. Resource cleanup (IDisposable, COM release)
+6. Persistence (workbook.Save)
+7. Re-opening workbooks (validates saved state)
+8. Business logic (worksheet creation)
+9. API contract (ISheetCommands interface)
 
 **A unit test could verify**: None of the above (requires real Excel).
 
@@ -223,18 +223,18 @@ public async Task CreateWorksheet_ValidName_CreatesSheet()
 
 ### Positive
 
-✅ **Tests verify real behavior** - We test what actually happens in Excel, not mocked abstractions  
-✅ **High confidence** - If tests pass, the code works in production  
-✅ **No mock maintenance** - No complex mock setup that becomes outdated  
-✅ **Catches integration bugs** - We discover COM quirks (e.g., 1-based indexing, Type 3/4 connection discrepancy)  
-✅ **Industry standard** - Follows proven patterns from Selenium, Playwright, AWS SDK  
+**Tests verify real behavior** - We test what actually happens in Excel, not mocked abstractions 
+**High confidence** - If tests pass, the code works in production 
+**No mock maintenance** - No complex mock setup that becomes outdated 
+**Catches integration bugs** - We discover COM quirks (e.g., 1-based indexing, Type 3/4 connection discrepancy) 
+**Industry standard** - Follows proven patterns from Selenium, Playwright, AWS SDK 
 
 ### Negative
 
-⚠️ **Slower tests** - 10-20 minutes vs seconds for unit tests  
-⚠️ **Requires Excel** - CI/CD needs Windows + Excel (Azure self-hosted runner)  
-⚠️ **Resource intensive** - Each test opens/closes Excel COM instance  
-⚠️ **Cannot run on Linux** - Excel COM is Windows-only  
+**Slower tests** - 10-20 minutes vs seconds for unit tests 
+**Requires Excel** - CI/CD needs Windows + Excel (Azure self-hosted runner) 
+**Resource intensive** - Each test opens/closes Excel COM instance 
+**Cannot run on Linux** - Excel COM is Windows-only 
 
 ### Mitigation Strategies
 
@@ -315,32 +315,32 @@ When reviewers ask "Why no unit tests?", respond:
 ## References
 
 1. **Martin Fowler - "Test Pyramid Antipattern"**: https://martinfowler.com/bliki/TestPyramid.html
-   - "The test pyramid is a simplification... some contexts don't fit the pyramid"
-   
+ - "The test pyramid is a simplification... some contexts don't fit the pyramid"
+ 
 2. **Selenium Testing Best Practices**: https://www.selenium.dev/documentation/test_practices/
-   - Tests run against real browsers, not mocks
-   
+ - Tests run against real browsers, not mocks
+ 
 3. **Playwright Testing Philosophy**: https://playwright.dev/docs/test-philosophy
-   - "End-to-end tests should test real scenarios"
-   
+ - "End-to-end tests should test real scenarios"
+ 
 4. **AWS SDK Testing**: https://github.com/aws/aws-sdk-net
-   - Integration tests against AWS or LocalStack, minimal unit tests
+ - Integration tests against AWS or LocalStack, minimal unit tests
 
 5. **Microsoft Office Interop Best Practices**: https://learn.microsoft.com/office/client-developer/
-   - COM automation testing requires real Office instances
+ - COM automation testing requires real Office instances
 
 ---
 
 ## Decision Record
 
-**Date**: November 2, 2025  
-**Decided by**: Architecture Team  
-**Status**: Accepted  
+**Date**: November 2, 2025 
+**Decided by**: Architecture Team 
+**Status**: Accepted 
 
-**Supersedes**: N/A  
-**Superseded by**: N/A  
+**Supersedes**: N/A 
+**Superseded by**: N/A 
 
-**Last Reviewed**: November 2, 2025  
+**Last Reviewed**: November 2, 2025 
 **Next Review**: When adding features that don't require Excel COM (if ever)
 
 ---

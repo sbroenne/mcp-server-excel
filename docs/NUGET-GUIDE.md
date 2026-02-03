@@ -49,35 +49,35 @@ Trusted Publishing uses short-lived OIDC tokens instead of long-lived API keys f
 
 ### Benefits
 
-✅ **More Secure**: No long-lived API keys to manage or store  
-✅ **Zero Maintenance**: No API key rotation needed  
-✅ **Auditable**: All publishes tied to specific GitHub workflows  
-✅ **Best Practice**: Recommended by NuGet.org and Microsoft  
+**More Secure**: No long-lived API keys to manage or store 
+**Zero Maintenance**: No API key rotation needed 
+**Auditable**: All publishes tied to specific GitHub workflows 
+**Best Practice**: Recommended by NuGet.org and Microsoft 
 
 ### How It Works
 
 ```
 1. Git Tag Pushed (e.g., v1.2.2)
-   ↓
+ ↓
 2. GitHub Actions Workflow Triggered (release-mcp-server.yml)
-   └─> Generates OIDC token with claims:
-       • Repository: sbroenne/mcp-server-excel
-       • Workflow: release-mcp-server.yml
-       • Actor: (whoever triggered)
-   ↓
+ └─> Generates OIDC token with claims:
+ • Repository: sbroenne/mcp-server-excel
+ • Workflow: release-mcp-server.yml
+ • Actor: (whoever triggered)
+ ↓
 3. NuGet Login Action Exchanges OIDC Token
-   └─> Receives short-lived API key
-   ↓
+ └─> Receives short-lived API key
+ ↓
 4. .NET CLI Publishes Both Packages
-   └─> Uses short-lived API key
-   └─> Publishes MCP Server
-   └─> Publishes CLI
-   ↓
+ └─> Uses short-lived API key
+ └─> Publishes MCP Server
+ └─> Publishes CLI
+ ↓
 5. NuGet.org Validates Token
-   └─> Checks against trusted publisher configuration
-   ↓
-6. Packages Published ✅
-   └─> Available at nuget.org/packages/[PackageId]
+ └─> Checks against trusted publisher configuration
+ ↓
+6. Packages Published 
+ └─> Available at nuget.org/packages/[PackageId]
 ```
 
 ---
@@ -89,14 +89,14 @@ Trusted Publishing uses short-lived OIDC tokens instead of long-lived API keys f
 Add your NuGet.org username as a repository secret (one-time setup):
 
 1. **Go to Repository Settings**
-   - Navigate to: https://github.com/sbroenne/mcp-server-excel/settings/secrets/actions
-   - Or: Repository → Settings → Secrets and variables → Actions
+ - Navigate to: https://github.com/sbroenne/mcp-server-excel/settings/secrets/actions
+ - Or: Repository → Settings → Secrets and variables → Actions
 
 2. **Add Repository Secret**
-   - Click "New repository secret"
-   - **Name**: `NUGET_USER`
-   - **Secret**: Your NuGet.org username (profile name, **NOT email**)
-   - Click "Add secret"
+ - Click "New repository secret"
+ - **Name**: `NUGET_USER`
+ - **Secret**: Your NuGet.org username (profile name, **NOT email**)
+ - Click "Add secret"
 
 ### Step 2: First-Time Package Publishing
 
@@ -110,8 +110,8 @@ dotnet pack src/ExcelMcp.ComInterop/ExcelMcp.ComInterop.csproj -c Release -o ./n
 
 # Publish using your NuGet API key (first time only)
 dotnet nuget push ./nupkg/Sbroenne.ExcelMcp.ComInterop.1.0.0.nupkg \
-  --api-key YOUR_API_KEY \
-  --source https://api.nuget.org/v3/index.json
+ --api-key YOUR_API_KEY \
+ --source https://api.nuget.org/v3/index.json
 ```
 
 **Option B: Temporary Workflow API Key**
@@ -132,10 +132,10 @@ For **each package**, configure a trusted publisher:
 2. Click "Trusted Publishers" tab → "Add Trusted Publisher"
 3. Select "GitHub Actions"
 4. Enter:
-   - **Owner**: `sbroenne`
-   - **Repository**: `mcp-server-excel`
-   - **Workflow**: `release-cominterop.yml`
-   - **Environment**: *(leave empty)*
+ - **Owner**: `sbroenne`
+ - **Repository**: `mcp-server-excel`
+ - **Workflow**: `release-cominterop.yml`
+ - **Environment**: *(leave empty)*
 5. Click "Add"
 
 #### Core Library
@@ -172,11 +172,11 @@ After configuration:
 
 ```
 1. ComInterop (if updated - foundation layer)
-   ↓ Wait 5-10 minutes for NuGet indexing
-   
+ ↓ Wait 5-10 minutes for NuGet indexing
+ 
 2. Core (if updated)
-   ↓ Wait 5-10 minutes for NuGet indexing
-   
+ ↓ Wait 5-10 minutes for NuGet indexing
+ 
 3. MCP Server + CLI (released together with same version as Core)
 ```
 
@@ -246,9 +246,9 @@ All packages follow **Semantic Versioning (SemVer)**:
 **Example version progression:**
 ```
 Release 1: cominterop-v1.0.0, core-v1.0.0, mcp-v1.0.0, cli-v1.0.0
-Release 2: cominterop-v1.0.0, core-v1.1.0, mcp-v1.1.0, cli-v1.1.0  (Core + wrappers)
-Release 3: cominterop-v1.1.0, core-v1.1.0, mcp-v1.1.0, cli-v1.1.0  (Only ComInterop)
-Release 4: cominterop-v1.1.0, core-v1.2.0, mcp-v1.2.0, cli-v1.2.0  (Core + wrappers)
+Release 2: cominterop-v1.0.0, core-v1.1.0, mcp-v1.1.0, cli-v1.1.0 (Core + wrappers)
+Release 3: cominterop-v1.1.0, core-v1.1.0, mcp-v1.1.0, cli-v1.1.0 (Only ComInterop)
+Release 4: cominterop-v1.1.0, core-v1.2.0, mcp-v1.2.0, cli-v1.2.0 (Core + wrappers)
 ```
 
 ---
@@ -311,9 +311,9 @@ unzip -l ./nupkg/Sbroenne.ExcelMcp.Core.1.0.0.nupkg
 **Solution**:
 1. Verify package exists on NuGet.org
 2. Check trusted publisher configuration matches exactly:
-   - Owner: `sbroenne`
-   - Repository: `mcp-server-excel`
-   - Workflow: `release-[package].yml` (exact filename)
+ - Owner: `sbroenne`
+ - Repository: `mcp-server-excel`
+ - Workflow: `release-[package].yml` (exact filename)
 3. Ensure `NUGET_USER` secret is set correctly
 4. Verify workflow has `id-token: write` permission
 
@@ -364,13 +364,13 @@ All packages have `EnablePackageValidation=true` which catches issues during bui
 
 | Aspect | Trusted Publishing | API Key |
 |--------|-------------------|---------|
-| **Security** | ✅ Short-lived tokens (minutes) | ❌ Long-lived secrets (up to 1 year) |
-| **Maintenance** | ✅ Zero maintenance | ❌ Annual rotation required |
-| **Setup** | ⚠️ Requires initial package | ✅ Works immediately |
-| **Audit** | ✅ Full workflow traceability | ⚠️ Limited to API key usage |
-| **Best Practice** | ✅ Microsoft/NuGet recommended | ❌ Legacy approach |
-| **Storage** | ✅ No stored secrets | ❌ Stored in GitHub secrets |
-| **Leak Risk** | ✅ Expires in minutes | ❌ Valid until revoked |
+| **Security** | Short-lived tokens (minutes) | Long-lived secrets (up to 1 year) |
+| **Maintenance** | Zero maintenance | Annual rotation required |
+| **Setup** | Requires initial package | Works immediately |
+| **Audit** | Full workflow traceability | Limited to API key usage |
+| **Best Practice** | Microsoft/NuGet recommended | Legacy approach |
+| **Storage** | No stored secrets | Stored in GitHub secrets |
+| **Leak Risk** | Expires in minutes | Valid until revoked |
 
 ### OIDC Token Claims
 
@@ -387,10 +387,10 @@ If any claim doesn't match trusted publisher configuration, authentication fails
 ### Zero Maintenance Required
 
 Once configured:
-- ✅ No API keys to rotate
-- ✅ No secrets to update
-- ✅ No expiration dates to track
-- ✅ Automatic authentication on every release
+- No API keys to rotate
+- No secrets to update
+- No expiration dates to track
+- Automatic authentication on every release
 
 ### Updating Configuration
 
@@ -408,9 +408,9 @@ If you rename a workflow file:
 
 - **Workflow Runs**: https://github.com/sbroenne/mcp-server-excel/actions
 - Each release workflow creates:
-  - NuGet package upload
-  - GitHub release with notes
-  - Binary assets (for MCP Server and CLI)
+ - NuGet package upload
+ - GitHub release with notes
+ - Binary assets (for MCP Server and CLI)
 
 ### NuGet.org Package Pages
 
@@ -446,6 +446,6 @@ For issues with NuGet publishing:
 
 ---
 
-**Status**: ✅ All packages configured for trusted publishing  
-**Workflows**: Release workflows ready for all four packages  
+**Status**: All packages configured for trusted publishing 
+**Workflows**: Release workflows ready for all four packages 
 **Security**: OIDC trusted publishing eliminates API key management

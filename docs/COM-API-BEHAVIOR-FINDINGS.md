@@ -20,7 +20,7 @@ This document captures the key discoveries made through diagnostic tests that us
 query.Delete();
 
 // Table SURVIVES - query deletion does NOT cascade to table
-// Tables after delete: 1  (same as before)
+// Tables after delete: 1 (same as before)
 // Orphaned table name: TestQuery
 // Data rows still accessible: 3
 ```
@@ -37,7 +37,7 @@ query.Delete();
 
 // Model table SURVIVES!
 // Queries after delete: 0
-// Model tables after delete: 1  (orphaned)
+// Model tables after delete: 1 (orphaned)
 ```
 
 **Implication:** Same as Power Query - Data Model tables become orphaned when their source query is deleted. Cleanup code is required.
@@ -52,9 +52,9 @@ query.Delete();
 - Query alone does NOT create a table
 - To load to worksheet, must use `QueryTables.Add()` with connection string:
 
-  ```
-  OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={QueryName}
-  ```
+ ```
+ OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={QueryName}
+ ```
 
 - `QueryTable.Refresh(false)` required for synchronous data load
 
@@ -63,7 +63,7 @@ query.Delete();
 **FINDING: Updating formula does NOT automatically update loaded data**
 
 ```csharp
-query.Formula = ModifiedQuery;  // Updates M code
+query.Formula = ModifiedQuery; // Updates M code
 // Table still shows OLD data
 // Must call qt.Refresh(false) to update
 ```
@@ -76,15 +76,15 @@ query.Formula = ModifiedQuery;  // Updates M code
 
 - Excel UI has this option, but COM API does not expose it
 - `WorkbookQuery` only has these members:
-  - **Properties:** `Application`, `Creator`, `Description`, `Formula`, `Name`, `Parent`
-  - **Methods:** `Delete()`, `Refresh()`
-  - **NO `IsConnectionOnly`, `LoadDestination`, or similar property exists**
+ - **Properties:** `Application`, `Creator`, `Description`, `Formula`, `Name`, `Parent`
+ - **Methods:** `Delete()`, `Refresh()`
+ - **NO `IsConnectionOnly`, `LoadDestination`, or similar property exists**
 - "Connection-only" is the **ABSENCE** of load destinations (no ListObject, no Data Model connection)
 - To convert loaded query to connection-only:
-  1. Find and remove worksheet tables (ListObjects with matching QueryTable)
-  2. Find and remove Data Model connections (connections with "Query - {name}" pattern)
-  3. Keep the query in `Workbook.Queries` collection
-  
+ 1. Find and remove worksheet tables (ListObjects with matching QueryTable)
+ 2. Find and remove Data Model connections (connections with "Query - {name}" pattern)
+ 3. Keep the query in `Workbook.Queries` collection
+ 
 **Implication:** Connection-only must be implemented by removing ALL load destinations.
 
 ### Scenario 12-14: Unload to Connection-Only (Bug Discovery)
@@ -95,8 +95,8 @@ query.Formula = ModifiedQuery;  // Updates M code
 // Current Unload implementation (INCOMPLETE):
 foreach (ListObject in worksheet.ListObjects)
 {
-    if (QueryTable.Connection.Contains(queryName))
-        listObject.Unlist();
+ if (QueryTable.Connection.Contains(queryName))
+ listObject.Unlist();
 }
 // BUG: Never checks/removes Data Model connections!
 ```
@@ -107,7 +107,7 @@ foreach (ListObject in worksheet.ListObjects)
 |----------|--------------|---------------------|----------------|
 | 12: Data Model Only | Query → Data Model | Data Model connection REMAINS | Should remove connection |
 | 13: Both Destinations | Query → Worksheet + Data Model | Worksheet removed, Data Model REMAINS | Should remove both |
-| 14: Proper Implementation | Query → Both | BOTH removed | ✅ Correct |
+| 14: Proper Implementation | Query → Both | BOTH removed | Correct |
 
 **Proper Connection-Only Implementation:**
 
@@ -115,15 +115,15 @@ foreach (ListObject in worksheet.ListObjects)
 // Step 1: Remove worksheet tables (existing behavior)
 foreach (ListObject in worksheet.ListObjects)
 {
-    if (QueryTable.Connection.Contains(queryName))
-        listObject.Unlist();
+ if (QueryTable.Connection.Contains(queryName))
+ listObject.Unlist();
 }
 
 // Step 2: Remove Data Model connections (MISSING!)
 foreach (Connection in workbook.Connections)
 {
-    if (connection.Name == $"Query - {queryName}")
-        connection.Delete();
+ if (connection.Name == $"Query - {queryName}")
+ connection.Delete();
 }
 
 // Query remains in Workbook.Queries = connection-only
@@ -177,11 +177,11 @@ query.Name = "RenamedQuery";
 
 ```csharp
 measures.Add(
-    "MeasureName",           // Required: String
-    modelTable,              // Required: ModelTable object (NOT string!)
-    "DAX Formula",           // Required: String
-    model.ModelFormatGeneral // Required: ModelFormat* object (NOT null!)
-    // Description            // Optional: String
+ "MeasureName", // Required: String
+ modelTable, // Required: ModelTable object (NOT string!)
+ "DAX Formula", // Required: String
+ model.ModelFormatGeneral // Required: ModelFormat* object (NOT null!)
+ // Description // Optional: String
 );
 ```
 
@@ -218,7 +218,7 @@ When a table is removed from the Data Model, measures that reference it remain b
 All Excel COM collections use 1-based indexing:
 
 ```csharp
-collection.Item(1)  // First item, NOT collection.Item(0)
+collection.Item(1) // First item, NOT collection.Item(0)
 ```
 
 ### Numeric Property Types
@@ -238,7 +238,7 @@ int position = Convert.ToInt32(field.Position);
 COM exceptions provide HResult codes for error identification:
 
 ```csharp
-catch (COMException ex) when (ex.HResult == -2147417851)  // RPC_E_SERVERCALL_RETRYLATER
+catch (COMException ex) when (ex.HResult == -2147417851) // RPC_E_SERVERCALL_RETRYLATER
 ```
 
 ---
@@ -287,8 +287,8 @@ Current `Unload` method only removes worksheet tables (ListObjects):
 // After unlisting worksheet tables, also remove Data Model connections:
 foreach (Connection in workbook.Connections)
 {
-    if (connection.Name == $"Query - {queryName}")
-        connection.Delete();
+ if (connection.Name == $"Query - {queryName}")
+ connection.Delete();
 }
 ```
 
@@ -300,9 +300,9 @@ foreach (Connection in workbook.Connections)
 - CUBEVALUE returns #N/A when Excel is hidden (automation mode)
 - CUBEVALUE returns #VALUE! when Excel is visible
 - All syntax variations fail, including:
-  - `=CUBEVALUE("ThisWorkbookDataModel","[Measures].[TotalAmount]")`
-  - `=CUBEVALUE("ThisWorkbookDataModel","Query[TotalAmount]")`
-  - `=CUBEVALUE("ThisWorkbookDataModel","[Query].[Measures].[TotalAmount]")`
+ - `=CUBEVALUE("ThisWorkbookDataModel","[Measures].[TotalAmount]")`
+ - `=CUBEVALUE("ThisWorkbookDataModel","Query[TotalAmount]")`
+ - `=CUBEVALUE("ThisWorkbookDataModel","[Query].[Measures].[TotalAmount]")`
 
 **What Works (via COM):**
 - `Workbook.Model` - full access to Data Model object
@@ -319,9 +319,9 @@ foreach (Connection in workbook.Connections)
 - **CUBEMEMBER worksheet function** - also fails with #N/A
 - Calculate methods succeed but don't resolve CUBEVALUE
 - Error codes:
-  - -2146826245 = #N/A (member doesn't exist in cube or syntax incorrect)
-  - -2146826246 = #VALUE! (invalid tuple element)
-  - 0x800AC472 = Excel busy (Calculate blocked in hidden mode)
+ - -2146826245 = #N/A (member doesn't exist in cube or syntax incorrect)
+ - -2146826246 = #VALUE! (invalid tuple element)
+ - 0x800AC472 = Excel busy (Calculate blocked in hidden mode)
 
 **Root Cause (Confirmed by Microsoft Documentation):**
 Per Microsoft's [Client Architecture Requirements for Analysis Services Development](https://learn.microsoft.com/en-us/analysis-services/multidimensional-models/olap-physical/client-architecture-requirements-for-analysis-services-development):
@@ -358,39 +358,39 @@ Despite CUBEVALUE/CUBEMEMBER worksheet functions failing (see above), DAX EVALUA
 **What WORKS (Scenario 15):**
 
 1. **Model.CreateModelWorkbookConnection + xlCmdDAX:**
-   ```csharp
-   // Create a model connection for a table
-   dynamic modelWbConn = model.CreateModelWorkbookConnection("TableName");
-   dynamic modelConnection = modelWbConn.ModelConnection;
-   
-   // Change command type to xlCmdDAX (8)
-   modelConnection.CommandType = 8;  // xlCmdDAX
-   modelConnection.CommandText = "EVALUATE 'TableName'";
-   
-   // Refresh executes the DAX query
-   modelWbConn.Refresh();  // ✅ SUCCESS!
-   ```
+ ```csharp
+ // Create a model connection for a table
+ dynamic modelWbConn = model.CreateModelWorkbookConnection("TableName");
+ dynamic modelConnection = modelWbConn.ModelConnection;
+ 
+ // Change command type to xlCmdDAX (8)
+ modelConnection.CommandType = 8; // xlCmdDAX
+ modelConnection.CommandText = "EVALUATE 'TableName'";
+ 
+ // Refresh executes the DAX query
+ modelWbConn.Refresh(); // SUCCESS!
+ ```
 
 2. **ModelConnection.ADOConnection.Execute (BEST APPROACH):**
-   ```csharp
-   // Get DataModelConnection and its ModelConnection
-   dynamic dataModelConn = model.DataModelConnection;
-   dynamic modelConn = dataModelConn.ModelConnection;
-   
-   // Get ADO connection - this is a live MSOLAP connection!
-   dynamic adoConnection = modelConn.ADOConnection;
-   // ConnectionString: Provider=MSOLAP.8;...Data Source=$Embedded$...
-   
-   // Execute DAX EVALUATE query directly
-   dynamic recordset = adoConnection.Execute("EVALUATE 'TableName'");
-   
-   // Read results from recordset
-   while (!recordset.EOF)
-   {
-       // recordset.Fields.Item(0).Value, etc.
-       recordset.MoveNext();
-   }
-   ```
+ ```csharp
+ // Get DataModelConnection and its ModelConnection
+ dynamic dataModelConn = model.DataModelConnection;
+ dynamic modelConn = dataModelConn.ModelConnection;
+ 
+ // Get ADO connection - this is a live MSOLAP connection!
+ dynamic adoConnection = modelConn.ADOConnection;
+ // ConnectionString: Provider=MSOLAP.8;...Data Source=$Embedded$...
+ 
+ // Execute DAX EVALUATE query directly
+ dynamic recordset = adoConnection.Execute("EVALUATE 'TableName'");
+ 
+ // Read results from recordset
+ while (!recordset.EOF)
+ {
+ // recordset.Fields.Item(0).Value, etc.
+ recordset.MoveNext();
+ }
+ ```
 
 **ADOConnection Details:**
 - Provider: `MSOLAP.8` (Analysis Services OLE DB Provider)
@@ -426,14 +426,14 @@ dynamic modelWbConn = model.CreateModelWorkbookConnection("TableName");
 dynamic modelConnection = modelWbConn.ModelConnection;
 
 // 2. Configure for DAX EVALUATE query
-modelConnection.CommandType = 8;  // xlCmdDAX
+modelConnection.CommandType = 8; // xlCmdDAX
 modelConnection.CommandText = @"
-    EVALUATE 
-    SUMMARIZECOLUMNS(
-        'Query'[Region],
-        ""TotalAmount"", SUM('Query'[Amount]),
-        ""TotalQty"", SUM('Query'[Qty])
-    )";
+ EVALUATE 
+ SUMMARIZECOLUMNS(
+ 'Query'[Region],
+ ""TotalAmount"", SUM('Query'[Amount]),
+ ""TotalQty"", SUM('Query'[Qty])
+ )";
 
 // 3. Refresh to execute the DAX query
 modelWbConn.Refresh();
@@ -441,11 +441,11 @@ modelWbConn.Refresh();
 // 4. Create Excel Table (ListObject) backed by the DAX query!
 dynamic listObjects = targetSheet.ListObjects;
 dynamic listObject = listObjects.Add(
-    4,              // xlSrcModel = 4 (PowerPivot Model source)
-    modelWbConn,    // The ModelWorkbookConnection with DAX
-    true,           // HasHeaders
-    1,              // xlYes = 1
-    destRange       // Target range
+ 4, // xlSrcModel = 4 (PowerPivot Model source)
+ modelWbConn, // The ModelWorkbookConnection with DAX
+ true, // HasHeaders
+ 1, // xlYes = 1
+ destRange // Target range
 );
 
 // 5. Refresh the table to populate data
@@ -483,7 +483,7 @@ Run diagnostic tests on demand:
 # Power Query diagnostics
 dotnet test --filter "FullyQualifiedName~PowerQueryComApiBehaviorTests"
 
-# Data Model diagnostics  
+# Data Model diagnostics 
 dotnet test --filter "FullyQualifiedName~DataModelComApiBehaviorTests"
 ```
 
@@ -496,9 +496,9 @@ These tests are marked `[Trait("RunType", "OnDemand")]` and excluded from regula
 - Microsoft VBA Documentation: <https://learn.microsoft.com/en-us/office/vba/api/overview/excel>
 - NetOffice (C# COM wrappers): <https://github.com/NetOfficeFw/NetOffice>
 - Test Files (in `tests/ExcelMcp.Diagnostics.Tests/`):
-  - `Integration/Diagnostics/PowerQueryComApiBehaviorTests.cs`
-  - `Integration/Diagnostics/DataModelComApiBehaviorTests.cs`
-  - `Integration/Diagnostics/PivotTableRefreshBehaviorTests.cs`
+ - `Integration/Diagnostics/PowerQueryComApiBehaviorTests.cs`
+ - `Integration/Diagnostics/DataModelComApiBehaviorTests.cs`
+ - `Integration/Diagnostics/PivotTableRefreshBehaviorTests.cs`
 
 **NOTE: Diagnostics tests are excluded from CI. Run manually with:**
 ```powershell

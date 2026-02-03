@@ -6,7 +6,7 @@ applyTo: "tests/**/*.cs"
 
 > **Two tiers: Integration (Excel) → OnDemand (session cleanup)**
 > 
-> **⚠️ No Unit Tests**: ExcelMcp has no traditional unit tests. Integration tests ARE our unit tests because Excel COM cannot be meaningfully mocked. See `docs/ADR-001-NO-UNIT-TESTS.md` for full rationale.
+> **No Unit Tests**: ExcelMcp has no traditional unit tests. Integration tests ARE our unit tests because Excel COM cannot be meaningfully mocked. See `docs/ADR-001-NO-UNIT-TESTS.md` for full rationale.
 
 ## Test Naming Standard
 
@@ -18,14 +18,14 @@ applyTo: "tests/**/*.cs"
 
 **Examples**:
 ```csharp
-✅ List_EmptyWorkbook_ReturnsEmptyList
-✅ Create_UniqueName_ReturnsSuccess
-✅ Delete_NonActiveSheet_ReturnsSuccess
-✅ ImportThenDelete_UniqueQuery_RemovedFromList
+List_EmptyWorkbook_ReturnsEmptyList
+Create_UniqueName_ReturnsSuccess
+Delete_NonActiveSheet_ReturnsSuccess
+ImportThenDelete_UniqueQuery_RemovedFromList
 
-❌ List_WithValidFile_ReturnsSuccessResult  // Too generic
-❌ CreateAsync_ValidName_Success            // Has Async suffix
-❌ Delete                                   // Missing state and behavior
+List_WithValidFile_ReturnsSuccessResult // Too generic
+CreateAsync_ValidName_Success // Has Async suffix
+Delete // Missing state and behavior
 ```
 
 **Full Standard**: See `docs/TEST-NAMING-STANDARD.md` for complete guide with pattern catalog and examples.
@@ -38,93 +38,93 @@ applyTo: "tests/**/*.cs"
 [Trait("Category", "Integration")]
 [Trait("Speed", "Medium")]
 [Trait("Layer", "Core")]
-[Trait("Feature", "FeatureName")]  // PowerQuery, DataModel, Tables, PivotTables, Ranges, Connections, Parameters, Worksheets
+[Trait("Feature", "FeatureName")] // PowerQuery, DataModel, Tables, PivotTables, Ranges, Connections, Parameters, Worksheets
 [Trait("RequiresExcel", "true")]
 public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
 {
-    private readonly IFeatureCommands _commands;
-    private readonly string _tempDir;
+ private readonly IFeatureCommands _commands;
+ private readonly string _tempDir;
 
-    public FeatureCommandsTests(TempDirectoryFixture fixture)
-    {
-        _commands = new FeatureCommands();
-        _tempDir = fixture.TempDir;
-    }
+ public FeatureCommandsTests(TempDirectoryFixture fixture)
+ {
+ _commands = new FeatureCommands();
+ _tempDir = fixture.TempDir;
+ }
 
-    [Fact]
-    public async Task Operation_Scenario_ExpectedResult()
-    {
-        // Arrange - Each test gets unique file
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(FeatureCommandsTests), 
-            nameof(Operation_Scenario_ExpectedResult), 
-            _tempDir,
-            ".xlsx");  // Use ".xlsm" for VBA tests
+ [Fact]
+ public async Task Operation_Scenario_ExpectedResult()
+ {
+ // Arrange - Each test gets unique file
+ var testFile = CoreTestHelper.CreateUniqueTestFile(
+ nameof(FeatureCommandsTests), 
+ nameof(Operation_Scenario_ExpectedResult), 
+ _tempDir,
+ ".xlsx"); // Use ".xlsm" for VBA tests
 
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _commands.OperationAsync(batch, args);
+ // Act
+ await using var batch = await ExcelSession.BeginBatchAsync(testFile);
+ var result = await _commands.OperationAsync(batch, args);
 
-        // Assert - Verify actual Excel state, not just success flag
-        Assert.True(result.Success, $"Operation failed: {result.ErrorMessage}");
-        
-        // Verify object exists/updated in Excel (round-trip validation)
-        var verifyResult = await _commands.ListAsync(batch);
-        Assert.Contains(verifyResult.Items, i => i.Name == "Expected");
-        
-        // No Save unless testing persistence (see examples below)
-    }
+ // Assert - Verify actual Excel state, not just success flag
+ Assert.True(result.Success, $"Operation failed: {result.ErrorMessage}");
+ 
+ // Verify object exists/updated in Excel (round-trip validation)
+ var verifyResult = await _commands.ListAsync(batch);
+ Assert.Contains(verifyResult.Items, i => i.Name == "Expected");
+ 
+ // No Save unless testing persistence (see examples below)
+ }
 }
 ```
 
 ## Essential Rules
 
 ### File Isolation
-- ✅ Each test creates unique file via `CoreTestHelper.CreateUniqueTestFile()`
-- ❌ **NEVER** share test files between tests
-- ✅ Use `.xlsm` for VBA tests, `.xlsx` otherwise
+- Each test creates unique file via `CoreTestHelper.CreateUniqueTestFile()`
+- **NEVER** share test files between tests
+- Use `.xlsm` for VBA tests, `.xlsx` otherwise
 
-### Assertions  
-- ✅ Binary assertions: `Assert.True(result.Success, $"Reason: {result.ErrorMessage}")`
-- ❌ **NEVER** "accept both" patterns
-- ✅ **ALWAYS verify actual Excel state** after create/update operations
+### Assertions 
+- Binary assertions: `Assert.True(result.Success, $"Reason: {result.ErrorMessage}")`
+- **NEVER** "accept both" patterns
+- **ALWAYS verify actual Excel state** after create/update operations
 
 ### Diagnostic Output
-- ✅ Use `ILogger` with `ITestOutputHelper` for diagnostic messages
-- ✅ Pattern: Test constructor receives `ITestOutputHelper`, creates logger via `MartinCostello.Logging.XUnit`
-- ✅ Pass logger to `ExcelBatch` constructor (requires `InternalsVisibleTo` for accessing internal ExcelBatch)
-- ✅ Logger messages appear in test output automatically (success or failure)
-- ❌ **NEVER** use `Console.WriteLine()` - output is suppressed by test runner
-- ❌ **NEVER** use `Debug.WriteLine()` - only visible with debugger attached, not in test output
-- ❌ **NEVER** write to files for diagnostics - use proper logging infrastructure
+- Use `ILogger` with `ITestOutputHelper` for diagnostic messages
+- Pattern: Test constructor receives `ITestOutputHelper`, creates logger via `MartinCostello.Logging.XUnit`
+- Pass logger to `ExcelBatch` constructor (requires `InternalsVisibleTo` for accessing internal ExcelBatch)
+- Logger messages appear in test output automatically (success or failure)
+- **NEVER** use `Console.WriteLine()` - output is suppressed by test runner
+- **NEVER** use `Debug.WriteLine()` - only visible with debugger attached, not in test output
+- **NEVER** write to files for diagnostics - use proper logging infrastructure
 
 ### Save
-- ❌ **FORBIDDEN** unless explicitly testing persistence
-- ✅ **ONLY** for round-trip tests: Create → Save → Re-open → Verify
-- ❌ **NEVER** call in middle of test (breaks subsequent operations)
+- **FORBIDDEN** unless explicitly testing persistence
+- **ONLY** for round-trip tests: Create → Save → Re-open → Verify
+- **NEVER** call in middle of test (breaks subsequent operations)
 - See CRITICAL-RULES.md Rule 14 for details
 
 **Examples:**
 
 ```csharp
-// ❌ WRONG: Save in middle breaks next operation
+// WRONG: Save in middle breaks next operation
 await _commands.CreateAsync(batch, "Sheet1");
-await batch.Save();  // ❌ Breaks subsequent operations!
-await _commands.RenameAsync(batch, "Sheet1", "New");  // FAILS!
+await batch.Save(); // Breaks subsequent operations!
+await _commands.RenameAsync(batch, "Sheet1", "New"); // FAILS!
 
-// ✅ CORRECT: Save only at end
+// CORRECT: Save only at end
 await _commands.CreateAsync(batch, "Sheet1");
 await _commands.RenameAsync(batch, "Sheet1", "New");
-await batch.Save();  // ✅ After all operations
+await batch.Save(); // After all operations
 
-// ✅ CORRECT: Persistence test with re-open
+// CORRECT: Persistence test with re-open
 await using var batch1 = await ExcelSession.BeginBatchAsync(testFile);
 await _commands.CreateAsync(batch1, "Sheet1");
-await batch1.Save();  // Save for persistence
+await batch1.Save(); // Save for persistence
 
 await using var batch2 = await ExcelSession.BeginBatchAsync(testFile);
 var list = await _commands.ListAsync(batch2);
-Assert.Contains(list.Items, i => i.Name == "Sheet1");  // ✅ Verify persisted
+Assert.Contains(list.Items, i => i.Name == "Sheet1"); // Verify persisted
 ```
 
 ### Batch Pattern
@@ -154,7 +154,7 @@ Assert.Contains(list.Items, i => i.Name == "Sheet1");  // ✅ Verify persisted
 
 ## Test Execution
 
-**⚠️ CRITICAL: Always specify the test project explicitly to avoid running all test projects!**
+**CRITICAL: Always specify the test project explicitly to avoid running all test projects!**
 
 ### Core.Tests (Business Logic)
 ```bash
@@ -206,26 +206,26 @@ dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Fully
 **Always verify actual Excel state after operations:**
 
 ```csharp
-// ✅ CREATE → Verify exists
+// CREATE → Verify exists
 var createResult = await _commands.CreateAsync(batch, "TestTable");
 Assert.True(createResult.Success);
 
 var listResult = await _commands.ListAsync(batch);
-Assert.Contains(listResult.Items, i => i.Name == "TestTable");  // ✅ Proves it exists!
+Assert.Contains(listResult.Items, i => i.Name == "TestTable"); // Proves it exists!
 
-// ✅ UPDATE → Verify changes applied
+// UPDATE → Verify changes applied
 var updateResult = await _commands.RenameAsync(batch, "TestTable", "NewName");
 Assert.True(updateResult.Success);
 
 var viewResult = await _commands.GetAsync(batch, "NewName");
-Assert.Equal("NewName", viewResult.Name);  // ✅ Proves rename worked!
+Assert.Equal("NewName", viewResult.Name); // Proves rename worked!
 
-// ✅ DELETE → Verify removed
+// DELETE → Verify removed
 var deleteResult = await _commands.DeleteAsync(batch, "NewName");
 Assert.True(deleteResult.Success);
 
 var finalList = await _commands.ListAsync(batch);
-Assert.DoesNotContain(finalList.Items, i => i.Name == "NewName");  // ✅ Proves deletion!
+Assert.DoesNotContain(finalList.Items, i => i.Name == "NewName"); // Proves deletion!
 ```
 
 ### Content Replacement Validation (CRITICAL)
@@ -233,24 +233,24 @@ Assert.DoesNotContain(finalList.Items, i => i.Name == "NewName");  // ✅ Proves
 **For operations that replace content (Update, Set, etc.), ALWAYS verify content was replaced, not merged/appended:**
 
 ```csharp
-// ❌ WRONG: Only checks operation completed
+// WRONG: Only checks operation completed
 var updateResult = await _commands.UpdateAsync(batch, queryName, newFile);
-Assert.True(updateResult.Success);  // Doesn't prove content was replaced!
+Assert.True(updateResult.Success); // Doesn't prove content was replaced!
 
-// ✅ CORRECT: Verify content was replaced, not merged
+// CORRECT: Verify content was replaced, not merged
 var updateResult = await _commands.UpdateAsync(batch, queryName, newFile);
 Assert.True(updateResult.Success);
 
 var viewResult = await _commands.ViewAsync(batch, queryName);
-Assert.Equal(expectedContent, viewResult.Content);  // ✅ Content matches expected
-Assert.DoesNotContain("OldContent", viewResult.Content);  // ✅ Old content gone!
+Assert.Equal(expectedContent, viewResult.Content); // Content matches expected
+Assert.DoesNotContain("OldContent", viewResult.Content); // Old content gone!
 
-// ✅ EVEN BETTER: Test multiple sequential updates (exposes merging bugs)
+// EVEN BETTER: Test multiple sequential updates (exposes merging bugs)
 await _commands.UpdateAsync(batch, queryName, file1);
 await _commands.UpdateAsync(batch, queryName, file2);
 var viewResult = await _commands.ViewAsync(batch, queryName);
-Assert.Equal(file2Content, viewResult.Content);  // ✅ Only file2 content present
-Assert.DoesNotContain(file1Content, viewResult.Content);  // ✅ file1 content gone!
+Assert.Equal(file2Content, viewResult.Content); // Only file2 content present
+Assert.DoesNotContain(file1Content, viewResult.Content); // file1 content gone!
 ```
 
 **Why Critical:** Bug report showed that UpdateAsync was **merging** M code instead of replacing it. Tests passed because they only checked `Success = true`, not actual content. The bug compounded with each update, corrupting queries progressively worse.
@@ -324,11 +324,11 @@ The test runner uses `llm-tests.config.json` for defaults. Create `llm-tests.con
 
 ```json
 {
-  "$schema": "./llm-tests.config.schema.json",
-  "agentBenchmarkPath": "../../../../agent-benchmark",
-  "agentBenchmarkMode": "go-run",
-  "verbose": false,
-  "build": false
+ "$schema": "./llm-tests.config.schema.json",
+ "agentBenchmarkPath": "../../../../agent-benchmark",
+ "agentBenchmarkMode": "go-run",
+ "verbose": false,
+ "build": false
 }
 ```
 

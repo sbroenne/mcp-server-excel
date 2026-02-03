@@ -4,7 +4,7 @@ applyTo: "src/ExcelMcp.Core/Commands/**/*.cs,src/ExcelMcp.McpServer/**/*.cs"
 
 # Core Commands Coverage - Mandatory Workflow
 
-> **⚠️ CRITICAL**: When adding Core Commands methods, you MUST expose them in MCP Server
+> **CRITICAL**: When adding Core Commands methods, you MUST expose them in MCP Server
 
 ## Quick Reference
 
@@ -22,39 +22,39 @@ applyTo: "src/ExcelMcp.Core/Commands/**/*.cs,src/ExcelMcp.McpServer/**/*.cs"
 **ALWAYS follow these 8 steps in order:**
 
 ```markdown
-1. ✅ Add method to Core Commands interface
-   File: src/ExcelMcp.Core/Commands/[Feature]/I[Feature]Commands.cs
-   Example: Task<OperationResult> NewMethodAsync(IExcelBatch batch);
+1. Add method to Core Commands interface
+ File: src/ExcelMcp.Core/Commands/[Feature]/I[Feature]Commands.cs
+ Example: Task<OperationResult> NewMethodAsync(IExcelBatch batch);
 
-2. ✅ Implement in Core Commands class  
-   File: src/ExcelMcp.Core/Commands/[Feature]/[Feature]Commands.cs
+2. Implement in Core Commands class 
+ File: src/ExcelMcp.Core/Commands/[Feature]/[Feature]Commands.cs
 
-3. ✅ Add enum value to ToolActions.cs
-   File: src/ExcelMcp.McpServer/Models/ToolActions.cs
-   Example: PowerQueryAction.NewMethod
-   ⚠️ Build will show CS8524 error until steps 4-6 complete
+3. Add enum value to ToolActions.cs
+ File: src/ExcelMcp.McpServer/Models/ToolActions.cs
+ Example: PowerQueryAction.NewMethod
+ Build will show CS8524 error until steps 4-6 complete
 
-4. ✅ Add ToActionString mapping
-   File: src/ExcelMcp.McpServer/Models/ActionExtensions.cs
-   Example: PowerQueryAction.NewMethod => "new-method",
-   ⚠️ CS8524 error persists
+4. Add ToActionString mapping
+ File: src/ExcelMcp.McpServer/Models/ActionExtensions.cs
+ Example: PowerQueryAction.NewMethod => "new-method",
+ CS8524 error persists
 
-5. ✅ Add switch case in MCP Tool
-   File: src/ExcelMcp.McpServer/Tools/Excel[Feature]Tool.cs
-   Example: PowerQueryAction.NewMethod => await NewMethodAsync(...),
-   ⚠️ CS8524 error persists
+5. Add switch case in MCP Tool
+ File: src/ExcelMcp.McpServer/Tools/Excel[Feature]Tool.cs
+ Example: PowerQueryAction.NewMethod => await NewMethodAsync(...),
+ CS8524 error persists
 
-6. ✅ Implement MCP method
-   File: src/ExcelMcp.McpServer/Tools/Excel[Feature]Tool.cs
-   Example: private static async Task<string> NewMethodAsync(...)
-   ✅ CS8524 errors resolved
+6. Implement MCP method
+ File: src/ExcelMcp.McpServer/Tools/Excel[Feature]Tool.cs
+ Example: private static async Task<string> NewMethodAsync(...)
+ CS8524 errors resolved
 
-7. ✅ Build and verify
-   Command: dotnet build -c Release
-   Expected: 0 warnings, 0 errors
+7. Build and verify
+ Command: dotnet build -c Release
+ Expected: 0 warnings, 0 errors
 
-8. ✅ Update documentation
-   Files: MCP prompts, tool descriptions, README (if needed)
+8. Update documentation
+ Files: MCP prompts, tool descriptions, README (if needed)
 ```
 
 **Why This Order**: Compiler (CS8524) enforces steps 3-6, preventing you from shipping unexposed Core methods.
@@ -69,25 +69,25 @@ applyTo: "src/ExcelMcp.Core/Commands/**/*.cs,src/ExcelMcp.McpServer/**/*.cs"
 // Step 3: Add enum value (compiler checks this)
 public enum PowerQueryAction
 {
-    List,
-    View,
-    NewMethod  // ⚠️ Forget this → CS8524 error in ActionExtensions.cs
+ List,
+ View,
+ NewMethod // Forget this → CS8524 error in ActionExtensions.cs
 }
 
 // Step 4: Add ToActionString mapping (compiler checks this)
 public static string ToActionString(this PowerQueryAction action) => action switch
 {
-    PowerQueryAction.List => "list",
-    PowerQueryAction.View => "view",
-    PowerQueryAction.NewMethod => "new-method",  // ⚠️ Forget this → CS8524 error
+ PowerQueryAction.List => "list",
+ PowerQueryAction.View => "view",
+ PowerQueryAction.NewMethod => "new-method", // Forget this → CS8524 error
 };
 
 // Step 5: Add switch case in Tool (compiler checks this)
 return action switch
 {
-    PowerQueryAction.List => await ListAsync(...),
-    PowerQueryAction.View => await ViewAsync(...),
-    PowerQueryAction.NewMethod => await NewMethodAsync(...),  // ⚠️ Forget this → CS8524 error
+ PowerQueryAction.List => await ListAsync(...),
+ PowerQueryAction.View => await ViewAsync(...),
+ PowerQueryAction.NewMethod => await NewMethodAsync(...), // Forget this → CS8524 error
 };
 ```
 
@@ -106,16 +106,16 @@ return action switch
 
 **On failure, you see**:
 ```
-❌ Coverage gaps detected! All Core methods must be exposed via MCP Server.
+Coverage gaps detected! All Core methods must be exposed via MCP Server.
 
 The following interfaces have fewer enum values than Core methods:
-  - IRangeCommands: Core has 42 methods, RangeAction has 40 values (missing 2)
+ - IRangeCommands: Core has 42 methods, RangeAction has 40 values (missing 2)
 
 Action Required:
-  1. Review Core interface for new methods
-  2. Add missing enum values to ToolActions.cs
-  3. Add ToActionString mappings to ActionExtensions.cs
-  4. Add switch cases to appropriate MCP Tools
+ 1. Review Core interface for new methods
+ 2. Add missing enum values to ToolActions.cs
+ 3. Add ToActionString mappings to ActionExtensions.cs
+ 4. Add switch cases to appropriate MCP Tools
 ```
 
 **Fix**: Follow 8-step workflow above.
@@ -125,7 +125,7 @@ Action Required:
 git commit --no-verify -m "Message"
 ```
 
-⚠️ **Never use `--no-verify`** for Core Commands changes - fix the gaps instead!
+**Never use `--no-verify`** for Core Commands changes - fix the gaps instead!
 
 ---
 
@@ -146,21 +146,21 @@ git commit --no-verify -m "Message"
 
 **Expected output when 100% coverage**:
 ```
-Interface           CoreMethods EnumValues Gap Status
----------           ----------- ---------- --- ------
-IPowerQueryCommands          18         18   0 ✅
-ISheetCommands               13         13   0 ✅
-IRangeCommands               42         42   0 ✅
-ITableCommands               23         23   0 ✅
+Interface CoreMethods EnumValues Gap Status
+--------- ----------- ---------- --- ------
+IPowerQueryCommands 18 18 0 
+ISheetCommands 13 13 0 
+IRangeCommands 42 42 0 
+ITableCommands 23 23 0 
 
-Summary: 100% coverage ✅ (156 Core methods, 156 enum values)
+Summary: 100% coverage (156 Core methods, 156 enum values)
 ```
 
 **When gaps detected**:
 ```
-Interface           CoreMethods EnumValues Gap Status
----------           ----------- ---------- --- ------
-IRangeCommands               42         40   2 ❌
+Interface CoreMethods EnumValues Gap Status
+--------- ----------- ---------- --- ------
+IRangeCommands 42 40 2 
 
 Summary: 98.7% coverage (156 Core methods, 154 enum values, 2 gaps)
 ```
@@ -193,8 +193,8 @@ Summary: 98.7% coverage (156 Core methods, 154 enum values, 2 gaps)
 
 ## Key Takeaways
 
-✅ **Compiler enforces coverage** - CS8524 prevents incomplete implementations  
-✅ **Pre-commit hook verifies** - Catches gaps before commit  
-✅ **8-step workflow is mandatory** - No shortcuts  
-✅ **100% coverage is required** - No exceptions
+**Compiler enforces coverage** - CS8524 prevents incomplete implementations 
+**Pre-commit hook verifies** - Catches gaps before commit 
+**8-step workflow is mandatory** - No shortcuts 
+**100% coverage is required** - No exceptions
 

@@ -39,16 +39,16 @@ applyTo: "src/ExcelMcp.Core/Commands/ConnectionCommands.cs,src/ExcelMcp.Core/Con
 ```
 Need to import data from file/URL?
 ├─ OLEDB/ODBC data source?
-│  └─ Use excel_connection (LoadTo, Refresh)
+│ └─ Use excel_connection (LoadTo, Refresh)
 │
 ├─ TEXT file (CSV, TXT)?
-│  └─ Use excel_powerquery (create with M code, refresh)
+│ └─ Use excel_powerquery (create with M code, refresh)
 │
 ├─ Web API/URL?
-│  └─ Use excel_powerquery (create with M code, refresh)
+│ └─ Use excel_powerquery (create with M code, refresh)
 │
 └─ Already has Power Query?
-   └─ Use excel_powerquery (refresh)
+ └─ Use excel_powerquery (refresh)
 ```
 
 ## Recommended Workflows
@@ -64,14 +64,14 @@ Need to import data from file/URL?
 ```
 1. excel_powerquery create → Import CSV with M code
 2. excel_powerquery refresh → Reload data
-   (Don't use excel_connection loadto - will fail!)
+ (Don't use excel_connection loadto - will fail!)
 ```
 
 **Web Data Import:**
 ```
 1. excel_powerquery create → Import from URL with M code
 2. excel_powerquery refresh → Update data
-   (Don't use excel_connection loadto - will fail!)
+ (Don't use excel_connection loadto - will fail!)
 ```
 
 ## Common Mistakes to Avoid
@@ -84,10 +84,10 @@ Need to import data from file/URL?
 ## Connection String Examples
 
 ```
-OLEDB:  "Provider=SQLOLEDB;Data Source=server;Initial Catalog=db;..."
-ODBC:   "DSN=MyDataSource;UID=username;PWD=password;..."
-TEXT:   "TEXT;C:\\path\\to\\file.csv"
-WEB:    "URL;https://example.com/data.xml"
+OLEDB: "Provider=SQLOLEDB;Data Source=server;Initial Catalog=db;..."
+ODBC: "DSN=MyDataSource;UID=username;PWD=password;..."
+TEXT: "TEXT;C:\\path\\to\\file.csv"
+WEB: "URL;https://example.com/data.xml"
 ```
 
 ## Security
@@ -120,11 +120,11 @@ TEXT connections created with "TEXT;path" may return type 4 (WEB) instead of 3 (
 ### Connection String Internal Formats
 
 ```
-OLEDB:        "Provider=SQLOLEDB;Data Source=server;Initial Catalog=db;..."
-ODBC:         "DSN=MyDataSource;UID=username;PWD=password;..."
-TEXT:         "TEXT;C:\\path\\to\\file.csv"
-WEB:          "URL;https://example.com/data.xml"
-Power Query:  "OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location=QueryName"
+OLEDB: "Provider=SQLOLEDB;Data Source=server;Initial Catalog=db;..."
+ODBC: "DSN=MyDataSource;UID=username;PWD=password;..."
+TEXT: "TEXT;C:\\path\\to\\file.csv"
+WEB: "URL;https://example.com/data.xml"
+Power Query: "OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location=QueryName"
 ```
 
 </details>

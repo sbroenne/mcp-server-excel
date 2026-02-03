@@ -15,7 +15,7 @@ applyTo: "src/**/*.cs"
 1. **One Public Class Per File** - Standard .NET practice (System.Text.Json, ASP.NET Core, EF Core)
 2. **File Name = Class Name** - `RangeCommands.cs` contains `RangeCommands`
 3. **Partial Classes for Large Implementations** - Split 15+ method classes by feature domain
-4. **Descriptive Names** - No over-optimization (`RangeCommands` ✅, `Commands` ❌)
+4. **Descriptive Names** - No over-optimization (`RangeCommands` , `Commands` )
 5. **Folder = Organization, Not Identity** - `Commands/Range/RangeCommands.cs`
 
 ### Partial Class Pattern
@@ -25,11 +25,11 @@ applyTo: "src/**/*.cs"
 **Structure:**
 ```
 Commands/Range/
-    IRangeCommands.cs           # Interface
-    RangeCommands.cs            # Partial (constructor, DI)
-    RangeCommands.Values.cs     # Partial (Get/Set values)
-    RangeCommands.Formulas.cs   # Partial (formulas)
-    RangeHelpers.cs             # Separate helper class
+ IRangeCommands.cs # Interface
+ RangeCommands.cs # Partial (constructor, DI)
+ RangeCommands.Values.cs # Partial (Get/Set values)
+ RangeCommands.Formulas.cs # Partial (formulas)
+ RangeHelpers.cs # Separate helper class
 ```
 
 **Benefits:** Git-friendly, team-friendly, ~100-200 lines per file, mirrors .NET Framework patterns
@@ -41,17 +41,17 @@ Commands/Range/
 ### Structure
 ```
 Commands/
-├── IPowerQueryCommands.cs    # Interface
-├── PowerQueryCommands.cs     # Implementation
+├── IPowerQueryCommands.cs # Interface
+├── PowerQueryCommands.cs # Implementation
 ```
 
 ### Routing (Program.cs)
 ```csharp
 return args[0] switch
 {
-    "pq-list" => powerQuery.List(args),
-    "sheet-read" => sheet.Read(args),
-    _ => ShowHelp()
+ "pq-list" => powerQuery.List(args),
+ "sheet-read" => sheet.Read(args),
+ _ => ShowHelp()
 };
 ```
 
@@ -68,57 +68,57 @@ return args[0] switch
 **Core Commands: Let exceptions propagate naturally** - Do NOT suppress with catch blocks that return error results.
 
 ```csharp
-// ❌ WRONG: Suppressing exception with catch block
+// WRONG: Suppressing exception with catch block
 public async Task<OperationResult> SomeAsync(IExcelBatch batch, string param)
 {
-    try
-    {
-        return await batch.Execute((ctx, ct) => {
-            // ... operation ...
-            return ValueTask.FromResult(new OperationResult { Success = true });
-        });
-    }
-    catch (Exception ex)
-    {
-        // ❌ WRONG: Catches exception and returns error result
-        return new OperationResult 
-        { 
-            Success = false, 
-            ErrorMessage = ex.Message 
-        };
-    }
+ try
+ {
+ return await batch.Execute((ctx, ct) => {
+ // ... operation ...
+ return ValueTask.FromResult(new OperationResult { Success = true });
+ });
+ }
+ catch (Exception ex)
+ {
+ // WRONG: Catches exception and returns error result
+ return new OperationResult 
+ { 
+ Success = false, 
+ ErrorMessage = ex.Message 
+ };
+ }
 }
 
-// ✅ CORRECT: Let exception propagate through batch.Execute()
+// CORRECT: Let exception propagate through batch.Execute()
 public async Task<OperationResult> SomeAsync(IExcelBatch batch, string param)
 {
-    return await batch.Execute((ctx, ct) => {
-        // ... operation ...
-        return ValueTask.FromResult(new OperationResult { Success = true });
-    });
-    // Exception automatically caught by batch.Execute() via TaskCompletionSource
-    // Returns OperationResult { Success = false, ErrorMessage } from batch layer
+ return await batch.Execute((ctx, ct) => {
+ // ... operation ...
+ return ValueTask.FromResult(new OperationResult { Success = true });
+ });
+ // Exception automatically caught by batch.Execute() via TaskCompletionSource
+ // Returns OperationResult { Success = false, ErrorMessage } from batch layer
 }
 
-// ✅ CORRECT: Finally blocks still allowed for COM resource cleanup
+// CORRECT: Finally blocks still allowed for COM resource cleanup
 public async Task<OperationResult> ComplexAsync(IExcelBatch batch, string param)
 {
-    dynamic? connection = null;
-    try
-    {
-        return await batch.Execute((ctx, ct) => {
-            connection = ctx.Book.Connections.Add(...);
-            // ... operation ...
-            return ValueTask.FromResult(new OperationResult { Success = true });
-        });
-    }
-    finally
-    {
-        if (connection != null)
-        {
-            ComUtilities.Release(ref connection!);  // ✅ Cleanup in finally
-        }
-    }
+ dynamic? connection = null;
+ try
+ {
+ return await batch.Execute((ctx, ct) => {
+ connection = ctx.Book.Connections.Add(...);
+ // ... operation ...
+ return ValueTask.FromResult(new OperationResult { Success = true });
+ });
+ }
+ finally
+ {
+ if (connection != null)
+ {
+ ComUtilities.Release(ref connection!); // Cleanup in finally
+ }
+ }
 }
 ```
 
@@ -152,12 +152,12 @@ public async Task<OperationResult> ComplexAsync(IExcelBatch batch, string param)
 [McpServerTool]
 public async Task<string> ExcelPowerQuery(string action, ...)
 {
-    return action.ToLowerInvariant() switch
-    {
-        "list" => ListPowerQueries(...),
-        "view" => ViewPowerQuery(...),
-        _ => throw new McpException($"Unknown action: {action}")
-    };
+ return action.ToLowerInvariant() switch
+ {
+ "list" => ListPowerQueries(...),
+ "view" => ViewPowerQuery(...),
+ _ => throw new McpException($"Unknown action: {action}")
+ };
 }
 ```
 
@@ -178,7 +178,7 @@ public async Task<string> ExcelPowerQuery(string action, ...)
 string safe = SanitizeConnectionString(connectionString);
 
 // Defaults
-SavePassword = false  // Never export credentials by default
+SavePassword = false // Never export credentials by default
 ```
 
 ---

@@ -4,7 +4,7 @@ applyTo: "**"
 
 # CRITICAL RULES - MUST FOLLOW
 
-> **⚠️ NON-NEGOTIABLE rules for all ExcelMcp development**
+> **NON-NEGOTIABLE rules for all ExcelMcp development**
 
 ## Rule 0: NEVER Commit Without Running Tests (CRITICAL)
 
@@ -100,14 +100,14 @@ applyTo: "**"
 **NEVER set `Success = true` when `ErrorMessage` is set. This is EXTREMELY serious!**
 
 ```csharp
-// ❌ CRITICAL BUG: Confuses LLMs and users
+// CRITICAL BUG: Confuses LLMs and users
 result.Success = true;
 result.ErrorMessage = "Query imported but failed to load...";
 
-// ✅ CORRECT: Success only when NO errors
+// CORRECT: Success only when NO errors
 if (!loadResult.Success) {
-    result.Success = false;  // MUST be false!
-    result.ErrorMessage = $"Failed: {loadResult.ErrorMessage}";
+ result.Success = false; // MUST be false!
+ result.ErrorMessage = $"Failed: {loadResult.ErrorMessage}";
 }
 ```
 
@@ -117,30 +117,30 @@ if (!loadResult.Success) {
 
 **Common Bug Pattern (43 violations found 2025-01-28):**
 ```csharp
-// ❌ WRONG: Optimistic Success setting without catch block correction
+// WRONG: Optimistic Success setting without catch block correction
 var result = new OperationResult();
-result.Success = true;  // Set optimistically
+result.Success = true; // Set optimistically
 
 try {
-    // ... do work ...
-    return result;
+ // ... do work ...
+ return result;
 } catch (Exception ex) {
-    // ❌ BUG: Forgot to set Success = false!
-    result.ErrorMessage = $"Error: {ex.Message}";
-    return result;  // Returns Success=true with ErrorMessage! 
+ // BUG: Forgot to set Success = false!
+ result.ErrorMessage = $"Error: {ex.Message}";
+ return result; // Returns Success=true with ErrorMessage! 
 }
 
-// ✅ CORRECT: Set Success in try block, always false in catch
+// CORRECT: Set Success in try block, always false in catch
 var result = new OperationResult();
 
 try {
-    // ... do work ...
-    result.Success = true;  // Only set true on actual success
-    return result;
+ // ... do work ...
+ result.Success = true; // Only set true on actual success
+ return result;
 } catch (Exception ex) {
-    result.Success = false;  // ✅ Always false in catch!
-    result.ErrorMessage = $"Error: {ex.Message}";
-    return result;
+ result.Success = false; // Always false in catch!
+ result.ErrorMessage = $"Error: {ex.Message}";
+ return result;
 }
 ```
 
@@ -161,58 +161,58 @@ try {
 **Core Commands: NEVER wrap operations in try-catch blocks that return error results. Let exceptions propagate naturally.**
 
 ```csharp
-// ❌ CRITICAL BUG: Suppressing exceptions with error result
+// CRITICAL BUG: Suppressing exceptions with error result
 public async Task<OperationResult> CreateAsync(IExcelBatch batch, string name)
 {
-    try
-    {
-        return await batch.Execute((ctx, ct) => {
-            var sheet = ctx.Book.Worksheets.Add();
-            sheet.Name = name;
-            return ValueTask.FromResult(new OperationResult { Success = true });
-        });
-    }
-    catch (Exception ex)
-    {
-        // ❌ WRONG: Suppresses exception with error result
-        return new OperationResult 
-        { 
-            Success = false, 
-            ErrorMessage = ex.Message 
-        };
-    }
+ try
+ {
+ return await batch.Execute((ctx, ct) => {
+ var sheet = ctx.Book.Worksheets.Add();
+ sheet.Name = name;
+ return ValueTask.FromResult(new OperationResult { Success = true });
+ });
+ }
+ catch (Exception ex)
+ {
+ // WRONG: Suppresses exception with error result
+ return new OperationResult 
+ { 
+ Success = false, 
+ ErrorMessage = ex.Message 
+ };
+ }
 }
 
-// ✅ CORRECT: Let exception propagate to batch.Execute()
+// CORRECT: Let exception propagate to batch.Execute()
 public async Task<OperationResult> CreateAsync(IExcelBatch batch, string name)
 {
-    return await batch.Execute((ctx, ct) => {
-        var sheet = ctx.Book.Worksheets.Add();
-        sheet.Name = name;
-        return ValueTask.FromResult(new OperationResult { Success = true });
-    });
-    // batch.Execute() catches via TaskCompletionSource → returns OperationResult { Success = false }
+ return await batch.Execute((ctx, ct) => {
+ var sheet = ctx.Book.Worksheets.Add();
+ sheet.Name = name;
+ return ValueTask.FromResult(new OperationResult { Success = true });
+ });
+ // batch.Execute() catches via TaskCompletionSource → returns OperationResult { Success = false }
 }
 
-// ✅ CORRECT: Finally blocks are allowed for COM resource cleanup
+// CORRECT: Finally blocks are allowed for COM resource cleanup
 public async Task<OperationResult> ComplexAsync(IExcelBatch batch, dynamic item)
 {
-    dynamic? temp = null;
-    try
-    {
-        return await batch.Execute((ctx, ct) => {
-            temp = CreateItem(item);
-            // ... operation ...
-            return ValueTask.FromResult(new OperationResult { Success = true });
-        });
-    }
-    finally
-    {
-        if (temp != null)
-        {
-            ComUtilities.Release(ref temp!);  // ✅ Finally for cleanup, not error handling
-        }
-    }
+ dynamic? temp = null;
+ try
+ {
+ return await batch.Execute((ctx, ct) => {
+ temp = CreateItem(item);
+ // ... operation ...
+ return ValueTask.FromResult(new OperationResult { Success = true });
+ });
+ }
+ finally
+ {
+ if (temp != null)
+ {
+ ComUtilities.Release(ref temp!); // Finally for cleanup, not error handling
+ }
+ }
 }
 ```
 
@@ -224,20 +224,20 @@ public async Task<OperationResult> ComplexAsync(IExcelBatch batch, dynamic item)
 - Pattern removed from 200+ methods across all command layers in Nov 2025
 
 **Safe Patterns (Keep these):**
-- ✅ Loop continuations: `catch { continue; }`
-- ✅ Optional property access: `catch { propValue = null; }`
-- ✅ Specific error routing: `catch (COMException ex) when (ex.HResult == code) { handle... }`
-- ✅ Finally blocks: Resource cleanup for COM objects
+- Loop continuations: `catch { continue; }`
+- Optional property access: `catch { propValue = null; }`
+- Specific error routing: `catch (COMException ex) when (ex.HResult == code) { handle... }`
+- Finally blocks: Resource cleanup for COM objects
 
 **Pattern to Remove:**
-- ❌ `catch (Exception ex) { return new Result { Success = false, ErrorMessage = ex.Message }; }`
+- `catch (Exception ex) { return new Result { Success = false, ErrorMessage = ex.Message }; }`
 
 **Architecture Foundation:**
 ```
 Core Command Method (NO try-catch wrapping)
-  └─> await batch.Execute()
-      └─> TaskCompletionSource catches exceptions
-          └─> Returns OperationResult { Success = false, ErrorMessage }
+ └─> await batch.Execute()
+ └─> TaskCompletionSource catches exceptions
+ └─> Returns OperationResult { Success = false, ErrorMessage }
 ```
 
 **See:** architecture-patterns.instructions.md for complete exception propagation pattern and examples.
@@ -278,11 +278,11 @@ Exception: Session management files (ExcelBatch.cs, ExcelSession.cs).
 
 **Enforcement:** Pre-commit hook blocks commits to main. If you're on main:
 ```bash
-git stash                                    # Save changes
-git checkout -b feature/your-feature-name    # Create feature branch
-git stash pop                                # Restore changes
-git add <files>                              # Stage changes
-git commit -m "your message"                 # Commit to feature branch
+git stash # Save changes
+git checkout -b feature/your-feature-name # Create feature branch
+git stash pop # Restore changes
+git add <files> # Stage changes
+git commit -m "your message" # Commit to feature branch
 ```
 
 **Why Critical:** Direct commits to main bypass CI/CD, skip code review, and violate branch protection.
@@ -312,10 +312,10 @@ Delete commented-out code (use git history). Exception: Documentation files only
 - **ALWAYS** search OTHER open source GitHub repositories for working examples
 - **NEVER** search your own repository - only search external projects
 - **NetOffice is THE BEST source for ALL COM Interop work**: https://github.com/NetOfficeFw/NetOffice
-  - Strongly-typed C# wrappers for ALL Office COM APIs (Excel, Word, PowerPoint, Outlook, etc.)
-  - Search for ANY Excel COM operation: ranges, worksheets, PivotTables, Power Query, charts, VBA, connections, formatting, etc.
-  - Study their patterns for dynamic interop conversion and proper COM object handling
-  - NetOffice source code is essentially a comprehensive reference for every Excel COM API
+ - Strongly-typed C# wrappers for ALL Office COM APIs (Excel, Word, PowerPoint, Outlook, etc.)
+ - Search for ANY Excel COM operation: ranges, worksheets, PivotTables, Power Query, charts, VBA, connections, formatting, etc.
+ - Study their patterns for dynamic interop conversion and proper COM object handling
+ - NetOffice source code is essentially a comprehensive reference for every Excel COM API
 - Look for repositories with Excel automation, VBA code, or Office interop projects
 - Search for the specific COM object/method you need (e.g., "PivotTable CreatePivotTable VBA", "QueryTable Refresh VBA", "Range.Value2 NetOffice")
 - Study proven patterns from other projects before writing new code
@@ -344,16 +344,16 @@ Delete commented-out code (use git history). Exception: Documentation files only
 **Production code (Core, CLI, MCP Server) must NEVER reference test projects or test helpers.**
 
 **Violations:**
-- ❌ `<InternalsVisibleTo Include="*.Tests" />` in production `.csproj`
-- ❌ `using Sbroenne.ExcelMcp.*.Tests` in production code
-- ❌ Production code calling test helper methods
-- ❌ Production business logic in helper classes that tests use
+- `<InternalsVisibleTo Include="*.Tests" />` in production `.csproj`
+- `using Sbroenne.ExcelMcp.*.Tests` in production code
+- Production code calling test helper methods
+- Production business logic in helper classes that tests use
 
 **Correct Architecture:**
-- ✅ **COM utilities** → `ComInterop/ComUtilities.cs` (low-level COM helpers like SafeGetString, ForEach iterators)
-- ✅ **Business logic** → Private methods inside production Commands classes
-- ✅ **Test helpers** → Call production commands, never duplicate logic
-- ✅ `InternalsVisibleTo` only for production-to-production (e.g., Core → MCP Server)
+- **COM utilities** → `ComInterop/ComUtilities.cs` (low-level COM helpers like SafeGetString, ForEach iterators)
+- **Business logic** → Private methods inside production Commands classes
+- **Test helpers** → Call production commands, never duplicate logic
+- `InternalsVisibleTo` only for production-to-production (e.g., Core → MCP Server)
 
 **Why:** Tests depend on production code, not the reverse. Production code with test dependencies is broken architecture.
 
@@ -364,14 +364,14 @@ Delete commented-out code (use git history). Exception: Documentation files only
 **Every new test class MUST pass the compliance checklist before PR submission.**
 
 **Verify:**
-- ✅ Uses `IClassFixture<TempDirectoryFixture>` (NOT manual IDisposable)
-- ✅ Each test creates unique file via `CoreTestHelper.CreateUniqueTestFile()`
-- ✅ NEVER shares test files between tests
-- ✅ VBA tests use `.xlsm` extension (NOT .xlsx renamed)
-- ✅ Binary assertions only (NO "accept both" patterns)
-- ✅ All required traits present (Category, Speed, Layer, RequiresExcel, Feature)
-- ✅ Batch API pattern used correctly (no ValueTask.FromResult wrapper)
-- ✅ NO duplicate helper methods (use CoreTestHelper)
+- Uses `IClassFixture<TempDirectoryFixture>` (NOT manual IDisposable)
+- Each test creates unique file via `CoreTestHelper.CreateUniqueTestFile()`
+- NEVER shares test files between tests
+- VBA tests use `.xlsm` extension (NOT .xlsx renamed)
+- Binary assertions only (NO "accept both" patterns)
+- All required traits present (Category, Speed, Layer, RequiresExcel, Feature)
+- Batch API pattern used correctly (no ValueTask.FromResult wrapper)
+- NO duplicate helper methods (use CoreTestHelper)
 
 **Why:** Systematic compliance prevents test pollution, file lock issues, silent failures, and maintenance nightmares. See [testing-strategy.instructions.md](testing-strategy.instructions.md) for complete checklist.
 
@@ -384,12 +384,12 @@ Delete commented-out code (use git history). Exception: Documentation files only
 **Every bug fix MUST include all 6 components before PR submission.**
 
 **Required Components:**
-1. ✅ **Code Fix** - Minimal surgical changes to fix root cause
-2. ✅ **Tests** - Minimum 5-8 new tests (regression + edge cases + backwards compat)
-3. ✅ **Documentation** - Update 3+ files (tool docs, user docs, prompts)
-4. ✅ **Workflow Hints** - Update SuggestedNextActions and error messages
-5. ✅ **Quality Verification** - Build passes, all tests green, 0 warnings
-6. ✅ **PR Description** - Comprehensive summary (bug report, fix, tests, docs updated)
+1. **Code Fix** - Minimal surgical changes to fix root cause
+2. **Tests** - Minimum 5-8 new tests (regression + edge cases + backwards compat)
+3. **Documentation** - Update 3+ files (tool docs, user docs, prompts)
+4. **Workflow Hints** - Update SuggestedNextActions and error messages
+5. **Quality Verification** - Build passes, all tests green, 0 warnings
+6. **PR Description** - Comprehensive summary (bug report, fix, tests, docs updated)
 
 **Process:** Follow [bug-fixing-checklist.instructions.md](bug-fixing-checklist.instructions.md) for complete 6-step process.
 
@@ -404,9 +404,9 @@ Delete commented-out code (use git history). Exception: Documentation files only
 **Code must NOT call `batch.Save()` unless explicitly testing persistence.**
 
 **Quick Rules:**
-- ❌ FORBIDDEN: Tests only verifying operation success or in-memory state
-- ✅ REQUIRED: Round-trip tests verifying data persists after workbook close/reopen
-- ⚡ REASON: Save is slow (~2-5s). Removing unnecessary saves makes tests 50%+ faster
+- FORBIDDEN: Tests only verifying operation success or in-memory state
+- REQUIRED: Round-trip tests verifying data persists after workbook close/reopen
+- REASON: Save is slow (~2-5s). Removing unnecessary saves makes tests 50%+ faster
 
 **See:** [testing-strategy.instructions.md](testing-strategy.instructions.md) for complete Save patterns, when to use, and detailed examples.
 
@@ -447,24 +447,24 @@ Delete commented-out code (use git history). Exception: Documentation files only
 **Every enum value MUST have a mapping in ToActionString(). Missing mappings cause unhandled exceptions.**
 
 ```csharp
-// ❌ WRONG: Incomplete mapping
+// WRONG: Incomplete mapping
 public static string ToActionString(this RangeAction action) => action switch
 {
-    RangeAction.GetValues => "get-values",
-    RangeAction.SetValues => "set-values",
-    // Missing GetUsedRange, GetCurrentRegion, etc. → ArgumentException!
-    _ => throw new ArgumentException($"Unknown RangeAction: {action}")
+ RangeAction.GetValues => "get-values",
+ RangeAction.SetValues => "set-values",
+ // Missing GetUsedRange, GetCurrentRegion, etc. → ArgumentException!
+ _ => throw new ArgumentException($"Unknown RangeAction: {action}")
 };
 
-// ✅ CORRECT: All enum values mapped
+// CORRECT: All enum values mapped
 public static string ToActionString(this RangeAction action) => action switch
 {
-    RangeAction.GetValues => "get-values",
-    RangeAction.SetValues => "set-values",
-    RangeAction.GetUsedRange => "get-used-range",  // ✅ All values
-    RangeAction.GetCurrentRegion => "get-current-region",
-    // ... all other values
-    _ => throw new ArgumentException($"Unknown RangeAction: {action}")
+ RangeAction.GetValues => "get-values",
+ RangeAction.SetValues => "set-values",
+ RangeAction.GetUsedRange => "get-used-range", // All values
+ RangeAction.GetCurrentRegion => "get-current-region",
+ // ... all other values
+ _ => throw new ArgumentException($"Unknown RangeAction: {action}")
 };
 ```
 
@@ -485,16 +485,16 @@ public static string ToActionString(this RangeAction action) => action switch
 
 **Wrong:**
 ```bash
-# ❌ NEVER: Runs ALL integration tests (10+ minutes)
+# NEVER: Runs ALL integration tests (10+ minutes)
 dotnet test --filter "Category=Integration&RunType!=OnDemand"
 ```
 
 **Correct:**
 ```bash
-# ✅ CORRECT: Test only the feature you changed
-dotnet test --filter "Feature=PowerQuery&RunType!=OnDemand"  # PowerQuery changes only
-dotnet test --filter "Feature=Connection&RunType!=OnDemand"  # Connection changes only
-dotnet test --filter "Feature=Sheet&RunType!=OnDemand"       # Sheet changes only
+# CORRECT: Test only the feature you changed
+dotnet test --filter "Feature=PowerQuery&RunType!=OnDemand" # PowerQuery changes only
+dotnet test --filter "Feature=Connection&RunType!=OnDemand" # Connection changes only
+dotnet test --filter "Feature=Sheet&RunType!=OnDemand" # Sheet changes only
 ```
 
 **Why Critical:** Integration tests require Excel COM automation and are SLOW. Running all tests wastes time and resources.
@@ -511,39 +511,39 @@ dotnet test --filter "Feature=Sheet&RunType!=OnDemand"       # Sheet changes onl
 **Every MCP tool method that calls Core Commands MUST return JSON responses, not throw exceptions for business errors.**
 
 ```csharp
-// ❌ WRONG: Throws exception for business logic errors
+// WRONG: Throws exception for business logic errors
 private static async Task<string> SomeAction(...)
 {
-    var result = await commands.SomeAsync(batch, param);
-    
-    if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
-    {
-        throw new ModelContextProtocol.McpException($"action failed: {result.ErrorMessage}");  // ❌ Wrong!
-    }
-    
-    return JsonSerializer.Serialize(result, JsonOptions);
+ var result = await commands.SomeAsync(batch, param);
+ 
+ if (!result.Success && !string.IsNullOrEmpty(result.ErrorMessage))
+ {
+ throw new ModelContextProtocol.McpException($"action failed: {result.ErrorMessage}"); // Wrong!
+ }
+ 
+ return JsonSerializer.Serialize(result, JsonOptions);
 }
 
-// ✅ CORRECT: Always return JSON - let result.Success indicate errors
+// CORRECT: Always return JSON - let result.Success indicate errors
 private static async Task<string> SomeAction(...)
 {
-    var result = await commands.SomeAsync(batch, param);
-    
-    // Always return JSON (success or failure) - MCP clients handle the success flag
-    return JsonSerializer.Serialize(result, JsonOptions);
+ var result = await commands.SomeAsync(batch, param);
+ 
+ // Always return JSON (success or failure) - MCP clients handle the success flag
+ return JsonSerializer.Serialize(result, JsonOptions);
 }
 ```
 
 **When to Throw McpException:**
-- ✅ **Parameter validation** - missing required params, invalid formats
-- ✅ **Pre-conditions** - file not found, batch not found, invalid state
-- ❌ **NOT for business logic errors** - table not found, query failed, etc.
+- **Parameter validation** - missing required params, invalid formats
+- **Pre-conditions** - file not found, batch not found, invalid state
+- **NOT for business logic errors** - table not found, query failed, etc.
 
 **Why:**
-- ✅ MCP clients expect JSON responses with `success: false` for business errors
-- ✅ HTTP 200 + JSON error = client can parse and handle gracefully
-- ❌ HTTP 500 + exception = harder for clients to handle programmatically
-- ✅ Core Commands return result objects with `Success` flag - serialize them!
+- MCP clients expect JSON responses with `success: false` for business errors
+- HTTP 200 + JSON error = client can parse and handle gracefully
+- HTTP 500 + exception = harder for clients to handle programmatically
+- Core Commands return result objects with `Success` flag - serialize them!
 
 **Example - Business Error (return JSON):**
 ```csharp
@@ -558,7 +558,7 @@ return JsonSerializer.Serialize(result, JsonOptions);
 // Missing required parameter
 if (string.IsNullOrWhiteSpace(tableName))
 {
-    throw new ModelContextProtocol.McpException("tableName is required for create-from-table action");
+ throw new ModelContextProtocol.McpException("tableName is required for create-from-table action");
 }
 ```
 
@@ -573,46 +573,46 @@ if (string.IsNullOrWhiteSpace(tableName))
 **What to verify when changing a tool:**
 
 1. **Purpose and Use Cases Clear**:
-   ```csharp
-   // ❌ WRONG: Vague description
-   /// <summary>Manage worksheets</summary>
-   
-   // ✅ CORRECT: Clear purpose and use cases
-   /// <summary>
-   /// Manage Excel worksheet lifecycle: create, rename, copy, delete sheets.
-   /// </summary>
-   ```
+ ```csharp
+ // WRONG: Vague description
+ /// <summary>Manage worksheets</summary>
+ 
+ // CORRECT: Clear purpose and use cases
+ /// <summary>
+ /// Manage Excel worksheet lifecycle: create, rename, copy, delete sheets.
+ /// </summary>
+ ```
 
 2. **Non-Enum Parameter Values Documented**:
-   ```csharp
-   // ❌ WRONG: Parameter values not explained
-   /// <summary>Import Power Query with loadDestination parameter</summary>
-   
-   // ✅ CORRECT: Non-enum parameter values explained
-   /// <summary>
-   /// Import Power Query.
-   /// 
-   /// LOAD DESTINATIONS:
-   /// - 'worksheet': Load to worksheet (DEFAULT)
-   /// - 'data-model': Load to Power Pivot
-   /// - 'both': Load to BOTH
-   /// - 'connection-only': Don't load data
-   /// </summary>
-   ```
+ ```csharp
+ // WRONG: Parameter values not explained
+ /// <summary>Import Power Query with loadDestination parameter</summary>
+ 
+ // CORRECT: Non-enum parameter values explained
+ /// <summary>
+ /// Import Power Query.
+ /// 
+ /// LOAD DESTINATIONS:
+ /// - 'worksheet': Load to worksheet (DEFAULT)
+ /// - 'data-model': Load to Power Pivot
+ /// - 'both': Load to BOTH
+ /// - 'connection-only': Don't load data
+ /// </summary>
+ ```
 
 3. **Server-Specific Behavior Documented**:
-   ```csharp
-   // ❌ WRONG: Behavior changed but description outdated
-   /// <summary>Default: loadDestination='connection-only'</summary>  // Wrong!
-   
-   // ✅ CORRECT: Description reflects actual default
-   /// <summary>Default: loadDestination='worksheet'</summary>
-   ```
+ ```csharp
+ // WRONG: Behavior changed but description outdated
+ /// <summary>Default: loadDestination='connection-only'</summary> // Wrong!
+ 
+ // CORRECT: Description reflects actual default
+ /// <summary>Default: loadDestination='worksheet'</summary>
+ ```
 
 **What NOT to include:**
-- ❌ **Enum action lists** - MCP SDK auto-generates these in schema (LLMs see them via dropdown)
-- ❌ **Parameter types** - Schema provides this
-- ❌ **Required/optional flags** - Schema provides this
+- **Enum action lists** - MCP SDK auto-generates these in schema (LLMs see them via dropdown)
+- **Parameter types** - Schema provides this
+- **Required/optional flags** - Schema provides this
 
 **Why Critical:** LLMs use tool descriptions for server-specific guidance. Inaccurate descriptions cause:
 - Wrong default parameter values
@@ -678,33 +678,33 @@ mcp_github_github_pull_request_read(method="get_review_comments", owner="sbroenn
 **ALWAYS use try-finally for COM object cleanup. NEVER swallow exceptions with empty catch blocks.**
 
 ```csharp
-// ❌ WRONG: Swallows exception, sets fallback value
+// WRONG: Swallows exception, sets fallback value
 try
 {
-    dynamic pivotLayout = chart.PivotLayout;
-    dynamic pivotTable = pivotLayout.PivotTable;
-    name = pivotTable.Name?.ToString() ?? string.Empty;
-    ComUtilities.Release(ref pivotTable!);  // Won't execute if exception occurs!
-    ComUtilities.Release(ref pivotLayout!);
+ dynamic pivotLayout = chart.PivotLayout;
+ dynamic pivotTable = pivotLayout.PivotTable;
+ name = pivotTable.Name?.ToString() ?? string.Empty;
+ ComUtilities.Release(ref pivotTable!); // Won't execute if exception occurs!
+ ComUtilities.Release(ref pivotLayout!);
 }
 catch
 {
-    name = "(unknown)";  // Swallows exception!
+ name = "(unknown)"; // Swallows exception!
 }
 
-// ✅ CORRECT: Finally ensures cleanup, exceptions propagate
+// CORRECT: Finally ensures cleanup, exceptions propagate
 dynamic? pivotLayout = null;
 dynamic? pivotTable = null;
 try
 {
-    pivotLayout = chart.PivotLayout;
-    pivotTable = pivotLayout.PivotTable;
-    name = pivotTable.Name?.ToString() ?? string.Empty;
+ pivotLayout = chart.PivotLayout;
+ pivotTable = pivotLayout.PivotTable;
+ name = pivotTable.Name?.ToString() ?? string.Empty;
 }
 finally
 {
-    if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
-    if (pivotLayout != null) ComUtilities.Release(ref pivotLayout!);
+ if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
+ if (pivotLayout != null) ComUtilities.Release(ref pivotLayout!);
 }
 // Exception propagates naturally, COM objects always released
 ```
@@ -737,31 +737,31 @@ finally
 **Why Critical:** Dismissing valid warnings leads to broken code reaching production. The agent's job is to write correct code, not rationalize why incorrect code is acceptable.
 
 ```yaml
-# ❌ WRONG: Agent dismissed YAML error as "false positive"
+# WRONG: Agent dismissed YAML error as "false positive"
 run: |
-  $notes = @"
-  ## Release Notes
-  ```powershell
-  code here
-  ```
-  "@
+ $notes = @"
+ ## Release Notes
+ ```powershell
+ code here
+ ```
+ "@
 # VS Code showed: "Unexpected scalar at node end" - THIS WAS A REAL ERROR
 
-# ✅ CORRECT: Agent should have tested or researched before dismissing
+# CORRECT: Agent should have tested or researched before dismissing
 # PowerShell here-strings (@"..."@) don't work in GitHub Actions YAML
 # Use string concatenation instead:
 run: |
-  $notes = "## Release Notes`n"
-  $notes += '```powershell' + "`n"
-  $notes += "code here`n"
-  $notes += '```'
+ $notes = "## Release Notes`n"
+ $notes += '```powershell' + "`n"
+ $notes += "code here`n"
+ $notes += '```'
 ```
 
 **Enforcement:**
 - If IDE shows error/warning, assume it's CORRECT until proven otherwise
 - To disprove a warning, you MUST either:
-  1. Run the code and verify it works, OR
-  2. Find authoritative documentation proving the warning is wrong
+ 1. Run the code and verify it works, OR
+ 2. Find authoritative documentation proving the warning is wrong
 - "I think it will work" is NOT verification
 - "The linter is confused" is NOT a valid dismissal
 
@@ -820,14 +820,14 @@ grep -r "209 operations\|210 operations\|10 ops\|11 ops" --include="*.md"
 
 **Historical Example (Jan 2026):**
 PowerQuery `unload` action was added to:
-- ✅ ToolActions.cs enum
-- ✅ ActionExtensions.cs mapping
-- ✅ IPowerQueryCommands.cs interface
-- ✅ PowerQueryCommands.Lifecycle.cs implementation
-- ✅ ExcelPowerQueryTool.cs MCP handler
-- ❌ ExcelDaemon.cs CLI handler (MISSED!)
-- ❌ FEATURES.md count (MISSED!)
-- ❌ README files (MISSED!)
+- ToolActions.cs enum
+- ActionExtensions.cs mapping
+- IPowerQueryCommands.cs interface
+- PowerQueryCommands.Lifecycle.cs implementation
+- ExcelPowerQueryTool.cs MCP handler
+- ExcelDaemon.cs CLI handler (MISSED!)
+- FEATURES.md count (MISSED!)
+- README files (MISSED!)
 
 Result: Caught during commit review, required additional fixes.
 
@@ -838,13 +838,13 @@ Result: Caught during commit review, required additional fixes.
 **ExcelMcp is Windows-only. ALL documentation code blocks MUST use PowerShell syntax, NOT bash.**
 
 ```markdown
-# ❌ WRONG: bash syntax
+# WRONG: bash syntax
 ```bash
 dotnet build
 excelcli sheet list --file "test.xlsx"
 ```
 
-# ✅ CORRECT: PowerShell syntax
+# CORRECT: PowerShell syntax
 ```powershell
 dotnet build
 excelcli sheet list --file "test.xlsx"

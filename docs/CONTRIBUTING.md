@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing to Sbroenne.ExcelMcp! This project is designed to be extended by the community, especially to support coding agents like GitHub Copilot.
 
-## 🎯 Project Vision
+## Project Vision
 
 ExcelMcp aims to be the go-to command-line tool for coding agents to interact with Microsoft Excel files. We prioritize:
 
@@ -11,23 +11,23 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 - **Extensibility** - Easy to add new features
 - **Agent-Friendly** - Designed for AI coding assistants
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Development Environment
 
 1. **Prerequisites**:
-   - Windows OS (required for Excel COM)
-   - Visual Studio 2022 or VS Code
-   - .NET 10 SDK
-   - Microsoft Excel installed
+ - Windows OS (required for Excel COM)
+ - Visual Studio 2022 or VS Code
+ - .NET 10 SDK
+ - Microsoft Excel installed
 
 2. **Setup**:
-   ```powershell
-   git clone https://github.com/sbroenne/mcp-server-excel.git
-   cd ExcelMcp
-   dotnet restore
-   dotnet build
-   ```
+ ```powershell
+ git clone https://github.com/sbroenne/mcp-server-excel.git
+ cd ExcelMcp
+ dotnet restore
+ dotnet build
+ ```
 
 ## 🚨 **CRITICAL: Pull Request Workflow Required**
 
@@ -42,14 +42,14 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 5. **Address review**: Make requested changes
 6. **Merge**: After approval and CI checks pass
 
-📋 **Detailed workflow**: See [DEVELOPMENT.md](DEVELOPMENT.md) for complete instructions.
+**Detailed workflow**: See [DEVELOPMENT.md](DEVELOPMENT.md) for complete instructions.
 
 3. **Test Your Setup**:
-   ```powershell
-   dotnet run -- pq-list "path/to/test.xlsx"
-   ```
+ ```powershell
+ dotnet run -- pq-list "path/to/test.xlsx"
+ ```
 
-## 📋 Development Guidelines
+## Development Guidelines
 
 ### Code Style
 
@@ -68,31 +68,31 @@ All commands follow this structure:
 // Interface
 public interface IMyCommands
 {
-    int MyOperation(string[] args);
+ int MyOperation(string[] args);
 }
 
-// Implementation  
+// Implementation 
 public class MyCommands : IMyCommands
 {
-    public int MyOperation(string[] args)
-    {
-        // Validation
-        if (!ValidateArgs(args, expectedCount, "usage string"))
-            return 1;
-            
-        // Excel automation using batch API
-        var task = Task.Run(async () =>
-        {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return batch.Execute((ctx, ct) =>
-            {
-                // Use ctx.Book for workbook access
-                // Your implementation
-                return 0; // Success
-            });
-        });
-        return task.GetAwaiter().GetResult();
-    }
+ public int MyOperation(string[] args)
+ {
+ // Validation
+ if (!ValidateArgs(args, expectedCount, "usage string"))
+ return 1;
+ 
+ // Excel automation using batch API
+ var task = Task.Run(async () =>
+ {
+ await using var batch = await ExcelSession.BeginBatchAsync(filePath);
+ return batch.Execute((ctx, ct) =>
+ {
+ // Use ctx.Book for workbook access
+ // Your implementation
+ return 0; // Success
+ });
+ });
+ return task.GetAwaiter().GetResult();
+ }
 }
 ```
 
@@ -121,7 +121,7 @@ Before submitting:
 4. **VBA script testing** - For script-related commands, test with real VBA macros
 5. **Cross-version compatibility** - Test with different Excel versions if possible
 
-## 🔧 Adding New Commands
+## Adding New Commands
 
 ### 1. Create Interface
 
@@ -131,7 +131,7 @@ namespace ExcelMcp.Commands;
 
 public interface INewCommands
 {
-    int NewOperation(string[] args);
+ int NewOperation(string[] args);
 }
 ```
 
@@ -145,10 +145,10 @@ namespace ExcelMcp.Commands;
 
 public class NewCommands : INewCommands
 {
-    public int NewOperation(string[] args)
-    {
-        // Implementation following established patterns
-    }
+ public int NewOperation(string[] args)
+ {
+ // Implementation following established patterns
+ }
 }
 ```
 
@@ -159,9 +159,9 @@ Add to the switch expression in `Main()`:
 ```csharp
 return args[0] switch
 {
-    "new-operation" => newCommands.NewOperation(args),
-    // ... existing commands
-    _ => ShowHelp()
+ "new-operation" => newCommands.NewOperation(args),
+ // ... existing commands
+ _ => ShowHelp()
 };
 ```
 
@@ -169,7 +169,7 @@ return args[0] switch
 
 Add your command to the help output in `ShowHelp()`.
 
-## 📝 Pull Request Process
+## Pull Request Process
 
 ### Before Submitting
 
@@ -205,7 +205,7 @@ Brief description of changes
 - [ ] Updated documentation as needed
 ```
 
-## 🎨 UI Guidelines
+## UI Guidelines
 
 ### Spectre.Console Usage
 
@@ -213,7 +213,7 @@ Brief description of changes
 // Success (green checkmark)
 AnsiConsole.MarkupLine($"[green]✓[/] Operation succeeded");
 
-// Error (red)  
+// Error (red) 
 AnsiConsole.MarkupLine($"[red]Error:[/] {message.EscapeMarkup()}");
 
 // Warning (yellow)
@@ -233,7 +233,7 @@ AnsiConsole.MarkupLine($"[cyan]{title}[/]");
 - **Progress indicators** for long operations
 - **Clear error messages** with actionable guidance
 
-## 🐛 Bug Reports
+## Bug Reports
 
 When reporting bugs, please include:
 
@@ -243,7 +243,7 @@ When reporting bugs, please include:
 - **Sample Excel file** (if possible)
 - **Error messages** (full text)
 
-## 💡 Feature Requests
+## Feature Requests
 
 Great feature requests include:
 
@@ -252,7 +252,7 @@ Great feature requests include:
 - **Excel operations involved** - What APIs would be used?
 - **Target users** - Coding agents? Direct users?
 
-## 📚 Learning Resources
+## Learning Resources
 
 - [Excel VBA Object Model Reference](https://docs.microsoft.com/en-us/office/vba/api/overview/excel)
 - [Power Query M Language Reference](https://docs.microsoft.com/en-us/powerquery-m/)
@@ -263,17 +263,17 @@ Great feature requests include:
 
 - [NuGet Publishing Guide](NUGET-GUIDE.md) - Complete guide for publishing all packages with OIDC trusted publishing
 
-## 🏷️ Issue Labels
+## Issue Labels
 
 - `bug` - Something isn't working
 - `enhancement` - New feature or improvement
 - `documentation` - Documentation improvements
 - `good first issue` - Good for newcomers
-- `help wanted` - Extra attention needed  
+- `help wanted` - Extra attention needed 
 - `excel-com` - Excel COM automation issues
 - `power-query` - Power Query specific
 - `coding-agent` - Coding agent related
 
 ---
 
-Thank you for contributing to Sbroenne.ExcelMcp! Together we're making Excel automation more accessible to coding agents and developers worldwide. 🚀
+Thank you for contributing to Sbroenne.ExcelMcp! Together we're making Excel automation more accessible to coding agents and developers worldwide. 
