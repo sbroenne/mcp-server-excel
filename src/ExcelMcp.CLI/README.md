@@ -163,13 +163,15 @@ When you run your first CLI command, a **background daemon** starts automaticall
 - **Manages Excel COM** - Keeps Excel instance alive between commands (no restart overhead)
 - **Shows system tray icon** - Look for the Excel CLI icon in your Windows taskbar notification area
 - **Tracks sessions** - Right-click the tray icon to see active sessions and close them
+- **Auto-updates** - Notifies you when a new version is available and allows one-click updates
 
 **Tray Icon Features:**
 - 📋 **View sessions** - Double-click to see active session count
-- 💾 **Close sessions** - Right-click → Sessions → select file → "Save & Close" or "Close"
-- 🛑 **Stop daemon** - Right-click → "Stop Daemon" (prompts if sessions are open)
+- 💾 **Close sessions** - Right-click → Sessions → select file → "Close Session..." (prompts to save with Cancel option)
+- 🔄 **Update CLI** - When updates are available, click "Update to X.X.X" to update automatically
+- 🛑 **Stop daemon** - Right-click → "Stop Daemon" (prompts to save active sessions with Cancel option)
 
-The daemon auto-stops after 5 minutes of inactivity (no active sessions).
+The daemon auto-stops after 10 minutes of inactivity (no active sessions).
 
 ---
 
