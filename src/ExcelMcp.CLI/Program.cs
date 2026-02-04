@@ -274,8 +274,8 @@ internal sealed class Program
 
     private static string GetCurrentVersion()
     {
-        var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-        var informational = assembly.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        var assembly = Assembly.GetExecutingAssembly();
+        var informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         // Strip git hash suffix (e.g., "1.2.0+abc123" -> "1.2.0")
         return informational?.Split('+')[0] ?? assembly.GetName().Version?.ToString() ?? "0.0.0";
     }

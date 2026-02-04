@@ -10,6 +10,17 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### Added
+
+- **CLI Daemon Improvements**: Enhanced tray icon experience with better update management and save prompts
+  - Added "Update CLI" menu option when updates are available (detects global vs local .NET tool install)
+  - Added save dialog (Yes/No/Cancel) when closing individual sessions from tray
+  - Added save dialog (Yes/No/Cancel) when stopping daemon with active sessions
+  - Removed redundant disabled "Excel CLI Daemon" status menu entry
+  - Toast notifications now mention the Update CLI menu option for easier access
+  - Update command shows in confirmation dialog before execution
+  - Auto-restart daemon after successful update
+
 ### Fixed
 
 - **PivotTable RPC Disconnection** (#426): Fixed "RPC server is unavailable (0x800706BA)" error during rapid OLAP PivotTable field operations

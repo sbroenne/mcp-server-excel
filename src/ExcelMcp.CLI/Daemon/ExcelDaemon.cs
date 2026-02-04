@@ -740,8 +740,8 @@ internal sealed class ExcelDaemon : IDisposable
     {
         var args = GetArg<RangeInsertCellsArgs>(request.Args);
         var shift = args.ShiftDirection?.ToLowerInvariant() == "right"
-            ? Core.Commands.Range.InsertShiftDirection.Right
-            : Core.Commands.Range.InsertShiftDirection.Down;
+            ? InsertShiftDirection.Right
+            : InsertShiftDirection.Down;
         var result = _rangeCommands.InsertCells(batch, args.SheetName!, args.Range!, shift);
         return SerializeResult(result);
     }
@@ -750,8 +750,8 @@ internal sealed class ExcelDaemon : IDisposable
     {
         var args = GetArg<RangeDeleteCellsArgs>(request.Args);
         var shift = args.ShiftDirection?.ToLowerInvariant() == "left"
-            ? Core.Commands.Range.DeleteShiftDirection.Left
-            : Core.Commands.Range.DeleteShiftDirection.Up;
+            ? DeleteShiftDirection.Left
+            : DeleteShiftDirection.Up;
         var result = _rangeCommands.DeleteCells(batch, args.SheetName!, args.Range!, shift);
         return SerializeResult(result);
     }
@@ -787,7 +787,7 @@ internal sealed class ExcelDaemon : IDisposable
     private DaemonResponse ExecuteRangeFind(IExcelBatch batch, DaemonRequest request)
     {
         var args = GetArg<RangeFindArgs>(request.Args);
-        var options = new Core.Commands.Range.FindOptions
+        var options = new FindOptions
         {
             MatchCase = args.MatchCase ?? false,
             MatchEntireCell = args.MatchEntireCell ?? false,
@@ -802,7 +802,7 @@ internal sealed class ExcelDaemon : IDisposable
     private DaemonResponse ExecuteRangeReplace(IExcelBatch batch, DaemonRequest request)
     {
         var args = GetArg<RangeReplaceArgs>(request.Args);
-        var options = new Core.Commands.Range.ReplaceOptions
+        var options = new ReplaceOptions
         {
             MatchCase = args.MatchCase ?? false,
             MatchEntireCell = args.MatchEntireCell ?? false,
@@ -816,7 +816,7 @@ internal sealed class ExcelDaemon : IDisposable
     {
         var args = GetArg<RangeSortArgs>(request.Args);
         var sortColumns = args.SortColumns?
-            .Select(sc => new Core.Commands.Range.SortColumn { ColumnIndex = sc.ColumnIndex, Ascending = sc.Ascending })
+            .Select(sc => new SortColumn { ColumnIndex = sc.ColumnIndex, Ascending = sc.Ascending })
             .ToList() ?? [];
         _rangeCommands.Sort(batch, args.SheetName!, args.Range!, sortColumns, args.HasHeaders ?? true);
         return ExecuteVoid(() => { });

@@ -36,6 +36,7 @@ public sealed class ActionValidatorTests
         [typeof(SlicerAction)]
     ];
 
+    // Note: datamodelrel is MCP-only (not in CLI) - it's a sub-tool of datamodel
     private static readonly string[] ExpectedCommands =
     [
         "sheet",
@@ -50,7 +51,6 @@ public sealed class ActionValidatorTests
         "conditionalformat",
         "vba",
         "datamodel",
-        "datamodelrel",
         "slicer"
     ];
 
