@@ -184,6 +184,29 @@ catch {
 }
 
 Write-Host ""
+Write-Host "🔍 Checking CLI Settings property usage..." -ForegroundColor Cyan
+
+try {
+    $cliSettingsScript = Join-Path $rootDir "scripts\check-cli-settings-usage.ps1"
+    & $cliSettingsScript
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "❌ CLI Settings property usage check failed!" -ForegroundColor Red
+        Write-Host "   All Settings properties must be used in args switch statements." -ForegroundColor Red
+        Write-Host "   Fix: Add property to args (propertyName = settings.PropertyName)." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "✅ CLI Settings property usage check passed" -ForegroundColor Green
+}
+catch {
+    Write-Host ""
+    Write-Host "❌ Error running CLI Settings property usage check: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
 Write-Host "🔍 Running CLI workflow smoke test..." -ForegroundColor Cyan
 
 try {

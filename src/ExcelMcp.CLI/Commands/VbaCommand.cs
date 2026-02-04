@@ -43,7 +43,7 @@ internal sealed class VbaCommand : AsyncCommand<VbaCommand.Settings>
             "view" => new { moduleName = settings.ModuleName },
             "import" => new { moduleName = settings.ModuleName, vbaCode },
             "delete" => new { moduleName = settings.ModuleName },
-            "run" => new { procedureName = settings.MacroName, parameters = ParseParameters(settings.Arguments) },
+            "run" => new { procedureName = settings.MacroName, timeoutSeconds = settings.TimeoutSeconds, parameters = ParseParameters(settings.Arguments) },
             "update" => new { moduleName = settings.ModuleName, vbaCode },
             _ => new { moduleName = settings.ModuleName }
         };
@@ -137,5 +137,9 @@ internal sealed class VbaCommand : AsyncCommand<VbaCommand.Settings>
         [CommandOption("--arguments <ARGS>")]
         [Description("Macro arguments (JSON array or comma-separated)")]
         public string? Arguments { get; init; }
+
+        [CommandOption("--timeout <SECONDS>")]
+        [Description("Timeout in seconds for macro execution")]
+        public int? TimeoutSeconds { get; init; }
     }
 }

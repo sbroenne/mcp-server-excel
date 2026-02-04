@@ -23,6 +23,16 @@ This changelog covers all components:
   - Guidance moved to skill documentation (Rule 2: Use File-Based Input)
   - CLI output is now cleaner and less cluttered
 
+- **CLI Missing Parameter Mappings** (#423): Fixed CLI commands silently ignoring user-provided values
+  - ROOT CAUSE: Settings properties defined but not passed to daemon in args switch statements
+  - FIX: Added missing parameter mappings for affected commands:
+    - `connection set-properties`: Added `description`, `backgroundQuery`, `savePassword`, `refreshPeriod`
+    - `powerquery create/load-to`: Added `targetSheet`, `targetCellAddress`
+    - `chart create-*` and `move`: Added `left`, `top`, `width`, `height`
+    - `table append`: Fixed to parse CSV into proper `rows` format
+    - `vba run`: Added `timeoutSeconds`
+  - Added pre-commit check (`check-cli-settings-usage.ps1`) to prevent future occurrences
+
 ## [1.6.5] - 2026-02-03
 
 - **Dead Session Detection** (#414): Auto-detect and cleanup sessions when Excel process dies

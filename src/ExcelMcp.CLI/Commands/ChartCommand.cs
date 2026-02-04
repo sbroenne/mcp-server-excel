@@ -40,11 +40,11 @@ internal sealed class ChartCommand : AsyncCommand<ChartCommand.Settings>
         {
             "list" => new { sheetName = settings.SheetName },
             "read" => new { sheetName = settings.SheetName, chartName = settings.ChartName },
-            "create-from-range" => new { sheetName = settings.SheetName, chartName = settings.ChartName, sourceRange = settings.SourceRange, chartType = settings.ChartType },
-            "create-from-table" => new { tableName = settings.TableName, sheetName = settings.SheetName, chartName = settings.ChartName, chartType = settings.ChartType },
-            "create-from-pivottable" => new { pivotTableName = settings.PivotTableName, sheetName = settings.SheetName, chartName = settings.ChartName, chartType = settings.ChartType },
+            "create-from-range" => new { sheetName = settings.SheetName, chartName = settings.ChartName, sourceRange = settings.SourceRange, chartType = settings.ChartType, left = settings.Left, top = settings.Top, width = settings.Width, height = settings.Height },
+            "create-from-table" => new { tableName = settings.TableName, sheetName = settings.SheetName, chartName = settings.ChartName, chartType = settings.ChartType, left = settings.Left, top = settings.Top, width = settings.Width, height = settings.Height },
+            "create-from-pivottable" => new { pivotTableName = settings.PivotTableName, sheetName = settings.SheetName, chartName = settings.ChartName, chartType = settings.ChartType, left = settings.Left, top = settings.Top, width = settings.Width, height = settings.Height },
             "delete" => new { sheetName = settings.SheetName, chartName = settings.ChartName },
-            "move" => new { chartName = settings.ChartName },
+            "move" => new { chartName = settings.ChartName, left = settings.Left, top = settings.Top, width = settings.Width, height = settings.Height },
             "fit-to-range" => new { chartName = settings.ChartName, sheetName = settings.SheetName, rangeAddress = settings.TargetRange ?? settings.SourceRange },
             _ => new { sheetName = settings.SheetName, chartName = settings.ChartName }
         };
@@ -114,5 +114,21 @@ internal sealed class ChartCommand : AsyncCommand<ChartCommand.Settings>
         [CommandOption("--position <POSITION>")]
         [Description("Chart position")]
         public string? Position { get; init; }
+
+        [CommandOption("--left <VALUE>")]
+        [Description("Left position in points")]
+        public double? Left { get; init; }
+
+        [CommandOption("--top <VALUE>")]
+        [Description("Top position in points")]
+        public double? Top { get; init; }
+
+        [CommandOption("--width <VALUE>")]
+        [Description("Width in points")]
+        public double? Width { get; init; }
+
+        [CommandOption("--height <VALUE>")]
+        [Description("Height in points")]
+        public double? Height { get; init; }
     }
 }
