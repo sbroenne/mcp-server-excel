@@ -138,6 +138,12 @@ internal sealed class Program
                     "Connection operations.",
                     ActionValidator.GetValidActions<ConnectionAction>()));
 
+            // Calculation mode commands
+            config.AddCommand<CalculationModeCommand>("calculationmode")
+                .WithDescription(DescribeActions(
+                    "Calculation mode operations.",
+                    ActionValidator.GetValidActions<CalculationModeAction>()));
+
             // NamedRange commands
             config.AddCommand<NamedRangeCommand>("namedrange")
                 .WithDescription(DescribeActions(
