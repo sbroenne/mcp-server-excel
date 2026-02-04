@@ -10,6 +10,17 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### Fixed
+
+- **PivotTable RPC Disconnection** (#426): Fixed "RPC server is unavailable (0x800706BA)" error during rapid OLAP PivotTable field operations
+  - ROOT CAUSE: `RefreshTable()` called after each field operation triggered synchronous Analysis Services queries
+  - FIX: Removed RefreshTable() from field manipulation methods (AddRowField, AddColumnField, AddFilterField, RemoveField, SetFieldFunction)
+  - Field changes now take effect immediately without blocking AS queries
+  - Call `excel_pivottable(refresh)` explicitly to update visual display after configuring fields
+  - Applies to both OLAP (Data Model) and regular PivotTables for consistency
+
+## [1.6.8] - 2026-02-03
+
 ### Changed
 
 - **JSON Property Names Reverted** (#417): Removed short property name mappings for better readability

@@ -70,6 +70,9 @@ When creating PivotTables, configure fields in order:
 2. Add Column fields: `excel_pivottable_field(AddColumnField, fieldName="Year")`  
 3. Add Value fields: `excel_pivottable_field(AddValueField, fieldName="Amount", aggregationFunction="Sum")`
 4. Add filters: `excel_pivottable_field(AddFilterField, fieldName="Status")`
+5. **Refresh to update display**: `excel_pivottable(refresh, pivotTableName="...")`
+
+**IMPORTANT**: Field operations are structural only - they modify the PivotTable layout but don't trigger visual refresh. Call `excel_pivottable(refresh)` after configuring all fields to update the display. This is especially important for OLAP/Data Model PivotTables.
 
 ### Aggregation Functions for Value Fields
 
