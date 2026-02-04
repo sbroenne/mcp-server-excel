@@ -15,7 +15,7 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time.
 
-**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. CLI has 13 command categories with 211 operations matching the MCP Server (22 tools with 211 operations).
+**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. CLI has 15 command categories with 214 operations matching the MCP Server (23 tools with 214 operations).
 
 **Requirements:** Windows OS + Excel 2016+
 
@@ -53,7 +53,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 ## 🛠️ What You Can Do
 
-**22 specialized tools with 211 operations:**
+**23 specialized tools with 214 operations:**
 
 - 🔄 **Power Query** (1 tool, 11 ops) - Atomic workflows, M code management, load destinations
 - 📊 **Data Model/DAX** (2 tools, 18 ops) - Measures, relationships, model structure
@@ -66,10 +66,11 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 - 🔌 **Connections** (1 tool, 9 ops) - OLEDB/ODBC management and refresh
 - 🏷️ **Named Ranges** (1 tool, 6 ops) - Parameters and configuration
 - 📁 **Files** (1 tool, 6 ops) - Session management and workbook creation
+- 🧮 **Calculation Mode** (1 tool, 3 ops) - Get/set calculation mode and trigger recalculation
 - �️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
 - 🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
 
-📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 211 operations
+📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 214 operations
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot, Claude, or ChatGPT

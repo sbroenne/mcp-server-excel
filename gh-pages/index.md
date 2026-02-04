@@ -98,11 +98,11 @@ It works with any MCP-compatible AI assistant like GitHub Copilot, Claude Deskto
 
 <div class="feature-card">
 <h3>🧪 LLM-Tested Quality</h3>
-<p>Tool behavior validated with real AI agents using <a href="https://github.com/mykhaliev/agent-benchmark">agent-benchmark</a>. We test that LLMs correctly understand and use our tools.</p>
+<p>Tool behavior validated with real LLM workflows using <a href="https://github.com/sbroenne/pytest-aitest">pytest-aitest</a>. We test that LLMs correctly understand and use our tools.</p>
 </div>
 </div>
 
-<p><a href="/features/">See all 22 tools and 211 operations →</a></p>
+<p><a href="/features/">See all 23 tools and 214 operations →</a></p>
 
 ## What Can You Do With It?
 
@@ -155,7 +155,7 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 | **Tokens** | ~59K | ~163K | 🏆 CLI (64% fewer) |
 
 
-**Key insight:** MCP sends 22 tool schemas to the LLM on each request (~100K+ tokens). CLI wraps everything in one `excel_execute` tool and offloads guidance to a skill file.
+**Key insight:** MCP sends 23 tool schemas to the LLM on each request (~100K+ tokens). CLI wraps everything in one `excel_execute` tool and offloads guidance to a skill file.
 
 </details>
 
@@ -180,7 +180,7 @@ excelcli -q session close --session 1 --save
 
 ## Documentation
 
-📖 **[Complete Feature Reference](/features/)** — All 22 tools and 211 operations
+📖 **[Complete Feature Reference](/features/)** — All 23 tools and 214 operations
 
 📥 **[Installation Guide](/installation/)** — Setup for VS Code, Claude Desktop, other MCP clients, and CLI
 

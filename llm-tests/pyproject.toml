@@ -1,0 +1,32 @@
+[project]
+name = "excelmcp-llm-tests"
+version = "0.1.0"
+description = "LLM integration tests for ExcelMcp MCP Server and CLI"
+requires-python = ">=3.11"
+dependencies = [
+    "pytest>=9.0",
+    "pytest-asyncio>=1.3",
+    "pytest-llm-assert>=0.2",
+    "python-dotenv>=1.2",
+    "pytest-aitest",
+    "azure-identity>=1.25",
+]
+
+[tool.uv.sources]
+pytest-aitest = { path = "../../pytest-aitest", editable = true }
+
+[tool.pytest.ini_options]
+testpaths = ["."]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+addopts = """
+--aitest-summary-model=azure/gpt-5.2-chat
+--aitest-html=TestResults/report.html
+"""
+markers = [
+    "aitest: LLM integration tests",
+    "mcp: MCP server tests",
+    "cli: CLI tests",
+]

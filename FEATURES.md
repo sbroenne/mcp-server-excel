@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**22 specialized tools with 211 operations for comprehensive Excel automation**
+**23 specialized tools with 214 operations for comprehensive Excel automation**
 
 ---
 
@@ -12,6 +12,14 @@
 - **Close Workbook:** Close workbook without closing Excel
 - **Create Empty:** Create new .xlsx or .xlsm workbook
 - **Test:** Verify workbook can be opened and is accessible
+
+---
+
+## 🧮 Calculation Mode (3 operations)
+
+- **Get Mode:** Query current calculation mode and calculation state
+- **Set Mode:** Switch between automatic, manual, and semi-automatic modes
+- **Calculate:** Explicitly recalculate workbook, sheet, or range
 
 ---
 

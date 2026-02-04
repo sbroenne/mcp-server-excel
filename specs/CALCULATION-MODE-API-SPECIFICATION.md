@@ -770,3 +770,129 @@ When this feature is implemented, **ALL** these files require updates:
 | `src/ExcelMcp.Core/ActionExtensions.cs` | Add `ToActionString()` for new enum |
 | Write operation commands | Skip internal toggle when already manual |
 | Write operation results | Add `calculationPending: true` when in manual mode |
+
+---
+
+## LLM Testing with pytest-aitest
+
+This feature should be validated using [pytest-aitest](https://github.com/sbroenne/pytest-aitest), which tests whether LLMs can correctly understand and use the new tools.
+
+### Why pytest-aitest?
+
+- **Tests the AI interface, not just code** - Validates tool descriptions, not just implementations
+- **AI-powered reports** - Tells you *what to fix*, not just *what failed*
+- **Native pytest** - Integrates with existing Python test infrastructure
+- **Supports both MCP and CLI** - Test both interfaces with same framework
+
+### Proposed Test Cases
+
+```python
+# tests/ExcelMcp.AITests/test_calculation_mode.py
+import pytest
+from pytest_aitest import Agent, CLIServer, Provider, Skill
+
+@pytest.fixture
+def excel_cli_server():
+    return CLIServer(
+        name="excel-cli",
+        command="excelcli",
+        tool_prefix="excel",
+        shell="powershell",
+    )
+
+@pytest.fixture
+def excel_skill():
+    return Skill.from_path("skills/excel-cli")
+
+
+class TestCalculationModeDiscovery:
+    """Test that LLMs discover and understand calculation mode."""
+
+    @pytest.mark.asyncio
+    async def test_llm_uses_manual_mode_for_batch(self, aitest_run, excel_cli_server, excel_skill):
+        """LLM should use manual mode when doing many writes."""
+        agent = Agent(
+            name="batch-test",
+            provider=Provider(model="azure/gpt-5-mini"),
+            cli_servers=[excel_cli_server],
+            skill=excel_skill,
+            max_turns=15,
+        )
+
+        result = await aitest_run(
+            agent,
+            "Create a workbook, add 20 rows of sample data efficiently, then close it."
+        )
+
+        assert result.success
+        assert result.tool_was_called("excel_execute")
+        # Tool output should show set-mode manual was used
+
+    @pytest.mark.asyncio
+    async def test_llm_restores_automatic_mode(self, aitest_run, excel_cli_server, excel_skill):
+        """LLM should restore automatic mode after batch operations."""
+        agent = Agent(
+            name="restore-test",
+            provider=Provider(model="azure/gpt-5-mini"),
+            cli_servers=[excel_cli_server],
+            skill=excel_skill,
+            max_turns=15,
+        )
+
+        result = await aitest_run(
+            agent,
+            "Create a workbook with sample data using efficient batching, "
+            "then verify the calculation mode is back to automatic before closing."
+        )
+
+        assert result.success
+
+
+class TestCalculationModeDebugging:
+    """Test formula debugging workflow with calculation mode."""
+
+    @pytest.mark.asyncio
+    async def test_step_through_debugging(self, aitest_run, excel_cli_server, excel_skill, llm_assert):
+        """LLM can use manual mode for step-through formula debugging."""
+        agent = Agent(
+            name="debug-test",
+            provider=Provider(model="azure/gpt-5-mini"),
+            cli_servers=[excel_cli_server],
+            skill=excel_skill,
+            max_turns=20,
+        )
+
+        result = await aitest_run(
+            agent,
+            "Create a workbook with A1=10, A2=20, and A3=SUM(A1:A2). "
+            "Use manual calculation mode to verify the formula. "
+            "Change A1 to 100, recalculate just A3, and report the new value."
+        )
+
+        assert result.success
+        assert llm_assert(result.final_response, "mentions the calculated value 120")
+```
+
+### Test Categories
+
+| Category | What It Tests |
+|----------|---------------|
+| **Discovery** | LLM finds and uses `excel_calculation_mode` appropriately |
+| **Batch Optimization** | LLM uses manual mode for bulk operations |
+| **Debugging Workflow** | LLM uses range-scope calculation for step-through |
+| **Safety** | LLM restores automatic mode after batch |
+| **Data Model** | LLM uses manual mode with DAX-heavy workbooks |
+
+### Report Insights Expected
+
+With pytest-aitest's AI-powered reports, we expect insights like:
+
+```
+🎯 RECOMMENDATION
+Tool description is clear - 100% of models correctly identified when to use manual mode.
+
+🔧 MCP TOOL FEEDBACK
+⚠️ excel_calculation_mode(action='calculate', scope='range')
+   Low usage (2 calls across 15 tests)
+   Suggested: Add example to tool description showing range-scope debugging workflow
+```

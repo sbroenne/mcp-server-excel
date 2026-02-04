@@ -10,6 +10,18 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+- **LLM Integration Tests (pytest-aitest)**: Migrated LLM tool validation to pytest-aitest with unified MCP/CLI test suite
+  - YAML legacy scenarios removed in favor of pytest-aitest Python tests
+  - Local editable dependency configured via `tool.uv.sources`
+
+### Added
+
+- **Calculation Mode Control**: Added `excel_calculation_mode` tool and CLI `calculation` command to set/get calculation mode and trigger recalculation
+  - Modes: automatic, manual, semi-automatic
+  - Calculate scopes: workbook, sheet, range
+
+## [1.6.9] - 2026-02-04
+
 ### Added
 
 - **CLI Daemon Improvements**: Enhanced tray icon experience with better update management and save prompts
@@ -171,7 +183,7 @@ This changelog covers all components:
   - Keeps query definition intact while clearing worksheet/model data
 
 #### Testing & Quality
-- **LLM Integration Tests**: Comprehensive agent-benchmark test suite for CLI
+- **LLM Integration Tests**: Comprehensive pytest-aitest test suite for CLI
   - 9 test scenarios covering all major Excel operations
   - Chart positioning, PivotTable layout, Power Query, slicers, tables, ranges
   - Financial report automation workflow tests
@@ -256,7 +268,7 @@ This changelog covers all components:
   - Worksheets: 2 tools (excel_worksheet, excel_worksheet_style)
 
 ### Added
-- **LLM Integration Testing** (#341): Real AI agent testing using [agent-benchmark](https://github.com/mykhaliev/agent-benchmark)
+- **LLM Integration Testing** (#341): Real AI agent testing using [pytest-aitest](https://github.com/sbroenne/pytest-aitest)
 
 ### Changed
 - **.NET 10 Upgrade**: Requires .NET 10.0 instead of .NET 8.0

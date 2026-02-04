@@ -30,6 +30,7 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
             ["chart"] = ActionValidator.GetValidActions<ChartAction>(),
             ["chartconfig"] = ActionValidator.GetValidActions<ChartConfigAction>(),
             ["connection"] = ActionValidator.GetValidActions<ConnectionAction>(),
+            ["calculation"] = ActionValidator.GetValidActions<CalculationModeAction>(),
             ["namedrange"] = ActionValidator.GetValidActions<NamedRangeAction>(),
             ["conditionalformat"] = ActionValidator.GetValidActions<ConditionalFormatAction>(),
             ["vba"] = ActionValidator.GetValidActions<VbaAction>(),
