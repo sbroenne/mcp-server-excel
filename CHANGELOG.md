@@ -12,7 +12,7 @@ This changelog covers all components:
 
 ### Added
 
-- **CLI Daemon Improvements** (#XXX): Enhanced tray icon experience with better update management and save prompts
+- **CLI Daemon Improvements**: Enhanced tray icon experience with better update management and save prompts
   - Added "Update CLI" menu option when updates are available (detects global vs local .NET tool install)
   - Added save dialog (Yes/No/Cancel) when closing individual sessions from tray
   - Added save dialog (Yes/No/Cancel) when stopping daemon with active sessions
@@ -20,6 +20,17 @@ This changelog covers all components:
   - Toast notifications now mention the Update CLI menu option for easier access
   - Update command shows in confirmation dialog before execution
   - Auto-restart daemon after successful update
+
+### Fixed
+
+- **PivotTable RPC Disconnection** (#426): Fixed "RPC server is unavailable (0x800706BA)" error during rapid OLAP PivotTable field operations
+  - ROOT CAUSE: `RefreshTable()` called after each field operation triggered synchronous Analysis Services queries
+  - FIX: Removed RefreshTable() from field manipulation methods (AddRowField, AddColumnField, AddFilterField, RemoveField, SetFieldFunction)
+  - Field changes now take effect immediately without blocking AS queries
+  - Call `excel_pivottable(refresh)` explicitly to update visual display after configuring fields
+  - Applies to both OLAP (Data Model) and regular PivotTables for consistency
+
+## [1.6.8] - 2026-02-03
 
 ### Changed
 

@@ -17,6 +17,9 @@ public static partial class ExcelPivotTableFieldTool
     /// <summary>
     /// PivotTable field management: add/remove/configure fields, filtering, sorting, and grouping.
     ///
+    /// IMPORTANT: Field operations modify structure only. Call excel_pivottable(refresh) after
+    /// configuring fields to update the visual display, especially for OLAP/Data Model PivotTables.
+    ///
     /// FIELD AREAS:
     /// - Row fields: Group data by categories (add-row-field)
     /// - Column fields: Create column headers (add-column-field)
