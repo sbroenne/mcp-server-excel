@@ -159,8 +159,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 cubeField.Position = (double)position.Value;
             }
 
-            // Refresh and validate
-            pivot.RefreshTable();
+            // NOTE: No RefreshTable() needed - orientation change takes effect immediately
+            // RefreshTable() causes RPC disconnection on rapid operations (issue #426)
 
             if (cubeField.Orientation != XlPivotFieldOrientation.xlRowField)
             {
@@ -215,7 +215,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 cubeField.Position = (double)position.Value;
             }
 
-            pivot.RefreshTable();
+            // NOTE: No RefreshTable() needed - orientation change takes effect immediately
+            // RefreshTable() causes RPC disconnection on rapid operations (issue #426)
 
             if (cubeField.Orientation != XlPivotFieldOrientation.xlColumnField)
             {
@@ -521,7 +522,9 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             }
 
             cubeField.Orientation = XlPivotFieldOrientation.xlPageField;
-            pivot.RefreshTable();
+
+            // NOTE: No RefreshTable() needed - orientation change takes effect immediately
+            // RefreshTable() causes RPC disconnection on rapid operations (issue #426)
 
             if (cubeField.Orientation != XlPivotFieldOrientation.xlPageField)
             {
@@ -571,7 +574,9 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             }
 
             cubeField.Orientation = XlPivotFieldOrientation.xlHidden;
-            pivot.RefreshTable();
+
+            // NOTE: No RefreshTable() needed - orientation change takes effect immediately
+            // RefreshTable() causes RPC disconnection on rapid operations (issue #426)
 
             return new PivotFieldResult
             {
@@ -693,8 +698,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             // Update the measure's formula
             measure.Formula = newFormula;
 
-            // Refresh the PivotTable to reflect the change
-            pivot.RefreshTable();
+            // NOTE: No RefreshTable() needed - formula change takes effect immediately
+            // RefreshTable() causes RPC disconnection on rapid operations (issue #426)
 
             return new PivotFieldResult
             {

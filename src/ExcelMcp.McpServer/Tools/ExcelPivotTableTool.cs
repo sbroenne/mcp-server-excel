@@ -20,6 +20,10 @@ public static partial class ExcelPivotTableTool
     /// BEST PRACTICE: Use 'list' before creating. Prefer 'refresh' or field modifications over delete+recreate.
     /// Delete+recreate loses field configurations, filters, sorting, and custom layouts.
     ///
+    /// REFRESH: Call 'refresh' after configuring fields with excel_pivottable_field to update the visual
+    /// display. This is especially important for OLAP/Data Model PivotTables where field operations
+    /// are structural only and don't automatically trigger a visual refresh.
+    ///
     /// LAYOUT (for create operations):
     /// - 0 = Compact (default - row fields in single column with indentation)
     /// - 1 = Tabular (each row field in separate column - best for export/analysis)

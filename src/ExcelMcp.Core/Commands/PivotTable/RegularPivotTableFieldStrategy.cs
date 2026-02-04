@@ -129,8 +129,8 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 field.Position = (double)position.Value;
             }
 
-            // Refresh and validate
-            pivot.RefreshTable();
+            // NOTE: No RefreshTable() needed - orientation change takes effect immediately
+            // Removed for consistency with OLAP strategy and improved performance (issue #426)
 
             if (field.Orientation != XlPivotFieldOrientation.xlRowField)
             {
@@ -175,7 +175,8 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 field.Position = (double)position.Value;
             }
 
-            pivot.RefreshTable();
+            // NOTE: No RefreshTable() needed - orientation change takes effect immediately
+            // Removed for consistency with OLAP strategy and improved performance (issue #426)
 
             if (field.Orientation != XlPivotFieldOrientation.xlColumnField)
             {
@@ -231,7 +232,8 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 field.Caption = customName;
             }
 
-            pivot.RefreshTable();
+            // NOTE: No RefreshTable() needed - field changes take effect immediately
+            // Removed for consistency with OLAP strategy and improved performance (issue #426)
 
             return new PivotFieldResult
             {
@@ -265,7 +267,9 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             }
 
             field.Orientation = XlPivotFieldOrientation.xlPageField;
-            pivot.RefreshTable();
+
+            // NOTE: No RefreshTable() needed - orientation change takes effect immediately
+            // Removed for consistency with OLAP strategy and improved performance (issue #426)
 
             if (field.Orientation != XlPivotFieldOrientation.xlPageField)
             {
@@ -305,7 +309,9 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             }
 
             field.Orientation = XlPivotFieldOrientation.xlHidden;
-            pivot.RefreshTable();
+
+            // NOTE: No RefreshTable() needed - orientation change takes effect immediately
+            // Removed for consistency with OLAP strategy and improved performance (issue #426)
 
             return new PivotFieldResult
             {
