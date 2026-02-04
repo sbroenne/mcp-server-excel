@@ -1,6 +1,6 @@
 using System.Reflection;
-using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 
 namespace Sbroenne.ExcelMcp.CLI.Daemon;
 
@@ -17,13 +17,23 @@ internal sealed class DaemonTray : IDisposable
     private readonly SessionManager _sessionManager;
     private readonly Action _requestShutdown;
     private readonly System.Windows.Forms.Timer _refreshTimer;
+    private readonly IDialogService _dialogService;
     private bool _disposed;
     private UpdateInfo? _availableUpdate;
 
     public DaemonTray(SessionManager sessionManager, Action requestShutdown)
+        : this(sessionManager, requestShutdown, new WindowsFormsDialogService())
+    {
+    }
+
+    /// <summary>
+    /// Constructor with injectable dialog service for testability.
+    /// </summary>
+    internal DaemonTray(SessionManager sessionManager, Action requestShutdown, IDialogService dialogService)
     {
         _sessionManager = sessionManager;
         _requestShutdown = requestShutdown;
+        _dialogService = dialogService;
 
         // Initialize Windows Forms
         Application.EnableVisualStyles();
@@ -149,11 +159,9 @@ internal sealed class DaemonTray : IDisposable
 
     private void PromptCloseSession(string sessionId, string fileName)
     {
-        var result = MessageBox.Show(
+        var result = _dialogService.ShowYesNoCancel(
             $"Do you want to save changes to '{fileName}' before closing?",
-            "Close Session",
-            MessageBoxButtons.YesNoCancel,
-            MessageBoxIcon.Question);
+            "Close Session");
 
         if (result == DialogResult.Cancel)
             return;
@@ -254,15 +262,13 @@ internal sealed class DaemonTray : IDisposable
             return;
 
         var updateCommand = ToolInstallationDetector.GetUpdateCommand();
-        
+
         // Show confirmation dialog with update command
-        var result = MessageBox.Show(
+        var result = _dialogService.ShowOkCancel(
             $"Update Excel CLI from {_availableUpdate.CurrentVersion} to {_availableUpdate.LatestVersion}?\n\n" +
             $"This will run:\n{updateCommand}\n\n" +
             "The daemon will restart after the update.",
-            "Update Excel CLI",
-            MessageBoxButtons.OKCancel,
-            MessageBoxIcon.Question);
+            "Update Excel CLI");
 
         if (result != DialogResult.OK)
             return;
@@ -274,7 +280,7 @@ internal sealed class DaemonTray : IDisposable
         Task.Run(async () =>
         {
             var (success, output) = await ToolInstallationDetector.TryUpdateAsync();
-            
+
             // Show result on UI thread
             if (_contextMenu.InvokeRequired)
             {
@@ -291,11 +297,9 @@ internal sealed class DaemonTray : IDisposable
     {
         if (success)
         {
-            var result = MessageBox.Show(
+            _dialogService.ShowInfo(
                 "CLI updated successfully!\n\nThe daemon will now restart to use the new version.",
-                "Update Complete",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
+                "Update Complete");
 
             // Hide update menu item
             if (_updateMenuItem != null)
@@ -310,11 +314,9 @@ internal sealed class DaemonTray : IDisposable
         else
         {
             var updateCommand = ToolInstallationDetector.GetUpdateCommand();
-            MessageBox.Show(
+            _dialogService.ShowError(
                 $"Update failed:\n{output}\n\nYou can manually update by running:\n{updateCommand}",
-                "Update Failed",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error);
+                "Update Failed");
         }
     }
 
@@ -323,12 +325,10 @@ internal sealed class DaemonTray : IDisposable
         var sessions = _sessionManager.GetActiveSessions();
         if (sessions.Count > 0)
         {
-            var result = MessageBox.Show(
+            var result = _dialogService.ShowYesNoCancel(
                 $"There are {sessions.Count} active session(s).\n\n" +
                 "Do you want to save all sessions before stopping the daemon?",
-                "Stop Excel CLI Daemon",
-                MessageBoxButtons.YesNoCancel,
-                MessageBoxIcon.Question);
+                "Stop Excel CLI Daemon");
 
             if (result == DialogResult.Cancel)
             {
@@ -348,11 +348,9 @@ internal sealed class DaemonTray : IDisposable
                 }
                 catch (Exception ex)
                 {
-                    var continueResult = MessageBox.Show(
+                    var continueResult = _dialogService.ShowYesNo(
                         $"Error saving sessions: {ex.Message}\n\nStop daemon anyway?",
-                        "Error",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Error);
+                        "Error");
 
                     if (continueResult != DialogResult.Yes)
                         return;
