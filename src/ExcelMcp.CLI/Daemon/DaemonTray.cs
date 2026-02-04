@@ -20,6 +20,7 @@ internal sealed class DaemonTray : IDisposable
     private readonly IDialogService _dialogService;
     private bool _disposed;
     private UpdateInfo? _availableUpdate;
+    private DateTime _lastBalloonShown = DateTime.MinValue;
 
     public DaemonTray(SessionManager sessionManager, Action requestShutdown)
         : this(sessionManager, requestShutdown, new WindowsFormsDialogService())
@@ -203,6 +204,11 @@ internal sealed class DaemonTray : IDisposable
 
     private void ShowSessions()
     {
+        // Debounce: Don't show if a balloon was shown in the last 2 seconds
+        // This prevents duplicate balloons when clicking on/near balloon tips
+        if ((DateTime.Now - _lastBalloonShown).TotalSeconds < 2)
+            return;
+
         var sessions = _sessionManager.GetActiveSessions();
         if (sessions.Count == 0)
         {
@@ -217,6 +223,7 @@ internal sealed class DaemonTray : IDisposable
 
     private void ShowBalloon(string title, string message, ToolTipIcon icon = ToolTipIcon.Info)
     {
+        _lastBalloonShown = DateTime.Now;
         _notifyIcon.ShowBalloonTip(3000, title, message, icon);
     }
 
