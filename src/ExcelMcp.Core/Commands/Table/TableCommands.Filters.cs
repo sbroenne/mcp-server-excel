@@ -95,7 +95,7 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public void ApplyFilter(IExcelBatch batch, string tableName, string columnName, List<string> criteria)
+    public void ApplyFilterValues(IExcelBatch batch, string tableName, string columnName, List<string> values)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
@@ -162,7 +162,7 @@ public partial class TableCommands
 
                 // Apply filter with multiple values
                 // Convert List<string> to string array for COM interop
-                string[] valuesArray = criteria.ToArray();
+                string[] valuesArray = values.ToArray();
                 autoFilter.Range.AutoFilter(
                     Field: columnIndex,
                     Criteria1: valuesArray,
@@ -303,4 +303,6 @@ public partial class TableCommands
         });
     }
 }
+
+
 

@@ -285,3 +285,5 @@ public enum ChartType
     /// <summary>Region map chart (xlRegionMap - Excel 365)</summary>
     RegionMap = 140
 }
+
+

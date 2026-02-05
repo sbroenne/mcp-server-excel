@@ -1,8 +1,5 @@
 using System.ComponentModel;
-using System.Text.Json;
 using ModelContextProtocol.Server;
-using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -12,8 +9,6 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 [McpServerToolType]
 public static partial class ExcelPivotTableTool
 {
-    private static readonly JsonSerializerOptions JsonOptions = ExcelToolsBase.JsonOptions;
-
     /// <summary>
     /// PivotTable lifecycle management: create from various sources, list, read details, refresh, and delete.
     ///
@@ -67,68 +62,42 @@ public static partial class ExcelPivotTableTool
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_pivottable",
-            action.ToActionString(),
-            () =>
+            ServiceRegistry.PivotTable.ToActionString(action),
+            () => action switch
             {
-                var commands = new PivotTableCommands();
-
-                return action switch
-                {
-                    PivotTableAction.List => List(commands, sessionId),
-                    PivotTableAction.Read => Read(commands, sessionId, pivotTableName),
-                    PivotTableAction.CreateFromRange => CreateFromRange(commands, sessionId, sourceSheetName, sourceRangeAddress, destinationSheetName, destinationCellAddress, pivotTableName, layoutStyle),
-                    PivotTableAction.CreateFromTable => CreateFromTable(commands, sessionId, sourceTableName, destinationSheetName, destinationCellAddress, pivotTableName, layoutStyle),
-                    PivotTableAction.CreateFromDataModel => CreateFromDataModel(commands, sessionId, dataModelTableName, destinationSheetName, destinationCellAddress, pivotTableName, layoutStyle),
-                    PivotTableAction.Delete => Delete(commands, sessionId, pivotTableName),
-                    PivotTableAction.Refresh => Refresh(commands, sessionId, pivotTableName),
-                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-                };
+                PivotTableAction.List => ForwardList(sessionId),
+                PivotTableAction.Read => ForwardRead(sessionId, pivotTableName),
+                PivotTableAction.CreateFromRange => ForwardCreateFromRange(sessionId, sourceSheetName, sourceRangeAddress, destinationSheetName, destinationCellAddress, pivotTableName),
+                PivotTableAction.CreateFromTable => ForwardCreateFromTable(sessionId, sourceTableName, destinationSheetName, destinationCellAddress, pivotTableName),
+                PivotTableAction.CreateFromDataModel => ForwardCreateFromDataModel(sessionId, dataModelTableName, destinationSheetName, destinationCellAddress, pivotTableName),
+                PivotTableAction.Delete => ForwardDelete(sessionId, pivotTableName),
+                PivotTableAction.Refresh => ForwardRefresh(sessionId, pivotTableName),
+                _ => throw new ArgumentException($"Unknown action: {action} ({ServiceRegistry.PivotTable.ToActionString(action)})", nameof(action))
             });
     }
 
-    private static string List(
-        PivotTableCommands commands,
-        string sessionId)
-    {
-        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.List(batch));
+    // === SERVICE FORWARDING METHODS ===
 
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.PivotTables,
-            result.ErrorMessage
-        }, JsonOptions);
+    private static string ForwardList(string sessionId)
+    {
+        return ExcelToolsBase.ForwardToService("pivottable.list", sessionId);
     }
 
-    private static string Read(
-        PivotTableCommands commands,
-        string sessionId,
-        string? pivotTableName)
+    private static string ForwardRead(string sessionId, string? pivotTableName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "read");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.Read(batch, pivotTableName!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.PivotTable,
-            result.Fields,
-            result.ErrorMessage
-        }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("pivottable.read", sessionId, new { pivotTableName });
     }
 
-    private static string CreateFromRange(
-        PivotTableCommands commands,
+    private static string ForwardCreateFromRange(
         string sessionId,
         string? sourceSheetName,
         string? sourceRangeAddress,
         string? destinationSheetName,
         string? destinationCellAddress,
-        string? pivotTableName,
-        int? layoutStyle)
+        string? pivotTableName)
     {
         if (string.IsNullOrWhiteSpace(sourceSheetName))
             ExcelToolsBase.ThrowMissingParameter("sourceSheetName", "create-from-range");
@@ -141,43 +110,22 @@ public static partial class ExcelPivotTableTool
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "create-from-range");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch =>
-            {
-                var createResult = commands.CreateFromRange(batch, sourceSheetName!, sourceRangeAddress!,
-                    destinationSheetName!, destinationCellAddress!, pivotTableName!);
-
-                // Apply layout if specified and creation succeeded
-                if (createResult.Success && layoutStyle.HasValue)
-                {
-                    commands.SetLayout(batch, createResult.PivotTableName!, layoutStyle.Value);
-                }
-
-                return createResult;
-            });
-
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("pivottable.create-from-range", sessionId, new
         {
-            result.Success,
-            result.PivotTableName,
-            result.SheetName,
-            result.Range,
-            result.SourceData,
-            result.SourceRowCount,
-            result.AvailableFields,
-            result.ErrorMessage,
-            LayoutApplied = result.Success && layoutStyle.HasValue ? layoutStyle : null
-        }, JsonOptions);
+            sourceSheet = sourceSheetName,
+            sourceRange = sourceRangeAddress,
+            destinationSheet = destinationSheetName,
+            destinationCell = destinationCellAddress,
+            pivotTableName
+        });
     }
 
-    private static string CreateFromTable(
-        PivotTableCommands commands,
+    private static string ForwardCreateFromTable(
         string sessionId,
         string? sourceTableName,
         string? destinationSheetName,
         string? destinationCellAddress,
-        string? pivotTableName,
-        int? layoutStyle)
+        string? pivotTableName)
     {
         if (string.IsNullOrWhiteSpace(sourceTableName))
             ExcelToolsBase.ThrowMissingParameter("sourceTableName", "create-from-table");
@@ -188,43 +136,21 @@ public static partial class ExcelPivotTableTool
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "create-from-table");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch =>
-            {
-                var createResult = commands.CreateFromTable(batch, sourceTableName!,
-                    destinationSheetName!, destinationCellAddress!, pivotTableName!);
-
-                // Apply layout if specified and creation succeeded
-                if (createResult.Success && layoutStyle.HasValue)
-                {
-                    commands.SetLayout(batch, createResult.PivotTableName!, layoutStyle.Value);
-                }
-
-                return createResult;
-            });
-
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("pivottable.create-from-table", sessionId, new
         {
-            result.Success,
-            result.PivotTableName,
-            result.SheetName,
-            result.Range,
-            result.SourceData,
-            result.SourceRowCount,
-            result.AvailableFields,
-            result.ErrorMessage,
-            LayoutApplied = result.Success && layoutStyle.HasValue ? layoutStyle : null
-        }, JsonOptions);
+            tableName = sourceTableName,
+            destinationSheet = destinationSheetName,
+            destinationCell = destinationCellAddress,
+            pivotTableName
+        });
     }
 
-    private static string CreateFromDataModel(
-        PivotTableCommands commands,
+    private static string ForwardCreateFromDataModel(
         string sessionId,
         string? dataModelTableName,
         string? destinationSheetName,
         string? destinationCellAddress,
-        string? pivotTableName,
-        int? layoutStyle)
+        string? pivotTableName)
     {
         if (string.IsNullOrWhiteSpace(dataModelTableName))
             ExcelToolsBase.ThrowMissingParameter("dataModelTableName", "create-from-datamodel");
@@ -235,101 +161,32 @@ public static partial class ExcelPivotTableTool
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "create-from-datamodel");
 
-        PivotTableCreateResult result;
-        int? appliedLayout = null;
-
-        try
+        return ExcelToolsBase.ForwardToService("pivottable.create-from-datamodel", sessionId, new
         {
-            result = ExcelToolsBase.WithSession(sessionId,
-                batch =>
-                {
-                    var createResult = commands.CreateFromDataModel(batch, dataModelTableName!,
-                        destinationSheetName!, destinationCellAddress!, pivotTableName!);
-
-                    // Apply layout if specified and creation succeeded
-                    if (createResult.Success && layoutStyle.HasValue)
-                    {
-                        commands.SetLayout(batch, createResult.PivotTableName!, layoutStyle.Value);
-                    }
-
-                    return createResult;
-                });
-
-            if (result.Success && layoutStyle.HasValue)
-            {
-                appliedLayout = layoutStyle;
-            }
-        }
-        catch (TimeoutException ex)
-        {
-            result = new PivotTableCreateResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message,
-                PivotTableName = pivotTableName!,
-                SheetName = destinationSheetName!,
-                Range = string.Empty,
-                SourceData = dataModelTableName!,
-                SourceRowCount = 0,
-                AvailableFields = []
-            };
-        }
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.PivotTableName,
-            result.SheetName,
-            result.Range,
-            result.SourceData,
-            result.SourceRowCount,
-            result.AvailableFields,
-            result.ErrorMessage,
-            isError = !result.Success,
-            LayoutApplied = appliedLayout
-        }, JsonOptions);
+            tableName = dataModelTableName,
+            destinationSheet = destinationSheetName,
+            destinationCell = destinationCellAddress,
+            pivotTableName
+        });
     }
 
-    private static string Delete(
-        PivotTableCommands commands,
-        string sessionId,
-        string? pivotTableName)
+    private static string ForwardDelete(string sessionId, string? pivotTableName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "delete");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.Delete(batch, pivotTableName!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ErrorMessage
-        }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("pivottable.delete", sessionId, new { pivotTableName });
     }
 
-    private static string Refresh(
-        PivotTableCommands commands,
-        string sessionId,
-        string? pivotTableName)
+    private static string ForwardRefresh(string sessionId, string? pivotTableName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "refresh");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.Refresh(batch, pivotTableName!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.PivotTableName,
-            result.RefreshTime,
-            result.SourceRecordCount,
-            result.PreviousRecordCount,
-            result.StructureChanged,
-            result.NewFields,
-            result.RemovedFields,
-            result.ErrorMessage
-        }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("pivottable.refresh", sessionId, new { pivotTableName });
     }
 }
+
+
+
+

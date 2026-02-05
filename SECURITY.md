@@ -32,6 +32,37 @@ ExcelMcp includes several security measures:
 - **Resource Cleanup**: Comprehensive COM object disposal and garbage collection
 - **No Remote Connections**: Only local Excel automation supported
 
+### ExcelMCP Service Security
+
+The MCP Server and CLI communicate with a shared background service via Windows named pipes:
+
+**Security Boundaries:**
+
+| Protection | Status | Description |
+|------------|--------|-------------|
+| **User Isolation** | ✅ Enforced | Pipe name includes user SID (`excelmcp-{USER_SID}`). Users cannot access each other's service instances. |
+| **Windows ACLs** | ✅ Enforced | Named pipe restricts access to current user's SID via `PipeSecurity` ACLs. |
+| **Local Only** | ✅ Enforced | Named pipes are local IPC only - no network access possible. |
+| **Process Restriction** | ❌ Not Enforced | Any process running as the same user can connect to the service. |
+
+**What This Means:**
+
+1. **Same-user access**: Any application running under your Windows user account can connect to the ExcelMCP Service and execute Excel operations. This is by design - the service provides automation capabilities to the current user, similar to how Docker, database servers, and other local services work.
+
+2. **No cross-user access**: User A cannot connect to User B's ExcelMCP Service instance. Each user has a separate named pipe with their SID.
+
+3. **No network access**: The named pipe is strictly local. Remote processes cannot connect.
+
+**Security Implications:**
+
+- If malware runs under your user account, it could theoretically connect to the service and control Excel
+- However, such malware could already control Excel directly (or do anything else you can do)
+- The service does not elevate privileges or provide capabilities beyond what the user already has
+
+**Protocol Details:**
+
+The service accepts JSON requests over the named pipe. The protocol is documented in the source code but not intended as a public API. While technically any process could connect if it knows the protocol, this is considered acceptable for a local automation tool.
+
 ### Dependency Management
 
 - **Dependabot**: Automated dependency updates and security patches

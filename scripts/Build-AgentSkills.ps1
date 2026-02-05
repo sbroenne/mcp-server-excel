@@ -1,16 +1,18 @@
 <#
 .SYNOPSIS
-    Builds the Excel MCP Agent Skills packages for distribution.
+    Builds the Excel MCP Agent Skills package for distribution.
 
 .DESCRIPTION
-    Creates distributable artifacts for Agent Skills:
-    - excel-mcp-skill-v{version}.zip: MCP Server skill package
-    - excel-cli-skill-v{version}.zip: CLI skill package
+    Creates a single distributable artifact for Agent Skills:
+    - excel-skills-v{version}.zip: Combined skill package with both excel-mcp and excel-cli
     - CLAUDE.md: Claude Code project instructions
     - .cursorrules: Cursor project rules
 
     Shared behavioral guidance from skills/shared/ is automatically copied
     to both excel-mcp/references/ and excel-cli/references/ during packaging.
+
+    Users install with: npx skills add sbroenne/mcp-server-excel
+    Then select which skill(s) they want: excel-cli, excel-mcp, or both.
 
 .PARAMETER OutputDir
     Output directory for artifacts. Default: artifacts/skills
@@ -133,7 +135,7 @@ if (-not $Version) {
     }
 }
 
-Write-Host "Building Agent Skills packages v$Version" -ForegroundColor Cyan
+Write-Host "Building Agent Skills package v$Version" -ForegroundColor Cyan
 Write-Host "Source: $SkillsDir"
 Write-Host "Output: $OutputDir"
 Write-Host ""
@@ -144,61 +146,58 @@ if (-not (Test-Path $OutputPath)) {
     New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
 }
 
-# Function to build a single skill package
-function Build-SkillPackage {
-    param(
-        [string]$SkillName,
-        [string]$SkillDescription
-    )
+# Build combined skills package
+Write-Host "Building combined skills package..." -ForegroundColor Yellow
 
-    $SkillSource = Join-Path $SkillsDir $SkillName
-    if (-not (Test-Path $SkillSource)) {
-        Write-Warning "Skill not found: $SkillName"
-        return
+# Create staging directory
+$StagingDir = Join-Path $env:TEMP "excel-skills-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
+
+try {
+    # Create skills/ subdirectory (the standard location for npx skills add)
+    $SkillsStagingDir = Join-Path $StagingDir "skills"
+    New-Item -ItemType Directory -Path $SkillsStagingDir -Force | Out-Null
+
+    # Copy excel-mcp skill
+    $McpSource = Join-Path $SkillsDir "excel-mcp"
+    if (Test-Path $McpSource) {
+        Copy-Item -Path $McpSource -Destination "$SkillsStagingDir/excel-mcp" -Recurse
+        Copy-SharedReferences -SkillPath "$SkillsStagingDir/excel-mcp" -SkillName "excel-mcp"
+    } else {
+        Write-Warning "excel-mcp skill not found"
     }
 
-    Write-Host "Building $SkillName package..." -ForegroundColor Yellow
+    # Copy excel-cli skill
+    $CliSource = Join-Path $SkillsDir "excel-cli"
+    if (Test-Path $CliSource) {
+        Copy-Item -Path $CliSource -Destination "$SkillsStagingDir/excel-cli" -Recurse
+        Copy-SharedReferences -SkillPath "$SkillsStagingDir/excel-cli" -SkillName "excel-cli"
+    } else {
+        Write-Warning "excel-cli skill not found"
+    }
 
-    # Create staging directory for this skill
-    $StagingDir = Join-Path $env:TEMP "$SkillName-$([guid]::NewGuid().ToString('N').Substring(0,8))"
-    New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
+    # Copy skills README to root of package
+    $SkillsReadme = Join-Path $SkillsDir "README.md"
+    if (Test-Path $SkillsReadme) {
+        Copy-Item -Path $SkillsReadme -Destination $StagingDir
+    }
 
-    try {
-        # Copy skill content
-        Copy-Item -Path $SkillSource -Destination "$StagingDir/$SkillName" -Recurse
-        Write-Host "  Copied skill content" -ForegroundColor Green
+    # Create ZIP archive
+    $ZipName = "excel-skills-v$Version.zip"
+    $ZipPath = Join-Path $OutputPath $ZipName
 
-        # Copy shared references
-        Copy-SharedReferences -SkillPath "$StagingDir/$SkillName" -SkillName $SkillName
+    if (Test-Path $ZipPath) {
+        Remove-Item $ZipPath -Force
+    }
 
-        # Copy skill-specific README if it exists, otherwise use the skill's SKILL.md as basis
-        $SkillReadme = Join-Path $SkillSource "README.md"
-        if (Test-Path $SkillReadme) {
-            Copy-Item -Path $SkillReadme -Destination $StagingDir
-        }
+    Compress-Archive -Path "$StagingDir\*" -DestinationPath $ZipPath -CompressionLevel Optimal
+    Write-Host "  Created: $ZipName" -ForegroundColor Green
 
-        # Create ZIP archive
-        $ZipName = "$SkillName-skill-v$Version.zip"
-        $ZipPath = Join-Path $OutputPath $ZipName
-
-        if (Test-Path $ZipPath) {
-            Remove-Item $ZipPath -Force
-        }
-
-        Compress-Archive -Path "$StagingDir\*" -DestinationPath $ZipPath -CompressionLevel Optimal
-        Write-Host "  Created: $ZipName" -ForegroundColor Green
-
-        return $ZipName
-    } finally {
-        if (Test-Path $StagingDir) {
-            Remove-Item $StagingDir -Recurse -Force
-        }
+} finally {
+    if (Test-Path $StagingDir) {
+        Remove-Item $StagingDir -Recurse -Force
     }
 }
-
-# Build each skill package
-$McpZip = Build-SkillPackage -SkillName "excel-mcp" -SkillDescription "MCP Server skill"
-$CliZip = Build-SkillPackage -SkillName "excel-cli" -SkillDescription "CLI skill"
 
 # Copy CLAUDE.md and .cursorrules
 Write-Host "Copying platform-specific files..." -ForegroundColor Yellow
@@ -217,24 +216,29 @@ if (Test-Path $CursorSrc) {
 
 # Generate manifest
 $Manifest = @{
-    name = "excel-mcp-skills"
+    name = "excel-skills"
     version = $Version
     description = "Excel MCP Server Agent Skills for AI coding assistants"
-    platforms = @("github-copilot", "claude-code", "cursor", "windsurf", "gemini-cli", "goose")
+    platforms = @("github-copilot", "claude-code", "cursor", "windsurf", "gemini-cli", "goose", "codex", "opencode", "amp", "kilo", "roo", "trae")
     skills = @(
         @{
             name = "excel-mcp"
-            file = $McpZip
+            path = "skills/excel-mcp"
             description = "MCP Server skill - for conversational AI (Claude Desktop, VS Code Chat)"
             target = "MCP Server"
         }
         @{
             name = "excel-cli"
-            file = $CliZip
+            path = "skills/excel-cli"
             description = "CLI skill - for coding agents (Copilot, Cursor, Windsurf)"
             target = "CLI Tool"
         }
     )
+    installation = @{
+        npx = "npx skills add sbroenne/mcp-server-excel"
+        selectSkill = "npx skills add sbroenne/mcp-server-excel --skill excel-cli"
+        installBoth = "npx skills add sbroenne/mcp-server-excel --skill '*'"
+    }
     files = @(
         @{ name = "CLAUDE.md"; type = "config"; description = "Claude Code project instructions" }
         @{ name = ".cursorrules"; type = "config"; description = "Cursor project rules" }
@@ -258,3 +262,8 @@ Get-ChildItem $OutputPath | ForEach-Object {
             else { "{0} bytes" -f $_.Length }
     Write-Host "  $($_.Name) ($Size)"
 }
+
+Write-Host ""
+Write-Host "Installation:" -ForegroundColor Cyan
+Write-Host "  npx skills add sbroenne/mcp-server-excel" -ForegroundColor White
+Write-Host "  (users will be prompted to select excel-cli, excel-mcp, or both)"

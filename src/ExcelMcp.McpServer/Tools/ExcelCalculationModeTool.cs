@@ -1,7 +1,5 @@
 using System.ComponentModel;
-using System.Text.Json;
 using ModelContextProtocol.Server;
-using Sbroenne.ExcelMcp.Core.Commands.Calculation;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -31,7 +29,7 @@ public static partial class ExcelCalculationModeTool
     /// - 'range': Recalculate specific range (requires sheetName + rangeAddress)
     /// </summary>
     /// <param name="action">Action to perform: get-mode, set-mode, calculate</param>
-    /// <param name="excelPath">Excel file path (.xlsx or .xlsm)</param>
+    /// <param name="path">Excel file path (.xlsx or .xlsm)</param>
     /// <param name="sessionId">Session ID from excel_file 'open' action</param>
     /// <param name="mode">Calculation mode for set-mode action: 'automatic', 'manual', 'semi-automatic'</param>
     /// <param name="scope">Calculation scope for calculate action: 'workbook', 'sheet', 'range'</param>
@@ -41,8 +39,8 @@ public static partial class ExcelCalculationModeTool
     [McpMeta("category", "settings")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelCalculationMode(
-        CalculationModeAction action,
-        string excelPath,
+        CalculationAction action,
+        string path,
         string sessionId,
         [DefaultValue(null)] string? mode,
         [DefaultValue(null)] string? scope,
@@ -51,63 +49,15 @@ public static partial class ExcelCalculationModeTool
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_calculation_mode",
-            action.ToActionString(),
-            excelPath,
-            () =>
-            {
-                var commands = new CalculationModeCommands();
-
-                // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
-                return action switch
-                {
-                    CalculationModeAction.GetMode => GetModeAsync(commands, sessionId),
-                    CalculationModeAction.SetMode => SetModeAsync(commands, sessionId, mode),
-                    CalculationModeAction.Calculate => CalculateAsync(commands, sessionId, scope, sheetName, rangeAddress),
-                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-                };
-            });
-    }
-
-    private static string GetModeAsync(CalculationModeCommands commands, string sessionId)
-    {
-        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.GetMode(batch));
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string SetModeAsync(CalculationModeCommands commands, string sessionId, string? mode)
-    {
-        if (string.IsNullOrWhiteSpace(mode))
-        {
-            throw new ArgumentException("mode is required for set-mode action (automatic, manual, semi-automatic)", nameof(mode));
-        }
-
-        var calculationMode = mode.ToLowerInvariant() switch
-        {
-            "automatic" => CalculationMode.Automatic,
-            "manual" => CalculationMode.Manual,
-            "semi-automatic" => CalculationMode.SemiAutomatic,
-            _ => throw new ArgumentException($"Invalid mode '{mode}'. Valid values: automatic, manual, semi-automatic", nameof(mode))
-        };
-
-        var result = ExcelToolsBase.WithSession(sessionId, batch => commands.SetMode(batch, calculationMode));
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string CalculateAsync(CalculationModeCommands commands, string sessionId, string? scope, string? sheetName, string? rangeAddress)
-    {
-        var scopeValue = string.IsNullOrWhiteSpace(scope) ? "workbook" : scope;
-        var calculationScope = scopeValue.ToLowerInvariant() switch
-        {
-            "workbook" => CalculationScope.Workbook,
-            "sheet" => CalculationScope.Sheet,
-            "range" => CalculationScope.Range,
-            _ => throw new ArgumentException($"Invalid scope '{scopeValue}'. Valid values: workbook, sheet, range", nameof(scope))
-        };
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.Calculate(batch, calculationScope, sheetName, rangeAddress));
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+            ServiceRegistry.Calculation.ToActionString(action),
+            path,
+            () => ServiceRegistry.Calculation.RouteAction(
+                action,
+                sessionId,
+                ExcelToolsBase.ForwardToServiceFunc,
+                mode: mode,
+                scope: scope,
+                sheetName: sheetName,
+                rangeAddress: rangeAddress));
     }
 }

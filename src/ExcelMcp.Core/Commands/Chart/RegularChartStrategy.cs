@@ -307,3 +307,5 @@ public class RegularChartStrategy : IChartStrategy
         }
     }
 }
+
+

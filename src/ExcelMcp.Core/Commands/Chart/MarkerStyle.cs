@@ -42,3 +42,5 @@ public enum MarkerStyle
     /// <summary>X marker (xlMarkerStyleX)</summary>
     X = -4168
 }
+
+

@@ -1,8 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.CLI.Service;
-using Sbroenne.ExcelMcp.CLI.Infrastructure;
-using Sbroenne.ExcelMcp.Core.Models.Actions;
+using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.Generated;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -27,15 +26,18 @@ internal sealed class RangeCommand : AsyncCommand<RangeCommand.Settings>
             return 1;
         }
 
-        var validActions = ActionValidator.GetValidActions<RangeAction>()
-            .Concat(ActionValidator.GetValidActions<RangeEditAction>())
-            .Concat(ActionValidator.GetValidActions<RangeFormatAction>())
-            .Concat(ActionValidator.GetValidActions<RangeLinkAction>())
+        var validActions = ServiceRegistry.Range.ValidActions
+            .Concat(ServiceRegistry.RangeEdit.ValidActions)
+            .Concat(ServiceRegistry.RangeFormat.ValidActions)
+            .Concat(ServiceRegistry.RangeLink.ValidActions)
             .ToArray();
 
-        if (!ActionValidator.TryNormalizeAction(settings.Action, validActions, out var action, out var errorMessage))
+        // Validate and normalize action
+        var action = settings.Action!.Trim().ToLowerInvariant();
+        if (!validActions.Contains(action, StringComparer.OrdinalIgnoreCase))
         {
-            AnsiConsole.MarkupLine($"[red]{errorMessage}[/]");
+            var validList = string.Join(", ", validActions);
+            AnsiConsole.MarkupLine($"[red]Invalid action '{action}'. Valid actions: {validList}[/]");
             return 1;
         }
         var command = $"range.{action}";
@@ -418,3 +420,5 @@ internal sealed class RangeCommand : AsyncCommand<RangeCommand.Settings>
         public bool? Locked { get; init; }
     }
 }
+
+

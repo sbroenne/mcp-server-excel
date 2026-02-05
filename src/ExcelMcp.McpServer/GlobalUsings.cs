@@ -5,3 +5,4 @@
 global using Sbroenne.ExcelMcp.Core.Commands.Chart;
 global using Sbroenne.ExcelMcp.Core.Commands.Range;
 global using Sbroenne.ExcelMcp.Core.Models.Actions;
+global using Sbroenne.ExcelMcp.Generated;

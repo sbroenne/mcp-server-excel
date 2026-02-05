@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Text.Json;
 using ModelContextProtocol.Server;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -28,7 +27,7 @@ public static partial class ExcelRangeFormatTool
     /// MERGE: Combines cells into one. Only top-left cell value is preserved.
     /// </summary>
     /// <param name="action">The range format operation to perform</param>
-    /// <param name="excelPath">Full path to the Excel workbook file (e.g., 'C:\Reports\Sales.xlsx')</param>
+    /// <param name="path">Full path to the Excel workbook file (e.g., 'C:\Reports\Sales.xlsx')</param>
     /// <param name="sessionId">Session identifier returned from excel_file open action - required for all operations</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10', 'B:D' for columns)</param>
@@ -65,7 +64,7 @@ public static partial class ExcelRangeFormatTool
     [McpMeta("requiresSession", true)]
     public static partial string RangeFormat(
         RangeFormatAction action,
-        string excelPath,
+        string path,
         string sessionId,
         [DefaultValue(null)] string? sheetName,
         [DefaultValue(null)] string? rangeAddress,
@@ -100,71 +99,66 @@ public static partial class ExcelRangeFormatTool
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_range_format",
-            action.ToActionString(),
-            excelPath,
-            () =>
+            ServiceRegistry.RangeFormat.ToActionString(action),
+            path,
+            () => action switch
             {
-                var rangeCommands = new RangeCommands();
-
-                return action switch
-                {
-                    RangeFormatAction.GetStyle => GetStyleAction(rangeCommands, sessionId, sheetName, rangeAddress),
-                    RangeFormatAction.SetStyle => SetStyleAction(rangeCommands, sessionId, sheetName, rangeAddress, styleName),
-                    RangeFormatAction.FormatRange => FormatRangeAction(rangeCommands, sessionId, sheetName, rangeAddress, fontName, fontSize, bold, italic, underline, fontColor, backgroundColor, borderStyle, borderColor, borderWeight, horizontalAlignment, verticalAlignment, wrapText, textOrientation),
-                    RangeFormatAction.ValidateRange => ValidateRangeAction(rangeCommands, sessionId, sheetName, rangeAddress, validationType, validationOperator, validationFormula1, validationFormula2, showInputMessage, inputMessageTitle, inputMessageText, showErrorAlert, errorAlertStyle, errorAlertTitle, errorAlertMessage, ignoreBlankCells, showDropdownList),
-                    RangeFormatAction.GetValidation => GetValidationAction(rangeCommands, sessionId, sheetName, rangeAddress),
-                    RangeFormatAction.RemoveValidation => RemoveValidationAction(rangeCommands, sessionId, sheetName, rangeAddress),
-                    RangeFormatAction.AutoFitColumns => AutoFitColumnsAction(rangeCommands, sessionId, sheetName, rangeAddress),
-                    RangeFormatAction.AutoFitRows => AutoFitRowsAction(rangeCommands, sessionId, sheetName, rangeAddress),
-                    RangeFormatAction.MergeCells => MergeCellsAction(rangeCommands, sessionId, sheetName, rangeAddress),
-                    RangeFormatAction.UnmergeCells => UnmergeCellsAction(rangeCommands, sessionId, sheetName, rangeAddress),
-                    RangeFormatAction.GetMergeInfo => GetMergeInfoAction(rangeCommands, sessionId, sheetName, rangeAddress),
-                    _ => throw new ArgumentException(
-                        $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-                };
+                RangeFormatAction.GetStyle => ForwardGetStyle(sessionId, sheetName, rangeAddress),
+                RangeFormatAction.SetStyle => ForwardSetStyle(sessionId, sheetName, rangeAddress, styleName),
+                RangeFormatAction.FormatRange => ForwardFormatRange(sessionId, sheetName, rangeAddress, fontName, fontSize, bold, italic, underline, fontColor, backgroundColor, borderStyle, borderColor, borderWeight, horizontalAlignment, verticalAlignment, wrapText, textOrientation),
+                RangeFormatAction.ValidateRange => ForwardValidateRange(sessionId, sheetName, rangeAddress, validationType, validationOperator, validationFormula1, validationFormula2, showInputMessage, inputMessageTitle, inputMessageText, showErrorAlert, errorAlertStyle, errorAlertTitle, errorAlertMessage, ignoreBlankCells, showDropdownList),
+                RangeFormatAction.GetValidation => ForwardSimpleRange(sessionId, sheetName, rangeAddress, "get-validation"),
+                RangeFormatAction.RemoveValidation => ForwardSimpleRange(sessionId, sheetName, rangeAddress, "remove-validation"),
+                RangeFormatAction.AutoFitColumns => ForwardSimpleRange(sessionId, sheetName, rangeAddress, "auto-fit-columns"),
+                RangeFormatAction.AutoFitRows => ForwardSimpleRange(sessionId, sheetName, rangeAddress, "auto-fit-rows"),
+                RangeFormatAction.MergeCells => ForwardSimpleRange(sessionId, sheetName, rangeAddress, "merge-cells"),
+                RangeFormatAction.UnmergeCells => ForwardSimpleRange(sessionId, sheetName, rangeAddress, "unmerge-cells"),
+                RangeFormatAction.GetMergeInfo => ForwardSimpleRange(sessionId, sheetName, rangeAddress, "get-merge-info"),
+                _ => throw new ArgumentException($"Unknown action: {action} ({ServiceRegistry.RangeFormat.ToActionString(action)})", nameof(action))
             });
     }
 
-    private static string GetStyleAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string ForwardSimpleRange(string sessionId, string? sheetName, string? rangeAddress, string actionName)
+    {
+        if (string.IsNullOrEmpty(rangeAddress))
+            ExcelToolsBase.ThrowMissingParameter("rangeAddress", actionName);
+
+        return ExcelToolsBase.ForwardToService($"range.{actionName}", sessionId, new
+        {
+            sheetName = sheetName ?? "",
+            range = rangeAddress
+        });
+    }
+
+    private static string ForwardGetStyle(string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-style");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.GetStyle(batch, sheetName ?? "", rangeAddress!));
-
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("range.get-style", sessionId, new
         {
-            Success = true,
-            sheetName,
-            rangeAddress,
-            styleName = result.StyleName,
-            isBuiltInStyle = result.IsBuiltInStyle,
-            styleDescription = result.StyleDescription
-        }, ExcelToolsBase.JsonOptions);
+            sheetName = sheetName ?? "",
+            range = rangeAddress
+        });
     }
 
-    private static string SetStyleAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, string? styleName)
+    private static string ForwardSetStyle(string sessionId, string? sheetName, string? rangeAddress, string? styleName)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-style");
         if (string.IsNullOrEmpty(styleName))
             ExcelToolsBase.ThrowMissingParameter("styleName", "set-style");
 
-        ExcelToolsBase.WithSession<object?>(
-            sessionId,
-            batch =>
-            {
-                commands.SetStyle(batch, sheetName ?? "", rangeAddress!, styleName!);
-                return null;
-            });
-
-        return JsonSerializer.Serialize(new { Success = true }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.set-style", sessionId, new
+        {
+            sheetName = sheetName ?? "",
+            range = rangeAddress,
+            styleName
+        });
     }
 
-    private static string FormatRangeAction(
-        RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress,
+    private static string ForwardFormatRange(
+        string sessionId, string? sheetName, string? rangeAddress,
         string? fontName, double? fontSize, bool? bold, bool? italic, bool? underline,
         string? fontColor, string? backgroundColor, string? borderStyle, string? borderColor, string? borderWeight,
         string? horizontalAlignment, string? verticalAlignment, bool? wrapText, int? textOrientation)
@@ -172,19 +166,29 @@ public static partial class ExcelRangeFormatTool
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "format-range");
 
-        ExcelToolsBase.WithSession<object?>(
-            sessionId,
-            batch =>
-            {
-                commands.FormatRange(batch, sheetName ?? "", rangeAddress!, fontName, fontSize, bold, italic, underline, fontColor, backgroundColor, borderStyle, borderColor, borderWeight, horizontalAlignment, verticalAlignment, wrapText, textOrientation);
-                return null;
-            });
-
-        return JsonSerializer.Serialize(new { Success = true }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.format-range", sessionId, new
+        {
+            sheetName = sheetName ?? "",
+            range = rangeAddress,
+            fontName,
+            fontSize,
+            bold,
+            italic,
+            underline,
+            fontColor,
+            fillColor = backgroundColor,
+            borderStyle,
+            borderColor,
+            borderWeight,
+            horizontalAlignment,
+            verticalAlignment,
+            wrapText,
+            orientation = textOrientation
+        });
     }
 
-    private static string ValidateRangeAction(
-        RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress,
+    private static string ForwardValidateRange(
+        string sessionId, string? sheetName, string? rangeAddress,
         string? validationType, string? validationOperator, string? validationFormula1, string? validationFormula2,
         bool? showInputMessage, string? inputMessageTitle, string? inputMessageText,
         bool? showErrorAlert, string? errorAlertStyle, string? errorAlertTitle, string? errorAlertMessage,
@@ -195,139 +199,27 @@ public static partial class ExcelRangeFormatTool
         if (string.IsNullOrEmpty(validationType))
             ExcelToolsBase.ThrowMissingParameter("validationType", "validate-range");
 
-        ExcelToolsBase.WithSession<object?>(
-            sessionId,
-            batch =>
-            {
-                commands.ValidateRange(batch, sheetName ?? "", rangeAddress!, validationType!, validationOperator, validationFormula1, validationFormula2, showInputMessage, inputMessageTitle, inputMessageText, showErrorAlert, errorAlertStyle, errorAlertTitle, errorAlertMessage, ignoreBlankCells, showDropdownList);
-                return null;
-            });
-
-        return JsonSerializer.Serialize(new { Success = true }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string GetValidationAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
-    {
-        if (string.IsNullOrEmpty(rangeAddress))
-            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-validation");
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.GetValidation(batch, sheetName ?? "", rangeAddress!));
-
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("range.validate-range", sessionId, new
         {
-            result.Success,
-            validationType = ((dynamic)result).ValidationType,
-            validationOperator = ((dynamic)result).ValidationOperator,
-            validationFormula1 = ((dynamic)result).Formula1,
-            validationFormula2 = ((dynamic)result).Formula2,
-            showInputMessage = ((dynamic)result).ShowInputMessage,
-            inputMessageTitle = ((dynamic)result).InputTitle,
-            inputMessageText = ((dynamic)result).InputMessage,
-            showErrorAlert = ((dynamic)result).ShowErrorAlert,
-            errorAlertStyle = ((dynamic)result).ErrorStyle,
-            errorAlertTitle = ((dynamic)result).ErrorTitle,
-            errorAlertMessage = ((dynamic)result).ErrorMessage,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string RemoveValidationAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
-    {
-        if (string.IsNullOrEmpty(rangeAddress))
-            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "remove-validation");
-
-        ExcelToolsBase.WithSession<object?>(
-            sessionId,
-            batch =>
-            {
-                commands.RemoveValidation(batch, sheetName ?? "", rangeAddress!);
-                return null;
-            });
-
-        return JsonSerializer.Serialize(new { Success = true }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string AutoFitColumnsAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
-    {
-        if (string.IsNullOrEmpty(rangeAddress))
-            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "auto-fit-columns");
-
-        ExcelToolsBase.WithSession<object?>(
-            sessionId,
-            batch =>
-            {
-                commands.AutoFitColumns(batch, sheetName ?? "", rangeAddress!);
-                return null;
-            });
-
-        return JsonSerializer.Serialize(new { Success = true }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string AutoFitRowsAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
-    {
-        if (string.IsNullOrEmpty(rangeAddress))
-            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "auto-fit-rows");
-
-        ExcelToolsBase.WithSession<object?>(
-            sessionId,
-            batch =>
-            {
-                commands.AutoFitRows(batch, sheetName ?? "", rangeAddress!);
-                return null;
-            });
-
-        return JsonSerializer.Serialize(new { Success = true }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string MergeCellsAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
-    {
-        if (string.IsNullOrEmpty(rangeAddress))
-            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "merge-cells");
-
-        ExcelToolsBase.WithSession<object?>(
-            sessionId,
-            batch =>
-            {
-                commands.MergeCells(batch, sheetName ?? "", rangeAddress!);
-                return null;
-            });
-
-        return JsonSerializer.Serialize(new { Success = true }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string UnmergeCellsAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
-    {
-        if (string.IsNullOrEmpty(rangeAddress))
-            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "unmerge-cells");
-
-        ExcelToolsBase.WithSession<object?>(
-            sessionId,
-            batch =>
-            {
-                commands.UnmergeCells(batch, sheetName ?? "", rangeAddress!);
-                return null;
-            });
-
-        return JsonSerializer.Serialize(new { Success = true }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string GetMergeInfoAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
-    {
-        if (string.IsNullOrEmpty(rangeAddress))
-            ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-merge-info");
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.GetMergeInfo(batch, sheetName ?? "", rangeAddress!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            isMerged = ((dynamic)result).IsMerged,
-            mergeAddress = ((dynamic)result).MergeAddress,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            sheetName = sheetName ?? "",
+            range = rangeAddress,
+            validationType,
+            validationOperator,
+            formula1 = validationFormula1,
+            formula2 = validationFormula2,
+            showInputMessage,
+            inputTitle = inputMessageTitle,
+            inputMessage = inputMessageText,
+            showErrorAlert,
+            errorStyle = errorAlertStyle,
+            errorTitle = errorAlertTitle,
+            errorMessage = errorAlertMessage,
+            ignoreBlank = ignoreBlankCells,
+            showDropdown = showDropdownList
+        });
     }
 }
+
+
+
+

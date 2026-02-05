@@ -49,20 +49,20 @@ public static class ExcelSession
     /// </remarks>
     [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
     public static IExcelBatch BeginBatch(params string[] filePaths)
-        => BeginBatch(showExcel: false, operationTimeout: null, filePaths);
+        => BeginBatch(show: false, operationTimeout: null, filePaths);
 
     /// <summary>
     /// Begins a batch of Excel operations against one or more workbook instances with optional UI visibility.
     /// The Excel instance remains open until the batch is disposed, enabling multiple operations
     /// without incurring Excel startup/shutdown overhead.
     /// </summary>
-    /// <param name="showExcel">Whether to show the Excel window (default: false for background automation).</param>
+    /// <param name="show">Whether to show the Excel window (default: false for background automation).</param>
     /// <param name="operationTimeout">Maximum time for any single operation (default: 5 minutes).</param>
     /// <param name="filePaths">Paths to Excel files. First file is the primary workbook.</param>
     /// <returns>IExcelBatch for executing multiple operations</returns>
     [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
     public static IExcelBatch BeginBatch(
-        bool showExcel,
+        bool show,
         TimeSpan? operationTimeout,
         params string[] filePaths)
     {
@@ -91,7 +91,7 @@ public static class ExcelSession
         }
 
         // Create batch - it will create Excel/workbook on its own STA thread
-        return new ExcelBatch(fullPaths, logger: null, showExcel: showExcel, operationTimeout: operationTimeout);
+        return new ExcelBatch(fullPaths, logger: null, show: show, operationTimeout: operationTimeout);
     }
 
     /// <summary>
@@ -236,5 +236,7 @@ public static class ExcelSession
         thread.Join(TimeSpan.FromSeconds(10));
     }
 }
+
+
 
 

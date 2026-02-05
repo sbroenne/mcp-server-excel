@@ -219,13 +219,15 @@ This opens Excel visibly so you can see every change in real-time - great for de
 
 **Best for:** Scripting, RPA, CI/CD pipelines, automation without AI
 
-### Install CLI Tool
+> **📦 Bundled with MCP Server:** The CLI (`excelcli`) is included in the unified package. Install once, get both tools!
+
+### Install Unified Package
 
 ```powershell
-# Install CLI globally
-dotnet tool install --global Sbroenne.ExcelMcp.CLI
+# Install unified package (includes MCP Server + CLI)
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
-# Verify installation
+# Verify CLI is available
 excelcli --version
 ```
 
@@ -275,17 +277,17 @@ npx skills add sbroenne/mcp-server-excel --skill excel-cli --global
 
 ### Check Installed Version
 
-**MCP Server:**
+**MCP Server and CLI:**
 ```powershell
 dotnet tool list --global | Select-String "ExcelMcp"
-```
 
-**CLI:**
-```powershell
+# Or check CLI version
 excelcli --version
 ```
 
-### Update MCP Server
+### Update (MCP Server + CLI)
+
+> **📦 Unified Package:** Updating the MCP Server also updates the CLI - they're bundled together!
 
 **Step 1: Update the tool**
 ```powershell
@@ -294,22 +296,18 @@ dotnet tool update --global Sbroenne.ExcelMcp.McpServer
 
 **Step 2: Verify update**
 ```powershell
+# Check installed version
 dotnet tool list --global | Select-String "ExcelMcp"
-# Should show the new version number
+
+# Verify both tools work
+excelcli --version
+mcp-excel --version
 ```
 
 **Step 3: Restart your MCP client**
 - Restart VS Code, Claude Desktop, Cursor, or whichever client you're using
 - The new version will be used automatically
 
-### Update CLI
-
-```powershell
-dotnet tool update --global Sbroenne.ExcelMcp.CLI
-
-# Verify
-excelcli --version
-```
 ### Troubleshooting Updates
 
 #### Update Command Fails
@@ -450,20 +448,27 @@ npx skills add sbroenne/mcp-server-excel --skill excel-cli
 # Install MCP skill (for conversational AI - Claude Desktop, VS Code Chat)
 npx skills add sbroenne/mcp-server-excel --skill excel-mcp
 
-# Install BOTH skills (run both commands if you use multiple tools)
-npx skills add sbroenne/mcp-server-excel --skill excel-cli
-npx skills add sbroenne/mcp-server-excel --skill excel-mcp
+# Interactive install - prompts to select excel-cli, excel-mcp, or both
+npx skills add sbroenne/mcp-server-excel
+
+# Install specific skill directly
+npx skills add sbroenne/mcp-server-excel --skill excel-cli   # Coding agents
+npx skills add sbroenne/mcp-server-excel --skill excel-mcp   # Conversational AI
+
+# Install both skills
+npx skills add sbroenne/mcp-server-excel --skill '*'
 
 # Target specific agent (optional - auto-detects if omitted)
-npx skills add sbroenne/mcp-server-excel --skill excel-cli -a claude-code
 npx skills add sbroenne/mcp-server-excel --skill excel-cli -a cursor
+npx skills add sbroenne/mcp-server-excel --skill excel-mcp -a claude-code
 ```
 
 **Manual Installation:**
-1. Download the skill package from [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest):
-   - `excel-cli-skill-v{version}.zip` - for CLI tool (coding agents)
-   - `excel-mcp-skill-v{version}.zip` - for MCP Server (conversational AI)
-2. Extract to your AI assistant's skills directory:
+1. Download `excel-skills-v{version}.zip` from [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+2. The package contains both skills:
+   - `skills/excel-cli/` - for coding agents (Copilot, Cursor, Windsurf)
+   - `skills/excel-mcp/` - for conversational AI (Claude Desktop, VS Code Chat)
+3. Extract the skill(s) you need to your AI assistant's skills directory:
    - Copilot: `~/.copilot/skills/excel-cli/` or `~/.copilot/skills/excel-mcp/`
    - Claude Code: `.claude/skills/excel-cli/` or `.claude/skills/excel-mcp/`
    - Cursor: `.cursor/skills/excel-cli/` or `.cursor/skills/excel-mcp/`

@@ -24,3 +24,5 @@ public enum TrendlineType
     /// <summary>Moving average - requires Period parameter</summary>
     MovingAverage = 6
 }
+
+

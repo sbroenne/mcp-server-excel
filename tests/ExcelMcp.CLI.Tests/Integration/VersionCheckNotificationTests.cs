@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.Service.Infrastructure;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
@@ -214,3 +214,7 @@ public sealed class VersionCheckNotificationTests
         Assert.True(checkStarted, "Background task should have started");
     }
 }
+
+
+
+

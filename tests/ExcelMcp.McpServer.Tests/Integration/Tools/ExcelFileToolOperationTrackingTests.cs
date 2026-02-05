@@ -217,7 +217,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
             await CallToolAsync("excel_file", new Dictionary<string, object?>
             {
                 ["action"] = "Close",
-                ["sid"] = sessionId,
+                ["sessionId"] = sessionId,
                 ["save"] = false
             });
         }
@@ -254,7 +254,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
             await CallToolAsync("excel_file", new Dictionary<string, object?>
             {
                 ["action"] = "Close",
-                ["sid"] = sessionId,
+                ["sessionId"] = sessionId,
                 ["save"] = false
             });
         }
@@ -281,7 +281,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         var closeResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
             ["action"] = "Close",
-            ["sid"] = sessionId,
+            ["sessionId"] = sessionId,
             ["save"] = false
         });
 
@@ -302,7 +302,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         var closeResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
         {
             ["action"] = "Close",
-            ["sid"] = "nonexistent-session-id",
+            ["sessionId"] = "nonexistent-session-id",
             ["save"] = false
         });
 
@@ -313,3 +313,9 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
 
     #endregion
 }
+
+
+
+
+
+

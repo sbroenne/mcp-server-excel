@@ -973,3 +973,5 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 #pragma warning restore CA1848
 }
+
+

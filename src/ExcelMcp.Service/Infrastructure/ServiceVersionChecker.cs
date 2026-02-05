@@ -1,11 +1,11 @@
 using System.Reflection;
 
-namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
+namespace Sbroenne.ExcelMcp.Service.Infrastructure;
 
 /// <summary>
 /// Checks for CLI updates on service startup and notifies via Windows notification.
 /// </summary>
-internal static class ServiceVersionChecker
+public static class ServiceVersionChecker
 {
     /// <summary>
     /// Checks for updates and returns update information if available.
@@ -62,18 +62,4 @@ internal static class ServiceVersionChecker
     }
 }
 
-/// <summary>
-/// Information about an available update.
-/// </summary>
-internal sealed class UpdateInfo
-{
-    public required string CurrentVersion { get; init; }
-    public required string LatestVersion { get; init; }
-    public required bool UpdateAvailable { get; init; }
 
-    public static string GetNotificationTitle() => "Excel CLI Update Available";
-
-    public string GetNotificationMessage() =>
-        $"Version {LatestVersion} is available (current: {CurrentVersion}).\n" +
-        "Update via: dotnet tool update --global Sbroenne.ExcelMcp.CLI";
-}

@@ -2,13 +2,30 @@ using System.IO.Pipes;
 using System.Security.AccessControl;
 using System.Security.Principal;
 
-namespace Sbroenne.ExcelMcp.CLI.Service;
+namespace Sbroenne.ExcelMcp.Service;
 
 /// <summary>
 /// Security utilities for ExcelMCP Service named pipe communication.
 /// Ensures per-user isolation via SID-based pipe names and ACLs.
 /// </summary>
-internal static class ServiceSecurity
+/// <remarks>
+/// <para><b>Security Model:</b></para>
+/// <list type="bullet">
+///   <item>User Isolation: Pipe name includes user SID - users cannot access each other's service instances</item>
+///   <item>Windows ACLs: Named pipe restricts access to current user's SID via PipeSecurity</item>
+///   <item>Local Only: Named pipes are local IPC - no network access possible</item>
+/// </list>
+/// <para><b>Not Enforced:</b></para>
+/// <list type="bullet">
+///   <item>Process Restriction: Any process running as the same user can connect to the service</item>
+/// </list>
+/// <para>
+/// This is by design for a local automation tool. If malware runs under your user account,
+/// it could already control Excel directly. The service does not elevate privileges.
+/// See SECURITY.md for full documentation.
+/// </para>
+/// </remarks>
+public static class ServiceSecurity
 {
     private static readonly string UserSid = WindowsIdentity.GetCurrent().User?.Value ?? "default";
 
@@ -212,3 +229,5 @@ internal static class ServiceSecurity
         }
     }
 }
+
+

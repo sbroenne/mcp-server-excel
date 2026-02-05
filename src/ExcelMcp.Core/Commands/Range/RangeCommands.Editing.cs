@@ -145,7 +145,7 @@ public partial class RangeCommands
     // === INSERT/DELETE OPERATIONS ===
 
     /// <inheritdoc />
-    public OperationResult InsertCells(IExcelBatch batch, string sheetName, string rangeAddress, InsertShiftDirection shift)
+    public OperationResult InsertCells(IExcelBatch batch, string sheetName, string rangeAddress, InsertShiftDirection insertShift)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "insert-cells" };
 
@@ -160,7 +160,7 @@ public partial class RangeCommands
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
-                int shiftConst = shift == InsertShiftDirection.Down ? -4121 : -4161; // xlShiftDown : xlShiftToRight
+                int shiftConst = insertShift == InsertShiftDirection.Down ? -4121 : -4161; // xlShiftDown : xlShiftToRight
                 range.Insert(shiftConst);
                 result.Success = true;
                 return result;
@@ -173,7 +173,7 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public OperationResult DeleteCells(IExcelBatch batch, string sheetName, string rangeAddress, DeleteShiftDirection shift)
+    public OperationResult DeleteCells(IExcelBatch batch, string sheetName, string rangeAddress, DeleteShiftDirection deleteShift)
     {
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "delete-cells" };
 
@@ -188,7 +188,7 @@ public partial class RangeCommands
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
-                int shiftConst = shift == DeleteShiftDirection.Up ? -4162 : -4159; // xlShiftUp : xlShiftToLeft
+                int shiftConst = deleteShift == DeleteShiftDirection.Up ? -4162 : -4159; // xlShiftUp : xlShiftToLeft
                 range.Delete(shiftConst);
                 result.Success = true;
                 return result;
@@ -323,4 +323,6 @@ public partial class RangeCommands
     // === FIND/REPLACE OPERATIONS ===
 
 }
+
+
 

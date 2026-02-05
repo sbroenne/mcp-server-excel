@@ -1,8 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.CLI.Service;
-using Sbroenne.ExcelMcp.CLI.Infrastructure;
-using Sbroenne.ExcelMcp.Core.Models.Actions;
+using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.Generated;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -29,9 +28,12 @@ internal sealed class SlicerCommand : AsyncCommand<SlicerCommand.Settings>
             return 1;
         }
 
-        if (!ActionValidator.TryNormalizeAction<SlicerAction>(settings.Action, out var action, out var errorMessage))
+        var validActions = ServiceRegistry.Slicer.ValidActions;
+        var action = settings.Action.Trim().ToLowerInvariant();
+        if (!validActions.Contains(action, StringComparer.OrdinalIgnoreCase))
         {
-            AnsiConsole.MarkupLine($"[red]{errorMessage}[/]");
+            var validList = string.Join(", ", validActions);
+            AnsiConsole.MarkupLine($"[red]Invalid action '{action}'. Valid actions: {validList}[/]");
             return 1;
         }
         var command = $"slicer.{action}";
@@ -152,3 +154,5 @@ internal sealed class SlicerCommand : AsyncCommand<SlicerCommand.Settings>
         public string? TargetPivotTableName { get; init; }
     }
 }
+
+

@@ -1,8 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.CLI.Service;
-using Sbroenne.ExcelMcp.CLI.Infrastructure;
-using Sbroenne.ExcelMcp.Core.Models.Actions;
+using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.Generated;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -30,18 +29,34 @@ internal sealed class PivotTableCommand : AsyncCommand<PivotTableCommand.Setting
             return 1;
         }
 
-        // Combine all PivotTable action types
-        var validActions = ActionValidator.GetValidActions<PivotTableAction>()
-            .Concat(ActionValidator.GetValidActions<PivotTableFieldAction>())
-            .Concat(ActionValidator.GetValidActions<PivotTableCalcAction>())
+        var pivotActions = ServiceRegistry.PivotTable.ValidActions;
+        var fieldActions = ServiceRegistry.PivotTableField.ValidActions;
+        var calcActions = ServiceRegistry.PivotTableCalc.ValidActions;
+
+        var validActions = pivotActions
+            .Concat(fieldActions)
+            .Concat(calcActions)
             .ToArray();
 
-        if (!ActionValidator.TryNormalizeAction(settings.Action, validActions, out var action, out var errorMessage))
+        var action = settings.Action.Trim().ToLowerInvariant();
+        if (!validActions.Contains(action, StringComparer.OrdinalIgnoreCase))
         {
-            AnsiConsole.MarkupLine($"[red]{errorMessage}[/]");
+            var validList = string.Join(", ", validActions);
+            AnsiConsole.MarkupLine($"[red]Invalid action '{action}'. Valid actions: {validList}[/]");
             return 1;
         }
-        var command = $"pivottable.{action}";
+
+        var pivotSet = new HashSet<string>(pivotActions, StringComparer.OrdinalIgnoreCase);
+        var fieldSet = new HashSet<string>(fieldActions, StringComparer.OrdinalIgnoreCase);
+        var calcSet = new HashSet<string>(calcActions, StringComparer.OrdinalIgnoreCase);
+
+        var command = pivotSet.Contains(action)
+            ? $"pivottable.{action}"
+            : fieldSet.Contains(action)
+                ? $"pivottablefield.{action}"
+                : calcSet.Contains(action)
+                    ? $"pivottablecalc.{action}"
+                    : $"pivottable.{action}";
 
         // Note: property names must match daemon's Args classes (e.g., PivotTableFromRangeArgs)
         object? args = action switch
@@ -240,3 +255,5 @@ internal sealed class PivotTableCommand : AsyncCommand<PivotTableCommand.Setting
         public string? LayoutStyle { get; init; }
     }
 }
+
+

@@ -64,11 +64,16 @@ public class Program
 
         var builder = Host.CreateApplicationBuilder(args);
 
-        // Configure logging to stderr for MCP protocol compliance
+        // For stdio transport: Clear console logging to avoid polluting stderr with info messages.
+        // The MCP client interprets stderr output as errors/warnings, so we only log Warning+
+        // to stderr for debugging purposes. The MCP SDK handles protocol-level logging.
+        builder.Logging.ClearProviders();
         builder.Logging.AddConsole(consoleLogOptions =>
         {
-            consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
+            // Only log Warning and above to stderr - Info/Debug would appear as errors in MCP clients
+            consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Warning;
         });
+        builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
         // Configure Application Insights
         ConfigureTelemetry(builder);
@@ -106,17 +111,17 @@ public class Program
                     - This prevents data loss from closing mid-operation
 
                     SHOW EXCEL (watch changes live):
-                    - Default is showExcel:false (hidden) - USE THIS DEFAULT unless user explicitly requests visible Excel
-                    - showExcel:true displays Excel window so user can watch operations in real-time
-                    - showExcel:true is SLOWER - only use when user explicitly wants to watch
+                    - Default is show:false (hidden) - USE THIS DEFAULT unless user explicitly requests visible Excel
+                    - show:true displays Excel window so user can watch operations in real-time
+                    - show:true is SLOWER - only use when user explicitly wants to watch
 
-                    WHEN TO ASK (not auto-enable) about showExcel:
+                    WHEN TO ASK (not auto-enable) about show:
                     - Only ASK if user seems confused about what's happening
                     - Only ASK if debugging or troubleshooting issues
                     - Example question: "Would you like me to show Excel so you can watch the changes?"
-                    - DO NOT default to showExcel:true - always use showExcel:false unless user says yes
+                    - DO NOT default to show:true - always use show:false unless user says yes
 
-                    WHEN showExcel=true - ASK BEFORE CLOSING:
+                    WHEN show=true - ASK BEFORE CLOSING:
                     - If Excel is visible, the user is actively watching
                     - ALWAYS ask user before closing: "Would you like me to save and close the file, or keep it open?"
                     - User may want to inspect results, make manual changes, or continue working
@@ -144,29 +149,8 @@ public class Program
         // Initialize telemetry client for static access
         InitializeTelemetryClient(host.Services);
 
-        // Check for updates on startup (non-blocking, logs to stderr)
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                // Wait briefly to avoid interfering with startup
-                await Task.Delay(TimeSpan.FromSeconds(2));
-
-                var updateInfo = await Infrastructure.McpServerVersionChecker.CheckForUpdateAsync();
-                if (updateInfo != null)
-                {
-                    // Log to stderr directly - this is a non-critical notification
-                    // Using Console.Error avoids CA1848 analyzer warning about LoggerMessage delegates
-                    await Console.Error.WriteLineAsync(
-                        $"[Info] MCP Server update available: {updateInfo.CurrentVersion} -> {updateInfo.LatestVersion}. " +
-                        "Run: dotnet tool update --global Sbroenne.ExcelMcp.McpServer");
-                }
-            }
-            catch
-            {
-                // Fail silently - version check should never interfere with server operation
-            }
-        });
+        // Note: Update checks are handled by ExcelMCP Service (shown via Windows notification)
+        // to avoid duplicate notifications when running in unified package mode
 
         try
         {
@@ -329,4 +313,6 @@ public class Program
         }
     }
 }
+
+
 

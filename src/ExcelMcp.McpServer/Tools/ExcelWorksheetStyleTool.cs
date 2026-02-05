@@ -1,8 +1,5 @@
 using System.ComponentModel;
-using System.Text.Json;
 using ModelContextProtocol.Server;
-using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -34,7 +31,7 @@ public static partial class ExcelWorksheetStyleTool
     [McpMeta("category", "structure")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelWorksheetStyle(
-        WorksheetStyleAction action,
+        SheetStyleAction action,
         string sessionId,
         string sheetName,
         [DefaultValue(null)] int? red,
@@ -44,27 +41,25 @@ public static partial class ExcelWorksheetStyleTool
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_worksheet_style",
-            action.ToActionString(),
+            ServiceRegistry.SheetStyle.ToActionString(action),
             () =>
             {
-                var sheetCommands = new SheetCommands();
-
                 return action switch
                 {
-                    WorksheetStyleAction.SetTabColor => SetTabColor(sheetCommands, sessionId, sheetName, red, green, blue),
-                    WorksheetStyleAction.GetTabColor => GetTabColor(sheetCommands, sessionId, sheetName),
-                    WorksheetStyleAction.ClearTabColor => ClearTabColor(sheetCommands, sessionId, sheetName),
-                    WorksheetStyleAction.SetVisibility => SetVisibility(sheetCommands, sessionId, sheetName, visibility),
-                    WorksheetStyleAction.GetVisibility => GetVisibility(sheetCommands, sessionId, sheetName),
-                    WorksheetStyleAction.Show => Show(sheetCommands, sessionId, sheetName),
-                    WorksheetStyleAction.Hide => Hide(sheetCommands, sessionId, sheetName),
-                    WorksheetStyleAction.VeryHide => VeryHide(sheetCommands, sessionId, sheetName),
-                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                    SheetStyleAction.SetTabColor => ForwardSetTabColor(sessionId, sheetName, red, green, blue),
+                    SheetStyleAction.GetTabColor => ForwardGetTabColor(sessionId, sheetName),
+                    SheetStyleAction.ClearTabColor => ForwardClearTabColor(sessionId, sheetName),
+                    SheetStyleAction.SetVisibility => ForwardSetVisibility(sessionId, sheetName, visibility),
+                    SheetStyleAction.GetVisibility => ForwardGetVisibility(sessionId, sheetName),
+                    SheetStyleAction.Show => ForwardShow(sessionId, sheetName),
+                    SheetStyleAction.Hide => ForwardHide(sessionId, sheetName),
+                    SheetStyleAction.VeryHide => ForwardVeryHide(sessionId, sheetName),
+                    _ => throw new ArgumentException($"Unknown action: {action} ({ServiceRegistry.SheetStyle.ToActionString(action)})", nameof(action))
                 };
             });
     }
 
-    private static string SetTabColor(SheetCommands sheetCommands, string sessionId, string? sheetName, int? red, int? green, int? blue)
+    private static string ForwardSetTabColor(string sessionId, string? sheetName, int? red, int? green, int? blue)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for set-tab-color action", nameof(sheetName));
@@ -75,175 +70,68 @@ public static partial class ExcelWorksheetStyleTool
         if (!blue.HasValue)
             throw new ArgumentException("blue (0-255) is required for set-tab-color action", nameof(blue));
 
-        try
-        {
-            ExcelToolsBase.WithSession(sessionId, batch =>
-            {
-                sheetCommands.SetTabColor(batch, sheetName, red.Value, green.Value, blue.Value);
-                return 0;
-            });
-
-            return JsonSerializer.Serialize(new { success = true, message = $"Tab color for sheet '{sheetName}' set successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("sheet.set-tab-color", sessionId, new { sheetName, red = red.Value, green = green.Value, blue = blue.Value });
     }
 
-    private static string GetTabColor(SheetCommands sheetCommands, string sessionId, string? sheetName)
+    private static string ForwardGetTabColor(string sessionId, string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for get-tab-color action", nameof(sheetName));
 
-        var result = ExcelToolsBase.WithSession(sessionId, batch => sheetCommands.GetTabColor(batch, sheetName));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.HasColor,
-            result.Red,
-            result.Green,
-            result.Blue,
-            result.HexColor,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("sheet.get-tab-color", sessionId, new { sheetName });
     }
 
-    private static string ClearTabColor(SheetCommands sheetCommands, string sessionId, string? sheetName)
+    private static string ForwardClearTabColor(string sessionId, string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for clear-tab-color action", nameof(sheetName));
 
-        try
-        {
-            ExcelToolsBase.WithSession(sessionId, batch =>
-            {
-                sheetCommands.ClearTabColor(batch, sheetName);
-                return 0;
-            });
-
-            return JsonSerializer.Serialize(new { success = true, message = $"Tab color for sheet '{sheetName}' cleared successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("sheet.clear-tab-color", sessionId, new { sheetName });
     }
 
-    private static string SetVisibility(SheetCommands sheetCommands, string sessionId, string? sheetName, string? visibility)
+    private static string ForwardSetVisibility(string sessionId, string? sheetName, string? visibility)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for set-visibility action", nameof(sheetName));
         if (string.IsNullOrEmpty(visibility))
             throw new ArgumentException("visibility (visible|hidden|veryhidden) is required for set-visibility action", nameof(visibility));
 
-        SheetVisibility visibilityLevel = visibility.ToLowerInvariant() switch
-        {
-            "visible" => SheetVisibility.Visible,
-            "hidden" => SheetVisibility.Hidden,
-            "veryhidden" => SheetVisibility.VeryHidden,
-            _ => throw new ArgumentException($"Invalid visibility '{visibility}'. Use: visible, hidden, or veryhidden", nameof(visibility))
-        };
-
-        try
-        {
-            ExcelToolsBase.WithSession(sessionId, batch =>
-            {
-                sheetCommands.SetVisibility(batch, sheetName, visibilityLevel);
-                return 0;
-            });
-
-            return JsonSerializer.Serialize(new { success = true, message = $"Sheet '{sheetName}' visibility set to {visibilityLevel} successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("sheet.set-visibility", sessionId, new { sheetName, visibility });
     }
 
-    private static string GetVisibility(SheetCommands sheetCommands, string sessionId, string? sheetName)
+    private static string ForwardGetVisibility(string sessionId, string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for get-visibility action", nameof(sheetName));
 
-        var result = ExcelToolsBase.WithSession(sessionId, batch => sheetCommands.GetVisibility(batch, sheetName));
-
-        return JsonSerializer.Serialize(new { result.Success, result.Visibility, result.VisibilityName, result.ErrorMessage }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("sheet.get-visibility", sessionId, new { sheetName });
     }
 
-    private static string Show(SheetCommands sheetCommands, string sessionId, string? sheetName)
+    private static string ForwardShow(string sessionId, string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for show action", nameof(sheetName));
 
-        try
-        {
-            ExcelToolsBase.WithSession(sessionId, batch =>
-            {
-                sheetCommands.Show(batch, sheetName);
-                return 0;
-            });
-
-            return JsonSerializer.Serialize(new { success = true, message = $"Sheet '{sheetName}' shown successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("sheet.show", sessionId, new { sheetName });
     }
 
-    private static string Hide(SheetCommands sheetCommands, string sessionId, string? sheetName)
+    private static string ForwardHide(string sessionId, string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for hide action", nameof(sheetName));
 
-        try
-        {
-            ExcelToolsBase.WithSession(sessionId, batch =>
-            {
-                sheetCommands.Hide(batch, sheetName);
-                return 0;
-            });
-
-            return JsonSerializer.Serialize(new { success = true, message = $"Sheet '{sheetName}' hidden successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("sheet.hide", sessionId, new { sheetName });
     }
 
-    private static string VeryHide(SheetCommands sheetCommands, string sessionId, string? sheetName)
+    private static string ForwardVeryHide(string sessionId, string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for very-hide action", nameof(sheetName));
 
-        try
-        {
-            ExcelToolsBase.WithSession(sessionId, batch =>
-            {
-                sheetCommands.VeryHide(batch, sheetName);
-                return 0;
-            });
-
-            return JsonSerializer.Serialize(new { success = true, message = $"Sheet '{sheetName}' very-hidden successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("sheet.very-hide", sessionId, new { sheetName });
     }
 }
+
+
+
+

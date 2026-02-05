@@ -1,4 +1,5 @@
 using System.Reflection;
+using Sbroenne.ExcelMcp.Service.Infrastructure;
 
 namespace Sbroenne.ExcelMcp.McpServer.Infrastructure;
 
@@ -65,19 +66,4 @@ public static class McpServerVersionChecker
     }
 }
 
-/// <summary>
-/// Information about an available update.
-/// </summary>
-public sealed class UpdateInfo
-{
-    public required string CurrentVersion { get; init; }
-    public required string LatestVersion { get; init; }
-    public required bool UpdateAvailable { get; init; }
 
-    /// <summary>
-    /// Gets a formatted message for logging or display.
-    /// </summary>
-    public string GetUpdateMessage() =>
-        $"Update available: {CurrentVersion} -> {LatestVersion}. " +
-        "Run: dotnet tool update --global Sbroenne.ExcelMcp.McpServer";
-}

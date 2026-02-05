@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Text.Json;
 using ModelContextProtocol.Server;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -33,7 +32,7 @@ public static partial class ExcelRangeTool
     /// NUMBER FORMATS: Use US locale format codes (e.g., '#,##0.00', 'mm/dd/yyyy', '0.00%').
     /// </summary>
     /// <param name="action">The range operation to perform</param>
-    /// <param name="excelPath">Full path to the Excel workbook file (e.g., 'C:\Reports\Sales.xlsx')</param>
+    /// <param name="path">Full path to the Excel workbook file (e.g., 'C:\Reports\Sales.xlsx')</param>
     /// <param name="sessionId">Session identifier returned from excel_file open action - required for all operations</param>
     /// <param name="sheetName">Name of the worksheet containing the range - REQUIRED for cell addresses, use empty string for named ranges only</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1', 'A1:D10', 'B:D') or named range name (e.g., 'SalesData')</param>
@@ -51,7 +50,7 @@ public static partial class ExcelRangeTool
     [McpMeta("requiresSession", true)]
     public static partial string ExcelRange(
         RangeAction action,
-        string excelPath,
+        string path,
         string sessionId,
         [DefaultValue(null)] string? sheetName,
         [DefaultValue(null)] string? rangeAddress,
@@ -67,349 +66,206 @@ public static partial class ExcelRangeTool
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_range",
-            action.ToActionString(),
-            excelPath,
-            () =>
+            ServiceRegistry.Range.ToActionString(action),
+            path,
+            () => action switch
             {
-                var rangeCommands = new RangeCommands();
-
-                return action switch
-                {
-                    RangeAction.GetValues => GetValuesAction(rangeCommands, sessionId, sheetName, rangeAddress),
-                    RangeAction.SetValues => SetValuesAction(rangeCommands, sessionId, sheetName, rangeAddress, values),
-                    RangeAction.GetFormulas => GetFormulasAction(rangeCommands, sessionId, sheetName, rangeAddress),
-                    RangeAction.SetFormulas => SetFormulasAction(rangeCommands, sessionId, sheetName, rangeAddress, formulas),
-                    RangeAction.GetNumberFormats => GetNumberFormatsAction(rangeCommands, sessionId, sheetName, rangeAddress),
-                    RangeAction.SetNumberFormat => SetNumberFormatAction(rangeCommands, sessionId, sheetName, rangeAddress, formatCode),
-                    RangeAction.SetNumberFormats => SetNumberFormatsAction(rangeCommands, sessionId, sheetName, rangeAddress, formatCodes),
-                    RangeAction.ClearAll => ClearAllAction(rangeCommands, sessionId, sheetName, rangeAddress),
-                    RangeAction.ClearContents => ClearContentsAction(rangeCommands, sessionId, sheetName, rangeAddress),
-                    RangeAction.ClearFormats => ClearFormatsAction(rangeCommands, sessionId, sheetName, rangeAddress),
-                    RangeAction.Copy => CopyAction(rangeCommands, sessionId, sourceSheetName, sourceRangeAddress, targetSheetName, targetRangeAddress),
-                    RangeAction.CopyValues => CopyValuesAction(rangeCommands, sessionId, sourceSheetName, sourceRangeAddress, targetSheetName, targetRangeAddress),
-                    RangeAction.CopyFormulas => CopyFormulasAction(rangeCommands, sessionId, sourceSheetName, sourceRangeAddress, targetSheetName, targetRangeAddress),
-                    RangeAction.GetUsedRange => GetUsedRangeAction(rangeCommands, sessionId, sheetName),
-                    RangeAction.GetCurrentRegion => GetCurrentRegionAction(rangeCommands, sessionId, sheetName, cellAddress),
-                    RangeAction.GetInfo => GetRangeInfoAction(rangeCommands, sessionId, sheetName, rangeAddress),
-                    _ => throw new ArgumentException(
-                        $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-                };
+                RangeAction.GetValues => ForwardGetValues(sessionId, sheetName, rangeAddress),
+                RangeAction.SetValues => ForwardSetValues(sessionId, sheetName, rangeAddress, values),
+                RangeAction.GetFormulas => ForwardGetFormulas(sessionId, sheetName, rangeAddress),
+                RangeAction.SetFormulas => ForwardSetFormulas(sessionId, sheetName, rangeAddress, formulas),
+                RangeAction.GetNumberFormats => ForwardGetNumberFormats(sessionId, sheetName, rangeAddress),
+                RangeAction.SetNumberFormat => ForwardSetNumberFormat(sessionId, sheetName, rangeAddress, formatCode),
+                RangeAction.SetNumberFormats => ForwardSetNumberFormats(sessionId, sheetName, rangeAddress, formatCodes),
+                RangeAction.ClearAll => ForwardClearAll(sessionId, sheetName, rangeAddress),
+                RangeAction.ClearContents => ForwardClearContents(sessionId, sheetName, rangeAddress),
+                RangeAction.ClearFormats => ForwardClearFormats(sessionId, sheetName, rangeAddress),
+                RangeAction.Copy => ForwardCopy(sessionId, sourceSheetName, sourceRangeAddress, targetSheetName, targetRangeAddress),
+                RangeAction.CopyValues => ForwardCopyValues(sessionId, sourceSheetName, sourceRangeAddress, targetSheetName, targetRangeAddress),
+                RangeAction.CopyFormulas => ForwardCopyFormulas(sessionId, sourceSheetName, sourceRangeAddress, targetSheetName, targetRangeAddress),
+                RangeAction.GetUsedRange => ForwardGetUsedRange(sessionId, sheetName),
+                RangeAction.GetCurrentRegion => ForwardGetCurrentRegion(sessionId, sheetName, cellAddress),
+                RangeAction.GetInfo => ForwardGetInfo(sessionId, sheetName, rangeAddress),
+                _ => throw new ArgumentException($"Unknown action: {action} ({ServiceRegistry.Range.ToActionString(action)})", nameof(action))
             });
     }
 
     // === VALUE OPERATIONS ===
 
-    private static string GetValuesAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string ForwardGetValues(string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-values");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.GetValues(batch, sheetName ?? "", rangeAddress!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            sheetName = result.SheetName,
-            rangeAddress = result.RangeAddress,
-            values = result.Values,
-            rowCount = result.RowCount,
-            columnCount = result.ColumnCount,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.get-values", sessionId, new { sheetName = sheetName ?? "", range = rangeAddress });
     }
 
-    private static string SetValuesAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, List<List<object?>>? values)
+    private static string ForwardSetValues(string sessionId, string? sheetName, string? rangeAddress, List<List<object?>>? values)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-values");
         if (values == null || values.Count == 0)
             ExcelToolsBase.ThrowMissingParameter("values", "set-values");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.SetValues(batch, sheetName ?? "", rangeAddress!, values!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.set-values", sessionId, new { sheetName = sheetName ?? "", range = rangeAddress, values });
     }
 
     // === FORMULA OPERATIONS ===
 
-    private static string GetFormulasAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string ForwardGetFormulas(string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-formulas");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.GetFormulas(batch, sheetName ?? "", rangeAddress!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            sheetName = result.SheetName,
-            rangeAddress = result.RangeAddress,
-            formulas = result.Formulas,
-            values = result.Values,
-            rowCount = result.RowCount,
-            columnCount = result.ColumnCount,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.get-formulas", sessionId, new { sheetName = sheetName ?? "", range = rangeAddress });
     }
 
-    private static string SetFormulasAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, List<List<string>>? formulas)
+    private static string ForwardSetFormulas(string sessionId, string? sheetName, string? rangeAddress, List<List<string>>? formulas)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-formulas");
         if (formulas == null || formulas.Count == 0)
             ExcelToolsBase.ThrowMissingParameter("formulas", "set-formulas");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.SetFormulas(batch, sheetName ?? "", rangeAddress!, formulas!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.set-formulas", sessionId, new { sheetName = sheetName ?? "", range = rangeAddress, formulas });
     }
 
     // === NUMBER FORMAT OPERATIONS ===
 
-    private static string GetNumberFormatsAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string ForwardGetNumberFormats(string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-number-formats");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.GetNumberFormats(batch, sheetName ?? "", rangeAddress!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            sheetName = result.SheetName,
-            rangeAddress = result.RangeAddress,
-            formatCodes = result.Formats,
-            rowCount = result.RowCount,
-            columnCount = result.ColumnCount,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.get-number-formats", sessionId, new { sheetName = sheetName ?? "", range = rangeAddress });
     }
 
-    private static string SetNumberFormatAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, string? formatCode)
+    private static string ForwardSetNumberFormat(string sessionId, string? sheetName, string? rangeAddress, string? formatCode)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-number-format");
         if (string.IsNullOrEmpty(formatCode))
             ExcelToolsBase.ThrowMissingParameter("formatCode", "set-number-format");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.SetNumberFormat(batch, sheetName ?? "", rangeAddress!, formatCode!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.set-number-format", sessionId, new { sheetName = sheetName ?? "", range = rangeAddress, formatCode });
     }
 
-    private static string SetNumberFormatsAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, List<List<string>>? formatCodes)
+    private static string ForwardSetNumberFormats(string sessionId, string? sheetName, string? rangeAddress, List<List<string>>? formatCodes)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-number-formats");
         if (formatCodes == null || formatCodes.Count == 0)
             ExcelToolsBase.ThrowMissingParameter("formatCodes", "set-number-formats");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.SetNumberFormats(batch, sheetName ?? "", rangeAddress!, formatCodes!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.set-number-formats", sessionId, new { sheetName = sheetName ?? "", range = rangeAddress, formats = formatCodes });
     }
 
     // === CLEAR OPERATIONS ===
 
-    private static string ClearAllAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string ForwardClearAll(string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "clear-all");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.ClearAll(batch, sheetName ?? "", rangeAddress!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.clear-all", sessionId, new { sheetName = sheetName ?? "", range = rangeAddress });
     }
 
-    private static string ClearContentsAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string ForwardClearContents(string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "clear-contents");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.ClearContents(batch, sheetName ?? "", rangeAddress!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.clear-contents", sessionId, new { sheetName = sheetName ?? "", range = rangeAddress });
     }
 
-    private static string ClearFormatsAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string ForwardClearFormats(string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "clear-formats");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.ClearFormats(batch, sheetName ?? "", rangeAddress!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.clear-formats", sessionId, new { sheetName = sheetName ?? "", range = rangeAddress });
     }
 
     // === COPY OPERATIONS ===
 
-    private static string CopyAction(RangeCommands commands, string sessionId, string? sourceSheetName, string? sourceRangeAddress, string? targetSheetName, string? targetRangeAddress)
+    private static string ForwardCopy(string sessionId, string? sourceSheetName, string? sourceRangeAddress, string? targetSheetName, string? targetRangeAddress)
     {
         if (string.IsNullOrEmpty(sourceRangeAddress))
             ExcelToolsBase.ThrowMissingParameter("sourceRangeAddress", "copy");
         if (string.IsNullOrEmpty(targetRangeAddress))
             ExcelToolsBase.ThrowMissingParameter("targetRangeAddress", "copy");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.Copy(batch, sourceSheetName ?? "", sourceRangeAddress!, targetSheetName ?? "", targetRangeAddress!));
-
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("range.copy", sessionId, new
         {
-            result.Success,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            sourceSheet = sourceSheetName ?? "",
+            sourceRange = sourceRangeAddress,
+            targetSheet = targetSheetName ?? "",
+            targetRange = targetRangeAddress
+        });
     }
 
-    private static string CopyValuesAction(RangeCommands commands, string sessionId, string? sourceSheetName, string? sourceRangeAddress, string? targetSheetName, string? targetRangeAddress)
+    private static string ForwardCopyValues(string sessionId, string? sourceSheetName, string? sourceRangeAddress, string? targetSheetName, string? targetRangeAddress)
     {
         if (string.IsNullOrEmpty(sourceRangeAddress))
             ExcelToolsBase.ThrowMissingParameter("sourceRangeAddress", "copy-values");
         if (string.IsNullOrEmpty(targetRangeAddress))
             ExcelToolsBase.ThrowMissingParameter("targetRangeAddress", "copy-values");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.CopyValues(batch, sourceSheetName ?? "", sourceRangeAddress!, targetSheetName ?? "", targetRangeAddress!));
-
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("range.copy-values", sessionId, new
         {
-            result.Success,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            sourceSheet = sourceSheetName ?? "",
+            sourceRange = sourceRangeAddress,
+            targetSheet = targetSheetName ?? "",
+            targetRange = targetRangeAddress
+        });
     }
 
-    private static string CopyFormulasAction(RangeCommands commands, string sessionId, string? sourceSheetName, string? sourceRangeAddress, string? targetSheetName, string? targetRangeAddress)
+    private static string ForwardCopyFormulas(string sessionId, string? sourceSheetName, string? sourceRangeAddress, string? targetSheetName, string? targetRangeAddress)
     {
         if (string.IsNullOrEmpty(sourceRangeAddress))
             ExcelToolsBase.ThrowMissingParameter("sourceRangeAddress", "copy-formulas");
         if (string.IsNullOrEmpty(targetRangeAddress))
             ExcelToolsBase.ThrowMissingParameter("targetRangeAddress", "copy-formulas");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.CopyFormulas(batch, sourceSheetName ?? "", sourceRangeAddress!, targetSheetName ?? "", targetRangeAddress!));
-
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("range.copy-formulas", sessionId, new
         {
-            result.Success,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            sourceSheet = sourceSheetName ?? "",
+            sourceRange = sourceRangeAddress,
+            targetSheet = targetSheetName ?? "",
+            targetRange = targetRangeAddress
+        });
     }
 
     // === DISCOVERY OPERATIONS ===
 
-    private static string GetUsedRangeAction(RangeCommands commands, string sessionId, string? sheetName)
+    private static string ForwardGetUsedRange(string sessionId, string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             ExcelToolsBase.ThrowMissingParameter("sheetName", "get-used-range");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.GetUsedRange(batch, sheetName!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            sheetName = result.SheetName,
-            rangeAddress = result.RangeAddress,
-            values = result.Values,
-            rowCount = result.RowCount,
-            columnCount = result.ColumnCount,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.get-used-range", sessionId, new { sheetName });
     }
 
-    private static string GetCurrentRegionAction(RangeCommands commands, string sessionId, string? sheetName, string? cellAddress)
+    private static string ForwardGetCurrentRegion(string sessionId, string? sheetName, string? cellAddress)
     {
         if (string.IsNullOrEmpty(sheetName))
             ExcelToolsBase.ThrowMissingParameter("sheetName", "get-current-region");
         if (string.IsNullOrEmpty(cellAddress))
             ExcelToolsBase.ThrowMissingParameter("cellAddress", "get-current-region");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.GetCurrentRegion(batch, sheetName!, cellAddress!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            sheetName = result.SheetName,
-            rangeAddress = result.RangeAddress,
-            values = result.Values,
-            rowCount = result.RowCount,
-            columnCount = result.ColumnCount,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.get-current-region", sessionId, new { sheetName, cellAddress });
     }
 
-    private static string GetRangeInfoAction(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string ForwardGetInfo(string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-info");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.GetInfo(batch, sheetName ?? "", rangeAddress!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            sheetName = result.SheetName,
-            rangeAddress = result.Address,
-            rowCount = result.RowCount,
-            columnCount = result.ColumnCount,
-            formatCode = result.NumberFormat,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.get-info", sessionId, new { sheetName = sheetName ?? "", range = rangeAddress });
     }
 }
+
+
+
+
 

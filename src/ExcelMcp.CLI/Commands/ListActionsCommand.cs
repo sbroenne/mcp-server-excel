@@ -1,8 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.CLI.Service;
-using Sbroenne.ExcelMcp.CLI.Infrastructure;
-using Sbroenne.ExcelMcp.Core.Models.Actions;
+using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.Generated;
 using Spectre.Console.Cli;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
@@ -18,24 +17,26 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
         {
             // Session management (REQUIRED FIRST STEP)
             ["session"] = new[] { "create", "open", "close", "list", "save" },
-            ["sheet"] = ActionValidator.GetValidActions<WorksheetAction>()
-                .Concat(ActionValidator.GetValidActions<WorksheetStyleAction>()),
-            ["range"] = ActionValidator.GetValidActions<RangeAction>()
-                .Concat(ActionValidator.GetValidActions<RangeEditAction>())
-                .Concat(ActionValidator.GetValidActions<RangeFormatAction>())
-                .Concat(ActionValidator.GetValidActions<RangeLinkAction>()),
-            ["table"] = ActionValidator.GetValidActions<TableAction>(),
-            ["powerquery"] = ActionValidator.GetValidActions<PowerQueryAction>(),
-            ["pivottable"] = ActionValidator.GetValidActions<PivotTableAction>(),
-            ["chart"] = ActionValidator.GetValidActions<ChartAction>(),
-            ["chartconfig"] = ActionValidator.GetValidActions<ChartConfigAction>(),
-            ["connection"] = ActionValidator.GetValidActions<ConnectionAction>(),
-            ["calculation"] = ActionValidator.GetValidActions<CalculationModeAction>(),
-            ["namedrange"] = ActionValidator.GetValidActions<NamedRangeAction>(),
-            ["conditionalformat"] = ActionValidator.GetValidActions<ConditionalFormatAction>(),
-            ["vba"] = ActionValidator.GetValidActions<VbaAction>(),
-            ["datamodel"] = ActionValidator.GetValidActions<DataModelAction>(),
-            ["slicer"] = ActionValidator.GetValidActions<SlicerAction>()
+            ["sheet"] = ServiceRegistry.Sheet.ValidActions
+                .Concat(ServiceRegistry.SheetStyle.ValidActions),
+            ["range"] = ServiceRegistry.Range.ValidActions
+                .Concat(ServiceRegistry.RangeEdit.ValidActions)
+                .Concat(ServiceRegistry.RangeFormat.ValidActions)
+                .Concat(ServiceRegistry.RangeLink.ValidActions),
+            ["table"] = ServiceRegistry.Table.ValidActions,
+            ["powerquery"] = ServiceRegistry.PowerQuery.ValidActions,
+            ["pivottable"] = ServiceRegistry.PivotTable.ValidActions
+                .Concat(ServiceRegistry.PivotTableField.ValidActions)
+                .Concat(ServiceRegistry.PivotTableCalc.ValidActions),
+            ["chart"] = ServiceRegistry.Chart.ValidActions,
+            ["chartconfig"] = ServiceRegistry.ChartConfig.ValidActions,
+            ["connection"] = ServiceRegistry.Connection.ValidActions,
+            ["calculation"] = ServiceRegistry.Calculation.ValidActions,
+            ["namedrange"] = ServiceRegistry.NamedRange.ValidActions,
+            ["conditionalformat"] = ServiceRegistry.ConditionalFormat.ValidActions,
+            ["vba"] = ServiceRegistry.Vba.ValidActions,
+            ["datamodel"] = ServiceRegistry.DataModel.ValidActions,
+            ["slicer"] = ServiceRegistry.Slicer.ValidActions
         };
 
         if (!string.IsNullOrWhiteSpace(settings.CommandName))
@@ -81,3 +82,5 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
         public string? CommandName { get; init; }
     }
 }
+
+

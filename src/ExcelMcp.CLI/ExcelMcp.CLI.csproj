@@ -13,6 +13,9 @@
     <AssemblyName>excelcli</AssemblyName>
     <RootNamespace>Sbroenne.ExcelMcp.CLI</RootNamespace>
 
+    <!-- Enable generated CLI Settings and Command classes -->
+    <DefineConstants>$(DefineConstants);SPECTRE_CONSOLE;EXCELCLI</DefineConstants>
+
     <!-- CLI doesn't need XML documentation warnings - command usage is shown in console output -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
 
@@ -93,6 +96,12 @@
   <ItemGroup>
     <ProjectReference Include="..\ExcelMcp.Core\ExcelMcp.Core.csproj" />
     <ProjectReference Include="..\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
+    <ProjectReference Include="..\ExcelMcp.Service\ExcelMcp.Service.csproj" />
+
+    <!-- CLI Settings Generator - generates Settings classes with Spectre.Console attributes -->
+    <ProjectReference Include="..\ExcelMcp.Generators.Cli\ExcelMcp.Generators.Cli.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!-- Allow CLI integration tests to access internal command infrastructure -->

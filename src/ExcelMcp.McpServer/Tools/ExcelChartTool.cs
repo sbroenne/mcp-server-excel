@@ -1,8 +1,5 @@
 using System.ComponentModel;
-using System.Text.Json;
-using ModelContextProtocol;
 using ModelContextProtocol.Server;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -13,8 +10,6 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 [McpServerToolType]
 public static partial class ExcelChartTool
 {
-    private static readonly JsonSerializerOptions JsonOptions = ExcelToolsBase.JsonOptions;
-
     /// <summary>
     /// Chart lifecycle - create, read, move, and delete embedded charts.
     ///
@@ -85,50 +80,35 @@ public static partial class ExcelChartTool
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_chart",
-            action.ToActionString(),
+            ServiceRegistry.Chart.ToActionString(action),
             () =>
             {
-                var commands = new ChartCommands();
-
                 return action switch
                 {
-                    ChartAction.List => ListAction(commands, sessionId),
-                    ChartAction.Read => ReadAction(commands, sessionId, chartName),
-                    ChartAction.CreateFromRange => CreateFromRangeAction(commands, sessionId, sheetName, sourceRange, chartType, left, top, width, height, chartName, targetRange),
-                    ChartAction.CreateFromTable => CreateFromTableAction(commands, sessionId, tableName, sheetName, chartType, left, top, width, height, chartName, targetRange),
-                    ChartAction.CreateFromPivotTable => CreateFromPivotTableAction(commands, sessionId, pivotTableName, sheetName, chartType, left, top, width, height, chartName, targetRange),
-                    ChartAction.Delete => DeleteAction(commands, sessionId, chartName),
-                    ChartAction.Move => MoveAction(commands, sessionId, chartName, left, top, width, height),
-                    ChartAction.FitToRange => FitToRangeAction(commands, sessionId, chartName, sheetName, rangeAddress),
-                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                    ChartAction.List => ExcelToolsBase.ForwardToService("chart.list", sessionId),
+                    ChartAction.Read => ForwardRead(sessionId, chartName),
+                    ChartAction.CreateFromRange => ForwardCreateFromRange(sessionId, sheetName, sourceRange, chartType, left, top, width, height, chartName, targetRange),
+                    ChartAction.CreateFromTable => ForwardCreateFromTable(sessionId, tableName, sheetName, chartType, left, top, width, height, chartName, targetRange),
+                    ChartAction.CreateFromPivotTable => ForwardCreateFromPivotTable(sessionId, pivotTableName, sheetName, chartType, left, top, width, height, chartName, targetRange),
+                    ChartAction.Delete => ForwardDelete(sessionId, chartName),
+                    ChartAction.Move => ForwardMove(sessionId, chartName, left, top, width, height),
+                    ChartAction.FitToRange => ForwardFitToRange(sessionId, chartName, sheetName, rangeAddress),
+                    _ => throw new ArgumentException($"Unknown action: {action} ({ServiceRegistry.Chart.ToActionString(action)})", nameof(action))
                 };
             });
     }
 
-    private static string ListAction(
-        ChartCommands commands,
-        string sessionId)
-    {
-        var charts = ExcelToolsBase.WithSession(sessionId, batch => commands.List(batch));
-        return JsonSerializer.Serialize(charts, JsonOptions);
-    }
+    // === SERVICE FORWARDING METHODS ===
 
-    private static string ReadAction(
-        ChartCommands commands,
-        string sessionId,
-        string? chartName)
+    private static string ForwardRead(string sessionId, string? chartName)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "read");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.Read(batch, chartName!));
-
-        return JsonSerializer.Serialize(result, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chart.read", sessionId, new { chartName });
     }
 
-    private static string CreateFromRangeAction(
-        ChartCommands commands,
+    private static string ForwardCreateFromRange(
         string sessionId,
         string? sheetName,
         string? sourceRange,
@@ -152,33 +132,26 @@ public static partial class ExcelChartTool
         bool hasPointPosition = left.HasValue && top.HasValue;
 
         if (!hasTargetRange && !hasPointPosition)
-            throw new McpException("create-from-range requires either targetRange (e.g., 'F2:K15') OR left/top coordinates");
+            ExcelToolsBase.ThrowMissingParameter("targetRange or left/top", "create-from-range");
 
-        var result = ExcelToolsBase.WithSession<object>(sessionId, batch =>
+        // Convert ChartType enum to string for service
+        var chartTypeString = chartType!.Value.ToString();
+
+        return ExcelToolsBase.ForwardToService("chart.create-from-range", sessionId, new
         {
-            // Create chart - use targetRange position or explicit coordinates
-            double createLeft = hasTargetRange ? 0 : left!.Value;
-            double createTop = hasTargetRange ? 0 : top!.Value;
-
-            var createResult = commands.CreateFromRange(batch, sheetName!, sourceRange!, chartType!.Value,
-                createLeft, createTop, width ?? 400, height ?? 300, chartName);
-
-            // If targetRange specified, fit chart to that range
-            if (hasTargetRange)
-            {
-                commands.FitToRange(batch, createResult.ChartName, sheetName!, targetRange!);
-                // Re-read to get updated position
-                return commands.Read(batch, createResult.ChartName);
-            }
-
-            return createResult;
+            sheetName,
+            sourceRange,
+            chartType = chartTypeString,
+            left = hasTargetRange ? 0 : left,
+            top = hasTargetRange ? 0 : top,
+            width = width ?? 400,
+            height = height ?? 300,
+            chartName,
+            targetRange
         });
-
-        return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static string CreateFromTableAction(
-        ChartCommands commands,
+    private static string ForwardCreateFromTable(
         string sessionId,
         string? tableName,
         string? sheetName,
@@ -202,33 +175,25 @@ public static partial class ExcelChartTool
         bool hasPointPosition = left.HasValue && top.HasValue;
 
         if (!hasTargetRange && !hasPointPosition)
-            throw new McpException("create-from-table requires either targetRange (e.g., 'F2:K15') OR left/top coordinates");
+            ExcelToolsBase.ThrowMissingParameter("targetRange or left/top", "create-from-table");
 
-        var result = ExcelToolsBase.WithSession<object>(sessionId, batch =>
+        var chartTypeString = chartType!.Value.ToString();
+
+        return ExcelToolsBase.ForwardToService("chart.create-from-table", sessionId, new
         {
-            // Create chart - use targetRange position or explicit coordinates
-            double createLeft = hasTargetRange ? 0 : left!.Value;
-            double createTop = hasTargetRange ? 0 : top!.Value;
-
-            var createResult = commands.CreateFromTable(batch, tableName!, sheetName!, chartType!.Value,
-                createLeft, createTop, width ?? 400, height ?? 300, chartName);
-
-            // If targetRange specified, fit chart to that range
-            if (hasTargetRange)
-            {
-                commands.FitToRange(batch, createResult.ChartName, sheetName!, targetRange!);
-                // Re-read to get updated position
-                return commands.Read(batch, createResult.ChartName);
-            }
-
-            return createResult;
+            tableName,
+            sheetName,
+            chartType = chartTypeString,
+            left = hasTargetRange ? 0 : left,
+            top = hasTargetRange ? 0 : top,
+            width = width ?? 400,
+            height = height ?? 300,
+            chartName,
+            targetRange
         });
-
-        return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static string CreateFromPivotTableAction(
-        ChartCommands commands,
+    private static string ForwardCreateFromPivotTable(
         string sessionId,
         string? pivotTableName,
         string? sheetName,
@@ -252,50 +217,33 @@ public static partial class ExcelChartTool
         bool hasPointPosition = left.HasValue && top.HasValue;
 
         if (!hasTargetRange && !hasPointPosition)
-            throw new McpException("create-from-pivottable requires either targetRange (e.g., 'F2:K15') OR left/top coordinates");
+            ExcelToolsBase.ThrowMissingParameter("targetRange or left/top", "create-from-pivottable");
 
-        var result = ExcelToolsBase.WithSession<object>(sessionId, batch =>
+        var chartTypeString = chartType!.Value.ToString();
+
+        return ExcelToolsBase.ForwardToService("chart.create-from-pivottable", sessionId, new
         {
-            // Create chart - use targetRange position or explicit coordinates
-            double createLeft = hasTargetRange ? 0 : left!.Value;
-            double createTop = hasTargetRange ? 0 : top!.Value;
-
-            var createResult = commands.CreateFromPivotTable(batch, pivotTableName!, sheetName!, chartType!.Value,
-                createLeft, createTop, width ?? 400, height ?? 300, chartName);
-
-            // If targetRange specified, fit chart to that range
-            if (hasTargetRange)
-            {
-                commands.FitToRange(batch, createResult.ChartName, sheetName!, targetRange!);
-                // Re-read to get updated position
-                return commands.Read(batch, createResult.ChartName);
-            }
-
-            return createResult;
+            pivotTableName,
+            sheetName,
+            chartType = chartTypeString,
+            left = hasTargetRange ? 0 : left,
+            top = hasTargetRange ? 0 : top,
+            width = width ?? 400,
+            height = height ?? 300,
+            chartName,
+            targetRange
         });
-
-        return JsonSerializer.Serialize(result, JsonOptions);
     }
 
-    private static string DeleteAction(
-        ChartCommands commands,
-        string sessionId,
-        string? chartName)
+    private static string ForwardDelete(string sessionId, string? chartName)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "delete");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
-        {
-            commands.Delete(batch, chartName!);
-            return 0; // Dummy return value
-        });
-
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' deleted successfully" }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chart.delete", sessionId, new { chartName });
     }
 
-    private static string MoveAction(
-        ChartCommands commands,
+    private static string ForwardMove(
         string sessionId,
         string? chartName,
         double? left,
@@ -306,17 +254,10 @@ public static partial class ExcelChartTool
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "move");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
-        {
-            commands.Move(batch, chartName!, left, top, width, height);
-            return 0; // Dummy return value
-        });
-
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' moved successfully" }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chart.move", sessionId, new { chartName, left, top, width, height });
     }
 
-    private static string FitToRangeAction(
-        ChartCommands commands,
+    private static string ForwardFitToRange(
         string sessionId,
         string? chartName,
         string? sheetName,
@@ -329,14 +270,10 @@ public static partial class ExcelChartTool
         if (string.IsNullOrWhiteSpace(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter(nameof(rangeAddress), "fit-to-range");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
-        {
-            commands.FitToRange(batch, chartName!, sheetName!, rangeAddress!);
-            return 0; // Dummy return value
-        });
-
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' fitted to range '{sheetName}'!{rangeAddress}" }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chart.fit-to-range", sessionId, new { chartName, sheetName, rangeAddress });
     }
-
-
 }
+
+
+
+

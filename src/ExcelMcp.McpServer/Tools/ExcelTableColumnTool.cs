@@ -1,8 +1,5 @@
 using System.ComponentModel;
-using System.Text.Json;
 using ModelContextProtocol.Server;
-using Sbroenne.ExcelMcp.Core.Commands.Table;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -33,7 +30,7 @@ public static partial class TableColumnTool
     /// Related: excel_table (table lifecycle and data operations)
     /// </summary>
     /// <param name="action">The column/filter/sort operation to perform</param>
-    /// <param name="excelPath">Full path to Excel file (for reference/logging)</param>
+    /// <param name="path">Full path to Excel file (for reference/logging)</param>
     /// <param name="sessionId">Session ID from excel_file 'open'. Required for all actions.</param>
     /// <param name="tableName">Name of the table to operate on. Required for all actions.</param>
     /// <param name="columnName">Column name to operate on. Required for: apply-filter, apply-filter-values, add-column, remove-column, rename-column, sort, get/set-column-number-format</param>
@@ -48,7 +45,7 @@ public static partial class TableColumnTool
     [McpMeta("requiresSession", true)]
     public static partial string TableColumn(
         TableColumnAction action,
-        string excelPath,
+        string path,
         string sessionId,
         [DefaultValue(null)] string? tableName,
         [DefaultValue(null)] string? columnName,
@@ -61,339 +58,134 @@ public static partial class TableColumnTool
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_table_column",
-            action.ToActionString(),
-            excelPath,
+            ServiceRegistry.TableColumn.ToActionString(action),
+            path,
             () =>
             {
-                var tableCommands = new TableCommands();
-
                 return action switch
                 {
-                    TableColumnAction.ApplyFilter => ApplyFilter(tableCommands, sessionId, tableName, columnName, criteria),
-                    TableColumnAction.ApplyFilterValues => ApplyFilterValues(tableCommands, sessionId, tableName, columnName, filterValuesJson),
-                    TableColumnAction.ClearFilters => ClearFilters(tableCommands, sessionId, tableName),
-                    TableColumnAction.GetFilters => GetFilters(tableCommands, sessionId, tableName),
-                    TableColumnAction.AddColumn => AddColumn(tableCommands, sessionId, tableName, columnName, columnPosition),
-                    TableColumnAction.RemoveColumn => RemoveColumn(tableCommands, sessionId, tableName, columnName),
-                    TableColumnAction.RenameColumn => RenameColumn(tableCommands, sessionId, tableName, columnName, newColumnName),
-                    TableColumnAction.GetStructuredReference => GetStructuredReference(tableCommands, sessionId, tableName, criteria, columnName),
-                    TableColumnAction.Sort => SortTable(tableCommands, sessionId, tableName, columnName, ascending),
-                    TableColumnAction.SortMulti => SortTableMulti(tableCommands, sessionId, tableName, filterValuesJson),
-                    TableColumnAction.GetColumnNumberFormat => GetColumnNumberFormat(tableCommands, sessionId, tableName, columnName),
-                    TableColumnAction.SetColumnNumberFormat => SetColumnNumberFormat(tableCommands, sessionId, tableName, columnName, formatCode),
+                    TableColumnAction.ApplyFilter => ForwardApplyFilter(sessionId, tableName, columnName, criteria),
+                    TableColumnAction.ApplyFilterValues => ForwardApplyFilterValues(sessionId, tableName, columnName, filterValuesJson),
+                    TableColumnAction.ClearFilters => ForwardClearFilters(sessionId, tableName),
+                    TableColumnAction.GetFilters => ForwardGetFilters(sessionId, tableName),
+                    TableColumnAction.AddColumn => ForwardAddColumn(sessionId, tableName, columnName, columnPosition),
+                    TableColumnAction.RemoveColumn => ForwardRemoveColumn(sessionId, tableName, columnName),
+                    TableColumnAction.RenameColumn => ForwardRenameColumn(sessionId, tableName, columnName, newColumnName),
+                    TableColumnAction.GetStructuredReference => ForwardGetStructuredReference(sessionId, tableName, criteria, columnName),
+                    TableColumnAction.Sort => ForwardSort(sessionId, tableName, columnName, ascending),
+                    TableColumnAction.SortMulti => ForwardSortMulti(sessionId, tableName, filterValuesJson),
+                    TableColumnAction.GetColumnNumberFormat => ForwardGetColumnNumberFormat(sessionId, tableName, columnName),
+                    TableColumnAction.SetColumnNumberFormat => ForwardSetColumnNumberFormat(sessionId, tableName, columnName, formatCode),
                     _ => throw new ArgumentException(
-                        $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                        $"Unknown action: {action} ({ServiceRegistry.TableColumn.ToActionString(action)})", nameof(action))
                 };
             });
     }
 
-    private static string ApplyFilter(TableCommands commands, string sessionId, string? tableName, string? columnName, string? criteria)
+    private static string ForwardApplyFilter(string sessionId, string? tableName, string? columnName, string? criteria)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "apply-filter");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "apply-filter");
         if (string.IsNullOrWhiteSpace(criteria)) ExcelToolsBase.ThrowMissingParameter(nameof(criteria), "apply-filter");
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    commands.ApplyFilter(batch, tableName!, columnName!, criteria!);
-                    return 0;
-                });
-
-            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Filter applied successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("table.apply-filter", sessionId, new { tableName, columnName, criteria });
     }
 
-    private static string ApplyFilterValues(TableCommands commands, string sessionId, string? tableName, string? columnName, string? filterValuesJson)
+    private static string ForwardApplyFilterValues(string sessionId, string? tableName, string? columnName, string? filterValuesJson)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "apply-filter-values");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "apply-filter-values");
         if (string.IsNullOrWhiteSpace(filterValuesJson)) ExcelToolsBase.ThrowMissingParameter(nameof(filterValuesJson), "apply-filter-values");
 
-        List<string> filterValues;
-        try
-        {
-            filterValues = JsonSerializer.Deserialize<List<string>>(filterValuesJson!) ?? [];
-        }
-        catch (JsonException ex)
-        {
-            throw new ArgumentException($"Invalid JSON array for filterValuesJson: {ex.Message}", nameof(filterValuesJson));
-        }
-
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    commands.ApplyFilter(batch, tableName!, columnName!, filterValues);
-                    return 0;
-                });
-
-            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Filter applied successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("table.apply-filter-values", sessionId, new { tableName, columnName, filterValues = filterValuesJson });
     }
 
-    private static string ClearFilters(TableCommands commands, string sessionId, string? tableName)
+    private static string ForwardClearFilters(string sessionId, string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "clear-filters");
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    commands.ClearFilters(batch, tableName!);
-                    return 0;
-                });
-
-            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Filters cleared successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("table.clear-filters", sessionId, new { tableName });
     }
 
-    private static string GetFilters(TableCommands commands, string sessionId, string? tableName)
+    private static string ForwardGetFilters(string sessionId, string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "get-filters");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.GetFilters(batch, tableName!));
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("table.get-filters", sessionId, new { tableName });
     }
 
-    private static string AddColumn(TableCommands commands, string sessionId, string? tableName, string? columnName, string? columnPosition)
+    private static string ForwardAddColumn(string sessionId, string? tableName, string? columnName, string? columnPosition)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "add-column");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "add-column");
 
         int? position = null;
-        if (!string.IsNullOrWhiteSpace(columnPosition))
+        if (!string.IsNullOrWhiteSpace(columnPosition) && int.TryParse(columnPosition, out var pos))
         {
-            if (int.TryParse(columnPosition, out int posVal))
-            {
-                position = posVal;
-            }
-            else
-            {
-                throw new ArgumentException($"Invalid columnPosition value: '{columnPosition}'. Must be a number.", nameof(columnPosition));
-            }
+            position = pos;
         }
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    commands.AddColumn(batch, tableName!, columnName!, position);
-                    return 0;
-                });
-
-            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Column added successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("table.add-column", sessionId, new { tableName, columnName, position });
     }
 
-    private static string RemoveColumn(TableCommands commands, string sessionId, string? tableName, string? columnName)
+    private static string ForwardRemoveColumn(string sessionId, string? tableName, string? columnName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "remove-column");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "remove-column");
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    commands.RemoveColumn(batch, tableName!, columnName!);
-                    return 0;
-                });
-
-            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Column removed successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("table.remove-column", sessionId, new { tableName, columnName });
     }
 
-    private static string RenameColumn(TableCommands commands, string sessionId, string? tableName, string? columnName, string? newColumnName)
+    private static string ForwardRenameColumn(string sessionId, string? tableName, string? columnName, string? newColumnName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "rename-column");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "rename-column");
         if (string.IsNullOrWhiteSpace(newColumnName)) ExcelToolsBase.ThrowMissingParameter(nameof(newColumnName), "rename-column");
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    commands.RenameColumn(batch, tableName!, columnName!, newColumnName!);
-                    return 0;
-                });
-
-            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Column renamed successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("table.rename-column", sessionId, new { tableName, columnName, newName = newColumnName });
     }
 
-    private static string GetStructuredReference(TableCommands commands, string sessionId, string? tableName, string? region, string? columnName)
+    private static string ForwardGetStructuredReference(string sessionId, string? tableName, string? region, string? columnName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "get-structured-reference");
 
-        var tableRegion = TableRegion.Data;
-        if (!string.IsNullOrWhiteSpace(region) && !Enum.TryParse(region, true, out tableRegion))
-        {
-            throw new ArgumentException($"Invalid region '{region}'. Valid values: All, Data, Headers, Totals, ThisRow", nameof(region));
-        }
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.GetStructuredReference(batch, tableName!, tableRegion, columnName));
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("table.get-structured-reference", sessionId, new { tableName, region, columnName });
     }
 
-    private static string SortTable(TableCommands commands, string sessionId, string? tableName, string? columnName, bool ascending)
+    private static string ForwardSort(string sessionId, string? tableName, string? columnName, bool ascending)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "sort");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "sort");
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    commands.Sort(batch, tableName!, columnName!, ascending);
-                    return 0;
-                });
-
-            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table sorted successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("table.sort", sessionId, new { tableName, columnName, ascending });
     }
 
-    private static string SortTableMulti(TableCommands commands, string sessionId, string? tableName, string? sortColumnsJson)
+    private static string ForwardSortMulti(string sessionId, string? tableName, string? sortColumns)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "sort-multi");
-        if (string.IsNullOrWhiteSpace(sortColumnsJson)) ExcelToolsBase.ThrowMissingParameter(nameof(sortColumnsJson), "sort-multi");
+        if (string.IsNullOrWhiteSpace(sortColumns)) ExcelToolsBase.ThrowMissingParameter("filterValuesJson", "sort-multi");
 
-        List<TableSortColumn>? sortColumns;
-        try
-        {
-            sortColumns = JsonSerializer.Deserialize<List<TableSortColumn>>(sortColumnsJson!);
-            if (sortColumns == null || sortColumns.Count == 0)
-            {
-                throw new ArgumentException("sortColumnsJson must be a non-empty array", nameof(sortColumnsJson));
-            }
-        }
-        catch (JsonException ex)
-        {
-            throw new ArgumentException($"Invalid sortColumnsJson: {ex.Message}", nameof(sortColumnsJson));
-        }
-
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    commands.Sort(batch, tableName!, sortColumns);
-                    return 0;
-                });
-
-            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table sorted successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("table.sort-multi", sessionId, new { tableName, sortColumns });
     }
 
-    private static string GetColumnNumberFormat(TableCommands commands, string sessionId, string? tableName, string? columnName)
+    private static string ForwardGetColumnNumberFormat(string sessionId, string? tableName, string? columnName)
     {
-        if (string.IsNullOrEmpty(tableName))
-            ExcelToolsBase.ThrowMissingParameter("tableName", "get-column-number-format");
-        if (string.IsNullOrEmpty(columnName))
-            ExcelToolsBase.ThrowMissingParameter("columnName", "get-column-number-format");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "get-column-number-format");
+        if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "get-column-number-format");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.GetColumnNumberFormat(batch, tableName!, columnName!));
-
-        return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("table.get-column-number-format", sessionId, new { tableName, columnName });
     }
 
-    private static string SetColumnNumberFormat(TableCommands commands, string sessionId, string? tableName, string? columnName, string? formatCode)
+    private static string ForwardSetColumnNumberFormat(string sessionId, string? tableName, string? columnName, string? formatCode)
     {
-        if (string.IsNullOrEmpty(tableName))
-            ExcelToolsBase.ThrowMissingParameter("tableName", "set-column-number-format");
-        if (string.IsNullOrEmpty(columnName))
-            ExcelToolsBase.ThrowMissingParameter("columnName", "set-column-number-format");
-        if (string.IsNullOrEmpty(formatCode))
-            ExcelToolsBase.ThrowMissingParameter("formatCode", "set-column-number-format");
+        if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "set-column-number-format");
+        if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "set-column-number-format");
+        if (string.IsNullOrWhiteSpace(formatCode)) ExcelToolsBase.ThrowMissingParameter(nameof(formatCode), "set-column-number-format");
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    commands.SetColumnNumberFormat(batch, tableName!, columnName!, formatCode!);
-                    return 0;
-                });
-
-            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Column number format set successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("table.set-column-number-format", sessionId, new { tableName, columnName, formatCode });
     }
 }
+
+
+
+

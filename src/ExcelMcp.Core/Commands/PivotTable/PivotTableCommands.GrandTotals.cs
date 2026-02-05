@@ -30,3 +30,5 @@ public partial class PivotTableCommands
         => ExecuteWithStrategy<OperationResult>(batch, pivotTableName,
             (strategy, pivot) => strategy.SetGrandTotals(pivot, showRowGrandTotals, showColumnGrandTotals, batch.WorkbookPath, batch.Logger));
 }
+
+

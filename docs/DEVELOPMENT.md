@@ -310,7 +310,7 @@ dnx Sbroenne.ExcelMcp.McpServer --yes
    }
    ```
 
-## �📝 **PR Template Checklist**
+## 📝 **PR Template Checklist**
 
 When creating a PR, verify:
 
@@ -489,7 +489,7 @@ Runtime:
 | `infrastructure/azure/appinsights.bicep` | Azure resource definitions |
 | `infrastructure/azure/deploy-appinsights.ps1` | Deployment script |
 
-## � **Trimming and Native AOT Compatibility**
+## ✂️ **Trimming and Native AOT Compatibility**
 
 ### **Why Trimming Is Not Supported**
 
@@ -562,7 +562,7 @@ If deployment size is a concern:
 - The .NET runtime is typically already installed on Windows machines with Excel
 - Self-contained deployment is only needed for isolated environments
 
-## �📞 **Need Help?**
+## 📞 **Need Help?**
 
 - **Read the docs**: [Contributing Guide](CONTRIBUTING.md)
 - **Ask questions**: Create a GitHub Issue with the `question` label

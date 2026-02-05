@@ -24,3 +24,5 @@ public enum LegendPosition
     /// <summary>Top of chart (xlLegendPositionTop)</summary>
     Top = -4160
 }
+
+

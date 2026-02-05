@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Attributes;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -6,6 +7,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// Commands for managing Excel conditional formatting
 /// Excel COM: Range.FormatConditions
 /// </summary>
+[ServiceCategory("conditionalformat", "ConditionalFormat")]
+[McpTool("excel_conditionalformat")]
 public interface IConditionalFormattingCommands
 {
     /// <summary>
@@ -28,30 +31,34 @@ public interface IConditionalFormattingCommands
     /// <param name="borderColor">Border color (#RRGGBB or color index)</param>
     /// <exception cref="InvalidOperationException">Sheet or range not found</exception>
     /// <exception cref="ArgumentException">Invalid rule type, operator, color, or format value</exception>
+    [ServiceAction("add-rule")]
     void AddRule(
         IExcelBatch batch,
-        string sheetName,
-        string rangeAddress,
-        string ruleType,
-        string? operatorType,
-        string? formula1,
-        string? formula2,
-        string? interiorColor = null,
-        string? interiorPattern = null,
-        string? fontColor = null,
-        bool? fontBold = null,
-        bool? fontItalic = null,
-        string? borderStyle = null,
-        string? borderColor = null);
+        [RequiredParameter, FromString("sheetName")] string sheetName,
+        [RequiredParameter, FromString("rangeAddress")] string rangeAddress,
+        [RequiredParameter, FromString("ruleType")] string ruleType,
+        [FromString("operatorType")] string? operatorType,
+        [FromString("formula1")] string? formula1,
+        [FromString("formula2")] string? formula2,
+        [FromString("interiorColor")] string? interiorColor = null,
+        [FromString("interiorPattern")] string? interiorPattern = null,
+        [FromString("fontColor")] string? fontColor = null,
+        [FromString("fontBold")] bool? fontBold = null,
+        [FromString("fontItalic")] bool? fontItalic = null,
+        [FromString("borderStyle")] string? borderStyle = null,
+        [FromString("borderColor")] string? borderColor = null);
 
     /// <summary>
     /// Removes all conditional formatting from range
     /// Excel COM: Range.FormatConditions.Delete()
     /// </summary>
     /// <exception cref="InvalidOperationException">Sheet or range not found</exception>
+    [ServiceAction("clear-rules")]
     void ClearRules(
         IExcelBatch batch,
-        string sheetName,
-        string rangeAddress);
+        [RequiredParameter, FromString("sheetName")] string sheetName,
+        [RequiredParameter, FromString("rangeAddress")] string rangeAddress);
 }
+
+
 

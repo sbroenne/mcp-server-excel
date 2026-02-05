@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Attributes;
 using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Calculation;
@@ -68,6 +69,8 @@ public class CalculationModeResult : OperationResult
 /// Interface for calculation mode commands (get-mode, set-mode, calculate).
 /// Provides explicit control over Excel's automatic/manual calculation for performance optimization.
 /// </summary>
+[ServiceCategory("calculation", "Calculation")]
+[McpTool("excel_calculation_mode")]
 public interface ICalculationModeCommands
 {
     /// <summary>
@@ -75,6 +78,7 @@ public interface ICalculationModeCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <returns>Current calculation mode (automatic/manual/semi-automatic)</returns>
+    [ServiceAction("get-mode")]
     CalculationModeResult GetMode(IExcelBatch batch);
 
     /// <summary>
@@ -83,7 +87,8 @@ public interface ICalculationModeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="mode">Target calculation mode</param>
     /// <returns>Operation result with previous and new mode</returns>
-    OperationResult SetMode(IExcelBatch batch, CalculationMode mode);
+    [ServiceAction("set-mode")]
+    OperationResult SetMode(IExcelBatch batch, [FromString("mode")] CalculationMode mode);
 
     /// <summary>
     /// Triggers calculation for the specified scope.
@@ -93,7 +98,8 @@ public interface ICalculationModeCommands
     /// <param name="sheetName">Sheet name (required for Sheet/Range scope)</param>
     /// <param name="rangeAddress">Range address (required for Range scope)</param>
     /// <returns>Operation result confirming calculation completed</returns>
-    OperationResult Calculate(IExcelBatch batch, CalculationScope scope, string? sheetName = null, string? rangeAddress = null);
+    [ServiceAction("calculate")]
+    OperationResult Calculate(IExcelBatch batch, [FromString("scope")] CalculationScope scope, string? sheetName = null, string? rangeAddress = null);
 }
 
 /// <summary>
@@ -278,3 +284,5 @@ public class CalculationModeCommands : ICalculationModeCommands
         });
     }
 }
+
+

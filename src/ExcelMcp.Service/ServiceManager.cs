@@ -1,11 +1,11 @@
 using System.Diagnostics;
 
-namespace Sbroenne.ExcelMcp.CLI.Service;
+namespace Sbroenne.ExcelMcp.Service;
 
 /// <summary>
 /// Manages ExcelMCP Service lifecycle: start, stop, status.
 /// </summary>
-internal static class ServiceManager
+public static class ServiceManager
 {
     /// <summary>
     /// Ensures service is running, starting it if necessary.
@@ -160,7 +160,7 @@ internal static class ServiceManager
 /// <summary>
 /// Service status information.
 /// </summary>
-internal sealed class ServiceStatus
+public sealed class ServiceStatus
 {
     public bool Running { get; init; }
     public int ProcessId { get; init; }
@@ -168,3 +168,5 @@ internal sealed class ServiceStatus
     public DateTime StartTime { get; init; }
     public TimeSpan Uptime => Running ? DateTime.UtcNow - StartTime : TimeSpan.Zero;
 }
+
+

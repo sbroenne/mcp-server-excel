@@ -261,7 +261,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         var json = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
         {
             ["action"] = "RenameTable",
-            ["sid"] = _sessionId,
+            ["sessionId"] = _sessionId,
             ["tn"] = "NonExistentTable",
             ["nn"] = "NewTableName"
         });
@@ -292,7 +292,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         var json = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
         {
             ["action"] = "RenameTable",
-            ["sid"] = _sessionId,
+            ["sessionId"] = _sessionId,
             ["tn"] = "TestData",
             ["nn"] = "NewTableName"
         });
@@ -331,7 +331,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         var json = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
         {
             ["action"] = "RenameTable",
-            ["sid"] = _sessionId,
+            ["sessionId"] = _sessionId,
             ["tn"] = "DataTable",
             ["nn"] = "   " // Empty after trim
         });
@@ -423,7 +423,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
                 await CallToolAsync("excel_file", new Dictionary<string, object?>
                 {
                     ["action"] = "Close",
-                    ["sid"] = _sessionId,
+                    ["sessionId"] = _sessionId,
                     ["save"] = false
                 });
                 _output.WriteLine("✓ Session closed during cleanup");
@@ -498,3 +498,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
 
     #endregion
 }
+
+
+
+

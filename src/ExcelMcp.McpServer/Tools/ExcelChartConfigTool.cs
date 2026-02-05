@@ -1,7 +1,5 @@
 using System.ComponentModel;
-using System.Text.Json;
 using ModelContextProtocol.Server;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -12,8 +10,6 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 [McpServerToolType]
 public static partial class ExcelChartConfigTool
 {
-    private static readonly JsonSerializerOptions JsonOptions = ExcelToolsBase.JsonOptions;
-
     /// <summary>
     /// Chart configuration - data source, series, type, title, axis labels, legend, and styling.
     ///
@@ -179,56 +175,50 @@ public static partial class ExcelChartConfigTool
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_chart_config",
-            action.ToActionString(),
+            ServiceRegistry.ChartConfig.ToActionString(action),
             () =>
             {
-                var commands = new ChartCommands();
-
                 return action switch
                 {
-                    ChartConfigAction.SetSourceRange => SetSourceRangeAction(commands, sessionId, chartName, sourceRange),
-                    ChartConfigAction.AddSeries => AddSeriesAction(commands, sessionId, chartName, seriesName, valuesRange, categoryRange),
-                    ChartConfigAction.RemoveSeries => RemoveSeriesAction(commands, sessionId, chartName, seriesIndex),
-                    ChartConfigAction.SetChartType => SetChartTypeAction(commands, sessionId, chartName, chartType),
-                    ChartConfigAction.SetTitle => SetTitleAction(commands, sessionId, chartName, title),
-                    ChartConfigAction.SetAxisTitle => SetAxisTitleAction(commands, sessionId, chartName, axis, title),
-                    ChartConfigAction.GetAxisNumberFormat => GetAxisNumberFormatAction(commands, sessionId, chartName, axis),
-                    ChartConfigAction.SetAxisNumberFormat => SetAxisNumberFormatAction(commands, sessionId, chartName, axis, numberFormat),
-                    ChartConfigAction.ShowLegend => ShowLegendAction(commands, sessionId, chartName, visible, legendPosition),
-                    ChartConfigAction.SetStyle => SetStyleAction(commands, sessionId, chartName, styleId),
-                    ChartConfigAction.SetDataLabels => SetDataLabelsAction(commands, sessionId, chartName, showValue, showPercentage, showSeriesName, showCategoryName, showBubbleSize, separator, labelPosition, seriesIndex),
-                    ChartConfigAction.GetAxisScale => GetAxisScaleAction(commands, sessionId, chartName, axis),
-                    ChartConfigAction.SetAxisScale => SetAxisScaleAction(commands, sessionId, chartName, axis, minimumScale, maximumScale, majorUnit, minorUnit),
-                    ChartConfigAction.GetGridlines => GetGridlinesAction(commands, sessionId, chartName),
-                    ChartConfigAction.SetGridlines => SetGridlinesAction(commands, sessionId, chartName, axis, showMajor, showMinor),
-                    ChartConfigAction.SetSeriesFormat => SetSeriesFormatAction(commands, sessionId, chartName, seriesIndex, markerStyle, markerSize, markerBackgroundColor, markerForegroundColor, invertIfNegative),
-                    ChartConfigAction.ListTrendlines => ListTrendlinesAction(commands, sessionId, chartName, seriesIndex),
-                    ChartConfigAction.AddTrendline => AddTrendlineAction(commands, sessionId, chartName, seriesIndex, trendlineType, order, period, forward, backward, intercept, displayEquation, displayRSquared, trendlineName),
-                    ChartConfigAction.DeleteTrendline => DeleteTrendlineAction(commands, sessionId, chartName, seriesIndex, trendlineIndex),
-                    ChartConfigAction.SetTrendline => SetTrendlineAction(commands, sessionId, chartName, seriesIndex, trendlineIndex, forward, backward, intercept, displayEquation, displayRSquared, trendlineName),
-                    ChartConfigAction.SetPlacement => SetPlacementAction(commands, sessionId, chartName, placement),
-                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                    ChartConfigAction.SetSourceRange => ForwardSetSourceRange(sessionId, chartName, sourceRange),
+                    ChartConfigAction.AddSeries => ForwardAddSeries(sessionId, chartName, seriesName, valuesRange, categoryRange),
+                    ChartConfigAction.RemoveSeries => ForwardRemoveSeries(sessionId, chartName, seriesIndex),
+                    ChartConfigAction.SetChartType => ForwardSetChartType(sessionId, chartName, chartType),
+                    ChartConfigAction.SetTitle => ForwardSetTitle(sessionId, chartName, title),
+                    ChartConfigAction.SetAxisTitle => ForwardSetAxisTitle(sessionId, chartName, axis, title),
+                    ChartConfigAction.GetAxisNumberFormat => ForwardGetAxisNumberFormat(sessionId, chartName, axis),
+                    ChartConfigAction.SetAxisNumberFormat => ForwardSetAxisNumberFormat(sessionId, chartName, axis, numberFormat),
+                    ChartConfigAction.ShowLegend => ForwardShowLegend(sessionId, chartName, visible, legendPosition),
+                    ChartConfigAction.SetStyle => ForwardSetStyle(sessionId, chartName, styleId),
+                    ChartConfigAction.SetDataLabels => ForwardSetDataLabels(sessionId, chartName, showValue, showPercentage, showSeriesName, showCategoryName, showBubbleSize, separator, labelPosition, seriesIndex),
+                    ChartConfigAction.GetAxisScale => ForwardGetAxisScale(sessionId, chartName, axis),
+                    ChartConfigAction.SetAxisScale => ForwardSetAxisScale(sessionId, chartName, axis, minimumScale, maximumScale, majorUnit, minorUnit),
+                    ChartConfigAction.GetGridlines => ForwardGetGridlines(sessionId, chartName),
+                    ChartConfigAction.SetGridlines => ForwardSetGridlines(sessionId, chartName, axis, showMajor, showMinor),
+                    ChartConfigAction.SetSeriesFormat => ForwardSetSeriesFormat(sessionId, chartName, seriesIndex, markerStyle, markerSize, markerBackgroundColor, markerForegroundColor, invertIfNegative),
+                    ChartConfigAction.ListTrendlines => ForwardListTrendlines(sessionId, chartName, seriesIndex),
+                    ChartConfigAction.AddTrendline => ForwardAddTrendline(sessionId, chartName, seriesIndex, trendlineType, order, period, forward, backward, intercept, displayEquation, displayRSquared, trendlineName),
+                    ChartConfigAction.DeleteTrendline => ForwardDeleteTrendline(sessionId, chartName, seriesIndex, trendlineIndex),
+                    ChartConfigAction.SetTrendline => ForwardSetTrendline(sessionId, chartName, seriesIndex, trendlineIndex, forward, backward, intercept, displayEquation, displayRSquared, trendlineName),
+                    ChartConfigAction.SetPlacement => ForwardSetPlacement(sessionId, chartName, placement),
+                    _ => throw new ArgumentException($"Unknown action: {action} ({ServiceRegistry.ChartConfig.ToActionString(action)})", nameof(action))
                 };
             });
     }
 
-    private static string SetSourceRangeAction(ChartCommands commands, string sessionId, string? chartName, string? sourceRange)
+    // === SERVICE FORWARDING METHODS ===
+
+    private static string ForwardSetSourceRange(string sessionId, string? chartName, string? sourceRange)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-source-range");
         if (string.IsNullOrWhiteSpace(sourceRange))
             ExcelToolsBase.ThrowMissingParameter(nameof(sourceRange), "set-source-range");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
-        {
-            commands.SetSourceRange(batch, chartName!, sourceRange!);
-            return 0;
-        });
-
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' source range set to '{sourceRange}'" }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.set-source-range", sessionId, new { chartName, sourceRange });
     }
 
-    private static string AddSeriesAction(ChartCommands commands, string sessionId, string? chartName, string? seriesName, string? valuesRange, string? categoryRange)
+    private static string ForwardAddSeries(string sessionId, string? chartName, string? seriesName, string? valuesRange, string? categoryRange)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "add-series");
@@ -237,61 +227,40 @@ public static partial class ExcelChartConfigTool
         if (string.IsNullOrWhiteSpace(valuesRange))
             ExcelToolsBase.ThrowMissingParameter(nameof(valuesRange), "add-series");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.AddSeries(batch, chartName!, seriesName!, valuesRange!, categoryRange));
-
-        return JsonSerializer.Serialize(result, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.add-series", sessionId, new { chartName, seriesName, valuesRange, categoryRange });
     }
 
-    private static string RemoveSeriesAction(ChartCommands commands, string sessionId, string? chartName, int? seriesIndex)
+    private static string ForwardRemoveSeries(string sessionId, string? chartName, int? seriesIndex)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "remove-series");
         if (!seriesIndex.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(seriesIndex), "remove-series");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
-        {
-            commands.RemoveSeries(batch, chartName!, seriesIndex!.Value);
-            return 0;
-        });
-
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Series {seriesIndex!.Value} removed from chart '{chartName}'" }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.remove-series", sessionId, new { chartName, seriesIndex });
     }
 
-    private static string SetChartTypeAction(ChartCommands commands, string sessionId, string? chartName, ChartType? chartType)
+    private static string ForwardSetChartType(string sessionId, string? chartName, ChartType? chartType)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-chart-type");
         if (!chartType.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(chartType), "set-chart-type");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
-        {
-            commands.SetChartType(batch, chartName!, chartType!.Value);
-            return 0;
-        });
-
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' type changed to {chartType!.Value}" }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.set-chart-type", sessionId, new { chartName, chartType = chartType!.Value.ToString() });
     }
 
-    private static string SetTitleAction(ChartCommands commands, string sessionId, string? chartName, string? title)
+    private static string ForwardSetTitle(string sessionId, string? chartName, string? title)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-title");
         if (title == null)
             ExcelToolsBase.ThrowMissingParameter(nameof(title), "set-title");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
-        {
-            commands.SetTitle(batch, chartName!, title!);
-            return 0;
-        });
-
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = string.IsNullOrEmpty(title) ? $"Chart '{chartName}' title hidden" : $"Chart '{chartName}' title set" }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.set-title", sessionId, new { chartName, title });
     }
 
-    private static string SetAxisTitleAction(ChartCommands commands, string sessionId, string? chartName, ChartAxisType? axis, string? title)
+    private static string ForwardSetAxisTitle(string sessionId, string? chartName, ChartAxisType? axis, string? title)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-axis-title");
@@ -300,29 +269,20 @@ public static partial class ExcelChartConfigTool
         if (title == null)
             ExcelToolsBase.ThrowMissingParameter(nameof(title), "set-axis-title");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
-        {
-            commands.SetAxisTitle(batch, chartName!, axis!.Value, title!);
-            return 0;
-        });
-
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' {axis!.Value} axis title set" }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.set-axis-title", sessionId, new { chartName, axis = axis!.Value.ToString(), title });
     }
 
-    private static string GetAxisNumberFormatAction(ChartCommands commands, string sessionId, string? chartName, ChartAxisType? axis)
+    private static string ForwardGetAxisNumberFormat(string sessionId, string? chartName, ChartAxisType? axis)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "get-axis-number-format");
         if (!axis.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(axis), "get-axis-number-format");
 
-        var numberFormat = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.GetAxisNumberFormat(batch, chartName!, axis!.Value));
-
-        return JsonSerializer.Serialize(new { Success = true, ChartName = chartName, Axis = axis!.Value.ToString(), NumberFormat = numberFormat }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.get-axis-number-format", sessionId, new { chartName, axis = axis!.Value.ToString() });
     }
 
-    private static string SetAxisNumberFormatAction(ChartCommands commands, string sessionId, string? chartName, ChartAxisType? axis, string? numberFormat)
+    private static string ForwardSetAxisNumberFormat(string sessionId, string? chartName, ChartAxisType? axis, string? numberFormat)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-axis-number-format");
@@ -331,51 +291,30 @@ public static partial class ExcelChartConfigTool
         if (string.IsNullOrWhiteSpace(numberFormat))
             ExcelToolsBase.ThrowMissingParameter(nameof(numberFormat), "set-axis-number-format");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
-        {
-            commands.SetAxisNumberFormat(batch, chartName!, axis!.Value, numberFormat!);
-            return 0;
-        });
-
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' {axis!.Value} axis number format set to '{numberFormat}'" }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.set-axis-number-format", sessionId, new { chartName, axis = axis!.Value.ToString(), numberFormat });
     }
 
-    private static string ShowLegendAction(ChartCommands commands, string sessionId, string? chartName, bool? visible, LegendPosition? legendPosition)
+    private static string ForwardShowLegend(string sessionId, string? chartName, bool? visible, LegendPosition? legendPosition)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "show-legend");
         if (!visible.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(visible), "show-legend");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
-        {
-            commands.ShowLegend(batch, chartName!, visible!.Value, legendPosition);
-            return 0;
-        });
-
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = visible!.Value ? $"Chart '{chartName}' legend shown" : $"Chart '{chartName}' legend hidden" }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.show-legend", sessionId, new { chartName, visible, legendPosition = legendPosition?.ToString() });
     }
 
-    private static string SetStyleAction(ChartCommands commands, string sessionId, string? chartName, int? styleId)
+    private static string ForwardSetStyle(string sessionId, string? chartName, int? styleId)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-style");
         if (!styleId.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(styleId), "set-style");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
-        {
-            commands.SetStyle(batch, chartName!, styleId!.Value);
-            return 0;
-        });
-
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' style set to {styleId!.Value}" }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.set-style", sessionId, new { chartName, styleId });
     }
 
-    // === DATA LABELS ===
-
-    private static string SetDataLabelsAction(
-        ChartCommands commands,
+    private static string ForwardSetDataLabels(
         string sessionId,
         string? chartName,
         bool? showValue,
@@ -390,43 +329,31 @@ public static partial class ExcelChartConfigTool
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-data-labels");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
+        return ExcelToolsBase.ForwardToService("chartconfig.set-data-labels", sessionId, new
         {
-            commands.SetDataLabels(
-                batch,
-                chartName!,
-                showValue,
-                showPercentage,
-                showSeriesName,
-                showCategoryName,
-                showBubbleSize,
-                separator,
-                labelPosition,
-                seriesIndex);
-            return 0;
+            chartName,
+            showValue,
+            showPercentage,
+            showSeriesName,
+            showCategoryName,
+            showBubbleSize,
+            separator,
+            labelPosition = labelPosition?.ToString(),
+            seriesIndex
         });
-
-        string target = seriesIndex.HasValue ? $"series {seriesIndex.Value}" : "all series";
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Data labels configured for {target} in chart '{chartName}'" }, JsonOptions);
     }
 
-    // === AXIS SCALE ===
-
-    private static string GetAxisScaleAction(ChartCommands commands, string sessionId, string? chartName, ChartAxisType? axis)
+    private static string ForwardGetAxisScale(string sessionId, string? chartName, ChartAxisType? axis)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "get-axis-scale");
         if (!axis.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(axis), "get-axis-scale");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.GetAxisScale(batch, chartName!, axis!.Value));
-
-        return JsonSerializer.Serialize(result, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.get-axis-scale", sessionId, new { chartName, axis = axis!.Value.ToString() });
     }
 
-    private static string SetAxisScaleAction(
-        ChartCommands commands,
+    private static string ForwardSetAxisScale(
         string sessionId,
         string? chartName,
         ChartAxisType? axis,
@@ -440,54 +367,28 @@ public static partial class ExcelChartConfigTool
         if (!axis.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(axis), "set-axis-scale");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
-        {
-            commands.SetAxisScale(batch, chartName!, axis!.Value, minimumScale, maximumScale, majorUnit, minorUnit);
-            return 0;
-        });
-
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Axis scale configured for {axis!.Value} axis in chart '{chartName}'" }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.set-axis-scale", sessionId, new { chartName, axis = axis!.Value.ToString(), minimumScale, maximumScale, majorUnit, minorUnit });
     }
 
-    // === GRIDLINES ===
-
-    private static string GetGridlinesAction(ChartCommands commands, string sessionId, string? chartName)
+    private static string ForwardGetGridlines(string sessionId, string? chartName)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "get-gridlines");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.GetGridlines(batch, chartName!));
-
-        return JsonSerializer.Serialize(result, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.get-gridlines", sessionId, new { chartName });
     }
 
-    private static string SetGridlinesAction(
-        ChartCommands commands,
-        string sessionId,
-        string? chartName,
-        ChartAxisType? axis,
-        bool? showMajor,
-        bool? showMinor)
+    private static string ForwardSetGridlines(string sessionId, string? chartName, ChartAxisType? axis, bool? showMajor, bool? showMinor)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-gridlines");
         if (!axis.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(axis), "set-gridlines");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
-        {
-            commands.SetGridlines(batch, chartName!, axis!.Value, showMajor, showMinor);
-            return 0;
-        });
-
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Gridlines configured for {axis!.Value} axis in chart '{chartName}'" }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.set-gridlines", sessionId, new { chartName, axis = axis!.Value.ToString(), showMajor, showMinor });
     }
 
-    // === SERIES FORMATTING ===
-
-    private static string SetSeriesFormatAction(
-        ChartCommands commands,
+    private static string ForwardSetSeriesFormat(
         string sessionId,
         string? chartName,
         int? seriesIndex,
@@ -502,40 +403,29 @@ public static partial class ExcelChartConfigTool
         if (!seriesIndex.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(seriesIndex), "set-series-format");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
+        return ExcelToolsBase.ForwardToService("chartconfig.set-series-format", sessionId, new
         {
-            commands.SetSeriesFormat(
-                batch,
-                chartName!,
-                seriesIndex!.Value,
-                markerStyle,
-                markerSize,
-                markerBackgroundColor,
-                markerForegroundColor,
-                invertIfNegative);
-            return 0;
+            chartName,
+            seriesIndex,
+            markerStyle = markerStyle?.ToString(),
+            markerSize,
+            markerBackgroundColor,
+            markerForegroundColor,
+            invertIfNegative
         });
-
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Series {seriesIndex!.Value} format configured in chart '{chartName}'" }, JsonOptions);
     }
 
-    // === TRENDLINES ===
-
-    private static string ListTrendlinesAction(ChartCommands commands, string sessionId, string? chartName, int? seriesIndex)
+    private static string ForwardListTrendlines(string sessionId, string? chartName, int? seriesIndex)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "list-trendlines");
         if (!seriesIndex.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(seriesIndex), "list-trendlines");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.ListTrendlines(batch, chartName!, seriesIndex!.Value));
-
-        return JsonSerializer.Serialize(result, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.list-trendlines", sessionId, new { chartName, seriesIndex });
     }
 
-    private static string AddTrendlineAction(
-        ChartCommands commands,
+    private static string ForwardAddTrendline(
         string sessionId,
         string? chartName,
         int? seriesIndex,
@@ -556,30 +446,23 @@ public static partial class ExcelChartConfigTool
         if (!trendlineType.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(trendlineType), "add-trendline");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.AddTrendline(
-                batch,
-                chartName!,
-                seriesIndex!.Value,
-                trendlineType!.Value,
-                order,
-                period,
-                forward,
-                backward,
-                intercept,
-                displayEquation ?? false,
-                displayRSquared ?? false,
-                trendlineName));
-
-        return JsonSerializer.Serialize(result, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.add-trendline", sessionId, new
+        {
+            chartName,
+            seriesIndex,
+            trendlineType = trendlineType!.Value.ToString(),
+            order,
+            period,
+            forward,
+            backward,
+            intercept,
+            displayEquation = displayEquation ?? false,
+            displayRSquared = displayRSquared ?? false,
+            trendlineName
+        });
     }
 
-    private static string DeleteTrendlineAction(
-        ChartCommands commands,
-        string sessionId,
-        string? chartName,
-        int? seriesIndex,
-        int? trendlineIndex)
+    private static string ForwardDeleteTrendline(string sessionId, string? chartName, int? seriesIndex, int? trendlineIndex)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "delete-trendline");
@@ -588,17 +471,10 @@ public static partial class ExcelChartConfigTool
         if (!trendlineIndex.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(trendlineIndex), "delete-trendline");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
-        {
-            commands.DeleteTrendline(batch, chartName!, seriesIndex!.Value, trendlineIndex!.Value);
-            return 0;
-        });
-
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Trendline {trendlineIndex!.Value} deleted from series {seriesIndex!.Value} in chart '{chartName}'" }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.delete-trendline", sessionId, new { chartName, seriesIndex, trendlineIndex });
     }
 
-    private static string SetTrendlineAction(
-        ChartCommands commands,
+    private static string ForwardSetTrendline(
         string sessionId,
         string? chartName,
         int? seriesIndex,
@@ -617,48 +493,31 @@ public static partial class ExcelChartConfigTool
         if (!trendlineIndex.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(trendlineIndex), "set-trendline");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
+        return ExcelToolsBase.ForwardToService("chartconfig.set-trendline", sessionId, new
         {
-            commands.SetTrendline(
-                batch,
-                chartName!,
-                seriesIndex!.Value,
-                trendlineIndex!.Value,
-                forward,
-                backward,
-                intercept,
-                displayEquation,
-                displayRSquared,
-                trendlineName);
-            return 0;
+            chartName,
+            seriesIndex,
+            trendlineIndex,
+            forward,
+            backward,
+            intercept,
+            displayEquation,
+            displayRSquared,
+            trendlineName
         });
-
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Trendline {trendlineIndex!.Value} configured in series {seriesIndex!.Value} of chart '{chartName}'" }, JsonOptions);
     }
 
-    // === PLACEMENT ===
-
-    private static string SetPlacementAction(ChartCommands commands, string sessionId, string? chartName, int? placement)
+    private static string ForwardSetPlacement(string sessionId, string? chartName, int? placement)
     {
         if (string.IsNullOrWhiteSpace(chartName))
             ExcelToolsBase.ThrowMissingParameter(nameof(chartName), "set-placement");
         if (!placement.HasValue)
             ExcelToolsBase.ThrowMissingParameter(nameof(placement), "set-placement");
 
-        ExcelToolsBase.WithSession(sessionId, batch =>
-        {
-            commands.SetPlacement(batch, chartName!, placement!.Value);
-            return 0;
-        });
-
-        string placementDescription = placement!.Value switch
-        {
-            1 => "Move and size with cells",
-            2 => "Move but don't size with cells",
-            3 => "Don't move or size with cells (free floating)",
-            _ => $"Unknown ({placement.Value})"
-        };
-
-        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"Chart '{chartName}' placement set to: {placementDescription}" }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("chartconfig.set-placement", sessionId, new { chartName, placement });
     }
 }
+
+
+
+

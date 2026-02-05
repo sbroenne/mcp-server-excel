@@ -69,7 +69,7 @@ public class ConnectionTestsFixture : IAsyncLifetime
         var guid = Guid.NewGuid().ToString("N")[..8];
         var testFile = Path.Join(_tempDir, $"Conn_{testName}_{guid}.xlsx");
         using var manager = new SessionManager();
-        var sessionId = manager.CreateSessionForNewFile(testFile, showExcel: false);
+        var sessionId = manager.CreateSessionForNewFile(testFile, show: false);
         manager.CloseSession(sessionId, save: true);
         return testFile;
     }
@@ -86,3 +86,7 @@ public class ConnectionTestsFixture : IAsyncLifetime
         return Path.Join(_tempDir, $"{testName}_{suffix}.xlsx");
     }
 }
+
+
+
+

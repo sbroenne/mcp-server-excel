@@ -74,3 +74,5 @@ public partial class PivotTableCommands
             (strategy, pivot) => strategy.SortField(pivot, fieldName, direction, batch.WorkbookPath));
 }
 
+
+

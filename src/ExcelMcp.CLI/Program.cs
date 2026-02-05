@@ -1,8 +1,8 @@
 using System.Reflection;
 using Sbroenne.ExcelMcp.CLI.Commands;
-using Sbroenne.ExcelMcp.CLI.Service;
-using Sbroenne.ExcelMcp.CLI.Infrastructure;
-using Sbroenne.ExcelMcp.Core.Models.Actions;
+using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.Service.Infrastructure;
+using Sbroenne.ExcelMcp.Generated;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -78,95 +78,97 @@ internal sealed class Program
             config.AddCommand<SheetCommand>("sheet")
                 .WithDescription(DescribeActions(
                     "Worksheet operations.",
-                    ActionValidator.GetValidActions<WorksheetAction>()
-                        .Concat(ActionValidator.GetValidActions<WorksheetStyleAction>())));
+                    ServiceRegistry.Sheet.ValidActions
+                        .Concat(ServiceRegistry.SheetStyle.ValidActions)));
 
             // Range commands
             config.AddCommand<RangeCommand>("range")
                 .WithDescription(DescribeActions(
                     "Range operations.",
-                    ActionValidator.GetValidActions<RangeAction>()
-                        .Concat(ActionValidator.GetValidActions<RangeEditAction>())
-                        .Concat(ActionValidator.GetValidActions<RangeFormatAction>())
-                        .Concat(ActionValidator.GetValidActions<RangeLinkAction>())));
+                    ServiceRegistry.Range.ValidActions
+                        .Concat(ServiceRegistry.RangeEdit.ValidActions)
+                        .Concat(ServiceRegistry.RangeFormat.ValidActions)
+                        .Concat(ServiceRegistry.RangeLink.ValidActions)));
 
             // Table commands
             config.AddCommand<TableCommand>("table")
                 .WithDescription(DescribeActions(
                     "Table operations.",
-                    ActionValidator.GetValidActions<TableAction>()));
+                    ServiceRegistry.Table.ValidActions));
 
             // PowerQuery commands
             config.AddCommand<PowerQueryCommand>("powerquery")
                 .WithDescription(DescribeActions(
                     "Power Query operations.",
-                    ActionValidator.GetValidActions<PowerQueryAction>()));
+                    ServiceRegistry.PowerQuery.ValidActions));
 
             // PivotTable commands
             config.AddCommand<PivotTableCommand>("pivottable")
                 .WithDescription(DescribeActions(
                     "PivotTable operations.",
-                    ActionValidator.GetValidActions<PivotTableAction>()));
+                    ServiceRegistry.PivotTable.ValidActions
+                        .Concat(ServiceRegistry.PivotTableField.ValidActions)
+                        .Concat(ServiceRegistry.PivotTableCalc.ValidActions)));
 
             // Chart commands
             config.AddCommand<ChartCommand>("chart")
                 .WithDescription(DescribeActions(
                     "Chart operations.",
-                    ActionValidator.GetValidActions<ChartAction>()));
+                    ServiceRegistry.Chart.ValidActions));
 
             // ChartConfig commands
             config.AddCommand<ChartConfigCommand>("chartconfig")
                 .WithDescription(DescribeActions(
                     "Chart configuration.",
-                    ActionValidator.GetValidActions<ChartConfigAction>()));
+                    ServiceRegistry.ChartConfig.ValidActions));
 
             // Connection commands
             config.AddCommand<ConnectionCommand>("connection")
                 .WithDescription(DescribeActions(
                     "Connection operations.",
-                    ActionValidator.GetValidActions<ConnectionAction>()));
+                    ServiceRegistry.Connection.ValidActions));
 
             // Calculation mode commands
             config.AddCommand<CalculationModeCommand>("calculationmode")
                 .WithDescription(DescribeActions(
                     "Calculation mode operations.",
-                    ActionValidator.GetValidActions<CalculationModeAction>()));
+                    ServiceRegistry.Calculation.ValidActions));
 
             // NamedRange commands
             config.AddCommand<NamedRangeCommand>("namedrange")
                 .WithDescription(DescribeActions(
                     "Named range operations.",
-                    ActionValidator.GetValidActions<NamedRangeAction>()));
+                    ServiceRegistry.NamedRange.ValidActions));
 
             // ConditionalFormat commands
             config.AddCommand<ConditionalFormatCommand>("conditionalformat")
                 .WithDescription(DescribeActions(
                     "Conditional formatting.",
-                    ActionValidator.GetValidActions<ConditionalFormatAction>()));
+                    ServiceRegistry.ConditionalFormat.ValidActions));
 
             // VBA commands
             config.AddCommand<VbaCommand>("vba")
                 .WithDescription(DescribeActions(
                     "VBA operations.",
-                    ActionValidator.GetValidActions<VbaAction>()));
+                    ServiceRegistry.Vba.ValidActions));
 
             // DataModel commands
             config.AddCommand<DataModelCommand>("datamodel")
                 .WithDescription(DescribeActions(
                     "Data Model operations.",
-                    ActionValidator.GetValidActions<DataModelAction>()));
+                    ServiceRegistry.DataModel.ValidActions));
 
             // DataModel relationship commands
             config.AddCommand<DataModelRelCommand>("datamodelrel")
                 .WithDescription(DescribeActions(
                     "Data Model relationship operations.",
-                    ActionValidator.GetValidActions<DataModelRelAction>()));
+                    ServiceRegistry.DataModelRel.ValidActions));
 
             // Slicer commands
             config.AddCommand<SlicerCommand>("slicer")
                 .WithDescription(DescribeActions(
                     "Slicer operations.",
-                    ActionValidator.GetValidActions<SlicerAction>()));
+                    ServiceRegistry.Slicer.ValidActions));
         });
 
         try
@@ -250,7 +252,7 @@ internal sealed class Program
         if (updateAvailable)
         {
             AnsiConsole.MarkupLine($"[yellow]⚠ Update available:[/] [dim]{currentVersion}[/] → [green]{latestVersion}[/]");
-            AnsiConsole.MarkupLine($"[cyan]Run:[/] [white]dotnet tool update --global Sbroenne.ExcelMcp.CLI[/]");
+            AnsiConsole.MarkupLine($"[cyan]Run:[/] [white]dotnet tool update --global Sbroenne.ExcelMcp.McpServer[/]");
             AnsiConsole.MarkupLine($"[cyan]Release notes:[/] [blue]https://github.com/sbroenne/mcp-server-excel/releases/latest[/]");
         }
         else if (latestVersion != null)
@@ -281,3 +283,5 @@ internal sealed class Program
         return string.Compare(current, latest, StringComparison.Ordinal);
     }
 }
+
+

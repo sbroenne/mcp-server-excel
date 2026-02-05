@@ -187,3 +187,5 @@ public partial class PowerQueryCommands : IPowerQueryCommands
         return false;
     }
 }
+
+

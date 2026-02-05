@@ -1,7 +1,5 @@
 using System.ComponentModel;
-using System.Text.Json;
 using ModelContextProtocol.Server;
-using Sbroenne.ExcelMcp.Core.Commands;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -17,7 +15,7 @@ public static partial class ExcelConditionalFormatTool
     /// FORMAT: interiorColor/fontColor #RRGGBB, fontBold/Italic, borderStyle/Color.
     /// </summary>
     /// <param name="action">Action to perform</param>
-    /// <param name="excelPath">Excel file path (.xlsx or .xlsm)</param>
+    /// <param name="path">Excel file path (.xlsx or .xlsm)</param>
     /// <param name="sessionId">Session ID from excel_file 'open' action</param>
     /// <param name="sheetName">Worksheet name (required for add-rule and clear-rules actions)</param>
     /// <param name="rangeAddress">Range address to apply conditional formatting (e.g., 'A1:D10', required for add-rule and clear-rules)</param>
@@ -37,7 +35,7 @@ public static partial class ExcelConditionalFormatTool
     [McpMeta("requiresSession", true)]
     public static partial string ExcelConditionalFormat(
         ConditionalFormatAction action,
-        string excelPath,
+        string path,
         string sessionId,
         [DefaultValue(null)] string? sheetName,
         [DefaultValue(null)] string? rangeAddress,
@@ -53,108 +51,33 @@ public static partial class ExcelConditionalFormatTool
         [DefaultValue(null)] string? borderStyle,
         [DefaultValue(null)] string? borderColor)
     {
+        _ = path; // retained parameter for schema compatibility
+
         return ExcelToolsBase.ExecuteToolAction(
             "excel_conditionalformat",
-            action.ToActionString(),
-            excelPath,
-            () =>
-            {
-                var conditionalFormattingCommands = new ConditionalFormattingCommands();
-
-                // Switch directly on enum for compile-time exhaustiveness checking (CS8524)
-                return action switch
-                {
-                    ConditionalFormatAction.AddRule => AddRuleAsync(
-                        conditionalFormattingCommands, sessionId, sheetName, rangeAddress, ruleType, operatorType,
-                        formula1, formula2, interiorColor, interiorPattern, fontColor, fontBold, fontItalic,
-                        borderStyle, borderColor),
-                    ConditionalFormatAction.ClearRules => ClearRulesAsync(
-                        conditionalFormattingCommands, sessionId, sheetName, rangeAddress),
-                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-                };
-            });
-    }
-
-    private static string AddRuleAsync(
-        ConditionalFormattingCommands commands,
-        string sessionId,
-        string? sheetName,
-        string? rangeAddress,
-        string? ruleType,
-        string? operatorType,
-        string? formula1,
-        string? formula2,
-        string? interiorColor,
-        string? interiorPattern,
-        string? fontColor,
-        bool? fontBold,
-        bool? fontItalic,
-        string? borderStyle,
-        string? borderColor)
-    {
-        // Validate required parameters
-        if (string.IsNullOrEmpty(sheetName))
-            throw new ArgumentException("sheetName is required for add-rule action", nameof(sheetName));
-        if (string.IsNullOrEmpty(rangeAddress))
-            throw new ArgumentException("rangeAddress is required for add-rule action", nameof(rangeAddress));
-        if (string.IsNullOrEmpty(ruleType))
-            throw new ArgumentException("ruleType is required for add-rule action", nameof(ruleType));
-        if (string.IsNullOrEmpty(formula1))
-            throw new ArgumentException("formula1 is required for add-rule action", nameof(formula1));
-
-        ExcelToolsBase.WithSession(
-            sessionId,
-            batch =>
-            {
-                commands.AddRule(
-                    batch,
-                    sheetName,
-                    rangeAddress,
-                    ruleType,
-                    operatorType,
-                    formula1,
-                    formula2,
-                    interiorColor,
-                    interiorPattern,
-                    fontColor,
-                    fontBold,
-                    fontItalic,
-                    borderStyle,
-                    borderColor);
-                return 0; // Dummy return value for WithSession
-            });
-
-        return JsonSerializer.Serialize(new
-        {
-            success = true,
-            message = "Conditional formatting rule added successfully"
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string ClearRulesAsync(
-        ConditionalFormattingCommands commands,
-        string sessionId,
-        string? sheetName,
-        string? rangeAddress)
-    {
-        if (string.IsNullOrEmpty(sheetName))
-            throw new ArgumentException("sheetName is required for clear-rules action", nameof(sheetName));
-        if (string.IsNullOrEmpty(rangeAddress))
-            throw new ArgumentException("rangeAddress is required for clear-rules action", nameof(rangeAddress));
-
-        ExcelToolsBase.WithSession(
-            sessionId,
-            batch =>
-            {
-                commands.ClearRules(batch, sheetName, rangeAddress);
-                return 0; // Dummy return value for WithSession
-            });
-
-        return JsonSerializer.Serialize(new
-        {
-            success = true,
-            message = "All conditional formatting rules removed from range"
-        }, ExcelToolsBase.JsonOptions);
+            ServiceRegistry.ConditionalFormat.ToActionString(action),
+            path,
+            () => ServiceRegistry.ConditionalFormat.RouteAction(
+                action,
+                sessionId,
+                ExcelToolsBase.ForwardToServiceFunc,
+                sheetName: sheetName,
+                rangeAddress: rangeAddress,
+                ruleType: ruleType,
+                operatorType: operatorType,
+                formula1: formula1,
+                formula2: formula2,
+                interiorColor: interiorColor,
+                interiorPattern: interiorPattern,
+                fontColor: fontColor,
+                fontBold: fontBold,
+                fontItalic: fontItalic,
+                borderStyle: borderStyle,
+                borderColor: borderColor));
     }
 }
+
+
+
+
 

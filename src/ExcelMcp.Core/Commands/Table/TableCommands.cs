@@ -5,7 +5,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 /// <summary>
 /// Excel Table (ListObject) management commands - main partial class with shared state and helper methods
 /// </summary>
-public partial class TableCommands : ITableCommands
+public partial class TableCommands : ITableCommands, ITableColumnCommands
 {
     #region Constants and Validation
 
@@ -83,3 +83,5 @@ public partial class TableCommands : ITableCommands
 
     #endregion
 }
+
+

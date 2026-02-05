@@ -1,8 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
-using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
-using Sbroenne.ExcelMcp.Core.Commands.Table;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -12,8 +10,6 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 [McpServerToolType]
 public static partial class ExcelSlicerTool
 {
-    private static readonly JsonSerializerOptions JsonOptions = ExcelToolsBase.JsonOptions;
-
     /// <summary>
     /// Slicer management: create, list, configure, and delete visual filtering controls.
     ///
@@ -78,33 +74,29 @@ public static partial class ExcelSlicerTool
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_slicer",
-            action.ToActionString(),
+            ServiceRegistry.Slicer.ToActionString(action),
             () =>
             {
-                var pivotCommands = new PivotTableCommands();
-                var tableCommands = new TableCommands();
-
                 return action switch
                 {
                     // PivotTable slicers
-                    SlicerAction.CreateSlicer => CreateSlicer(pivotCommands, sessionId, pivotTableName, fieldName, slicerName, destinationSheet, position),
-                    SlicerAction.ListSlicers => ListSlicers(pivotCommands, sessionId, pivotTableName),
-                    SlicerAction.SetSlicerSelection => SetSlicerSelection(pivotCommands, sessionId, slicerName, selectedItems, clearFirst),
-                    SlicerAction.DeleteSlicer => DeleteSlicer(pivotCommands, sessionId, slicerName),
+                    SlicerAction.CreateSlicer => ForwardCreateSlicer(sessionId, pivotTableName, fieldName, slicerName, destinationSheet, position),
+                    SlicerAction.ListSlicers => ForwardListSlicers(sessionId, pivotTableName),
+                    SlicerAction.SetSlicerSelection => ForwardSetSlicerSelection(sessionId, slicerName, selectedItems, clearFirst),
+                    SlicerAction.DeleteSlicer => ForwardDeleteSlicer(sessionId, slicerName),
                     // Table slicers
-                    SlicerAction.CreateTableSlicer => CreateTableSlicer(tableCommands, sessionId, tableName, columnName, slicerName, destinationSheet, position),
-                    SlicerAction.ListTableSlicers => ListTableSlicers(tableCommands, sessionId, tableName),
-                    SlicerAction.SetTableSlicerSelection => SetTableSlicerSelection(tableCommands, sessionId, slicerName, selectedItems, clearFirst),
-                    SlicerAction.DeleteTableSlicer => DeleteTableSlicer(tableCommands, sessionId, slicerName),
-                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                    SlicerAction.CreateTableSlicer => ForwardCreateTableSlicer(sessionId, tableName, columnName, slicerName, destinationSheet, position),
+                    SlicerAction.ListTableSlicers => ForwardListTableSlicers(sessionId, tableName),
+                    SlicerAction.SetTableSlicerSelection => ForwardSetTableSlicerSelection(sessionId, slicerName, selectedItems, clearFirst),
+                    SlicerAction.DeleteTableSlicer => ForwardDeleteTableSlicer(sessionId, slicerName),
+                    _ => throw new ArgumentException($"Unknown action: {action} ({ServiceRegistry.Slicer.ToActionString(action)})", nameof(action))
                 };
             });
     }
 
-    #region PivotTable Slicer Methods
+    // === PIVOTTABLE SLICER SERVICE FORWARDING METHODS ===
 
-    private static string CreateSlicer(
-        PivotTableCommands commands,
+    private static string ForwardCreateSlicer(
         string sessionId,
         string? pivotTableName,
         string? fieldName,
@@ -126,99 +118,52 @@ public static partial class ExcelSlicerTool
             ? $"{fieldName}Slicer"
             : slicerName;
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.CreateSlicer(batch, pivotTableName!, fieldName!, effectiveSlicerName!, destinationSheet!, position!));
+        // Parse position string to left/top coordinates (position like "E1" or "100,100")
+        var (left, top) = ParsePosition(position!);
 
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("slicer.create-slicer", sessionId, new
         {
-            result.Success,
-            result.Name,
-            result.Caption,
-            result.FieldName,
-            result.SheetName,
-            result.Position,
-            result.SelectedItems,
-            result.AvailableItems,
-            result.ConnectedPivotTables,
-            result.SourceType,
-            result.WorkflowHint,
-            result.ErrorMessage
-        }, JsonOptions);
+            pivotTableName,
+            sourceFieldName = fieldName,
+            slicerName = effectiveSlicerName,
+            destinationSheet,
+            left,
+            top
+        });
     }
 
-    private static string ListSlicers(
-        PivotTableCommands commands,
-        string sessionId,
-        string? pivotTableName)
+    private static string ForwardListSlicers(string sessionId, string? pivotTableName)
     {
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.ListSlicers(batch, pivotTableName));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.Slicers,
-            result.ErrorMessage
-        }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("slicer.list-slicers", sessionId, new { pivotTableName });
     }
 
-    private static string SetSlicerSelection(
-        PivotTableCommands commands,
-        string sessionId,
-        string? slicerName,
-        string? selectedItems,
-        bool clearFirst)
+    private static string ForwardSetSlicerSelection(string sessionId, string? slicerName, string? selectedItems, bool clearFirst)
     {
         if (string.IsNullOrWhiteSpace(slicerName))
             ExcelToolsBase.ThrowMissingParameter("slicerName", "set-slicer-selection");
 
-        // Parse the selectedItems JSON array
-        List<string> items = ParseSelectedItems(selectedItems);
+        // Parse the selectedItems JSON array to comma-separated string for service
+        var itemsCsv = ParseSelectedItemsToCsv(selectedItems);
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.SetSlicerSelection(batch, slicerName!, items, clearFirst));
-
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("slicer.set-slicer-selection", sessionId, new
         {
-            result.Success,
-            result.Name,
-            result.Caption,
-            result.FieldName,
-            result.SheetName,
-            result.Position,
-            result.SelectedItems,
-            result.AvailableItems,
-            result.ConnectedPivotTables,
-            result.SourceType,
-            result.WorkflowHint,
-            result.ErrorMessage
-        }, JsonOptions);
+            slicerName,
+            selectedItems = itemsCsv,
+            multiSelect = !clearFirst
+        });
     }
 
-    private static string DeleteSlicer(
-        PivotTableCommands commands,
-        string sessionId,
-        string? slicerName)
+    private static string ForwardDeleteSlicer(string sessionId, string? slicerName)
     {
         if (string.IsNullOrWhiteSpace(slicerName))
             ExcelToolsBase.ThrowMissingParameter("slicerName", "delete-slicer");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.DeleteSlicer(batch, slicerName!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ErrorMessage
-        }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("slicer.delete-slicer", sessionId, new { slicerName });
     }
 
-    #endregion
+    // === TABLE SLICER SERVICE FORWARDING METHODS ===
 
-    #region Table Slicer Methods
-
-    private static string CreateTableSlicer(
-        TableCommands commands,
+    private static string ForwardCreateTableSlicer(
         string sessionId,
         string? tableName,
         string? columnName,
@@ -240,112 +185,93 @@ public static partial class ExcelSlicerTool
             ? $"{columnName}Slicer"
             : slicerName;
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.CreateTableSlicer(batch, tableName!, columnName!, effectiveSlicerName!, destinationSheet!, position!));
+        // Parse position string to left/top coordinates
+        var (left, top) = ParsePosition(position!);
 
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("slicer.create-table-slicer", sessionId, new
         {
-            result.Success,
-            result.Name,
-            result.Caption,
-            result.FieldName,
-            result.SheetName,
-            result.Position,
-            result.SelectedItems,
-            result.AvailableItems,
-            result.ConnectedTable,
-            result.SourceType,
-            result.WorkflowHint,
-            result.ErrorMessage
-        }, JsonOptions);
+            tableName,
+            columnName,
+            slicerName = effectiveSlicerName,
+            destinationSheet,
+            left,
+            top
+        });
     }
 
-    private static string ListTableSlicers(
-        TableCommands commands,
-        string sessionId,
-        string? tableName)
+    private static string ForwardListTableSlicers(string sessionId, string? tableName)
     {
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.ListTableSlicers(batch, tableName));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.Slicers,
-            result.ErrorMessage
-        }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("slicer.list-table-slicers", sessionId, new { tableName });
     }
 
-    private static string SetTableSlicerSelection(
-        TableCommands commands,
-        string sessionId,
-        string? slicerName,
-        string? selectedItems,
-        bool clearFirst)
+    private static string ForwardSetTableSlicerSelection(string sessionId, string? slicerName, string? selectedItems, bool clearFirst)
     {
         if (string.IsNullOrWhiteSpace(slicerName))
             ExcelToolsBase.ThrowMissingParameter("slicerName", "set-table-slicer-selection");
 
-        // Parse the selectedItems JSON array
-        List<string> items = ParseSelectedItems(selectedItems);
+        // Parse the selectedItems JSON array to comma-separated string for service
+        var itemsCsv = ParseSelectedItemsToCsv(selectedItems);
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.SetTableSlicerSelection(batch, slicerName!, items, clearFirst));
-
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("slicer.set-table-slicer-selection", sessionId, new
         {
-            result.Success,
-            result.Name,
-            result.Caption,
-            result.FieldName,
-            result.SheetName,
-            result.Position,
-            result.SelectedItems,
-            result.AvailableItems,
-            result.ConnectedTable,
-            result.SourceType,
-            result.WorkflowHint,
-            result.ErrorMessage
-        }, JsonOptions);
+            slicerName,
+            selectedItems = itemsCsv,
+            multiSelect = !clearFirst
+        });
     }
 
-    private static string DeleteTableSlicer(
-        TableCommands commands,
-        string sessionId,
-        string? slicerName)
+    private static string ForwardDeleteTableSlicer(string sessionId, string? slicerName)
     {
         if (string.IsNullOrWhiteSpace(slicerName))
             ExcelToolsBase.ThrowMissingParameter("slicerName", "delete-table-slicer");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.DeleteTableSlicer(batch, slicerName!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ErrorMessage
-        }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("slicer.delete-table-slicer", sessionId, new { slicerName });
     }
 
-    #endregion
+    // === HELPER METHODS ===
 
-    #region Shared Helper Methods
+    /// <summary>
+    /// Parse position string to left/top coordinates.
+    /// Supports "100,100" format or defaults to 100,100 for cell addresses.
+    /// </summary>
+    private static (double left, double top) ParsePosition(string position)
+    {
+        if (position.Contains(','))
+        {
+            var parts = position.Split(',');
+            if (parts.Length >= 2 &&
+                double.TryParse(parts[0].Trim(), out var left) &&
+                double.TryParse(parts[1].Trim(), out var top))
+            {
+                return (left, top);
+            }
+        }
 
-    private static List<string> ParseSelectedItems(string? selectedItems)
+        // Default position for cell addresses or invalid formats
+        return (100, 100);
+    }
+
+    /// <summary>
+    /// Parse JSON array of selected items to comma-separated string for service.
+    /// </summary>
+    private static string? ParseSelectedItemsToCsv(string? selectedItems)
     {
         if (string.IsNullOrWhiteSpace(selectedItems))
-            return [];
+            return null;
 
         try
         {
-            return JsonSerializer.Deserialize<List<string>>(selectedItems, JsonOptions) ?? [];
+            var items = JsonSerializer.Deserialize<List<string>>(selectedItems, ExcelToolsBase.JsonOptions);
+            return items != null ? string.Join(",", items) : null;
         }
         catch (JsonException)
         {
             // If parsing fails, treat as single item
-            return [selectedItems!];
+            return selectedItems;
         }
     }
-
-    #endregion
 }
+
+
+
+

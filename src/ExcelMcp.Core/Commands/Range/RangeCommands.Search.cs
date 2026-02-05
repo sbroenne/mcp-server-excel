@@ -16,7 +16,7 @@ public partial class RangeCommands
     /// Finds all cells matching criteria in range
     /// Excel COM: Range.Find()
     /// </summary>
-    public RangeFindResult Find(IExcelBatch batch, string sheetName, string rangeAddress, string searchValue, FindOptions options)
+    public RangeFindResult Find(IExcelBatch batch, string sheetName, string rangeAddress, string searchValue, FindOptions findOptions)
     {
         var result = new RangeFindResult
         {
@@ -39,9 +39,9 @@ public partial class RangeCommands
                 }
 
                 // Excel COM constants
-                int lookIn = options.SearchFormulas && options.SearchValues ? -4163 : // xlValues
-                             options.SearchFormulas ? -4123 : -4163; // xlFormulas : xlValues
-                int lookAt = options.MatchEntireCell ? 1 : 2; // xlWhole : xlPart
+                int lookIn = findOptions.SearchFormulas && findOptions.SearchValues ? -4163 : // xlValues
+                             findOptions.SearchFormulas ? -4123 : -4163; // xlFormulas : xlValues
+                int lookAt = findOptions.MatchEntireCell ? 1 : 2; // xlWhole : xlPart
 
                 foundCell = range.Find(
                     What: searchValue,
@@ -49,7 +49,7 @@ public partial class RangeCommands
                     LookAt: lookAt,
                     SearchOrder: 1, // xlByRows
                     SearchDirection: 1, // xlNext
-                    MatchCase: options.MatchCase
+                    MatchCase: findOptions.MatchCase
                 );
 
                 if (foundCell != null)
@@ -82,7 +82,7 @@ public partial class RangeCommands
 
     /// <inheritdoc />
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
-    public void Replace(IExcelBatch batch, string sheetName, string rangeAddress, string findValue, string replaceValue, ReplaceOptions options)
+    public void Replace(IExcelBatch batch, string sheetName, string rangeAddress, string findValue, string replaceValue, ReplaceOptions replaceOptions)
     {
         batch.Execute((ctx, ct) =>
         {
@@ -96,16 +96,16 @@ public partial class RangeCommands
                 }
 
                 // Excel COM constants
-                int lookIn = options.SearchFormulas && options.SearchValues ? -4163 : // xlValues
-                             options.SearchFormulas ? -4123 : -4163; // xlFormulas : xlValues
-                int lookAt = options.MatchEntireCell ? 1 : 2; // xlWhole : xlPart
+                int lookIn = replaceOptions.SearchFormulas && replaceOptions.SearchValues ? -4163 : // xlValues
+                             replaceOptions.SearchFormulas ? -4123 : -4163; // xlFormulas : xlValues
+                int lookAt = replaceOptions.MatchEntireCell ? 1 : 2; // xlWhole : xlPart
 
                 range.Replace(
                     What: findValue,
                     Replacement: replaceValue,
                     LookAt: lookAt,
                     SearchOrder: 1, // xlByRows
-                    MatchCase: options.MatchCase,
+                    MatchCase: replaceOptions.MatchCase,
                     MatchByte: false
                 );
 
@@ -190,4 +190,6 @@ public partial class RangeCommands
     // === NATIVE EXCEL COM OPERATIONS ===
 
 }
+
+
 

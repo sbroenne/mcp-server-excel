@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.CLI.Service;
+using Sbroenne.ExcelMcp.Service;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -210,4 +210,6 @@ internal sealed class SessionSaveCommand : AsyncCommand<SessionSaveCommand.Setti
         public string SessionId { get; init; } = string.Empty;
     }
 }
+
+
 

@@ -1,10 +1,280 @@
 # MCP Server Daemon Unification Specification
 
+## Implementation Status
+
+> **🔄 IN PROGRESS** - Phase 2: Unified Package (February 2026)
+
+### Completed Features (Phase 1)
+
+- ✅ **Rename Daemon to ExcelMCP Service** - All code, pipes, mutex, lock files updated
+- ✅ **Session Origin Tracking** - Sessions labeled [CLI] or [MCP] in tray UI
+- ✅ **About Dialog** - Version info and helpful links in tray menu
+- ✅ **Removed Manual Daemon Commands** - No more `daemon start/stop/status` commands
+- ✅ **Service Client Library** - Shared `ServiceClient/` in ComInterop for CLI and MCP
+- ✅ **MCP Server Infrastructure** - Service mode detection and forwarding framework
+- ✅ **All MCP Tools Forward to Service** - Removed standalone mode, all tools use `ForwardToService` pattern
+- ✅ **Removed Standalone Mode** - No more `EXCELMCP_STANDALONE` or `UseServiceMode` toggles
+
+### In Progress (Phase 2 - Unified Package)
+
+- 🔄 **Bundle CLI with MCP Server Package** - Single NuGet package includes both `excelmcp.exe` and `excelcli.exe`
+- 🔄 **Deprecate Separate CLI Package** - `Sbroenne.ExcelMcp.CLI` deprecated, points to unified package
+- ⏳ **Update ServiceLauncher** - Find `excelcli.exe` next to current executable
+- ⏳ **Deduplicate Update Notifications** - Single notification per process lifetime
+- ⏳ **Update Release Workflow** - Single unified release artifact
+
+### Problem Discovered During Testing
+
+MCP Server tests fail because:
+1. Service lives in CLI project (`excelcli service run`)
+2. Tests only build MCP Server, not CLI
+3. `ServiceLauncher` can't find `excelcli.exe`
+4. Installing MCP-only doesn't include the service
+
+### Solution: Unified Package (Simpler Than Service Extraction)
+
+Instead of extracting a separate service project, **bundle CLI with MCP Server**:
+
+```
+Sbroenne.ExcelMcp.McpServer  → excelmcp.exe + excelcli.exe (both included)
+Sbroenne.ExcelMcp.CLI        → DEPRECATED (points to McpServer package)
+```
+
+**Benefits:**
+- ✅ No version mismatch possible (everything upgrades together)
+- ✅ No new project needed (keep service in CLI)
+- ✅ Simpler release (one package)
+- ✅ MCP always finds service (excelcli.exe next to excelmcp.exe)
+
+**Installation (After):**
+```powershell
+# One package, both tools
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+
+# Both commands available
+excelmcp    # MCP Server for AI assistants
+excelcli    # CLI for coding agents
+```
+
+### Architecture
+
+**Service-Only Mode**: MCP Server is now a thin JSON-over-named-pipe layer that forwards ALL requests to the ExcelMCP Service. This enables CLI and MCP Server to share sessions transparently.
+
+```
+MCP Client (VS Code, etc.)
+    │
+    ▼
+┌──────────────────────────┐
+│     MCP Server           │
+│  ForwardToService()      │  ──────► Named Pipe: excelmcp-{UserSid}
+│  (no local Core cmds)    │
+└──────────────────────────┘
+                                      │
+                                      ▼
+                           ┌──────────────────────────┐
+                           │   ExcelMCP Service       │
+                           │  (runs via excelcli)     │
+                           │  ┌────────────────────┐  │
+                           │  │  SessionManager    │  │
+                           │  │  (shared sessions) │  │
+                           │  └────────────────────┘  │
+                           └──────────────────────────┘
+```
+
+---
+
+## Phase 2: Service Extraction (Current Work)
+
+### Problem: Deployment Mismatch
+
+**User installs ONLY MCP Server:**
+```powershell
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+```
+- MCP Server tries to start `excelcli.exe service run`
+- `excelcli.exe` doesn't exist because CLI isn't installed
+- **All operations fail** ❌
+
+### Solution: Separate Service Project
+
+Create `ExcelMcp.Service` as an independent project that produces `excelservice.exe`:
+
+```
+src/
+  ExcelMcp.Service/              ← NEW PROJECT
+    ExcelMcp.Service.csproj      ← net10.0-windows (WinForms for tray)
+    Program.cs                   ← Entry point
+    ExcelMcpService.cs           ← Moved from CLI/Service/
+    ServiceTray.cs               ← Moved from CLI/Service/
+    ...
+
+  ExcelMcp.CLI/
+    ExcelMcp.CLI.csproj          ← BUNDLES excelservice.exe
+    Commands/                     ← CLI commands only
+
+  ExcelMcp.McpServer/
+    ExcelMcp.McpServer.csproj    ← BUNDLES excelservice.exe
+    Tools/                        ← MCP tools only
+```
+
+### Deployment Scenarios
+
+**User installs CLI only:**
+```
+~/.dotnet/tools/
+  excelcli.exe              ← CLI tool
+  excelservice.exe          ← Bundled service
+```
+✅ CLI finds service next to itself
+
+**User installs MCP only:**
+```
+~/.dotnet/tools/
+  excelmcp.exe              ← MCP Server
+  excelservice.exe          ← Bundled service
+```
+✅ MCP finds service next to itself
+
+**User installs BOTH:**
+```
+~/.dotnet/tools/
+  excelcli.exe
+  excelmcp.exe
+  excelservice.exe          ← One copy, shared
+```
+✅ Either can start it, sessions are shared
+
+### Version Mismatch Handling
+
+**Scenario:** User has CLI v1.5 (with Service v1.5) and updates MCP to v1.6 (with Service v1.6)
+
+**Problem:**
+- CLI starts service v1.5
+- MCP connects and expects v1.6 protocol
+- Potential incompatibility!
+
+**Solution: "Latest Wins" Strategy**
+
+```csharp
+// On client startup (both CLI and MCP):
+public async Task<bool> EnsureServiceRunningAsync()
+{
+    var runningVersion = await GetRunningServiceVersionAsync();
+    var bundledVersion = GetBundledServiceVersion();
+    
+    if (runningVersion == null)
+    {
+        // No service running, start bundled version
+        return await StartServiceAsync();
+    }
+    
+    if (bundledVersion > runningVersion)
+    {
+        // Bundled version is newer - upgrade!
+        await RequestServiceShutdownAsync();
+        await WaitForServiceExitAsync();
+        return await StartServiceAsync();
+    }
+    
+    // Running version is same or newer - use it
+    return true;
+}
+```
+
+**Protocol Additions:**
+
+```json
+// Ping response includes version
+{
+  "success": true,
+  "version": "1.6.0",
+  "uptime": "00:15:30"
+}
+
+// Graceful shutdown command
+{
+  "command": "service.shutdown",
+  "reason": "upgrade"
+}
+```
+
+**Compatibility Rules:**
+- Same major version = compatible (v1.5 client can use v1.6 service)
+- Different major version = force upgrade (v2.0 client shuts down v1.x service)
+- Service maintains backward compatibility within major version
+
+### Files to Move
+
+**From `CLI/Service/` to new `Service/` project:**
+- `ExcelMcpService.cs` (2282 lines - the main service)
+- `ServiceTray.cs` - Windows Forms tray icon
+- `DialogService.cs` - About dialog
+- `ServiceProtocol.cs` - Command routing
+- `ServiceSecurity.cs` (service-side parts) - Lock files, mutex
+
+**Keep in ComInterop (shared client code):**
+- `ServiceClient/ExcelServiceClient.cs` - Named pipe client
+- `ServiceClient/ServiceLauncher.cs` - Find and start service
+- `ServiceClient/ServiceSecurity.cs` (read-only parts) - Check if running
+
+### NuGet Packaging
+
+Both CLI and MCP Server `.csproj` files need to bundle `excelservice.exe`:
+
+```xml
+<ItemGroup>
+  <!-- Bundle the service executable -->
+  <None Include="$(OutputPath)\..\ExcelMcp.Service\net10.0-windows\excelservice.exe"
+        Pack="true"
+        PackagePath="tools\net10.0-windows\any\" />
+</ItemGroup>
+```
+
+### ServiceLauncher Simplification
+
+```csharp
+private static ProcessStartInfo? GetServiceStartInfo()
+{
+    // Primary: Look next to current executable
+    var serviceExe = Path.Combine(AppContext.BaseDirectory, "excelservice.exe");
+    if (File.Exists(serviceExe))
+    {
+        return new ProcessStartInfo
+        {
+            FileName = serviceExe,
+            UseShellExecute = true,
+            CreateNoWindow = true,
+            WindowStyle = ProcessWindowStyle.Hidden
+        };
+    }
+    
+    // Fallback: Global tools location
+    var globalTools = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        ".dotnet", "tools", "excelservice.exe");
+    
+    if (File.Exists(globalTools))
+    {
+        return new ProcessStartInfo
+        {
+            FileName = globalTools,
+            UseShellExecute = true,
+            CreateNoWindow = true,
+            WindowStyle = ProcessWindowStyle.Hidden
+        };
+    }
+    
+    return null;
+}
+```
+
+---
+
 ## Overview
 
 Unify the MCP Server with the existing CLI daemon architecture to provide persistent session management across both interfaces.
 
-## Problem Statement
+## Problem Statement (Phase 1 - Completed)
 
 ### Current Architecture
 
@@ -198,21 +468,15 @@ public class ExcelFileTool
 
 ## Migration Strategy
 
-### Backward Compatibility
+> **Note:** This section describes the original migration plan. As of February 2026, standalone mode has been **removed entirely**. The MCP Server now operates exclusively in service mode using `ForwardToService` pattern.
 
-1. MCP Server can work in **two modes:**
-   - **Daemon mode** (default): Forward to daemon
-   - **Standalone mode** (fallback): Use embedded `SessionManager`
+### ~~Backward Compatibility~~ (Superseded)
 
-2. Mode detection:
-   ```csharp
-   if (Environment.GetEnvironmentVariable("EXCELMCP_STANDALONE") == "true")
-       UseEmbeddedSessionManager();
-   else
-       UseDaemonClient();
-   ```
+~~1. MCP Server can work in **two modes:**~~
+   ~~- **Daemon mode** (default): Forward to daemon~~
+   ~~- **Standalone mode** (fallback): Use embedded `SessionManager`~~
 
-3. Auto-start daemon if not running (transparent to user)
+**Current Implementation:** Service-only mode. All MCP tools use `ForwardToService()` to send commands to the ExcelMCP Service via named pipe.
 
 ### Testing Strategy
 
@@ -243,39 +507,64 @@ src/
 |------|--------|------------|
 | Daemon startup latency | First call slow | Pre-launch daemon on install, lazy connect |
 | Daemon crashes | All sessions lost | Robust error handling, reconnect logic |
-| Protocol versioning | Breaking changes | Version field in protocol, negotiation |
+| Protocol versioning | Breaking changes | Version field in protocol, "latest wins" upgrade |
 | Security | Named pipe access | Keep existing security (per-user pipe) |
 | Debugging complexity | Two processes | Unified logging, trace correlation |
+| Version mismatch CLI/MCP | Incompatible protocols | Service version check, automatic upgrade |
+| Duplicate services | Race condition on startup | Mutex + lock file, version-aware handoff |
 
 ## Success Criteria
 
+### Phase 1 (Completed)
 1. ✅ MCP Server can complete 5-turn workflow without file locking
 2. ✅ CLI and MCP sessions visible in same tray UI
 3. ✅ Session survives MCP server restart
 4. ✅ No performance regression (< 50ms added latency)
-5. ✅ All existing tests pass
-6. ✅ Standalone mode works for Docker/special cases
+5. ✅ Removed standalone mode - service-only architecture
+
+### Phase 2 (In Progress)
+6. ⏳ MCP-only install works (no CLI required)
+7. ⏳ CLI-only install works (no MCP required)
+8. ⏳ Version mismatch auto-upgrades service
+9. ⏳ Single update notification per process lifetime
+10. ⏳ All MCP Server tests pass
 
 ## Timeline Estimate
 
-- **Phase 1:** 2-3 days (extract client library)
-- **Phase 2:** 1-2 days (refactor CLI)
-- **Phase 3:** 3-4 days (MCP integration)
-- **Phase 4:** 1 day (tray enhancements)
-- **Testing:** 2-3 days
+### Phase 1 (Completed)
+- ✅ Extract client library: 2 days
+- ✅ Refactor CLI to use client: 1 day
+- ✅ MCP integration: 3 days
+- ✅ Tray enhancements: 1 day
+- ✅ Remove standalone mode: 1 day
 
-**Total:** ~10-12 days
+### Phase 2 (Current)
+- 🔄 Create ExcelMcp.Service project: 1 day
+- ⏳ Move service code from CLI: 1 day
+- ⏳ Bundle service in NuGet packages: 1 day
+- ⏳ Version check and upgrade logic: 1 day
+- ⏳ Fix duplicate update notifications: 0.5 day
+- ⏳ Update tests: 1 day
+- ⏳ Documentation: 0.5 day
 
-## Open Questions
+**Phase 2 Total:** ~6 days
 
-1. Should daemon auto-start when MCP server connects?
-   - **Recommendation:** Yes, with configurable behavior
+## Open Questions (Updated)
 
-2. Should we support multiple daemons (per-workspace)?
-   - **Recommendation:** No, single daemon is simpler
+1. ~~Should daemon auto-start when MCP server connects?~~
+   - **RESOLVED:** Yes, always auto-start
 
-3. Should daemon log to file or stdout?
-   - **Recommendation:** File logging with rotation
+2. ~~Should we support multiple daemons (per-workspace)?~~
+   - **RESOLVED:** No, single daemon per user
 
-4. What happens if daemon exits while MCP is running?
-   - **Recommendation:** MCP reconnects and retries
+3. ~~What happens if daemon exits while MCP is running?~~
+   - **RESOLVED:** Client automatically reconnects and restarts service
+
+4. **NEW:** What if both CLI and MCP try to upgrade service simultaneously?
+   - **Recommendation:** First one wins (mutex), second waits and connects
+
+5. **NEW:** Should we show "upgrade in progress" to user?
+   - **Recommendation:** Yes, brief tray notification
+
+6. **NEW:** How long to wait for old service to shut down?
+   - **Recommendation:** 5 seconds timeout, then force-kill process

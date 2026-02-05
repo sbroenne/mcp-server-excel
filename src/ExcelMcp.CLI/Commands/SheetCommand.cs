@@ -1,9 +1,8 @@
 using System.ComponentModel;
 using System.Globalization;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.CLI.Service;
-using Sbroenne.ExcelMcp.CLI.Infrastructure;
-using Sbroenne.ExcelMcp.Core.Models.Actions;
+using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.Generated;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -28,13 +27,16 @@ internal sealed class SheetCommand : AsyncCommand<SheetCommand.Settings>
             return 1;
         }
 
-        var validActions = ActionValidator.GetValidActions<WorksheetAction>()
-            .Concat(ActionValidator.GetValidActions<WorksheetStyleAction>())
+        // Validate and normalize action
+        var validActions = ServiceRegistry.Sheet.ValidActions
+            .Concat(ServiceRegistry.SheetStyle.ValidActions)
             .ToArray();
 
-        if (!ActionValidator.TryNormalizeAction(settings.Action, validActions, out var action, out var errorMessage))
+        var action = settings.Action.Trim().ToLowerInvariant();
+        if (!validActions.Contains(action, StringComparer.OrdinalIgnoreCase))
         {
-            AnsiConsole.MarkupLine($"[red]{errorMessage}[/]");
+            var validList = string.Join(", ", validActions);
+            AnsiConsole.MarkupLine($"[red]Invalid action '{action}'. Valid actions: {validList}[/]");
             return 1;
         }
         var command = $"sheet.{action}";
@@ -212,3 +214,5 @@ internal sealed class SheetCommand : AsyncCommand<SheetCommand.Settings>
         public string? Visibility { get; init; }
     }
 }
+
+

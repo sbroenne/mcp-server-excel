@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Attributes;
 using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -6,6 +7,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// <summary>
 /// Power Query management commands
 /// </summary>
+[ServiceCategory("powerquery", "PowerQuery")]
+[McpTool("excel_powerquery")]
 public interface IPowerQueryCommands
 {
     /// <summary>
@@ -16,23 +19,23 @@ public interface IPowerQueryCommands
     /// <summary>
     /// Views the M code of a Power Query
     /// </summary>
-    PowerQueryViewResult View(IExcelBatch batch, string queryName);
+    PowerQueryViewResult View(IExcelBatch batch, [RequiredParameter] string queryName);
 
     /// <summary>
     /// Refreshes a Power Query to update its data with error detection using a caller-specified timeout
     /// </summary>
-    PowerQueryRefreshResult Refresh(IExcelBatch batch, string queryName, TimeSpan timeout);
+    PowerQueryRefreshResult Refresh(IExcelBatch batch, [RequiredParameter] string queryName, TimeSpan timeout);
 
     /// <summary>
     /// Gets the current load configuration of a Power Query
     /// </summary>
-    PowerQueryLoadConfigResult GetLoadConfig(IExcelBatch batch, string queryName);
+    PowerQueryLoadConfigResult GetLoadConfig(IExcelBatch batch, [RequiredParameter] string queryName);
 
     /// <summary>
     /// Deletes a Power Query from the workbook
     /// </summary>
     /// <exception cref="InvalidOperationException">Thrown when the Power Query is not found or cannot be deleted</exception>
-    void Delete(IExcelBatch batch, string queryName);
+    void Delete(IExcelBatch batch, [RequiredParameter] string queryName);
 
     /// <summary>
     /// Creates a new Power Query by importing M code and loading data atomically
@@ -47,9 +50,9 @@ public interface IPowerQueryCommands
     /// <exception cref="InvalidOperationException">Thrown when query cannot be created, M code is invalid, or load operation fails</exception>
     void Create(
         IExcelBatch batch,
-        string queryName,
-        string mCode,
-        PowerQueryLoadMode loadMode = PowerQueryLoadMode.LoadToTable,
+        [RequiredParameter] string queryName,
+        [RequiredParameter][FileOrValue] string mCode,
+        [FromString("loadDestination")] PowerQueryLoadMode loadMode = PowerQueryLoadMode.LoadToTable,
         string? targetSheet = null,
         string? targetCellAddress = null);
 
@@ -61,7 +64,7 @@ public interface IPowerQueryCommands
     /// <param name="mCode">Raw M code (inline string)</param>
     /// <param name="refresh">Whether to refresh data after update (default: true)</param>
     /// <exception cref="InvalidOperationException">Thrown when the query is not found, M code is invalid, or refresh fails</exception>
-    void Update(IExcelBatch batch, string queryName, string mCode, bool refresh = true);
+    void Update(IExcelBatch batch, [RequiredParameter] string queryName, [RequiredParameter][FileOrValue] string mCode, bool refresh = true);
 
     /// <summary>
     /// Atomically sets load destination and refreshes data
@@ -75,8 +78,8 @@ public interface IPowerQueryCommands
     /// <exception cref="InvalidOperationException">Thrown when the query is not found, load destination is invalid, or refresh fails</exception>
     void LoadTo(
         IExcelBatch batch,
-        string queryName,
-        PowerQueryLoadMode loadMode,
+        [RequiredParameter] string queryName,
+        [FromString("loadDestination")] PowerQueryLoadMode loadMode,
         string? targetSheet = null,
         string? targetCellAddress = null);
 
@@ -102,7 +105,7 @@ public interface IPowerQueryCommands
     /// <param name="oldName">Existing query name</param>
     /// <param name="newName">Desired new name</param>
     /// <returns>Result with objectType=power-query and normalized names</returns>
-    RenameResult Rename(IExcelBatch batch, string oldName, string newName);
+    RenameResult Rename(IExcelBatch batch, [RequiredParameter] string oldName, [RequiredParameter] string newName);
 
     /// <summary>
     /// Converts query to connection-only by removing data from all destinations.
@@ -111,7 +114,7 @@ public interface IPowerQueryCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query to unload</param>
     /// <returns>Operation result</returns>
-    OperationResult Unload(IExcelBatch batch, string queryName);
+    OperationResult Unload(IExcelBatch batch, [RequiredParameter] string queryName);
 
     /// <summary>
     /// Evaluates M code and returns the result data without creating a permanent query.
@@ -122,5 +125,5 @@ public interface IPowerQueryCommands
     /// <param name="mCode">Raw M code to evaluate</param>
     /// <returns>Result containing evaluated data as columns/rows</returns>
     /// <exception cref="InvalidOperationException">Thrown when M code has errors</exception>
-    PowerQueryEvaluateResult Evaluate(IExcelBatch batch, string mCode);
+    PowerQueryEvaluateResult Evaluate(IExcelBatch batch, [RequiredParameter][FileOrValue] string mCode);
 }

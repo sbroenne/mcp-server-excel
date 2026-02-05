@@ -285,3 +285,5 @@ public partial class PowerQueryCommands
         };
     }
 }
+
+

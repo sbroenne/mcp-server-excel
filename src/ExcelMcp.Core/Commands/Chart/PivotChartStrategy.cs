@@ -235,3 +235,5 @@ public class PivotChartStrategy : IChartStrategy
             "Use excel_pivottable tool with 'remove-field' action to remove data series.");
     }
 }
+
+

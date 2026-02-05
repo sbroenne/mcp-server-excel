@@ -34,7 +34,7 @@ public static partial class ExcelWorksheetTool
     [McpMeta("category", "structure")]
     [McpMeta("requiresSession", true)]
     public static partial string ExcelWorksheet(
-        WorksheetAction action,
+        SheetAction action,
         [DefaultValue(null)] string? sessionId,
         [DefaultValue(null)] string? sourceFile,
         [DefaultValue(null)] string? sheetName,
@@ -45,228 +45,72 @@ public static partial class ExcelWorksheetTool
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_worksheet",
-            action.ToActionString(),
+            ServiceRegistry.Sheet.ToActionString(action),
             () =>
             {
-                var sheetCommands = new SheetCommands();
-
                 // Expression switch pattern for audit compliance
                 return action switch
                 {
-                    // Atomic cross-file operations (no session required)
-                    WorksheetAction.CopyToFile => CopyToFileHandler(sheetCommands, sourceFile, sheetName, targetFile, targetName, beforeSheet, afterSheet),
-                    WorksheetAction.MoveToFile => MoveToFileHandler(sheetCommands, sourceFile, sheetName, targetFile, beforeSheet, afterSheet),
+                    // Atomic cross-file operations (no session required - handled locally)
+                    SheetAction.CopyToFile => CopyToFileHandler(new SheetCommands(), sourceFile, sheetName, targetFile, targetName, beforeSheet, afterSheet),
+                    SheetAction.MoveToFile => MoveToFileHandler(new SheetCommands(), sourceFile, sheetName, targetFile, beforeSheet, afterSheet),
 
-                    // Session-based operations
-                    WorksheetAction.List => ListAsync(sheetCommands, sessionId!),
-                    WorksheetAction.Create => CreateAsync(sheetCommands, sessionId!, sheetName),
-                    WorksheetAction.Delete => DeleteAsync(sheetCommands, sessionId!, sheetName),
-                    WorksheetAction.Rename => RenameAsync(sheetCommands, sessionId!, sheetName, targetName),
-                    WorksheetAction.Copy => CopyAsync(sheetCommands, sessionId!, sheetName, targetName),
-                    WorksheetAction.Move => MoveAsync(sheetCommands, sessionId!, sheetName, beforeSheet, afterSheet),
-                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
+                    // Session-based operations - forward to service
+                    SheetAction.List => ExcelToolsBase.ForwardToService("sheet.list", sessionId!, null),
+                    SheetAction.Create => ForwardCreate(sessionId!, sheetName),
+                    SheetAction.Delete => ForwardDelete(sessionId!, sheetName),
+                    SheetAction.Rename => ForwardRename(sessionId!, sheetName, targetName),
+                    SheetAction.Copy => ForwardCopy(sessionId!, sheetName, targetName),
+                    SheetAction.Move => ForwardMove(sessionId!, sheetName, beforeSheet, afterSheet),
+                    _ => throw new ArgumentException($"Unknown action: {action} ({ServiceRegistry.Sheet.ToActionString(action)})", nameof(action))
                 };
             });
     }
 
-    // === PRIVATE HELPER METHODS ===
+    // === SERVICE FORWARDING METHODS ===
 
-    private static string ListAsync(
-        SheetCommands sheetCommands,
-        string sessionId)
-    {
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => sheetCommands.List(batch));
-
-        return JsonSerializer.Serialize(new
-        {
-            success = result.Success,
-            worksheets = result.Worksheets,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string CreateAsync(
-        SheetCommands sheetCommands,
-        string sessionId,
-        string? sheetName)
+    private static string ForwardCreate(string sessionId, string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for create action", nameof(sheetName));
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    sheetCommands.Create(batch, sheetName);
-                    return 0;
-                });
-
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                message = $"Sheet '{sheetName}' created successfully."
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("sheet.create", sessionId, new { sheetName });
     }
 
-    private static string RenameAsync(
-        SheetCommands sheetCommands,
-        string sessionId,
-        string? sheetName,
-        string? targetName)
-    {
-        if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
-            throw new ArgumentException("sheetName and targetName are required for rename action", "sheetName,targetName");
-
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    sheetCommands.Rename(batch, sheetName, targetName);
-                    return 0;
-                });
-
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                message = $"Sheet '{sheetName}' renamed to '{targetName}' successfully."
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
-    }
-
-    private static string CopyAsync(
-        SheetCommands sheetCommands,
-        string sessionId,
-        string? sheetName,
-        string? targetName)
-    {
-        if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
-            throw new ArgumentException("sheetName and targetName are required for copy action", "sheetName,targetName");
-
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    sheetCommands.Copy(batch, sheetName, targetName);
-                    return 0;
-                });
-
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                message = $"Sheet '{sheetName}' copied to '{targetName}' successfully."
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
-    }
-
-    private static string DeleteAsync(
-        SheetCommands sheetCommands,
-        string sessionId,
-        string? sheetName)
+    private static string ForwardDelete(string sessionId, string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for delete action", nameof(sheetName));
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    sheetCommands.Delete(batch, sheetName);
-                    return 0;
-                });
-
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                message = $"Sheet '{sheetName}' deleted successfully."
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("sheet.delete", sessionId, new { sheetName });
     }
 
-    private static string MoveAsync(
-        SheetCommands sheetCommands,
-        string sessionId,
-        string? sheetName,
-        string? beforeSheet,
-        string? afterSheet)
+    private static string ForwardRename(string sessionId, string? sheetName, string? targetName)
+    {
+        if (string.IsNullOrEmpty(sheetName) || string.IsNullOrEmpty(targetName))
+            throw new ArgumentException("sheetName and targetName are required for rename action", "sheetName,targetName");
+
+        return ExcelToolsBase.ForwardToService("sheet.rename", sessionId, new { sheetName, newName = targetName });
+    }
+
+    private static string ForwardCopy(string sessionId, string? sheetName, string? targetName)
+    {
+        if (string.IsNullOrEmpty(sheetName))
+            throw new ArgumentException("sheetName is required for copy action", nameof(sheetName));
+
+        return ExcelToolsBase.ForwardToService("sheet.copy", sessionId, new { sourceSheet = sheetName, targetSheet = targetName ?? sheetName });
+    }
+
+    private static string ForwardMove(string sessionId, string? sheetName, string? beforeSheet, string? afterSheet)
     {
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for move action", nameof(sheetName));
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    sheetCommands.Move(batch, sheetName, beforeSheet, afterSheet);
-                    return 0;
-                });
-
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                message = $"Sheet '{sheetName}' moved successfully."
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+        return ExcelToolsBase.ForwardToService("sheet.move", sessionId, new { sheetName, beforeSheet, afterSheet });
     }
 
     // === ATOMIC CROSS-FILE OPERATIONS ===
+    // These don't use sessions - they open/close files atomically
 
     private static string CopyToFileHandler(
         SheetCommands sheetCommands,
@@ -352,4 +196,8 @@ public static partial class ExcelWorksheetTool
         }
     }
 }
+
+
+
+
 

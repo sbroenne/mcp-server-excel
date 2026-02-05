@@ -1,8 +1,5 @@
 using System.ComponentModel;
-using System.Text.Json;
 using ModelContextProtocol.Server;
-using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -46,6 +43,11 @@ public static partial class ExcelDataModelTool
     /// - Use DISCOVER_SCHEMA_ROWSETS to list all available DMVs
     /// - See MS docs: https://learn.microsoft.com/analysis-services/instances/use-dynamic-management-views-dmvs
     ///
+    /// DAX FILE INPUT:
+    /// - daxFormula, daxQuery, dmvQuery accept inline formulas OR file paths
+    /// - Use daxFormulaFile, daxQueryFile, dmvQueryFile to load from files
+    /// - Useful for complex multi-line DAX that's hard to pass on command line
+    ///
     /// PERFORMANCE:
     /// - Formatting adds ~100-500ms network latency per operation (daxformatter.com API)
     /// - Graceful fallback: returns original DAX if formatting fails (no operation failures)
@@ -64,12 +66,16 @@ public static partial class ExcelDataModelTool
     /// <param name="sessionId">Session identifier returned from excel_file open action</param>
     /// <param name="measureName">Name of the DAX measure - required for measure operations</param>
     /// <param name="tableName">Name of the table in the Data Model - required for table operations and create-measure</param>
-    /// <param name="newTableName">New name for rename-table action</param>
+    /// <param name="newName">New name for rename-table action</param>
     /// <param name="daxFormula">DAX formula for the measure, e.g., 'SUM(Sales[Amount])'</param>
+    /// <param name="daxFormulaFile">Path to file containing DAX formula (alternative to daxFormula)</param>
     /// <param name="daxQuery">DAX EVALUATE query for evaluate action, e.g., 'EVALUATE TableName'</param>
+    /// <param name="daxQueryFile">Path to file containing DAX query (alternative to daxQuery)</param>
     /// <param name="dmvQuery">DMV query for execute-dmv action. Use SELECT * FROM $SYSTEM.TMSCHEMA_MEASURES or DISCOVER_CALC_DEPENDENCY</param>
+    /// <param name="dmvQueryFile">Path to file containing DMV query (alternative to dmvQuery)</param>
     /// <param name="description">Optional description for the measure</param>
-    /// <param name="formatString">Number format code in US format, e.g., '#,##0.00' for currency</param>
+    /// <param name="formatType">Number format code in US format, e.g., '#,##0.00' for currency</param>
+    /// <param name="timeout">Optional timeout for refresh operation</param>
     [McpServerTool(Name = "excel_datamodel", Title = "Excel Data Model Operations", Destructive = true)]
     [McpMeta("category", "analysis")]
     [McpMeta("requiresSession", true)]
@@ -78,447 +84,40 @@ public static partial class ExcelDataModelTool
         string sessionId,
         [DefaultValue(null)] string? measureName,
         [DefaultValue(null)] string? tableName,
-        [DefaultValue(null)] string? newTableName,
+        [DefaultValue(null)] string? newName,
         [DefaultValue(null)] string? daxFormula,
+        [DefaultValue(null)] string? daxFormulaFile,
         [DefaultValue(null)] string? daxQuery,
+        [DefaultValue(null)] string? daxQueryFile,
         [DefaultValue(null)] string? dmvQuery,
+        [DefaultValue(null)] string? dmvQueryFile,
         [DefaultValue(null)] string? description,
-        [DefaultValue(null)] string? formatString)
+        [DefaultValue(null)] string? formatType,
+        [DefaultValue(null)] TimeSpan? timeout)
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_datamodel",
-            action.ToActionString(),
-            () =>
-            {
-                var dataModelCommands = new DataModelCommands();
-
-                return action switch
-                {
-                    DataModelAction.ListTables => ListTablesAction(dataModelCommands, sessionId),
-                    DataModelAction.ListMeasures => ListMeasuresAction(dataModelCommands, sessionId),
-                    DataModelAction.Read => ReadMeasureAction(dataModelCommands, sessionId, measureName),
-                    DataModelAction.Refresh => RefreshAction(dataModelCommands, sessionId),
-                    DataModelAction.DeleteMeasure => DeleteMeasureAction(dataModelCommands, sessionId, measureName),
-                    DataModelAction.DeleteTable => DeleteTableAction(dataModelCommands, sessionId, tableName),
-                    DataModelAction.RenameTable => RenameTableAction(dataModelCommands, sessionId, tableName, newTableName),
-                    DataModelAction.ReadTable => ReadTableAction(dataModelCommands, sessionId, tableName),
-                    DataModelAction.ListColumns => ListColumnsAction(dataModelCommands, sessionId, tableName),
-                    DataModelAction.ReadInfo => ReadModelInfoAction(dataModelCommands, sessionId),
-                    DataModelAction.CreateMeasure => CreateMeasureAction(dataModelCommands, sessionId, tableName, measureName, daxFormula, formatString, description),
-                    DataModelAction.UpdateMeasure => UpdateMeasureAction(dataModelCommands, sessionId, measureName, daxFormula, formatString, description),
-                    DataModelAction.Evaluate => EvaluateAction(dataModelCommands, sessionId, daxQuery),
-                    DataModelAction.ExecuteDmv => ExecuteDmvAction(dataModelCommands, sessionId, dmvQuery),
-                    _ => throw new ArgumentException(
-                        $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-                };
-            });
-    }
-
-    private static string ListTablesAction(DataModelCommands commands, string sessionId)
-    {
-        DataModelTableListResult result;
-
-        try
-        {
-            result = ExcelToolsBase.WithSession(sessionId, batch => commands.ListTables(batch));
-        }
-        catch (TimeoutException ex)
-        {
-            result = new DataModelTableListResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message,
-                Tables = []
-            };
-        }
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.Tables,
-            result.ErrorMessage,
-            isError = !result.Success
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string ListMeasuresAction(DataModelCommands commands, string sessionId)
-    {
-        DataModelMeasureListResult result;
-
-        try
-        {
-            result = ExcelToolsBase.WithSession(
+            ServiceRegistry.DataModel.ToActionString(action),
+            () => ServiceRegistry.DataModel.RouteAction(
+                action,
                 sessionId,
-                batch => commands.ListMeasures(batch));
-        }
-        catch (TimeoutException ex)
-        {
-            result = new DataModelMeasureListResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message,
-                Measures = []
-            };
-        }
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.Measures,
-            result.ErrorMessage,
-            isError = !result.Success
-        }, ExcelToolsBase.JsonOptions);
+                ExcelToolsBase.ForwardToServiceFunc,
+                tableName: tableName,
+                measureName: measureName,
+                oldName: tableName,  // rename-table uses oldName for source
+                newName: newName,
+                timeout: timeout,
+                daxFormula: daxFormula,
+                daxFormulaFile: daxFormulaFile,
+                formatType: formatType,
+                description: description,
+                daxQuery: daxQuery,
+                daxQueryFile: daxQueryFile,
+                dmvQuery: dmvQuery,
+                dmvQueryFile: dmvQueryFile));
     }
-
-    private static string ReadMeasureAction(DataModelCommands commands, string sessionId, string? measureName)
-    {
-        if (string.IsNullOrEmpty(measureName))
-            throw new ArgumentException("measureName is required for read action", nameof(measureName));
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.Read(batch, measureName));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.MeasureName,
-            result.DaxFormula,
-            result.TableName,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string RefreshAction(DataModelCommands commands, string sessionId)
-    {
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch => { commands.Refresh(batch, null, null); return 0; });
-
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                message = "Data Model refreshed successfully"
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
-    }
-
-    private static string DeleteMeasureAction(DataModelCommands commands, string sessionId, string? measureName)
-    {
-        if (string.IsNullOrWhiteSpace(measureName))
-        {
-            throw new ArgumentException("measureName is required for delete-measure action", nameof(measureName));
-        }
-
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch => { commands.DeleteMeasure(batch, measureName); return 0; });
-
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                message = $"Measure '{measureName}' deleted successfully"
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
-    }
-
-    private static string DeleteTableAction(DataModelCommands commands, string sessionId, string? tableName)
-    {
-        if (string.IsNullOrWhiteSpace(tableName))
-        {
-            throw new ArgumentException("tableName is required for delete-table action", nameof(tableName));
-        }
-
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch => { commands.DeleteTable(batch, tableName); return 0; });
-
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                message = $"Table '{tableName}' deleted from Data Model successfully"
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
-    }
-
-    private static string RenameTableAction(DataModelCommands commands, string sessionId, string? tableName, string? newTableName)
-    {
-        if (string.IsNullOrWhiteSpace(tableName))
-        {
-            throw new ArgumentException("tableName is required for rename-table action", nameof(tableName));
-        }
-
-        if (string.IsNullOrWhiteSpace(newTableName))
-        {
-            throw new ArgumentException("newTableName is required for rename-table action", nameof(newTableName));
-        }
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.RenameTable(batch, tableName, newTableName));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.OldName,
-            result.NormalizedNewName,
-            result.ErrorMessage,
-            isError = !result.Success
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string ReadTableAction(DataModelCommands commands, string sessionId,
-        string? tableName)
-    {
-        if (string.IsNullOrWhiteSpace(tableName))
-        {
-            throw new ArgumentException("tableName is required for read-table action", nameof(tableName));
-        }
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.ReadTable(batch, tableName));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.TableName,
-            result.SourceName,
-            result.RecordCount,
-            result.Columns,
-            result.MeasureCount,
-            result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string ListColumnsAction(DataModelCommands commands, string sessionId,
-        string? tableName)
-    {
-        if (string.IsNullOrWhiteSpace(tableName))
-        {
-            throw new ArgumentException("tableName is required for list-columns action", nameof(tableName));
-        }
-
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.ListColumns(batch, tableName));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.ErrorMessage,
-            result.TableName,
-            result.Columns
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string ReadModelInfoAction(DataModelCommands commands, string sessionId)
-    {
-        DataModelInfoResult result;
-
-        try
-        {
-            result = ExcelToolsBase.WithSession(sessionId, batch => commands.ReadInfo(batch));
-        }
-        catch (TimeoutException ex)
-        {
-            result = new DataModelInfoResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message,
-                TableNames = []
-            };
-        }
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.TableCount,
-            result.MeasureCount,
-            result.RelationshipCount,
-            result.TotalRows,
-            result.TableNames,
-            result.ErrorMessage,
-            isError = !result.Success
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string CreateMeasureAction(DataModelCommands commands,
-        string sessionId, string? tableName, string? measureName, string? daxFormula, string? formatString,
-        string? description)
-    {
-        if (string.IsNullOrWhiteSpace(tableName))
-        {
-            throw new ArgumentException("tableName is required for create-measure action", nameof(tableName));
-        }
-
-        if (string.IsNullOrWhiteSpace(measureName))
-        {
-            throw new ArgumentException("measureName is required for create-measure action", nameof(measureName));
-        }
-
-        if (string.IsNullOrWhiteSpace(daxFormula))
-        {
-            throw new ArgumentException("daxFormula is required for create-measure action", nameof(daxFormula));
-        }
-
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch => { commands.CreateMeasure(batch, tableName, measureName, daxFormula, formatString, description); return 0; });
-
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                message = $"Measure '{measureName}' created successfully in table '{tableName}'"
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
-    }
-
-    private static string UpdateMeasureAction(DataModelCommands commands,
-        string sessionId, string? measureName, string? daxFormula, string? formatString, string? description)
-    {
-        if (string.IsNullOrWhiteSpace(measureName))
-        {
-            throw new ArgumentException("measureName is required for update-measure action", nameof(measureName));
-        }
-
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch => { commands.UpdateMeasure(batch, measureName, daxFormula, formatString, description); return 0; });
-
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                message = $"Measure '{measureName}' updated successfully"
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
-    }
-
-    private static string EvaluateAction(DataModelCommands commands, string sessionId, string? daxQuery)
-    {
-        if (string.IsNullOrWhiteSpace(daxQuery))
-        {
-            throw new ArgumentException("daxQuery is required for evaluate action", nameof(daxQuery));
-        }
-
-        DaxEvaluateResult result;
-
-        try
-        {
-            result = ExcelToolsBase.WithSession(sessionId, batch => commands.Evaluate(batch, daxQuery));
-        }
-        catch (TimeoutException ex)
-        {
-            result = new DaxEvaluateResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message,
-                DaxQuery = daxQuery
-            };
-        }
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.DaxQuery,
-            result.Columns,
-            result.Rows,
-            result.RowCount,
-            result.ColumnCount,
-            result.ErrorMessage,
-            isError = !result.Success
-        }, ExcelToolsBase.JsonOptions);
-    }
-
-    private static string ExecuteDmvAction(DataModelCommands commands, string sessionId, string? dmvQuery)
-    {
-        if (string.IsNullOrWhiteSpace(dmvQuery))
-        {
-            throw new ArgumentException("dmvQuery is required for execute-dmv action", nameof(dmvQuery));
-        }
-
-        DmvQueryResult result;
-
-        try
-        {
-            result = ExcelToolsBase.WithSession(sessionId, batch => commands.ExecuteDmv(batch, dmvQuery));
-        }
-        catch (TimeoutException ex)
-        {
-            result = new DmvQueryResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message,
-                DmvQuery = dmvQuery
-            };
-        }
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.DmvQuery,
-            result.Columns,
-            result.Rows,
-            result.RowCount,
-            result.ColumnCount,
-            result.ErrorMessage,
-            isError = !result.Success
-        }, ExcelToolsBase.JsonOptions);
-    }
-
 }
+
+
+
+

@@ -1,8 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
-using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
-using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -12,8 +10,6 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 [McpServerToolType]
 public static partial class ExcelPivotTableFieldTool
 {
-    private static readonly JsonSerializerOptions JsonOptions = ExcelToolsBase.JsonOptions;
-
     /// <summary>
     /// PivotTable field management: add/remove/configure fields, filtering, sorting, and grouping.
     ///
@@ -74,180 +70,93 @@ public static partial class ExcelPivotTableFieldTool
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_pivottable_field",
-            action.ToActionString(),
-            () =>
+            ServiceRegistry.PivotTableField.ToActionString(action),
+            () => action switch
             {
-                var commands = new PivotTableCommands();
-
-                return action switch
-                {
-                    PivotTableFieldAction.ListFields => ListFields(commands, sessionId, pivotTableName),
-                    PivotTableFieldAction.AddRowField => AddRowField(commands, sessionId, pivotTableName, fieldName, position),
-                    PivotTableFieldAction.AddColumnField => AddColumnField(commands, sessionId, pivotTableName, fieldName, position),
-                    PivotTableFieldAction.AddValueField => AddValueField(commands, sessionId, pivotTableName, fieldName, aggregationFunction, customName),
-                    PivotTableFieldAction.AddFilterField => AddFilterField(commands, sessionId, pivotTableName, fieldName),
-                    PivotTableFieldAction.RemoveField => RemoveField(commands, sessionId, pivotTableName, fieldName),
-                    PivotTableFieldAction.SetFieldFunction => SetFieldFunction(commands, sessionId, pivotTableName, fieldName, aggregationFunction),
-                    PivotTableFieldAction.SetFieldName => SetFieldName(commands, sessionId, pivotTableName, fieldName, customName),
-                    PivotTableFieldAction.SetFieldFormat => SetFieldFormat(commands, sessionId, pivotTableName, fieldName, numberFormat),
-                    PivotTableFieldAction.SetFieldFilter => SetFieldFilter(commands, sessionId, pivotTableName, fieldName, filterValues),
-                    PivotTableFieldAction.SortField => SortField(commands, sessionId, pivotTableName, fieldName, sortDirection),
-                    PivotTableFieldAction.GroupByDate => GroupByDate(commands, sessionId, pivotTableName, fieldName, dateGroupingInterval),
-                    PivotTableFieldAction.GroupByNumeric => GroupByNumeric(commands, sessionId, pivotTableName, fieldName, numericGroupingStart, numericGroupingEnd, numericGroupingInterval),
-                    _ => throw new ArgumentException($"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-                };
+                PivotTableFieldAction.ListFields => ForwardListFields(sessionId, pivotTableName),
+                PivotTableFieldAction.AddRowField => ForwardAddRowField(sessionId, pivotTableName, fieldName, position),
+                PivotTableFieldAction.AddColumnField => ForwardAddColumnField(sessionId, pivotTableName, fieldName, position),
+                PivotTableFieldAction.AddValueField => ForwardAddValueField(sessionId, pivotTableName, fieldName, aggregationFunction, customName),
+                PivotTableFieldAction.AddFilterField => ForwardAddFilterField(sessionId, pivotTableName, fieldName),
+                PivotTableFieldAction.RemoveField => ForwardRemoveField(sessionId, pivotTableName, fieldName),
+                PivotTableFieldAction.SetFieldFunction => ForwardSetFieldFunction(sessionId, pivotTableName, fieldName, aggregationFunction),
+                PivotTableFieldAction.SetFieldName => ForwardSetFieldName(sessionId, pivotTableName, fieldName, customName),
+                PivotTableFieldAction.SetFieldFormat => ForwardSetFieldFormat(sessionId, pivotTableName, fieldName, numberFormat),
+                PivotTableFieldAction.SetFieldFilter => ForwardSetFieldFilter(sessionId, pivotTableName, fieldName, filterValues),
+                PivotTableFieldAction.SortField => ForwardSortField(sessionId, pivotTableName, fieldName, sortDirection),
+                PivotTableFieldAction.GroupByDate => ForwardGroupByDate(sessionId, pivotTableName, fieldName, dateGroupingInterval),
+                PivotTableFieldAction.GroupByNumeric => ForwardGroupByNumeric(sessionId, pivotTableName, fieldName, numericGroupingStart, numericGroupingEnd, numericGroupingInterval),
+                _ => throw new ArgumentException($"Unknown action: {action} ({ServiceRegistry.PivotTableField.ToActionString(action)})", nameof(action))
             });
     }
 
-    private static string ListFields(PivotTableCommands commands, string sessionId, string? pivotTableName)
+    // === SERVICE FORWARDING METHODS ===
+
+    private static string ForwardListFields(string sessionId, string? pivotTableName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "list-fields");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.ListFields(batch, pivotTableName!));
-
-        return JsonSerializer.Serialize(new { result.Success, result.Fields, result.ErrorMessage }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("pivottablefield.list-fields", sessionId, new { pivotTableName });
     }
 
-    private static string AddRowField(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, int? position)
+    private static string ForwardAddRowField(string sessionId, string? pivotTableName, string? fieldName, int? position)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "add-row-field");
         if (string.IsNullOrWhiteSpace(fieldName))
             ExcelToolsBase.ThrowMissingParameter("fieldName", "add-row-field");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.AddRowField(batch, pivotTableName!, fieldName!, position));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.FieldName,
-            result.CustomName,
-            result.Area,
-            result.Position,
-            result.Function,
-            result.NumberFormat,
-            result.AvailableValues,
-            result.SampleValue,
-            result.DataType,
-            result.ErrorMessage
-        }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("pivottablefield.add-row-field", sessionId, new { pivotTableName, fieldName, position });
     }
 
-    private static string AddColumnField(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, int? position)
+    private static string ForwardAddColumnField(string sessionId, string? pivotTableName, string? fieldName, int? position)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "add-column-field");
         if (string.IsNullOrWhiteSpace(fieldName))
             ExcelToolsBase.ThrowMissingParameter("fieldName", "add-column-field");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.AddColumnField(batch, pivotTableName!, fieldName!, position));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.FieldName,
-            result.CustomName,
-            result.Area,
-            result.Position,
-            result.Function,
-            result.NumberFormat,
-            result.AvailableValues,
-            result.SampleValue,
-            result.DataType,
-            result.ErrorMessage
-        }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("pivottablefield.add-column-field", sessionId, new { pivotTableName, fieldName, position });
     }
 
-    private static string AddValueField(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, string? aggregationFunction, string? customName)
+    private static string ForwardAddValueField(string sessionId, string? pivotTableName, string? fieldName, string? aggregationFunction, string? customName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "add-value-field");
         if (string.IsNullOrWhiteSpace(fieldName))
             ExcelToolsBase.ThrowMissingParameter("fieldName", "add-value-field");
 
-        AggregationFunction function = AggregationFunction.Sum;
-        if (!string.IsNullOrEmpty(aggregationFunction) &&
-            !Enum.TryParse(aggregationFunction, true, out function))
+        return ExcelToolsBase.ForwardToService("pivottablefield.add-value-field", sessionId, new
         {
-            throw new ArgumentException($"Invalid aggregationFunction '{aggregationFunction}'. Valid: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP", nameof(aggregationFunction));
-        }
-
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.AddValueField(batch, pivotTableName!, fieldName!, function, customName));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.FieldName,
-            result.CustomName,
-            result.Area,
-            result.Position,
-            result.Function,
-            result.NumberFormat,
-            result.AvailableValues,
-            result.SampleValue,
-            result.DataType,
-            result.ErrorMessage
-        }, JsonOptions);
+            pivotTableName,
+            fieldName,
+            aggregationFunction,
+            customName
+        });
     }
 
-    private static string AddFilterField(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName)
+    private static string ForwardAddFilterField(string sessionId, string? pivotTableName, string? fieldName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "add-filter-field");
         if (string.IsNullOrWhiteSpace(fieldName))
             ExcelToolsBase.ThrowMissingParameter("fieldName", "add-filter-field");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.AddFilterField(batch, pivotTableName!, fieldName!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.FieldName,
-            result.CustomName,
-            result.Area,
-            result.Position,
-            result.Function,
-            result.NumberFormat,
-            result.AvailableValues,
-            result.SampleValue,
-            result.DataType,
-            result.ErrorMessage
-        }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("pivottablefield.add-filter-field", sessionId, new { pivotTableName, fieldName });
     }
 
-    private static string RemoveField(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName)
+    private static string ForwardRemoveField(string sessionId, string? pivotTableName, string? fieldName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "remove-field");
         if (string.IsNullOrWhiteSpace(fieldName))
             ExcelToolsBase.ThrowMissingParameter("fieldName", "remove-field");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.RemoveField(batch, pivotTableName!, fieldName!));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.FieldName,
-            result.CustomName,
-            result.Area,
-            result.Position,
-            result.Function,
-            result.NumberFormat,
-            result.AvailableValues,
-            result.SampleValue,
-            result.DataType,
-            result.ErrorMessage
-        }, JsonOptions);
+        return ExcelToolsBase.ForwardToService("pivottablefield.remove-field", sessionId, new { pivotTableName, fieldName });
     }
 
-    private static string SetFieldFunction(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, string? aggregationFunction)
+    private static string ForwardSetFieldFunction(string sessionId, string? pivotTableName, string? fieldName, string? aggregationFunction)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "set-field-function");
@@ -256,31 +165,15 @@ public static partial class ExcelPivotTableFieldTool
         if (string.IsNullOrWhiteSpace(aggregationFunction))
             ExcelToolsBase.ThrowMissingParameter("aggregationFunction", "set-field-function");
 
-        if (!Enum.TryParse<AggregationFunction>(aggregationFunction!, true, out var function))
+        return ExcelToolsBase.ForwardToService("pivottablefield.set-field-function", sessionId, new
         {
-            throw new ArgumentException($"Invalid aggregationFunction '{aggregationFunction}'. Valid: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP", nameof(aggregationFunction));
-        }
-
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.SetFieldFunction(batch, pivotTableName!, fieldName!, function));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.FieldName,
-            result.CustomName,
-            result.Area,
-            result.Position,
-            result.Function,
-            result.NumberFormat,
-            result.AvailableValues,
-            result.SampleValue,
-            result.DataType,
-            result.ErrorMessage
-        }, JsonOptions);
+            pivotTableName,
+            fieldName,
+            aggregationFunction
+        });
     }
 
-    private static string SetFieldName(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, string? customName)
+    private static string ForwardSetFieldName(string sessionId, string? pivotTableName, string? fieldName, string? customName)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "set-field-name");
@@ -289,26 +182,15 @@ public static partial class ExcelPivotTableFieldTool
         if (string.IsNullOrWhiteSpace(customName))
             ExcelToolsBase.ThrowMissingParameter("customName", "set-field-name");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.SetFieldName(batch, pivotTableName!, fieldName!, customName!));
-
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("pivottablefield.set-field-name", sessionId, new
         {
-            result.Success,
-            result.FieldName,
-            result.CustomName,
-            result.Area,
-            result.Position,
-            result.Function,
-            result.NumberFormat,
-            result.AvailableValues,
-            result.SampleValue,
-            result.DataType,
-            result.ErrorMessage
-        }, JsonOptions);
+            pivotTableName,
+            fieldName,
+            customName
+        });
     }
 
-    private static string SetFieldFormat(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, string? numberFormat)
+    private static string ForwardSetFieldFormat(string sessionId, string? pivotTableName, string? fieldName, string? numberFormat)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "set-field-format");
@@ -317,26 +199,15 @@ public static partial class ExcelPivotTableFieldTool
         if (string.IsNullOrWhiteSpace(numberFormat))
             ExcelToolsBase.ThrowMissingParameter("numberFormat", "set-field-format");
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.SetFieldFormat(batch, pivotTableName!, fieldName!, numberFormat!));
-
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("pivottablefield.set-field-format", sessionId, new
         {
-            result.Success,
-            result.FieldName,
-            result.CustomName,
-            result.Area,
-            result.Position,
-            result.Function,
-            result.NumberFormat,
-            result.AvailableValues,
-            result.SampleValue,
-            result.DataType,
-            result.ErrorMessage
-        }, JsonOptions);
+            pivotTableName,
+            fieldName,
+            numberFormat
+        });
     }
 
-    private static string SetFieldFilter(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, string? filterValues)
+    private static string ForwardSetFieldFilter(string sessionId, string? pivotTableName, string? fieldName, string? filterValues)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "set-field-filter");
@@ -345,113 +216,84 @@ public static partial class ExcelPivotTableFieldTool
         if (string.IsNullOrWhiteSpace(filterValues))
             ExcelToolsBase.ThrowMissingParameter("filterValues", "set-field-filter");
 
-        List<string> values;
+        List<string> selectedValues;
         try
         {
-            values = JsonSerializer.Deserialize<List<string>>(filterValues!) ?? [];
+            selectedValues = JsonSerializer.Deserialize<List<string>>(filterValues!) ?? [];
         }
         catch (JsonException ex)
         {
             throw new ArgumentException($"Invalid filterValues JSON: {ex.Message}. Expected: '[\"value1\",\"value2\"]'", nameof(filterValues));
         }
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.SetFieldFilter(batch, pivotTableName!, fieldName!, values));
-
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("pivottablefield.set-field-filter", sessionId, new
         {
-            result.Success,
-            result.FieldName,
-            result.SelectedItems,
-            result.AvailableItems,
-            result.VisibleRowCount,
-            result.TotalRowCount,
-            result.ShowAll,
-            result.ErrorMessage
-        }, JsonOptions);
+            pivotTableName,
+            fieldName,
+            selectedValues
+        });
     }
 
-    private static string SortField(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, string? sortDirection)
+    private static string ForwardSortField(string sessionId, string? pivotTableName, string? fieldName, string? sortDirection)
     {
         if (string.IsNullOrWhiteSpace(pivotTableName))
             ExcelToolsBase.ThrowMissingParameter("pivotTableName", "sort-field");
         if (string.IsNullOrWhiteSpace(fieldName))
             ExcelToolsBase.ThrowMissingParameter("fieldName", "sort-field");
 
-        SortDirection direction = SortDirection.Ascending;
-        if (!string.IsNullOrEmpty(sortDirection) &&
-            !Enum.TryParse(sortDirection, true, out direction))
+        // Parse sortDirection to boolean for the service
+        // Service expects "ascending" boolean, not "sortDirection" string
+        bool ascending = true;
+        if (!string.IsNullOrEmpty(sortDirection))
         {
-            throw new ArgumentException($"Invalid sortDirection '{sortDirection}'. Valid: Ascending, Descending", nameof(sortDirection));
+            ascending = sortDirection.Equals("Ascending", StringComparison.OrdinalIgnoreCase);
         }
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.SortField(batch, pivotTableName!, fieldName!, direction));
-
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("pivottablefield.sort-field", sessionId, new
         {
-            result.Success,
-            result.FieldName,
-            result.CustomName,
-            result.Area,
-            result.Position,
-            result.Function,
-            result.NumberFormat,
-            result.AvailableValues,
-            result.SampleValue,
-            result.DataType,
-            result.ErrorMessage
-        }, JsonOptions);
+            pivotTableName,
+            fieldName,
+            ascending
+        });
     }
 
-    private static string GroupByDate(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, string? dateGroupingInterval)
+    private static string ForwardGroupByDate(string sessionId, string? pivotTableName, string? fieldName, string? dateGroupingInterval)
     {
-        if (string.IsNullOrEmpty(pivotTableName))
-            throw new ArgumentException("pivotTableName is required for group-by-date action", nameof(pivotTableName));
-        if (string.IsNullOrEmpty(fieldName))
-            throw new ArgumentException("fieldName is required for group-by-date action", nameof(fieldName));
-        if (string.IsNullOrEmpty(dateGroupingInterval))
-            throw new ArgumentException("dateGroupingInterval is required for group-by-date action", nameof(dateGroupingInterval));
+        if (string.IsNullOrWhiteSpace(pivotTableName))
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "group-by-date");
+        if (string.IsNullOrWhiteSpace(fieldName))
+            ExcelToolsBase.ThrowMissingParameter("fieldName", "group-by-date");
+        if (string.IsNullOrWhiteSpace(dateGroupingInterval))
+            ExcelToolsBase.ThrowMissingParameter("dateGroupingInterval", "group-by-date");
 
-        if (!Enum.TryParse<DateGroupingInterval>(dateGroupingInterval, true, out var interval))
+        return ExcelToolsBase.ForwardToService("pivottablefield.group-by-date", sessionId, new
         {
-            throw new ArgumentException($"Invalid dateGroupingInterval '{dateGroupingInterval}'. Valid: Days, Months, Quarters, Years", nameof(dateGroupingInterval));
-        }
-
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.GroupByDate(batch, pivotTableName!, fieldName!, interval));
-
-        return JsonSerializer.Serialize(new
-        {
-            result.Success,
-            result.FieldName,
-            result.CustomName,
-            result.Area,
-            result.ErrorMessage,
-            result.WorkflowHint
-        }, JsonOptions);
+            pivotTableName,
+            fieldName,
+            interval = dateGroupingInterval
+        });
     }
 
-    private static string GroupByNumeric(PivotTableCommands commands, string sessionId, string? pivotTableName, string? fieldName, double? numericGroupingStart, double? numericGroupingEnd, double? numericGroupingInterval)
+    private static string ForwardGroupByNumeric(string sessionId, string? pivotTableName, string? fieldName, double? numericGroupingStart, double? numericGroupingEnd, double? numericGroupingInterval)
     {
-        if (string.IsNullOrEmpty(pivotTableName))
-            throw new ArgumentException("pivotTableName is required for group-by-numeric action", nameof(pivotTableName));
-        if (string.IsNullOrEmpty(fieldName))
-            throw new ArgumentException("fieldName is required for group-by-numeric action", nameof(fieldName));
+        if (string.IsNullOrWhiteSpace(pivotTableName))
+            ExcelToolsBase.ThrowMissingParameter("pivotTableName", "group-by-numeric");
+        if (string.IsNullOrWhiteSpace(fieldName))
+            ExcelToolsBase.ThrowMissingParameter("fieldName", "group-by-numeric");
         if (!numericGroupingInterval.HasValue || numericGroupingInterval.Value <= 0)
             throw new ArgumentException("numericGroupingInterval is required and must be > 0 for group-by-numeric action", nameof(numericGroupingInterval));
 
-        var result = ExcelToolsBase.WithSession(sessionId,
-            batch => commands.GroupByNumeric(batch, pivotTableName!, fieldName!, numericGroupingStart, numericGroupingEnd, numericGroupingInterval.Value));
-
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("pivottablefield.group-by-numeric", sessionId, new
         {
-            result.Success,
-            result.FieldName,
-            result.CustomName,
-            result.Area,
-            result.ErrorMessage,
-            result.WorkflowHint
-        }, JsonOptions);
+            pivotTableName,
+            fieldName,
+            start = numericGroupingStart,
+            end = numericGroupingEnd,
+            intervalSize = numericGroupingInterval
+        });
     }
 }
+
+
+
+

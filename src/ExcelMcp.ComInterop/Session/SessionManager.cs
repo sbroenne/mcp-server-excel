@@ -48,7 +48,7 @@ public sealed class SessionManager : IDisposable
     /// Creates a new session for the specified Excel file.
     /// </summary>
     /// <param name="filePath">Path to the Excel file to open</param>
-    /// <param name="showExcel">Whether to show the Excel window (default: false for background automation)</param>
+    /// <param name="show">Whether to show the Excel window (default: false for background automation)</param>
     /// <param name="operationTimeout">Maximum time for any operation in this session (default: 5 minutes)</param>
     /// <param name="origin">Which client is creating this session (CLI or MCP)</param>
     /// <returns>Unique session ID for this session</returns>
@@ -59,7 +59,7 @@ public sealed class SessionManager : IDisposable
     /// <para><b>Same-file prevention:</b> Throws if file is already open in another session.</para>
     /// <para><b>Concurrency:</b> You can create multiple sessions for DIFFERENT files. Operations within each session execute serially.</para>
     /// </remarks>
-    public string CreateSession(string filePath, bool showExcel = false, TimeSpan? operationTimeout = null, SessionOrigin origin = SessionOrigin.Unknown)
+    public string CreateSession(string filePath, bool show = false, TimeSpan? operationTimeout = null, SessionOrigin origin = SessionOrigin.Unknown)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -84,7 +84,7 @@ public sealed class SessionManager : IDisposable
         try
         {
             // Create batch session using Core API
-            batch = ExcelSession.BeginBatch(showExcel, operationTimeout, filePath);
+            batch = ExcelSession.BeginBatch(show, operationTimeout, filePath);
 
             // Store in active sessions
             if (!_activeSessions.TryAdd(sessionId, batch))
@@ -107,9 +107,9 @@ public sealed class SessionManager : IDisposable
                 throw new InvalidOperationException($"Failed to record session metadata for: {sessionId}");
             }
 
-            // Initialize operation counter and showExcel flag
+            // Initialize operation counter and show flag
             _activeOperationCounts[sessionId] = 0;
-            _showExcelFlags[sessionId] = showExcel;
+            _showExcelFlags[sessionId] = show;
             _sessionOrigins[sessionId] = origin;
             _sessionCreatedAt[sessionId] = DateTime.UtcNow;
 
@@ -134,7 +134,7 @@ public sealed class SessionManager : IDisposable
     /// This is the preferred method for creating new workbooks with sessions.
     /// </summary>
     /// <param name="filePath">Path for the new Excel file (.xlsx or .xlsm)</param>
-    /// <param name="showExcel">Whether to show the Excel window (default: false)</param>
+    /// <param name="show">Whether to show the Excel window (default: false)</param>
     /// <param name="operationTimeout">Maximum time for any operation in this session (default: 5 minutes)</param>
     /// <param name="origin">Which client is creating this session (CLI or MCP)</param>
     /// <returns>Unique session ID for this session</returns>
@@ -145,7 +145,7 @@ public sealed class SessionManager : IDisposable
     /// <para><b>File Format:</b> Determined by extension - .xlsm creates macro-enabled workbook.</para>
     /// <para><b>Directory:</b> Target directory must exist - will not be created automatically.</para>
     /// </remarks>
-    public string CreateSessionForNewFile(string filePath, bool showExcel = false, TimeSpan? operationTimeout = null, SessionOrigin origin = SessionOrigin.Unknown)
+    public string CreateSessionForNewFile(string filePath, bool show = false, TimeSpan? operationTimeout = null, SessionOrigin origin = SessionOrigin.Unknown)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -178,7 +178,7 @@ public sealed class SessionManager : IDisposable
         try
         {
             // Create new workbook and keep session open
-            batch = ExcelBatch.CreateNewWorkbook(normalizedPath, isMacroEnabled, logger: null, showExcel: showExcel, operationTimeout: operationTimeout);
+            batch = ExcelBatch.CreateNewWorkbook(normalizedPath, isMacroEnabled, logger: null, show: show, operationTimeout: operationTimeout);
 
             // Store in active sessions
             if (!_activeSessions.TryAdd(sessionId, batch))
@@ -200,9 +200,9 @@ public sealed class SessionManager : IDisposable
                 throw new InvalidOperationException($"Failed to record session metadata for: {sessionId}");
             }
 
-            // Initialize operation counter and showExcel flag
+            // Initialize operation counter and show flag
             _activeOperationCounts[sessionId] = 0;
-            _showExcelFlags[sessionId] = showExcel;
+            _showExcelFlags[sessionId] = show;
             _sessionOrigins[sessionId] = origin;
             _sessionCreatedAt[sessionId] = DateTime.UtcNow;
 
@@ -334,7 +334,7 @@ public sealed class SessionManager : IDisposable
     /// Gets whether Excel is visible for a session.
     /// </summary>
     /// <param name="sessionId">Session ID</param>
-    /// <returns>True if showExcel was true when session was created</returns>
+    /// <returns>True if show was true when session was created</returns>
     public bool IsExcelVisible(string sessionId)
     {
         if (string.IsNullOrWhiteSpace(sessionId)) return false;
@@ -636,7 +636,7 @@ public enum SessionOrigin
 /// Result of validating whether a session can be closed.
 /// </summary>
 /// <param name="SessionExists">Whether the session was found.</param>
-/// <param name="IsExcelVisible">Whether Excel is visible (showExcel=true).</param>
+/// <param name="IsExcelVisible">Whether Excel is visible (show=true).</param>
 /// <param name="ActiveOperationCount">Number of operations currently running.</param>
 /// <param name="BlockingReason">Reason why close is blocked, or null if close is allowed.</param>
 public sealed record CloseValidationResult(
@@ -650,4 +650,6 @@ public sealed record CloseValidationResult(
     /// </summary>
     public bool CanClose => SessionExists && ActiveOperationCount == 0;
 }
+
+
 

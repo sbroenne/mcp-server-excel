@@ -1,14 +1,16 @@
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 
-namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
+namespace Sbroenne.ExcelMcp.Service.Infrastructure;
 
 /// <summary>
-/// Checks NuGet for the latest version of the CLI package.
+/// Checks NuGet for the latest version of the unified MCP Server package.
+/// Note: CLI is now bundled with MCP Server, so we check the McpServer package.
 /// </summary>
-internal static class NuGetVersionChecker
+public static class NuGetVersionChecker
 {
-    private const string PackageId = "sbroenne.excelmcp.cli";
+    // CLI is bundled with MCP Server - check the unified package
+    private const string PackageId = "sbroenne.excelmcp.mcpserver";
     private const string NuGetIndexUrl = $"https://api.nuget.org/v3-flatcontainer/{PackageId}/index.json";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
 
@@ -54,3 +56,5 @@ internal static class NuGetVersionChecker
         public List<string> Versions { get; set; } = [];
     }
 }
+
+

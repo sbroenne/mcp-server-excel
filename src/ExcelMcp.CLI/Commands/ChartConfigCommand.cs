@@ -1,8 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.CLI.Service;
-using Sbroenne.ExcelMcp.CLI.Infrastructure;
-using Sbroenne.ExcelMcp.Core.Models.Actions;
+using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.Generated;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -32,9 +31,12 @@ internal sealed class ChartConfigCommand : AsyncCommand<ChartConfigCommand.Setti
             return 1;
         }
 
-        if (!ActionValidator.TryNormalizeAction<ChartConfigAction>(settings.Action, out var action, out var errorMessage))
+        // Validate and normalize action
+        var action = settings.Action.Trim().ToLowerInvariant();
+        if (!ServiceRegistry.ChartConfig.ValidActions.Contains(action, StringComparer.OrdinalIgnoreCase))
         {
-            AnsiConsole.MarkupLine($"[red]{errorMessage}[/]");
+            var validList = string.Join(", ", ServiceRegistry.ChartConfig.ValidActions);
+            AnsiConsole.MarkupLine($"[red]Invalid action '{action}'. Valid actions: {validList}[/]");
             return 1;
         }
         var command = $"chartconfig.{action}";
@@ -278,3 +280,5 @@ internal sealed class ChartConfigCommand : AsyncCommand<ChartConfigCommand.Setti
         public string? Placement { get; init; }
     }
 }
+
+

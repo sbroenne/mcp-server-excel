@@ -52,10 +52,10 @@ internal sealed class ExcelBatch : IExcelBatch
     /// </summary>
     /// <param name="workbookPaths">Paths to Excel workbooks. First path is the primary workbook.</param>
     /// <param name="logger">Optional logger for diagnostic output. If null, uses NullLogger (no output).</param>
-    /// <param name="showExcel">Whether to show the Excel window (default: false for background automation).</param>
+    /// <param name="show">Whether to show the Excel window (default: false for background automation).</param>
     /// <param name="operationTimeout">Timeout for individual operations. Default: 5 minutes.</param>
-    public ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger = null, bool showExcel = false, TimeSpan? operationTimeout = null)
-        : this(workbookPaths, logger, showExcel, createNewFile: false, isMacroEnabled: false, operationTimeout: operationTimeout)
+    public ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger = null, bool show = false, TimeSpan? operationTimeout = null)
+        : this(workbookPaths, logger, show, createNewFile: false, isMacroEnabled: false, operationTimeout: operationTimeout)
     {
     }
 
@@ -66,25 +66,25 @@ internal sealed class ExcelBatch : IExcelBatch
     /// <param name="filePath">Path where the new Excel file will be created.</param>
     /// <param name="isMacroEnabled">Whether to create .xlsm (macro-enabled) format.</param>
     /// <param name="logger">Optional logger for diagnostic output.</param>
-    /// <param name="showExcel">Whether to show the Excel window.</param>
+    /// <param name="show">Whether to show the Excel window.</param>
     /// <param name="operationTimeout">Timeout for individual operations. Default: 5 minutes.</param>
     /// <returns>ExcelBatch instance with the new workbook open.</returns>
-    internal static ExcelBatch CreateNewWorkbook(string filePath, bool isMacroEnabled, ILogger<ExcelBatch>? logger = null, bool showExcel = false, TimeSpan? operationTimeout = null)
+    internal static ExcelBatch CreateNewWorkbook(string filePath, bool isMacroEnabled, ILogger<ExcelBatch>? logger = null, bool show = false, TimeSpan? operationTimeout = null)
     {
-        return new ExcelBatch([filePath], logger, showExcel, createNewFile: true, isMacroEnabled: isMacroEnabled, operationTimeout: operationTimeout);
+        return new ExcelBatch([filePath], logger, show, createNewFile: true, isMacroEnabled: isMacroEnabled, operationTimeout: operationTimeout);
     }
 
     /// <summary>
     /// Private constructor that handles both opening existing files and creating new ones.
     /// </summary>
-    private ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger, bool showExcel, bool createNewFile, bool isMacroEnabled, TimeSpan? operationTimeout = null)
+    private ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger, bool show, bool createNewFile, bool isMacroEnabled, TimeSpan? operationTimeout = null)
     {
         if (workbookPaths == null || workbookPaths.Length == 0)
             throw new ArgumentException("At least one workbook path is required", nameof(workbookPaths));
 
         _allWorkbookPaths = workbookPaths;
         _workbookPath = workbookPaths[0]; // Primary workbook
-        _showExcel = showExcel;
+        _showExcel = show;
         _createNewFile = createNewFile;
         _isMacroEnabled = isMacroEnabled;
         _operationTimeout = operationTimeout ?? ComInteropConstants.DefaultOperationTimeout;
@@ -624,3 +624,5 @@ internal sealed class ExcelBatch : IExcelBatch
         _logger.LogDebug("[Thread {CallingThread}] Dispose COMPLETED for {FileName}", callingThread, Path.GetFileName(_workbookPath));
     }
 }
+
+

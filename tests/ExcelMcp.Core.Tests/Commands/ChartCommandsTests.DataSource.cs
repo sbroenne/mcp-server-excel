@@ -241,3 +241,7 @@ public partial class ChartCommandsTests
         Assert.Contains("$5", readResult.SourceRange, StringComparison.OrdinalIgnoreCase);
     }
 }
+
+
+
+

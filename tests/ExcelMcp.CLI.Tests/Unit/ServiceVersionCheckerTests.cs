@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.Service.Infrastructure;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
@@ -44,7 +44,7 @@ public sealed class ServiceVersionCheckerTests
         // GetNotificationTitle is static, doesn't need an instance
         var title = UpdateInfo.GetNotificationTitle();
 
-        Assert.Equal("Excel CLI Update Available", title);
+        Assert.Equal("Excel MCP Update Available", title);
     }
 
     [Fact]
@@ -76,6 +76,10 @@ public sealed class ServiceVersionCheckerTests
 
         var message = updateInfo.GetNotificationMessage();
 
-        Assert.Contains("dotnet tool update --global Sbroenne.ExcelMcp.CLI", message);
+        Assert.Contains("dotnet tool update --global Sbroenne.ExcelMcp.McpServer", message);
     }
 }
+
+
+
+

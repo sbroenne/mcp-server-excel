@@ -29,8 +29,8 @@ The Excel MCP Server provides **23 specialized tools with 214 operations** for c
 - 🔌 **Connections** (1 tool, 9 ops) - OLEDB/ODBC management and refresh
 - 🏷️ **Named Ranges** (1 tool, 6 ops) - Parameters and configuration
 - 📁 **Files** (1 tool, 6 ops) - Session management and workbook creation
-- �️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
-- �🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
+- 🎚️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
+- 🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
 
 📚 **[Complete Feature Reference →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)**
 

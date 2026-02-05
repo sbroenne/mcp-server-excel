@@ -200,3 +200,7 @@ public class ActionEnumCompletenessTests(ITestOutputHelper output)
         output.WriteLine($"✅ Build with TreatWarningsAsErrors=true ensures no missing cases.");
     }
 }
+
+
+
+

@@ -1,8 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.CLI.Service;
-using Sbroenne.ExcelMcp.CLI.Infrastructure;
-using Sbroenne.ExcelMcp.Core.Models.Actions;
+using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.Generated;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -29,18 +28,16 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
             return 1;
         }
 
-        if (!ActionValidator.TryNormalizeAction<TableAction>(settings.Action, out var action, out _))
-        {
-            // Try TableColumnAction if TableAction doesn't match
-            var validActions = ActionValidator.GetValidActions<TableAction>()
-                .Concat(ActionValidator.GetValidActions<TableColumnAction>())
-                .ToArray();
+        var validActions = ServiceRegistry.Table.ValidActions
+            .Concat(ServiceRegistry.TableColumn.ValidActions)
+            .ToArray();
 
-            if (!ActionValidator.TryNormalizeAction(settings.Action, validActions, out action, out var errorMessage))
-            {
-                AnsiConsole.MarkupLine($"[red]{errorMessage}[/]");
-                return 1;
-            }
+        var action = settings.Action.Trim().ToLowerInvariant();
+        if (!validActions.Contains(action, StringComparer.OrdinalIgnoreCase))
+        {
+            var validList = string.Join(", ", validActions);
+            AnsiConsole.MarkupLine($"[red]Invalid action '{action}'. Valid actions: {validList}[/]");
+            return 1;
         }
         var command = $"table.{action}";
 
@@ -263,3 +260,5 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
         public string? FormatCode { get; init; }
     }
 }
+
+

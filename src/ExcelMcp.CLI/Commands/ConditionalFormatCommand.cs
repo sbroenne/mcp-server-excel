@@ -1,10 +1,5 @@
-using System.ComponentModel;
-using System.Text.Json;
-using Sbroenne.ExcelMcp.CLI.Service;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
-using Sbroenne.ExcelMcp.Core.Models.Actions;
-using Spectre.Console;
-using Spectre.Console.Cli;
+using Sbroenne.ExcelMcp.Generated;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -12,105 +7,31 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 /// ConditionalFormat commands - thin wrapper that sends requests to service.
 /// Actions: add-rule, clear-rules
 /// </summary>
-internal sealed class ConditionalFormatCommand : AsyncCommand<ConditionalFormatCommand.Settings>
+internal sealed class ConditionalFormatCommand : ServiceCommandBase<ServiceRegistry.ConditionalFormat.CliSettings>
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    protected override string? GetSessionId(ServiceRegistry.ConditionalFormat.CliSettings settings) => settings.SessionId;
+    protected override string? GetAction(ServiceRegistry.ConditionalFormat.CliSettings settings) => settings.Action;
+    protected override IReadOnlyList<string> ValidActions => ServiceRegistry.ConditionalFormat.ValidActions;
+
+    protected override (string command, object? args) Route(ServiceRegistry.ConditionalFormat.CliSettings settings, string action)
     {
-        if (string.IsNullOrWhiteSpace(settings.SessionId))
-        {
-            AnsiConsole.MarkupLine("[red]Session ID is required. Use --session <id>[/]");
-            return 1;
-        }
-
-        if (string.IsNullOrWhiteSpace(settings.Action))
-        {
-            AnsiConsole.MarkupLine("[red]Action is required.[/]");
-            return 1;
-        }
-
-        if (!ActionValidator.TryNormalizeAction<ConditionalFormatAction>(settings.Action, out var action, out var errorMessage))
-        {
-            AnsiConsole.MarkupLine($"[red]{errorMessage}[/]");
-            return 1;
-        }
-        var command = $"conditionalformat.{action}";
-
-        var formula = ResolveFileOrValue(settings.Formula, settings.FormulaFile);
-        object? args = action switch
-        {
-            "add-rule" => new { sheetName = settings.SheetName, rangeAddress = settings.Range, ruleType = settings.RuleType, formula, formatStyle = settings.FormatStyle },
-            "clear-rules" => new { sheetName = settings.SheetName, rangeAddress = settings.Range },
-            _ => new { sheetName = settings.SheetName, rangeAddress = settings.Range }
-        };
-
-        using var client = new ServiceClient();
-        var response = await client.SendAsync(new ServiceRequest
-        {
-            Command = command,
-            SessionId = settings.SessionId,
-            Args = args != null ? JsonSerializer.Serialize(args, ServiceProtocol.JsonOptions) : null
-        }, cancellationToken);
-
-        if (response.Success)
-        {
-            Console.WriteLine(!string.IsNullOrEmpty(response.Result) ? response.Result : JsonSerializer.Serialize(new { success = true }, ServiceProtocol.JsonOptions));
-            return 0;
-        }
-        else
-        {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, ServiceProtocol.JsonOptions));
-            return 1;
-        }
-    }
-
-    /// <summary>
-    /// Returns file contents if filePath is provided, otherwise returns the direct value.
-    /// </summary>
-    private static string? ResolveFileOrValue(string? directValue, string? filePath)
-    {
-        if (!string.IsNullOrWhiteSpace(filePath))
-        {
-            if (!File.Exists(filePath))
-            {
-                throw new FileNotFoundException($"File not found: {filePath}");
-            }
-            return File.ReadAllText(filePath);
-        }
-        return directValue;
-    }
-
-    internal sealed class Settings : CommandSettings
-    {
-        [CommandArgument(0, "<ACTION>")]
-        [Description("The action to perform (add-rule, clear-rules)")]
-        public string Action { get; init; } = string.Empty;
-
-        [CommandOption("-s|--session <SESSION>")]
-        [Description("Session ID from 'session open' command")]
-        public string SessionId { get; init; } = string.Empty;
-
-        [CommandOption("--sheet <NAME>")]
-        [Description("Target worksheet name")]
-        public string? SheetName { get; init; }
-
-        [CommandOption("--range <ADDRESS>")]
-        [Description("Cell range address (e.g., A1:C10)")]
-        public string? Range { get; init; }
-
-        [CommandOption("--rule-type <TYPE>")]
-        [Description("Conditional format rule type")]
-        public string? RuleType { get; init; }
-
-        [CommandOption("--formula <FORMULA>")]
-        [Description("Excel formula for rule condition")]
-        public string? Formula { get; init; }
-
-        [CommandOption("--formula-file <PATH>")]
-        [Description("Read formula from file instead of command line")]
-        public string? FormulaFile { get; init; }
-
-        [CommandOption("--format-style <STYLE>")]
-        [Description("Format style to apply when rule matches")]
-        public string? FormatStyle { get; init; }
+        return ServiceRegistry.ConditionalFormat.RouteCliArgs(
+            action,
+            sheetName: settings.SheetName,
+            rangeAddress: settings.RangeAddress,
+            ruleType: settings.RuleType,
+            operatorType: settings.OperatorType,
+            formula1: settings.Formula1,
+            formula2: settings.Formula2,
+            interiorColor: settings.InteriorColor,
+            interiorPattern: settings.InteriorPattern,
+            fontColor: settings.FontColor,
+            fontBold: settings.FontBold,
+            fontItalic: settings.FontItalic,
+            borderStyle: settings.BorderStyle,
+            borderColor: settings.BorderColor
+        );
     }
 }
+
+

@@ -1,10 +1,5 @@
-using System.ComponentModel;
-using System.Text.Json;
-using Sbroenne.ExcelMcp.CLI.Service;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
-using Sbroenne.ExcelMcp.Core.Models.Actions;
-using Spectre.Console;
-using Spectre.Console.Cli;
+using Sbroenne.ExcelMcp.Generated;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
@@ -12,85 +7,21 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 /// NamedRange commands - thin wrapper that sends requests to service.
 /// Actions: list, read, write, create, update, delete
 /// </summary>
-internal sealed class NamedRangeCommand : AsyncCommand<NamedRangeCommand.Settings>
+internal sealed class NamedRangeCommand : ServiceCommandBase<ServiceRegistry.NamedRange.CliSettings>
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    protected override string? GetSessionId(ServiceRegistry.NamedRange.CliSettings settings) => settings.SessionId;
+    protected override string? GetAction(ServiceRegistry.NamedRange.CliSettings settings) => settings.Action;
+    protected override IReadOnlyList<string> ValidActions => ServiceRegistry.NamedRange.ValidActions;
+
+    protected override (string command, object? args) Route(ServiceRegistry.NamedRange.CliSettings settings, string action)
     {
-        if (string.IsNullOrWhiteSpace(settings.SessionId))
-        {
-            AnsiConsole.MarkupLine("[red]Session ID is required. Use --session <id>[/]");
-            return 1;
-        }
-
-        if (string.IsNullOrWhiteSpace(settings.Action))
-        {
-            AnsiConsole.MarkupLine("[red]Action is required.[/]");
-            return 1;
-        }
-
-        if (!ActionValidator.TryNormalizeAction<NamedRangeAction>(settings.Action, out var action, out var errorMessage))
-        {
-            AnsiConsole.MarkupLine($"[red]{errorMessage}[/]");
-            return 1;
-        }
-        var command = $"namedrange.{action}";
-
-        // Note: property names must match daemon's Args classes (e.g., NamedRangeArgs, NamedRangeCreateArgs)
-        object? args = action switch
-        {
-            "list" => null,
-            "read" => new { paramName = settings.Name },
-            "write" => new { paramName = settings.Name, value = settings.Value },
-            "create" => new { paramName = settings.Name, reference = settings.RefersTo },
-            "update" => new { paramName = settings.Name, reference = settings.RefersTo },
-            "delete" => new { paramName = settings.Name },
-            _ => new { paramName = settings.Name }
-        };
-
-        using var client = new ServiceClient();
-        var response = await client.SendAsync(new ServiceRequest
-        {
-            Command = command,
-            SessionId = settings.SessionId,
-            Args = args != null ? JsonSerializer.Serialize(args, ServiceProtocol.JsonOptions) : null
-        }, cancellationToken);
-
-        if (response.Success)
-        {
-            Console.WriteLine(!string.IsNullOrEmpty(response.Result) ? response.Result : JsonSerializer.Serialize(new { success = true }, ServiceProtocol.JsonOptions));
-            return 0;
-        }
-        else
-        {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, ServiceProtocol.JsonOptions));
-            return 1;
-        }
-    }
-
-    internal sealed class Settings : CommandSettings
-    {
-        [CommandArgument(0, "<ACTION>")]
-        [Description("The action to perform (list, read, write, create, update, delete)")]
-        public string Action { get; init; } = string.Empty;
-
-        [CommandOption("-s|--session <SESSION>")]
-        [Description("Session ID from 'session open' command")]
-        public string SessionId { get; init; } = string.Empty;
-
-        [CommandOption("--name <NAME>")]
-        [Description("Named range name")]
-        public string? Name { get; init; }
-
-        [CommandOption("--refers-to <FORMULA>")]
-        [Description("Reference formula (e.g., =Sheet1!$A$1:$C$10)")]
-        public string? RefersTo { get; init; }
-
-        [CommandOption("--value <VALUE>")]
-        [Description("Value to write to named range")]
-        public string? Value { get; init; }
-
-        [CommandOption("--sheet-scope <SHEET>")]
-        [Description("Scope named range to specific worksheet")]
-        public string? SheetScope { get; init; }
+        return ServiceRegistry.NamedRange.RouteCliArgs(
+            action,
+            paramName: settings.ParamName,
+            value: settings.Value,
+            reference: settings.Reference
+        );
     }
 }
+
+

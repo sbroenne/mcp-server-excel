@@ -49,3 +49,5 @@ public static class PivotTableFieldStrategyFactory
         throw new InvalidOperationException("No strategy found for PivotTable type. Unable to determine if OLAP or Regular PivotTable.");
     }
 }
+
+

@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- Assembly and Namespace Configuration -->
+    <AssemblyName>Sbroenne.ExcelMcp.Service</AssemblyName>
+    <RootNamespace>Sbroenne.ExcelMcp.Service</RootNamespace>
+
+    <!-- Service library doesn't need XML documentation warnings -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- Version Information -->
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+
+    <!-- Not a standalone package - bundled with CLI and MCP Server -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!-- Release Build Optimizations -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ExcelMcp.Core\ExcelMcp.Core.csproj" />
+    <ProjectReference Include="..\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\service.ico" />
+  </ItemGroup>
+
+  <!-- Allow CLI and MCP Server tests to access internals -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sbroenne.ExcelMcp.CLI" />
+    <InternalsVisibleTo Include="Sbroenne.ExcelMcp.McpServer" />
+    <InternalsVisibleTo Include="Sbroenne.ExcelMcp.CLI.Tests" />
+    <InternalsVisibleTo Include="Sbroenne.ExcelMcp.McpServer.Tests" />
+  </ItemGroup>
+
+</Project>

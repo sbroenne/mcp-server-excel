@@ -7,18 +7,19 @@ using Sbroenne.ExcelMcp.Core.Commands.Calculation;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
+using Sbroenne.ExcelMcp.Core.Commands.Slicer;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.Models.Actions;
+using Sbroenne.ExcelMcp.Generated;
 
-namespace Sbroenne.ExcelMcp.CLI.Service;
+namespace Sbroenne.ExcelMcp.Service;
 
 /// <summary>
 /// The ExcelMCP Service process. Holds SessionManager and executes Core commands.
 /// Runs as a background process, accepting commands via named pipe.
 /// Architecture mirrors MCP Server: CLI sends serialized requests → Service executes → Returns JSON.
 /// </summary>
-internal sealed class ExcelMcpService : IDisposable
+public sealed class ExcelMcpService : IDisposable
 {
     private readonly SessionManager _sessionManager = new();
     private readonly CancellationTokenSource _shutdownCts = new();
@@ -35,6 +36,7 @@ internal sealed class ExcelMcpService : IDisposable
     private readonly TableCommands _tableCommands = new();
     private readonly PowerQueryCommands _powerQueryCommands;
     private readonly PivotTableCommands _pivotTableCommands = new();
+    private readonly SlicerCommands _slicerCommands = new();
     private readonly ChartCommands _chartCommands = new();
     private readonly ConnectionCommands _connectionCommands = new();
     private readonly NamedRangeCommands _namedRangeCommands = new();
@@ -269,6 +271,8 @@ internal sealed class ExcelMcpService : IDisposable
                 "table" => await HandleTableCommandAsync(action, request),
                 "powerquery" => await HandlePowerQueryCommandAsync(action, request),
                 "pivottable" => await HandlePivotTableCommandAsync(action, request),
+                "pivottablefield" => await HandlePivotTableFieldCommandAsync(action, request),
+                "pivottablecalc" => await HandlePivotTableCalcCommandAsync(action, request),
                 "chart" => await HandleChartCommandAsync(action, request),
                 "chartconfig" => await HandleChartConfigCommandAsync(action, request),
                 "connection" => await HandleConnectionCommandAsync(action, request),
@@ -370,12 +374,12 @@ internal sealed class ExcelMcpService : IDisposable
             TimeSpan? timeout = args.TimeoutSeconds.HasValue
                 ? TimeSpan.FromSeconds(args.TimeoutSeconds.Value)
                 : null;
-            var sessionId = _sessionManager.CreateSessionForNewFile(fullPath, operationTimeout: timeout, origin: SessionOrigin.CLI);
+            var sessionId = _sessionManager.CreateSessionForNewFile(fullPath, show: args.Show, operationTimeout: timeout, origin: SessionOrigin.CLI);
 
             return new ServiceResponse
             {
                 Success = true,
-                Result = JsonSerializer.Serialize(new { sessionId, filePath = fullPath }, ServiceProtocol.JsonOptions)
+                Result = JsonSerializer.Serialize(new { success = true, sessionId, filePath = fullPath }, ServiceProtocol.JsonOptions)
             };
         }
         catch (Exception ex)
@@ -397,11 +401,11 @@ internal sealed class ExcelMcpService : IDisposable
             TimeSpan? timeout = args.TimeoutSeconds.HasValue
                 ? TimeSpan.FromSeconds(args.TimeoutSeconds.Value)
                 : null;
-            var sessionId = _sessionManager.CreateSession(args.FilePath, operationTimeout: timeout, origin: SessionOrigin.CLI);
+            var sessionId = _sessionManager.CreateSession(args.FilePath, show: args.Show, operationTimeout: timeout, origin: SessionOrigin.CLI);
             return new ServiceResponse
             {
                 Success = true,
-                Result = JsonSerializer.Serialize(new { sessionId, filePath = args.FilePath }, ServiceProtocol.JsonOptions)
+                Result = JsonSerializer.Serialize(new { success = true, sessionId, filePath = args.FilePath }, ServiceProtocol.JsonOptions)
             };
         }
         catch (Exception ex)
@@ -456,13 +460,20 @@ internal sealed class ExcelMcpService : IDisposable
     private ServiceResponse HandleSessionList()
     {
         var sessions = _sessionManager.GetActiveSessions()
-            .Select(s => new { sessionId = s.SessionId, filePath = s.FilePath })
+            .Select(s => new
+            {
+                sessionId = s.SessionId,
+                filePath = s.FilePath,
+                isExcelVisible = _sessionManager.IsExcelVisible(s.SessionId),
+                activeOperations = _sessionManager.GetActiveOperationCount(s.SessionId),
+                canClose = _sessionManager.GetActiveOperationCount(s.SessionId) == 0
+            })
             .ToList();
 
         return new ServiceResponse
         {
             Success = true,
-            Result = JsonSerializer.Serialize(new { sessions }, ServiceProtocol.JsonOptions)
+            Result = JsonSerializer.Serialize(new { success = true, sessions, count = sessions.Count }, ServiceProtocol.JsonOptions)
         };
     }
 
@@ -470,9 +481,9 @@ internal sealed class ExcelMcpService : IDisposable
 
     private Task<ServiceResponse> HandleSheetCommandAsync(string action, ServiceRequest request)
     {
-        if (TryParseAction<WorksheetAction>(action, out var sheetAction))
+        if (ServiceRegistry.Sheet.TryParseAction(action, out var sheetAction))
         {
-            if (sheetAction is WorksheetAction.CopyToFile or WorksheetAction.MoveToFile)
+            if (sheetAction is SheetAction.CopyToFile or SheetAction.MoveToFile)
             {
                 return Task.FromResult(HandleSheetCrossFileCommand(sheetAction, request));
             }
@@ -480,20 +491,20 @@ internal sealed class ExcelMcpService : IDisposable
             return WithSessionAsync(request.SessionId, batch => sheetAction switch
             {
                 // Lifecycle operations
-                WorksheetAction.List => SerializeResult(_sheetCommands.List(batch)),
-                WorksheetAction.Create => ExecuteVoid(() => _sheetCommands.Create(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                WorksheetAction.Rename => ExecuteVoid(() =>
+                SheetAction.List => SerializeResult(_sheetCommands.List(batch)),
+                SheetAction.Create => ExecuteVoid(() => _sheetCommands.Create(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
+                SheetAction.Rename => ExecuteVoid(() =>
                 {
                     var args = GetArg<SheetRenameArgs>(request.Args);
                     _sheetCommands.Rename(batch, args.SheetName!, args.NewName!);
                 }),
-                WorksheetAction.Delete => ExecuteVoid(() => _sheetCommands.Delete(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                WorksheetAction.Copy => ExecuteVoid(() =>
+                SheetAction.Delete => ExecuteVoid(() => _sheetCommands.Delete(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
+                SheetAction.Copy => ExecuteVoid(() =>
                 {
                     var args = GetArg<SheetCopyArgs>(request.Args);
                     _sheetCommands.Copy(batch, args.SourceSheet!, args.TargetSheet!);
                 }),
-                WorksheetAction.Move => ExecuteVoid(() =>
+                SheetAction.Move => ExecuteVoid(() =>
                 {
                     var args = GetArg<SheetMoveArgs>(request.Args);
                     _sheetCommands.Move(batch, args.SheetName!, args.BeforeSheet, args.AfterSheet);
@@ -503,19 +514,19 @@ internal sealed class ExcelMcpService : IDisposable
             });
         }
 
-        if (TryParseAction<WorksheetStyleAction>(action, out var styleAction))
+        if (ServiceRegistry.SheetStyle.TryParseAction(action, out var styleAction))
         {
             return WithSessionAsync(request.SessionId, batch => styleAction switch
             {
-                WorksheetStyleAction.SetTabColor => ExecuteVoid(() =>
+                SheetStyleAction.SetTabColor => ExecuteVoid(() =>
                 {
                     var args = GetArg<SheetTabColorArgs>(request.Args);
                     _sheetCommands.SetTabColor(batch, args.SheetName!, args.Red ?? 0, args.Green ?? 0, args.Blue ?? 0);
                 }),
-                WorksheetStyleAction.GetTabColor => SerializeResult(_sheetCommands.GetTabColor(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                WorksheetStyleAction.ClearTabColor => ExecuteVoid(() => _sheetCommands.ClearTabColor(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
+                SheetStyleAction.GetTabColor => SerializeResult(_sheetCommands.GetTabColor(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
+                SheetStyleAction.ClearTabColor => ExecuteVoid(() => _sheetCommands.ClearTabColor(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
 
-                WorksheetStyleAction.SetVisibility => ExecuteVoid(() =>
+                SheetStyleAction.SetVisibility => ExecuteVoid(() =>
                 {
                     var args = GetArg<SheetVisibilityArgs>(request.Args);
                     var visibility = args.Visibility?.ToLowerInvariant() switch
@@ -527,10 +538,10 @@ internal sealed class ExcelMcpService : IDisposable
                     };
                     _sheetCommands.SetVisibility(batch, args.SheetName!, visibility);
                 }),
-                WorksheetStyleAction.GetVisibility => SerializeResult(_sheetCommands.GetVisibility(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                WorksheetStyleAction.Show => ExecuteVoid(() => _sheetCommands.Show(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                WorksheetStyleAction.Hide => ExecuteVoid(() => _sheetCommands.Hide(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                WorksheetStyleAction.VeryHide => ExecuteVoid(() => _sheetCommands.VeryHide(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
+                SheetStyleAction.GetVisibility => SerializeResult(_sheetCommands.GetVisibility(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
+                SheetStyleAction.Show => ExecuteVoid(() => _sheetCommands.Show(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
+                SheetStyleAction.Hide => ExecuteVoid(() => _sheetCommands.Hide(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
+                SheetStyleAction.VeryHide => ExecuteVoid(() => _sheetCommands.VeryHide(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
 
                 _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported sheet style action: {action}" }
             });
@@ -539,18 +550,18 @@ internal sealed class ExcelMcpService : IDisposable
         return Task.FromResult(new ServiceResponse { Success = false, ErrorMessage = $"Unknown sheet action: {action}" });
     }
 
-    private ServiceResponse HandleSheetCrossFileCommand(WorksheetAction action, ServiceRequest request)
+    private ServiceResponse HandleSheetCrossFileCommand(SheetAction action, ServiceRequest request)
     {
         try
         {
             return action switch
             {
-                WorksheetAction.CopyToFile => ExecuteVoid(() =>
+                SheetAction.CopyToFile => ExecuteVoid(() =>
                 {
                     var args = GetArg<SheetCopyToFileArgs>(request.Args);
                     _sheetCommands.CopyToFile(args.SourceFile!, args.SourceSheet!, args.TargetFile!, args.TargetSheetName, args.BeforeSheet, args.AfterSheet);
                 }),
-                WorksheetAction.MoveToFile => ExecuteVoid(() =>
+                SheetAction.MoveToFile => ExecuteVoid(() =>
                 {
                     var args = GetArg<SheetMoveToFileArgs>(request.Args);
                     _sheetCommands.MoveToFile(args.SourceFile!, args.SourceSheet!, args.TargetFile!, args.BeforeSheet, args.AfterSheet);
@@ -570,7 +581,7 @@ internal sealed class ExcelMcpService : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            if (TryParseAction<RangeAction>(action, out var rangeAction))
+            if (ServiceRegistry.Range.TryParseAction(action, out var rangeAction))
             {
                 return rangeAction switch
                 {
@@ -594,7 +605,7 @@ internal sealed class ExcelMcpService : IDisposable
                 };
             }
 
-            if (TryParseAction<RangeEditAction>(action, out var editAction))
+            if (ServiceRegistry.RangeEdit.TryParseAction(action, out var editAction))
             {
                 return editAction switch
                 {
@@ -611,7 +622,7 @@ internal sealed class ExcelMcpService : IDisposable
                 };
             }
 
-            if (TryParseAction<RangeFormatAction>(action, out var formatAction))
+            if (ServiceRegistry.RangeFormat.TryParseAction(action, out var formatAction))
             {
                 return formatAction switch
                 {
@@ -630,7 +641,7 @@ internal sealed class ExcelMcpService : IDisposable
                 };
             }
 
-            if (TryParseAction<RangeLinkAction>(action, out var linkAction))
+            if (ServiceRegistry.RangeLink.TryParseAction(action, out var linkAction))
             {
                 return linkAction switch
                 {
@@ -980,7 +991,7 @@ internal sealed class ExcelMcpService : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            if (TryParseAction<TableAction>(action, out var tableAction))
+            if (ServiceRegistry.Table.TryParseAction(action, out var tableAction))
             {
                 return tableAction switch
                 {
@@ -1039,7 +1050,7 @@ internal sealed class ExcelMcpService : IDisposable
                 };
             }
 
-            if (TryParseAction<TableColumnAction>(action, out var columnAction))
+            if (ServiceRegistry.TableColumn.TryParseAction(action, out var columnAction))
             {
                 return columnAction switch
                 {
@@ -1049,7 +1060,7 @@ internal sealed class ExcelMcpService : IDisposable
                         if (a.Criteria != null)
                             _tableCommands.ApplyFilter(batch, a.TableName!, a.ColumnName!, a.Criteria);
                         else if (a.Values != null)
-                            _tableCommands.ApplyFilter(batch, a.TableName!, a.ColumnName!, a.Values);
+                            _tableCommands.ApplyFilterValues(batch, a.TableName!, a.ColumnName!, a.Values);
                     }),
                     TableColumnAction.ClearFilters => ExecuteVoid(() => _tableCommands.ClearFilters(batch, GetArg<TableArgs>(request.Args).TableName!)),
                     TableColumnAction.GetFilters => SerializeResult(_tableCommands.GetFilters(batch, GetArg<TableArgs>(request.Args).TableName!)),
@@ -1078,7 +1089,7 @@ internal sealed class ExcelMcpService : IDisposable
                         var a = GetArg<TableSortMultiArgs>(request.Args);
                         var sortColumns = JsonSerializer.Deserialize<List<TableSortColumn>>(a.SortColumnsJson!, ServiceProtocol.JsonOptions)
                             ?? throw new ArgumentException("sortColumnsJson must be a non-empty array");
-                        _tableCommands.Sort(batch, a.TableName!, sortColumns);
+                        _tableCommands.SortMulti(batch, a.TableName!, sortColumns);
                     }),
                     TableColumnAction.GetStructuredReference => SerializeResult(() =>
                     {
@@ -1158,7 +1169,7 @@ internal sealed class ExcelMcpService : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            if (TryParseAction<PivotTableAction>(action, out var pivotAction))
+            if (ServiceRegistry.PivotTable.TryParseAction(action, out var pivotAction))
             {
                 return pivotAction switch
                 {
@@ -1185,7 +1196,15 @@ internal sealed class ExcelMcpService : IDisposable
                 };
             }
 
-            if (TryParseAction<PivotTableFieldAction>(action, out var fieldAction))
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown pivottable action: {action}" };
+        });
+    }
+
+    private Task<ServiceResponse> HandlePivotTableFieldCommandAsync(string action, ServiceRequest request)
+    {
+        return WithSessionAsync(request.SessionId, batch =>
+        {
+            if (ServiceRegistry.PivotTableField.TryParseAction(action, out var fieldAction))
             {
                 return fieldAction switch
                 {
@@ -1246,11 +1265,19 @@ internal sealed class ExcelMcpService : IDisposable
                         var a = GetArg<PivotGroupByNumericArgs>(request.Args);
                         return _pivotTableCommands.GroupByNumeric(batch, a.PivotTableName!, a.FieldName!, a.Start, a.End, a.IntervalSize ?? 10);
                     }),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported pivottable field action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported pivottablefield action: {action}" }
                 };
             }
 
-            if (TryParseAction<PivotTableCalcAction>(action, out var calcAction))
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown pivottablefield action: {action}" };
+        });
+    }
+
+    private Task<ServiceResponse> HandlePivotTableCalcCommandAsync(string action, ServiceRequest request)
+    {
+        return WithSessionAsync(request.SessionId, batch =>
+        {
+            if (ServiceRegistry.PivotTableCalc.TryParseAction(action, out var calcAction))
             {
                 return calcAction switch
                 {
@@ -1277,11 +1304,11 @@ internal sealed class ExcelMcpService : IDisposable
                     }),
                     PivotTableCalcAction.SetGrandTotals => SerializeResult(_pivotTableCommands.SetGrandTotals(batch, GetArg<PivotGrandTotalsArgs>(request.Args).PivotTableName!, GetArg<PivotGrandTotalsArgs>(request.Args).ShowRowGrandTotals ?? true, GetArg<PivotGrandTotalsArgs>(request.Args).ShowColumnGrandTotals ?? true)),
                     PivotTableCalcAction.GetData => SerializeResult(_pivotTableCommands.GetData(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported pivottable calc action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported pivottablecalc action: {action}" }
                 };
             }
 
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown pivottable action: {action}" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown pivottablecalc action: {action}" };
         });
     }
 
@@ -1343,7 +1370,7 @@ internal sealed class ExcelMcpService : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            if (TryParseAction<ChartAction>(action, out var chartAction))
+            if (ServiceRegistry.Chart.TryParseAction(action, out var chartAction))
             {
                 return chartAction switch
                 {
@@ -1390,7 +1417,7 @@ internal sealed class ExcelMcpService : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            if (TryParseAction<ChartConfigAction>(action, out var configAction))
+            if (ServiceRegistry.ChartConfig.TryParseAction(action, out var configAction))
             {
                 return configAction switch
                 {
@@ -1589,7 +1616,7 @@ internal sealed class ExcelMcpService : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            if (TryParseAction<ConnectionAction>(action, out var connectionAction))
+            if (ServiceRegistry.Connection.TryParseAction(action, out var connectionAction))
             {
                 return connectionAction switch
                 {
@@ -1603,10 +1630,8 @@ internal sealed class ExcelMcpService : IDisposable
                     ConnectionAction.Refresh => ExecuteVoid(() =>
                     {
                         var a = GetArg<ConnectionRefreshArgs>(request.Args);
-                        if (a.TimeoutSeconds.HasValue)
-                            _connectionCommands.Refresh(batch, a.ConnectionName!, TimeSpan.FromSeconds(a.TimeoutSeconds.Value));
-                        else
-                            _connectionCommands.Refresh(batch, a.ConnectionName!);
+                        var timeout = a.TimeoutSeconds.HasValue ? TimeSpan.FromSeconds(a.TimeoutSeconds.Value) : (TimeSpan?)null;
+                        _connectionCommands.Refresh(batch, a.ConnectionName!, timeout);
                     }),
                     ConnectionAction.Delete => ExecuteVoid(() => _connectionCommands.Delete(batch, GetArg<ConnectionArgs>(request.Args).ConnectionName!)),
                     ConnectionAction.LoadTo => ExecuteVoid(() =>
@@ -1633,13 +1658,13 @@ internal sealed class ExcelMcpService : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            if (TryParseAction<CalculationModeAction>(action, out var calculationAction))
+            if (ServiceRegistry.Calculation.TryParseAction(action, out var calculationAction))
             {
                 return calculationAction switch
                 {
-                    CalculationModeAction.GetMode => SerializeResult(_calculationModeCommands.GetMode(batch)),
-                    CalculationModeAction.SetMode => ExecuteCalculationModeSet(batch, request),
-                    CalculationModeAction.Calculate => ExecuteCalculationModeCalculate(batch, request),
+                    CalculationAction.GetMode => SerializeResult(_calculationModeCommands.GetMode(batch)),
+                    CalculationAction.SetMode => ExecuteCalculationModeSet(batch, request),
+                    CalculationAction.Calculate => ExecuteCalculationModeCalculate(batch, request),
                     _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported calculation action: {action}" }
                 };
             }
@@ -1709,7 +1734,7 @@ internal sealed class ExcelMcpService : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            if (TryParseAction<NamedRangeAction>(action, out var namedRangeAction))
+            if (ServiceRegistry.NamedRange.TryParseAction(action, out var namedRangeAction))
             {
                 return namedRangeAction switch
                 {
@@ -1743,7 +1768,7 @@ internal sealed class ExcelMcpService : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            if (TryParseAction<ConditionalFormatAction>(action, out var formatAction))
+            if (ServiceRegistry.ConditionalFormat.TryParseAction(action, out var formatAction))
             {
                 return formatAction switch
                 {
@@ -1769,7 +1794,7 @@ internal sealed class ExcelMcpService : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            if (TryParseAction<VbaAction>(action, out var vbaAction))
+            if (ServiceRegistry.Vba.TryParseAction(action, out var vbaAction))
             {
                 return vbaAction switch
                 {
@@ -1804,7 +1829,7 @@ internal sealed class ExcelMcpService : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            if (TryParseAction<DataModelAction>(action, out var modelAction))
+            if (ServiceRegistry.DataModel.TryParseAction(action, out var modelAction))
             {
                 return modelAction switch
                 {
@@ -1830,10 +1855,8 @@ internal sealed class ExcelMcpService : IDisposable
                     DataModelAction.Refresh => ExecuteVoid(() =>
                     {
                         var a = GetArg<DataModelRefreshArgs>(request.Args);
-                        if (a.TimeoutSeconds.HasValue)
-                            _dataModelCommands.Refresh(batch, a.TableName, TimeSpan.FromSeconds(a.TimeoutSeconds.Value));
-                        else
-                            _dataModelCommands.Refresh(batch, a.TableName);
+                        var timeout = a.TimeoutSeconds.HasValue ? TimeSpan.FromSeconds(a.TimeoutSeconds.Value) : (TimeSpan?)null;
+                        _dataModelCommands.Refresh(batch, a.TableName, timeout);
                     }),
                     DataModelAction.Evaluate => SerializeResult(_dataModelCommands.Evaluate(batch, GetArg<DataModelEvaluateArgs>(request.Args).DaxQuery!)),
                     DataModelAction.ExecuteDmv => SerializeResult(_dataModelCommands.ExecuteDmv(batch, GetArg<DataModelDmvArgs>(request.Args).DmvQuery!)),
@@ -1849,7 +1872,7 @@ internal sealed class ExcelMcpService : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            if (TryParseAction<DataModelRelAction>(action, out var relAction))
+            if (ServiceRegistry.DataModelRel.TryParseAction(action, out var relAction))
             {
                 return relAction switch
                 {
@@ -1886,51 +1909,51 @@ internal sealed class ExcelMcpService : IDisposable
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
-            if (TryParseAction<SlicerAction>(action, out var slicerAction))
+            if (ServiceRegistry.Slicer.TryParseAction(action, out var slicerAction))
             {
                 return slicerAction switch
                 {
                     SlicerAction.ListSlicers => SerializeResult(() =>
                     {
                         var a = GetArg<SlicerListArgs>(request.Args);
-                        return _pivotTableCommands.ListSlicers(batch, a.PivotTableName);
+                        return _slicerCommands.ListSlicers(batch, a.PivotTableName);
                     }),
                     SlicerAction.CreateSlicer => SerializeResult(() =>
                     {
                         var a = GetArg<SlicerFromPivotArgs>(request.Args);
-                        return _pivotTableCommands.CreateSlicer(batch, a.PivotTableName!, a.SourceFieldName!, a.SlicerName!, a.DestinationSheet!, BuildSlicerPosition(a.Left, a.Top, a.Width, a.Height));
+                        return _slicerCommands.CreateSlicer(batch, a.PivotTableName!, a.SourceFieldName!, a.SlicerName!, a.DestinationSheet!, BuildSlicerPosition(a.Left, a.Top, a.Width, a.Height));
                     }),
                     SlicerAction.SetSlicerSelection => SerializeResult(() =>
                     {
                         var a = GetArg<SlicerFilterArgs>(request.Args);
                         var items = a.SelectedItems?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [];
-                        return _pivotTableCommands.SetSlicerSelection(batch, a.SlicerName!, items, !(a.MultiSelect ?? false));
+                        return _slicerCommands.SetSlicerSelection(batch, a.SlicerName!, items, !(a.MultiSelect ?? false));
                     }),
                     SlicerAction.DeleteSlicer => SerializeResult(() =>
                     {
                         var a = GetArg<SlicerArgs>(request.Args);
-                        return _pivotTableCommands.DeleteSlicer(batch, a.SlicerName!);
+                        return _slicerCommands.DeleteSlicer(batch, a.SlicerName!);
                     }),
                     SlicerAction.ListTableSlicers => SerializeResult(() =>
                     {
                         var a = GetArg<SlicerListArgs>(request.Args);
-                        return _tableCommands.ListTableSlicers(batch, a.TableName);
+                        return _slicerCommands.ListTableSlicers(batch, a.TableName);
                     }),
                     SlicerAction.CreateTableSlicer => SerializeResult(() =>
                     {
                         var a = GetArg<SlicerFromTableArgs>(request.Args);
-                        return _tableCommands.CreateTableSlicer(batch, a.TableName!, a.ColumnName!, a.SlicerName!, a.DestinationSheet!, BuildSlicerPosition(a.Left, a.Top, a.Width, a.Height));
+                        return _slicerCommands.CreateTableSlicer(batch, a.TableName!, a.ColumnName!, a.SlicerName!, a.DestinationSheet!, BuildSlicerPosition(a.Left, a.Top, a.Width, a.Height));
                     }),
                     SlicerAction.SetTableSlicerSelection => SerializeResult(() =>
                     {
                         var a = GetArg<SlicerFilterArgs>(request.Args);
                         var items = a.SelectedItems?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [];
-                        return _tableCommands.SetTableSlicerSelection(batch, a.SlicerName!, items, !(a.MultiSelect ?? false));
+                        return _slicerCommands.SetTableSlicerSelection(batch, a.SlicerName!, items, !(a.MultiSelect ?? false));
                     }),
                     SlicerAction.DeleteTableSlicer => SerializeResult(() =>
                     {
                         var a = GetArg<SlicerArgs>(request.Args);
-                        return _tableCommands.DeleteTableSlicer(batch, a.SlicerName!);
+                        return _slicerCommands.DeleteTableSlicer(batch, a.SlicerName!);
                     }),
                     _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported slicer action: {action}" }
                 };
@@ -2115,15 +2138,16 @@ internal sealed class ExcelMcpService : IDisposable
 // === ARGUMENT TYPES ===
 
 // Session
-internal sealed class SessionOpenArgs
+public sealed class SessionOpenArgs
 {
     public string? FilePath { get; set; }
+    public bool Show { get; set; }
     public int? TimeoutSeconds { get; set; }
 }
-internal sealed class SessionCloseArgs { public bool Save { get; set; } }
+public sealed class SessionCloseArgs { public bool Save { get; set; } }
 
 // Calculation Mode
-internal sealed class CalculationModeArgs
+public sealed class CalculationModeArgs
 {
     public string? Mode { get; set; }
     public string? Scope { get; set; }
@@ -2132,150 +2156,153 @@ internal sealed class CalculationModeArgs
 }
 
 // Sheet
-internal sealed class SheetArgs { public string? SheetName { get; set; } }
-internal sealed class SheetRenameArgs { public string? SheetName { get; set; } public string? NewName { get; set; } }
-internal sealed class SheetCopyArgs { public string? SourceSheet { get; set; } public string? TargetSheet { get; set; } }
-internal sealed class SheetMoveArgs { public string? SheetName { get; set; } public string? BeforeSheet { get; set; } public string? AfterSheet { get; set; } }
-internal sealed class SheetCopyToFileArgs { public string? SourceFile { get; set; } public string? SourceSheet { get; set; } public string? TargetFile { get; set; } public string? TargetSheetName { get; set; } public string? BeforeSheet { get; set; } public string? AfterSheet { get; set; } }
-internal sealed class SheetMoveToFileArgs { public string? SourceFile { get; set; } public string? SourceSheet { get; set; } public string? TargetFile { get; set; } public string? BeforeSheet { get; set; } public string? AfterSheet { get; set; } }
-internal sealed class SheetTabColorArgs { public string? SheetName { get; set; } public int? Red { get; set; } public int? Green { get; set; } public int? Blue { get; set; } }
-internal sealed class SheetVisibilityArgs { public string? SheetName { get; set; } public string? Visibility { get; set; } }
+public sealed class SheetArgs { public string? SheetName { get; set; } }
+public sealed class SheetRenameArgs { public string? SheetName { get; set; } public string? NewName { get; set; } }
+public sealed class SheetCopyArgs { public string? SourceSheet { get; set; } public string? TargetSheet { get; set; } }
+public sealed class SheetMoveArgs { public string? SheetName { get; set; } public string? BeforeSheet { get; set; } public string? AfterSheet { get; set; } }
+public sealed class SheetCopyToFileArgs { public string? SourceFile { get; set; } public string? SourceSheet { get; set; } public string? TargetFile { get; set; } public string? TargetSheetName { get; set; } public string? BeforeSheet { get; set; } public string? AfterSheet { get; set; } }
+public sealed class SheetMoveToFileArgs { public string? SourceFile { get; set; } public string? SourceSheet { get; set; } public string? TargetFile { get; set; } public string? BeforeSheet { get; set; } public string? AfterSheet { get; set; } }
+public sealed class SheetTabColorArgs { public string? SheetName { get; set; } public int? Red { get; set; } public int? Green { get; set; } public int? Blue { get; set; } }
+public sealed class SheetVisibilityArgs { public string? SheetName { get; set; } public string? Visibility { get; set; } }
 
 // Range
-internal sealed class RangeArgs { public string? SheetName { get; set; } public string? Range { get; set; } }
-internal sealed class RangeSetValuesArgs { public string? SheetName { get; set; } public string? Range { get; set; } public List<List<object?>>? Values { get; set; } }
-internal sealed class RangeSetFormulasArgs { public string? SheetName { get; set; } public string? Range { get; set; } public List<List<string>>? Formulas { get; set; } }
-internal sealed class RangeCopyArgs { public string? SourceSheet { get; set; } public string? SourceRange { get; set; } public string? TargetSheet { get; set; } public string? TargetRange { get; set; } }
-internal sealed class RangeInsertCellsArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? ShiftDirection { get; set; } }
-internal sealed class RangeDeleteCellsArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? ShiftDirection { get; set; } }
-internal sealed class RangeFindArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? SearchValue { get; set; } public bool? MatchCase { get; set; } public bool? MatchEntireCell { get; set; } public bool? SearchFormulas { get; set; } public bool? SearchValues { get; set; } public bool? SearchComments { get; set; } }
-internal sealed class RangeReplaceArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? FindValue { get; set; } public string? ReplaceValue { get; set; } public bool? MatchCase { get; set; } public bool? MatchEntireCell { get; set; } public bool? ReplaceAll { get; set; } }
-internal sealed class RangeSortArgs { public string? SheetName { get; set; } public string? Range { get; set; } public List<SortColumnArg>? SortColumns { get; set; } public bool? HasHeaders { get; set; } }
-internal sealed class SortColumnArg { public int ColumnIndex { get; set; } public bool Ascending { get; set; } = true; }
-internal sealed class RangeCellArgs { public string? SheetName { get; set; } public string? CellAddress { get; set; } }
-internal sealed class RangeHyperlinkArgs { public string? SheetName { get; set; } public string? CellAddress { get; set; } public string? Url { get; set; } public string? DisplayText { get; set; } public string? Tooltip { get; set; } }
-internal sealed class RangeNumberFormatArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? FormatCode { get; set; } }
-internal sealed class RangeNumberFormatsArgs { public string? SheetName { get; set; } public string? Range { get; set; } public List<List<string>>? Formats { get; set; } }
-internal sealed class RangeStyleArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? StyleName { get; set; } }
-internal sealed class RangeFormatArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? FontName { get; set; } public double? FontSize { get; set; } public bool? Bold { get; set; } public bool? Italic { get; set; } public bool? Underline { get; set; } public string? FontColor { get; set; } public string? FillColor { get; set; } public string? BorderStyle { get; set; } public string? BorderColor { get; set; } public string? BorderWeight { get; set; } public string? HorizontalAlignment { get; set; } public string? VerticalAlignment { get; set; } public bool? WrapText { get; set; } public int? Orientation { get; set; } }
-internal sealed class RangeValidationArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? ValidationType { get; set; } public string? ValidationOperator { get; set; } public string? Formula1 { get; set; } public string? Formula2 { get; set; } public bool? ShowInputMessage { get; set; } public string? InputTitle { get; set; } public string? InputMessage { get; set; } public bool? ShowErrorAlert { get; set; } public string? ErrorStyle { get; set; } public string? ErrorTitle { get; set; } public string? ErrorMessage { get; set; } public bool? IgnoreBlank { get; set; } public bool? ShowDropdown { get; set; } }
-internal sealed class RangeLockArgs { public string? SheetName { get; set; } public string? Range { get; set; } public bool? Locked { get; set; } }
+public sealed class RangeArgs { public string? SheetName { get; set; } public string? Range { get; set; } }
+public sealed class RangeSetValuesArgs { public string? SheetName { get; set; } public string? Range { get; set; } public List<List<object?>>? Values { get; set; } }
+public sealed class RangeSetFormulasArgs { public string? SheetName { get; set; } public string? Range { get; set; } public List<List<string>>? Formulas { get; set; } }
+public sealed class RangeCopyArgs { public string? SourceSheet { get; set; } public string? SourceRange { get; set; } public string? TargetSheet { get; set; } public string? TargetRange { get; set; } }
+public sealed class RangeInsertCellsArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? ShiftDirection { get; set; } }
+public sealed class RangeDeleteCellsArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? ShiftDirection { get; set; } }
+public sealed class RangeFindArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? SearchValue { get; set; } public bool? MatchCase { get; set; } public bool? MatchEntireCell { get; set; } public bool? SearchFormulas { get; set; } public bool? SearchValues { get; set; } public bool? SearchComments { get; set; } }
+public sealed class RangeReplaceArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? FindValue { get; set; } public string? ReplaceValue { get; set; } public bool? MatchCase { get; set; } public bool? MatchEntireCell { get; set; } public bool? ReplaceAll { get; set; } }
+public sealed class RangeSortArgs { public string? SheetName { get; set; } public string? Range { get; set; } public List<SortColumnArg>? SortColumns { get; set; } public bool? HasHeaders { get; set; } }
+public sealed class SortColumnArg { public int ColumnIndex { get; set; } public bool Ascending { get; set; } = true; }
+public sealed class RangeCellArgs { public string? SheetName { get; set; } public string? CellAddress { get; set; } }
+public sealed class RangeHyperlinkArgs { public string? SheetName { get; set; } public string? CellAddress { get; set; } public string? Url { get; set; } public string? DisplayText { get; set; } public string? Tooltip { get; set; } }
+public sealed class RangeNumberFormatArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? FormatCode { get; set; } }
+public sealed class RangeNumberFormatsArgs { public string? SheetName { get; set; } public string? Range { get; set; } public List<List<string>>? Formats { get; set; } }
+public sealed class RangeStyleArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? StyleName { get; set; } }
+public sealed class RangeFormatArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? FontName { get; set; } public double? FontSize { get; set; } public bool? Bold { get; set; } public bool? Italic { get; set; } public bool? Underline { get; set; } public string? FontColor { get; set; } public string? FillColor { get; set; } public string? BorderStyle { get; set; } public string? BorderColor { get; set; } public string? BorderWeight { get; set; } public string? HorizontalAlignment { get; set; } public string? VerticalAlignment { get; set; } public bool? WrapText { get; set; } public int? Orientation { get; set; } }
+public sealed class RangeValidationArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? ValidationType { get; set; } public string? ValidationOperator { get; set; } public string? Formula1 { get; set; } public string? Formula2 { get; set; } public bool? ShowInputMessage { get; set; } public string? InputTitle { get; set; } public string? InputMessage { get; set; } public bool? ShowErrorAlert { get; set; } public string? ErrorStyle { get; set; } public string? ErrorTitle { get; set; } public string? ErrorMessage { get; set; } public bool? IgnoreBlank { get; set; } public bool? ShowDropdown { get; set; } }
+public sealed class RangeLockArgs { public string? SheetName { get; set; } public string? Range { get; set; } public bool? Locked { get; set; } }
 
 // Table
-internal sealed class TableArgs { public string? TableName { get; set; } }
-internal sealed class TableCreateArgs { public string? SheetName { get; set; } public string? TableName { get; set; } public string? Range { get; set; } public bool? HasHeaders { get; set; } public string? TableStyle { get; set; } }
-internal sealed class TableRenameArgs { public string? TableName { get; set; } public string? NewName { get; set; } }
-internal sealed class TableResizeArgs { public string? TableName { get; set; } public string? NewRange { get; set; } }
-internal sealed class TableStyleArgs { public string? TableName { get; set; } public string? TableStyle { get; set; } }
-internal sealed class TableToggleTotalsArgs { public string? TableName { get; set; } public bool? ShowTotals { get; set; } }
-internal sealed class TableColumnTotalArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public string? TotalFunction { get; set; } }
-internal sealed class TableAppendArgs { public string? TableName { get; set; } public List<List<object?>>? Rows { get; set; } }
-internal sealed class TableDataArgs { public string? TableName { get; set; } public bool? VisibleOnly { get; set; } }
-internal sealed class TableFilterArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public string? Criteria { get; set; } public List<string>? Values { get; set; } }
-internal sealed class TableAddColumnArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public int? Position { get; set; } }
-internal sealed class TableColumnArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } }
-internal sealed class TableRenameColumnArgs { public string? TableName { get; set; } public string? OldName { get; set; } public string? NewName { get; set; } }
-internal sealed class TableSortArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public bool? Ascending { get; set; } }
-internal sealed class TableSortMultiArgs { public string? TableName { get; set; } public string? SortColumnsJson { get; set; } }
-internal sealed class TableColumnFormatArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public string? FormatCode { get; set; } }
-internal sealed class TableDaxArgs { public string? SheetName { get; set; } public string? TableName { get; set; } public string? DaxQuery { get; set; } public string? TargetCell { get; set; } }
-internal sealed class TableUpdateDaxArgs { public string? TableName { get; set; } public string? DaxQuery { get; set; } }
+public sealed class TableArgs { public string? TableName { get; set; } }
+public sealed class TableCreateArgs { public string? SheetName { get; set; } public string? TableName { get; set; } public string? Range { get; set; } public bool? HasHeaders { get; set; } public string? TableStyle { get; set; } }
+public sealed class TableRenameArgs { public string? TableName { get; set; } public string? NewName { get; set; } }
+public sealed class TableResizeArgs { public string? TableName { get; set; } public string? NewRange { get; set; } }
+public sealed class TableStyleArgs { public string? TableName { get; set; } public string? TableStyle { get; set; } }
+public sealed class TableToggleTotalsArgs { public string? TableName { get; set; } public bool? ShowTotals { get; set; } }
+public sealed class TableColumnTotalArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public string? TotalFunction { get; set; } }
+public sealed class TableAppendArgs { public string? TableName { get; set; } public List<List<object?>>? Rows { get; set; } }
+public sealed class TableDataArgs { public string? TableName { get; set; } public bool? VisibleOnly { get; set; } }
+public sealed class TableFilterArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public string? Criteria { get; set; } public List<string>? Values { get; set; } }
+public sealed class TableAddColumnArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public int? Position { get; set; } }
+public sealed class TableColumnArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } }
+public sealed class TableRenameColumnArgs { public string? TableName { get; set; } public string? OldName { get; set; } public string? NewName { get; set; } }
+public sealed class TableSortArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public bool? Ascending { get; set; } }
+public sealed class TableSortMultiArgs { public string? TableName { get; set; } public string? SortColumnsJson { get; set; } }
+public sealed class TableColumnFormatArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public string? FormatCode { get; set; } }
+public sealed class TableDaxArgs { public string? SheetName { get; set; } public string? TableName { get; set; } public string? DaxQuery { get; set; } public string? TargetCell { get; set; } }
+public sealed class TableUpdateDaxArgs { public string? TableName { get; set; } public string? DaxQuery { get; set; } }
 
 // PowerQuery
-internal sealed class PowerQueryArgs { public string? QueryName { get; set; } }
-internal sealed class PowerQueryCreateArgs { public string? QueryName { get; set; } public string? MCode { get; set; } public string? LoadDestination { get; set; } public string? TargetSheet { get; set; } public string? TargetCellAddress { get; set; } }
-internal sealed class PowerQueryUpdateArgs { public string? QueryName { get; set; } public string? MCode { get; set; } public bool? Refresh { get; set; } }
-internal sealed class PowerQueryRenameArgs { public string? OldName { get; set; } public string? NewName { get; set; } }
-internal sealed class PowerQueryLoadToArgs { public string? QueryName { get; set; } public string? LoadDestination { get; set; } public string? TargetSheet { get; set; } public string? TargetCellAddress { get; set; } }
-internal sealed class PowerQueryEvaluateArgs { public string? MCode { get; set; } }
+public sealed class PowerQueryArgs { public string? QueryName { get; set; } }
+public sealed class PowerQueryCreateArgs { public string? QueryName { get; set; } public string? MCode { get; set; } public string? LoadDestination { get; set; } public string? TargetSheet { get; set; } public string? TargetCellAddress { get; set; } }
+public sealed class PowerQueryUpdateArgs { public string? QueryName { get; set; } public string? MCode { get; set; } public bool? Refresh { get; set; } }
+public sealed class PowerQueryRenameArgs { public string? OldName { get; set; } public string? NewName { get; set; } }
+public sealed class PowerQueryLoadToArgs { public string? QueryName { get; set; } public string? LoadDestination { get; set; } public string? TargetSheet { get; set; } public string? TargetCellAddress { get; set; } }
+public sealed class PowerQueryEvaluateArgs { public string? MCode { get; set; } }
 
 // PivotTable
-internal sealed class PivotTableArgs { public string? PivotTableName { get; set; } }
-internal sealed class PivotTableRefreshArgs { public string? PivotTableName { get; set; } public TimeSpan? Timeout { get; set; } }
-internal sealed class PivotTableFromRangeArgs { public string? SourceSheet { get; set; } public string? SourceRange { get; set; } public string? DestinationSheet { get; set; } public string? DestinationCell { get; set; } public string? PivotTableName { get; set; } }
-internal sealed class PivotTableFromTableArgs { public string? TableName { get; set; } public string? DestinationSheet { get; set; } public string? DestinationCell { get; set; } public string? PivotTableName { get; set; } }
-internal sealed class PivotTableFromDataModelArgs { public string? TableName { get; set; } public string? DestinationSheet { get; set; } public string? DestinationCell { get; set; } public string? PivotTableName { get; set; } }
-internal sealed class PivotFieldArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public int? Position { get; set; } }
-internal sealed class PivotValueFieldArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? AggregationFunction { get; set; } public string? CustomName { get; set; } }
-internal sealed class PivotFieldFilterArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public List<string>? SelectedValues { get; set; } }
-internal sealed class PivotFieldSortArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public bool? Ascending { get; set; } }
-internal sealed class PivotCalculatedFieldArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? Formula { get; set; } }
-internal sealed class PivotLayoutArgs { public string? PivotTableName { get; set; } public int? LayoutType { get; set; } }
-internal sealed class PivotSubtotalsArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public bool? ShowSubtotals { get; set; } }
-internal sealed class PivotGrandTotalsArgs { public string? PivotTableName { get; set; } public bool? ShowRowGrandTotals { get; set; } public bool? ShowColumnGrandTotals { get; set; } }
-internal sealed class PivotFieldFunctionArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? AggregationFunction { get; set; } }
-internal sealed class PivotFieldNameArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? CustomName { get; set; } }
-internal sealed class PivotFieldFormatArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? NumberFormat { get; set; } }
-internal sealed class PivotGroupByDateArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? Interval { get; set; } }
-internal sealed class PivotGroupByNumericArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public double? Start { get; set; } public double? End { get; set; } public double? IntervalSize { get; set; } }
-internal sealed class PivotCalculatedMemberArgs { public string? PivotTableName { get; set; } public string? MemberName { get; set; } public string? Formula { get; set; } public string? MemberType { get; set; } public int? SolveOrder { get; set; } public string? DisplayFolder { get; set; } public string? NumberFormat { get; set; } }
-internal sealed class TableStructuredRefArgs { public string? TableName { get; set; } public string? Region { get; set; } public string? ColumnName { get; set; } }
+public sealed class PivotTableArgs { public string? PivotTableName { get; set; } }
+public sealed class PivotTableRefreshArgs { public string? PivotTableName { get; set; } public TimeSpan? Timeout { get; set; } }
+public sealed class PivotTableFromRangeArgs { public string? SourceSheet { get; set; } public string? SourceRange { get; set; } public string? DestinationSheet { get; set; } public string? DestinationCell { get; set; } public string? PivotTableName { get; set; } }
+public sealed class PivotTableFromTableArgs { public string? TableName { get; set; } public string? DestinationSheet { get; set; } public string? DestinationCell { get; set; } public string? PivotTableName { get; set; } }
+public sealed class PivotTableFromDataModelArgs { public string? TableName { get; set; } public string? DestinationSheet { get; set; } public string? DestinationCell { get; set; } public string? PivotTableName { get; set; } }
+public sealed class PivotFieldArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public int? Position { get; set; } }
+public sealed class PivotValueFieldArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? AggregationFunction { get; set; } public string? CustomName { get; set; } }
+public sealed class PivotFieldFilterArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public List<string>? SelectedValues { get; set; } }
+public sealed class PivotFieldSortArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public bool? Ascending { get; set; } }
+public sealed class PivotCalculatedFieldArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? Formula { get; set; } }
+public sealed class PivotLayoutArgs { public string? PivotTableName { get; set; } public int? LayoutType { get; set; } }
+public sealed class PivotSubtotalsArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public bool? ShowSubtotals { get; set; } }
+public sealed class PivotGrandTotalsArgs { public string? PivotTableName { get; set; } public bool? ShowRowGrandTotals { get; set; } public bool? ShowColumnGrandTotals { get; set; } }
+public sealed class PivotFieldFunctionArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? AggregationFunction { get; set; } }
+public sealed class PivotFieldNameArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? CustomName { get; set; } }
+public sealed class PivotFieldFormatArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? NumberFormat { get; set; } }
+public sealed class PivotGroupByDateArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? Interval { get; set; } }
+public sealed class PivotGroupByNumericArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public double? Start { get; set; } public double? End { get; set; } public double? IntervalSize { get; set; } }
+public sealed class PivotCalculatedMemberArgs { public string? PivotTableName { get; set; } public string? MemberName { get; set; } public string? Formula { get; set; } public string? MemberType { get; set; } public int? SolveOrder { get; set; } public string? DisplayFolder { get; set; } public string? NumberFormat { get; set; } }
+public sealed class TableStructuredRefArgs { public string? TableName { get; set; } public string? Region { get; set; } public string? ColumnName { get; set; } }
 
 // Chart
-internal sealed class ChartArgs { public string? ChartName { get; set; } }
-internal sealed class ChartFromRangeArgs { public string? SheetName { get; set; } public string? SourceRange { get; set; } public string? ChartType { get; set; } public double? Left { get; set; } public double? Top { get; set; } public double? Width { get; set; } public double? Height { get; set; } public string? ChartName { get; set; } }
-internal sealed class ChartFromPivotArgs { public string? PivotTableName { get; set; } public string? SheetName { get; set; } public string? ChartType { get; set; } public double? Left { get; set; } public double? Top { get; set; } public double? Width { get; set; } public double? Height { get; set; } public string? ChartName { get; set; } }
-internal sealed class ChartFromTableArgs { public string? TableName { get; set; } public string? SheetName { get; set; } public string? ChartType { get; set; } public double? Left { get; set; } public double? Top { get; set; } public double? Width { get; set; } public double? Height { get; set; } public string? ChartName { get; set; } }
-internal sealed class ChartMoveArgs { public string? ChartName { get; set; } public double? Left { get; set; } public double? Top { get; set; } public double? Width { get; set; } public double? Height { get; set; } }
-internal sealed class ChartFitArgs { public string? ChartName { get; set; } public string? SheetName { get; set; } public string? RangeAddress { get; set; } }
-internal sealed class ChartSourceRangeArgs { public string? ChartName { get; set; } public string? SourceRange { get; set; } }
-internal sealed class ChartAddSeriesArgs { public string? ChartName { get; set; } public string? SeriesName { get; set; } public string? ValuesRange { get; set; } public string? CategoryRange { get; set; } }
-internal sealed class ChartRemoveSeriesArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } }
-internal sealed class ChartTypeArgs { public string? ChartName { get; set; } public string? ChartType { get; set; } }
-internal sealed class ChartTitleArgs { public string? ChartName { get; set; } public string? Title { get; set; } }
-internal sealed class ChartAxisTitleArgs { public string? ChartName { get; set; } public string? Axis { get; set; } public string? Title { get; set; } }
-internal sealed class ChartAxisArgs { public string? ChartName { get; set; } public string? Axis { get; set; } }
-internal sealed class ChartAxisFormatArgs { public string? ChartName { get; set; } public string? Axis { get; set; } public string? NumberFormat { get; set; } }
-internal sealed class ChartLegendArgs { public string? ChartName { get; set; } public bool? Visible { get; set; } public string? LegendPosition { get; set; } }
-internal sealed class ChartStyleArgs { public string? ChartName { get; set; } public int? StyleId { get; set; } }
-internal sealed class ChartDataLabelsArgs { public string? ChartName { get; set; } public bool? ShowValue { get; set; } public bool? ShowPercentage { get; set; } public bool? ShowSeriesName { get; set; } public bool? ShowCategoryName { get; set; } public string? Separator { get; set; } public string? LabelPosition { get; set; } public int? SeriesIndex { get; set; } }
-internal sealed class ChartAxisScaleArgs { public string? ChartName { get; set; } public string? Axis { get; set; } public double? MinimumScale { get; set; } public double? MaximumScale { get; set; } public double? MajorUnit { get; set; } public double? MinorUnit { get; set; } }
-internal sealed class ChartGridlinesArgs { public string? ChartName { get; set; } public string? Axis { get; set; } public bool? ShowMajor { get; set; } public bool? ShowMinor { get; set; } }
-internal sealed class ChartSeriesFormatArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } public string? MarkerStyle { get; set; } public int? MarkerSize { get; set; } public string? MarkerBackgroundColor { get; set; } public string? MarkerForegroundColor { get; set; } }
-internal sealed class ChartSeriesArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } }
-internal sealed class ChartAddTrendlineArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } public string? TrendlineType { get; set; } public bool? DisplayEquation { get; set; } public bool? DisplayRSquared { get; set; } public string? TrendlineName { get; set; } }
-internal sealed class ChartDeleteTrendlineArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } public int? TrendlineIndex { get; set; } }
-internal sealed class ChartSetTrendlineArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } public int? TrendlineIndex { get; set; } public bool? DisplayEquation { get; set; } public bool? DisplayRSquared { get; set; } public string? TrendlineName { get; set; } }
-internal sealed class ChartPlacementArgs { public string? ChartName { get; set; } public int? Placement { get; set; } }
+public sealed class ChartArgs { public string? ChartName { get; set; } }
+public sealed class ChartFromRangeArgs { public string? SheetName { get; set; } public string? SourceRange { get; set; } public string? ChartType { get; set; } public double? Left { get; set; } public double? Top { get; set; } public double? Width { get; set; } public double? Height { get; set; } public string? ChartName { get; set; } }
+public sealed class ChartFromPivotArgs { public string? PivotTableName { get; set; } public string? SheetName { get; set; } public string? ChartType { get; set; } public double? Left { get; set; } public double? Top { get; set; } public double? Width { get; set; } public double? Height { get; set; } public string? ChartName { get; set; } }
+public sealed class ChartFromTableArgs { public string? TableName { get; set; } public string? SheetName { get; set; } public string? ChartType { get; set; } public double? Left { get; set; } public double? Top { get; set; } public double? Width { get; set; } public double? Height { get; set; } public string? ChartName { get; set; } }
+public sealed class ChartMoveArgs { public string? ChartName { get; set; } public double? Left { get; set; } public double? Top { get; set; } public double? Width { get; set; } public double? Height { get; set; } }
+public sealed class ChartFitArgs { public string? ChartName { get; set; } public string? SheetName { get; set; } public string? RangeAddress { get; set; } }
+public sealed class ChartSourceRangeArgs { public string? ChartName { get; set; } public string? SourceRange { get; set; } }
+public sealed class ChartAddSeriesArgs { public string? ChartName { get; set; } public string? SeriesName { get; set; } public string? ValuesRange { get; set; } public string? CategoryRange { get; set; } }
+public sealed class ChartRemoveSeriesArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } }
+public sealed class ChartTypeArgs { public string? ChartName { get; set; } public string? ChartType { get; set; } }
+public sealed class ChartTitleArgs { public string? ChartName { get; set; } public string? Title { get; set; } }
+public sealed class ChartAxisTitleArgs { public string? ChartName { get; set; } public string? Axis { get; set; } public string? Title { get; set; } }
+public sealed class ChartAxisArgs { public string? ChartName { get; set; } public string? Axis { get; set; } }
+public sealed class ChartAxisFormatArgs { public string? ChartName { get; set; } public string? Axis { get; set; } public string? NumberFormat { get; set; } }
+public sealed class ChartLegendArgs { public string? ChartName { get; set; } public bool? Visible { get; set; } public string? LegendPosition { get; set; } }
+public sealed class ChartStyleArgs { public string? ChartName { get; set; } public int? StyleId { get; set; } }
+public sealed class ChartDataLabelsArgs { public string? ChartName { get; set; } public bool? ShowValue { get; set; } public bool? ShowPercentage { get; set; } public bool? ShowSeriesName { get; set; } public bool? ShowCategoryName { get; set; } public string? Separator { get; set; } public string? LabelPosition { get; set; } public int? SeriesIndex { get; set; } }
+public sealed class ChartAxisScaleArgs { public string? ChartName { get; set; } public string? Axis { get; set; } public double? MinimumScale { get; set; } public double? MaximumScale { get; set; } public double? MajorUnit { get; set; } public double? MinorUnit { get; set; } }
+public sealed class ChartGridlinesArgs { public string? ChartName { get; set; } public string? Axis { get; set; } public bool? ShowMajor { get; set; } public bool? ShowMinor { get; set; } }
+public sealed class ChartSeriesFormatArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } public string? MarkerStyle { get; set; } public int? MarkerSize { get; set; } public string? MarkerBackgroundColor { get; set; } public string? MarkerForegroundColor { get; set; } }
+public sealed class ChartSeriesArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } }
+public sealed class ChartAddTrendlineArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } public string? TrendlineType { get; set; } public bool? DisplayEquation { get; set; } public bool? DisplayRSquared { get; set; } public string? TrendlineName { get; set; } }
+public sealed class ChartDeleteTrendlineArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } public int? TrendlineIndex { get; set; } }
+public sealed class ChartSetTrendlineArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } public int? TrendlineIndex { get; set; } public bool? DisplayEquation { get; set; } public bool? DisplayRSquared { get; set; } public string? TrendlineName { get; set; } }
+public sealed class ChartPlacementArgs { public string? ChartName { get; set; } public int? Placement { get; set; } }
 
 // Connection
-internal sealed class ConnectionArgs { public string? ConnectionName { get; set; } }
-internal sealed class ConnectionCreateArgs { public string? ConnectionName { get; set; } public string? ConnectionString { get; set; } public string? CommandText { get; set; } public string? Description { get; set; } }
-internal sealed class ConnectionRefreshArgs { public string? ConnectionName { get; set; } public int? TimeoutSeconds { get; set; } }
-internal sealed class ConnectionLoadToArgs { public string? ConnectionName { get; set; } public string? SheetName { get; set; } }
-internal sealed class ConnectionSetPropertiesArgs { public string? ConnectionName { get; set; } public string? ConnectionString { get; set; } public string? CommandText { get; set; } public string? Description { get; set; } public bool? BackgroundQuery { get; set; } public bool? RefreshOnFileOpen { get; set; } public bool? SavePassword { get; set; } public int? RefreshPeriod { get; set; } }
+public sealed class ConnectionArgs { public string? ConnectionName { get; set; } }
+public sealed class ConnectionCreateArgs { public string? ConnectionName { get; set; } public string? ConnectionString { get; set; } public string? CommandText { get; set; } public string? Description { get; set; } }
+public sealed class ConnectionRefreshArgs { public string? ConnectionName { get; set; } public int? TimeoutSeconds { get; set; } }
+public sealed class ConnectionLoadToArgs { public string? ConnectionName { get; set; } public string? SheetName { get; set; } }
+public sealed class ConnectionSetPropertiesArgs { public string? ConnectionName { get; set; } public string? ConnectionString { get; set; } public string? CommandText { get; set; } public string? Description { get; set; } public bool? BackgroundQuery { get; set; } public bool? RefreshOnFileOpen { get; set; } public bool? SavePassword { get; set; } public int? RefreshPeriod { get; set; } }
 
 // NamedRange
-internal sealed class NamedRangeArgs { public string? ParamName { get; set; } }
-internal sealed class NamedRangeWriteArgs { public string? ParamName { get; set; } public string? Value { get; set; } }
-internal sealed class NamedRangeCreateArgs { public string? ParamName { get; set; } public string? Reference { get; set; } }
+public sealed class NamedRangeArgs { public string? ParamName { get; set; } }
+public sealed class NamedRangeWriteArgs { public string? ParamName { get; set; } public string? Value { get; set; } }
+public sealed class NamedRangeCreateArgs { public string? ParamName { get; set; } public string? Reference { get; set; } }
 
 // ConditionalFormat
-internal sealed class ConditionalFormatAddArgs { public string? SheetName { get; set; } public string? RangeAddress { get; set; } public string? RuleType { get; set; } public string? OperatorType { get; set; } public string? Formula1 { get; set; } public string? Formula2 { get; set; } public string? InteriorColor { get; set; } public string? InteriorPattern { get; set; } public string? FontColor { get; set; } public bool? FontBold { get; set; } public bool? FontItalic { get; set; } public string? BorderStyle { get; set; } public string? BorderColor { get; set; } }
-internal sealed class ConditionalFormatClearArgs { public string? SheetName { get; set; } public string? RangeAddress { get; set; } }
+public sealed class ConditionalFormatAddArgs { public string? SheetName { get; set; } public string? RangeAddress { get; set; } public string? RuleType { get; set; } public string? OperatorType { get; set; } public string? Formula1 { get; set; } public string? Formula2 { get; set; } public string? InteriorColor { get; set; } public string? InteriorPattern { get; set; } public string? FontColor { get; set; } public bool? FontBold { get; set; } public bool? FontItalic { get; set; } public string? BorderStyle { get; set; } public string? BorderColor { get; set; } }
+public sealed class ConditionalFormatClearArgs { public string? SheetName { get; set; } public string? RangeAddress { get; set; } }
 
 // VBA
-internal sealed class VbaModuleArgs { public string? ModuleName { get; set; } }
-internal sealed class VbaImportArgs { public string? ModuleName { get; set; } public string? VbaCode { get; set; } }
-internal sealed class VbaRunArgs { public string? ProcedureName { get; set; } public int? TimeoutSeconds { get; set; } public List<string>? Parameters { get; set; } }
+public sealed class VbaModuleArgs { public string? ModuleName { get; set; } }
+public sealed class VbaImportArgs { public string? ModuleName { get; set; } public string? VbaCode { get; set; } }
+public sealed class VbaRunArgs { public string? ProcedureName { get; set; } public int? TimeoutSeconds { get; set; } public List<string>? Parameters { get; set; } }
 
 // DataModel
-internal sealed class DataModelTableArgs { public string? TableName { get; set; } }
-internal sealed class DataModelMeasureArgs { public string? MeasureName { get; set; } }
-internal sealed class DataModelCreateMeasureArgs { public string? TableName { get; set; } public string? MeasureName { get; set; } public string? DaxFormula { get; set; } public string? FormatType { get; set; } public string? Description { get; set; } }
-internal sealed class DataModelUpdateMeasureArgs { public string? MeasureName { get; set; } public string? DaxFormula { get; set; } public string? FormatType { get; set; } public string? Description { get; set; } }
-internal sealed class DataModelRelationshipArgs { public string? FromTable { get; set; } public string? FromColumn { get; set; } public string? ToTable { get; set; } public string? ToColumn { get; set; } }
-internal sealed class DataModelCreateRelationshipArgs { public string? FromTable { get; set; } public string? FromColumn { get; set; } public string? ToTable { get; set; } public string? ToColumn { get; set; } public bool? Active { get; set; } }
-internal sealed class DataModelUpdateRelationshipArgs { public string? FromTable { get; set; } public string? FromColumn { get; set; } public string? ToTable { get; set; } public string? ToColumn { get; set; } public bool? Active { get; set; } }
-internal sealed class DataModelRenameTableArgs { public string? OldName { get; set; } public string? NewName { get; set; } }
-internal sealed class DataModelRefreshArgs { public string? TableName { get; set; } public int? TimeoutSeconds { get; set; } }
-internal sealed class DataModelEvaluateArgs { public string? DaxQuery { get; set; } }
-internal sealed class DataModelDmvArgs { public string? DmvQuery { get; set; } }
+public sealed class DataModelTableArgs { public string? TableName { get; set; } }
+public sealed class DataModelMeasureArgs { public string? MeasureName { get; set; } }
+public sealed class DataModelCreateMeasureArgs { public string? TableName { get; set; } public string? MeasureName { get; set; } public string? DaxFormula { get; set; } public string? FormatType { get; set; } public string? Description { get; set; } }
+public sealed class DataModelUpdateMeasureArgs { public string? MeasureName { get; set; } public string? DaxFormula { get; set; } public string? FormatType { get; set; } public string? Description { get; set; } }
+public sealed class DataModelRelationshipArgs { public string? FromTable { get; set; } public string? FromColumn { get; set; } public string? ToTable { get; set; } public string? ToColumn { get; set; } }
+public sealed class DataModelCreateRelationshipArgs { public string? FromTable { get; set; } public string? FromColumn { get; set; } public string? ToTable { get; set; } public string? ToColumn { get; set; } public bool? Active { get; set; } }
+public sealed class DataModelUpdateRelationshipArgs { public string? FromTable { get; set; } public string? FromColumn { get; set; } public string? ToTable { get; set; } public string? ToColumn { get; set; } public bool? Active { get; set; } }
+public sealed class DataModelRenameTableArgs { public string? OldName { get; set; } public string? NewName { get; set; } }
+public sealed class DataModelRefreshArgs { public string? TableName { get; set; } public int? TimeoutSeconds { get; set; } }
+public sealed class DataModelEvaluateArgs { public string? DaxQuery { get; set; } }
+public sealed class DataModelDmvArgs { public string? DmvQuery { get; set; } }
 
 // Slicer
-internal sealed class SlicerArgs { public string? SlicerName { get; set; } }
-internal sealed class SlicerListArgs { public string? PivotTableName { get; set; } public string? TableName { get; set; } public string? SheetName { get; set; } }
-internal sealed class SlicerPositionArgs { public double? Top { get; set; } public double? Left { get; set; } public double? Width { get; set; } public double? Height { get; set; } }
-internal sealed class SlicerFromPivotArgs { public string? PivotTableName { get; set; } public string? SourceFieldName { get; set; } public string? SlicerName { get; set; } public string? DestinationSheet { get; set; } public double? Top { get; set; } public double? Left { get; set; } public double? Width { get; set; } public double? Height { get; set; } }
-internal sealed class SlicerFromTableArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public string? SlicerName { get; set; } public string? DestinationSheet { get; set; } public double? Top { get; set; } public double? Left { get; set; } public double? Width { get; set; } public double? Height { get; set; } }
-internal sealed class SlicerFilterArgs { public string? SlicerName { get; set; } public string? SelectedItems { get; set; } public bool? MultiSelect { get; set; } }
+public sealed class SlicerArgs { public string? SlicerName { get; set; } }
+public sealed class SlicerListArgs { public string? PivotTableName { get; set; } public string? TableName { get; set; } public string? SheetName { get; set; } }
+public sealed class SlicerPositionArgs { public double? Top { get; set; } public double? Left { get; set; } public double? Width { get; set; } public double? Height { get; set; } }
+public sealed class SlicerFromPivotArgs { public string? PivotTableName { get; set; } public string? SourceFieldName { get; set; } public string? SlicerName { get; set; } public string? DestinationSheet { get; set; } public double? Top { get; set; } public double? Left { get; set; } public double? Width { get; set; } public double? Height { get; set; } }
+public sealed class SlicerFromTableArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public string? SlicerName { get; set; } public string? DestinationSheet { get; set; } public double? Top { get; set; } public double? Left { get; set; } public double? Width { get; set; } public double? Height { get; set; } }
+public sealed class SlicerFilterArgs { public string? SlicerName { get; set; } public string? SelectedItems { get; set; } public bool? MultiSelect { get; set; } }
+
+
+

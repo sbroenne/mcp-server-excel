@@ -34,7 +34,8 @@
     <PackageVersion Include="coverlet.collector" Version="6.1.0" />
     <PackageVersion Include="MartinCostello.Logging.XUnit" Version="0.7.0" />
     <!-- Code Analysis and Security -->
-    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.5" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.102" />
   </ItemGroup>
 </Project>

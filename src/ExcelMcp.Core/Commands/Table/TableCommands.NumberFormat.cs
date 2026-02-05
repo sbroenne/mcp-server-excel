@@ -196,3 +196,5 @@ internal sealed class TableColumnRangeResult : ResultBase
     public string RangeAddress { get; set; } = string.Empty;
 }
 
+
+

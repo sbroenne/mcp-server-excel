@@ -59,7 +59,7 @@ public class DataModelPivotTableFixture : IAsyncLifetime
         {
             using (var manager = new SessionManager())
             {
-                var sessionId = manager.CreateSessionForNewFile(TestFilePath, showExcel: false);
+                var sessionId = manager.CreateSessionForNewFile(TestFilePath, show: false);
                 manager.CloseSession(sessionId, save: true);
             }
             CreationResult.FileCreated = true;
@@ -453,3 +453,7 @@ public class DataModelPivotTableCreationResult
     public long CreationTimeMs { get; set; }
     public string? ErrorMessage { get; set; }
 }
+
+
+
+

@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Text.Json;
 using ModelContextProtocol.Server;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -26,7 +25,7 @@ public static partial class ExcelRangeLinkTool
     /// Note: Cell locking only takes effect when the worksheet is protected.
     /// </summary>
     /// <param name="action">The link/protection operation to perform</param>
-    /// <param name="excelPath">Full path to Excel file (for reference/logging)</param>
+    /// <param name="path">Full path to Excel file (for reference/logging)</param>
     /// <param name="sessionId">Session ID from excel_file 'open'. Required for all actions.</param>
     /// <param name="sheetName">Name of the worksheet. Required for hyperlink actions. Optional for cell lock (uses active sheet if empty).</param>
     /// <param name="rangeAddress">Range address for multi-cell operations. Required for: remove-hyperlink, set-cell-lock, get-cell-lock</param>
@@ -40,7 +39,7 @@ public static partial class ExcelRangeLinkTool
     [McpMeta("requiresSession", true)]
     public static partial string RangeLink(
         RangeLinkAction action,
-        string excelPath,
+        string path,
         string sessionId,
         [DefaultValue(null)] string? sheetName,
         [DefaultValue(null)] string? rangeAddress,
@@ -52,27 +51,21 @@ public static partial class ExcelRangeLinkTool
     {
         return ExcelToolsBase.ExecuteToolAction(
             "excel_range_link",
-            action.ToActionString(),
-            excelPath,
-            () =>
+            ServiceRegistry.RangeLink.ToActionString(action),
+            path,
+            () => action switch
             {
-                var rangeCommands = new RangeCommands();
-
-                return action switch
-                {
-                    RangeLinkAction.AddHyperlink => AddHyperlinkAsync(rangeCommands, sessionId, sheetName, cellAddress, url, displayText, tooltip),
-                    RangeLinkAction.RemoveHyperlink => RemoveHyperlinkAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                    RangeLinkAction.ListHyperlinks => ListHyperlinksAsync(rangeCommands, sessionId, sheetName),
-                    RangeLinkAction.GetHyperlink => GetHyperlinkAsync(rangeCommands, sessionId, sheetName, cellAddress),
-                    RangeLinkAction.SetCellLock => SetCellLockAsync(rangeCommands, sessionId, sheetName, rangeAddress, isLocked),
-                    RangeLinkAction.GetCellLock => GetCellLockAsync(rangeCommands, sessionId, sheetName, rangeAddress),
-                    _ => throw new ArgumentException(
-                        $"Unknown action: {action} ({action.ToActionString()})", nameof(action))
-                };
+                RangeLinkAction.AddHyperlink => ForwardAddHyperlink(sessionId, sheetName, cellAddress, url, displayText, tooltip),
+                RangeLinkAction.RemoveHyperlink => ForwardRemoveHyperlink(sessionId, sheetName, rangeAddress),
+                RangeLinkAction.ListHyperlinks => ForwardListHyperlinks(sessionId, sheetName),
+                RangeLinkAction.GetHyperlink => ForwardGetHyperlink(sessionId, sheetName, cellAddress),
+                RangeLinkAction.SetCellLock => ForwardSetCellLock(sessionId, sheetName, rangeAddress, isLocked),
+                RangeLinkAction.GetCellLock => ForwardGetCellLock(sessionId, sheetName, rangeAddress),
+                _ => throw new ArgumentException($"Unknown action: {action} ({ServiceRegistry.RangeLink.ToActionString(action)})", nameof(action))
             });
     }
 
-    private static string AddHyperlinkAsync(RangeCommands commands, string sessionId, string? sheetName, string? cellAddress, string? url, string? displayText, string? tooltip)
+    private static string ForwardAddHyperlink(string sessionId, string? sheetName, string? cellAddress, string? url, string? displayText, string? tooltip)
     {
         if (string.IsNullOrEmpty(sheetName))
             ExcelToolsBase.ThrowMissingParameter("sheetName", "add-hyperlink");
@@ -81,99 +74,83 @@ public static partial class ExcelRangeLinkTool
         if (string.IsNullOrEmpty(url))
             ExcelToolsBase.ThrowMissingParameter("url", "add-hyperlink");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.AddHyperlink(batch, sheetName!, cellAddress!, url!, displayText, tooltip));
-
-        return JsonSerializer.Serialize(new { result.Success, errorMessage = result.ErrorMessage }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.add-hyperlink", sessionId, new
+        {
+            sheetName,
+            cellAddress,
+            url,
+            displayText,
+            tooltip
+        });
     }
 
-    private static string RemoveHyperlinkAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string ForwardRemoveHyperlink(string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(sheetName))
             ExcelToolsBase.ThrowMissingParameter("sheetName", "remove-hyperlink");
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "remove-hyperlink");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.RemoveHyperlink(batch, sheetName!, rangeAddress!));
-
-        return JsonSerializer.Serialize(new { result.Success, errorMessage = result.ErrorMessage }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.remove-hyperlink", sessionId, new
+        {
+            sheetName,
+            range = rangeAddress
+        });
     }
 
-    private static string ListHyperlinksAsync(RangeCommands commands, string sessionId, string? sheetName)
+    private static string ForwardListHyperlinks(string sessionId, string? sheetName)
     {
         if (string.IsNullOrEmpty(sheetName))
             ExcelToolsBase.ThrowMissingParameter("sheetName", "list-hyperlinks");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.ListHyperlinks(batch, sheetName!));
-
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("range.list-hyperlinks", sessionId, new
         {
-            result.Success,
-            sheetName = ((dynamic)result).SheetName,
-            hyperlinks = ((dynamic)result).Hyperlinks,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            sheetName
+        });
     }
 
-    private static string GetHyperlinkAsync(RangeCommands commands, string sessionId, string? sheetName, string? cellAddress)
+    private static string ForwardGetHyperlink(string sessionId, string? sheetName, string? cellAddress)
     {
         if (string.IsNullOrEmpty(sheetName))
             ExcelToolsBase.ThrowMissingParameter("sheetName", "get-hyperlink");
         if (string.IsNullOrEmpty(cellAddress))
             ExcelToolsBase.ThrowMissingParameter("cellAddress", "get-hyperlink");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.GetHyperlink(batch, sheetName!, cellAddress!));
-
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("range.get-hyperlink", sessionId, new
         {
-            result.Success,
-            cellAddress = ((dynamic)result).CellAddress,
-            url = ((dynamic)result).Url,
-            displayText = ((dynamic)result).DisplayText,
-            tooltip = ((dynamic)result).Tooltip,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            sheetName,
+            cellAddress
+        });
     }
 
-    private static string SetCellLockAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress, bool? isLocked)
+    private static string ForwardSetCellLock(string sessionId, string? sheetName, string? rangeAddress, bool? isLocked)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "set-cell-lock");
         if (isLocked == null)
             ExcelToolsBase.ThrowMissingParameter("isLocked", "set-cell-lock");
 
-        ExcelToolsBase.WithSession<object?>(
-            sessionId,
-            batch =>
-            {
-                commands.SetCellLock(batch, sheetName ?? "", rangeAddress!, isLocked!.Value);
-                return null;
-            });
-
-        return JsonSerializer.Serialize(new { Success = true }, ExcelToolsBase.JsonOptions);
+        return ExcelToolsBase.ForwardToService("range.set-cell-lock", sessionId, new
+        {
+            sheetName = sheetName ?? "",
+            range = rangeAddress,
+            locked = isLocked
+        });
     }
 
-    private static string GetCellLockAsync(RangeCommands commands, string sessionId, string? sheetName, string? rangeAddress)
+    private static string ForwardGetCellLock(string sessionId, string? sheetName, string? rangeAddress)
     {
         if (string.IsNullOrEmpty(rangeAddress))
             ExcelToolsBase.ThrowMissingParameter("rangeAddress", "get-cell-lock");
 
-        var result = ExcelToolsBase.WithSession(
-            sessionId,
-            batch => commands.GetCellLock(batch, sheetName ?? "", rangeAddress!));
-
-        return JsonSerializer.Serialize(new
+        return ExcelToolsBase.ForwardToService("range.get-cell-lock", sessionId, new
         {
-            result.Success,
-            isLocked = ((dynamic)result).Locked,
-            errorMessage = result.ErrorMessage
-        }, ExcelToolsBase.JsonOptions);
+            sheetName = sheetName ?? "",
+            range = rangeAddress
+        });
     }
 }
+
+
+
+

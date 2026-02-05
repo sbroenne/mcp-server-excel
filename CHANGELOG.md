@@ -10,6 +10,23 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### Changed
+
+- **Unified NuGet Package** (#432): MCP Server package now includes CLI - install once, get both tools!
+  - `dotnet tool install --global Sbroenne.ExcelMcp.McpServer` installs both `mcp-excel` and `excelcli`
+  - Eliminates version mismatch issues between MCP Server and CLI
+  - Guarantees ExcelMCP Service is always available for MCP Server operations
+  - CLI package (`Sbroenne.ExcelMcp.CLI`) is now deprecated - use the unified package
+
+- **MCP Server Service-Only Mode** (#432): MCP Server now forwards ALL requests to the shared ExcelMCP Service - just like the CLI did
+  - CLI and MCP Server now share sessions transparently via the ExcelMCP Service
+  - System tray UI shows sessions from both CLI and MCP origins
+  - Update notifications now show once (from service) instead of twice
+
+- **Terminology Update**: "Daemon" renamed to "ExcelMCP Service" throughout documentation
+  - Reflects unified architecture where both CLI and MCP Server use the same service
+  - Updated README, gh-pages, skills, and technical docs
+
 - **LLM Integration Tests (pytest-aitest)**: Migrated LLM tool validation to pytest-aitest with unified MCP/CLI test suite
   - YAML legacy scenarios removed in favor of pytest-aitest Python tests
   - Local editable dependency configured via `tool.uv.sources`
@@ -19,6 +36,10 @@ This changelog covers all components:
 - **Calculation Mode Control**: Added `excel_calculation_mode` tool and CLI `calculation` command to set/get calculation mode and trigger recalculation
   - Modes: automatic, manual, semi-automatic
   - Calculate scopes: workbook, sheet, range
+
+### Fixed
+
+- **Broken Emoji Characters**: Fixed corrupted emoji characters in README files (Slicers, Conditional Formatting, etc.)
 
 ## [1.6.9] - 2026-02-04
 

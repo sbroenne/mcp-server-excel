@@ -3,7 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ModelContextProtocol;
-using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 
 #pragma warning disable IL2070 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' requirements
@@ -13,12 +13,70 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// <summary>
 /// Base class for Excel MCP tools providing common patterns and utilities.
 /// All Excel tools inherit from this to ensure consistency for LLM usage.
-/// Provides session management support for conversational workflow performance.
+///
+/// The MCP Server forwards ALL requests to the ExcelMCP Service for unified session management.
+/// This enables the CLI and MCP Server to share sessions transparently.
 /// </summary>
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
 public static class ExcelToolsBase
 {
-    private static readonly SessionManager SessionManager = new();
+    private static readonly SemaphoreSlim _serviceLock = new(1, 1);
+
+    /// <summary>
+    /// Ensures the ExcelMCP Service is running.
+    /// The service is required for all MCP Server operations.
+    /// </summary>
+    public static async Task<bool> EnsureServiceAsync(CancellationToken cancellationToken = default)
+    {
+        await _serviceLock.WaitAsync(cancellationToken);
+        try
+        {
+            return await ServiceLauncher.EnsureServiceRunningAsync(cancellationToken);
+        }
+        finally
+        {
+            _serviceLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Sends a command to the ExcelMCP Service.
+    /// </summary>
+    public static async Task<ServiceResponse> SendToServiceAsync(
+        string command,
+        string? sessionId = null,
+        object? args = null,
+        int? timeoutSeconds = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await EnsureServiceAsync(cancellationToken))
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorMessage = "Failed to start ExcelMCP Service. Ensure excelcli.exe is available (bundled with mcp-excel)."
+            };
+        }
+
+        var timeout = timeoutSeconds.HasValue
+            ? TimeSpan.FromSeconds(timeoutSeconds.Value)
+            : ExcelServiceClient.DefaultRequestTimeout;
+
+        using var client = new ExcelServiceClient("mcp-server", requestTimeout: timeout);
+        return await client.SendCommandAsync(command, sessionId, args, cancellationToken);
+    }
+
+    /// <summary>
+    /// Creates an ExcelServiceClient for sending commands.
+    /// </summary>
+    public static ExcelServiceClient CreateServiceClient(int? timeoutSeconds = null)
+    {
+        var timeout = timeoutSeconds.HasValue
+            ? TimeSpan.FromSeconds(timeoutSeconds.Value)
+            : ExcelServiceClient.DefaultRequestTimeout;
+
+        return new ExcelServiceClient("mcp-server", requestTimeout: timeout);
+    }
 
     /// <summary>
     /// JSON serializer options optimized for LLM token efficiency.
@@ -40,67 +98,83 @@ public static class ExcelToolsBase
     };
 
     /// <summary>
-    /// Gets the SessionManager instance for session lifecycle operations.
+    /// Delegate wrapper for ForwardToService matching the generated code signature.
+    /// Used by generated RouteAction methods.
     /// </summary>
-    public static SessionManager GetSessionManager() => SessionManager;
+    public static readonly Func<string, string, object?, string> ForwardToServiceFunc =
+        (command, sessionId, args) => ForwardToService(command, sessionId, args);
 
     /// <summary>
-    /// Executes a synchronous Core command with session management.
-    /// Uses the provided sessionId to retrieve an active session from SessionManager.
-    /// All Core commands are now synchronous (blocking).
+    /// Forwards a command to the ExcelMCP Service and returns the JSON response.
+    /// This is the primary method for MCP tools to execute commands.
+    ///
+    /// The command format is "category.action", e.g., "sheet.list", "range.get-values".
+    /// The service handles session management and Core command execution.
     /// </summary>
-    /// <typeparam name="T">Return type of the command</typeparam>
-    /// <param name="sessionId">Required session ID from excel_file 'open' action</param>
-    /// <param name="action">Synchronous action that takes IExcelBatch and returns T</param>
-    /// <returns>Result of the command</returns>
-    /// <exception cref="McpException">Session not found or command execution failed</exception>
-    public static T WithSession<T>(
+    /// <param name="command">Service command in format "category.action"</param>
+    /// <param name="sessionId">Session ID for the operation</param>
+    /// <param name="args">Optional arguments object to serialize</param>
+    /// <param name="timeoutSeconds">Optional timeout override</param>
+    /// <returns>JSON response from service</returns>
+    public static string ForwardToService(
+        string command,
         string sessionId,
-        Func<IExcelBatch, T> action)
+        object? args = null,
+        int? timeoutSeconds = null)
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {
-            throw new ArgumentException("sessionId is required. Use excel_file 'open' action to start a session.", nameof(sessionId));
-        }
-
-        var batch = SessionManager.GetSession(sessionId);
-        if (batch == null)
-        {
-            var activeSessionIds = SessionManager.ActiveSessionIds.ToList();
-            var sessionCount = activeSessionIds.Count;
-            var errorMessage = sessionCount switch
+            return JsonSerializer.Serialize(new
             {
-                0 => $"Session '{sessionId}' not found. No active sessions exist. " +
-                     "Possible causes: (1) Session was closed prematurely before completing operations, " +
-                     "(2) Session never created. " +
-                     "Recovery: Use excel_file(action='open') to create a new session.",
-                1 => $"Session '{sessionId}' not found. Active session: {activeSessionIds[0]}. " +
-                     "Did you close the session before completing all operations? Use the active sessionId shown above.",
-                _ => $"Session '{sessionId}' not found. {sessionCount} active sessions exist. " +
-                     "Verify you're using the correct sessionId from excel_file 'open' action."
-            };
-            throw new InvalidOperationException(errorMessage);
+                success = false,
+                errorMessage = "sessionId is required. Use excel_file 'open' action to start a session.",
+                isError = true
+            }, JsonOptions);
         }
 
-        // Check if Excel process is still alive before executing operation
-        if (!batch.IsExcelProcessAlive())
+        var response = SendToServiceAsync(command, sessionId, args, timeoutSeconds).GetAwaiter().GetResult();
+
+        if (!response.Success)
         {
-            throw new InvalidOperationException(
-                $"Session '{sessionId}' is stale: Excel process has terminated. " +
-                "The session was likely corrupted by a COM error or timeout. " +
-                "Recovery: Close this session with excel_file(action='close') and create a new one with excel_file(action='open').");
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = response.ErrorMessage ?? $"Command '{command}' failed",
+                isError = true
+            }, JsonOptions);
         }
 
-        // Track operation start/end to prevent premature session close
-        SessionManager.BeginOperation(sessionId);
-        try
+        return response.Result ?? JsonSerializer.Serialize(new
         {
-            return action(batch);
-        }
-        finally
+            success = true
+        }, JsonOptions);
+    }
+
+    /// <summary>
+    /// Forwards a command to the ExcelMCP Service without a session.
+    /// Used for commands that don't require an active session (e.g., service.status).
+    /// </summary>
+    public static string ForwardToServiceNoSession(
+        string command,
+        object? args = null,
+        int? timeoutSeconds = null)
+    {
+        var response = SendToServiceAsync(command, null, args, timeoutSeconds).GetAwaiter().GetResult();
+
+        if (!response.Success)
         {
-            SessionManager.EndOperation(sessionId);
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorMessage = response.ErrorMessage ?? $"Command '{command}' failed",
+                isError = true
+            }, JsonOptions);
         }
+
+        return response.Result ?? JsonSerializer.Serialize(new
+        {
+            success = true
+        }, JsonOptions);
     }
 
     /// <summary>
@@ -165,14 +239,14 @@ public static class ExcelToolsBase
     /// </summary>
     /// <param name="toolName">Tool name for telemetry (e.g., "excel_range").</param>
     /// <param name="actionName">Action string (kebab-case) included in error context.</param>
-    /// <param name="excelPath">Optional Excel path for context in error messages.</param>
+    /// <param name="path">Optional Excel path for context in error messages.</param>
     /// <param name="operation">Synchronous operation to execute.</param>
     /// <param name="customHandler">Optional handler that can override default error serialization. Return null/empty to fall back to default.</param>
     /// <returns>Serialized JSON response.</returns>
     public static string ExecuteToolAction(
         string toolName,
         string actionName,
-        string? excelPath,
+        string? path,
         Func<string> operation,
         Func<Exception, string?>? customHandler = null)
     {
@@ -210,12 +284,12 @@ public static class ExcelToolsBase
                 }
             }
 
-            return SerializeToolError(actionName, excelPath, ex);
+            return SerializeToolError(actionName, path, ex);
         }
         finally
         {
             stopwatch.Stop();
-            ExcelMcpTelemetry.TrackToolInvocation(toolName, actionName, stopwatch.ElapsedMilliseconds, success, excelPath);
+            ExcelMcpTelemetry.TrackToolInvocation(toolName, actionName, stopwatch.ElapsedMilliseconds, success, path);
         }
     }
 
@@ -271,13 +345,13 @@ public static class ExcelToolsBase
     /// Includes detailed COM exception info for diagnostics.
     /// </summary>
     /// <param name="actionName">Action string (kebab-case) included in message.</param>
-    /// <param name="excelPath">Optional Excel path context.</param>
+    /// <param name="path">Optional Excel path context.</param>
     /// <param name="ex">Exception to serialize.</param>
     /// <returns>Serialized JSON error payload.</returns>
-    public static string SerializeToolError(string actionName, string? excelPath, Exception ex)
+    public static string SerializeToolError(string actionName, string? path, Exception ex)
     {
-        var errorMessage = excelPath != null
-            ? $"{actionName} failed for '{excelPath}': {ex.Message}"
+        var errorMessage = path != null
+            ? $"{actionName} failed for '{path}': {ex.Message}"
             : $"{actionName} failed: {ex.Message}";
 
         // Add detailed COM exception info for diagnostics
@@ -313,3 +387,7 @@ public static class ExcelToolsBase
         return JsonSerializer.Serialize(payload, JsonOptions);
     }
 }
+
+
+
+

@@ -2,7 +2,8 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
 
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -56,6 +57,21 @@
   <Target Name="_AddMcpServerPackageType" BeforeTargets="GenerateNuspec;Pack">
     <PropertyGroup>
       <PackageType>$(PackageType);McpServer</PackageType>
+    </PropertyGroup>
+  </Target>
+
+  <!-- Workaround for NETSDK1146: PackAsTool doesn't support net10.0-windows -->
+  <!-- See: https://github.com/dotnet/sdk/issues/12055#issuecomment-2125927648 -->
+  <Target Name="HackBeforePackToolValidation" BeforeTargets="_PackToolValidation">
+    <PropertyGroup>
+      <TargetPlatformIdentifier></TargetPlatformIdentifier>
+      <TargetPlatformMoniker></TargetPlatformMoniker>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="HackAfterPackToolValidation" AfterTargets="_PackToolValidation" BeforeTargets="PackTool">
+    <PropertyGroup>
+      <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
     </PropertyGroup>
   </Target>
 
@@ -122,6 +138,12 @@ internal static class TelemetryConfig
       <!-- Don't copy XML docs from referenced projects in Release builds -->
       <Private>true</Private>
     </ProjectReference>
+    <ProjectReference Include="..\ExcelMcp.Service\ExcelMcp.Service.csproj" />
+
+    <!-- MCP Tool Generator - generates Tool classes with [McpServerTool] attributes -->
+    <ProjectReference Include="..\ExcelMcp.Generators.Mcp\ExcelMcp.Generators.Mcp.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

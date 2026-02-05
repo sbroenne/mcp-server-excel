@@ -93,3 +93,7 @@ public sealed class ToolInstallationDetectorTests
         // and whether there's an update available
     }
 }
+
+
+
+

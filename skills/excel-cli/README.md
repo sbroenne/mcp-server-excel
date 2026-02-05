@@ -50,7 +50,11 @@ Extract to your AI assistant's skills directory:
 
 Or use npx:
 ```bash
-npx skills add sbroenne/mcp-server-excel --skill excel-cli -a cursor
+# Interactive - prompts to select excel-cli, excel-mcp, or both
+npx skills add sbroenne/mcp-server-excel
+
+# Or specify directly
+npx skills add sbroenne/mcp-server-excel --skill excel-cli
 ```
 
 ## Contents

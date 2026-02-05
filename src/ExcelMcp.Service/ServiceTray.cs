@@ -1,14 +1,14 @@
 using System.Reflection;
-using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.Service.Infrastructure;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 
-namespace Sbroenne.ExcelMcp.CLI.Service;
+namespace Sbroenne.ExcelMcp.Service;
 
 /// <summary>
 /// System tray icon for the ExcelMCP Service.
 /// Shows running sessions and allows closing them or stopping the service.
 /// </summary>
-internal sealed class ServiceTray : IDisposable
+public sealed class ServiceTray : IDisposable
 {
     private readonly NotifyIcon _notifyIcon;
     private readonly ContextMenuStrip _contextMenu;
@@ -96,7 +96,7 @@ internal sealed class ServiceTray : IDisposable
     private static Icon LoadEmbeddedIcon()
     {
         var assembly = Assembly.GetExecutingAssembly();
-        var resourceName = "Sbroenne.ExcelMcp.CLI.Resources.excelcli.ico";
+        var resourceName = "Sbroenne.ExcelMcp.Service.Resources.service.ico";
 
         using var stream = assembly.GetManifestResourceStream(resourceName);
         if (stream != null)
@@ -248,13 +248,12 @@ internal sealed class ServiceTray : IDisposable
     private void ShowAbout()
     {
         var version = GetCurrentVersion();
-        var message = $"ExcelMCP Service\n\n" +
-                      $"Version: {version}\n\n" +
-                      $"A background service for Excel automation.\n\n" +
-                      $"GitHub: https://github.com/sbroenne/mcp-server-excel\n" +
-                      $"Docs: https://sbroenne.github.io/mcp-server-excel/";
-
-        _dialogService.ShowInfo(message, "About ExcelMCP");
+        _dialogService.ShowAbout(
+            "ExcelMCP Service",
+            version,
+            "A background service for Excel automation.",
+            "https://github.com/sbroenne/mcp-server-excel",
+            "https://sbroenne.github.io/mcp-server-excel/");
     }
 
     private static string GetCurrentVersion()
@@ -433,3 +432,5 @@ internal sealed class ServiceTray : IDisposable
         _contextMenu.Dispose();
     }
 }
+
+

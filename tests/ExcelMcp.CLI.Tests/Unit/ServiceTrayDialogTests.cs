@@ -1,4 +1,5 @@
-using Sbroenne.ExcelMcp.CLI.Service;
+using Sbroenne.ExcelMcp.Service;
+using DialogResult = Sbroenne.ExcelMcp.Service.DialogResult;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
@@ -57,6 +58,11 @@ internal sealed class MockDialogService : IDialogService
     public void ShowError(string message, string title)
     {
         _dialogCalls.Add(("Error", message, title));
+    }
+
+    public void ShowAbout(string productName, string version, string description, string githubUrl, string docsUrl)
+    {
+        _dialogCalls.Add(("About", $"{productName}|{version}|{description}|{githubUrl}|{docsUrl}", "About ExcelMCP"));
     }
 }
 
@@ -144,3 +150,7 @@ public sealed class ServiceTrayDialogTests
         Assert.IsAssignableFrom<IDialogService>(service);
     }
 }
+
+
+
+

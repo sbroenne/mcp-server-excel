@@ -211,3 +211,5 @@ public static class PowerQueryHelpers
         public bool RefreshImmediately { get; init; }
     }
 }
+
+
