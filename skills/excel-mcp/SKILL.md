@@ -3,7 +3,7 @@ name: excel-mcp
 description: >
   Automate Microsoft Excel on Windows via COM interop. Use when creating, reading,
   or modifying Excel workbooks. Supports Power Query (M code), Data Model (DAX measures),
-  PivotTables, Tables, Ranges, Charts, Slicers, Formatting, VBA macros, and connections.
+  PivotTables, Tables, Ranges, Charts, Slicers, Formatting, VBA macros, connections, and calculation mode control.
   Triggers: Excel, spreadsheet, workbook, xlsx, Power Query, DAX, PivotTable, VBA.
 compatibility: Windows + Microsoft Excel 2016+ required. Uses COM interop - does NOT work on macOS or Linux.
 license: MIT
@@ -21,6 +21,19 @@ Provides 200+ Excel operations via Model Context Protocol. Tools are auto-discov
 - Windows host with Microsoft Excel installed (2016+)
 - Use full Windows paths: `C:\Users\Name\Documents\Report.xlsx`
 - Excel files must not be open in another Excel instance
+
+## Calculation Mode Workflow (Batch Performance)
+
+Use `excel_calculation_mode` for **bulk write performance optimization**. When writing many values or formulas, disable auto-recalc to avoid recalculating after every cell:
+
+```
+1. excel_calculation_mode(action: 'set-mode', mode: 'manual')  → Disable auto-recalc
+2. Perform all writes (excel_range set-values, set-formulas)
+3. excel_calculation_mode(action: 'calculate', scope: 'workbook')  → Recalculate once
+4. excel_calculation_mode(action: 'set-mode', mode: 'automatic')  → Restore default
+```
+
+**Note:** You do NOT need manual mode to read formulas - `excel_range get-formulas` returns formula text regardless of calculation mode.
 
 ## CRITICAL: Execution Rules (MUST FOLLOW)
 
@@ -122,6 +135,19 @@ Error responses include actionable hints:
 }
 ```
 
+### Rule 9: Use Calculation Mode for Bulk Write Performance
+
+When writing many values/formulas (10+ cells), use `excel_calculation_mode` to avoid recalculating after every write:
+
+```
+1. excel_calculation_mode(action: 'set-mode', mode: 'manual')  → Disable auto-recalc
+2. Perform data writes (excel_range set-values, set-formulas)
+3. excel_calculation_mode(action: 'calculate', scope: 'workbook')  → Recalculate once at end
+4. excel_calculation_mode(action: 'set-mode', mode: 'automatic')  → Restore default
+```
+
+**When NOT needed:** Reading formulas, small edits (1-10 cells), or when you need immediate calculation results.
+
 ## Tool Selection Quick Reference
 
 | Task | Tool | Key Action |
@@ -135,6 +161,7 @@ Error responses include actionable hints:
 | Create PivotTables | `excel_pivottable` | create, create-from-datamodel |
 | Filter with slicers | `excel_slicer` | set-slicer-selection |
 | Create charts | `excel_chart` | create-from-range |
+| Control calculation mode | `excel_calculation_mode` | get-mode, set-mode, calculate |
 
 ## Reference Documentation
 

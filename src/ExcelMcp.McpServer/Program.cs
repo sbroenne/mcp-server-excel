@@ -94,6 +94,11 @@ public class Program
                     2. Use sessionId with ALL subsequent tools
                     3. excel_file(action:'close', save:true/false) → ONLY when completely done
 
+                    CALCULATION MODE:
+                    - When a task mentions manual/automatic calculation or explicit recalculation, you MUST use excel_calculation_mode.
+                    - Sequence: set-mode manual → perform writes → calculate (scope: workbook) → set-mode automatic.
+                    - Use get-mode when user asks for current calculation mode.
+
                     CRITICAL - DO NOT CLOSE SESSION PREMATURELY:
                     - Server automatically tracks active operations per session
                     - Close will be BLOCKED if operations are still running (returns error with count)
