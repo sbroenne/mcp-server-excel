@@ -1,4 +1,4 @@
-namespace Sbroenne.ExcelMcp.CLI.Daemon;
+namespace Sbroenne.ExcelMcp.CLI.Service;
 
 /// <summary>
 /// Result of a user dialog prompt.

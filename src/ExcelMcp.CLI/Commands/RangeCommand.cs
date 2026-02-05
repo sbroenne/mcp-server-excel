@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.CLI.Daemon;
+using Sbroenne.ExcelMcp.CLI.Service;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.Core.Models.Actions;
 using Spectre.Console;
@@ -9,7 +9,7 @@ using Spectre.Console.Cli;
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
 /// <summary>
-/// Range commands - thin wrapper that sends requests to daemon.
+/// Range commands - thin wrapper that sends requests to service.
 /// </summary>
 internal sealed class RangeCommand : AsyncCommand<RangeCommand.Settings>
 {
@@ -99,12 +99,12 @@ internal sealed class RangeCommand : AsyncCommand<RangeCommand.Settings>
             _ => new { sheetName = settings.SheetName, range = settings.Range }
         };
 
-        using var client = new DaemonClient();
-        var response = await client.SendAsync(new DaemonRequest
+        using var client = new ServiceClient();
+        var response = await client.SendAsync(new ServiceRequest
         {
             Command = command,
             SessionId = settings.SessionId,
-            Args = args != null ? JsonSerializer.Serialize(args, DaemonProtocol.JsonOptions) : null
+            Args = args != null ? JsonSerializer.Serialize(args, ServiceProtocol.JsonOptions) : null
         }, cancellationToken);
 
         if (response.Success)
@@ -115,13 +115,13 @@ internal sealed class RangeCommand : AsyncCommand<RangeCommand.Settings>
             }
             else
             {
-                Console.WriteLine(JsonSerializer.Serialize(new { success = true }, DaemonProtocol.JsonOptions));
+                Console.WriteLine(JsonSerializer.Serialize(new { success = true }, ServiceProtocol.JsonOptions));
             }
             return 0;
         }
         else
         {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, DaemonProtocol.JsonOptions));
+            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, ServiceProtocol.JsonOptions));
             return 1;
         }
     }
@@ -134,7 +134,7 @@ internal sealed class RangeCommand : AsyncCommand<RangeCommand.Settings>
         {
             try
             {
-                values = JsonSerializer.Deserialize<List<List<object?>>>(valuesJson, DaemonProtocol.JsonOptions);
+                values = JsonSerializer.Deserialize<List<List<object?>>>(valuesJson, ServiceProtocol.JsonOptions);
             }
             catch
             {
@@ -156,7 +156,7 @@ internal sealed class RangeCommand : AsyncCommand<RangeCommand.Settings>
         if (string.IsNullOrWhiteSpace(input)) return null;
         try
         {
-            return JsonSerializer.Deserialize<List<List<string>>>(input, DaemonProtocol.JsonOptions);
+            return JsonSerializer.Deserialize<List<List<string>>>(input, ServiceProtocol.JsonOptions);
         }
         catch
         {

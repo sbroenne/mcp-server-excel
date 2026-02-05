@@ -3,9 +3,9 @@ using System.Reflection;
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
 
 /// <summary>
-/// Checks for CLI updates on daemon startup and notifies via Windows notification.
+/// Checks for CLI updates on service startup and notifies via Windows notification.
 /// </summary>
-internal static class DaemonVersionChecker
+internal static class ServiceVersionChecker
 {
     /// <summary>
     /// Checks for updates and returns update information if available.
@@ -41,7 +41,7 @@ internal static class DaemonVersionChecker
         }
         catch
         {
-            // Fail silently - version check should never block daemon startup
+            // Fail silently - version check should never block service startup
             return null;
         }
     }

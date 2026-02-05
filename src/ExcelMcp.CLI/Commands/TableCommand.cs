@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.CLI.Daemon;
+using Sbroenne.ExcelMcp.CLI.Service;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.Core.Models.Actions;
 using Spectre.Console;
@@ -9,7 +9,7 @@ using Spectre.Console.Cli;
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
 /// <summary>
-/// Table commands - thin wrapper that sends requests to daemon.
+/// Table commands - thin wrapper that sends requests to service.
 /// Actions: list, create, read, rename, delete, resize, set-style, toggle-totals,
 /// set-column-total, append, get-data, add-to-datamodel, create-from-dax, update-dax, get-dax
 /// </summary>
@@ -84,12 +84,12 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
             _ => new { tableName = settings.TableName }
         };
 
-        using var client = new DaemonClient();
-        var response = await client.SendAsync(new DaemonRequest
+        using var client = new ServiceClient();
+        var response = await client.SendAsync(new ServiceRequest
         {
             Command = command,
             SessionId = settings.SessionId,
-            Args = args != null ? JsonSerializer.Serialize(args, DaemonProtocol.JsonOptions) : null
+            Args = args != null ? JsonSerializer.Serialize(args, ServiceProtocol.JsonOptions) : null
         }, cancellationToken);
 
         if (response.Success)
@@ -100,13 +100,13 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
             }
             else
             {
-                Console.WriteLine(JsonSerializer.Serialize(new { success = true }, DaemonProtocol.JsonOptions));
+                Console.WriteLine(JsonSerializer.Serialize(new { success = true }, ServiceProtocol.JsonOptions));
             }
             return 0;
         }
         else
         {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, DaemonProtocol.JsonOptions));
+            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, ServiceProtocol.JsonOptions));
             return 1;
         }
     }
@@ -138,7 +138,7 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
         // Try JSON array format first: [["a", 1], ["b", 2]]
         try
         {
-            return JsonSerializer.Deserialize<List<List<object?>>>(csvData, DaemonProtocol.JsonOptions);
+            return JsonSerializer.Deserialize<List<List<object?>>>(csvData, ServiceProtocol.JsonOptions);
         }
         catch
         {
@@ -159,7 +159,7 @@ internal sealed class TableCommand : AsyncCommand<TableCommand.Settings>
         if (string.IsNullOrWhiteSpace(input)) return null;
         try
         {
-            return JsonSerializer.Deserialize<List<string>>(input, DaemonProtocol.JsonOptions);
+            return JsonSerializer.Deserialize<List<string>>(input, ServiceProtocol.JsonOptions);
         }
         catch
         {

@@ -1,6 +1,6 @@
 using System.Reflection;
 using Sbroenne.ExcelMcp.CLI.Commands;
-using Sbroenne.ExcelMcp.CLI.Daemon;
+using Sbroenne.ExcelMcp.CLI.Service;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.Core.Models.Actions;
 using Spectre.Console;
@@ -17,10 +17,10 @@ internal sealed class Program
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-        // Handle daemon run command before Spectre.Console
-        if (args.Length >= 2 && args[0] == "daemon" && args[1] == "run")
+        // Handle service run command before Spectre.Console (internal, not documented)
+        if (args.Length >= 2 && args[0] == "service" && args[1] == "run")
         {
-            return await RunDaemonAsync();
+            return await RunServiceAsync();
         }
 
         // Determine if we should show the banner:
@@ -56,18 +56,6 @@ internal sealed class Program
             config.SetExceptionHandler((ex, _) =>
             {
                 AnsiConsole.MarkupLine($"[red]Unhandled error:[/] {ex.Message.EscapeMarkup()}");
-            });
-
-            // Daemon commands
-            config.AddBranch("daemon", branch =>
-            {
-                branch.SetDescription("Daemon management. The daemon holds Excel sessions across CLI invocations.");
-                branch.AddCommand<DaemonStartCommand>("start")
-                    .WithDescription("Start the daemon in the background.");
-                branch.AddCommand<DaemonStopCommand>("stop")
-                    .WithDescription("Stop the daemon.");
-                branch.AddCommand<DaemonStatusCommand>("status")
-                    .WithDescription("Show daemon status and active sessions.");
             });
 
             // Session commands
@@ -201,35 +189,35 @@ internal sealed class Program
         }
     }
 
-    private static async Task<int> RunDaemonAsync()
+    private static async Task<int> RunServiceAsync()
     {
-        using var daemon = new ExcelDaemon();
+        using var service = new ExcelMcpService();
 
         // Handle Ctrl+C and process termination gracefully
         Console.CancelKeyPress += (_, e) =>
         {
             e.Cancel = true; // Prevent immediate termination
-            daemon.RequestShutdown();
+            service.RequestShutdown();
         };
 
         AppDomain.CurrentDomain.ProcessExit += (_, _) =>
         {
-            daemon.RequestShutdown();
+            service.RequestShutdown();
         };
 
         try
         {
-            await daemon.RunAsync();
+            await service.RunAsync();
             return 0;
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("already running"))
         {
-            Console.Error.WriteLine("Daemon is already running.");
+            Console.Error.WriteLine("Service is already running.");
             return 1;
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Daemon error: {ex.Message}");
+            Console.Error.WriteLine($"Service error: {ex.Message}");
             return 1;
         }
     }
@@ -239,7 +227,7 @@ internal sealed class Program
         AnsiConsole.Write(new FigletText("Excel CLI").Color(Spectre.Console.Color.Blue));
         AnsiConsole.MarkupLine("[dim]Excel automation powered by ExcelMcp Core[/]");
         AnsiConsole.MarkupLine("[yellow]Workflow:[/] [green]session open <file>[/] → run commands with [green]--session <id>[/] → [green]session close --save[/].");
-        AnsiConsole.MarkupLine("[dim]A background daemon manages sessions for performance.[/]");
+        AnsiConsole.MarkupLine("[dim]A background service manages sessions for performance.[/]");
         AnsiConsole.WriteLine();
     }
 

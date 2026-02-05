@@ -7,7 +7,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Feature", "VersionCheck")]
 [Trait("Speed", "Fast")]
-public sealed class DaemonVersionCheckerTests
+public sealed class ServiceVersionCheckerTests
 {
     [Fact]
     public async Task CheckForUpdateAsync_WhenUpdateAvailable_ReturnsUpdateInfo()
@@ -15,7 +15,7 @@ public sealed class DaemonVersionCheckerTests
         // This test depends on NuGetVersionChecker actually checking NuGet
         // In a real scenario, we might want to mock this, but for now we'll test
         // that the method doesn't throw and returns a reasonable result
-        var updateInfo = await DaemonVersionChecker.CheckForUpdateAsync();
+        var updateInfo = await ServiceVersionChecker.CheckForUpdateAsync();
 
         // The result can be null (if no update or network error) or an UpdateInfo object
         // We just verify it doesn't throw and the result is valid
@@ -32,7 +32,7 @@ public sealed class DaemonVersionCheckerTests
     {
         // With a very short cancellation token, we should get a timeout/cancellation
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(1));
-        var updateInfo = await DaemonVersionChecker.CheckForUpdateAsync(cts.Token);
+        var updateInfo = await ServiceVersionChecker.CheckForUpdateAsync(cts.Token);
 
         // Should return null on timeout/cancellation (fails silently)
         Assert.Null(updateInfo);

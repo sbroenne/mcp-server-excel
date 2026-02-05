@@ -2,34 +2,34 @@ using System.IO.Pipes;
 using System.Security.AccessControl;
 using System.Security.Principal;
 
-namespace Sbroenne.ExcelMcp.CLI.Daemon;
+namespace Sbroenne.ExcelMcp.CLI.Service;
 
 /// <summary>
-/// Security utilities for daemon named pipe communication.
+/// Security utilities for ExcelMCP Service named pipe communication.
 /// Ensures per-user isolation via SID-based pipe names and ACLs.
 /// </summary>
-internal static class DaemonSecurity
+internal static class ServiceSecurity
 {
     private static readonly string UserSid = WindowsIdentity.GetCurrent().User?.Value ?? "default";
 
     /// <summary>
     /// Gets the per-user pipe name.
-    /// Format: excelcli-{USER_SID} to ensure isolation between users.
+    /// Format: excelmcp-{USER_SID} to ensure isolation between users.
     /// </summary>
-    public static string PipeName => $"excelcli-{UserSid}";
+    public static string PipeName => $"excelmcp-{UserSid}";
 
     /// <summary>
     /// Gets the per-user mutex name for single-instance enforcement.
     /// </summary>
-    public static string MutexName => $"Global\\excelcli-daemon-{UserSid}";
+    public static string MutexName => $"Global\\ExcelMcpService-{UserSid}";
 
     /// <summary>
     /// Gets the lock file path.
     /// </summary>
     public static string LockFilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "excelcli",
-        "daemon.lock");
+        "ExcelMCP",
+        "service.lock");
 
     /// <summary>
     /// Creates a secure named pipe server with ACLs restricting access to current user only.
@@ -56,7 +56,7 @@ internal static class DaemonSecurity
     }
 
     /// <summary>
-    /// Creates a client connection to the daemon.
+    /// Creates a client connection to the service.
     /// </summary>
     public static NamedPipeClientStream CreateClient()
     {
@@ -121,7 +121,7 @@ internal static class DaemonSecurity
     }
 
     /// <summary>
-    /// Reads daemon PID from lock file.
+    /// Reads service PID from lock file.
     /// </summary>
     public static int? ReadLockFilePid()
     {
@@ -160,10 +160,10 @@ internal static class DaemonSecurity
     }
 
     /// <summary>
-    /// Checks if the daemon process is running based on lock file PID.
+    /// Checks if the service process is running based on lock file PID.
     /// Guards against PID reuse by verifying the process name.
     /// </summary>
-    public static bool IsDaemonProcessRunning()
+    public static bool IsServiceProcessRunning()
     {
         var pid = ReadLockFilePid();
         if (!pid.HasValue)
@@ -180,12 +180,12 @@ internal static class DaemonSecurity
                 return false;
             }
 
-            // Guard against PID reuse: verify it's actually the daemon
+            // Guard against PID reuse: verify it's actually the service
             // Process name will be "excelcli" (production) or "dotnet" (dev mode)
             var processName = process.ProcessName.ToLowerInvariant();
             if (processName != "excelcli" && processName != "dotnet")
             {
-                // Different process reused the PID - daemon is dead
+                // Different process reused the PID - service is dead
                 DeleteLockFile();
                 return false;
             }

@@ -11,21 +11,21 @@ using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Models.Actions;
 
-namespace Sbroenne.ExcelMcp.CLI.Daemon;
+namespace Sbroenne.ExcelMcp.CLI.Service;
 
 /// <summary>
-/// The Excel daemon process. Holds SessionManager and executes Core commands.
+/// The ExcelMCP Service process. Holds SessionManager and executes Core commands.
 /// Runs as a background process, accepting commands via named pipe.
-/// Architecture mirrors MCP Server: CLI sends serialized requests → Daemon executes → Returns JSON.
+/// Architecture mirrors MCP Server: CLI sends serialized requests → Service executes → Returns JSON.
 /// </summary>
-internal sealed class ExcelDaemon : IDisposable
+internal sealed class ExcelMcpService : IDisposable
 {
     private readonly SessionManager _sessionManager = new();
     private readonly CancellationTokenSource _shutdownCts = new();
     private readonly TimeSpan _idleTimeout;
     private readonly DateTime _startTime = DateTime.UtcNow;
     private Mutex? _instanceMutex;
-    private DaemonTray? _tray;
+    private ServiceTray? _tray;
     private DateTime _lastActivityTime = DateTime.UtcNow;
     private bool _disposed;
 
@@ -43,7 +43,7 @@ internal sealed class ExcelDaemon : IDisposable
     private readonly DataModelCommands _dataModelCommands = new();
     private readonly CalculationModeCommands _calculationModeCommands = new();
 
-    public ExcelDaemon(TimeSpan? idleTimeout = null)
+    public ExcelMcpService(TimeSpan? idleTimeout = null)
     {
         _idleTimeout = idleTimeout ?? DefaultIdleTimeout;
         _powerQueryCommands = new PowerQueryCommands(_dataModelCommands);
@@ -57,15 +57,15 @@ internal sealed class ExcelDaemon : IDisposable
     public int SessionCount => _sessionManager.GetActiveSessions().Count;
 
     /// <summary>
-    /// Runs the daemon, listening for commands on the named pipe.
+    /// Runs the service, listening for commands on the named pipe.
     /// </summary>
     public async Task RunAsync()
     {
         // Acquire single-instance mutex
-        _instanceMutex = DaemonSecurity.TryAcquireSingleInstanceMutex();
+        _instanceMutex = ServiceSecurity.TryAcquireSingleInstanceMutex();
         if (_instanceMutex == null)
         {
-            throw new InvalidOperationException("Another daemon instance is already running");
+            throw new InvalidOperationException("Another service instance is already running");
         }
 
         // Track that we own the lock file (only delete it if we created it)
@@ -76,14 +76,14 @@ internal sealed class ExcelDaemon : IDisposable
         try
         {
             // Write lock file - now we own it
-            DaemonSecurity.WriteLockFile(Environment.ProcessId);
+            ServiceSecurity.WriteLockFile(Environment.ProcessId);
             ownsLockFile = true;
 
             // Start tray UI on STA thread (Windows Forms requires STA)
             trayThread = new Thread(() => RunTrayLoop())
             {
                 IsBackground = true,
-                Name = "DaemonTray"
+                Name = "ServiceTray"
             };
             trayThread.SetApartmentState(ApartmentState.STA);
             trayThread.Start();
@@ -112,7 +112,7 @@ internal sealed class ExcelDaemon : IDisposable
             // Only delete lock file if we created it
             if (ownsLockFile)
             {
-                DaemonSecurity.DeleteLockFile();
+                ServiceSecurity.DeleteLockFile();
             }
 
             // _instanceMutex is guaranteed non-null here (method throws if null)
@@ -126,18 +126,18 @@ internal sealed class ExcelDaemon : IDisposable
     {
         try
         {
-            _tray = new DaemonTray(_sessionManager, RequestShutdown);
+            _tray = new ServiceTray(_sessionManager, RequestShutdown);
 
             // Check for updates asynchronously after tray is initialized
-            // This runs in the background and doesn't block daemon startup
+            // This runs in the background and doesn't block service startup
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    // Wait a bit after startup to avoid slowing down daemon initialization
+                    // Wait a bit after startup to avoid slowing down service initialization
                     await Task.Delay(TimeSpan.FromSeconds(5));
 
-                    var updateInfo = await Infrastructure.DaemonVersionChecker.CheckForUpdateAsync();
+                    var updateInfo = await Infrastructure.ServiceVersionChecker.CheckForUpdateAsync();
                     if (updateInfo != null && _tray != null)
                     {
                         _tray.ShowUpdateNotification(
@@ -147,7 +147,7 @@ internal sealed class ExcelDaemon : IDisposable
                 }
                 catch
                 {
-                    // Fail silently - version check should never interfere with daemon operation
+                    // Fail silently - version check should never interfere with service operation
                 }
             });
 
@@ -174,7 +174,7 @@ internal sealed class ExcelDaemon : IDisposable
             NamedPipeServerStream? server = null;
             try
             {
-                server = DaemonSecurity.CreateSecureServer();
+                server = ServiceSecurity.CreateSecureServer();
                 await server.WaitForConnectionAsync(cancellationToken);
                 _lastActivityTime = DateTime.UtcNow;
 
@@ -225,17 +225,17 @@ internal sealed class ExcelDaemon : IDisposable
         var requestJson = await reader.ReadLineAsync(cancellationToken);
         if (string.IsNullOrEmpty(requestJson)) return;
 
-        var request = DaemonProtocol.Deserialize<DaemonRequest>(requestJson);
+        var request = ServiceProtocol.Deserialize<ServiceRequest>(requestJson);
         if (request == null)
         {
-            await writer.WriteLineAsync(DaemonProtocol.Serialize(new DaemonResponse { Success = false, ErrorMessage = "Invalid request" }));
+            await writer.WriteLineAsync(ServiceProtocol.Serialize(new ServiceResponse { Success = false, ErrorMessage = "Invalid request" }));
             return;
         }
 
         var response = await ProcessRequestAsync(request);
 
         // Write response without cancellation token - we need to send response even during shutdown
-        await writer.WriteLineAsync(DaemonProtocol.Serialize(response));
+        await writer.WriteLineAsync(ServiceProtocol.Serialize(response));
 
         // Ensure response is transmitted before closing pipe
         try
@@ -249,7 +249,7 @@ internal sealed class ExcelDaemon : IDisposable
         }
     }
 
-    private async Task<DaemonResponse> ProcessRequestAsync(DaemonRequest request)
+    private async Task<ServiceResponse> ProcessRequestAsync(ServiceRequest request)
     {
         _lastActivityTime = DateTime.UtcNow;
 
@@ -262,7 +262,7 @@ internal sealed class ExcelDaemon : IDisposable
 
             return category switch
             {
-                "daemon" => HandleDaemonCommand(action),
+                "service" => HandleServiceCommand(action),
                 "session" => HandleSessionCommand(action, request),
                 "sheet" => await HandleSheetCommandAsync(action, request),
                 "range" => await HandleRangeCommandAsync(action, request),
@@ -279,49 +279,49 @@ internal sealed class ExcelDaemon : IDisposable
                 "datamodel" => await HandleDataModelCommandAsync(action, request),
                 "datamodelrel" => await HandleDataModelRelCommandAsync(action, request),
                 "slicer" => await HandleSlicerCommandAsync(action, request),
-                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown command category: {category}" }
+                _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown command category: {category}" }
             };
         }
         catch (Exception ex)
         {
-            return new DaemonResponse { Success = false, ErrorMessage = ex.Message };
+            return new ServiceResponse { Success = false, ErrorMessage = ex.Message };
         }
     }
 
-    // === DAEMON COMMANDS ===
+    // === SERVICE COMMANDS ===
 
-    private DaemonResponse HandleDaemonCommand(string action)
+    private ServiceResponse HandleServiceCommand(string action)
     {
         return action switch
         {
-            "ping" => new DaemonResponse { Success = true },
+            "ping" => new ServiceResponse { Success = true },
             "shutdown" => HandleShutdown(),
             "status" => HandleStatus(),
-            _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown daemon action: {action}" }
+            _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown service action: {action}" }
         };
     }
 
-    private DaemonResponse HandleShutdown()
+    private ServiceResponse HandleShutdown()
     {
         _shutdownCts.Cancel();
-        return new DaemonResponse { Success = true };
+        return new ServiceResponse { Success = true };
     }
 
-    private DaemonResponse HandleStatus()
+    private ServiceResponse HandleStatus()
     {
-        var status = new DaemonStatus
+        var status = new ServiceStatus
         {
             Running = true,
             ProcessId = Environment.ProcessId,
             SessionCount = _sessionManager.GetActiveSessions().Count,
             StartTime = _startTime
         };
-        return new DaemonResponse { Success = true, Result = JsonSerializer.Serialize(status, DaemonProtocol.JsonOptions) };
+        return new ServiceResponse { Success = true, Result = JsonSerializer.Serialize(status, ServiceProtocol.JsonOptions) };
     }
 
     // === SESSION COMMANDS ===
 
-    private DaemonResponse HandleSessionCommand(string action, DaemonRequest request)
+    private ServiceResponse HandleSessionCommand(string action, ServiceRequest request)
     {
         return action switch
         {
@@ -330,23 +330,23 @@ internal sealed class ExcelDaemon : IDisposable
             "close" => HandleSessionClose(request),
             "save" => HandleSessionSave(request),
             "list" => HandleSessionList(),
-            _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown session action: {action}" }
+            _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown session action: {action}" }
         };
     }
 
-    private DaemonResponse HandleSessionCreate(DaemonRequest request)
+    private ServiceResponse HandleSessionCreate(ServiceRequest request)
     {
         var args = DeserializeArgs<SessionOpenArgs>(request.Args);
         if (string.IsNullOrWhiteSpace(args?.FilePath))
         {
-            return new DaemonResponse { Success = false, ErrorMessage = "filePath is required" };
+            return new ServiceResponse { Success = false, ErrorMessage = "filePath is required" };
         }
 
         var fullPath = Path.GetFullPath(args.FilePath);
 
         if (File.Exists(fullPath))
         {
-            return new DaemonResponse
+            return new ServiceResponse
             {
                 Success = false,
                 ErrorMessage = $"File already exists: {fullPath}. Use session open to open an existing workbook."
@@ -357,7 +357,7 @@ internal sealed class ExcelDaemon : IDisposable
         if (!string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(extension, ".xlsm", StringComparison.OrdinalIgnoreCase))
         {
-            return new DaemonResponse
+            return new ServiceResponse
             {
                 Success = false,
                 ErrorMessage = $"Invalid file extension '{extension}'. session create supports .xlsx and .xlsm only."
@@ -372,24 +372,24 @@ internal sealed class ExcelDaemon : IDisposable
                 : null;
             var sessionId = _sessionManager.CreateSessionForNewFile(fullPath, operationTimeout: timeout);
 
-            return new DaemonResponse
+            return new ServiceResponse
             {
                 Success = true,
-                Result = JsonSerializer.Serialize(new { sessionId, filePath = fullPath }, DaemonProtocol.JsonOptions)
+                Result = JsonSerializer.Serialize(new { sessionId, filePath = fullPath }, ServiceProtocol.JsonOptions)
             };
         }
         catch (Exception ex)
         {
-            return new DaemonResponse { Success = false, ErrorMessage = ex.Message };
+            return new ServiceResponse { Success = false, ErrorMessage = ex.Message };
         }
     }
 
-    private DaemonResponse HandleSessionOpen(DaemonRequest request)
+    private ServiceResponse HandleSessionOpen(ServiceRequest request)
     {
         var args = DeserializeArgs<SessionOpenArgs>(request.Args);
         if (string.IsNullOrWhiteSpace(args?.FilePath))
         {
-            return new DaemonResponse { Success = false, ErrorMessage = "filePath is required" };
+            return new ServiceResponse { Success = false, ErrorMessage = "filePath is required" };
         }
 
         try
@@ -398,51 +398,51 @@ internal sealed class ExcelDaemon : IDisposable
                 ? TimeSpan.FromSeconds(args.TimeoutSeconds.Value)
                 : null;
             var sessionId = _sessionManager.CreateSession(args.FilePath, operationTimeout: timeout);
-            return new DaemonResponse
+            return new ServiceResponse
             {
                 Success = true,
-                Result = JsonSerializer.Serialize(new { sessionId, filePath = args.FilePath }, DaemonProtocol.JsonOptions)
+                Result = JsonSerializer.Serialize(new { sessionId, filePath = args.FilePath }, ServiceProtocol.JsonOptions)
             };
         }
         catch (Exception ex)
         {
-            return new DaemonResponse { Success = false, ErrorMessage = ex.Message };
+            return new ServiceResponse { Success = false, ErrorMessage = ex.Message };
         }
     }
 
-    private DaemonResponse HandleSessionClose(DaemonRequest request)
+    private ServiceResponse HandleSessionClose(ServiceRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.SessionId))
         {
-            return new DaemonResponse { Success = false, ErrorMessage = "sessionId is required" };
+            return new ServiceResponse { Success = false, ErrorMessage = "sessionId is required" };
         }
 
         var args = DeserializeArgs<SessionCloseArgs>(request.Args);
         var closed = _sessionManager.CloseSession(request.SessionId, save: args?.Save ?? false);
 
         return closed
-            ? new DaemonResponse { Success = true }
-            : new DaemonResponse { Success = false, ErrorMessage = $"Session '{request.SessionId}' not found" };
+            ? new ServiceResponse { Success = true }
+            : new ServiceResponse { Success = false, ErrorMessage = $"Session '{request.SessionId}' not found" };
     }
 
-    private DaemonResponse HandleSessionSave(DaemonRequest request)
+    private ServiceResponse HandleSessionSave(ServiceRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.SessionId))
         {
-            return new DaemonResponse { Success = false, ErrorMessage = "sessionId is required" };
+            return new ServiceResponse { Success = false, ErrorMessage = "sessionId is required" };
         }
 
         var batch = _sessionManager.GetSession(request.SessionId);
         if (batch == null)
         {
-            return new DaemonResponse { Success = false, ErrorMessage = $"Session '{request.SessionId}' not found" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Session '{request.SessionId}' not found" };
         }
 
         // Check if Excel process is still alive before attempting save
         if (!batch.IsExcelProcessAlive())
         {
             _sessionManager.CloseSession(request.SessionId, save: false, force: true);
-            return new DaemonResponse
+            return new ServiceResponse
             {
                 Success = false,
                 ErrorMessage = $"Excel process for session '{request.SessionId}' has died. Session has been closed. Please create a new session."
@@ -450,25 +450,25 @@ internal sealed class ExcelDaemon : IDisposable
         }
 
         batch.Save();
-        return new DaemonResponse { Success = true };
+        return new ServiceResponse { Success = true };
     }
 
-    private DaemonResponse HandleSessionList()
+    private ServiceResponse HandleSessionList()
     {
         var sessions = _sessionManager.GetActiveSessions()
             .Select(s => new { sessionId = s.SessionId, filePath = s.FilePath })
             .ToList();
 
-        return new DaemonResponse
+        return new ServiceResponse
         {
             Success = true,
-            Result = JsonSerializer.Serialize(new { sessions }, DaemonProtocol.JsonOptions)
+            Result = JsonSerializer.Serialize(new { sessions }, ServiceProtocol.JsonOptions)
         };
     }
 
     // === SHEET COMMANDS ===
 
-    private Task<DaemonResponse> HandleSheetCommandAsync(string action, DaemonRequest request)
+    private Task<ServiceResponse> HandleSheetCommandAsync(string action, ServiceRequest request)
     {
         if (TryParseAction<WorksheetAction>(action, out var sheetAction))
         {
@@ -499,7 +499,7 @@ internal sealed class ExcelDaemon : IDisposable
                     _sheetCommands.Move(batch, args.SheetName!, args.BeforeSheet, args.AfterSheet);
                 }),
 
-                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported sheet action: {action}" }
+                _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported sheet action: {action}" }
             });
         }
 
@@ -532,14 +532,14 @@ internal sealed class ExcelDaemon : IDisposable
                 WorksheetStyleAction.Hide => ExecuteVoid(() => _sheetCommands.Hide(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
                 WorksheetStyleAction.VeryHide => ExecuteVoid(() => _sheetCommands.VeryHide(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
 
-                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported sheet style action: {action}" }
+                _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported sheet style action: {action}" }
             });
         }
 
-        return Task.FromResult(new DaemonResponse { Success = false, ErrorMessage = $"Unknown sheet action: {action}" });
+        return Task.FromResult(new ServiceResponse { Success = false, ErrorMessage = $"Unknown sheet action: {action}" });
     }
 
-    private DaemonResponse HandleSheetCrossFileCommand(WorksheetAction action, DaemonRequest request)
+    private ServiceResponse HandleSheetCrossFileCommand(WorksheetAction action, ServiceRequest request)
     {
         try
         {
@@ -555,18 +555,18 @@ internal sealed class ExcelDaemon : IDisposable
                     var args = GetArg<SheetMoveToFileArgs>(request.Args);
                     _sheetCommands.MoveToFile(args.SourceFile!, args.SourceSheet!, args.TargetFile!, args.BeforeSheet, args.AfterSheet);
                 }),
-                _ => new DaemonResponse { Success = false, ErrorMessage = $"Unknown cross-file sheet action: {action}" }
+                _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown cross-file sheet action: {action}" }
             };
         }
         catch (Exception ex)
         {
-            return new DaemonResponse { Success = false, ErrorMessage = ex.Message };
+            return new ServiceResponse { Success = false, ErrorMessage = ex.Message };
         }
     }
 
     // === RANGE COMMANDS (stub - implement as needed) ===
 
-    private Task<DaemonResponse> HandleRangeCommandAsync(string action, DaemonRequest request)
+    private Task<ServiceResponse> HandleRangeCommandAsync(string action, ServiceRequest request)
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
@@ -590,7 +590,7 @@ internal sealed class ExcelDaemon : IDisposable
                     RangeAction.GetNumberFormats => ExecuteRangeGetNumberFormats(batch, request),
                     RangeAction.SetNumberFormat => ExecuteRangeSetNumberFormat(batch, request),
                     RangeAction.SetNumberFormats => ExecuteRangeSetNumberFormats(batch, request),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported range action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported range action: {action}" }
                 };
             }
 
@@ -607,7 +607,7 @@ internal sealed class ExcelDaemon : IDisposable
                     RangeEditAction.Find => ExecuteRangeFind(batch, request),
                     RangeEditAction.Replace => ExecuteRangeReplace(batch, request),
                     RangeEditAction.Sort => ExecuteRangeSort(batch, request),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported range edit action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported range edit action: {action}" }
                 };
             }
 
@@ -626,7 +626,7 @@ internal sealed class ExcelDaemon : IDisposable
                     RangeFormatAction.MergeCells => ExecuteRangeMergeCells(batch, request),
                     RangeFormatAction.UnmergeCells => ExecuteRangeUnmergeCells(batch, request),
                     RangeFormatAction.GetMergeInfo => ExecuteRangeGetMergeInfo(batch, request),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported range format action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported range format action: {action}" }
                 };
             }
 
@@ -640,106 +640,106 @@ internal sealed class ExcelDaemon : IDisposable
                     RangeLinkAction.GetHyperlink => ExecuteRangeGetHyperlink(batch, request),
                     RangeLinkAction.SetCellLock => ExecuteRangeSetCellLock(batch, request),
                     RangeLinkAction.GetCellLock => ExecuteRangeGetCellLock(batch, request),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported range link action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported range link action: {action}" }
                 };
             }
 
-            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown range action: {action}" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown range action: {action}" };
         });
     }
 
-    private DaemonResponse ExecuteRangeGetValues(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeGetValues(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         var result = _rangeCommands.GetValues(batch, args.SheetName!, args.Range!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeSetValues(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeSetValues(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeSetValuesArgs>(request.Args);
         var result = _rangeCommands.SetValues(batch, args.SheetName!, args.Range!, args.Values!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeGetUsedRange(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeGetUsedRange(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<SheetArgs>(request.Args);
         var result = _rangeCommands.GetUsedRange(batch, args.SheetName!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeGetCurrentRegion(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeGetCurrentRegion(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeCellArgs>(request.Args);
         var result = _rangeCommands.GetCurrentRegion(batch, args.SheetName!, args.CellAddress!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeGetInfo(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeGetInfo(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         var result = _rangeCommands.GetInfo(batch, args.SheetName!, args.Range!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeGetFormulas(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeGetFormulas(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         var result = _rangeCommands.GetFormulas(batch, args.SheetName!, args.Range!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeSetFormulas(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeSetFormulas(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeSetFormulasArgs>(request.Args);
         var result = _rangeCommands.SetFormulas(batch, args.SheetName!, args.Range!, args.Formulas!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeClearAll(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeClearAll(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         var result = _rangeCommands.ClearAll(batch, args.SheetName!, args.Range!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeClearContents(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeClearContents(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         var result = _rangeCommands.ClearContents(batch, args.SheetName!, args.Range!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeClearFormats(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeClearFormats(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         var result = _rangeCommands.ClearFormats(batch, args.SheetName!, args.Range!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeCopy(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeCopy(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeCopyArgs>(request.Args);
         var result = _rangeCommands.Copy(batch, args.SourceSheet!, args.SourceRange!, args.TargetSheet!, args.TargetRange!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeCopyValues(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeCopyValues(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeCopyArgs>(request.Args);
         var result = _rangeCommands.CopyValues(batch, args.SourceSheet!, args.SourceRange!, args.TargetSheet!, args.TargetRange!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeCopyFormulas(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeCopyFormulas(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeCopyArgs>(request.Args);
         var result = _rangeCommands.CopyFormulas(batch, args.SourceSheet!, args.SourceRange!, args.TargetSheet!, args.TargetRange!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeInsertCells(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeInsertCells(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeInsertCellsArgs>(request.Args);
         var shift = args.ShiftDirection?.ToLowerInvariant() == "right"
@@ -749,7 +749,7 @@ internal sealed class ExcelDaemon : IDisposable
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeDeleteCells(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeDeleteCells(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeDeleteCellsArgs>(request.Args);
         var shift = args.ShiftDirection?.ToLowerInvariant() == "left"
@@ -759,35 +759,35 @@ internal sealed class ExcelDaemon : IDisposable
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeInsertRows(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeInsertRows(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         var result = _rangeCommands.InsertRows(batch, args.SheetName!, args.Range!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeDeleteRows(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeDeleteRows(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         var result = _rangeCommands.DeleteRows(batch, args.SheetName!, args.Range!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeInsertColumns(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeInsertColumns(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         var result = _rangeCommands.InsertColumns(batch, args.SheetName!, args.Range!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeDeleteColumns(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeDeleteColumns(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         var result = _rangeCommands.DeleteColumns(batch, args.SheetName!, args.Range!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeFind(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeFind(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeFindArgs>(request.Args);
         var options = new FindOptions
@@ -802,7 +802,7 @@ internal sealed class ExcelDaemon : IDisposable
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeReplace(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeReplace(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeReplaceArgs>(request.Args);
         var options = new ReplaceOptions
@@ -815,7 +815,7 @@ internal sealed class ExcelDaemon : IDisposable
         return ExecuteVoid(() => { });
     }
 
-    private DaemonResponse ExecuteRangeSort(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeSort(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeSortArgs>(request.Args);
         var sortColumns = args.SortColumns?
@@ -825,70 +825,70 @@ internal sealed class ExcelDaemon : IDisposable
         return ExecuteVoid(() => { });
     }
 
-    private DaemonResponse ExecuteRangeAddHyperlink(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeAddHyperlink(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeHyperlinkArgs>(request.Args);
         var result = _rangeCommands.AddHyperlink(batch, args.SheetName!, args.CellAddress!, args.Url!, args.DisplayText, args.Tooltip);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeRemoveHyperlink(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeRemoveHyperlink(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         var result = _rangeCommands.RemoveHyperlink(batch, args.SheetName!, args.Range!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeListHyperlinks(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeListHyperlinks(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<SheetArgs>(request.Args);
         var result = _rangeCommands.ListHyperlinks(batch, args.SheetName!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeGetHyperlink(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeGetHyperlink(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeCellArgs>(request.Args);
         var result = _rangeCommands.GetHyperlink(batch, args.SheetName!, args.CellAddress!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeGetNumberFormats(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeGetNumberFormats(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         var result = _rangeCommands.GetNumberFormats(batch, args.SheetName!, args.Range!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeSetNumberFormat(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeSetNumberFormat(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeNumberFormatArgs>(request.Args);
         var result = _rangeCommands.SetNumberFormat(batch, args.SheetName!, args.Range!, args.FormatCode!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeSetNumberFormats(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeSetNumberFormats(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeNumberFormatsArgs>(request.Args);
         var result = _rangeCommands.SetNumberFormats(batch, args.SheetName!, args.Range!, args.Formats!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeSetStyle(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeSetStyle(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeStyleArgs>(request.Args);
         _rangeCommands.SetStyle(batch, args.SheetName!, args.Range!, args.StyleName!);
         return ExecuteVoid(() => { });
     }
 
-    private DaemonResponse ExecuteRangeGetStyle(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeGetStyle(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         var result = _rangeCommands.GetStyle(batch, args.SheetName!, args.Range!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeFormatRange(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeFormatRange(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeFormatArgs>(request.Args);
         _rangeCommands.FormatRange(
@@ -899,7 +899,7 @@ internal sealed class ExcelDaemon : IDisposable
         return ExecuteVoid(() => { });
     }
 
-    private DaemonResponse ExecuteRangeValidateRange(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeValidateRange(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeValidationArgs>(request.Args);
         _rangeCommands.ValidateRange(
@@ -911,63 +911,63 @@ internal sealed class ExcelDaemon : IDisposable
         return ExecuteVoid(() => { });
     }
 
-    private DaemonResponse ExecuteRangeGetValidation(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeGetValidation(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         var result = _rangeCommands.GetValidation(batch, args.SheetName!, args.Range!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeRemoveValidation(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeRemoveValidation(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         _rangeCommands.RemoveValidation(batch, args.SheetName!, args.Range!);
         return ExecuteVoid(() => { });
     }
 
-    private DaemonResponse ExecuteRangeAutoFitColumns(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeAutoFitColumns(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         _rangeCommands.AutoFitColumns(batch, args.SheetName!, args.Range!);
         return ExecuteVoid(() => { });
     }
 
-    private DaemonResponse ExecuteRangeAutoFitRows(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeAutoFitRows(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         _rangeCommands.AutoFitRows(batch, args.SheetName!, args.Range!);
         return ExecuteVoid(() => { });
     }
 
-    private DaemonResponse ExecuteRangeMergeCells(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeMergeCells(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         _rangeCommands.MergeCells(batch, args.SheetName!, args.Range!);
         return ExecuteVoid(() => { });
     }
 
-    private DaemonResponse ExecuteRangeUnmergeCells(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeUnmergeCells(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         _rangeCommands.UnmergeCells(batch, args.SheetName!, args.Range!);
         return ExecuteVoid(() => { });
     }
 
-    private DaemonResponse ExecuteRangeGetMergeInfo(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeGetMergeInfo(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         var result = _rangeCommands.GetMergeInfo(batch, args.SheetName!, args.Range!);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteRangeSetCellLock(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeSetCellLock(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeLockArgs>(request.Args);
         _rangeCommands.SetCellLock(batch, args.SheetName!, args.Range!, args.Locked ?? true);
         return ExecuteVoid(() => { });
     }
 
-    private DaemonResponse ExecuteRangeGetCellLock(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteRangeGetCellLock(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<RangeArgs>(request.Args);
         var result = _rangeCommands.GetCellLock(batch, args.SheetName!, args.Range!);
@@ -976,7 +976,7 @@ internal sealed class ExcelDaemon : IDisposable
 
     // === OTHER COMMAND CATEGORIES ===
 
-    private Task<DaemonResponse> HandleTableCommandAsync(string action, DaemonRequest request)
+    private Task<ServiceResponse> HandleTableCommandAsync(string action, ServiceRequest request)
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
@@ -1035,7 +1035,7 @@ internal sealed class ExcelDaemon : IDisposable
                         _tableCommands.UpdateDax(batch, a.TableName!, a.DaxQuery!);
                     }),
                     TableAction.GetDax => SerializeResult(_tableCommands.GetDax(batch, GetArg<TableArgs>(request.Args).TableName!)),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported table action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported table action: {action}" }
                 };
             }
 
@@ -1076,7 +1076,7 @@ internal sealed class ExcelDaemon : IDisposable
                     TableColumnAction.SortMulti => ExecuteVoid(() =>
                     {
                         var a = GetArg<TableSortMultiArgs>(request.Args);
-                        var sortColumns = JsonSerializer.Deserialize<List<TableSortColumn>>(a.SortColumnsJson!, DaemonProtocol.JsonOptions)
+                        var sortColumns = JsonSerializer.Deserialize<List<TableSortColumn>>(a.SortColumnsJson!, ServiceProtocol.JsonOptions)
                             ?? throw new ArgumentException("sortColumnsJson must be a non-empty array");
                         _tableCommands.Sort(batch, a.TableName!, sortColumns);
                     }),
@@ -1092,15 +1092,15 @@ internal sealed class ExcelDaemon : IDisposable
                         var a = GetArg<TableColumnFormatArgs>(request.Args);
                         _tableCommands.SetColumnNumberFormat(batch, a.TableName!, a.ColumnName!, a.FormatCode!);
                     }),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported table column action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported table column action: {action}" }
                 };
             }
 
-            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown table action: {action}" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown table action: {action}" };
         });
     }
 
-    private Task<DaemonResponse> HandlePowerQueryCommandAsync(string action, DaemonRequest request)
+    private Task<ServiceResponse> HandlePowerQueryCommandAsync(string action, ServiceRequest request)
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
@@ -1134,11 +1134,11 @@ internal sealed class ExcelDaemon : IDisposable
                     PowerQueryAction.GetLoadConfig => SerializeResult(_powerQueryCommands.GetLoadConfig(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!)),
                     PowerQueryAction.Unload => SerializeResult(_powerQueryCommands.Unload(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!)),
                     PowerQueryAction.Evaluate => SerializeResult(_powerQueryCommands.Evaluate(batch, GetArg<PowerQueryEvaluateArgs>(request.Args).MCode!)),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported powerquery action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported powerquery action: {action}" }
                 };
             }
 
-            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown powerquery action: {action}" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown powerquery action: {action}" };
         });
     }
 
@@ -1154,7 +1154,7 @@ internal sealed class ExcelDaemon : IDisposable
         };
     }
 
-    private Task<DaemonResponse> HandlePivotTableCommandAsync(string action, DaemonRequest request)
+    private Task<ServiceResponse> HandlePivotTableCommandAsync(string action, ServiceRequest request)
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
@@ -1181,7 +1181,7 @@ internal sealed class ExcelDaemon : IDisposable
                     }),
                     PivotTableAction.Delete => SerializeResult(_pivotTableCommands.Delete(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
                     PivotTableAction.Refresh => SerializeResult(_pivotTableCommands.Refresh(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!, GetArg<PivotTableRefreshArgs>(request.Args).Timeout)),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported pivottable action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported pivottable action: {action}" }
                 };
             }
 
@@ -1246,7 +1246,7 @@ internal sealed class ExcelDaemon : IDisposable
                         var a = GetArg<PivotGroupByNumericArgs>(request.Args);
                         return _pivotTableCommands.GroupByNumeric(batch, a.PivotTableName!, a.FieldName!, a.Start, a.End, a.IntervalSize ?? 10);
                     }),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported pivottable field action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported pivottable field action: {action}" }
                 };
             }
 
@@ -1277,11 +1277,11 @@ internal sealed class ExcelDaemon : IDisposable
                     }),
                     PivotTableCalcAction.SetGrandTotals => SerializeResult(_pivotTableCommands.SetGrandTotals(batch, GetArg<PivotGrandTotalsArgs>(request.Args).PivotTableName!, GetArg<PivotGrandTotalsArgs>(request.Args).ShowRowGrandTotals ?? true, GetArg<PivotGrandTotalsArgs>(request.Args).ShowColumnGrandTotals ?? true)),
                     PivotTableCalcAction.GetData => SerializeResult(_pivotTableCommands.GetData(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported pivottable calc action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported pivottable calc action: {action}" }
                 };
             }
 
-            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown pivottable action: {action}" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown pivottable action: {action}" };
         });
     }
 
@@ -1339,7 +1339,7 @@ internal sealed class ExcelDaemon : IDisposable
         };
     }
 
-    private Task<DaemonResponse> HandleChartCommandAsync(string action, DaemonRequest request)
+    private Task<ServiceResponse> HandleChartCommandAsync(string action, ServiceRequest request)
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
@@ -1378,15 +1378,15 @@ internal sealed class ExcelDaemon : IDisposable
                         var a = GetArg<ChartFitArgs>(request.Args);
                         _chartCommands.FitToRange(batch, a.ChartName!, a.SheetName!, a.RangeAddress!);
                     }),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported chart action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported chart action: {action}" }
                 };
             }
 
-            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown chart action: {action}" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown chart action: {action}" };
         });
     }
 
-    private Task<DaemonResponse> HandleChartConfigCommandAsync(string action, DaemonRequest request)
+    private Task<ServiceResponse> HandleChartConfigCommandAsync(string action, ServiceRequest request)
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
@@ -1483,11 +1483,11 @@ internal sealed class ExcelDaemon : IDisposable
                         var a = GetArg<ChartSetTrendlineArgs>(request.Args);
                         _chartCommands.SetTrendline(batch, a.ChartName!, a.SeriesIndex ?? 1, a.TrendlineIndex ?? 1, null, null, null, a.DisplayEquation, a.DisplayRSquared, a.TrendlineName);
                     }),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported chartconfig action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported chartconfig action: {action}" }
                 };
             }
 
-            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown chartconfig action: {action}" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown chartconfig action: {action}" };
         });
     }
 
@@ -1585,7 +1585,7 @@ internal sealed class ExcelDaemon : IDisposable
         };
     }
 
-    private Task<DaemonResponse> HandleConnectionCommandAsync(string action, DaemonRequest request)
+    private Task<ServiceResponse> HandleConnectionCommandAsync(string action, ServiceRequest request)
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
@@ -1621,15 +1621,15 @@ internal sealed class ExcelDaemon : IDisposable
                         _connectionCommands.SetProperties(batch, a.ConnectionName!, a.ConnectionString, a.CommandText, a.Description, a.BackgroundQuery, a.RefreshOnFileOpen, a.SavePassword, a.RefreshPeriod);
                     }),
                     ConnectionAction.Test => ExecuteVoid(() => _connectionCommands.Test(batch, GetArg<ConnectionArgs>(request.Args).ConnectionName!)),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported connection action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported connection action: {action}" }
                 };
             }
 
-            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown connection action: {action}" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown connection action: {action}" };
         });
     }
 
-    private Task<DaemonResponse> HandleCalculationModeCommandAsync(string action, DaemonRequest request)
+    private Task<ServiceResponse> HandleCalculationModeCommandAsync(string action, ServiceRequest request)
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
@@ -1640,20 +1640,20 @@ internal sealed class ExcelDaemon : IDisposable
                     CalculationModeAction.GetMode => SerializeResult(_calculationModeCommands.GetMode(batch)),
                     CalculationModeAction.SetMode => ExecuteCalculationModeSet(batch, request),
                     CalculationModeAction.Calculate => ExecuteCalculationModeCalculate(batch, request),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported calculation action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported calculation action: {action}" }
                 };
             }
 
-            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown calculation action: {action}" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown calculation action: {action}" };
         });
     }
 
-    private DaemonResponse ExecuteCalculationModeSet(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteCalculationModeSet(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<CalculationModeArgs>(request.Args);
         if (string.IsNullOrWhiteSpace(args.Mode))
         {
-            return new DaemonResponse { Success = false, ErrorMessage = "mode is required for set-mode" };
+            return new ServiceResponse { Success = false, ErrorMessage = "mode is required for set-mode" };
         }
 
         var mode = args.Mode.ToLowerInvariant() switch
@@ -1666,14 +1666,14 @@ internal sealed class ExcelDaemon : IDisposable
 
         if (mode == null)
         {
-            return new DaemonResponse { Success = false, ErrorMessage = $"Invalid mode '{args.Mode}'. Valid values: automatic, manual, semi-automatic" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Invalid mode '{args.Mode}'. Valid values: automatic, manual, semi-automatic" };
         }
 
         var result = _calculationModeCommands.SetMode(batch, mode.Value);
         return SerializeResult(result);
     }
 
-    private DaemonResponse ExecuteCalculationModeCalculate(IExcelBatch batch, DaemonRequest request)
+    private ServiceResponse ExecuteCalculationModeCalculate(IExcelBatch batch, ServiceRequest request)
     {
         var args = GetArg<CalculationModeArgs>(request.Args);
         var scopeValue = string.IsNullOrWhiteSpace(args.Scope) ? "workbook" : args.Scope;
@@ -1688,24 +1688,24 @@ internal sealed class ExcelDaemon : IDisposable
 
         if (scope == null)
         {
-            return new DaemonResponse { Success = false, ErrorMessage = $"Invalid scope '{scopeValue}'. Valid values: workbook, sheet, range" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Invalid scope '{scopeValue}'. Valid values: workbook, sheet, range" };
         }
 
         if (scope == CalculationScope.Sheet && string.IsNullOrWhiteSpace(args.SheetName))
         {
-            return new DaemonResponse { Success = false, ErrorMessage = "sheetName is required for sheet scope calculation" };
+            return new ServiceResponse { Success = false, ErrorMessage = "sheetName is required for sheet scope calculation" };
         }
 
         if (scope == CalculationScope.Range && (string.IsNullOrWhiteSpace(args.SheetName) || string.IsNullOrWhiteSpace(args.RangeAddress)))
         {
-            return new DaemonResponse { Success = false, ErrorMessage = "sheetName and rangeAddress are required for range scope calculation" };
+            return new ServiceResponse { Success = false, ErrorMessage = "sheetName and rangeAddress are required for range scope calculation" };
         }
 
         var result = _calculationModeCommands.Calculate(batch, scope.Value, args.SheetName, args.RangeAddress);
         return SerializeResult(result);
     }
 
-    private Task<DaemonResponse> HandleNamedRangeCommandAsync(string action, DaemonRequest request)
+    private Task<ServiceResponse> HandleNamedRangeCommandAsync(string action, ServiceRequest request)
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
@@ -1731,15 +1731,15 @@ internal sealed class ExcelDaemon : IDisposable
                         _namedRangeCommands.Update(batch, a.ParamName!, a.Reference!);
                     }),
                     NamedRangeAction.Delete => ExecuteVoid(() => _namedRangeCommands.Delete(batch, GetArg<NamedRangeArgs>(request.Args).ParamName!)),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported namedrange action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported namedrange action: {action}" }
                 };
             }
 
-            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown namedrange action: {action}" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown namedrange action: {action}" };
         });
     }
 
-    private Task<DaemonResponse> HandleConditionalFormatCommandAsync(string action, DaemonRequest request)
+    private Task<ServiceResponse> HandleConditionalFormatCommandAsync(string action, ServiceRequest request)
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
@@ -1757,15 +1757,15 @@ internal sealed class ExcelDaemon : IDisposable
                         var a = GetArg<ConditionalFormatClearArgs>(request.Args);
                         _conditionalFormatCommands.ClearRules(batch, a.SheetName!, a.RangeAddress!);
                     }),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported conditionalformat action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported conditionalformat action: {action}" }
                 };
             }
 
-            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown conditionalformat action: {action}" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown conditionalformat action: {action}" };
         });
     }
 
-    private Task<DaemonResponse> HandleVbaCommandAsync(string action, DaemonRequest request)
+    private Task<ServiceResponse> HandleVbaCommandAsync(string action, ServiceRequest request)
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
@@ -1792,15 +1792,15 @@ internal sealed class ExcelDaemon : IDisposable
                         _vbaCommands.Run(batch, a.ProcedureName!, timeout, a.Parameters?.ToArray() ?? []);
                     }),
                     VbaAction.Delete => ExecuteVoid(() => _vbaCommands.Delete(batch, GetArg<VbaModuleArgs>(request.Args).ModuleName!)),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported vba action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported vba action: {action}" }
                 };
             }
 
-            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown vba action: {action}" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown vba action: {action}" };
         });
     }
 
-    private Task<DaemonResponse> HandleDataModelCommandAsync(string action, DaemonRequest request)
+    private Task<ServiceResponse> HandleDataModelCommandAsync(string action, ServiceRequest request)
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
@@ -1837,15 +1837,15 @@ internal sealed class ExcelDaemon : IDisposable
                     }),
                     DataModelAction.Evaluate => SerializeResult(_dataModelCommands.Evaluate(batch, GetArg<DataModelEvaluateArgs>(request.Args).DaxQuery!)),
                     DataModelAction.ExecuteDmv => SerializeResult(_dataModelCommands.ExecuteDmv(batch, GetArg<DataModelDmvArgs>(request.Args).DmvQuery!)),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported datamodel action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported datamodel action: {action}" }
                 };
             }
 
-            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown datamodel action: {action}" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown datamodel action: {action}" };
         });
     }
 
-    private Task<DaemonResponse> HandleDataModelRelCommandAsync(string action, DaemonRequest request)
+    private Task<ServiceResponse> HandleDataModelRelCommandAsync(string action, ServiceRequest request)
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
@@ -1874,15 +1874,15 @@ internal sealed class ExcelDaemon : IDisposable
                         var a = GetArg<DataModelRelationshipArgs>(request.Args);
                         _dataModelCommands.DeleteRelationship(batch, a.FromTable!, a.FromColumn!, a.ToTable!, a.ToColumn!);
                     }),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported datamodelrel action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported datamodelrel action: {action}" }
                 };
             }
 
-            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown datamodelrel action: {action}" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown datamodelrel action: {action}" };
         });
     }
 
-    private Task<DaemonResponse> HandleSlicerCommandAsync(string action, DaemonRequest request)
+    private Task<ServiceResponse> HandleSlicerCommandAsync(string action, ServiceRequest request)
     {
         return WithSessionAsync(request.SessionId, batch =>
         {
@@ -1932,11 +1932,11 @@ internal sealed class ExcelDaemon : IDisposable
                         var a = GetArg<SlicerArgs>(request.Args);
                         return _tableCommands.DeleteTableSlicer(batch, a.SlicerName!);
                     }),
-                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported slicer action: {action}" }
+                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported slicer action: {action}" }
                 };
             }
 
-            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown slicer action: {action}" };
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown slicer action: {action}" };
         });
     }
 
@@ -1978,17 +1978,17 @@ internal sealed class ExcelDaemon : IDisposable
         return builder.ToString();
     }
 
-    private Task<DaemonResponse> WithSessionAsync(string? sessionId, Func<IExcelBatch, DaemonResponse> action)
+    private Task<ServiceResponse> WithSessionAsync(string? sessionId, Func<IExcelBatch, ServiceResponse> action)
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {
-            return Task.FromResult(new DaemonResponse { Success = false, ErrorMessage = "sessionId is required" });
+            return Task.FromResult(new ServiceResponse { Success = false, ErrorMessage = "sessionId is required" });
         }
 
         var batch = _sessionManager.GetSession(sessionId);
         if (batch == null)
         {
-            return Task.FromResult(new DaemonResponse { Success = false, ErrorMessage = $"Session '{sessionId}' not found" });
+            return Task.FromResult(new ServiceResponse { Success = false, ErrorMessage = $"Session '{sessionId}' not found" });
         }
 
         // Check if Excel process is still alive before attempting operation
@@ -1996,7 +1996,7 @@ internal sealed class ExcelDaemon : IDisposable
         {
             // Excel died - clean up the dead session
             _sessionManager.CloseSession(sessionId, save: false, force: true);
-            return Task.FromResult(new DaemonResponse
+            return Task.FromResult(new ServiceResponse
             {
                 Success = false,
                 ErrorMessage = $"Excel process for session '{sessionId}' has died. Session has been closed. Please create a new session."
@@ -2010,14 +2010,14 @@ internal sealed class ExcelDaemon : IDisposable
         }
         catch (Exception ex)
         {
-            return Task.FromResult(new DaemonResponse { Success = false, ErrorMessage = ex.Message });
+            return Task.FromResult(new ServiceResponse { Success = false, ErrorMessage = ex.Message });
         }
     }
 
     private static T? DeserializeArgs<T>(string? args) where T : class
     {
         if (string.IsNullOrEmpty(args)) return null;
-        return JsonSerializer.Deserialize<T>(args, DaemonProtocol.JsonOptions);
+        return JsonSerializer.Deserialize<T>(args, ServiceProtocol.JsonOptions);
     }
 
     private static T GetArg<T>(string? args) where T : class, new()
@@ -2025,29 +2025,29 @@ internal sealed class ExcelDaemon : IDisposable
         return DeserializeArgs<T>(args) ?? new T();
     }
 
-    private static DaemonResponse SerializeResult<T>(T result)
+    private static ServiceResponse SerializeResult<T>(T result)
     {
-        return new DaemonResponse
+        return new ServiceResponse
         {
             Success = true,
-            Result = JsonSerializer.Serialize(result, DaemonProtocol.JsonOptions)
+            Result = JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions)
         };
     }
 
-    private static DaemonResponse SerializeResult<T>(Func<T> action)
+    private static ServiceResponse SerializeResult<T>(Func<T> action)
     {
         var result = action();
-        return new DaemonResponse
+        return new ServiceResponse
         {
             Success = true,
-            Result = JsonSerializer.Serialize(result, DaemonProtocol.JsonOptions)
+            Result = JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions)
         };
     }
 
-    private static DaemonResponse ExecuteVoid(Action action)
+    private static ServiceResponse ExecuteVoid(Action action)
     {
         action();
-        return new DaemonResponse { Success = true };
+        return new ServiceResponse { Success = true };
     }
 
     private async Task MonitorIdleTimeoutAsync(CancellationToken cancellationToken)
@@ -2063,7 +2063,7 @@ internal sealed class ExcelDaemon : IDisposable
                     var idleTime = DateTime.UtcNow - _lastActivityTime;
                     if (idleTime >= _idleTimeout)
                     {
-                        Console.Error.WriteLine($"Daemon idle for {idleTime.TotalMinutes:F1} minutes, shutting down");
+                        Console.Error.WriteLine($"Service idle for {idleTime.TotalMinutes:F1} minutes, shutting down");
                         _shutdownCts.Cancel();
                         break;
                     }
@@ -2108,7 +2108,7 @@ internal sealed class ExcelDaemon : IDisposable
             _instanceMutex.Dispose();
         }
 
-        DaemonSecurity.DeleteLockFile();
+        ServiceSecurity.DeleteLockFile();
     }
 }
 

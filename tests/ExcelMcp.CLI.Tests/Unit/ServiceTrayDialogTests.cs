@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.CLI.Daemon;
+using Sbroenne.ExcelMcp.CLI.Service;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
@@ -61,14 +61,14 @@ internal sealed class MockDialogService : IDialogService
 }
 
 /// <summary>
-/// Unit tests for DaemonTray dialog interactions.
+/// Unit tests for ServiceTray dialog interactions.
 /// Tests the decision logic without actual Windows Forms UI.
 /// </summary>
 [Trait("Layer", "CLI")]
 [Trait("Category", "Unit")]
-[Trait("Feature", "DaemonTray")]
+[Trait("Feature", "ServiceTray")]
 [Trait("Speed", "Fast")]
-public sealed class DaemonTrayDialogTests
+public sealed class ServiceTrayDialogTests
 {
     [Fact]
     public void MockDialogService_QueuedResponses_ReturnedInOrder()

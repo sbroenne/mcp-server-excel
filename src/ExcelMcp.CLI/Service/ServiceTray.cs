@@ -2,13 +2,13 @@ using System.Reflection;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 
-namespace Sbroenne.ExcelMcp.CLI.Daemon;
+namespace Sbroenne.ExcelMcp.CLI.Service;
 
 /// <summary>
-/// System tray icon for the Excel CLI daemon.
-/// Shows running sessions and allows closing them or stopping the daemon.
+/// System tray icon for the ExcelMCP Service.
+/// Shows running sessions and allows closing them or stopping the service.
 /// </summary>
-internal sealed class DaemonTray : IDisposable
+internal sealed class ServiceTray : IDisposable
 {
     private readonly NotifyIcon _notifyIcon;
     private readonly ContextMenuStrip _contextMenu;
@@ -22,7 +22,7 @@ internal sealed class DaemonTray : IDisposable
     private UpdateInfo? _availableUpdate;
     private DateTime _lastBalloonShown = DateTime.MinValue;
 
-    public DaemonTray(SessionManager sessionManager, Action requestShutdown)
+    public ServiceTray(SessionManager sessionManager, Action requestShutdown)
         : this(sessionManager, requestShutdown, new WindowsFormsDialogService())
     {
     }
@@ -30,7 +30,7 @@ internal sealed class DaemonTray : IDisposable
     /// <summary>
     /// Constructor with injectable dialog service for testability.
     /// </summary>
-    internal DaemonTray(SessionManager sessionManager, Action requestShutdown, IDialogService dialogService)
+    internal ServiceTray(SessionManager sessionManager, Action requestShutdown, IDialogService dialogService)
     {
         _sessionManager = sessionManager;
         _requestShutdown = requestShutdown;
@@ -58,10 +58,10 @@ internal sealed class DaemonTray : IDisposable
         _updateMenuItem.Click += (_, _) => UpdateCli();
         _contextMenu.Items.Add(_updateMenuItem);
 
-        // Stop daemon
-        var stopItem = new ToolStripMenuItem("Stop Daemon");
-        stopItem.Click += (_, _) => StopDaemon();
-        _contextMenu.Items.Add(stopItem);
+        // Exit service
+        var exitItem = new ToolStripMenuItem("Exit");
+        exitItem.Click += (_, _) => ExitService();
+        _contextMenu.Items.Add(exitItem);
 
         // Load icon from embedded resource
         var icon = LoadEmbeddedIcon();
@@ -70,7 +70,7 @@ internal sealed class DaemonTray : IDisposable
         _notifyIcon = new NotifyIcon
         {
             Icon = icon,
-            Text = "Excel CLI Daemon",
+            Text = "ExcelMCP Service",
             ContextMenuStrip = _contextMenu,
             Visible = true
         };
@@ -149,8 +149,8 @@ internal sealed class DaemonTray : IDisposable
 
             // Update tooltip with session count
             _notifyIcon.Text = sessions.Count > 0
-                ? $"Excel CLI Daemon - {sessions.Count} session(s)"
-                : "Excel CLI Daemon";
+                ? $"ExcelMCP Service - {sessions.Count} session(s)"
+                : "ExcelMCP Service";
         }
         catch
         {
@@ -212,7 +212,7 @@ internal sealed class DaemonTray : IDisposable
         var sessions = _sessionManager.GetActiveSessions();
         if (sessions.Count == 0)
         {
-            ShowBalloon("Excel CLI Daemon", "No active sessions.");
+            ShowBalloon("ExcelMCP Service", "No active sessions.");
         }
         else
         {
@@ -327,15 +327,15 @@ internal sealed class DaemonTray : IDisposable
         }
     }
 
-    private void StopDaemon()
+    private void ExitService()
     {
         var sessions = _sessionManager.GetActiveSessions();
         if (sessions.Count > 0)
         {
             var result = _dialogService.ShowYesNoCancel(
                 $"There are {sessions.Count} active session(s).\n\n" +
-                "Do you want to save all sessions before stopping the daemon?",
-                "Stop Excel CLI Daemon");
+                "Do you want to save all sessions before exiting?",
+                "Exit ExcelMCP Service");
 
             if (result == DialogResult.Cancel)
             {
@@ -356,7 +356,7 @@ internal sealed class DaemonTray : IDisposable
                 catch (Exception ex)
                 {
                     var continueResult = _dialogService.ShowYesNo(
-                        $"Error saving sessions: {ex.Message}\n\nStop daemon anyway?",
+                        $"Error saving sessions: {ex.Message}\n\nExit anyway?",
                         "Error");
 
                     if (continueResult != DialogResult.Yes)

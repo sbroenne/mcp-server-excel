@@ -1,47 +1,47 @@
 using System.Diagnostics;
 
-namespace Sbroenne.ExcelMcp.CLI.Daemon;
+namespace Sbroenne.ExcelMcp.CLI.Service;
 
 /// <summary>
-/// Manages daemon lifecycle: start, stop, status.
+/// Manages ExcelMCP Service lifecycle: start, stop, status.
 /// </summary>
-internal static class DaemonManager
+internal static class ServiceManager
 {
     /// <summary>
-    /// Ensures daemon is running, starting it if necessary.
+    /// Ensures service is running, starting it if necessary.
     /// </summary>
-    public static async Task<bool> EnsureDaemonRunningAsync(CancellationToken cancellationToken = default)
+    public static async Task<bool> EnsureServiceRunningAsync(CancellationToken cancellationToken = default)
     {
         // Check if already running
-        if (await IsDaemonRunningAsync(cancellationToken))
+        if (await IsServiceRunningAsync(cancellationToken))
         {
             return true;
         }
 
-        // Start daemon
-        return await StartDaemonAsync(cancellationToken);
+        // Start service
+        return await StartServiceAsync(cancellationToken);
     }
 
     /// <summary>
-    /// Checks if daemon is running and responsive.
+    /// Checks if service is running and responsive.
     /// </summary>
-    public static async Task<bool> IsDaemonRunningAsync(CancellationToken cancellationToken = default)
+    public static async Task<bool> IsServiceRunningAsync(CancellationToken cancellationToken = default)
     {
         // First check lock file
-        if (!DaemonSecurity.IsDaemonProcessRunning())
+        if (!ServiceSecurity.IsServiceProcessRunning())
         {
             return false;
         }
 
         // Then ping
-        using var client = new DaemonClient(connectTimeout: TimeSpan.FromSeconds(2));
+        using var client = new ServiceClient(connectTimeout: TimeSpan.FromSeconds(2));
         return await client.PingAsync(cancellationToken);
     }
 
     /// <summary>
-    /// Starts the daemon as a background process.
+    /// Starts the service as a background process.
     /// </summary>
-    public static async Task<bool> StartDaemonAsync(CancellationToken cancellationToken = default)
+    public static async Task<bool> StartServiceAsync(CancellationToken cancellationToken = default)
     {
         ProcessStartInfo startInfo;
 
@@ -50,16 +50,16 @@ internal static class DaemonManager
         var isDotnetRun = entryAssembly != null &&
             Environment.ProcessPath?.EndsWith("dotnet.exe", StringComparison.OrdinalIgnoreCase) == true;
 
-        // Use UseShellExecute=true to create daemon in separate process group
+        // Use UseShellExecute=true to create service in separate process group
         // This prevents parent's console handles from being inherited
         if (isDotnetRun)
         {
-            // Development mode: use 'dotnet <dll> daemon run'
+            // Development mode: use 'dotnet <dll> service run'
             var dllPath = entryAssembly!.Location;
             startInfo = new ProcessStartInfo
             {
                 FileName = "dotnet",
-                Arguments = $"\"{dllPath}\" daemon run",
+                Arguments = $"\"{dllPath}\" service run",
                 UseShellExecute = true,
                 CreateNoWindow = true,
                 WindowStyle = ProcessWindowStyle.Hidden
@@ -77,7 +77,7 @@ internal static class DaemonManager
             startInfo = new ProcessStartInfo
             {
                 FileName = exePath,
-                Arguments = "daemon run",
+                Arguments = "service run",
                 UseShellExecute = true,
                 CreateNoWindow = true,
                 WindowStyle = ProcessWindowStyle.Hidden
@@ -92,13 +92,13 @@ internal static class DaemonManager
                 return false;
             }
 
-            // Wait a bit for daemon to start
+            // Wait a bit for service to start
             await Task.Delay(500, cancellationToken);
 
             // Verify it's running
             for (int i = 0; i < 10; i++)
             {
-                if (await IsDaemonRunningAsync(cancellationToken))
+                if (await IsServiceRunningAsync(cancellationToken))
                 {
                     return true;
                 }
@@ -114,53 +114,53 @@ internal static class DaemonManager
     }
 
     /// <summary>
-    /// Stops the daemon.
+    /// Stops the service.
     /// </summary>
-    public static async Task<bool> StopDaemonAsync(CancellationToken cancellationToken = default)
+    public static async Task<bool> StopServiceAsync(CancellationToken cancellationToken = default)
     {
-        if (!await IsDaemonRunningAsync(cancellationToken))
+        if (!await IsServiceRunningAsync(cancellationToken))
         {
             return true; // Already stopped
         }
 
-        using var client = new DaemonClient();
-        var response = await client.SendAsync(new DaemonRequest { Command = "daemon.shutdown" }, cancellationToken);
+        using var client = new ServiceClient();
+        var response = await client.SendAsync(new ServiceRequest { Command = "service.shutdown" }, cancellationToken);
         return response.Success;
     }
 
     /// <summary>
-    /// Gets daemon status information.
+    /// Gets service status information.
     /// </summary>
-    public static async Task<DaemonStatus> GetStatusAsync(CancellationToken cancellationToken = default)
+    public static async Task<ServiceStatus> GetStatusAsync(CancellationToken cancellationToken = default)
     {
-        var pid = DaemonSecurity.ReadLockFilePid();
-        var isRunning = await IsDaemonRunningAsync(cancellationToken);
+        var pid = ServiceSecurity.ReadLockFilePid();
+        var isRunning = await IsServiceRunningAsync(cancellationToken);
 
         if (!isRunning)
         {
-            return new DaemonStatus { Running = false };
+            return new ServiceStatus { Running = false };
         }
 
-        using var client = new DaemonClient();
-        var response = await client.SendAsync(new DaemonRequest { Command = "daemon.status" }, cancellationToken);
+        using var client = new ServiceClient();
+        var response = await client.SendAsync(new ServiceRequest { Command = "service.status" }, cancellationToken);
 
         if (response.Success && response.Result != null)
         {
-            var status = DaemonProtocol.Deserialize<DaemonStatus>(response.Result);
+            var status = ServiceProtocol.Deserialize<ServiceStatus>(response.Result);
             if (status != null)
             {
                 return status;
             }
         }
 
-        return new DaemonStatus { Running = true, ProcessId = pid ?? 0 };
+        return new ServiceStatus { Running = true, ProcessId = pid ?? 0 };
     }
 }
 
 /// <summary>
-/// Daemon status information.
+/// Service status information.
 /// </summary>
-internal sealed class DaemonStatus
+internal sealed class ServiceStatus
 {
     public bool Running { get; init; }
     public int ProcessId { get; init; }

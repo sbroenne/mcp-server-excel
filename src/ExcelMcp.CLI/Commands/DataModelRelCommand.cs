@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.CLI.Daemon;
+using Sbroenne.ExcelMcp.CLI.Service;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.Core.Models.Actions;
 using Spectre.Console;
@@ -9,7 +9,7 @@ using Spectre.Console.Cli;
 namespace Sbroenne.ExcelMcp.CLI.Commands;
 
 /// <summary>
-/// DataModelRel commands - thin wrapper that sends relationship requests to daemon.
+/// DataModelRel commands - thin wrapper that sends relationship requests to service.
 /// Actions: list-relationships, read-relationship, create-relationship, update-relationship, delete-relationship
 /// </summary>
 internal sealed class DataModelRelCommand : AsyncCommand<DataModelRelCommand.Settings>
@@ -46,22 +46,22 @@ internal sealed class DataModelRelCommand : AsyncCommand<DataModelRelCommand.Set
             _ => null
         };
 
-        using var client = new DaemonClient();
-        var response = await client.SendAsync(new DaemonRequest
+        using var client = new ServiceClient();
+        var response = await client.SendAsync(new ServiceRequest
         {
             Command = command,
             SessionId = settings.SessionId,
-            Args = args != null ? JsonSerializer.Serialize(args, DaemonProtocol.JsonOptions) : null
+            Args = args != null ? JsonSerializer.Serialize(args, ServiceProtocol.JsonOptions) : null
         }, cancellationToken);
 
         if (response.Success)
         {
-            Console.WriteLine(!string.IsNullOrEmpty(response.Result) ? response.Result : JsonSerializer.Serialize(new { success = true }, DaemonProtocol.JsonOptions));
+            Console.WriteLine(!string.IsNullOrEmpty(response.Result) ? response.Result : JsonSerializer.Serialize(new { success = true }, ServiceProtocol.JsonOptions));
             return 0;
         }
         else
         {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, DaemonProtocol.JsonOptions));
+            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, ServiceProtocol.JsonOptions));
             return 1;
         }
     }

@@ -1,14 +1,14 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Sbroenne.ExcelMcp.CLI.Daemon;
+namespace Sbroenne.ExcelMcp.CLI.Service;
 
 /// <summary>
-/// Protocol messages for CLI-to-daemon communication over named pipes.
-/// Pattern: CLI sends JSON request → Daemon executes → Returns JSON response.
+/// Protocol messages for CLI-to-service communication over named pipes.
+/// Pattern: CLI sends JSON request → Service executes → Returns JSON response.
 /// All messages are newline-delimited JSON.
 /// </summary>
-internal static class DaemonProtocol
+internal static class ServiceProtocol
 {
     public static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -23,9 +23,9 @@ internal static class DaemonProtocol
 }
 
 /// <summary>
-/// Request sent from CLI to daemon.
+/// Request sent from CLI to service.
 /// </summary>
-internal sealed class DaemonRequest
+internal sealed class ServiceRequest
 {
     /// <summary>Command to execute (e.g., "session.open", "sheet.list", "range.get-values").</summary>
     public required string Command { get; init; }
@@ -38,9 +38,9 @@ internal sealed class DaemonRequest
 }
 
 /// <summary>
-/// Response sent from daemon to CLI.
+/// Response sent from service to CLI.
 /// </summary>
-internal sealed class DaemonResponse
+internal sealed class ServiceResponse
 {
     /// <summary>Whether the command succeeded.</summary>
     public bool Success { get; init; }

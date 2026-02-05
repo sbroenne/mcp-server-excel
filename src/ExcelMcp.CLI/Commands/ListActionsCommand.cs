@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.CLI.Daemon;
+using Sbroenne.ExcelMcp.CLI.Service;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.Core.Models.Actions;
 using Spectre.Console.Cli;
@@ -44,7 +44,7 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
             if (!actionsByCommand.TryGetValue(key, out var actions))
             {
                 var error = new { success = false, error = $"Unknown command '{key}'." };
-                Console.WriteLine(JsonSerializer.Serialize(error, DaemonProtocol.JsonOptions));
+                Console.WriteLine(JsonSerializer.Serialize(error, ServiceProtocol.JsonOptions));
                 return 1;
             }
 
@@ -54,7 +54,7 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
                 command = key,
                 actions = actions.OrderBy(a => a, StringComparer.OrdinalIgnoreCase).ToArray()
             };
-            Console.WriteLine(JsonSerializer.Serialize(result, DaemonProtocol.JsonOptions));
+            Console.WriteLine(JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions));
             return 0;
         }
 
@@ -70,7 +70,7 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
             example = "session create file.xlsx → returns {sessionId:'abc'} → range set-values --session abc --range A1 --values 'Hello' → session close --save --session abc",
             commands = all
         };
-        Console.WriteLine(JsonSerializer.Serialize(payload, DaemonProtocol.JsonOptions));
+        Console.WriteLine(JsonSerializer.Serialize(payload, ServiceProtocol.JsonOptions));
         return 0;
     }
 
