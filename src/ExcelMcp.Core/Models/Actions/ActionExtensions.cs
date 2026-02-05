@@ -327,5 +327,13 @@ public static class ActionExtensions
         SlicerAction.DeleteTableSlicer => "delete-table-slicer",
         _ => throw new ArgumentException($"Unknown SlicerAction: {action}")
     };
+
+    public static string ToActionString(this CalculationModeAction action) => action switch
+    {
+        CalculationModeAction.GetMode => "get-mode",
+        CalculationModeAction.SetMode => "set-mode",
+        CalculationModeAction.Calculate => "calculate",
+        _ => throw new ArgumentException($"Unknown CalculationModeAction: {action}")
+    };
 }
 #pragma warning restore CS1591

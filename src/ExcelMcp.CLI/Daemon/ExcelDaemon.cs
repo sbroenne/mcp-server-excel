@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Commands.Calculation;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
@@ -40,6 +41,7 @@ internal sealed class ExcelDaemon : IDisposable
     private readonly ConditionalFormattingCommands _conditionalFormatCommands = new();
     private readonly VbaCommands _vbaCommands = new();
     private readonly DataModelCommands _dataModelCommands = new();
+    private readonly CalculationModeCommands _calculationModeCommands = new();
 
     public ExcelDaemon(TimeSpan? idleTimeout = null)
     {
@@ -270,6 +272,7 @@ internal sealed class ExcelDaemon : IDisposable
                 "chart" => await HandleChartCommandAsync(action, request),
                 "chartconfig" => await HandleChartConfigCommandAsync(action, request),
                 "connection" => await HandleConnectionCommandAsync(action, request),
+                "calculation" => await HandleCalculationModeCommandAsync(action, request),
                 "namedrange" => await HandleNamedRangeCommandAsync(action, request),
                 "conditionalformat" => await HandleConditionalFormatCommandAsync(action, request),
                 "vba" => await HandleVbaCommandAsync(action, request),
@@ -1626,6 +1629,82 @@ internal sealed class ExcelDaemon : IDisposable
         });
     }
 
+    private Task<DaemonResponse> HandleCalculationModeCommandAsync(string action, DaemonRequest request)
+    {
+        return WithSessionAsync(request.SessionId, batch =>
+        {
+            if (TryParseAction<CalculationModeAction>(action, out var calculationAction))
+            {
+                return calculationAction switch
+                {
+                    CalculationModeAction.GetMode => SerializeResult(_calculationModeCommands.GetMode(batch)),
+                    CalculationModeAction.SetMode => ExecuteCalculationModeSet(batch, request),
+                    CalculationModeAction.Calculate => ExecuteCalculationModeCalculate(batch, request),
+                    _ => new DaemonResponse { Success = false, ErrorMessage = $"Unsupported calculation action: {action}" }
+                };
+            }
+
+            return new DaemonResponse { Success = false, ErrorMessage = $"Unknown calculation action: {action}" };
+        });
+    }
+
+    private DaemonResponse ExecuteCalculationModeSet(IExcelBatch batch, DaemonRequest request)
+    {
+        var args = GetArg<CalculationModeArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.Mode))
+        {
+            return new DaemonResponse { Success = false, ErrorMessage = "mode is required for set-mode" };
+        }
+
+        var mode = args.Mode.ToLowerInvariant() switch
+        {
+            "automatic" => CalculationMode.Automatic,
+            "manual" => CalculationMode.Manual,
+            "semi-automatic" => CalculationMode.SemiAutomatic,
+            _ => (CalculationMode?)null
+        };
+
+        if (mode == null)
+        {
+            return new DaemonResponse { Success = false, ErrorMessage = $"Invalid mode '{args.Mode}'. Valid values: automatic, manual, semi-automatic" };
+        }
+
+        var result = _calculationModeCommands.SetMode(batch, mode.Value);
+        return SerializeResult(result);
+    }
+
+    private DaemonResponse ExecuteCalculationModeCalculate(IExcelBatch batch, DaemonRequest request)
+    {
+        var args = GetArg<CalculationModeArgs>(request.Args);
+        var scopeValue = string.IsNullOrWhiteSpace(args.Scope) ? "workbook" : args.Scope;
+
+        var scope = scopeValue.ToLowerInvariant() switch
+        {
+            "workbook" => CalculationScope.Workbook,
+            "sheet" => CalculationScope.Sheet,
+            "range" => CalculationScope.Range,
+            _ => (CalculationScope?)null
+        };
+
+        if (scope == null)
+        {
+            return new DaemonResponse { Success = false, ErrorMessage = $"Invalid scope '{scopeValue}'. Valid values: workbook, sheet, range" };
+        }
+
+        if (scope == CalculationScope.Sheet && string.IsNullOrWhiteSpace(args.SheetName))
+        {
+            return new DaemonResponse { Success = false, ErrorMessage = "sheetName is required for sheet scope calculation" };
+        }
+
+        if (scope == CalculationScope.Range && (string.IsNullOrWhiteSpace(args.SheetName) || string.IsNullOrWhiteSpace(args.RangeAddress)))
+        {
+            return new DaemonResponse { Success = false, ErrorMessage = "sheetName and rangeAddress are required for range scope calculation" };
+        }
+
+        var result = _calculationModeCommands.Calculate(batch, scope.Value, args.SheetName, args.RangeAddress);
+        return SerializeResult(result);
+    }
+
     private Task<DaemonResponse> HandleNamedRangeCommandAsync(string action, DaemonRequest request)
     {
         return WithSessionAsync(request.SessionId, batch =>
@@ -2042,6 +2121,15 @@ internal sealed class SessionOpenArgs
     public int? TimeoutSeconds { get; set; }
 }
 internal sealed class SessionCloseArgs { public bool Save { get; set; } }
+
+// Calculation Mode
+internal sealed class CalculationModeArgs
+{
+    public string? Mode { get; set; }
+    public string? Scope { get; set; }
+    public string? SheetName { get; set; }
+    public string? RangeAddress { get; set; }
+}
 
 // Sheet
 internal sealed class SheetArgs { public string? SheetName { get; set; } }

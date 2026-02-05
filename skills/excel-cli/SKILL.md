@@ -85,6 +85,26 @@ excelcli -q powerquery refresh --session 1 --query Q1
 
 If you see "File not found" or "Path not found" - STOP and report to user. Don't retry.
 
+### Rule 7: Use Calculation Mode for Bulk Writes
+
+When writing many values/formulas (10+ cells), disable auto-recalc for performance:
+
+```powershell
+# 1. Set manual mode
+excelcli -q calculationmode set-mode --session 1 --mode manual
+
+# 2. Perform bulk writes
+excelcli -q range set-values --session 1 --sheet Sheet1 --range A1 --values-file data.json
+
+# 3. Recalculate once at end
+excelcli -q calculationmode calculate --session 1 --scope workbook
+
+# 4. Restore automatic mode
+excelcli -q calculationmode set-mode --session 1 --mode automatic
+```
+
+**When NOT needed:** Reading formulas, small edits (1-10 cells), or when you need immediate calculation results.
+
 ## Quick Reference
 
 | Task | Command |

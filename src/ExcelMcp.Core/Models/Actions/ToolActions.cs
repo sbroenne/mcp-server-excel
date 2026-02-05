@@ -371,4 +371,14 @@ public enum SlicerAction
     SetTableSlicerSelection,
     DeleteTableSlicer
 }
+
+/// <summary>
+/// Actions available for excel_calculation_mode tool
+/// </summary>
+public enum CalculationModeAction
+{
+    GetMode,
+    SetMode,
+    Calculate
+}
 #pragma warning restore CS1591

@@ -8,6 +8,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// MCP tool for core Excel range operations - values, formulas, copy, clear, discovery.
 /// Use excel_range_edit for insert/delete/find/sort. Use excel_range_format for styling/validation.
 /// Use excel_range_link for hyperlinks and cell protection.
+/// Calculation mode and explicit recalculation are handled by excel_calculation_mode, not this tool.
 /// </summary>
 [McpServerToolType]
 public static partial class ExcelRangeTool

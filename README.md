@@ -18,7 +18,7 @@
 
 **Automate Excel with AI - A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.**
 
-**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (22 tools with 211 operations).
+**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (23 tools with 214 operations).
 
 ### CLI vs MCP Server
 
@@ -37,7 +37,7 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 | **Tokens** | ~59K | ~163K | 🏆 CLI (64% fewer) |
 
 
-**Key insight:** MCP sends 22 tool schemas to the LLM on each request (~100K+ tokens). CLI wraps everything in one `excel_execute` tool and offloads guidance to a skill file.
+**Key insight:** MCP sends 23 tool schemas to the LLM on each request (~100K+ tokens). CLI wraps everything in one `excel_execute` tool and offloads guidance to a skill file.
 
 </details>
 
@@ -55,7 +55,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 **💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
 
-**🧪 LLM-Tested Quality** - Tool behavior validated with real AI agents using [agent-benchmark](https://github.com/mykhaliev/agent-benchmark). We test that LLMs correctly understand and use our tools.
+**🧪 LLM-Tested Quality** - Tool behavior validated with real LLM workflows using [pytest-aitest](https://github.com/sbroenne/pytest-aitest). We test that LLMs correctly understand and use our tools.
 
 **Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. 
 
@@ -81,7 +81,7 @@ Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/
 
 ## 🎯 What You Can Do
 
-**22 specialized tools with 211 operations:**
+**23 specialized tools with 214 operations:**
 
 - 🔄 **Power Query** (1 tool, 11 ops) - Atomic workflows, M code management, load destinations
 - 📊 **Data Model/DAX** (2 tools, 18 ops) - Measures with auto-formatted DAX, relationships, model structure
@@ -94,10 +94,11 @@ Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/
 - 🔌 **Connections** (1 tool, 9 ops) - OLEDB/ODBC management and refresh
 - 🏷️ **Named Ranges** (1 tool, 6 ops) - Parameters and configuration
 - 📁 **Files** (1 tool, 6 ops) - Session management and workbook creation
+- 🧮 **Calculation Mode** (1 tool, 3 ops) - Get/set calculation mode and trigger recalculation
 - �️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
 - �🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
 
-📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 211 operations
+📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 214 operations
 
 
 ## 💬 Example Prompts
@@ -223,4 +224,5 @@ The AI will display the Excel window so you can watch every operation happen liv
 **Acknowledgments:**
 - Microsoft Excel Team - For comprehensive COM automation APIs
 - Model Context Protocol community - For the AI integration standard
+- [pytest-aitest](https://github.com/sbroenne/pytest-aitest) - For LLM-powered tool validation testing
 - Open Source Community - For inspiration and best practices

@@ -4,152 +4,55 @@ applyTo: "tests/**/*.cs"
 
 # Testing Strategy - Quick Reference
 
-> **Two tiers: Integration (Excel) → OnDemand (session cleanup)**
-> 
-> **⚠️ No Unit Tests**: ExcelMcp has no traditional unit tests. Integration tests ARE our unit tests because Excel COM cannot be meaningfully mocked. See `docs/ADR-001-NO-UNIT-TESTS.md` for full rationale.
+## LLM Integration Tests
 
-## Test Naming Standard
+**Location**: `tests/ExcelMcp.LLM.Tests/`
 
-**Pattern**: `MethodName_StateUnderTest_ExpectedBehavior`
+**Purpose**: Validate that LLMs correctly use Excel MCP Server and CLI tools using [pytest-aitest](https://github.com/sbroenne/pytest-aitest).
 
-- **MethodName**: Command being tested (no "Async" suffix)
-- **StateUnderTest**: Specific scenario/condition (not generic like "Valid")
-- **ExpectedBehavior**: Clear outcome (Returns*, Creates*, Removes*, etc.)
+### When to Run
 
-**Examples**:
-```csharp
-✅ List_EmptyWorkbook_ReturnsEmptyList
-✅ Create_UniqueName_ReturnsSuccess
-✅ Delete_NonActiveSheet_ReturnsSuccess
-✅ ImportThenDelete_UniqueQuery_RemovedFromList
+- **Manual/on-demand only** - Not part of CI/CD
+- After changing tool descriptions or adding new tools
+- To validate LLM behavior patterns (e.g., incremental updates vs rebuild)
 
-❌ List_WithValidFile_ReturnsSuccessResult  // Too generic
-❌ CreateAsync_ValidName_Success            // Has Async suffix
-❌ Delete                                   // Missing state and behavior
+### Running LLM Tests
+
+```powershell
+# Navigate to the LLM tests directory first
+cd d:\source\mcp-server-excel\tests\ExcelMcp.LLM.Tests
+
+# Install deps (local pytest-aitest path is configured via tool.uv.sources)
+uv sync
+
+# Run MCP tests only
+uv run pytest -m mcp -v
+
+# Run CLI tests only
+uv run pytest -m cli -v
+
+# Run all LLM tests
+uv run pytest -m aitest -v
 ```
 
-**Full Standard**: See `docs/TEST-NAMING-STANDARD.md` for complete guide with pattern catalog and examples.
+### Prerequisites
 
-## Test Class Templates
+- `AZURE_OPENAI_ENDPOINT` environment variable
+- Windows desktop with Excel installed
+- MCP Server built (Release) and CLI available on PATH
 
-### Integration Test Template
+### Configuration Overrides
 
-```csharp
-[Trait("Category", "Integration")]
-[Trait("Speed", "Medium")]
-[Trait("Layer", "Core")]
-[Trait("Feature", "FeatureName")]  // PowerQuery, DataModel, Tables, PivotTables, Ranges, Connections, Parameters, Worksheets
-[Trait("RequiresExcel", "true")]
-public partial class FeatureCommandsTests : IClassFixture<TempDirectoryFixture>
-{
-    private readonly IFeatureCommands _commands;
-    private readonly string _tempDir;
+- `EXCEL_MCP_SERVER_COMMAND` to override MCP server command
+- `EXCEL_CLI_COMMAND` to override CLI command
 
-    public FeatureCommandsTests(TempDirectoryFixture fixture)
-    {
-        _commands = new FeatureCommands();
-        _tempDir = fixture.TempDir;
-    }
+### Test Results
 
-    [Fact]
-    public async Task Operation_Scenario_ExpectedResult()
-    {
-        // Arrange - Each test gets unique file
-        var testFile = CoreTestHelper.CreateUniqueTestFile(
-            nameof(FeatureCommandsTests), 
-            nameof(Operation_Scenario_ExpectedResult), 
-            _tempDir,
-            ".xlsx");  // Use ".xlsm" for VBA tests
+Reports are generated in `tests/ExcelMcp.LLM.Tests/TestResults/`:
+- `report.html` - Visual HTML report
+- `report.json` - Machine-readable JSON
 
-        // Act
-        await using var batch = await ExcelSession.BeginBatchAsync(testFile);
-        var result = await _commands.OperationAsync(batch, args);
-
-        // Assert - Verify actual Excel state, not just success flag
-        Assert.True(result.Success, $"Operation failed: {result.ErrorMessage}");
-        
-        // Verify object exists/updated in Excel (round-trip validation)
-        var verifyResult = await _commands.ListAsync(batch);
-        Assert.Contains(verifyResult.Items, i => i.Name == "Expected");
-        
-        // No Save unless testing persistence (see examples below)
-    }
-}
-```
-
-## Essential Rules
-
-### File Isolation
-- ✅ Each test creates unique file via `CoreTestHelper.CreateUniqueTestFile()`
-- ❌ **NEVER** share test files between tests
-- ✅ Use `.xlsm` for VBA tests, `.xlsx` otherwise
-
-### Assertions  
-- ✅ Binary assertions: `Assert.True(result.Success, $"Reason: {result.ErrorMessage}")`
-- ❌ **NEVER** "accept both" patterns
-- ✅ **ALWAYS verify actual Excel state** after create/update operations
-
-### Diagnostic Output
-- ✅ Use `ILogger` with `ITestOutputHelper` for diagnostic messages
-- ✅ Pattern: Test constructor receives `ITestOutputHelper`, creates logger via `MartinCostello.Logging.XUnit`
-- ✅ Pass logger to `ExcelBatch` constructor (requires `InternalsVisibleTo` for accessing internal ExcelBatch)
-- ✅ Logger messages appear in test output automatically (success or failure)
-- ❌ **NEVER** use `Console.WriteLine()` - output is suppressed by test runner
-- ❌ **NEVER** use `Debug.WriteLine()` - only visible with debugger attached, not in test output
-- ❌ **NEVER** write to files for diagnostics - use proper logging infrastructure
-
-### Save
-- ❌ **FORBIDDEN** unless explicitly testing persistence
-- ✅ **ONLY** for round-trip tests: Create → Save → Re-open → Verify
-- ❌ **NEVER** call in middle of test (breaks subsequent operations)
-- See CRITICAL-RULES.md Rule 14 for details
-
-**Examples:**
-
-```csharp
-// ❌ WRONG: Save in middle breaks next operation
-await _commands.CreateAsync(batch, "Sheet1");
-await batch.Save();  // ❌ Breaks subsequent operations!
-await _commands.RenameAsync(batch, "Sheet1", "New");  // FAILS!
-
-// ✅ CORRECT: Save only at end
-await _commands.CreateAsync(batch, "Sheet1");
-await _commands.RenameAsync(batch, "Sheet1", "New");
-await batch.Save();  // ✅ After all operations
-
-// ✅ CORRECT: Persistence test with re-open
-await using var batch1 = await ExcelSession.BeginBatchAsync(testFile);
-await _commands.CreateAsync(batch1, "Sheet1");
-await batch1.Save();  // Save for persistence
-
-await using var batch2 = await ExcelSession.BeginBatchAsync(testFile);
-var list = await _commands.ListAsync(batch2);
-Assert.Contains(list.Items, i => i.Name == "Sheet1");  // ✅ Verify persisted
-```
-
-### Batch Pattern
-- All Core commands accept `IExcelBatch batch` as first parameter
-- Use `await using var batch` for automatic disposal
-- **NEVER** call `Save()` in middle of test
-
-### Required Traits
-- `[Trait("Category", "Integration")]` - All tests are integration tests
-- `[Trait("Speed", "Medium|Slow")]`
-- `[Trait("Layer", "Core|CLI|McpServer|ComInterop|Diagnostics")]`
-- `[Trait("Feature", "<feature-name>")]` - See valid values below
-- `[Trait("RequiresExcel", "true")]` - All integration tests require Excel
-- `[Trait("RunType", "OnDemand")]` - For session/lifecycle tests and diagnostic tests (slow, run only when explicitly requested)
-
-### Valid Feature Values
-- **PowerQuery** - Power Query M code operations
-- **DataModel** - Data Model / DAX operations
-- **Tables** - Excel Table (ListObject) operations
-- **PivotTables** - PivotTable operations
-- **Ranges** - Range data operations
-- **Connections** - Connection management
-- **Parameters** - Named range parameters
-- **Worksheets** - Worksheet lifecycle
-- **VBA** - VBA script operations
+See `tests/ExcelMcp.LLM.Tests/README.md` for complete documentation.
 - **VBATrust** - VBA trust detection/configuration
 
 ## Test Execution
@@ -284,9 +187,9 @@ Assert.DoesNotContain(file1Content, viewResult.Content);  // ✅ file1 content g
 
 ## LLM Integration Tests
 
-**Location**: `tests/ExcelMcp.McpServer.LLM.Tests/`
+**Location**: `tests/ExcelMcp.LLM.Tests/`
 
-**Purpose**: Validate that AI agents correctly use Excel MCP Server tools using [agent-benchmark](https://github.com/mykhaliev/agent-benchmark).
+**Purpose**: Validate that LLMs correctly use Excel MCP Server and CLI tools using [pytest-aitest](https://github.com/sbroenne/pytest-aitest).
 
 ### When to Run
 
@@ -298,132 +201,36 @@ Assert.DoesNotContain(file1Content, viewResult.Content);  // ✅ file1 content g
 
 ```powershell
 # Navigate to the LLM tests directory first
-cd d:\source\mcp-server-excel\tests\ExcelMcp.McpServer.LLM.Tests
+cd d:\source\mcp-server-excel\tests\ExcelMcp.LLM.Tests
 
-# Run specific scenario (most common)
-.\Run-LLMTests.ps1 -Scenario excel-powerquery-datamodel-test.yaml -Verbose
+# Install deps (local pytest-aitest path is configured via tool.uv.sources)
+uv sync
 
-# Build MCP server first, then run tests
-.\Run-LLMTests.ps1 -Scenario excel-file-worksheet-test.yaml -Build
+# Run MCP tests only
+uv run pytest -m mcp -v
 
-# Run all scenarios in Scenarios folder
-.\Run-LLMTests.ps1 -Build
+# Run CLI tests only
+uv run pytest -m cli -v
+
+# Run all LLM tests
+uv run pytest -m aitest -v
 ```
-
-**Important:** Always `cd` to the LLM tests directory first, then run `.\Run-LLMTests.ps1`.
 
 ### Prerequisites
 
 - `AZURE_OPENAI_ENDPOINT` environment variable
 - Windows desktop with Excel installed
-- agent-benchmark (auto-downloaded on first run, or use go-run mode)
+- MCP Server built (Release) and CLI available on PATH
 
-### Configuration
+### Configuration Overrides
 
-The test runner uses `llm-tests.config.json` for defaults. Create `llm-tests.config.local.json` (git-ignored) for personal settings:
-
-```json
-{
-  "$schema": "./llm-tests.config.schema.json",
-  "agentBenchmarkPath": "../../../../agent-benchmark",
-  "agentBenchmarkMode": "go-run",
-  "verbose": false,
-  "build": false
-}
-```
-
-**Modes:**
-- `"executable"` - Uses pre-built `agent-benchmark.exe`
-- `"go-run"` - Uses `go run .` from agent-benchmark source (recommended for development)
-
-### Template Variables
-
-Test YAML files support these template variables (substituted by Run-LLMTests.ps1):
-
-| Variable | Description |
-|----------|-------------|
-| `{{TEST_DIR}}` | Directory containing the test YAML file (Scenarios folder) |
-| `{{TEST_RESULTS_PATH}}` | Path to TestResults folder for output files |
-| `{{TEMP_DIR}}` | System temp directory |
-| `{{SERVER_COMMAND}}` | Full path to MCP server executable |
-| `{{AZURE_OPENAI_ENDPOINT}}` | Azure OpenAI endpoint from environment |
-| `{{randomValue type='UUID'}}` | Generates unique UUID (handled by agent-benchmark) |
-
-**Path Notes:**
-- Use `{{TEST_DIR}}/../Fixtures/` to access test data files in Fixtures folder
-- Use `{{TEST_RESULTS_PATH}}/filename.xlsx` to save Excel files alongside reports
-
-### Test Scenarios
-
-| Scenario | Tools | Purpose |
-|----------|-------|---------|
-| `excel-file-worksheet-test.yaml` | excel_file, excel_worksheet | File lifecycle, worksheet operations |
-| `excel-range-test.yaml` | excel_range | 2D array format, get/set values |
-| `excel-table-test.yaml` | excel_table | Table creation, structured data |
-| `excel-powerquery-datamodel-test.yaml` | excel_powerquery, excel_datamodel, excel_pivottable | Full BI workflow |
-
-### Writing LLM Tests
-
-- Use natural language prompts (don't mention tool names)
-- Consolidate multiple steps into single prompts for token optimization
-- Each test uses `{{randomValue type='UUID'}}` in file paths for isolation
-- Enable `clarification_detection: enabled: true` on agents
-- Assert `no_clarification_questions` to verify agent doesn't ask questions
-
-**Assertion Types:**
-- `no_hallucinated_tools` - Agent only uses available tools
-- `no_clarification_questions` - Agent acts without asking questions (requires clarification_detection)
-- `tool_called` - Verifies specific tool was called
-- `tool_param_equals` - Verifies tool parameter value
-- `output_regex` - Matches pattern in final output
+- `EXCEL_MCP_SERVER_COMMAND` to override MCP server command
+- `EXCEL_CLI_COMMAND` to override CLI command
 
 ### Test Results
 
-Reports are generated in `TestResults/`:
-- `<scenario-name>-report.html` - Visual HTML report
-- `<scenario-name>-report.json` - Machine-readable JSON
-- `*.xlsx` - Generated Excel files (when using TEST_RESULTS_PATH)
+Reports are generated in `tests/ExcelMcp.LLM.Tests/TestResults/`:
+- `report.html` - Visual HTML report
+- `report.json` - Machine-readable JSON
 
----
-
-## Agent-Benchmark Development
-
-**Location**: `d:\source\agent-benchmark` (separate repository)
-
-When developing agent-benchmark alongside mcp-server-excel tests:
-
-### Running Agent-Benchmark Tests
-
-```powershell
-# Run all agent-benchmark tests
-cd d:\source\agent-benchmark
-go test ./... -v
-
-# Run specific test
-go test ./test -run "TestGenerateContentWithConfig" -v
-
-# Run tests matching pattern
-go test ./test -run "TestClarification" -v
-```
-
-### Building After Changes
-
-```powershell
-# Rebuild executable (if using executable mode)
-cd d:\source\agent-benchmark
-go build .
-
-# Or just use go-run mode (auto-rebuilds)
-# Set in llm-tests.config.local.json: "agentBenchmarkMode": "go-run"
-```
-
-### Key Test Files
-
-| File | Purpose |
-|------|---------|
-| `test/agent_test.go` | Agent execution tests (GenerateContentWithConfig) |
-| `test/model_test.go` | Assertion evaluator tests |
-| `test/engine_test.go` | Test engine/orchestration tests |
-| `test/httpclient_test.go` | HTTP client and rate limiting tests |
-
-See `tests/ExcelMcp.McpServer.LLM.Tests/README.md` for complete documentation.
+See `tests/ExcelMcp.LLM.Tests/README.md` for complete documentation.

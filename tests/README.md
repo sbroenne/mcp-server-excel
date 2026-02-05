@@ -32,9 +32,10 @@ tests/
 ├── ExcelMcp.Core.Tests/           # Core business logic (Integration)
 ├── ExcelMcp.Diagnostics.Tests/    # Excel COM behavior research (OnDemand, Manual)
 ├── ExcelMcp.McpServer.Tests/      # MCP protocol layer (Integration)
-├── ExcelMcp.McpServer.LLM.Tests/  # LLM agent behavior validation (Manual)
 ├── ExcelMcp.CLI.Tests/            # CLI wrapper (Integration)
 └── ExcelMcp.ComInterop.Tests/     # COM utilities (OnDemand)
+
+llm-tests/                          # LLM tool behavior validation (Manual)
 ```
 
 ## Test Categories
@@ -97,7 +98,7 @@ dotnet test --filter "Feature=Connections&RunType!=OnDemand"
 
 ## LLM Tests
 
-The `ExcelMcp.McpServer.LLM.Tests` project validates that AI agents correctly use Excel MCP Server tools using [agent-benchmark](https://github.com/mykhaliev/agent-benchmark).
+The `llm-tests/` project validates that LLMs correctly use Excel MCP Server and CLI tools using [pytest-aitest](https://github.com/sbroenne/pytest-aitest).
 
 ### When to Run LLM Tests
 
@@ -108,20 +109,18 @@ The `ExcelMcp.McpServer.LLM.Tests` project validates that AI agents correctly us
 ### Running LLM Tests
 
 ```powershell
-# From tests/ExcelMcp.McpServer.LLM.Tests/
-.\Run-LLMTests.ps1 -Build
-
-# Run specific scenario
-.\Run-LLMTests.ps1 -Scenario excel-file-worksheet-test.yaml
+# From llm-tests/
+uv sync
+uv run pytest -m aitest -v
 ```
 
 ### Prerequisites
 
 - `AZURE_OPENAI_ENDPOINT` environment variable
 - Windows desktop with Excel installed
-- agent-benchmark (auto-downloaded on first run)
+- pytest-aitest dependency (local path via uv)
 
-**See [LLM Tests README](ExcelMcp.McpServer.LLM.Tests/README.md) for complete documentation.**
+**See [LLM Tests README](../llm-tests/README.md) for complete documentation.**
 
 ## VBA Testing
 

@@ -6,7 +6,7 @@
 
 **Command-line interface for Excel automation — preferred by coding agents.**
 
-The CLI provides 14 command categories with 211 operations matching the MCP Server. Uses **64% fewer tokens** than MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 22 tool schemas into context.
+The CLI provides 15 command categories with 214 operations matching the MCP Server. Uses **64% fewer tokens** than MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 23 tool schemas into context.
 
 | Interface | Best For | Why |
 |-----------|----------|-----|
@@ -99,7 +99,7 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **211 operations** across 14 command categories:
+ExcelMcp.CLI provides **214 operations** across 15 command categories:
 
 📚 **[Complete Feature Reference →](../../FEATURES.md)** - Full documentation with all operations
 
@@ -121,6 +121,7 @@ ExcelMcp.CLI provides **211 operations** across 14 command categories:
 | **Connections** | 9 | `connection list`, `connection refresh`, `connection test` |
 | **Named Ranges** | 6 | `namedrange create`, `namedrange read`, `namedrange write`, `namedrange update` |
 | **VBA** | 6 | `vba list`, `vba import`, `vba run`, `vba update` |
+| **Calculation Mode** | 3 | `calculation get-mode`, `calculation set-mode`, `calculation calculate` |
 
 **Note:** CLI uses session commands for multi-operation workflows.
 
