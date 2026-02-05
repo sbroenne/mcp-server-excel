@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
 using ModelContextProtocol.Server;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -108,7 +109,7 @@ public static partial class ExcelFileTool
 
         try
         {
-            string sessionId = ExcelToolsBase.GetSessionManager().CreateSession(excelPath, showExcel, timeout);
+            string sessionId = ExcelToolsBase.GetSessionManager().CreateSession(excelPath, showExcel, timeout, SessionOrigin.MCP);
 
             return JsonSerializer.Serialize(new
             {
@@ -246,7 +247,7 @@ public static partial class ExcelFileTool
         try
         {
             // Use the combined create+open which starts Excel only once
-            string sessionId = ExcelToolsBase.GetSessionManager().CreateSessionForNewFile(excelPath, showExcel, timeout);
+            string sessionId = ExcelToolsBase.GetSessionManager().CreateSessionForNewFile(excelPath, showExcel, timeout, SessionOrigin.MCP);
 
             return JsonSerializer.Serialize(new
             {

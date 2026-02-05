@@ -370,7 +370,7 @@ internal sealed class ExcelMcpService : IDisposable
             TimeSpan? timeout = args.TimeoutSeconds.HasValue
                 ? TimeSpan.FromSeconds(args.TimeoutSeconds.Value)
                 : null;
-            var sessionId = _sessionManager.CreateSessionForNewFile(fullPath, operationTimeout: timeout);
+            var sessionId = _sessionManager.CreateSessionForNewFile(fullPath, operationTimeout: timeout, origin: SessionOrigin.CLI);
 
             return new ServiceResponse
             {
@@ -397,7 +397,7 @@ internal sealed class ExcelMcpService : IDisposable
             TimeSpan? timeout = args.TimeoutSeconds.HasValue
                 ? TimeSpan.FromSeconds(args.TimeoutSeconds.Value)
                 : null;
-            var sessionId = _sessionManager.CreateSession(args.FilePath, operationTimeout: timeout);
+            var sessionId = _sessionManager.CreateSession(args.FilePath, operationTimeout: timeout, origin: SessionOrigin.CLI);
             return new ServiceResponse
             {
                 Success = true,

@@ -58,6 +58,13 @@ internal sealed class ServiceTray : IDisposable
         _updateMenuItem.Click += (_, _) => UpdateCli();
         _contextMenu.Items.Add(_updateMenuItem);
 
+        // About menu item
+        var aboutItem = new ToolStripMenuItem("About...");
+        aboutItem.Click += (_, _) => ShowAbout();
+        _contextMenu.Items.Add(aboutItem);
+
+        _contextMenu.Items.Add(new ToolStripSeparator());
+
         // Exit service
         var exitItem = new ToolStripMenuItem("Exit");
         exitItem.Click += (_, _) => ExitService();
@@ -128,8 +135,19 @@ internal sealed class ServiceTray : IDisposable
                 foreach (var session in sessions)
                 {
                     var fileName = Path.GetFileName(session.FilePath);
-                    var sessionMenu = new ToolStripMenuItem(fileName);
-                    sessionMenu.ToolTipText = $"Session: {session.SessionId}\nPath: {session.FilePath}";
+                    var originLabel = session.Origin switch
+                    {
+                        SessionOrigin.CLI => "[CLI]",
+                        SessionOrigin.MCP => "[MCP]",
+                        _ => ""
+                    };
+                    var displayName = string.IsNullOrEmpty(originLabel) ? fileName : $"{originLabel} {fileName}";
+                    var sessionMenu = new ToolStripMenuItem(displayName);
+
+                    var createdInfo = session.CreatedAt.HasValue
+                        ? $"\nCreated: {session.CreatedAt.Value:g}"
+                        : "";
+                    sessionMenu.ToolTipText = $"Session: {session.SessionId}\nPath: {session.FilePath}\nOrigin: {session.Origin}{createdInfo}";
 
                     // Close session (with save prompt)
                     var closeItem = new ToolStripMenuItem("Close Session...");
@@ -225,6 +243,26 @@ internal sealed class ServiceTray : IDisposable
     {
         _lastBalloonShown = DateTime.Now;
         _notifyIcon.ShowBalloonTip(3000, title, message, icon);
+    }
+
+    private void ShowAbout()
+    {
+        var version = GetCurrentVersion();
+        var message = $"ExcelMCP Service\n\n" +
+                      $"Version: {version}\n\n" +
+                      $"A background service for Excel automation.\n\n" +
+                      $"GitHub: https://github.com/sbroenne/mcp-server-excel\n" +
+                      $"Docs: https://sbroenne.github.io/mcp-server-excel/";
+
+        _dialogService.ShowInfo(message, "About ExcelMCP");
+    }
+
+    private static string GetCurrentVersion()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        var informational = assembly.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        // Strip git hash suffix (e.g., "1.2.0+abc123" -> "1.2.0")
+        return informational?.Split('+')[0] ?? assembly.GetName().Version?.ToString() ?? "0.0.0";
     }
 
     /// <summary>
