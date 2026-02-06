@@ -29,7 +29,12 @@ public partial class SheetCommands
                     try
                     {
                         sheet = sheets.Item(i);
-                        result.Worksheets.Add(new WorksheetInfo { Name = sheet.Name, Index = i });
+                        result.Worksheets.Add(new WorksheetInfo
+                        {
+                            Name = sheet.Name,
+                            Index = i,
+                            Visible = (int)sheet.Visible == -1  // xlSheetVisible = -1
+                        });
                     }
                     finally
                     {

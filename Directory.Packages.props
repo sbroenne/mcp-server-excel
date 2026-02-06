@@ -37,5 +37,10 @@
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.102" />
+    <!-- Template Engine for Skill Generation -->
+    <PackageVersion Include="Scriban" Version="5.11.0" />
+    <!-- MSBuild Task Development -->
+    <PackageVersion Include="Microsoft.Build.Framework" Version="18.0.2" />
+    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="18.0.2" />
   </ItemGroup>
 </Project>

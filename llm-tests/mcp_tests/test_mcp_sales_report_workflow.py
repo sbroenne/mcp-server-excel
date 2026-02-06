@@ -15,7 +15,7 @@ pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
 async def test_mcp_sales_report_workflow(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-sales-report",
-        provider=Provider(model="azure/gpt-5-mini", rpm=10, tpm=10000),
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=[

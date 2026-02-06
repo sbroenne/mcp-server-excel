@@ -22,6 +22,24 @@ public partial class SheetCommandsTests
         Assert.NotNull(result.Worksheets);
         Assert.NotEmpty(result.Worksheets); // Shared file has Sheet1 plus test sheets
     }
+
+    /// <summary>
+    /// Regression test: Visible property must be correctly read from Excel.
+    /// Previously defaulted to false without reading sheet.Visible.
+    /// </summary>
+    [Fact]
+    public void List_VisibleSheets_ReturnsVisibleTrue()
+    {
+        // Arrange & Act
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var result = _sheetCommands.List(batch);
+
+        // Assert - all default sheets should be visible
+        Assert.True(result.Success);
+        Assert.NotEmpty(result.Worksheets);
+        Assert.All(result.Worksheets, sheet =>
+            Assert.True(sheet.Visible, $"Sheet '{sheet.Name}' should be visible but Visible={sheet.Visible}"));
+    }
     /// <inheritdoc/>
 
     [Fact]

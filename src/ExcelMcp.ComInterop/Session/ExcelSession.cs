@@ -77,7 +77,7 @@ public static class ExcelSession
             // Validate file exists
             if (!File.Exists(fullPath))
             {
-                throw new FileNotFoundException($"Excel file not found: {fullPath}", fullPath);
+                throw new FileNotFoundException($"Excel file not found: {fullPath}. To create a new file, use the 'create' action instead of 'open'.", fullPath);
             }
 
             // Security: Validate file extension

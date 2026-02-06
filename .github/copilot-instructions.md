@@ -207,7 +207,7 @@ Two cross-platform AI assistant skill packages:
 
 **Build skills from source:**
 ```powershell
-.\scripts\Build-AgentSkills.ps1
+dotnet build -c Release  # Generates SKILL.md and copies references
 ```
 
 **Install via npx:**

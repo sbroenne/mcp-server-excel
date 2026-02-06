@@ -65,7 +65,7 @@ public sealed class SessionManager : IDisposable
 
         if (!File.Exists(filePath))
         {
-            throw new FileNotFoundException($"Excel file not found: {filePath}", filePath);
+            throw new FileNotFoundException($"Excel file not found: {filePath}. To create a new file, use the 'create' action instead of 'open'.", filePath);
         }
 
         // Normalize file path for comparison

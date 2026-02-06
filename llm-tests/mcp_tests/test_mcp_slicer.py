@@ -15,7 +15,7 @@ pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
 async def test_mcp_pivottable_slicer_workflow(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-pivot-slicer",
-        provider=Provider(model="azure/gpt-5-mini", rpm=10, tpm=10000),
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=[
@@ -114,7 +114,7 @@ Confirm both slicers were removed.
 async def test_mcp_table_slicer_workflow(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-table-slicer",
-        provider=Provider(model="azure/gpt-5-mini", rpm=10, tpm=10000),
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=[

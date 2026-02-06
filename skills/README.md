@@ -139,7 +139,7 @@ skills/
 └── .cursorrules                 # Cursor-specific rules
 ```
 
-**Note:** Shared behavioral guidance lives in `shared/` and is copied to each skill's `references/` folder during packaging. For local development, run `./scripts/Build-AgentSkills.ps1 -PopulateReferences` to populate the references folders.
+**Note:** Shared behavioral guidance lives in `shared/` and is copied to each skill's `references/` folder during the build. Run `dotnet build -c Release` to generate SKILL.md and copy references.
 
 ## Platform-Specific Files
 
@@ -165,20 +165,20 @@ cp skills/.cursorrules /path/to/your/project/.cursorrules
 
 ## Building the Skills Package
 
-For maintainers building release artifacts:
+Skill files are generated automatically during Release builds:
 
 ```powershell
-# Build skill artifact (for release)
-./scripts/Build-AgentSkills.ps1
+# Build solution - generates SKILL.md and copies references
+dotnet build -c Release
 
-# Output:
-#   artifacts/skills/excel-skills-v{version}.zip  - Combined skills package
-#   artifacts/skills/CLAUDE.md                    - Claude Code instructions
-#   artifacts/skills/.cursorrules                 - Cursor rules
-
-# For local development: populate references from shared/
-./scripts/Build-AgentSkills.ps1 -PopulateReferences
+# Output (in skills/ folder):
+#   excel-mcp/SKILL.md        - Generated MCP skill documentation
+#   excel-mcp/references/     - Copied shared reference files
+#   excel-cli/SKILL.md        - Generated CLI skill documentation  
+#   excel-cli/references/     - Copied shared reference files
 ```
+
+For release artifacts (ZIP package), the GitHub Actions workflow handles packaging.
 
 ## Version Compatibility
 
