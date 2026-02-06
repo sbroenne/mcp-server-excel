@@ -34,9 +34,9 @@ Complete installation instructions for the ExcelMcp MCP Server and CLI tool.
    - Click **Install**
 
 2. **That's It!**
-   - Extension automatically installs .NET 10 runtime
-   - Bundles MCP server (no separate installation needed)
+   - Bundles self-contained MCP server and CLI (no .NET runtime or SDK needed)
    - Auto-configures GitHub Copilot
+   - Registers agent skills (excel-mcp + excel-cli) via `chatSkills`
    - Shows quick start guide on first launch
 
 **Marketplace Link:** [Excel MCP VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)

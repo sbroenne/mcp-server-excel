@@ -36,11 +36,12 @@ The Excel MCP Server provides **23 specialized tools with 214 operations** for c
 
 ### Agent Skills (Bundled)
 
-This extension includes **Agent Skills** following the [agentskills.io](https://agentskills.io) specification - providing domain-specific guidance for AI assistants. The skills enable GitHub Copilot to effectively understand Excel MCP Server capabilities, workflows, and best practices.
+This extension includes **Agent Skills** following the [agentskills.io](https://agentskills.io) specification - providing domain-specific guidance for AI assistants. Two skills are bundled:
 
-📚 **[View Agent Skills →](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-mcp/SKILL.md)**
+- **[excel-mcp](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-mcp/SKILL.md)** - MCP Server tool guidance
+- **[excel-cli](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-cli/SKILL.md)** - CLI terminal automation guidance
 
-**VS Code setup:** Enable the preview setting `chat.useAgentSkills` to allow Copilot to load skills. This extension installs the skill to `~/.copilot/skills/excel-mcp` for discovery.
+**VS Code setup:** Enable the preview setting `chat.useAgentSkills` to allow Copilot to load skills. Skills are registered via VS Code's `chatSkills` contribution point and managed automatically.
 
 
 ## 💬 Example Prompts
@@ -69,7 +70,7 @@ This extension includes **Agent Skills** following the [agentskills.io](https://
    - "Create a DAX measure for year-over-year revenue growth"
    - "Export all Powere Queires and VBA modules to .vba files for version control"
 
-**That's it!** The extension automatically installs .NET 10 runtime and includes a bundled MCP server.
+**That's it!** The extension includes self-contained MCP server and CLI executables - no .NET runtime or SDK needed.
 
 ➡️ **[Learn more and see examples](https://sbroenne.github.io/mcp-server-excel/)**
 
@@ -77,7 +78,6 @@ This extension includes **Agent Skills** following the [agentskills.io](https://
 
 - **Windows OS** - Excel COM automation requires Windows
 - **Microsoft Excel 2016+** - Must be installed on your system
-- **.NET 10 Runtime** - **Automatically installed** by the extension
 
 ## Potential Issues
 

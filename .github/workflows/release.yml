@@ -213,15 +213,25 @@ jobs:
         echo "VERSION=$version" >> $env:GITHUB_ENV
       shell: pwsh
 
-    - name: Update MCP Server Version
+    - name: Update Project Versions
       run: |
         $version = $env:VERSION
+
+        # Update MCP Server version
         $csprojPath = "src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj"
         $content = Get-Content $csprojPath -Raw
         $content = $content -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
         $content = $content -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
         $content = $content -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
         Set-Content $csprojPath $content
+
+        # Update CLI version (bundled in VS Code extension)
+        $cliPath = "src/ExcelMcp.CLI/ExcelMcp.CLI.csproj"
+        $content = Get-Content $cliPath -Raw
+        $content = $content -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
+        $content = $content -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
+        $content = $content -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
+        Set-Content $cliPath $content
       shell: pwsh
 
     - name: Update Extension Version
@@ -441,22 +451,21 @@ jobs:
         echo "Downloaded artifacts:"
         find artifacts -type f -name "*" | head -20
 
-    - name: Extract Changelog
+    - name: Extract Changelog from [Unreleased]
       id: changelog
       run: |
-        VERSION=${{ env.VERSION }}
         CHANGELOG_FILE="CHANGELOG.md"
 
         if [ -f "$CHANGELOG_FILE" ]; then
-          # Extract section for this version
-          CONTENT=$(awk "/^## \[$VERSION\]/,/^## \[/" "$CHANGELOG_FILE" | head -n -1 | tail -n +2)
+          # Extract content between ## [Unreleased] and the next ## [ section
+          CONTENT=$(awk '/^## \[Unreleased\]/,/^## \[/' "$CHANGELOG_FILE" | head -n -1 | tail -n +2)
           if [ -n "$CONTENT" ]; then
-            echo "Found changelog for $VERSION"
+            echo "Found changelog under [Unreleased]"
             echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
             echo "$CONTENT" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           else
-            echo "No changelog entry for $VERSION"
+            echo "No content under [Unreleased]"
             echo "CHANGELOG=See repository for details." >> $GITHUB_OUTPUT
           fi
         else
@@ -480,6 +489,9 @@ jobs:
         **VS Code Extension** (Recommended)
         - Search "ExcelMcp" in VS Code Marketplace and click Install
         - Or download `excelmcp-${{ env.VERSION }}.vsix` below
+        - Self-contained: no .NET runtime or SDK required
+        - Includes both MCP Server and CLI (`excelcli`)
+        - Agent skills (excel-mcp + excel-cli) registered automatically via `chatSkills`
 
         **Claude Desktop (MCPB)**
         - Download `excel-mcp-${{ env.VERSION }}.mcpb` and double-click to install
@@ -491,15 +503,13 @@ jobs:
         ```
 
         **Agent Skills** (for AI coding assistants)
-        - Download `excel-skills-v${{ env.VERSION }}.zip` and extract to your agent's skills folder
-        - Or install via npx: `npx skills add sbroenne/mcp-server-excel`
-        - Select `excel-cli` for coding agents (Copilot, Cursor, Windsurf)
-        - Select `excel-mcp` for conversational AI (Claude Desktop, VS Code Chat)
+        - VS Code Extension includes both skills automatically (excel-mcp + excel-cli)
+        - For other agents: download `excel-skills-v${{ env.VERSION }}.zip` or install via `npx skills add sbroenne/mcp-server-excel`
 
         ### Requirements
         - Windows OS
         - Microsoft Excel 2016+
-        - .NET 10 Runtime (auto-installed by VS Code extension)
+        - .NET 10 Runtime or SDK (for NuGet installation only; VS Code and MCPB bundle it)
 
         ### Documentation
         - [Website](https://excelmcpserver.dev/)
@@ -519,5 +529,37 @@ jobs:
         gh release create "$TAG" $ARTIFACTS \
           --title "ExcelMcp $VERSION" \
           --notes-file release_notes.md
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # Create a PR to update CHANGELOG.md since branch protection prevents direct push
+    - name: Update Changelog (rename Unreleased to version)
+      run: |
+        VERSION=${{ env.VERSION }}
+        DATE=$(date +%Y-%m-%d)
+        BRANCH="chore/changelog-v${VERSION}"
+
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        # Create branch from main
+        git checkout -b "$BRANCH"
+
+        # Replace [Unreleased] with [version] - date, add fresh [Unreleased]
+        sed -i "s/^## \[Unreleased\]/## [$VERSION] - $DATE/" CHANGELOG.md
+        sed -i "/^## \[$VERSION\] - $DATE/i ## [Unreleased]\n" CHANGELOG.md
+
+        git add CHANGELOG.md
+        git commit -m "chore: update CHANGELOG.md for v${VERSION} release [skip ci]"
+        git push origin "$BRANCH"
+
+        # Create PR
+        gh pr create \
+          --base main \
+          --head "$BRANCH" \
+          --title "chore: update CHANGELOG.md for v${VERSION} release" \
+          --body "Automated post-release changelog update: renames \`[Unreleased]\` to \`[$VERSION] - $DATE\` and adds a fresh \`[Unreleased]\` section." \
+          --label "documentation"
+      continue-on-error: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

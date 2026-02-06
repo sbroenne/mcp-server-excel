@@ -18,6 +18,13 @@ vscode-extension/
 ├── LICENSE                   # MIT License
 ├── icon.png                  # 128x128 extension icon
 ├── icon.svg                  # SVG source
+├── skills/                   # Agent skills (copied during build)
+│   ├── excel-mcp/            # MCP server skill
+│   │   └── SKILL.md
+│   ├── excel-cli/            # CLI skill
+│   │   └── SKILL.md
+│   └── shared/               # Shared reference docs
+│       └── *.md
 └── excelmcp-1.0.0.vsix      # Packaged extension
 ```
 
@@ -30,17 +37,31 @@ The extension uses VS Code's `mcpServerDefinitionProvider` contribution point:
 ```typescript
 vscode.lm.registerMcpServerDefinitionProvider('excelmcp', {
   provideMcpServerDefinitions: async () => {
+    const serverPath = path.join(context.extensionPath, 'bin', 'Sbroenne.ExcelMcp.McpServer.exe');
     return [
       new vscode.McpStdioServerDefinition(
         'Excel MCP Server',
-        'dotnet',
-        ['tool', 'run', 'mcp-excel'],
+        serverPath,
+        [],
         {} // Optional environment variables
       )
     ];
   }
 })
 ```
+
+### Agent Skills Registration
+
+The extension uses VS Code's `chatSkills` contribution point in `package.json` to declaratively register agent skills:
+
+```json
+"chatSkills": [
+  { "name": "excel-mcp", "path": "./skills/excel-mcp/SKILL.md" },
+  { "name": "excel-cli", "path": "./skills/excel-cli/SKILL.md" }
+]
+```
+
+Skills are automatically available to GitHub Copilot when the extension is active — no file-copying needed.
 
 ### Activation
 
@@ -50,9 +71,9 @@ vscode.lm.registerMcpServerDefinitionProvider('excelmcp', {
 
 ### Dependencies
 
-- **Runtime**: None - Uses `dotnet tool run` command from .NET SDK
+- **Runtime**: None - Extension bundles self-contained executables (MCP Server + CLI)
 - **Dev Dependencies**:
-  - `@types/vscode@^1.105.0` - VS Code API types
+  - `@types/vscode@^1.106.0` - VS Code API types
   - `@types/node@^22.0.0` - Node.js types
   - `typescript@^5.9.0` - TypeScript compiler
   - `@vscode/vsce@^3.0.0` - Extension packaging tool
@@ -68,46 +89,44 @@ npm run lint         # Run ESLint
 npm run package      # Create VSIX package
 ```
 
-## Building Bundled Executable
+## Building Bundled Executables
 
-The extension includes a self-contained MCP server executable. To update it:
+The extension includes self-contained MCP server and CLI executables. To update them:
 
 ```powershell
-# 1. Navigate to MCP server project
-cd d:\source\mcp-server-excel\src\ExcelMcp.McpServer
+# Build MCP server as self-contained single-file exe
+cd d:\source\mcp-server-excel
+dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:NuGetAudit=false -o vscode-extension/bin
 
-# 2. Publish self-contained executable for Windows x64
-dotnet publish -c Release -r win-x64 --self-contained -o ../../vscode-extension/bin
+# Build CLI as self-contained single-file exe
+dotnet publish src/ExcelMcp.CLI/ExcelMcp.CLI.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:NuGetAudit=false -o vscode-extension/bin
 
-# 3. Verify the executable works
-../../vscode-extension/bin/Sbroenne.ExcelMcp.McpServer.exe --help
+# Or use the npm script which builds both
+npm run build:all
+
+# Verify the executables work
+vscode-extension/bin/Sbroenne.ExcelMcp.McpServer.exe --version
+vscode-extension/bin/excelcli.exe --version
 ```
 
-This creates a self-contained executable with all dependencies included.
+This creates self-contained executables with the .NET runtime and all dependencies included. No .NET SDK or runtime installation needed on end-user machines.
 
 ## Testing
 
 ### Prerequisites for Testing
 
-The extension uses a bundled MCP server executable. For development testing:
-
-The extension uses a bundled MCP server executable. For development testing:
+The extension uses bundled self-contained executables. For development testing:
 
 ```powershell
-# Option 1: Use bundled executable (matches production)
-# - Extension will use: extension-path/bin/Sbroenne.ExcelMcp.McpServer.exe
-# - No additional setup needed
+# Build both executables (matches production)
+npm run build:all
 
-# Option 2: Test with local development version
-# - Build and publish the MCP server as shown above
-# - Extension automatically uses the bundled version
-
-# Verify bundled executable works
-cd vscode-extension
-bin/Sbroenne.ExcelMcp.McpServer.exe --help
+# Verify bundled executables work
+vscode-extension/bin/Sbroenne.ExcelMcp.McpServer.exe --version
+vscode-extension/bin/excelcli.exe --version
 ```
 
-**Why this approach**: The extension uses a bundled MCP server executable. During development, you can use the local version or test with the bundled executable.
+**Why this approach**: The extension bundles self-contained MCP server and CLI executables. No .NET runtime or SDK needed on the target machine.
 
 ### Manual Testing
 
@@ -120,8 +139,6 @@ bin/Sbroenne.ExcelMcp.McpServer.exe --help
 
 3. **Check the Debug Console** for activation logs:
    - ✅ `ExcelMcp extension is now active`
-   - ✅ `ExcelMcp: .NET runtime available at ...`
-   - ✅ `ExcelMcp: MCP server tool installation/update initiated`
    - ❌ NO errors about "Cannot read properties of undefined"
 
 4. **In the Extension Development Host**:
@@ -338,23 +355,30 @@ When VS Code releases new API features:
 - Verify extension ID matches registration
 
 **MCP server not found**
-- Ensure bundled executable exists in `bin/` directory
-- Check .NET 10 Runtime is installed
-- Verify bundled executable has all required dependencies
+- Ensure bundled executable exists in `bin/Sbroenne.ExcelMcp.McpServer.exe`
+- Run `npm run build:all` to build both MCP server and CLI executables
+- Verify bundled executable runs: `bin/Sbroenne.ExcelMcp.McpServer.exe --version`
+
+**CLI not found**
+- Ensure `bin/excelcli.exe` exists
+- Run `npm run build:all` to build both executables
 
 ## Extension Size 
 
-Current size: **~41 MB** (includes bundled MCP server executable)
+Current size: **~68-70 MB** (includes bundled self-contained MCP server and CLI executables)
 
 The extension includes:
 - Main extension code (~10 KB)
-- Bundled .NET 10 self-contained MCP server (~41 MB)
+- Bundled self-contained MCP server (~118 MB uncompressed, ~34 MB compressed)
+- Bundled self-contained CLI (~115 MB uncompressed, ~34 MB compressed)
+- Agent Skills (~130 KB for both excel-mcp and excel-cli)
 
-Benefits of bundled approach:
-- ✅ Zero-setup installation (no separate tool download required)
-- ✅ Version compatibility guaranteed (extension includes matching MCP server)
+Benefits of self-contained bundled approach:
+- ✅ Zero-setup installation (no .NET runtime or SDK required)
+- ✅ Version compatibility guaranteed (extension includes matching MCP server + CLI)
 - ✅ Works offline after installation
 - ✅ No dependency on dotnet tool installations
+- ✅ CLI available directly for terminal-based automation
 
 ## Future Enhancements
 

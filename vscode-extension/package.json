@@ -49,9 +49,6 @@
   "activationEvents": [
     "onStartupFinished"
   ],
-  "extensionDependencies": [
-    "ms-dotnettools.vscode-dotnet-runtime"
-  ],
   "main": "./out/extension.js",
   "files": [
     "out/**",
@@ -68,17 +65,27 @@
         "id": "excel-mcp",
         "label": "Excel MCP"
       }
+    ],
+    "chatSkills": [
+      {
+        "path": "./skills/excel-mcp/SKILL.md"
+      },
+      {
+        "path": "./skills/excel-cli/SKILL.md"
+      }
     ]
   },
   "scripts": {
-    "clean": "cd .. && dotnet clean src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release",
-    "copy:skills": "xcopy /E /I /Y ..\\skills\\excel-mcp skills\\excel-mcp",
-    "build:mcp-server": "npm run clean && cd .. && dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release --no-self-contained -o vscode-extension/bin --verbosity minimal",
-    "vscode:prepublish": "npm run build:mcp-server && npm run copy:skills && npm run compile",
+    "clean": "cd .. && dotnet clean src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release && dotnet clean src/ExcelMcp.CLI/ExcelMcp.CLI.csproj -c Release",
+    "copy:skills": "xcopy /E /I /Y ..\\skills\\excel-mcp skills\\excel-mcp && xcopy /E /I /Y ..\\skills\\excel-cli skills\\excel-cli",
+    "build:mcp-server": "npm run clean && cd .. && dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:NuGetAudit=false -o vscode-extension/bin --verbosity minimal",
+    "build:cli": "cd .. && dotnet publish src/ExcelMcp.CLI/ExcelMcp.CLI.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:NuGetAudit=false -o vscode-extension/bin --verbosity minimal",
+    "build:all": "npm run build:mcp-server && npm run build:cli",
+    "vscode:prepublish": "npm run build:all && npm run copy:skills && npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "prepackage": "node -e \"const fs=require('fs'); if(!fs.existsSync('CHANGELOG.md')){fs.copyFileSync('../CHANGELOG.md','CHANGELOG.md');}\"",
-    "package": "npm run build:mcp-server && npm run copy:skills && vsce package",
+    "package": "npm run build:all && npm run copy:skills && vsce package",
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
