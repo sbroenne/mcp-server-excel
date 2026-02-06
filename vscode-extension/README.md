@@ -68,11 +68,24 @@ This extension includes **Agent Skills** following the [agentskills.io](https://
 2. **Ask Copilot** in the chat panel:
    - "List all Power Query queries in workbook.xlsx"
    - "Create a DAX measure for year-over-year revenue growth"
-   - "Export all Powere Queires and VBA modules to .vba files for version control"
+   - "Export all Power Queries and VBA modules to .vba files for version control"
 
-**That's it!** The extension includes self-contained MCP server and CLI executables - no .NET runtime or SDK needed.
+**That's it!** The extension includes a self-contained MCP server - no .NET runtime or SDK needed.
 
 ➡️ **[Learn more and see examples](https://sbroenne.github.io/mcp-server-excel/)**
+
+## CLI Usage (Terminal Automation)
+
+The CLI (`excelcli`) is **not bundled** with this extension. For PowerShell/terminal automation, install separately:
+
+```powershell
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+# Installs both mcp-excel and excelcli commands to PATH
+```
+
+**Why separate?** The extension and global tool share a background service. Separate installation prevents version conflicts and keeps the extension focused on Copilot usage.
+
+**Agent Skills:** This extension includes the `excel-mcp` skill for Copilot MCP tool guidance. The global tool installation includes the `excel-cli` skill for terminal automation guidance.
 
 ## Requirements
 
