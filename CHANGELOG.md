@@ -10,7 +10,48 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### ⚠️ BREAKING CHANGES
+
+**See [BREAKING-CHANGES.md](docs/BREAKING-CHANGES.md) for complete migration guide.**
+
+**📌 Note:** LLMs will automatically pick up these changes via `tools/list` (MCP) and `--help` (CLI). This section is informational for human developers updating hardcoded scripts.
+
+### Added
+
+- **CLI Code Generation** (#433): CLI commands are now automatically generated from Core service definitions
+  - Uses Roslyn source generators to create 22 command classes from `ServiceRegistry` metadata
+  - Ensures 1:1 parity between CLI and MCP tools - impossible to accidentally diverge
+  - Each command class inherits `ServiceCommandBase<T>` and routes through `RouteFromSettings()`
+  - New categories added to Core automatically generate corresponding CLI commands
+  - See docs/DEVELOPMENT.md for architecture details
+
 ### Changed
+
+- **Release with breaking changes**: Fix consistency issues between CLI and MCP and ensure feature partiy. LLMs should pick these up automatically. You might need to deleted the cached tools in your IDE.
+
+- **VS Code Extension: Self-Contained Publishing** (#434): Extension now bundles self-contained executables - no .NET runtime dependency required
+  - Removed `ms-dotnettools.vscode-dotnet-runtime` extension dependency
+  - MCP Server and CLI published as self-contained single-file executables
+  - Extension "just works" after install - zero external dependencies
+  - VSIX size increased from ~3.7 MB to ~68-70 MB (includes .NET runtime)
+
+- **VS Code Extension: CLI Bundled** (#434): CLI (`excelcli`) is now included in the extension
+  - Coding agents in VS Code can use both MCP tools AND terminal CLI
+  - No separate `dotnet tool install` needed for CLI in VS Code context
+
+- **VS Code Extension: Skills Registration** (#434): Skills now use VS Code's `chatSkills` contribution point
+  - Replaced file-copy to `~/.copilot/skills/` with declarative `chatSkills` in `package.json`
+  - Skills automatically cleaned up on extension uninstall
+  - Both `excel-mcp` and `excel-cli` skills now included
+
+- **MCPB: Removed Agent Skills** (#434): Skills removed from Claude Desktop bundle
+  - Claude Desktop doesn't use agent skills
+  - Reduces MCPB bundle size
+
+- **Release Pipeline** (#434): Updated release workflow for self-contained VS Code extension
+  - `build-vscode` job now bumps CLI version alongside MCP Server before packaging
+  - Release notes updated: .NET runtime only required for NuGet installation, VS Code and MCPB bundle it
+  - Agent Skills section notes VS Code includes both skills automatically
 
 - **Unified NuGet Package** (#432): MCP Server package now includes CLI - install once, get both tools!
   - `dotnet tool install --global Sbroenne.ExcelMcp.McpServer` installs both `mcp-excel` and `excelcli`

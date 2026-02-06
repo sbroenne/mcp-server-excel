@@ -15,7 +15,6 @@ public static partial class ExcelConditionalFormatTool
     /// FORMAT: interiorColor/fontColor #RRGGBB, fontBold/Italic, borderStyle/Color.
     /// </summary>
     /// <param name="action">Action to perform</param>
-    /// <param name="path">Excel file path (.xlsx or .xlsm)</param>
     /// <param name="sessionId">Session ID from excel_file 'open' action</param>
     /// <param name="sheetName">Worksheet name (required for add-rule and clear-rules actions)</param>
     /// <param name="rangeAddress">Range address to apply conditional formatting (e.g., 'A1:D10', required for add-rule and clear-rules)</param>
@@ -35,7 +34,6 @@ public static partial class ExcelConditionalFormatTool
     [McpMeta("requiresSession", true)]
     public static partial string ExcelConditionalFormat(
         ConditionalFormatAction action,
-        string path,
         string sessionId,
         [DefaultValue(null)] string? sheetName,
         [DefaultValue(null)] string? rangeAddress,
@@ -51,12 +49,9 @@ public static partial class ExcelConditionalFormatTool
         [DefaultValue(null)] string? borderStyle,
         [DefaultValue(null)] string? borderColor)
     {
-        _ = path; // retained parameter for schema compatibility
-
         return ExcelToolsBase.ExecuteToolAction(
             "excel_conditionalformat",
             ServiceRegistry.ConditionalFormat.ToActionString(action),
-            path,
             () => ServiceRegistry.ConditionalFormat.RouteAction(
                 action,
                 sessionId,

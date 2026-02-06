@@ -32,6 +32,14 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj" />
     <ProjectReference Include="..\..\src\ExcelMcp.Core\ExcelMcp.Core.csproj" />
+    <ProjectReference Include="..\..\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj" />
+  </ItemGroup>
+
+  <!-- Golden files for API contract tests -->
+  <ItemGroup>
+    <None Include="TestData\**\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <!-- Copy CLI executable to test output for integration tests -->

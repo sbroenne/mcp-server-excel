@@ -9,7 +9,7 @@ compatibility: Windows + Microsoft Excel 2016+ required. Uses COM interop - does
 allowed-tools: Cmd(excelcli:*),PowerShell(excelcli:*)
 disable-model-invocation: true
 license: MIT
-version: 1.4.0
+version: 1.7.0
 repository: https://github.com/sbroenne/mcp-server-excel
 documentation: https://excelmcpserver.dev/
 ---

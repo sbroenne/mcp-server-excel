@@ -7,7 +7,7 @@ description: >
   Triggers: Excel, spreadsheet, workbook, xlsx, Power Query, DAX, PivotTable, VBA.
 compatibility: Windows + Microsoft Excel 2016+ required. Uses COM interop - does NOT work on macOS or Linux.
 license: MIT
-version: 1.3.0
+version: 1.7.0
 repository: https://github.com/sbroenne/mcp-server-excel
 documentation: https://excelmcpserver.dev/
 ---
@@ -81,7 +81,7 @@ Always convert tabular data to Excel Tables:
 ### Rule 4: Session Lifecycle
 
 ```
-1. excel_file(action: 'open', excelPath: '...')  → sessionId
+1. excel_file(action: 'open', path: '...')  → sessionId
 2. All operations use sessionId
 3. excel_file(action: 'close', save: true)  → saves and closes
 ```
@@ -131,7 +131,7 @@ Error responses include actionable hints:
 {
   "success": false,
   "errorMessage": "Table 'Sales' not found in Data Model",
-  "suggestedNextActions": ["excel_table(action: 'add-to-datamodel', tableName: 'Sales')"]
+  "suggestedNextActions": ["excel_table(action: 'add-to-data-model', tableName: 'Sales')"]
 }
 ```
 
@@ -156,7 +156,7 @@ When writing many values/formulas (10+ cells), use `excel_calculation_mode` to a
 | Write/read cell data | `excel_range` | set-values, get-values |
 | Format cells | `excel_range_format` | set-number-format |
 | Create tables from data | `excel_table` | create |
-| Add table to Power Pivot | `excel_table` | add-to-datamodel |
+| Add table to Power Pivot | `excel_table` | add-to-data-model |
 | Create DAX formulas | `excel_datamodel` | create-measure |
 | Create PivotTables | `excel_pivottable` | create, create-from-datamodel |
 | Filter with slicers | `excel_slicer` | set-slicer-selection |

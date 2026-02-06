@@ -231,6 +231,99 @@ dotnet build -c Release
 - ✅ Update documentation
 - ✅ No unit tests needed (see ADR-001-NO-UNIT-TESTS.md)
 
+## 🔧 **CLI Command Code Generation**
+
+### **Architecture Overview**
+
+The CLI uses **Roslyn source generators** to automatically generate command classes from Core's service definitions, ensuring 1:1 parity with MCP tools:
+
+```
+Core Generator (ServiceRegistryGenerator)
+  ↓
+  Generates ServiceRegistry.{Category} classes
+  Generates RouteFromSettings() bridge method
+  Emits _CliCategoryMetadata manifest
+  ↓
+CLI Generator (CliSettingsGenerator)  
+  ↓
+  Reads 22 category manifest
+  Generates 22 Command classes (inheriting ServiceCommandBase<T>)
+  Generates CliCommandRegistration.RegisterCommands()
+  ↓
+Program.cs calls CliCommandRegistration.RegisterCommands(config)
+```
+
+### **How It Works**
+
+**1. Core Generator Output** (`ServiceRegistry.{Category}.g.cs`):
+- Nested class `CliSettings` with all [Argument] properties
+- Method `RouteFromSettings()` that maps CliSettings → service command
+- Constants: `CliCommandName`, `ValidActions`, `RequiresSession`
+
+**2. CLI Generator** (`CliSettingsGenerator.cs`):
+- Hard-coded list of 22 categories (Sheet, Range, PowerQuery, etc.)
+- For each category, generates command class:
+  ```csharp
+  internal sealed class SheetCommand : ServiceCommandBase<ServiceRegistry.Sheet.CliSettings>
+  {
+      protected override string? GetSessionId(Settings s) => s.SessionId;
+      protected override string? GetAction(Settings s) => s.Action;
+      protected override IReadOnlyList<string> ValidActions => ServiceRegistry.Sheet.ValidActions;
+      protected override (string, object?) Route(Settings s, string action) 
+          => ServiceRegistry.Sheet.RouteFromSettings(action, s);
+  }
+  ```
+- Generates `CliCommandRegistration.RegisterCommands()`:
+  ```csharp
+  public static void RegisterCommands(IConfigurator config)
+  {
+      config.AddCommand<SheetCommand>("worksheet")
+          .WithDescription(...);
+      // ... 21 more commands
+  }
+  ```
+
+### **Adding a New Command Category**
+
+When adding a new service category to Core:
+
+1. **Add `[ServiceCategory]` interface** in Core
+2. **Update `CliSettingsGenerator.cs`** - add tuple to the categories array:
+   ```csharp
+   ("commandname", "RegistryClassName", requiresSession: true)
+   ```
+3. **Rebuild** - generators automatically produce:
+   - ServiceRegistry class in Core
+   - Command class in CLI.Generated
+   - Registration entry in CliCommandRegistration
+4. **Test** - verify `excelcli COMMAND_NAME --help` works
+
+### **Why Hard-Coded Categories?**
+
+The categories are currently hard-coded in the CLI generator because:
+
+**Why NOT dynamic discovery via GetTypeByMetadataName?**
+- Source generators can only see syntax in their own compilation
+- Core's generated types are compiled assembly references, not syntax
+- `GetTypeByMetadataName` cannot find types that aren't in the compilation being analyzed
+- Would require cross-assembly semantic analysis (not supported by Roslyn incremental generators)
+
+**Current approach (hard-coded list):**
+- ✅ Works reliably across assembly boundaries
+- ✅ Simple and explicit
+- ✅ Zero runtime cost
+- ✅ Easy to verify (list = what exists in code)
+- ⚠️ Manual sync needed when Core adds new categories (but caught by build)
+
+**Future improvement:** Could emit a manifest file from Core and parse it in CLI generator using source file inclusion.
+
+**For Complex Features:**
+- ✅ Add integration tests for all Excel operations
+- ✅ Test round-trip persistence (create → save → reload → verify)
+- ✅ Update documentation
+- ✅ No unit tests needed (see ADR-001-NO-UNIT-TESTS.md)
+
+
 ## 📋 **MCP Server Configuration Management**
 
 ### **CRITICAL: Keep server.json in Sync**

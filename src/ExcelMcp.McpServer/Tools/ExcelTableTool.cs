@@ -34,7 +34,6 @@ public static partial class TableTool
     /// Related: excel_table_column (filter/sort/columns), excel_datamodel (DAX measures, evaluate queries)
     /// </summary>
     /// <param name="action">The table operation to perform</param>
-    /// <param name="path">Full path to Excel file (for reference/logging)</param>
     /// <param name="sessionId">Session ID from excel_file 'open'. Required for all actions.</param>
     /// <param name="tableName">Name of the table to operate on. Required for: read, rename, delete, resize, toggle-totals, set-column-total, append, get-data, set-style, add-to-datamodel, update-dax, get-dax. Used as new table name for: create, create-from-dax</param>
     /// <param name="sheetName">Name of the worksheet containing the table. Required for: create, create-from-dax</param>
@@ -50,7 +49,6 @@ public static partial class TableTool
     [McpMeta("requiresSession", true)]
     public static partial string Table(
         TableAction action,
-        string path,
         string sessionId,
         [DefaultValue(null)] string? tableName,
         [DefaultValue(null)] string? sheetName,
@@ -65,7 +63,6 @@ public static partial class TableTool
         return ExcelToolsBase.ExecuteToolAction(
             "excel_table",
             ServiceRegistry.Table.ToActionString(action),
-            path,
             () =>
             {
                 return action switch

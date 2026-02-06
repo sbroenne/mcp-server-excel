@@ -47,7 +47,7 @@ To create DAX measures on Power Query data:
 2. Then use excel_datamodel to create DAX measures
 
 Alternative path (for existing worksheet tables):
-1. Use excel_table with `add-to-datamodel` action
+1. Use excel_table with `add-to-data-model` action
 2. Then use excel_datamodel to create DAX measures
 
 **Action disambiguation**:

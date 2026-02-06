@@ -17,7 +17,7 @@ public interface IDataModelRelCommands
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <returns>Result containing list of relationships</returns>
-    [ServiceAction("list")]
+    [ServiceAction("list-relationships")]
     DataModelRelationshipListResult ListRelationships(IExcelBatch batch);
 
     /// <summary>
@@ -29,7 +29,7 @@ public interface IDataModelRelCommands
     /// <param name="toTable">Target table name</param>
     /// <param name="toColumn">Target column name</param>
     /// <returns>Result containing relationship details</returns>
-    [ServiceAction("read")]
+    [ServiceAction("read-relationship")]
     DataModelRelationshipViewResult ReadRelationship(
         IExcelBatch batch,
         [RequiredParameter] string fromTable,
@@ -49,7 +49,7 @@ public interface IDataModelRelCommands
     /// <param name="active">Whether the relationship should be active (default: true)</param>
     /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when tables/columns not found or creation fails</exception>
-    [ServiceAction("create")]
+    [ServiceAction("create-relationship")]
     void CreateRelationship(
         IExcelBatch batch,
         [RequiredParameter] string fromTable,
@@ -70,7 +70,7 @@ public interface IDataModelRelCommands
     /// <param name="active">New active state for the relationship</param>
     /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when relationship not found or update fails</exception>
-    [ServiceAction("update")]
+    [ServiceAction("update-relationship")]
     void UpdateRelationship(
         IExcelBatch batch,
         [RequiredParameter] string fromTable,
@@ -89,7 +89,7 @@ public interface IDataModelRelCommands
     /// <param name="toColumn">Target column name</param>
     /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when relationship not found or deletion fails</exception>
-    [ServiceAction("delete")]
+    [ServiceAction("delete-relationship")]
     void DeleteRelationship(
         IExcelBatch batch,
         [RequiredParameter] string fromTable,

@@ -27,7 +27,6 @@ public static partial class ExcelRangeEditTool
     /// Column indices are 1-based relative to the range.
     /// </summary>
     /// <param name="action">The range edit operation to perform</param>
-    /// <param name="path">Full path to the Excel workbook file (e.g., 'C:\Reports\Sales.xlsx')</param>
     /// <param name="sessionId">Session identifier returned from excel_file open action - required for all operations</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10', 'B:D' for columns, '5:10' for rows)</param>
@@ -46,7 +45,6 @@ public static partial class ExcelRangeEditTool
     [McpMeta("requiresSession", true)]
     public static partial string RangeEdit(
         RangeEditAction action,
-        string path,
         string sessionId,
         [DefaultValue(null)] string? sheetName,
         [DefaultValue(null)] string? rangeAddress,
@@ -64,7 +62,6 @@ public static partial class ExcelRangeEditTool
         return ExcelToolsBase.ExecuteToolAction(
             "excel_range_edit",
             ServiceRegistry.RangeEdit.ToActionString(action),
-            path,
             () => action switch
             {
                 RangeEditAction.InsertCells => ForwardInsertCells(sessionId, sheetName, rangeAddress, shiftDirection),

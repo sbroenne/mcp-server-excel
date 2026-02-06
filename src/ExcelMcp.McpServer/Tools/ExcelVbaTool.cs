@@ -18,7 +18,6 @@ public static partial class ExcelVbaTool
     /// VBA scripts (requires .xlsm and VBA trust enabled).
     /// </summary>
     /// <param name="action">Action to perform</param>
-    /// <param name="path">Excel file path (must be .xlsm for VBA operations)</param>
     /// <param name="sessionId">Session ID from excel_file 'open' action (required for all VBA operations)</param>
     /// <param name="moduleName">VBA module name or procedure name (format: 'Module.Procedure' for run)</param>
     /// <param name="vbaCode">VBA code content as string (for import/update actions)</param>
@@ -30,19 +29,15 @@ public static partial class ExcelVbaTool
     [McpMeta("fileFormat", ".xlsm")]
     public static partial string ExcelVba(
         VbaAction action,
-        string path,
         string sessionId,
         [DefaultValue(null)] string? moduleName,
         [DefaultValue(null)] string? vbaCode,
         [DefaultValue(null)] string? vbaCodeFile,
         [DefaultValue(null)] string? parameters)
     {
-        _ = path; // retained parameter for schema compatibility
-
         return ExcelToolsBase.ExecuteToolAction(
             "excel_vba",
             ServiceRegistry.Vba.ToActionString(action),
-            path,
             () =>
             {
                 // Parse comma-separated parameters into array for run action

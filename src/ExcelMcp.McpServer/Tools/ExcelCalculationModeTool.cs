@@ -29,7 +29,6 @@ public static partial class ExcelCalculationModeTool
     /// - 'range': Recalculate specific range (requires sheetName + rangeAddress)
     /// </summary>
     /// <param name="action">Action to perform: get-mode, set-mode, calculate</param>
-    /// <param name="path">Excel file path (.xlsx or .xlsm)</param>
     /// <param name="sessionId">Session ID from excel_file 'open' action</param>
     /// <param name="mode">Calculation mode for set-mode action: 'automatic', 'manual', 'semi-automatic'</param>
     /// <param name="scope">Calculation scope for calculate action: 'workbook', 'sheet', 'range'</param>
@@ -40,7 +39,6 @@ public static partial class ExcelCalculationModeTool
     [McpMeta("requiresSession", true)]
     public static partial string ExcelCalculationMode(
         CalculationAction action,
-        string path,
         string sessionId,
         [DefaultValue(null)] string? mode,
         [DefaultValue(null)] string? scope,
@@ -50,7 +48,6 @@ public static partial class ExcelCalculationModeTool
         return ExcelToolsBase.ExecuteToolAction(
             "excel_calculation_mode",
             ServiceRegistry.Calculation.ToActionString(action),
-            path,
             () => ServiceRegistry.Calculation.RouteAction(
                 action,
                 sessionId,

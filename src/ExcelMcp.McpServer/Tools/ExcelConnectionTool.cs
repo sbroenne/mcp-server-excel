@@ -18,7 +18,6 @@ public static partial class ExcelConnectionTool
     /// TIMEOUT: 5 min auto-timeout for refresh/loadto.
     /// </summary>
     /// <param name="action">Action to perform (enum displayed as dropdown in MCP clients)</param>
-    /// <param name="path">Excel file path (.xlsx or .xlsm)</param>
     /// <param name="sessionId">Session ID from excel_file 'open' action</param>
     /// <param name="connectionName">Connection name</param>
     /// <param name="connectionString">Connection string (for create or set-properties)</param>
@@ -34,7 +33,6 @@ public static partial class ExcelConnectionTool
     [McpMeta("requiresSession", true)]
     public static partial string ExcelConnection(
         ConnectionAction action,
-        string path,
         string sessionId,
         [DefaultValue(null)] string? connectionName,
         [DefaultValue(null)] string? connectionString,
@@ -46,12 +44,9 @@ public static partial class ExcelConnectionTool
         [DefaultValue(null)] bool? savePassword,
         [DefaultValue(null)] int? refreshPeriod)
     {
-        _ = path; // retained parameter for schema compatibility
-
         return ExcelToolsBase.ExecuteToolAction(
             "excel_connection",
             ServiceRegistry.Connection.ToActionString(action),
-            path,
             () => ServiceRegistry.Connection.RouteAction(
                 action,
                 sessionId,

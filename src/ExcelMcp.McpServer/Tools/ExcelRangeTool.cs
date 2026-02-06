@@ -32,7 +32,6 @@ public static partial class ExcelRangeTool
     /// NUMBER FORMATS: Use US locale format codes (e.g., '#,##0.00', 'mm/dd/yyyy', '0.00%').
     /// </summary>
     /// <param name="action">The range operation to perform</param>
-    /// <param name="path">Full path to the Excel workbook file (e.g., 'C:\Reports\Sales.xlsx')</param>
     /// <param name="sessionId">Session identifier returned from excel_file open action - required for all operations</param>
     /// <param name="sheetName">Name of the worksheet containing the range - REQUIRED for cell addresses, use empty string for named ranges only</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1', 'A1:D10', 'B:D') or named range name (e.g., 'SalesData')</param>
@@ -50,7 +49,6 @@ public static partial class ExcelRangeTool
     [McpMeta("requiresSession", true)]
     public static partial string ExcelRange(
         RangeAction action,
-        string path,
         string sessionId,
         [DefaultValue(null)] string? sheetName,
         [DefaultValue(null)] string? rangeAddress,
@@ -67,7 +65,6 @@ public static partial class ExcelRangeTool
         return ExcelToolsBase.ExecuteToolAction(
             "excel_range",
             ServiceRegistry.Range.ToActionString(action),
-            path,
             () => action switch
             {
                 RangeAction.GetValues => ForwardGetValues(sessionId, sheetName, rangeAddress),

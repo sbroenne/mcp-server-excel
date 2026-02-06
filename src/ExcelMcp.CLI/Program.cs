@@ -1,8 +1,8 @@
 using System.Reflection;
 using Sbroenne.ExcelMcp.CLI.Commands;
+using Sbroenne.ExcelMcp.CLI.Generated;
 using Sbroenne.ExcelMcp.Service;
 using Sbroenne.ExcelMcp.Service.Infrastructure;
-using Sbroenne.ExcelMcp.Generated;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -75,100 +75,11 @@ internal sealed class Program
             });
 
             // Sheet commands
-            config.AddCommand<SheetCommand>("sheet")
-                .WithDescription(DescribeActions(
-                    "Worksheet operations.",
-                    ServiceRegistry.Sheet.ValidActions
-                        .Concat(ServiceRegistry.SheetStyle.ValidActions)));
-
-            // Range commands
-            config.AddCommand<RangeCommand>("range")
-                .WithDescription(DescribeActions(
-                    "Range operations.",
-                    ServiceRegistry.Range.ValidActions
-                        .Concat(ServiceRegistry.RangeEdit.ValidActions)
-                        .Concat(ServiceRegistry.RangeFormat.ValidActions)
-                        .Concat(ServiceRegistry.RangeLink.ValidActions)));
-
-            // Table commands
-            config.AddCommand<TableCommand>("table")
-                .WithDescription(DescribeActions(
-                    "Table operations.",
-                    ServiceRegistry.Table.ValidActions));
-
-            // PowerQuery commands
-            config.AddCommand<PowerQueryCommand>("powerquery")
-                .WithDescription(DescribeActions(
-                    "Power Query operations.",
-                    ServiceRegistry.PowerQuery.ValidActions));
-
-            // PivotTable commands
-            config.AddCommand<PivotTableCommand>("pivottable")
-                .WithDescription(DescribeActions(
-                    "PivotTable operations.",
-                    ServiceRegistry.PivotTable.ValidActions
-                        .Concat(ServiceRegistry.PivotTableField.ValidActions)
-                        .Concat(ServiceRegistry.PivotTableCalc.ValidActions)));
-
-            // Chart commands
-            config.AddCommand<ChartCommand>("chart")
-                .WithDescription(DescribeActions(
-                    "Chart operations.",
-                    ServiceRegistry.Chart.ValidActions));
-
-            // ChartConfig commands
-            config.AddCommand<ChartConfigCommand>("chartconfig")
-                .WithDescription(DescribeActions(
-                    "Chart configuration.",
-                    ServiceRegistry.ChartConfig.ValidActions));
-
-            // Connection commands
-            config.AddCommand<ConnectionCommand>("connection")
-                .WithDescription(DescribeActions(
-                    "Connection operations.",
-                    ServiceRegistry.Connection.ValidActions));
-
-            // Calculation mode commands
-            config.AddCommand<CalculationModeCommand>("calculationmode")
-                .WithDescription(DescribeActions(
-                    "Calculation mode operations.",
-                    ServiceRegistry.Calculation.ValidActions));
-
-            // NamedRange commands
-            config.AddCommand<NamedRangeCommand>("namedrange")
-                .WithDescription(DescribeActions(
-                    "Named range operations.",
-                    ServiceRegistry.NamedRange.ValidActions));
-
-            // ConditionalFormat commands
-            config.AddCommand<ConditionalFormatCommand>("conditionalformat")
-                .WithDescription(DescribeActions(
-                    "Conditional formatting.",
-                    ServiceRegistry.ConditionalFormat.ValidActions));
-
-            // VBA commands
-            config.AddCommand<VbaCommand>("vba")
-                .WithDescription(DescribeActions(
-                    "VBA operations.",
-                    ServiceRegistry.Vba.ValidActions));
-
-            // DataModel commands
-            config.AddCommand<DataModelCommand>("datamodel")
-                .WithDescription(DescribeActions(
-                    "Data Model operations.",
-                    ServiceRegistry.DataModel.ValidActions));
-
-            // DataModel relationship commands
-            config.AddCommand<DataModelRelCommand>("datamodelrel")
-                .WithDescription(DescribeActions(
-                    "Data Model relationship operations.",
-                    ServiceRegistry.DataModelRel.ValidActions));
-
-            // Slicer commands
-            config.AddCommand<SlicerCommand>("slicer")
-                .WithDescription(DescribeActions(
-                    "Slicer operations.",
-                    ServiceRegistry.Slicer.ValidActions));
+            // =============================================
+            // All service commands are auto-generated from
+            // Core interfaces marked with [ServiceCategory].
+            // =============================================
+            CliCommandRegistration.RegisterCommands(config);
         });
 
         try
@@ -231,12 +142,6 @@ internal sealed class Program
         AnsiConsole.MarkupLine("[yellow]Workflow:[/] [green]session open <file>[/] → run commands with [green]--session <id>[/] → [green]session close --save[/].");
         AnsiConsole.MarkupLine("[dim]A background service manages sessions for performance.[/]");
         AnsiConsole.WriteLine();
-    }
-
-    private static string DescribeActions(string baseDescription, IEnumerable<string> actions)
-    {
-        var actionList = string.Join(", ", actions);
-        return $"{baseDescription} Actions: {actionList}.";
     }
 
     private static async Task<int> HandleVersionAsync()

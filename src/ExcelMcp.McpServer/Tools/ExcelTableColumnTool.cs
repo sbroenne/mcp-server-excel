@@ -30,7 +30,6 @@ public static partial class TableColumnTool
     /// Related: excel_table (table lifecycle and data operations)
     /// </summary>
     /// <param name="action">The column/filter/sort operation to perform</param>
-    /// <param name="path">Full path to Excel file (for reference/logging)</param>
     /// <param name="sessionId">Session ID from excel_file 'open'. Required for all actions.</param>
     /// <param name="tableName">Name of the table to operate on. Required for all actions.</param>
     /// <param name="columnName">Column name to operate on. Required for: apply-filter, apply-filter-values, add-column, remove-column, rename-column, sort, get/set-column-number-format</param>
@@ -45,7 +44,6 @@ public static partial class TableColumnTool
     [McpMeta("requiresSession", true)]
     public static partial string TableColumn(
         TableColumnAction action,
-        string path,
         string sessionId,
         [DefaultValue(null)] string? tableName,
         [DefaultValue(null)] string? columnName,
@@ -59,7 +57,6 @@ public static partial class TableColumnTool
         return ExcelToolsBase.ExecuteToolAction(
             "excel_table_column",
             ServiceRegistry.TableColumn.ToActionString(action),
-            path,
             () =>
             {
                 return action switch

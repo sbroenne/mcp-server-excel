@@ -96,7 +96,7 @@ excel_pivottable(create-from-table, sourceTableName="SalesTable", ...)
 excel_pivottable_field(AddValueField, fieldName="Revenue", aggregationFunction="Sum")  # Works!
 
 # Option 2: Use Data Model (RECOMMENDED)
-excel_table(add-to-datamodel, tableName="SalesTable")
+excel_table(add-to-data-model, tableName="SalesTable")
 excel_datamodel(create-measure, measureName="Revenue", daxFormula="SUMX(SalesTable, SalesTable[Quantity]*SalesTable[UnitPrice])")
 excel_pivottable(create-from-datamodel, ...)  # Measure automatically available
 ```
@@ -105,9 +105,9 @@ excel_pivottable(create-from-datamodel, ...)  # Measure automatically available
 
 Always use Data Model for multi-table analysis:
 ```
-excel_table(add-to-datamodel, tableName="Sales")
-excel_table(add-to-datamodel, tableName="Products")
-excel_datamodel_rel(create, fromTable="Sales", fromColumn="ProductID", toTable="Products", toColumn="ProductID")
+excel_table(add-to-data-model, tableName="Sales")
+excel_table(add-to-data-model, tableName="Products")
+excel_datamodel_rel(create-relationship, fromTable="Sales", fromColumn="ProductID", toTable="Products", toColumn="ProductID")
 excel_datamodel(create-measure, tableName="Sales", measureName="Revenue", daxFormula="SUMX(Sales, RELATED(Products[Price])*Sales[Quantity])")
 excel_pivottable(create-from-datamodel)
 ```
@@ -127,7 +127,7 @@ The `layoutStyle` parameter controls PivotTable appearance:
 | Error | Cause | Solution |
 |-------|-------|----------|
 | "Unknown field" aggregation error | Calculated field type limitation | Use DAX measure instead |
-| "Table not found" | Source not in Data Model | Add with `excel_table(add-to-datamodel)` |
+| "Table not found" | Source not in Data Model | Add with `excel_table(add-to-data-model)` |
 | "Field not found" | Typo or Data Model not refreshed | Refresh Data Model, check field names |
 | Data doesn't update | Source changed without refresh | Call `excel_pivottable(refresh)` |
 | DAX measures missing | Created on worksheet PivotTable | Use `create-from-datamodel` |

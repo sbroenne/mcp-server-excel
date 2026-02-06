@@ -33,6 +33,12 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
     protected abstract (string command, object? args) Route(TSettings settings, string action);
 
     /// <summary>
+    /// Whether this command requires a session ID. Default is true.
+    /// Override to return false for commands that don't need a session.
+    /// </summary>
+    protected virtual bool RequiresSession => true;
+
+    /// <summary>
     /// Validates settings and executes the command.
     /// Returns early with error code if validation fails.
     /// </summary>
@@ -40,7 +46,7 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
     {
         // Session validation
         var sessionId = GetSessionId(settings);
-        if (string.IsNullOrWhiteSpace(sessionId))
+        if (RequiresSession && string.IsNullOrWhiteSpace(sessionId))
         {
             AnsiConsole.MarkupLine("[red]Session ID is required. Use --session <id>[/]");
             return 1;

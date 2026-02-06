@@ -25,7 +25,6 @@ public static partial class ExcelRangeLinkTool
     /// Note: Cell locking only takes effect when the worksheet is protected.
     /// </summary>
     /// <param name="action">The link/protection operation to perform</param>
-    /// <param name="path">Full path to Excel file (for reference/logging)</param>
     /// <param name="sessionId">Session ID from excel_file 'open'. Required for all actions.</param>
     /// <param name="sheetName">Name of the worksheet. Required for hyperlink actions. Optional for cell lock (uses active sheet if empty).</param>
     /// <param name="rangeAddress">Range address for multi-cell operations. Required for: remove-hyperlink, set-cell-lock, get-cell-lock</param>
@@ -39,7 +38,6 @@ public static partial class ExcelRangeLinkTool
     [McpMeta("requiresSession", true)]
     public static partial string RangeLink(
         RangeLinkAction action,
-        string path,
         string sessionId,
         [DefaultValue(null)] string? sheetName,
         [DefaultValue(null)] string? rangeAddress,
@@ -52,7 +50,6 @@ public static partial class ExcelRangeLinkTool
         return ExcelToolsBase.ExecuteToolAction(
             "excel_range_link",
             ServiceRegistry.RangeLink.ToActionString(action),
-            path,
             () => action switch
             {
                 RangeLinkAction.AddHyperlink => ForwardAddHyperlink(sessionId, sheetName, cellAddress, url, displayText, tooltip),

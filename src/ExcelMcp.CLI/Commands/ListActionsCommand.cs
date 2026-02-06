@@ -17,25 +17,28 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
         {
             // Session management (REQUIRED FIRST STEP)
             ["session"] = new[] { "create", "open", "close", "list", "save" },
-            ["sheet"] = ServiceRegistry.Sheet.ValidActions
-                .Concat(ServiceRegistry.SheetStyle.ValidActions),
-            ["range"] = ServiceRegistry.Range.ValidActions
-                .Concat(ServiceRegistry.RangeEdit.ValidActions)
-                .Concat(ServiceRegistry.RangeFormat.ValidActions)
-                .Concat(ServiceRegistry.RangeLink.ValidActions),
+            // All commands below match 1:1 with MCP tools (excel_ prefix removed)
+            ["worksheet"] = ServiceRegistry.Sheet.ValidActions,
+            ["worksheetstyle"] = ServiceRegistry.SheetStyle.ValidActions,
+            ["range"] = ServiceRegistry.Range.ValidActions,
+            ["rangeedit"] = ServiceRegistry.RangeEdit.ValidActions,
+            ["rangeformat"] = ServiceRegistry.RangeFormat.ValidActions,
+            ["rangelink"] = ServiceRegistry.RangeLink.ValidActions,
             ["table"] = ServiceRegistry.Table.ValidActions,
+            ["tablecolumn"] = ServiceRegistry.TableColumn.ValidActions,
             ["powerquery"] = ServiceRegistry.PowerQuery.ValidActions,
-            ["pivottable"] = ServiceRegistry.PivotTable.ValidActions
-                .Concat(ServiceRegistry.PivotTableField.ValidActions)
-                .Concat(ServiceRegistry.PivotTableCalc.ValidActions),
+            ["pivottable"] = ServiceRegistry.PivotTable.ValidActions,
+            ["pivottablefield"] = ServiceRegistry.PivotTableField.ValidActions,
+            ["pivottablecalc"] = ServiceRegistry.PivotTableCalc.ValidActions,
             ["chart"] = ServiceRegistry.Chart.ValidActions,
             ["chartconfig"] = ServiceRegistry.ChartConfig.ValidActions,
             ["connection"] = ServiceRegistry.Connection.ValidActions,
-            ["calculation"] = ServiceRegistry.Calculation.ValidActions,
+            ["calculationmode"] = ServiceRegistry.Calculation.ValidActions,
             ["namedrange"] = ServiceRegistry.NamedRange.ValidActions,
             ["conditionalformat"] = ServiceRegistry.ConditionalFormat.ValidActions,
             ["vba"] = ServiceRegistry.Vba.ValidActions,
             ["datamodel"] = ServiceRegistry.DataModel.ValidActions,
+            ["datamodelrel"] = ServiceRegistry.DataModelRel.ValidActions,
             ["slicer"] = ServiceRegistry.Slicer.ValidActions
         };
 

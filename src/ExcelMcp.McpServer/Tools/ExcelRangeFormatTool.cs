@@ -27,7 +27,6 @@ public static partial class ExcelRangeFormatTool
     /// MERGE: Combines cells into one. Only top-left cell value is preserved.
     /// </summary>
     /// <param name="action">The range format operation to perform</param>
-    /// <param name="path">Full path to the Excel workbook file (e.g., 'C:\Reports\Sales.xlsx')</param>
     /// <param name="sessionId">Session identifier returned from excel_file open action - required for all operations</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10', 'B:D' for columns)</param>
@@ -64,7 +63,6 @@ public static partial class ExcelRangeFormatTool
     [McpMeta("requiresSession", true)]
     public static partial string RangeFormat(
         RangeFormatAction action,
-        string path,
         string sessionId,
         [DefaultValue(null)] string? sheetName,
         [DefaultValue(null)] string? rangeAddress,
@@ -100,7 +98,6 @@ public static partial class ExcelRangeFormatTool
         return ExcelToolsBase.ExecuteToolAction(
             "excel_range_format",
             ServiceRegistry.RangeFormat.ToActionString(action),
-            path,
             () => action switch
             {
                 RangeFormatAction.GetStyle => ForwardGetStyle(sessionId, sheetName, rangeAddress),

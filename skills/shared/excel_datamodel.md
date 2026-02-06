@@ -60,7 +60,7 @@ excel_datamodel(evaluate, daxQuery="...")               # Returns NEW values!
 
 | Source | Method |
 |--------|--------|
-| Worksheet Excel Table | excel_table with add-to-datamodel action |
+| Worksheet Excel Table | excel_table with add-to-data-model action |
 | External file (CSV, etc.) | excel_powerquery with loadDestination='data-model' |
 | Database/web source | excel_powerquery with loadDestination='data-model' |
 
