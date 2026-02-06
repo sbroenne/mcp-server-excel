@@ -15,7 +15,7 @@
 
     <!-- Generators are special - disable some strict rules from Directory.Build.props -->
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <NoWarn>$(NoWarn);IDE0055;CA1310</NoWarn>
+    <NoWarn>$(NoWarn);IDE0055;CA1310;CS1591;IDE0005;IDE0059;IDE0060;CS8604;CS8601</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

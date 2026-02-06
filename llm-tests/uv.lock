@@ -664,6 +664,19 @@ wheels = [
 ]
 
 [[package]]
+name = "htpy"
+version = "25.12.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "markupsafe" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b6/23/e00bbc355e70444d16c90a0f1fdce108c67379fe65e9312cd026c13db976/htpy-25.12.0.tar.gz", hash = "sha256:7d3f4aaa10b35c5e46dfa804df1f3f18772caf8efee6e6a035b5dee89a5d6af8", size = 291259, upload-time = "2025-12-01T20:35:01.666Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/61/f1/a2f2caf14b03e7fab4801ac6018a4ac996de3e82a573e7aa21f3cb11a7cc/htpy-25.12.0-py3-none-any.whl", hash = "sha256:642e69278d6f8f4643acc2d2d13c21682ceb5fb4860ecbbce042f171577fff54", size = 21141, upload-time = "2025-12-01T20:35:00.13Z" },
+]
+
+[[package]]
 name = "httpcore"
 version = "1.0.9"
 source = { registry = "https://pypi.org/simple" }
@@ -1464,6 +1477,7 @@ name = "pytest-aitest"
 version = "0.2.0"
 source = { editable = "../../pytest-aitest" }
 dependencies = [
+    { name = "htpy" },
     { name = "jinja2" },
     { name = "litellm" },
     { name = "markdown" },
@@ -1477,6 +1491,7 @@ requires-dist = [
     { name = "azure-identity", marker = "extra == 'azure'", specifier = ">=1.25" },
     { name = "beautifulsoup4", marker = "extra == 'test'", specifier = ">=4.14" },
     { name = "datamodel-code-generator", marker = "extra == 'dev'", specifier = ">=0.25" },
+    { name = "htpy", specifier = ">=25.12.0" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "jsonschema", marker = "extra == 'dev'", specifier = ">=4.0" },
     { name = "litellm", specifier = ">=1.81" },
