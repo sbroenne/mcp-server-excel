@@ -5,8 +5,9 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Data Model management commands - Tables, measures, DAX queries using Excel COM API.
-/// For relationship operations, use IDataModelRelCommands.
+/// Power Pivot Data Model - DAX measures, DAX queries, and DMV introspection.
+/// Tables must be added first with table add-to-datamodel.
+/// Use datamodelrel for relationships between tables.
 /// </summary>
 [ServiceCategory("datamodel", "DataModel")]
 [McpTool("excel_datamodel")]

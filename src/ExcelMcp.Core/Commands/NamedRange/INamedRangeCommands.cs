@@ -5,7 +5,8 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Named range/parameter management commands
+/// Named ranges give human-readable aliases to cell ranges or formulas.
+/// Use for dynamic references, input parameters, and improving formula readability.
 /// </summary>
 [ServiceCategory("namedrange", "NamedRange")]
 [McpTool("excel_namedrange")]
@@ -22,6 +23,9 @@ public interface INamedRangeCommands
     /// <summary>
     /// Sets the value of a named range
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="paramName">Name of the named range</param>
+    /// <param name="value">Value to set</param>
     /// <exception cref="InvalidOperationException">If named range not found</exception>
     [ServiceAction("write")]
     void Write(
@@ -32,6 +36,8 @@ public interface INamedRangeCommands
     /// <summary>
     /// Gets the value of a named range
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="paramName">Name of the named range</param>
     /// <returns>Named range value information</returns>
     /// <exception cref="InvalidOperationException">If named range not found</exception>
     [ServiceAction("read")]
@@ -42,6 +48,9 @@ public interface INamedRangeCommands
     /// <summary>
     /// Updates a named range reference
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="paramName">Name of the named range</param>
+    /// <param name="reference">New cell reference (e.g., Sheet1!$A$1:$B$10)</param>
     /// <exception cref="ArgumentException">If parameter name invalid or too long</exception>
     /// <exception cref="InvalidOperationException">If named range not found</exception>
     [ServiceAction("update")]
@@ -53,6 +62,9 @@ public interface INamedRangeCommands
     /// <summary>
     /// Creates a new named range
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="paramName">Name for the new named range</param>
+    /// <param name="reference">Cell reference (e.g., Sheet1!$A$1:$B$10)</param>
     /// <exception cref="ArgumentException">If parameter name invalid or too long</exception>
     /// <exception cref="InvalidOperationException">If named range already exists</exception>
     [ServiceAction("create")]
@@ -64,6 +76,8 @@ public interface INamedRangeCommands
     /// <summary>
     /// Deletes a named range
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="paramName">Name of the named range to delete</param>
     /// <exception cref="InvalidOperationException">If named range not found</exception>
     [ServiceAction("delete")]
     void Delete(

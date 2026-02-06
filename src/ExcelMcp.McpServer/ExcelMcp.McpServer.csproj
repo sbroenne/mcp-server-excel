@@ -190,7 +190,7 @@ internal static class TelemetryConfig
 
   <!-- Generate MCP Skill file from template after build -->
   <Target Name="GenerateMcpSkill" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'"
-          Inputs="$(MSBuildProjectDirectory)\..\..\skills\templates\SKILL.mcp.sbn"
+          Inputs="$(MSBuildProjectDirectory)\..\..\skills\templates\SKILL.mcp.sbn;$(MSBuildProjectDirectory)\..\ExcelMcp.Core\obj\GeneratedFiles\ExcelMcp.Generators\Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator\_SkillManifest.g.cs"
           Outputs="$(MSBuildProjectDirectory)\..\..\skills\excel-mcp\SKILL.md">
     <PropertyGroup>
       <SkillTemplatePath>$(MSBuildProjectDirectory)\..\..\skills\templates\SKILL.mcp.sbn</SkillTemplatePath>

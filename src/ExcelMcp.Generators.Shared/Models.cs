@@ -9,14 +9,16 @@ public sealed class ServiceInfo
     public string CategoryPascal { get; }
     public string McpToolName { get; }
     public bool NoSession { get; }
+    public string? XmlDocSummary { get; }
     public List<MethodInfo> Methods { get; }
 
-    public ServiceInfo(string category, string categoryPascal, string mcpToolName, bool noSession, List<MethodInfo> methods)
+    public ServiceInfo(string category, string categoryPascal, string mcpToolName, bool noSession, List<MethodInfo> methods, string? xmlDocSummary = null)
     {
         Category = category;
         CategoryPascal = categoryPascal;
         McpToolName = mcpToolName;
         NoSession = noSession;
+        XmlDocSummary = xmlDocSummary;
         Methods = methods;
     }
 }

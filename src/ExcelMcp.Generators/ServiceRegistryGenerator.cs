@@ -153,6 +153,19 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine($"        public static readonly string[] ValidActions = [{actionList}];");
         sb.AppendLine();
 
+        // Generate Description constant for CLI help
+        var escapedDescription = (info.XmlDocSummary ?? $"{info.CategoryPascal} operations")
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("\r", "")
+            .Replace("\n", " ")
+            .Trim();
+        sb.AppendLine("        /// <summary>");
+        sb.AppendLine("        /// Human-readable description from interface XML documentation.");
+        sb.AppendLine("        /// </summary>");
+        sb.AppendLine($"        public const string Description = \"{escapedDescription}\";");
+        sb.AppendLine();
+
         // Generate TryParseAction method for this category
         sb.AppendLine("        /// <summary>");
         sb.AppendLine("        /// Parses a kebab-case action string to the strongly-typed enum.");
@@ -512,8 +525,10 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             {
                 if (p.IsFileOrValue)
                 {
-                    // Add both value and file params
-                    if (!result.ContainsKey(p.Name))
+                    // Add both value and file params - prefer non-empty descriptions
+                    var shouldAdd = !result.TryGetValue(p.Name, out var existing) ||
+                                    (string.IsNullOrEmpty(existing.Description) && !string.IsNullOrEmpty(p.XmlDocDescription));
+                    if (shouldAdd)
                         result[p.Name] = new ExposedParameter(p.Name, "string?", p.XmlDocDescription, "null");
                     var fileParamName = $"{p.Name}{p.FileSuffix}";
                     if (!result.ContainsKey(fileParamName))
@@ -522,12 +537,18 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 else if (p.IsFromString && p.IsEnum)
                 {
                     var exposedName = p.ExposedName ?? p.Name;
-                    if (!result.ContainsKey(exposedName))
+                    // Prefer non-empty descriptions
+                    var shouldAdd = !result.TryGetValue(exposedName, out var existing) ||
+                                    (string.IsNullOrEmpty(existing.Description) && !string.IsNullOrEmpty(p.XmlDocDescription));
+                    if (shouldAdd)
                         result[exposedName] = new ExposedParameter(exposedName, "string?", p.XmlDocDescription, "null");
                 }
                 else
                 {
-                    if (!result.ContainsKey(p.Name))
+                    // Prefer non-empty descriptions
+                    var shouldAdd = !result.TryGetValue(p.Name, out var existing) ||
+                                    (string.IsNullOrEmpty(existing.Description) && !string.IsNullOrEmpty(p.XmlDocDescription));
+                    if (shouldAdd)
                     {
                         var typeName = p.TypeName.EndsWith("?") ? p.TypeName : $"{p.TypeName}?";
                         var defaultVal = p.HasDefault ? p.DefaultValue : "null";
@@ -703,6 +724,14 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             sb.AppendLine($"      \"\"name\"\": \"\"{cliCommandName}\"\",");
             sb.AppendLine($"      \"\"mcpTool\"\": \"\"{cat.McpToolName}\"\",");
 
+            // Description from interface XML doc
+            var description = (cat.XmlDocSummary ?? "")
+                .Replace("\"", "\\\"\"")
+                .Replace("\r", "")
+                .Replace("\n", " ")
+                .Trim();
+            sb.AppendLine($"      \"\"description\"\": \"\"{description}\"\",");
+
             // Actions array
             sb.Append("      \"\"actions\"\": [");
             var actions = cat.Methods.Select(m => $"\"\"{m.ActionName}\"\"");
@@ -723,7 +752,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 var paramName = StringHelper.ToKebabCase(param.ExposedName ?? param.Name);
                 // JSON requires \" for quotes inside strings
                 // In verbatim C# strings: \"" outputs \" (backslash + "" for one quote)
-                var description = (param.XmlDocDescription ?? "")
+                var paramDescription = (param.XmlDocDescription ?? "")
                     .Replace("\"", "\\\"\"")  // Escape quotes for JSON in verbatim string
                     .Replace("\r", "")
                     .Replace("\n", " ")
@@ -731,7 +760,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
                 sb.AppendLine("        {");
                 sb.AppendLine($"          \"\"name\"\": \"\"{paramName}\"\",");
-                sb.AppendLine($"          \"\"description\"\": \"\"{description}\"\"");
+                sb.AppendLine($"          \"\"description\"\": \"\"{paramDescription}\"\"");
                 sb.Append("        }");
                 sb.AppendLine(j < distinctParams.Count - 1 ? "," : "");
             }

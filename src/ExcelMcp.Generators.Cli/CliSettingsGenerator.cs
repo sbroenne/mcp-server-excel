@@ -95,9 +95,8 @@ public class CliSettingsGenerator : IIncrementalGenerator
         sb.AppendLine("    public static void RegisterCommands(IConfigurator config)");
         sb.AppendLine("    {");
         foreach (var (cliName, registryName, _) in categories.OrderBy(c => c.CliName))
-            sb.AppendLine($"        config.AddCommand<{registryName}Command>(\"{cliName}\").WithDescription(DescribeActions(\"{registryName} operations\", ServiceRegistry.{registryName}.ValidActions));");
+            sb.AppendLine($"        config.AddCommand<{registryName}Command>(\"{cliName}\").WithDescription(ServiceRegistry.{registryName}.Description);");
         sb.AppendLine("    }");
-        sb.AppendLine("    private static string DescribeActions(string baseDescription, System.Collections.Generic.IEnumerable<string> actions) => $\"{baseDescription} Actions: {string.Join(\", \", actions)}.\";");
         sb.AppendLine("}");
         return sb.ToString();
     }

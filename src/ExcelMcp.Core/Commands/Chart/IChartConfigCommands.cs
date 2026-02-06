@@ -5,7 +5,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
 /// <summary>
 /// Excel chart configuration operations - data sources, titles, axes, styling, trendlines.
-/// Lifecycle operations (create, delete, move) are in IChartCommands.
+/// Use chart command for lifecycle operations (create, delete, move).
 /// </summary>
 [ServiceCategory("chartconfig", "ChartConfig")]
 [McpTool("excel_chart_config")]
@@ -17,6 +17,9 @@ public interface IChartConfigCommands
     /// Sets data source range for Regular Charts.
     /// PivotCharts: Throws exception guiding to excel_pivottable.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="sourceRange">New data source range (e.g., Sheet1!A1:D10)</param>
     [ServiceAction("set-source-range")]
     void SetSourceRange(
         IExcelBatch batch,
@@ -27,6 +30,11 @@ public interface IChartConfigCommands
     /// Adds a data series to Regular Charts.
     /// PivotCharts: Throws exception guiding to excel_pivottable(action: 'add-value-field').
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="seriesName">Display name for the series</param>
+    /// <param name="valuesRange">Range containing series values (e.g., B2:B10)</param>
+    /// <param name="categoryRange">Optional range for category labels (e.g., A2:A10)</param>
     [ServiceAction("add-series")]
     SeriesInfo AddSeries(
         IExcelBatch batch,
@@ -39,6 +47,9 @@ public interface IChartConfigCommands
     /// Removes a data series from Regular Charts.
     /// PivotCharts: Throws exception guiding to excel_pivottable(action: 'remove-field').
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="seriesIndex">1-based index of the series to remove</param>
     [ServiceAction("remove-series")]
     void RemoveSeries(
         IExcelBatch batch,
@@ -50,6 +61,9 @@ public interface IChartConfigCommands
     /// <summary>
     /// Changes chart type (works for both Regular and PivotCharts).
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="chartType">New chart type to apply</param>
     [ServiceAction("set-chart-type")]
     void SetChartType(
         IExcelBatch batch,
@@ -59,6 +73,9 @@ public interface IChartConfigCommands
     /// <summary>
     /// Sets chart title.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="title">Title text to display</param>
     [ServiceAction("set-title")]
     void SetTitle(
         IExcelBatch batch,
@@ -68,6 +85,10 @@ public interface IChartConfigCommands
     /// <summary>
     /// Sets axis title.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="axis">Which axis to set title for (Category, Value, SeriesAxis)</param>
+    /// <param name="title">Axis title text</param>
     [ServiceAction("set-axis-title")]
     void SetAxisTitle(
         IExcelBatch batch,
@@ -78,6 +99,9 @@ public interface IChartConfigCommands
     /// <summary>
     /// Gets axis number format for tick labels.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="axis">Which axis to get format from</param>
     [ServiceAction("get-axis-number-format")]
     string GetAxisNumberFormat(
         IExcelBatch batch,
@@ -87,6 +111,10 @@ public interface IChartConfigCommands
     /// <summary>
     /// Sets axis number format for tick labels.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="axis">Which axis to format</param>
+    /// <param name="numberFormat">Excel number format code (e.g., "$#,##0", "0.00%")</param>
     [ServiceAction("set-axis-number-format")]
     void SetAxisNumberFormat(
         IExcelBatch batch,
@@ -97,6 +125,10 @@ public interface IChartConfigCommands
     /// <summary>
     /// Shows or hides chart legend.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="visible">True to show legend, false to hide</param>
+    /// <param name="legendPosition">Optional position for the legend</param>
     [ServiceAction("show-legend")]
     void ShowLegend(
         IExcelBatch batch,
@@ -107,6 +139,9 @@ public interface IChartConfigCommands
     /// <summary>
     /// Applies a chart style.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="styleId">Excel chart style ID (1-48 for most chart types)</param>
     [ServiceAction("set-style")]
     void SetStyle(
         IExcelBatch batch,
@@ -116,6 +151,9 @@ public interface IChartConfigCommands
     /// <summary>
     /// Sets chart placement mode (how chart responds when underlying cells are resized).
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="placement">Placement mode: 1=MoveAndSize, 2=Move, 3=FreeFloating</param>
     [ServiceAction("set-placement")]
     void SetPlacement(
         IExcelBatch batch,
@@ -127,6 +165,16 @@ public interface IChartConfigCommands
     /// <summary>
     /// Configures data labels for chart series.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="showValue">Show data values on labels</param>
+    /// <param name="showPercentage">Show percentage values (pie/doughnut charts)</param>
+    /// <param name="showSeriesName">Show series name on labels</param>
+    /// <param name="showCategoryName">Show category name on labels</param>
+    /// <param name="showBubbleSize">Show bubble size (bubble charts)</param>
+    /// <param name="separator">Separator string between label components</param>
+    /// <param name="labelPosition">Position of data labels relative to data points</param>
+    /// <param name="seriesIndex">Optional 1-based series index (null for all series)</param>
     [ServiceAction("set-data-labels")]
     void SetDataLabels(
         IExcelBatch batch,
@@ -145,6 +193,9 @@ public interface IChartConfigCommands
     /// <summary>
     /// Gets axis scale settings.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="axis">Which axis to get scale settings from</param>
     [ServiceAction("get-axis-scale")]
     AxisScaleResult GetAxisScale(
         IExcelBatch batch,
@@ -154,6 +205,13 @@ public interface IChartConfigCommands
     /// <summary>
     /// Sets axis scale settings.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="axis">Which axis to configure</param>
+    /// <param name="minimumScale">Minimum axis value (null for auto)</param>
+    /// <param name="maximumScale">Maximum axis value (null for auto)</param>
+    /// <param name="majorUnit">Major gridline interval (null for auto)</param>
+    /// <param name="minorUnit">Minor gridline interval (null for auto)</param>
     [ServiceAction("set-axis-scale")]
     void SetAxisScale(
         IExcelBatch batch,
@@ -169,6 +227,8 @@ public interface IChartConfigCommands
     /// <summary>
     /// Gets gridlines visibility for chart axes.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
     [ServiceAction("get-gridlines")]
     GridlinesResult GetGridlines(
         IExcelBatch batch,
@@ -177,6 +237,11 @@ public interface IChartConfigCommands
     /// <summary>
     /// Configures gridlines visibility for chart axes.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="axis">Which axis gridlines to configure</param>
+    /// <param name="showMajor">Show major gridlines (null to keep current)</param>
+    /// <param name="showMinor">Show minor gridlines (null to keep current)</param>
     [ServiceAction("set-gridlines")]
     void SetGridlines(
         IExcelBatch batch,
@@ -190,6 +255,14 @@ public interface IChartConfigCommands
     /// <summary>
     /// Configures series marker formatting (for line, scatter, and radar charts).
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="seriesIndex">1-based index of the series</param>
+    /// <param name="markerStyle">Marker shape style</param>
+    /// <param name="markerSize">Marker size in points (2-72)</param>
+    /// <param name="markerBackgroundColor">Marker fill color (#RRGGBB)</param>
+    /// <param name="markerForegroundColor">Marker border color (#RRGGBB)</param>
+    /// <param name="invertIfNegative">Invert colors for negative values</param>
     [ServiceAction("set-series-format")]
     void SetSeriesFormat(
         IExcelBatch batch,
@@ -206,6 +279,9 @@ public interface IChartConfigCommands
     /// <summary>
     /// Lists all trendlines on a chart series.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="seriesIndex">1-based index of the series</param>
     [ServiceAction("list-trendlines")]
     TrendlineListResult ListTrendlines(
         IExcelBatch batch,
@@ -215,6 +291,18 @@ public interface IChartConfigCommands
     /// <summary>
     /// Adds a trendline to a chart series.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="seriesIndex">1-based index of the series</param>
+    /// <param name="type">Type of trendline (Linear, Exponential, etc.)</param>
+    /// <param name="order">Polynomial order (2-6, for Polynomial type)</param>
+    /// <param name="period">Moving average period (for MovingAverage type)</param>
+    /// <param name="forward">Periods to extend forward</param>
+    /// <param name="backward">Periods to extend backward</param>
+    /// <param name="intercept">Force trendline through specific Y-intercept</param>
+    /// <param name="displayEquation">Display trendline equation on chart</param>
+    /// <param name="displayRSquared">Display R-squared value on chart</param>
+    /// <param name="name">Custom name for the trendline</param>
     [ServiceAction("add-trendline")]
     TrendlineResult AddTrendline(
         IExcelBatch batch,
@@ -233,6 +321,10 @@ public interface IChartConfigCommands
     /// <summary>
     /// Deletes a trendline from a chart series.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="seriesIndex">1-based index of the series</param>
+    /// <param name="trendlineIndex">1-based index of the trendline to delete</param>
     [ServiceAction("delete-trendline")]
     void DeleteTrendline(
         IExcelBatch batch,
@@ -243,6 +335,16 @@ public interface IChartConfigCommands
     /// <summary>
     /// Updates trendline properties.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="chartName">Name of the chart</param>
+    /// <param name="seriesIndex">1-based index of the series</param>
+    /// <param name="trendlineIndex">1-based index of the trendline</param>
+    /// <param name="forward">Periods to extend forward (null to keep current)</param>
+    /// <param name="backward">Periods to extend backward (null to keep current)</param>
+    /// <param name="intercept">Force through Y-intercept (null to keep current)</param>
+    /// <param name="displayEquation">Display equation (null to keep current)</param>
+    /// <param name="displayRSquared">Display R-squared (null to keep current)</param>
+    /// <param name="name">Custom name (null to keep current)</param>
     [ServiceAction("set-trendline")]
     void SetTrendline(
         IExcelBatch batch,

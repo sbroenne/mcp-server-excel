@@ -5,7 +5,8 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
 /// <summary>
-/// Excel Table column operations - filtering, column management, sorting, number formatting
+/// Column-level Table operations: AutoFilter, value filters, multi-column sorting,
+/// structured references, and number formatting. Use table for table-level operations.
 /// </summary>
 [ServiceCategory("tablecolumn", "TableColumn")]
 [McpTool("excel_table_column")]
@@ -16,6 +17,9 @@ public interface ITableColumnCommands
     /// <summary>
     /// Applies a filter to a table column with single criteria
     /// </summary>
+    /// <param name="tableName">Name of the Excel table</param>
+    /// <param name="columnName">Name of the column to filter</param>
+    /// <param name="criteria">Filter criteria (e.g., ">100", "=Active")</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
     [ServiceAction("apply-filter")]
     void ApplyFilter(IExcelBatch batch, string tableName, string columnName, string criteria);
@@ -23,6 +27,9 @@ public interface ITableColumnCommands
     /// <summary>
     /// Applies a filter to a table column with multiple values
     /// </summary>
+    /// <param name="tableName">Name of the Excel table</param>
+    /// <param name="columnName">Name of the column to filter</param>
+    /// <param name="values">List of values to include in filter</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
     [ServiceAction("apply-filter-values")]
     void ApplyFilterValues(IExcelBatch batch, string tableName, string columnName, List<string> values);
@@ -30,6 +37,7 @@ public interface ITableColumnCommands
     /// <summary>
     /// Clears all filters from a table
     /// </summary>
+    /// <param name="tableName">Name of the Excel table</param>
     /// <exception cref="InvalidOperationException">Table not found</exception>
     [ServiceAction("clear-filters")]
     void ClearFilters(IExcelBatch batch, string tableName);
@@ -37,6 +45,7 @@ public interface ITableColumnCommands
     /// <summary>
     /// Gets current filter state for all columns in a table
     /// </summary>
+    /// <param name="tableName">Name of the Excel table</param>
     [ServiceAction("get-filters")]
     TableFilterResult GetFilters(IExcelBatch batch, string tableName);
 
@@ -45,6 +54,9 @@ public interface ITableColumnCommands
     /// <summary>
     /// Adds a new column to a table
     /// </summary>
+    /// <param name="tableName">Name of the Excel table</param>
+    /// <param name="columnName">Name for the new column</param>
+    /// <param name="position">Optional 1-based position (null for last)</param>
     /// <exception cref="InvalidOperationException">Table not found or position invalid</exception>
     [ServiceAction("add-column")]
     void AddColumn(IExcelBatch batch, string tableName, string columnName, int? position = null);
@@ -52,6 +64,8 @@ public interface ITableColumnCommands
     /// <summary>
     /// Removes a column from a table
     /// </summary>
+    /// <param name="tableName">Name of the Excel table</param>
+    /// <param name="columnName">Name of the column to remove</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
     [ServiceAction("remove-column")]
     void RemoveColumn(IExcelBatch batch, string tableName, string columnName);
@@ -59,6 +73,9 @@ public interface ITableColumnCommands
     /// <summary>
     /// Renames a column in a table
     /// </summary>
+    /// <param name="tableName">Name of the Excel table</param>
+    /// <param name="oldName">Current column name</param>
+    /// <param name="newName">New column name</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
     [ServiceAction("rename-column")]
     void RenameColumn(IExcelBatch batch, string tableName, string oldName, string newName);
@@ -68,6 +85,9 @@ public interface ITableColumnCommands
     /// <summary>
     /// Gets structured reference information for a table region or column
     /// </summary>
+    /// <param name="tableName">Name of the Excel table</param>
+    /// <param name="region">Table region (Data, Headers, Totals, All)</param>
+    /// <param name="columnName">Optional column name for column-specific reference</param>
     [ServiceAction("get-structured-reference")]
     TableStructuredReferenceResult GetStructuredReference(IExcelBatch batch, string tableName, TableRegion region, string? columnName = null);
 
@@ -76,6 +96,9 @@ public interface ITableColumnCommands
     /// <summary>
     /// Sorts a table by a single column
     /// </summary>
+    /// <param name="tableName">Name of the Excel table</param>
+    /// <param name="columnName">Column to sort by</param>
+    /// <param name="ascending">True for ascending, false for descending</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
     [ServiceAction("sort")]
     void Sort(IExcelBatch batch, string tableName, string columnName, bool ascending = true);
@@ -83,6 +106,8 @@ public interface ITableColumnCommands
     /// <summary>
     /// Sorts a table by multiple columns
     /// </summary>
+    /// <param name="tableName">Name of the Excel table</param>
+    /// <param name="sortColumns">List of columns with sort direction</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
     [ServiceAction("sort-multi")]
     void SortMulti(IExcelBatch batch, string tableName, List<TableSortColumn> sortColumns);

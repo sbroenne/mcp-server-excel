@@ -6,11 +6,11 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Sbroenne.ExcelMcp.Build.Tasks</RootNamespace>
     <AssemblyName>Sbroenne.ExcelMcp.Build.Tasks</AssemblyName>
-    
+
     <!-- Build task specific settings -->
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    
+
     <!-- Exclude from main solution build by default - built on demand -->
     <IsPackable>false</IsPackable>
   </PropertyGroup>

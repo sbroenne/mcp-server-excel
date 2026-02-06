@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -46,6 +47,9 @@ public static class ServiceInfoExtractor
         if (category is null)
             return null;
 
+        // Extract interface-level XML documentation
+        var interfaceSummary = ExtractInterfaceSummary(interfaceSymbol);
+
         var methods = new List<MethodInfo>();
 
         foreach (var member in interfaceSymbol.GetMembers())
@@ -79,7 +83,31 @@ public static class ServiceInfoExtractor
             categoryPascal,
             mcpTool ?? "unknown",
             noSession,
-            methods);
+            methods,
+            interfaceSummary);
+    }
+
+    private static string? ExtractInterfaceSummary(INamedTypeSymbol interfaceSymbol)
+    {
+        var xmlComment = interfaceSymbol.GetDocumentationCommentXml();
+        if (string.IsNullOrEmpty(xmlComment))
+            return null;
+
+        try
+        {
+            var doc = new XmlDocument();
+            doc.LoadXml($"<root>{xmlComment}</root>");
+            var text = doc.SelectSingleNode("//summary")?.InnerText?.Trim();
+            if (string.IsNullOrEmpty(text))
+                return null;
+
+            // Normalize multi-line XML doc comments: collapse whitespace runs into single space
+            return Regex.Replace(text, @"\s+", " ");
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static string GetActionName(IMethodSymbol method)

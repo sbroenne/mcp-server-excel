@@ -126,6 +126,7 @@ public class GenerateSkillFile : Microsoft.Build.Utilities.Task
                 model.CliCommands = manifest.Commands?.Select(c => new CliCommand
                 {
                     Name = c.Name ?? "",
+                    Description = c.Description ?? "",
                     Actions = c.Actions?.ToList() ?? new List<string>(),
                     Parameters = c.Parameters?.Select(p => new CliParameter
                     {
@@ -185,6 +186,7 @@ internal sealed class ManifestCommand
 {
     public string? Name { get; set; }
     public string? McpTool { get; set; }
+    public string? Description { get; set; }
     public string[]? Actions { get; set; }
     public ManifestParameter[]? Parameters { get; set; }
 }

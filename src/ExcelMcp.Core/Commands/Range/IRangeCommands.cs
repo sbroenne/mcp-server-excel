@@ -5,12 +5,9 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
 /// <summary>
-/// Core Excel range data operations - values, formulas, copy, clear, discovery.
-/// Single cell is treated as 1x1 range. Named ranges work transparently via rangeAddress parameter.
-/// All operations are COM-backed (no data processing in server).
-/// Use IRangeEditCommands for insert/delete/find/sort.
-/// Use IRangeFormatCommands for styling/validation/merge.
-/// Use IRangeLinkCommands for hyperlinks and cell protection.
+/// Core range data operations - values, formulas, copy, clear, discovery.
+/// Single cell is 1x1 range. Named ranges work via rangeAddress parameter.
+/// Use rangeedit for insert/delete/find, rangeformat for styling, rangelink for hyperlinks.
 /// </summary>
 [ServiceCategory("range", "Range")]
 [McpTool("excel_range")]
@@ -23,6 +20,9 @@ public interface IRangeCommands
     /// Single cell "A1" returns [[value]], range "A1:B2" returns [[v1,v2],[v3,v4]].
     /// Named ranges: Use empty sheetName and rangeAddress="NamedRange".
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name (empty for named ranges)</param>
+    /// <param name="rangeAddress">Range address (e.g., A1:C10) or named range name</param>
     [ServiceAction("get-values")]
     RangeValueResult GetValues(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -47,12 +47,19 @@ public interface IRangeCommands
     /// Gets formulas from a range as 2D array (empty string if no formula).
     /// Single cell "A1" returns [["=SUM(B:B)"]], range "A1:B2" returns [[f1,f2],[f3,f4]].
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name</param>
+    /// <param name="rangeAddress">Range address (e.g., A1:C10)</param>
     [ServiceAction("get-formulas")]
     RangeFormulaResult GetFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
     /// Sets formulas in a range from 2D array.
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name</param>
+    /// <param name="rangeAddress">Range address matching formulas dimensions</param>
+    /// <param name="formulas">2D array of formula strings</param>
     [ServiceAction("set-formulas")]
     OperationResult SetFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] List<List<string>> formulas);
 
@@ -62,6 +69,9 @@ public interface IRangeCommands
     /// Clears all content (values, formulas, formats) from range.
     /// Excel COM: Range.Clear()
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name</param>
+    /// <param name="rangeAddress">Range address to clear</param>
     [ServiceAction("clear-all")]
     OperationResult ClearAll(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -69,6 +79,9 @@ public interface IRangeCommands
     /// Clears only values and formulas (preserves formatting).
     /// Excel COM: Range.ClearContents()
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name</param>
+    /// <param name="rangeAddress">Range address to clear</param>
     [ServiceAction("clear-contents")]
     OperationResult ClearContents(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -76,6 +89,9 @@ public interface IRangeCommands
     /// Clears only formatting (preserves values and formulas).
     /// Excel COM: Range.ClearFormats()
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name</param>
+    /// <param name="rangeAddress">Range address to clear</param>
     [ServiceAction("clear-formats")]
     OperationResult ClearFormats(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -85,6 +101,11 @@ public interface IRangeCommands
     /// Copies range to another location (all content).
     /// Excel COM: Range.Copy()
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sourceSheet">Source worksheet name</param>
+    /// <param name="sourceRange">Source range address</param>
+    /// <param name="targetSheet">Target worksheet name</param>
+    /// <param name="targetRange">Target range address (top-left cell)</param>
     [ServiceAction("copy")]
     OperationResult Copy(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange);
 
@@ -92,6 +113,11 @@ public interface IRangeCommands
     /// Copies only values (no formulas or formatting).
     /// Excel COM: Range.PasteSpecial(xlPasteValues)
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sourceSheet">Source worksheet name</param>
+    /// <param name="sourceRange">Source range address</param>
+    /// <param name="targetSheet">Target worksheet name</param>
+    /// <param name="targetRange">Target range address (top-left cell)</param>
     [ServiceAction("copy-values")]
     OperationResult CopyValues(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange);
 
@@ -99,6 +125,11 @@ public interface IRangeCommands
     /// Copies only formulas (no values or formatting).
     /// Excel COM: Range.PasteSpecial(xlPasteFormulas)
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sourceSheet">Source worksheet name</param>
+    /// <param name="sourceRange">Source range address</param>
+    /// <param name="targetSheet">Target worksheet name</param>
+    /// <param name="targetRange">Target range address (top-left cell)</param>
     [ServiceAction("copy-formulas")]
     OperationResult CopyFormulas(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange);
 
@@ -108,6 +139,9 @@ public interface IRangeCommands
     /// Gets number format codes from range (2D array matching range dimensions).
     /// Excel COM: Range.NumberFormat
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name</param>
+    /// <param name="rangeAddress">Range address</param>
     /// <returns>2D array of format codes (e.g., [["$#,##0.00", "0.00%"], ["m/d/yyyy", "General"]])</returns>
     [ServiceAction("get-number-formats")]
     RangeNumberFormatResult GetNumberFormats(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
@@ -127,6 +161,10 @@ public interface IRangeCommands
     /// Sets number formats cell-by-cell from 2D array.
     /// Excel COM: Range.NumberFormat (per cell)
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name</param>
+    /// <param name="rangeAddress">Range address matching formats dimensions</param>
+    /// <param name="formats">2D array of format codes</param>
     [ServiceAction("set-number-formats")]
     OperationResult SetNumberFormats(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] List<List<string>> formats);
 
@@ -136,6 +174,8 @@ public interface IRangeCommands
     /// Gets the used range (all non-empty cells) from worksheet.
     /// Excel COM: Worksheet.UsedRange
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name</param>
     [ServiceAction("get-used-range")]
     RangeValueResult GetUsedRange(IExcelBatch batch, string sheetName);
 
@@ -143,6 +183,9 @@ public interface IRangeCommands
     /// Gets the current region (contiguous data block) around a cell.
     /// Excel COM: Range.CurrentRegion
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name</param>
+    /// <param name="cellAddress">Cell address to find region around</param>
     [ServiceAction("get-current-region")]
     RangeValueResult GetCurrentRegion(IExcelBatch batch, string sheetName, [RequiredParameter] string cellAddress);
 
@@ -150,6 +193,9 @@ public interface IRangeCommands
     /// Gets range information (address, dimensions, number formats).
     /// Excel COM: Range.Address, Range.Rows.Count, Range.Columns.Count, Range.NumberFormat
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name</param>
+    /// <param name="rangeAddress">Range address</param>
     [ServiceAction("get-info")]
     RangeInfoResult GetInfo(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 }

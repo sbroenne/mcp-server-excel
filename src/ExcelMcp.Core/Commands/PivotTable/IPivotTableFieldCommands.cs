@@ -5,7 +5,8 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
 /// <summary>
-/// PivotTable field management and grouping operations.
+/// Place fields into PivotTable areas (rows, columns, values, filters),
+/// set aggregation functions, apply formatting, sort, and group by date or numeric intervals.
 /// </summary>
 [ServiceCategory("pivottablefield", "PivotTableField")]
 [McpTool("excel_pivottable_field")]

@@ -66,8 +66,8 @@ public class CalculationModeResult : OperationResult
 }
 
 /// <summary>
-/// Interface for calculation mode commands (get-mode, set-mode, calculate).
-/// Provides explicit control over Excel's automatic/manual calculation for performance optimization.
+/// Control Excel recalculation (automatic vs manual). Set manual mode before bulk writes
+/// for faster performance, then recalculate once at the end.
 /// </summary>
 [ServiceCategory("calculation", "Calculation")]
 [McpTool("excel_calculation_mode")]

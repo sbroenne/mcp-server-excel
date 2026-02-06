@@ -50,7 +50,7 @@ Execute commands to discover the answer instead:
 # NEW file - use session create
 excelcli -q session create C:\path\newfile.xlsx  # Creates file + returns session ID
 
-# EXISTING file - use session open  
+# EXISTING file - use session open
 excelcli -q session open C:\path\existing.xlsx   # Opens file + returns session ID
 ```
 
@@ -109,28 +109,14 @@ excelcli -q calculationmode calculate --session 1 --scope workbook
 excelcli -q calculationmode set-mode --session 1 --mode automatic
 ```
 
-## Quick Reference
-
-| Task | Command |
-|------|---------|
-| **Create new workbook** | `excelcli -q session create <path>` |
-| Open existing workbook | `excelcli -q session open <path>` |
-| List sheets | `excelcli -q worksheet list --session <id>` |
-| **Create sheet** | `excelcli -q worksheet create --session <id> --sheet-name Income` |
-| **Rename sheet** | `excelcli -q worksheet rename --session <id> --old-name Sheet1 --new-name Income` |
-| Read data | `excelcli -q range get-values --session <id> --sheet-name Sheet1 --range-address A1:D10` |
-| Write data | `excelcli -q range set-values --session <id> --sheet-name Sheet1 --range-address A1 --values '[["data"]]'` |
-| Create table | `excelcli -q table create --session <id> --sheet-name Sheet1 --range-address A1:D10 --table-name Sales` |
-| Add to Data Model | `excelcli -q table add-to-datamodel --session <id> --table-name Sales` |
-| Create pivot | `excelcli -q pivottable create-from-table --session <id> --table-name Sales --destination-sheet Analysis` |
-| Save & close | `excelcli -q session close --session <id> --save` |
-
 ## CLI Command Reference
 
 > Auto-generated from `excelcli --help`. Use these exact parameter names.
 
 {{ for cmd in clicommands }}
 ### {{ cmd.name }}
+
+{{ if cmd.description }}{{ cmd.description }}{{ end }}
 
 **Actions:** {{ for action in cmd.actions }}`{{ action }}`{{ if !for.last }}, {{ end }}{{ end }}
 

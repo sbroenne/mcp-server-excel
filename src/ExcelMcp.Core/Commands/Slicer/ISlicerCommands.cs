@@ -5,7 +5,8 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands.Slicer;
 
 /// <summary>
-/// Slicer operations for PivotTables and Excel Tables.
+/// Slicer visual filters for PivotTables and Excel Tables.
+/// Create interactive filter controls that can be shared across multiple PivotTables.
 /// </summary>
 [ServiceCategory("slicer", "Slicer")]
 [McpTool("excel_slicer")]

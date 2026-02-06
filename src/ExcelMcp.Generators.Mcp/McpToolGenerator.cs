@@ -110,9 +110,10 @@ public class McpToolGenerator : IIncrementalGenerator
             toolParams.Add($"[System.ComponentModel.Description(\"{EscapeString(description)}\")] {p.TypeName} {p.Name} = default");
         }
 
-        // Generate the tool method
+        // Generate the tool method with rich description from interface XML docs
+        var toolDescription = EscapeString(info.XmlDocSummary ?? $"{info.CategoryPascal} operations.");
         sb.AppendLine("    /// <summary>");
-        sb.AppendLine($"    /// {info.CategoryPascal} operations.");
+        sb.AppendLine($"    /// {toolDescription}");
         sb.AppendLine("    /// </summary>");
         sb.AppendLine("    [McpServerTool]");
         sb.AppendLine($"    public static async Task<string> Excel{info.CategoryPascal}(");

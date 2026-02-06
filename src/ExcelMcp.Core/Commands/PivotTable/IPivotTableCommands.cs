@@ -6,7 +6,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
 /// <summary>
 /// PivotTable lifecycle operations (create, list, read, refresh, delete).
-/// Field operations are in IPivotTableFieldCommands. Calculated fields/members and layout are in IPivotTableCalcCommands.
+/// Use pivottablefield for field operations, pivottablecalc for calculated fields and layout.
 /// </summary>
 [ServiceCategory("pivottable", "PivotTable")]
 [McpTool("excel_pivottable")]

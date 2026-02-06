@@ -5,7 +5,8 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
 /// <summary>
-/// Excel Table lifecycle and data operations
+/// Excel Table (ListObject) lifecycle - create, read, resize, rename, delete structured tables.
+/// Tables provide structured references, automatic formatting, and Data Model integration.
 /// </summary>
 [ServiceCategory("table", "Table")]
 [McpTool("excel_table")]
@@ -20,6 +21,11 @@ public interface ITableCommands
     /// <summary>
     /// Creates a new Excel Table from a range
     /// </summary>
+    /// <param name="sheetName">Worksheet name</param>
+    /// <param name="tableName">Name for the new table</param>
+    /// <param name="range">Range address for the table (e.g., A1:D10)</param>
+    /// <param name="hasHeaders">True if first row contains headers</param>
+    /// <param name="tableStyle">Optional table style name (e.g., "TableStyleMedium2")</param>
     /// <exception cref="InvalidOperationException">Sheet not found, table name already exists, or range invalid</exception>
     [ServiceAction("create")]
     void Create(IExcelBatch batch, string sheetName, string tableName, string range, bool hasHeaders = true, string? tableStyle = null);
@@ -27,6 +33,8 @@ public interface ITableCommands
     /// <summary>
     /// Renames an Excel Table
     /// </summary>
+    /// <param name="tableName">Current table name</param>
+    /// <param name="newName">New table name</param>
     /// <exception cref="InvalidOperationException">Table not found or new name already exists</exception>
     [ServiceAction("rename")]
     void Rename(IExcelBatch batch, string tableName, string newName);
@@ -34,6 +42,7 @@ public interface ITableCommands
     /// <summary>
     /// Deletes an Excel Table (converts back to range)
     /// </summary>
+    /// <param name="tableName">Name of the table to delete</param>
     /// <exception cref="InvalidOperationException">Table not found</exception>
     [ServiceAction("delete")]
     void Delete(IExcelBatch batch, string tableName);
@@ -41,12 +50,15 @@ public interface ITableCommands
     /// <summary>
     /// Gets detailed information about an Excel Table
     /// </summary>
+    /// <param name="tableName">Name of the table</param>
     [ServiceAction("read")]
     TableInfoResult Read(IExcelBatch batch, string tableName);
 
     /// <summary>
     /// Resizes an Excel Table to a new range
     /// </summary>
+    /// <param name="tableName">Name of the table</param>
+    /// <param name="newRange">New range address (e.g., A1:F20)</param>
     /// <exception cref="InvalidOperationException">Table not found or new range invalid</exception>
     [ServiceAction("resize")]
     void Resize(IExcelBatch batch, string tableName, string newRange);
@@ -54,6 +66,8 @@ public interface ITableCommands
     /// <summary>
     /// Toggles the totals row for an Excel Table
     /// </summary>
+    /// <param name="tableName">Name of the table</param>
+    /// <param name="showTotals">True to show totals row, false to hide</param>
     /// <exception cref="InvalidOperationException">Table not found</exception>
     [ServiceAction("toggle-totals")]
     void ToggleTotals(IExcelBatch batch, string tableName, bool showTotals);
@@ -61,6 +75,9 @@ public interface ITableCommands
     /// <summary>
     /// Sets the totals function for a specific column in an Excel Table
     /// </summary>
+    /// <param name="tableName">Name of the table</param>
+    /// <param name="columnName">Column name</param>
+    /// <param name="totalFunction">Function name (Sum, Count, Average, Min, Max, etc.)</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
     [ServiceAction("set-column-total")]
     void SetColumnTotal(IExcelBatch batch, string tableName, string columnName, string totalFunction);
@@ -68,6 +85,8 @@ public interface ITableCommands
     /// <summary>
     /// Appends rows to an Excel Table (table auto-expands)
     /// </summary>
+    /// <param name="tableName">Name of the table</param>
+    /// <param name="rows">2D array of row data to append</param>
     /// <exception cref="InvalidOperationException">Table not found or append failed</exception>
     [ServiceAction("append")]
     void Append(IExcelBatch batch, string tableName, List<List<object?>> rows);
@@ -85,6 +104,8 @@ public interface ITableCommands
     /// <summary>
     /// Changes the style of an Excel Table
     /// </summary>
+    /// <param name="tableName">Name of the table</param>
+    /// <param name="tableStyle">Table style name (e.g., "TableStyleMedium2")</param>
     /// <exception cref="InvalidOperationException">Table not found or invalid style</exception>
     [ServiceAction("set-style")]
     void SetStyle(IExcelBatch batch, string tableName, string tableStyle);
@@ -92,6 +113,7 @@ public interface ITableCommands
     /// <summary>
     /// Adds an Excel Table to the Power Pivot Data Model
     /// </summary>
+    /// <param name="tableName">Name of the table to add</param>
     /// <exception cref="InvalidOperationException">Table not found or model not available</exception>
     [ServiceAction("add-to-data-model")]
     void AddToDataModel(IExcelBatch batch, string tableName);

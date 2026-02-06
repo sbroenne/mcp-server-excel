@@ -5,7 +5,9 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
 /// <summary>
-/// PivotTable calculated fields/members, layout, subtotals, grand totals, and data extraction.
+/// PivotTable calculated fields, layout mode (compact/tabular/outline),
+/// subtotals, grand totals, and raw data extraction.
+/// Use pivottable for lifecycle, pivottablefield for field placement.
 /// </summary>
 [ServiceCategory("pivottablecalc", "PivotTableCalc")]
 [McpTool("excel_pivottable_calc")]

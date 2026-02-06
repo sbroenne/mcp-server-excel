@@ -5,7 +5,8 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Interface for connection management commands
+/// Manage external data connections (ODBC, OLE DB) and their refresh/load behavior.
+/// For M code authoring and query logic, use the powerquery command instead.
 /// </summary>
 [ServiceCategory("connection", "Connection")]
 [McpTool("excel_connection")]
@@ -20,6 +21,8 @@ public interface IConnectionCommands
     /// <summary>
     /// Views detailed connection information
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="connectionName">Name of the connection to view</param>
     [ServiceAction("view")]
     ConnectionViewResult View(
         IExcelBatch batch,
@@ -28,6 +31,11 @@ public interface IConnectionCommands
     /// <summary>
     /// Creates a new connection in the workbook
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="connectionName">Name for the new connection</param>
+    /// <param name="connectionString">OLEDB or ODBC connection string</param>
+    /// <param name="commandText">SQL query or table name</param>
+    /// <param name="description">Optional description for the connection</param>
     [ServiceAction("create")]
     void Create(
         IExcelBatch batch,
@@ -39,6 +47,9 @@ public interface IConnectionCommands
     /// <summary>
     /// Refreshes connection data with optional timeout
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="connectionName">Name of the connection to refresh</param>
+    /// <param name="timeout">Optional timeout for the refresh operation</param>
     [ServiceAction("refresh")]
     void Refresh(
         IExcelBatch batch,
@@ -48,6 +59,8 @@ public interface IConnectionCommands
     /// <summary>
     /// Deletes a connection
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="connectionName">Name of the connection to delete</param>
     [ServiceAction("delete")]
     void Delete(
         IExcelBatch batch,
@@ -56,6 +69,9 @@ public interface IConnectionCommands
     /// <summary>
     /// Loads connection data to a worksheet
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="connectionName">Name of the connection</param>
+    /// <param name="sheetName">Target worksheet name</param>
     [ServiceAction("load-to")]
     void LoadTo(
         IExcelBatch batch,
@@ -65,6 +81,8 @@ public interface IConnectionCommands
     /// <summary>
     /// Gets connection properties
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="connectionName">Name of the connection</param>
     [ServiceAction("get-properties")]
     ConnectionPropertiesResult GetProperties(
         IExcelBatch batch,
@@ -73,6 +91,15 @@ public interface IConnectionCommands
     /// <summary>
     /// Sets connection properties (connection string, command text, description, and behavior settings)
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="connectionName">Name of the connection</param>
+    /// <param name="connectionString">New connection string (null to keep current)</param>
+    /// <param name="commandText">New SQL query or table name (null to keep current)</param>
+    /// <param name="description">New description (null to keep current)</param>
+    /// <param name="backgroundQuery">Run query in background (null to keep current)</param>
+    /// <param name="refreshOnFileOpen">Refresh when file opens (null to keep current)</param>
+    /// <param name="savePassword">Save password in connection (null to keep current)</param>
+    /// <param name="refreshPeriod">Auto-refresh interval in minutes (null to keep current)</param>
     [ServiceAction("set-properties")]
     void SetProperties(
         IExcelBatch batch,
@@ -88,6 +115,8 @@ public interface IConnectionCommands
     /// <summary>
     /// Tests connection without refreshing data
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="connectionName">Name of the connection to test</param>
     [ServiceAction("test")]
     void Test(
         IExcelBatch batch,

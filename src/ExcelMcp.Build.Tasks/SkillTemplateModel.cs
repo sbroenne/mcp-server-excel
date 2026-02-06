@@ -33,6 +33,9 @@ public class CliCommand
     /// <summary>Command name (e.g., "worksheet", "range")</summary>
     public string Name { get; set; } = "";
 
+    /// <summary>Command description from interface XML doc</summary>
+    public string Description { get; set; } = "";
+
     /// <summary>List of actions (e.g., "list", "create", "delete")</summary>
     public List<string> Actions { get; set; } = new();
 

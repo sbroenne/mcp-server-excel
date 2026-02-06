@@ -5,7 +5,8 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Power Query management commands
+/// Power Query (M code) management - create, edit, execute, and load queries.
+/// Use for ETL operations, data transformation, and connecting to external data sources.
 /// </summary>
 [ServiceCategory("powerquery", "PowerQuery")]
 [McpTool("excel_powerquery")]
@@ -14,27 +15,41 @@ public interface IPowerQueryCommands
     /// <summary>
     /// Lists all Power Query queries in the workbook
     /// </summary>
+    [ServiceAction("list")]
     PowerQueryListResult List(IExcelBatch batch);
 
     /// <summary>
     /// Views the M code of a Power Query
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="queryName">Name of the query to view</param>
+    [ServiceAction("view")]
     PowerQueryViewResult View(IExcelBatch batch, [RequiredParameter] string queryName);
 
     /// <summary>
     /// Refreshes a Power Query to update its data with error detection using a caller-specified timeout
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="queryName">Name of the query to refresh</param>
+    /// <param name="timeout">Maximum time to wait for refresh</param>
+    [ServiceAction("refresh")]
     PowerQueryRefreshResult Refresh(IExcelBatch batch, [RequiredParameter] string queryName, TimeSpan timeout);
 
     /// <summary>
     /// Gets the current load configuration of a Power Query
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="queryName">Name of the query</param>
+    [ServiceAction("get-load-config")]
     PowerQueryLoadConfigResult GetLoadConfig(IExcelBatch batch, [RequiredParameter] string queryName);
 
     /// <summary>
     /// Deletes a Power Query from the workbook
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="queryName">Name of the query to delete</param>
     /// <exception cref="InvalidOperationException">Thrown when the Power Query is not found or cannot be deleted</exception>
+    [ServiceAction("delete")]
     void Delete(IExcelBatch batch, [RequiredParameter] string queryName);
 
     /// <summary>
@@ -102,9 +117,10 @@ public interface IPowerQueryCommands
     /// - No auto-save.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="oldName">Existing query name</param>
-    /// <param name="newName">Desired new name</param>
+    /// <param name="oldName">Current name of the query</param>
+    /// <param name="newName">New name for the query</param>
     /// <returns>Result with objectType=power-query and normalized names</returns>
+    [ServiceAction("rename")]
     RenameResult Rename(IExcelBatch batch, [RequiredParameter] string oldName, [RequiredParameter] string newName);
 
     /// <summary>
@@ -114,6 +130,7 @@ public interface IPowerQueryCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query to unload</param>
     /// <returns>Operation result</returns>
+    [ServiceAction("unload")]
     OperationResult Unload(IExcelBatch batch, [RequiredParameter] string queryName);
 
     /// <summary>
@@ -122,8 +139,9 @@ public interface IPowerQueryCommands
     /// Useful for testing M code snippets and getting preview data.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="mCode">Raw M code to evaluate</param>
+    /// <param name="mCode">M code to evaluate</param>
     /// <returns>Result containing evaluated data as columns/rows</returns>
     /// <exception cref="InvalidOperationException">Thrown when M code has errors</exception>
+    [ServiceAction("evaluate")]
     PowerQueryEvaluateResult Evaluate(IExcelBatch batch, [RequiredParameter][FileOrValue] string mCode);
 }

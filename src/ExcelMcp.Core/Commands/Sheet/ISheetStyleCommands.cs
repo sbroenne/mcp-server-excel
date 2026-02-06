@@ -5,10 +5,8 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Worksheet styling and appearance commands.
-/// - Tab colors: set, get, clear worksheet tab colors
-/// - Visibility: show, hide, very-hide worksheets
-/// Lifecycle operations (create, rename, copy, delete) are in ISheetCommands.
+/// Worksheet styling and appearance - tab colors, visibility, freeze panes.
+/// Use worksheet command for lifecycle operations (create, rename, copy, delete).
 /// </summary>
 [ServiceCategory("sheet", "SheetStyle")]
 [McpTool("excel_worksheet_style")]

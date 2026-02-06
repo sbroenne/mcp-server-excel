@@ -4,8 +4,8 @@ using Sbroenne.ExcelMcp.Core.Attributes;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Commands for managing Excel conditional formatting
-/// Excel COM: Range.FormatConditions
+/// Apply conditional formatting rules based on cell values or formulas.
+/// Supports color, font, and border formatting with comparison operators.
 /// </summary>
 [ServiceCategory("conditionalformat", "ConditionalFormat")]
 [McpTool("excel_conditionalformat")]
@@ -52,6 +52,9 @@ public interface IConditionalFormattingCommands
     /// Removes all conditional formatting from range
     /// Excel COM: Range.FormatConditions.Delete()
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Target worksheet name</param>
+    /// <param name="rangeAddress">Range address to clear rules from (e.g., A1:D10)</param>
     /// <exception cref="InvalidOperationException">Sheet or range not found</exception>
     [ServiceAction("clear-rules")]
     void ClearRules(

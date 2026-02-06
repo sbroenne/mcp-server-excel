@@ -5,12 +5,8 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Worksheet lifecycle management commands.
-/// - Lifecycle: create, rename, copy, delete worksheets
-/// Data operations (read, write, clear) moved to IRangeCommands for unified range API.
-/// Appearance operations (tab colors, visibility) moved to ISheetStyleCommands.
-/// All operations are batch-aware for performance.
-/// Use ExcelSession.BeginBatch() to create a batch, then pass it to these methods.
+/// Worksheet lifecycle - create, rename, copy, delete, list, activate worksheets.
+/// Use range command for data operations. Use worksheetstyle for tab colors and visibility.
 /// </summary>
 [ServiceCategory("sheet", "Sheet")]
 [McpTool("excel_worksheet")]

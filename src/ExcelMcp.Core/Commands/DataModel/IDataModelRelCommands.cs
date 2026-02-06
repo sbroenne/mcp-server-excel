@@ -5,8 +5,8 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Data Model relationship management commands.
-/// CRUD operations for relationships between tables in the Power Pivot Data Model.
+/// Define relationships between Data Model tables for cross-table DAX calculations.
+/// Relationships link a foreign key column to a primary key column.
 /// </summary>
 [ServiceCategory("datamodelrel", "DataModelRel")]
 [McpTool("excel_datamodel_rel")]
