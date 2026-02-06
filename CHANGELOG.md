@@ -25,33 +25,44 @@ This changelog covers all components:
   - New categories added to Core automatically generate corresponding CLI commands
   - See docs/DEVELOPMENT.md for architecture details
 
+- **Calculation Mode Control** (#430): Added `excel_calculation_mode` tool and CLI `calculation` command to set/get calculation mode and trigger recalculation
+  - Modes: automatic, manual, semi-automatic
+  - Calculate scopes: workbook, sheet, range
+  - Now available via code generation (see CLI Code Generation above)
+
 ### Changed
 
-- **Release with breaking changes**: Fix consistency issues between CLI and MCP and ensure feature partiy. LLMs should pick these up automatically. You might need to deleted the cached tools in your IDE.
+- **Release with breaking changes**: Fix consistency issues between CLI and MCP and ensure feature parity. LLMs should pick these up automatically. You might need to delete the cached tools in your IDE.
+
+- **LLM Integration Tests (pytest-aitest)**: Migrated LLM tool validation to pytest-aitest with unified MCP/CLI test suite
+  - YAML legacy scenarios removed in favor of pytest-aitest Python tests
+  - Local editable dependency configured via `tool.uv.sources`
+
+- **VS Code Extension: CLI Removed** (#435): CLI is no longer bundled in the VS Code extension
+  - Extension = MCP Server only (for GitHub Copilot)
+  - Global tool = Both MCP + CLI (for terminal automation)
+  - Prevents version conflicts with shared ExcelMCP Service
+  - Users need separate `dotnet tool install` for CLI in VS Code context
 
 - **VS Code Extension: Self-Contained Publishing** (#434): Extension now bundles self-contained executables - no .NET runtime dependency required
   - Removed `ms-dotnettools.vscode-dotnet-runtime` extension dependency
-  - MCP Server and CLI published as self-contained single-file executables
+  - MCP Server published as self-contained single-file executable
   - Extension "just works" after install - zero external dependencies
   - VSIX size increased from ~3.7 MB to ~68-70 MB (includes .NET runtime)
-
-- **VS Code Extension: CLI Bundled** (#434): CLI (`excelcli`) is now included in the extension
-  - Coding agents in VS Code can use both MCP tools AND terminal CLI
-  - No separate `dotnet tool install` needed for CLI in VS Code context
 
 - **VS Code Extension: Skills Registration** (#434): Skills now use VS Code's `chatSkills` contribution point
   - Replaced file-copy to `~/.copilot/skills/` with declarative `chatSkills` in `package.json`
   - Skills automatically cleaned up on extension uninstall
-  - Both `excel-mcp` and `excel-cli` skills now included
+  - Only `excel-mcp` skill included (CLI removed per #435)
 
 - **MCPB: Removed Agent Skills** (#434): Skills removed from Claude Desktop bundle
   - Claude Desktop doesn't use agent skills
   - Reduces MCPB bundle size
 
 - **Release Pipeline** (#434): Updated release workflow for self-contained VS Code extension
-  - `build-vscode` job now bumps CLI version alongside MCP Server before packaging
+  - `build-vscode` job now bumps MCP Server version before packaging
   - Release notes updated: .NET runtime only required for NuGet installation, VS Code and MCPB bundle it
-  - Agent Skills section notes VS Code includes both skills automatically
+  - Agent Skills section notes VS Code includes excel-mcp skill automatically
 
 - **Unified NuGet Package** (#432): MCP Server package now includes CLI - install once, get both tools!
   - `dotnet tool install --global Sbroenne.ExcelMcp.McpServer` installs both `mcp-excel` and `excelcli`
@@ -68,20 +79,9 @@ This changelog covers all components:
   - Reflects unified architecture where both CLI and MCP Server use the same service
   - Updated README, gh-pages, skills, and technical docs
 
-- **LLM Integration Tests (pytest-aitest)**: Migrated LLM tool validation to pytest-aitest with unified MCP/CLI test suite
-  - YAML legacy scenarios removed in favor of pytest-aitest Python tests
-  - Local editable dependency configured via `tool.uv.sources`
-
-### Added
-
-- **Calculation Mode Control**: Added `excel_calculation_mode` tool and CLI `calculation` command to set/get calculation mode and trigger recalculation
-  - Modes: automatic, manual, semi-automatic
-  - Calculate scopes: workbook, sheet, range
-
 ### Fixed
 
 - **Broken Emoji Characters**: Fixed corrupted emoji characters in README files (Slicers, Conditional Formatting, etc.)
-
 ## [1.6.9] - 2026-02-04
 
 ### Added
