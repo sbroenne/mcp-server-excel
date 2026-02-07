@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.Service.Infrastructure;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
@@ -21,7 +21,7 @@ public sealed class VersionCheckNotificationTests
     public async Task VersionCheckWorkflow_WhenUpdateAvailable_ProducesValidNotification()
     {
         // Act - Run the version check (this actually hits NuGet)
-        var updateInfo = await DaemonVersionChecker.CheckForUpdateAsync();
+        var updateInfo = await ServiceVersionChecker.CheckForUpdateAsync();
 
         // Assert - If an update is available, verify the notification content is valid
         if (updateInfo != null)
@@ -37,7 +37,7 @@ public sealed class VersionCheckNotificationTests
             Assert.Contains(updateInfo.CurrentVersion, message);
             Assert.Contains(updateInfo.LatestVersion, message);
             Assert.Contains("dotnet tool update", message);
-            Assert.Contains("Sbroenne.ExcelMcp.CLI", message);
+            Assert.Contains("Sbroenne.ExcelMcp.McpServer", message);
 
             // Verify versions are valid semver-like strings
             Assert.Matches(@"^\d+\.\d+", updateInfo.CurrentVersion);
@@ -57,7 +57,7 @@ public sealed class VersionCheckNotificationTests
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(1));
 
         // Act - Run the version check with immediate timeout
-        var updateInfo = await DaemonVersionChecker.CheckForUpdateAsync(cts.Token);
+        var updateInfo = await ServiceVersionChecker.CheckForUpdateAsync(cts.Token);
 
         // Assert - Should return null (no notification) on timeout
         Assert.Null(updateInfo);
@@ -65,7 +65,7 @@ public sealed class VersionCheckNotificationTests
 
     /// <summary>
     /// Verifies that multiple concurrent version checks don't interfere with each other.
-    /// This simulates the daemon startup scenario where multiple components might check.
+    /// This simulates the service startup scenario where multiple components might check.
     /// </summary>
     [Fact]
     public async Task VersionCheckWorkflow_ConcurrentChecks_AllComplete()
@@ -73,9 +73,9 @@ public sealed class VersionCheckNotificationTests
         // Arrange - Start multiple concurrent checks
         var tasks = new List<Task<UpdateInfo?>>
         {
-            DaemonVersionChecker.CheckForUpdateAsync(),
-            DaemonVersionChecker.CheckForUpdateAsync(),
-            DaemonVersionChecker.CheckForUpdateAsync()
+            ServiceVersionChecker.CheckForUpdateAsync(),
+            ServiceVersionChecker.CheckForUpdateAsync(),
+            ServiceVersionChecker.CheckForUpdateAsync()
         };
 
         // Act - Wait for all to complete
@@ -165,7 +165,7 @@ public sealed class VersionCheckNotificationTests
         string current, string latest, bool expectUpdate)
     {
         // This tests the version comparison logic indirectly through UpdateInfo
-        // The actual comparison happens in DaemonVersionChecker.CompareVersions
+        // The actual comparison happens in ServiceVersionChecker.CompareVersions
         // but we verify the expected behavior through the UpdateAvailable flag
 
         var updateInfo = new UpdateInfo
@@ -183,7 +183,7 @@ public sealed class VersionCheckNotificationTests
 
     /// <summary>
     /// Verifies that the fire-and-forget pattern doesn't block.
-    /// This simulates the daemon startup behavior.
+    /// This simulates the service startup behavior.
     /// </summary>
     [Fact]
     public async Task FireAndForgetPattern_DoesNotBlock()
@@ -192,12 +192,12 @@ public sealed class VersionCheckNotificationTests
         var startTime = DateTime.UtcNow;
         var checkStarted = false;
 
-        // Act - Fire and forget pattern (like daemon startup)
+        // Act - Fire and forget pattern (like service startup)
         _ = Task.Run(async () =>
         {
             checkStarted = true;
             await Task.Delay(TimeSpan.FromMilliseconds(100)); // Simulate delay
-            await DaemonVersionChecker.CheckForUpdateAsync();
+            await ServiceVersionChecker.CheckForUpdateAsync();
         });
 
         // This should return immediately (not blocked by the version check)
@@ -214,3 +214,7 @@ public sealed class VersionCheckNotificationTests
         Assert.True(checkStarted, "Background task should have started");
     }
 }
+
+
+
+

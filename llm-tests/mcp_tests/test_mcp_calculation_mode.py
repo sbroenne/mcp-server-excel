@@ -34,7 +34,7 @@ async def test_mcp_calculation_mode_batch_with_skill(aitest_run, excel_mcp_serve
     """
     agent = Agent(
         name="mcp-calc-batch-skill",
-        provider=Provider(model="azure/gpt-5-mini", rpm=10, tpm=10000),
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=[
@@ -85,7 +85,7 @@ async def test_mcp_calculation_mode_batch_no_skill(aitest_run, excel_mcp_server)
     """
     agent = Agent(
         name="mcp-calc-batch-noskill",
-        provider=Provider(model="azure/gpt-5-mini", rpm=10, tpm=10000),
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         # No skill - relying on tool descriptions only
         allowed_tools=[

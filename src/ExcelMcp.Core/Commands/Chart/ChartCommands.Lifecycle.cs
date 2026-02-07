@@ -6,7 +6,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// <summary>
 /// Chart lifecycle operations - list, read, create, delete, move/resize.
 /// </summary>
-public partial class ChartCommands : IChartCommands
+public partial class ChartCommands : IChartCommands, IChartConfigCommands
 {
     private readonly RegularChartStrategy _regularStrategy = new();
     private readonly PivotChartStrategy _pivotStrategy = new();
@@ -578,3 +578,5 @@ public partial class ChartCommands : IChartCommands
         return pivotTable;
     }
 }
+
+

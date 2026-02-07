@@ -1,12 +1,41 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Attributes;
 using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Data Model management commands - Basic operations using Excel COM API
-/// Provides read-only access to Data Model tables, measures, and relationships
+/// Data Model (Power Pivot) - DAX measures and table management.
+///
+/// CRITICAL: WORKSHEET TABLES AND DATA MODEL ARE SEPARATE!
+/// - After table append changes, Data Model still has OLD data
+/// - MUST call refresh to sync changes
+/// - Power Query refresh auto-syncs (no manual refresh needed)
+///
+/// PREREQUISITE: Tables must be added to the Data Model first.
+/// Use table add-to-datamodel for worksheet tables,
+/// or powerquery to import and load data directly to the Data Model.
+///
+/// DAX MEASURES:
+/// - Create with DAX formulas like 'SUM(Sales[Amount])'
+/// - DAX formulas are auto-formatted on CREATE/UPDATE via Dax.Formatter (SQLBI)
+/// - Read operations return raw DAX as stored
+///
+/// DAX EVALUATE QUERIES:
+/// - Use evaluate to execute DAX EVALUATE queries against the Data Model
+/// - Returns tabular results from queries like 'EVALUATE TableName'
+/// - Supports complex DAX: SUMMARIZE, FILTER, CALCULATETABLE, TOPN, etc.
+///
+/// DMV (DYNAMIC MANAGEMENT VIEW) QUERIES:
+/// - Use execute-dmv to query Data Model metadata via SQL-like syntax
+/// - Syntax: SELECT * FROM $SYSTEM.SchemaRowset (ONLY SELECT * supported)
+/// - Use DISCOVER_SCHEMA_ROWSETS to list all available DMVs
+///
+/// Use datamodelrel for relationships between tables.
 /// </summary>
+[ServiceCategory("datamodel", "DataModel")]
+[McpTool("excel_datamodel", Title = "Excel Data Model Operations", Destructive = true, Category = "analysis",
+    Description = "Data Model (Power Pivot) - DAX measures and table management. CRITICAL: Worksheet tables and Data Model are separate! After excel_table(append), MUST call excel_datamodel(refresh) to sync. Power Query refresh auto-syncs. DAX MEASURES: Create with formulas like SUM(Sales[Amount]), auto-formatted via daxformatter.com. DAX EVALUATE: Execute queries (SUMMARIZE, FILTER, CALCULATETABLE, TOPN). DMV QUERIES: SELECT * FROM $SYSTEM.SchemaRowset for metadata. DAX FILE INPUT: daxFormulaFile/daxQueryFile for complex multi-line DAX. TIMEOUT: 2 min. Use excel_datamodel_rel for relationships, excel_table for add-to-datamodel.")]
 public interface IDataModelCommands
 {
     /// <summary>
@@ -14,6 +43,7 @@ public interface IDataModelCommands
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <returns>Result containing list of tables with metadata</returns>
+    [ServiceAction("list-tables")]
     DataModelTableListResult ListTables(IExcelBatch batch);
 
     /// <summary>
@@ -22,7 +52,8 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Name of the table to list columns from</param>
     /// <returns>Result containing list of columns with metadata</returns>
-    DataModelTableColumnsResult ListColumns(IExcelBatch batch, string tableName);
+    [ServiceAction("list-columns")]
+    DataModelTableColumnsResult ListColumns(IExcelBatch batch, [RequiredParameter] string tableName);
 
     /// <summary>
     /// Gets complete table details including columns and measures
@@ -30,13 +61,15 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Name of the table to get</param>
     /// <returns>Result containing complete table information</returns>
-    DataModelTableViewResult ReadTable(IExcelBatch batch, string tableName);
+    [ServiceAction("read-table")]
+    DataModelTableViewResult ReadTable(IExcelBatch batch, [RequiredParameter] string tableName);
 
     /// <summary>
     /// Gets overall Data Model summary statistics
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <returns>Result containing model metadata (table count, measure count, etc.)</returns>
+    [ServiceAction("read-info")]
     DataModelInfoResult ReadInfo(IExcelBatch batch);
 
     /// <summary>
@@ -45,6 +78,7 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Optional: Filter measures by table name</param>
     /// <returns>Result containing list of measures with formula previews</returns>
+    [ServiceAction("list-measures")]
     DataModelMeasureListResult ListMeasures(IExcelBatch batch, string? tableName = null);
 
     /// <summary>
@@ -54,25 +88,8 @@ public interface IDataModelCommands
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="measureName">Name of the measure to get</param>
     /// <returns>Result containing complete measure information with DAX formula</returns>
-    DataModelMeasureViewResult Read(IExcelBatch batch, string measureName);
-
-    /// <summary>
-    /// Lists all table relationships in the model
-    /// </summary>
-    /// <param name="batch">Excel batch context for accessing workbook</param>
-    /// <returns>Result containing list of relationships</returns>
-    DataModelRelationshipListResult ListRelationships(IExcelBatch batch);
-
-    /// <summary>
-    /// Gets a specific relationship by its table/column identifiers
-    /// </summary>
-    /// <param name="batch">Excel batch context for accessing workbook</param>
-    /// <param name="fromTable">Source table name</param>
-    /// <param name="fromColumn">Source column name</param>
-    /// <param name="toTable">Target table name</param>
-    /// <param name="toColumn">Target column name</param>
-    /// <returns>Result containing relationship details</returns>
-    DataModelRelationshipViewResult ReadRelationship(IExcelBatch batch, string fromTable, string fromColumn, string toTable, string toColumn);
+    [ServiceAction("read")]
+    DataModelMeasureViewResult Read(IExcelBatch batch, [RequiredParameter] string measureName);
 
     /// <summary>
     /// Deletes a DAX measure from the Data Model
@@ -81,7 +98,8 @@ public interface IDataModelCommands
     /// <param name="measureName">Name of the measure to delete</param>
     /// <exception cref="ArgumentException">Thrown when measureName is invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when measure not found or deletion fails</exception>
-    void DeleteMeasure(IExcelBatch batch, string measureName);
+    [ServiceAction("delete-measure")]
+    void DeleteMeasure(IExcelBatch batch, [RequiredParameter] string measureName);
 
     /// <summary>
     /// Deletes a table from the Data Model.
@@ -92,7 +110,8 @@ public interface IDataModelCommands
     /// <param name="tableName">Name of the table to delete</param>
     /// <exception cref="ArgumentException">Thrown when tableName is invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when table not found or deletion fails</exception>
-    void DeleteTable(IExcelBatch batch, string tableName);
+    [ServiceAction("delete-table")]
+    void DeleteTable(IExcelBatch batch, [RequiredParameter] string tableName);
 
     /// <summary>
     /// Renames a table in the Data Model.
@@ -105,38 +124,18 @@ public interface IDataModelCommands
     /// <param name="oldName">Current name of the table</param>
     /// <param name="newName">New name for the table</param>
     /// <returns>RenameResult with ObjectType="data-model-table"</returns>
-    RenameResult RenameTable(IExcelBatch batch, string oldName, string newName);
-
-    /// <summary>
-    /// Deletes a relationship from the Data Model
-    /// </summary>
-    /// <param name="batch">Excel batch context for accessing workbook</param>
-    /// <param name="fromTable">Source table name</param>
-    /// <param name="fromColumn">Source column name</param>
-    /// <param name="toTable">Target table name</param>
-    /// <param name="toColumn">Target column name</param>
-    /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
-    /// <exception cref="InvalidOperationException">Thrown when relationship not found or deletion fails</exception>
-    void DeleteRelationship(IExcelBatch batch, string fromTable, string fromColumn, string toTable, string toColumn);
+    [ServiceAction("rename-table")]
+    RenameResult RenameTable(IExcelBatch batch, [RequiredParameter] string oldName, [RequiredParameter] string newName);
 
     /// <summary>
     /// Refreshes entire Data Model or specific table
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Optional: Specific table to refresh (if null, refreshes entire model)</param>
+    /// <param name="timeout">Optional: Timeout for the refresh operation</param>
     /// <exception cref="InvalidOperationException">Thrown when refresh operation fails</exception>
-    void Refresh(IExcelBatch batch, string? tableName = null);
-
-    /// <summary>
-    /// Refreshes Data Model table(s) with timeout
-    /// </summary>
-    /// <param name="batch">Excel batch context for accessing workbook</param>
-    /// <param name="tableName">Optional: Specific table to refresh (if null, refreshes entire model)</param>
-    /// <param name="timeout">Timeout for the refresh operation</param>
-    /// <exception cref="ArgumentOutOfRangeException">Thrown when timeout is invalid</exception>
-    /// <exception cref="OperationCanceledException">Thrown when operation times out</exception>
-    /// <exception cref="InvalidOperationException">Thrown when refresh operation fails</exception>
-    void Refresh(IExcelBatch batch, string? tableName, TimeSpan? timeout);
+    [ServiceAction("refresh")]
+    void Refresh(IExcelBatch batch, string? tableName = null, TimeSpan? timeout = null);
 
     /// <summary>
     /// Creates a new DAX measure in the Data Model.
@@ -151,9 +150,14 @@ public interface IDataModelCommands
     /// <param name="description">Optional: Description of the measure</param>
     /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when table not found or creation fails</exception>
-    void CreateMeasure(IExcelBatch batch, string tableName, string measureName,
-                       string daxFormula, string? formatType = null,
-                       string? description = null);
+    [ServiceAction("create-measure")]
+    void CreateMeasure(
+        IExcelBatch batch,
+        [RequiredParameter] string tableName,
+        [RequiredParameter] string measureName,
+        [RequiredParameter, FileOrValue] string daxFormula,
+        string? formatType = null,
+        string? description = null);
 
     /// <summary>
     /// Updates an existing DAX measure in the Data Model.
@@ -167,41 +171,13 @@ public interface IDataModelCommands
     /// <param name="description">Optional: New description (null to keep existing)</param>
     /// <exception cref="ArgumentException">Thrown when measureName is invalid or all parameters are null</exception>
     /// <exception cref="InvalidOperationException">Thrown when measure not found or update fails</exception>
-    void UpdateMeasure(IExcelBatch batch, string measureName,
-                       string? daxFormula = null, string? formatType = null,
-                       string? description = null);
-
-    /// <summary>
-    /// Creates a new relationship between two tables in the Data Model
-    /// Uses Excel COM API: ModelRelationships.Add method (Office 2016+)
-    /// </summary>
-    /// <param name="batch">Excel batch context for accessing workbook</param>
-    /// <param name="fromTable">Source table name</param>
-    /// <param name="fromColumn">Source column name</param>
-    /// <param name="toTable">Target table name</param>
-    /// <param name="toColumn">Target column name</param>
-    /// <param name="active">Whether the relationship should be active (default: true)</param>
-    /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
-    /// <exception cref="InvalidOperationException">Thrown when tables/columns not found or creation fails</exception>
-    void CreateRelationship(IExcelBatch batch, string fromTable,
-                            string fromColumn, string toTable,
-                            string toColumn, bool active = true);
-
-    /// <summary>
-    /// Updates an existing relationship's active state in the Data Model
-    /// Uses Excel COM API: ModelRelationship.Active property (Read/Write)
-    /// </summary>
-    /// <param name="batch">Excel batch context for accessing workbook</param>
-    /// <param name="fromTable">Source table name</param>
-    /// <param name="fromColumn">Source column name</param>
-    /// <param name="toTable">Target table name</param>
-    /// <param name="toColumn">Target column name</param>
-    /// <param name="active">New active state for the relationship</param>
-    /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
-    /// <exception cref="InvalidOperationException">Thrown when relationship not found or update fails</exception>
-    void UpdateRelationship(IExcelBatch batch, string fromTable,
-                            string fromColumn, string toTable,
-                            string toColumn, bool active);
+    [ServiceAction("update-measure")]
+    void UpdateMeasure(
+        IExcelBatch batch,
+        [RequiredParameter] string measureName,
+        [FileOrValue] string? daxFormula = null,
+        string? formatType = null,
+        string? description = null);
 
     /// <summary>
     /// Executes a DAX EVALUATE query against the Data Model and returns the results.
@@ -213,7 +189,8 @@ public interface IDataModelCommands
     /// <returns>Result containing column names and data rows from the DAX query</returns>
     /// <exception cref="ArgumentException">Thrown when daxQuery is empty</exception>
     /// <exception cref="InvalidOperationException">Thrown when workbook has no Data Model or query execution fails</exception>
-    DaxEvaluateResult Evaluate(IExcelBatch batch, string daxQuery);
+    [ServiceAction("evaluate")]
+    DaxEvaluateResult Evaluate(IExcelBatch batch, [RequiredParameter, FileOrValue] string daxQuery);
 
     /// <summary>
     /// Executes a DMV (Dynamic Management View) query against the Data Model and returns the results.
@@ -233,6 +210,9 @@ public interface IDataModelCommands
     /// - $SYSTEM.TMSCHEMA_RELATIONSHIPS - List all relationships
     /// - $SYSTEM.DISCOVER_CALC_DEPENDENCY - Show calculation dependencies
     /// </remarks>
-    DmvQueryResult ExecuteDmv(IExcelBatch batch, string dmvQuery);
+    [ServiceAction("execute-dmv")]
+    DmvQueryResult ExecuteDmv(IExcelBatch batch, [RequiredParameter, FileOrValue] string dmvQuery);
 }
+
+
 

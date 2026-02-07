@@ -154,3 +154,7 @@ public partial class ConnectionCommandsTests
         // Note: Description not currently exposed in ConnectionViewResult, only ConnectionString
     }
 }
+
+
+
+

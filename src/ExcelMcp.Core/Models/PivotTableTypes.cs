@@ -957,3 +957,5 @@ public class SlicerResult : ResultBase
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? WorkflowHint { get; set; }
 }
+
+

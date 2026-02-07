@@ -6,6 +6,9 @@ This directory contains include files for Jekyll pages.
 - `features.md` - Copied from `/FEATURES.md`
 - `changelog.md` - Copied from `/CHANGELOG.md` (centralized changelog)
 - `installation.md` - Copied from `/docs/INSTALLATION.md`
+- `mcp-server.md` - Copied from `/src/ExcelMcp.McpServer/README.md`
+- `cli.md` - Copied from `/src/ExcelMcp.CLI/README.md`
+- `skills.md` - Copied from `/skills/README.md`
 
 These generated files are listed in `.gitignore` and should not be committed.
 The `build.sh` script copies them before each Jekyll build to ensure the site

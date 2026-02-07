@@ -18,3 +18,5 @@ public static class ExcelRangePrompts
         return new ChatMessage(ChatRole.User, MarkdownLoader.LoadPrompt("excel_range.md"));
     }
 }
+
+

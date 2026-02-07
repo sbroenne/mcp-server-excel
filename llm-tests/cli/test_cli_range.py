@@ -20,7 +20,7 @@ pytestmark = [pytest.mark.aitest, pytest.mark.cli]
 async def test_cli_range_set_get(aitest_run, excel_cli_server, excel_cli_skill, fixtures_dir):
     agent = Agent(
         name="cli-range",
-        provider=Provider(model="azure/gpt-5-mini", rpm=10, tpm=10000),
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         cli_servers=[excel_cli_server],
         skill=excel_cli_skill,
         max_turns=20,

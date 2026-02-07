@@ -1,8 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Commands;
-using Sbroenne.ExcelMcp.CLI.Infrastructure;
-using Sbroenne.ExcelMcp.Core.Models.Actions;
+using Sbroenne.ExcelMcp.Generated;
 using Spectre.Console.Cli;
 using Xunit;
 
@@ -16,50 +15,45 @@ public sealed class ActionValidatorTests
 {
     public static IEnumerable<object[]> ActionEnumTypes =>
     [
-        [typeof(WorksheetAction)],
-        [typeof(WorksheetStyleAction)],
-        [typeof(RangeAction)],
-        [typeof(RangeEditAction)],
-        [typeof(RangeFormatAction)],
-        [typeof(RangeLinkAction)],
-        [typeof(TableAction)],
-        [typeof(PowerQueryAction)],
-        [typeof(PivotTableAction)],
-        [typeof(ChartAction)],
-        [typeof(ChartConfigAction)],
-        [typeof(ConnectionAction)],
-        [typeof(NamedRangeAction)],
-        [typeof(ConditionalFormatAction)],
-        [typeof(VbaAction)],
-        [typeof(DataModelAction)],
-        [typeof(DataModelRelAction)],
-        [typeof(SlicerAction)]
+        [typeof(RangeAction), typeof(ServiceRegistry.Range)],
+        [typeof(RangeEditAction), typeof(ServiceRegistry.RangeEdit)],
+        [typeof(RangeFormatAction), typeof(ServiceRegistry.RangeFormat)],
+        [typeof(RangeLinkAction), typeof(ServiceRegistry.RangeLink)]
     ];
 
-    // Note: datamodelrel is MCP-only (not in CLI) - it's a sub-tool of datamodel
     private static readonly string[] ExpectedCommands =
     [
-        "sheet",
+        "session",
+        "worksheet",
+        "worksheetstyle",
         "range",
+        "rangeedit",
+        "rangeformat",
+        "rangelink",
         "table",
+        "tablecolumn",
         "powerquery",
         "pivottable",
+        "pivottablefield",
+        "pivottablecalc",
         "chart",
         "chartconfig",
         "connection",
+        "calculationmode",
         "namedrange",
         "conditionalformat",
         "vba",
         "datamodel",
+        "datamodelrel",
         "slicer"
     ];
 
     [Theory]
     [MemberData(nameof(ActionEnumTypes))]
-    public void GetValidActions_ReturnsAllActionStrings(Type enumType)
+    public void GetValidActions_ReturnsAllActionStrings(Type enumType, Type registryType)
     {
-        var expected = GetExpectedActions(enumType);
-        var actual = GetActualActions(enumType);
+        var expected = GetExpectedActions(enumType, registryType);
+        var actual = GetActualActions(registryType);
 
         Assert.Equal(expected, actual);
     }
@@ -87,9 +81,10 @@ public sealed class ActionValidatorTests
         }
     }
 
-    private static string[] GetExpectedActions(Type enumType)
+    private static string[] GetExpectedActions(Type enumType, Type registryType)
     {
-        var actionMethod = typeof(ActionExtensions)
+        // Find ToActionString method in the ServiceRegistry nested type (e.g., ServiceRegistry.Range.ToActionString)
+        var actionMethod = registryType
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
             .First(m => m.Name == "ToActionString" && m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == enumType);
 
@@ -105,14 +100,14 @@ public sealed class ActionValidatorTests
         return results.OrderBy(action => action, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
-    private static string[] GetActualActions(Type enumType)
+    private static string[] GetActualActions(Type registryType)
     {
-        var method = typeof(ActionValidator)
-            .GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .First(m => m.Name == "GetValidActions" && m.IsGenericMethodDefinition)
-            .MakeGenericMethod(enumType);
+        // Get ValidActions field from the ServiceRegistry nested type (e.g., ServiceRegistry.Range.ValidActions)
+        var validActionsField = registryType
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .First(f => f.Name == "ValidActions");
 
-        var actions = (IReadOnlyCollection<string>)method.Invoke(null, null)!;
+        var actions = (string[])validActionsField.GetValue(null)!;
         return actions.OrderBy(action => action, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
@@ -141,3 +136,7 @@ public sealed class ActionValidatorTests
         public IReadOnlyList<string> Raw { get; } = Array.Empty<string>();
     }
 }
+
+
+
+

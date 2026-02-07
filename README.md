@@ -20,64 +20,16 @@
 
 **MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (23 tools with 214 operations).
 
-### CLI vs MCP Server
-
-This package provides both **CLI** and **MCP Server** interfaces. Choose based on your use case:
-
-| Interface | Best For | Why |
-|-----------|----------|-----|
-| **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | **64% fewer tokens** - single tool, no large schemas. Better for cost-sensitive, high-throughput automation. |
-| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery, persistent connection. Better for interactive, exploratory workflows. |
-
-<details>
-<summary>📊 Benchmark Results (same task, same model)</summary>
-
-| Metric | CLI | MCP Server | Winner |
-|--------|-----|------------|--------|
-| **Tokens** | ~59K | ~163K | 🏆 CLI (64% fewer) |
-
-
-**Key insight:** MCP sends 23 tool schemas to the LLM on each request (~100K+ tokens). CLI wraps everything in one `excel_execute` tool and offloads guidance to a skill file.
-
-</details>
-
-**Installation:**
-```powershell
-# CLI for coding agents
-dotnet tool install --global Sbroenne.ExcelMcp.CLI
-excelcli --help
-
-# MCP Server for AI assistants (or use VS Code extension)
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer
-```
-
 **🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
 
 **💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
 
 **🧪 LLM-Tested Quality** - Tool behavior validated with real LLM workflows using [pytest-aitest](https://github.com/sbroenne/pytest-aitest). We test that LLMs correctly understand and use our tools.
 
-**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. 
-
-## 🚀 Quick Start (1 Minute)
-
-**Requirements:** Windows OS + Microsoft Excel 2016+
-
-### ⭐ Recommended: VS Code Extension (One-Click Setup)
-
-**Fastest way to get started - everything configured automatically: [Install from Marketplace](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)**
-
-The extension opens automatically after installation with a quick start guide!
-
-### For Claude Desktop (One-Click Install)
-
-Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest) and double-click to install.
-
-### For Visual Studio, Cursor, Windsurf, or other MCP clients:
-
-📖 **[Complete Installation Guide →](docs/INSTALLATION.md)** - Step-by-step setup for all AI assistants with ready-to-use config files
-
-**⚠️ Important:** Close all Excel files before using ExcelMcp. The server requires **exclusive access** to workbooks during automation (Excel COM limitation).
+**Technical Requirements:**
+- ⚠️ **Windows Only** - COM interop is Windows-specific
+- ⚠️ **Excel Required** - Microsoft Excel 2016 or later must be installed
+- ⚠️ **Desktop Environment** - Controls actual Excel process (not for server-side processing)
 
 ## 🎯 What You Can Do
 
@@ -95,8 +47,8 @@ Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/
 - 🏷️ **Named Ranges** (1 tool, 6 ops) - Parameters and configuration
 - 📁 **Files** (1 tool, 6 ops) - Session management and workbook creation
 - 🧮 **Calculation Mode** (1 tool, 3 ops) - Get/set calculation mode and trigger recalculation
-- �️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
-- �🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
+- 🎚️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
+- 🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
 
 📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 214 operations
 
@@ -138,61 +90,83 @@ Download the `.mcpb` file from the [latest release](https://github.com/sbroenne/
 - ❌ High-volume batch operations (consider Excel-free alternatives)
 
 
-## 📋 Additional Information
+## 🚀 Quick Start
 
-### CLI for Coding Agents (Recommended)
+| Platform | Installation |
+|----------|-------------|
+| **VS Code** | [Install Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) (one-click, recommended) |
+| **Claude Desktop** | Download `.mcpb` from [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest) |
+| **Other MCP Clients** | 📖 [Installation Guide](docs/INSTALLATION.md) |
 
-**For coding agents like GitHub Copilot, Cursor, and Windsurf, use the CLI instead of MCP Server.** CLI invocations are more token-efficient: they avoid loading large tool schemas into the model context, allowing agents to act through concise commands.
+**⚠️ Important:** Close all Excel files before using. The server requires exclusive access to workbooks during automation.
 
+
+## 🔧 CLI vs MCP Server
+
+This package provides both **CLI** and **MCP Server** interfaces. Choose based on your use case:
+
+| Interface | Best For | Why |
+|-----------|----------|-----|
+| **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | **64% fewer tokens** - single tool, no large schemas. Auto-generated from Core code, ensuring 1:1 feature parity. |
+| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery, persistent connection. Better for interactive, exploratory workflows. |
+
+**⚡ CLI Commands:** Generated automatically from Core service definitions using Roslyn source generators. All 22 command categories maintain exact 1:1 parity with MCP tools through shared code generation. See [code generation docs](docs/DEVELOPMENT.md#-cli-command-code-generation) for details.
+
+<details>
+<summary>📊 Benchmark Results (same task, same model)</summary>
+
+| Metric | CLI | MCP Server | Winner |
+|--------|-----|------------|--------|
+| **Tokens** | ~59K | ~163K | 🏆 CLI (64% fewer) |
+
+**Key insight:** MCP sends 23 tool schemas to the LLM on each request (~100K+ tokens).
+
+</details>
+
+**Manual Installation:**
 ```powershell
-# Install CLI
-dotnet tool install --global Sbroenne.ExcelMcp.CLI
+# Unified Package - includes both MCP Server and CLI
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
-# Agent workflow (use -q for clean JSON output)
-excelcli -q session open C:\Data\Report.xlsx    # Returns {"sessionId":1,...}
-excelcli -q range set-values --session 1 --sheet Sheet1 --range A1 --values '[["Hello"]]'
-excelcli -q session save --session 1
-excelcli -q session close --session 1
-```
-
-**Key features:**
-- `-q` / `--quiet` flag for clean JSON output (no banner)
-- Auto-suppresses banner when output is piped
-- All commands output parseable JSON
-- Session pattern for efficient Excel reuse
-
-Run `excelcli --help` for all commands, or `excelcli <command> --help` for action-specific options.
-
-📚 **[CLI Skill for Agents →](skills/excel-cli/SKILL.md)** | **[CLI Guide →](src/ExcelMcp.CLI/README.md)**
-
-### Agent Skills (Cross-Platform AI Guidance)
-
-Skills are auto-installed by the VS Code extension. For other platforms:
-
-```powershell
-# CLI skill (for coding agents - Copilot, Cursor, Windsurf, Codex, etc.)
+# CLI skill highly recommended for coding agents
 npx skills add sbroenne/mcp-server-excel --skill excel-cli
 
-# MCP skill (for conversational AI - Claude Desktop, VS Code Chat)
-npx skills add sbroenne/mcp-server-excel --skill excel-mcp
+# MCP skill optional for AI assistants (reduces tokens)
+npx skills add sbroenne/mcp-server-excel --skill excel-mcp 
 ```
 
-**Supports 43+ agents including:** claude-code, github-copilot, cursor, windsurf, gemini-cli, codex, goose, and more.
-
-📚 **[Agent Skills →](skills/README.md)**
+> 💡 **Skills provide AI guidance** - The CLI skill is highly recommended (agents don't work perfectly with CLI without it). The MCP skill is recommended - it adds workflow best practices and reduces token usage.
 
 
-
-## 🔧 How It Works - COM Interop Architecture
+## ⚙️ How It Works - COM Automation & Unified Service Architecture
 
 **ExcelMcp uses Windows COM automation to control the actual Excel application (not just .xlsx files).**
 
-This means you get:
-- ✅ **Full Excel Feature Access** - Power Query engine, VBA runtime, Data Model, calculation engine, pivot tables
-- ✅ **True Compatibility** - Works exactly like Excel UI, no feature limitations
-- ✅ **Live Data Operations** - Refresh Power Query, connections, Data Model in real workbooks
-- ✅ **Interactive Development** - Immediate Excel feedback as AI makes changes
-- ✅ **All File Formats** - .xlsx, .xlsm, .xlsb, even legacy formats
+Both the **MCP Server** and **CLI** communicate with a shared **ExcelMCP Service** that manages Excel sessions. This unified architecture enables:
+
+```
+┌─────────────────────┐     ┌─────────────────────┐
+│   MCP Server        │     │   CLI (excelcli)    │
+│  (AI assistants)    │     │  (coding agents)    │
+└─────────┬───────────┘     └─────────┬───────────┘
+          │                           │
+          └──────────┬────────────────┘
+                     ▼
+          ┌─────────────────────────┐
+          │   ExcelMCP Service      │
+          │  (shared session mgmt)  │
+          └─────────┬───────────────┘
+                    ▼
+          ┌─────────────────────────┐
+          │   Excel COM API         │
+          │  (Excel.Application)    │
+          └─────────────────────────┘
+```
+
+**Key Benefits:**
+- ✅ **Shared Sessions** - CLI and MCP Server can access the same open workbooks
+- ✅ **Single Excel Instance** - No duplicate Excel processes or file locks
+- ✅ **System Tray UI** - Monitor active sessions via the ExcelMCP tray icon
 
 **💡 Tip: Watch Excel While AI Works**
 By default, Excel runs hidden for faster automation. To see changes in real-time, just ask:
@@ -202,16 +176,9 @@ By default, Excel runs hidden for faster automation. To see changes in real-time
 
 The AI will display the Excel window so you can watch every operation happen live - great for learning or verifying changes!
 
-**Technical Requirements:**
-- ⚠️ **Windows Only** - COM interop is Windows-specific
-- ⚠️ **Excel Required** - Microsoft Excel 2016 or later must be installed
-- ⚠️ **Desktop Environment** - Controls actual Excel process (not for server-side processing)
+## 📋 Additional Information
 
-> 📚 **[Complete MCP Server Guide →](src/ExcelMcp.McpServer/README.md)** - Detailed tool documentation and examples
-
-
-
-## Project Information
+📚 **[CLI Guide →](src/ExcelMcp.CLI/README.md)** | **[CLI Skill for Agents →](skills/excel-cli/SKILL.md)** | **[MCP Server Guide →](src/ExcelMcp.McpServer/README.md)** | **[All Agent Skills →](skills/README.md)**
 
 **License:** MIT License - see [LICENSE](LICENSE) file
 
@@ -224,5 +191,13 @@ The AI will display the Excel window so you can watch every operation happen liv
 **Acknowledgments:**
 - Microsoft Excel Team - For comprehensive COM automation APIs
 - Model Context Protocol community - For the AI integration standard
-- [pytest-aitest](https://github.com/sbroenne/pytest-aitest) - For LLM-powered tool validation testing
 - Open Source Community - For inspiration and best practices
+
+## Related Projects
+
+Other projects by the author:
+
+- [pytest-aitest](https://github.com/sbroenne/pytest-aitest) — LLM-powered testing framework for AI agents
+- [Windows MCP Server](https://windowsmcpserver.dev/) — AI-powered Windows automation via MCP
+- [OBS Studio MCP Server](https://github.com/sbroenne/mcp-server-obs) — AI-powered OBS Studio automation
+- [HeyGen MCP Server](https://github.com/sbroenne/heygen-mcp) — MCP server for HeyGen AI video generation

@@ -24,3 +24,5 @@ public partial class PivotTableCommands
         => ExecuteWithStrategy<PivotFieldResult>(batch, pivotTableName,
             (strategy, pivot) => strategy.GroupByNumeric(pivot, fieldName, start, endValue, intervalSize, batch.WorkbookPath, batch.Logger));
 }
+
+

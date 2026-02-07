@@ -61,7 +61,7 @@ public class TableTestsFixture : IAsyncLifetime
             // TEST 1: File Creation
             using (var manager = new SessionManager())
             {
-                var sessionId = manager.CreateSessionForNewFile(TestFilePath, showExcel: false);
+                var sessionId = manager.CreateSessionForNewFile(TestFilePath, show: false);
                 manager.CloseSession(sessionId, save: true);
             }
 
@@ -165,7 +165,7 @@ public class TableTestsFixture : IAsyncLifetime
 
         using (var manager = new SessionManager())
         {
-            var sessionId = manager.CreateSessionForNewFile(testFile, showExcel: false);
+            var sessionId = manager.CreateSessionForNewFile(testFile, show: false);
             manager.CloseSession(sessionId, save: true);
         }
 
@@ -231,3 +231,7 @@ public class TableCreationResult
     /// <inheritdoc/>
     public string? ErrorMessage { get; set; }
 }
+
+
+
+

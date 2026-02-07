@@ -70,10 +70,8 @@ public partial class TableCommands
         });
     }
 
-    /// <summary>
-    /// Sorts a table by multiple columns (up to 3 levels)
-    /// </summary>
-    public void Sort(
+    /// <inheritdoc />
+    public void SortMulti(
         IExcelBatch batch,
         string tableName,
         List<TableSortColumn> sortColumns)
@@ -182,4 +180,6 @@ public partial class TableCommands
         });
     }
 }
+
+
 

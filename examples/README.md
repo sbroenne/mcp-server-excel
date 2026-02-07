@@ -1,6 +1,6 @@
-# ExcelMcp.CLI Examples
+# ExcelMcp CLI Examples
 
-This directory contains example scripts demonstrating ExcelMcp.CLI features.
+This directory contains example scripts demonstrating ExcelMcp CLI features.
 
 ## Session Mode Demo
 
@@ -9,7 +9,7 @@ The session mode demo shows how to use sessions for high-performance multi-opera
 ### Requirements
 
 - Windows with Excel installed
-- ExcelMcp.CLI installed (`dotnet tool install --global Sbroenne.ExcelMcp.CLI`)
+- ExcelMcp installed (`dotnet tool install --global Sbroenne.ExcelMcp.McpServer`)
 
 ### Running the Demo
 

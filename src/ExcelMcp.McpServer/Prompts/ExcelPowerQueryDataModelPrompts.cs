@@ -39,3 +39,5 @@ public static class ExcelPowerQueryDataModelPrompts
         return new ChatMessage(ChatRole.User, MarkdownLoader.LoadPrompt("excel_chart.md"));
     }
 }
+
+

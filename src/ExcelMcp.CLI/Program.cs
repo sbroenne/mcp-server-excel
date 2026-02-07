@@ -1,8 +1,8 @@
 using System.Reflection;
 using Sbroenne.ExcelMcp.CLI.Commands;
-using Sbroenne.ExcelMcp.CLI.Daemon;
-using Sbroenne.ExcelMcp.CLI.Infrastructure;
-using Sbroenne.ExcelMcp.Core.Models.Actions;
+using Sbroenne.ExcelMcp.CLI.Generated;
+using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.Service.Infrastructure;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -17,10 +17,10 @@ internal sealed class Program
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-        // Handle daemon run command before Spectre.Console
-        if (args.Length >= 2 && args[0] == "daemon" && args[1] == "run")
+        // Handle service run command before Spectre.Console (internal, not documented)
+        if (args.Length >= 2 && args[0] == "service" && args[1] == "run")
         {
-            return await RunDaemonAsync();
+            return await RunServiceAsync();
         }
 
         // Determine if we should show the banner:
@@ -58,18 +58,6 @@ internal sealed class Program
                 AnsiConsole.MarkupLine($"[red]Unhandled error:[/] {ex.Message.EscapeMarkup()}");
             });
 
-            // Daemon commands
-            config.AddBranch("daemon", branch =>
-            {
-                branch.SetDescription("Daemon management. The daemon holds Excel sessions across CLI invocations.");
-                branch.AddCommand<DaemonStartCommand>("start")
-                    .WithDescription("Start the daemon in the background.");
-                branch.AddCommand<DaemonStopCommand>("stop")
-                    .WithDescription("Stop the daemon.");
-                branch.AddCommand<DaemonStatusCommand>("status")
-                    .WithDescription("Show daemon status and active sessions.");
-            });
-
             // Session commands
             config.AddBranch("session", branch =>
             {
@@ -87,98 +75,11 @@ internal sealed class Program
             });
 
             // Sheet commands
-            config.AddCommand<SheetCommand>("sheet")
-                .WithDescription(DescribeActions(
-                    "Worksheet operations.",
-                    ActionValidator.GetValidActions<WorksheetAction>()
-                        .Concat(ActionValidator.GetValidActions<WorksheetStyleAction>())));
-
-            // Range commands
-            config.AddCommand<RangeCommand>("range")
-                .WithDescription(DescribeActions(
-                    "Range operations.",
-                    ActionValidator.GetValidActions<RangeAction>()
-                        .Concat(ActionValidator.GetValidActions<RangeEditAction>())
-                        .Concat(ActionValidator.GetValidActions<RangeFormatAction>())
-                        .Concat(ActionValidator.GetValidActions<RangeLinkAction>())));
-
-            // Table commands
-            config.AddCommand<TableCommand>("table")
-                .WithDescription(DescribeActions(
-                    "Table operations.",
-                    ActionValidator.GetValidActions<TableAction>()));
-
-            // PowerQuery commands
-            config.AddCommand<PowerQueryCommand>("powerquery")
-                .WithDescription(DescribeActions(
-                    "Power Query operations.",
-                    ActionValidator.GetValidActions<PowerQueryAction>()));
-
-            // PivotTable commands
-            config.AddCommand<PivotTableCommand>("pivottable")
-                .WithDescription(DescribeActions(
-                    "PivotTable operations.",
-                    ActionValidator.GetValidActions<PivotTableAction>()));
-
-            // Chart commands
-            config.AddCommand<ChartCommand>("chart")
-                .WithDescription(DescribeActions(
-                    "Chart operations.",
-                    ActionValidator.GetValidActions<ChartAction>()));
-
-            // ChartConfig commands
-            config.AddCommand<ChartConfigCommand>("chartconfig")
-                .WithDescription(DescribeActions(
-                    "Chart configuration.",
-                    ActionValidator.GetValidActions<ChartConfigAction>()));
-
-            // Connection commands
-            config.AddCommand<ConnectionCommand>("connection")
-                .WithDescription(DescribeActions(
-                    "Connection operations.",
-                    ActionValidator.GetValidActions<ConnectionAction>()));
-
-            // Calculation mode commands
-            config.AddCommand<CalculationModeCommand>("calculationmode")
-                .WithDescription(DescribeActions(
-                    "Calculation mode operations.",
-                    ActionValidator.GetValidActions<CalculationModeAction>()));
-
-            // NamedRange commands
-            config.AddCommand<NamedRangeCommand>("namedrange")
-                .WithDescription(DescribeActions(
-                    "Named range operations.",
-                    ActionValidator.GetValidActions<NamedRangeAction>()));
-
-            // ConditionalFormat commands
-            config.AddCommand<ConditionalFormatCommand>("conditionalformat")
-                .WithDescription(DescribeActions(
-                    "Conditional formatting.",
-                    ActionValidator.GetValidActions<ConditionalFormatAction>()));
-
-            // VBA commands
-            config.AddCommand<VbaCommand>("vba")
-                .WithDescription(DescribeActions(
-                    "VBA operations.",
-                    ActionValidator.GetValidActions<VbaAction>()));
-
-            // DataModel commands
-            config.AddCommand<DataModelCommand>("datamodel")
-                .WithDescription(DescribeActions(
-                    "Data Model operations.",
-                    ActionValidator.GetValidActions<DataModelAction>()));
-
-            // DataModel relationship commands
-            config.AddCommand<DataModelRelCommand>("datamodelrel")
-                .WithDescription(DescribeActions(
-                    "Data Model relationship operations.",
-                    ActionValidator.GetValidActions<DataModelRelAction>()));
-
-            // Slicer commands
-            config.AddCommand<SlicerCommand>("slicer")
-                .WithDescription(DescribeActions(
-                    "Slicer operations.",
-                    ActionValidator.GetValidActions<SlicerAction>()));
+            // =============================================
+            // All service commands are auto-generated from
+            // Core interfaces marked with [ServiceCategory].
+            // =============================================
+            CliCommandRegistration.RegisterCommands(config);
         });
 
         try
@@ -201,35 +102,35 @@ internal sealed class Program
         }
     }
 
-    private static async Task<int> RunDaemonAsync()
+    private static async Task<int> RunServiceAsync()
     {
-        using var daemon = new ExcelDaemon();
+        using var service = new ExcelMcpService();
 
         // Handle Ctrl+C and process termination gracefully
         Console.CancelKeyPress += (_, e) =>
         {
             e.Cancel = true; // Prevent immediate termination
-            daemon.RequestShutdown();
+            service.RequestShutdown();
         };
 
         AppDomain.CurrentDomain.ProcessExit += (_, _) =>
         {
-            daemon.RequestShutdown();
+            service.RequestShutdown();
         };
 
         try
         {
-            await daemon.RunAsync();
+            await service.RunAsync();
             return 0;
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("already running"))
         {
-            Console.Error.WriteLine("Daemon is already running.");
+            Console.Error.WriteLine("Service is already running.");
             return 1;
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"Daemon error: {ex.Message}");
+            Console.Error.WriteLine($"Service error: {ex.Message}");
             return 1;
         }
     }
@@ -239,14 +140,8 @@ internal sealed class Program
         AnsiConsole.Write(new FigletText("Excel CLI").Color(Spectre.Console.Color.Blue));
         AnsiConsole.MarkupLine("[dim]Excel automation powered by ExcelMcp Core[/]");
         AnsiConsole.MarkupLine("[yellow]Workflow:[/] [green]session open <file>[/] → run commands with [green]--session <id>[/] → [green]session close --save[/].");
-        AnsiConsole.MarkupLine("[dim]A background daemon manages sessions for performance.[/]");
+        AnsiConsole.MarkupLine("[dim]A background service manages sessions for performance.[/]");
         AnsiConsole.WriteLine();
-    }
-
-    private static string DescribeActions(string baseDescription, IEnumerable<string> actions)
-    {
-        var actionList = string.Join(", ", actions);
-        return $"{baseDescription} Actions: {actionList}.";
     }
 
     private static async Task<int> HandleVersionAsync()
@@ -262,7 +157,7 @@ internal sealed class Program
         if (updateAvailable)
         {
             AnsiConsole.MarkupLine($"[yellow]⚠ Update available:[/] [dim]{currentVersion}[/] → [green]{latestVersion}[/]");
-            AnsiConsole.MarkupLine($"[cyan]Run:[/] [white]dotnet tool update --global Sbroenne.ExcelMcp.CLI[/]");
+            AnsiConsole.MarkupLine($"[cyan]Run:[/] [white]dotnet tool update --global Sbroenne.ExcelMcp.McpServer[/]");
             AnsiConsole.MarkupLine($"[cyan]Release notes:[/] [blue]https://github.com/sbroenne/mcp-server-excel/releases/latest[/]");
         }
         else if (latestVersion != null)
@@ -293,3 +188,5 @@ internal sealed class Program
         return string.Compare(current, latest, StringComparison.Ordinal);
     }
 }
+
+

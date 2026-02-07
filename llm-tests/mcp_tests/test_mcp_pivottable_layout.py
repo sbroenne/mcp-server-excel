@@ -20,7 +20,7 @@ def _has_layout_style(result, value: int) -> bool:
 async def test_mcp_pivottable_tabular_layout(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-pivot-tabular",
-        provider=Provider(model="azure/gpt-5-mini", rpm=10, tpm=10000),
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=["excel_pivottable", "excel_table", "excel_range", "excel_file", "excel_worksheet"],
@@ -60,7 +60,7 @@ Add Region and Product as row fields, and Sales as a value field.
 async def test_mcp_pivottable_compact_layout(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-pivot-compact",
-        provider=Provider(model="azure/gpt-5-mini", rpm=10, tpm=10000),
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=["excel_pivottable", "excel_table", "excel_range", "excel_file", "excel_worksheet"],
@@ -99,7 +99,7 @@ Add Department and Team as row fields, and Hours as a value field.
 async def test_mcp_pivottable_outline_layout(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-pivot-outline",
-        provider=Provider(model="azure/gpt-5-mini", rpm=10, tpm=10000),
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=["excel_pivottable", "excel_table", "excel_range", "excel_file", "excel_worksheet"],

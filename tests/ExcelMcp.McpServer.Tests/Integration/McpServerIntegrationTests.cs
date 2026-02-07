@@ -52,9 +52,11 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     /// - excel_datamodel split into 2 tools (excel_datamodel, excel_datamodel_rel)
     /// - excel_chart split into 2 tools (excel_chart, excel_chart_config)
     /// - excel_worksheet split into 2 tools (excel_worksheet, excel_worksheet_style)
+    /// - Added excel_slicer and excel_calculation_mode
     /// </summary>
     private static readonly HashSet<string> ExpectedToolNames =
     [
+        "excel_calculation_mode",
         "excel_chart",
         "excel_chart_config",
         "excel_conditionalformat",
@@ -71,6 +73,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         "excel_range_edit",
         "excel_range_format",
         "excel_range_link",
+        "excel_slicer",
         "excel_table",
         "excel_table_column",
         "excel_vba",
@@ -198,7 +201,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     /// - Tool schema generation
     /// </summary>
     [Fact]
-    public async Task ListTools_ReturnsAll21ExpectedTools()
+    public async Task ListTools_ReturnsAll23ExpectedTools()
     {
         output.WriteLine("=== TOOL DISCOVERY VIA MCP PROTOCOL ===\n");
 
@@ -396,3 +399,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         output.WriteLine("\n✓ Server capabilities correctly exposed");
     }
 }
+
+
+
+

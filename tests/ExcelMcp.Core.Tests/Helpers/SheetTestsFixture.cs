@@ -44,7 +44,7 @@ public class SheetTestsFixture : IAsyncLifetime
     {
         TestFilePath = Path.Combine(_tempDir, "SheetTests_Shared.xlsx");
         using var manager = new SessionManager();
-        var sessionId = manager.CreateSessionForNewFile(TestFilePath, showExcel: false);
+        var sessionId = manager.CreateSessionForNewFile(TestFilePath, show: false);
         manager.CloseSession(sessionId, save: true);
         return Task.CompletedTask;
     }
@@ -116,8 +116,12 @@ public class SheetTestsFixture : IAsyncLifetime
 
         var filePath = Path.Combine(_tempDir, fileName);
         using var manager = new SessionManager();
-        var sessionId = manager.CreateSessionForNewFile(filePath, showExcel: false);
+        var sessionId = manager.CreateSessionForNewFile(filePath, show: false);
         manager.CloseSession(sessionId, save: true);
         return filePath;
     }
 }
+
+
+
+

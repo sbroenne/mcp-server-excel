@@ -7,7 +7,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 ///
 /// 📝 Parameter Patterns:
 /// - action: Always the first parameter, defines what operation to perform
-/// - filePath/excelPath: Excel file path (.xlsx or .xlsm based on requirements)
+/// - filePath/path: Excel file path (.xlsx or .xlsm based on requirements)
 /// - Context-specific parameters: Each tool has domain-appropriate parameters
 ///
 /// 🎯 Design Philosophy:
@@ -27,3 +27,7 @@ public static class ExcelTools
     // All MCP tool registrations have been moved to individual tool files
     // to prevent duplicate registration conflicts with the MCP framework.
 }
+
+
+
+

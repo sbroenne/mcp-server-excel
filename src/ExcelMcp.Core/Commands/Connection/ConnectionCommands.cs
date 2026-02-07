@@ -735,3 +735,5 @@ internal sealed class ConnectionDefinition
     public bool? SavePassword { get; set; }
     public int? RefreshPeriod { get; set; }
 }
+
+

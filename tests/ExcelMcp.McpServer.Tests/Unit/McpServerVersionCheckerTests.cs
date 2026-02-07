@@ -1,3 +1,4 @@
+using Sbroenne.ExcelMcp.Service.Infrastructure;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
@@ -50,7 +51,7 @@ public sealed class McpServerVersionCheckerTests
     [Fact]
     public void UpdateInfo_GetUpdateMessage_IncludesVersions()
     {
-        var updateInfo = new Infrastructure.UpdateInfo
+        var updateInfo = new UpdateInfo
         {
             CurrentVersion = "1.0.0",
             LatestVersion = "1.1.0",
@@ -61,21 +62,25 @@ public sealed class McpServerVersionCheckerTests
 
         Assert.Contains("1.0.0", message);
         Assert.Contains("1.1.0", message);
-        Assert.Contains("dotnet tool update", message);
     }
 
     [Fact]
     public void UpdateInfo_GetUpdateMessage_ContainsUpdateInstructions()
     {
-        var updateInfo = new Infrastructure.UpdateInfo
+        var updateInfo = new UpdateInfo
         {
             CurrentVersion = "1.0.0",
             LatestVersion = "1.1.0",
             UpdateAvailable = true
         };
 
-        var message = updateInfo.GetUpdateMessage();
+        // Use the overload that includes the update command
+        var message = updateInfo.GetUpdateMessage("dotnet tool update --global Sbroenne.ExcelMcp.McpServer");
 
         Assert.Contains("dotnet tool update --global Sbroenne.ExcelMcp.McpServer", message);
     }
 }
+
+
+
+

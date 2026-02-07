@@ -63,3 +63,5 @@ public interface IChartStrategy
     /// <returns>Detailed chart information</returns>
     ChartInfoResult GetDetailedInfo(dynamic chart, string chartName, string sheetName, dynamic shape);
 }
+
+

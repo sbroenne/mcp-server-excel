@@ -24,7 +24,7 @@
     <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.2" />
     <PackageVersion Include="System.Text.Json" Version="10.0.1" />
     <!-- MCP SDK - Latest stable preview -->
-    <PackageVersion Include="ModelContextProtocol" Version="0.5.0-preview.1" />
+    <PackageVersion Include="ModelContextProtocol" Version="0.8.0-preview.1" />
     <!-- Testing Framework -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
     <PackageVersion Include="System.Net.Http" Version="4.3.5" />
@@ -34,7 +34,13 @@
     <PackageVersion Include="coverlet.collector" Version="6.1.0" />
     <PackageVersion Include="MartinCostello.Logging.XUnit" Version="0.7.0" />
     <!-- Code Analysis and Security -->
-    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.5" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.102" />
+    <!-- Template Engine for Skill Generation -->
+    <PackageVersion Include="Scriban" Version="5.11.0" />
+    <!-- MSBuild Task Development -->
+    <PackageVersion Include="Microsoft.Build.Framework" Version="18.0.2" />
+    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="18.0.2" />
   </ItemGroup>
 </Project>

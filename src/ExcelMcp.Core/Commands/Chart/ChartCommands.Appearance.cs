@@ -237,7 +237,7 @@ public partial class ChartCommands
         IExcelBatch batch,
         string chartName,
         bool visible,
-        LegendPosition? position = null)
+        LegendPosition? legendPosition = null)
     {
         batch.Execute((ctx, ct) =>
         {
@@ -256,10 +256,10 @@ public partial class ChartCommands
                 findResult.Chart.HasLegend = visible;
 
                 // Set position if provided and legend is visible
-                if (visible && position.HasValue)
+                if (visible && legendPosition.HasValue)
                 {
                     legend = findResult.Chart.Legend;
-                    legend.Position = (int)position.Value;
+                    legend.Position = (int)legendPosition.Value;
                 }
 
                 return 0; // Void operation completed
@@ -353,7 +353,7 @@ public partial class ChartCommands
         bool? showCategoryName = null,
         bool? showBubbleSize = null,
         string? separator = null,
-        DataLabelPosition? position = null,
+        DataLabelPosition? labelPosition = null,
         int? seriesIndex = null)
     {
         batch.Execute((ctx, ct) =>
@@ -419,8 +419,8 @@ public partial class ChartCommands
                     if (!string.IsNullOrEmpty(separator))
                         dataLabels.Separator = separator;
 
-                    if (position.HasValue)
-                        dataLabels.Position = (int)position.Value;
+                    if (labelPosition.HasValue)
+                        dataLabels.Position = (int)labelPosition.Value;
 
                     // Disable data labels entirely if all show properties are false
                     if (showValue == false && showPercentage == false && showSeriesName == false &&
@@ -1205,3 +1205,5 @@ public partial class ChartCommands
         });
     }
 }
+
+

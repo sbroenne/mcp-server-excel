@@ -190,3 +190,7 @@ public class CalculationModeCommandsTests : IClassFixture<TempDirectoryFixture>
         Assert.True(result.Success);
     }
 }
+
+
+
+

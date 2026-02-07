@@ -16,3 +16,5 @@ public class DataModelTableColumnsResult : ResultBase
     /// </summary>
     public List<DataModelColumnInfo> Columns { get; set; } = [];
 }
+
+

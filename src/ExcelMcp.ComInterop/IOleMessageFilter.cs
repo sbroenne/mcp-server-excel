@@ -31,3 +31,5 @@ internal partial interface IOleMessageFilter
         int dwTickCount,
         int dwPendingType);
 }
+
+

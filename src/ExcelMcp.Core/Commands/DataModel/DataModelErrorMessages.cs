@@ -69,3 +69,5 @@ public static class DataModelErrorMessages
                "Ensure Power Pivot is enabled in Excel (File > Options > Add-ins > COM Add-ins > Microsoft Power Pivot for Excel).";
     }
 }
+
+

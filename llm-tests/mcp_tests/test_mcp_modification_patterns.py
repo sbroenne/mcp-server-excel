@@ -15,7 +15,7 @@ pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
 async def test_mcp_range_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-range-updates",
-        provider=Provider(model="azure/gpt-5-mini", rpm=10, tpm=10000),
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=["excel_range", "excel_file", "excel_worksheet"],
@@ -49,7 +49,7 @@ async def test_mcp_range_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
 async def test_mcp_table_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-table-updates",
-        provider=Provider(model="azure/gpt-5-mini", rpm=10, tpm=10000),
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=["excel_range", "excel_table", "excel_file", "excel_worksheet"],
@@ -81,7 +81,7 @@ async def test_mcp_table_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
 async def test_mcp_chart_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-chart-updates",
-        provider=Provider(model="azure/gpt-5-mini", rpm=10, tpm=10000),
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=["excel_chart", "excel_file", "excel_worksheet", "excel_range"],
@@ -111,7 +111,7 @@ async def test_mcp_chart_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
 async def test_mcp_sheet_structural_changes(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-sheet-struct",
-        provider=Provider(model="azure/gpt-5-mini", rpm=10, tpm=10000),
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=["excel_range", "excel_file", "excel_worksheet"],

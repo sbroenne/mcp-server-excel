@@ -6,7 +6,7 @@ Excel Tables on worksheets are NOT automatically in the Data Model (Power Pivot)
 To analyze worksheet data with DAX measures:
 
 1. Ensure data is formatted as an Excel Table (use create action if needed)
-2. Use `add-to-datamodel` action to add the table to Power Pivot
+2. Use `add-to-data-model` action to add the table to Power Pivot
 3. Then use `excel_datamodel` to create DAX measures on it
 
 **Action disambiguation**:
@@ -14,7 +14,7 @@ To analyze worksheet data with DAX measures:
 - create: Create NEW table from a range (requires sheetName, tableName, rangeAddress)
 - read: Get table metadata (range, columns, style, row counts)
 - get-data: Get actual table DATA as 2D array (use visibleOnly=true for filtered data)
-- add-to-datamodel: Add an existing worksheet table to Power Pivot for DAX analysis
+- add-to-data-model: Add an existing worksheet table to Power Pivot for DAX analysis
 - append: Add rows to existing table (requires csvData parameter)
 - resize: Change table range (expand/contract)
 - delete: Remove table (keeps data, removes table formatting)
@@ -29,7 +29,7 @@ Perfect for creating summary/report tables with aggregated data.
 
 ```
 Workflow:
-1. Have data in Data Model (via excel_table add-to-datamodel or excel_powerquery)
+1. Have data in Data Model (via excel_table add-to-data-model or excel_powerquery)
 2. Use create-from-dax with a DAX EVALUATE query
 3. Table is created on worksheet with query results
 4. Use update-dax to change the query, get-dax to inspect it
@@ -40,7 +40,7 @@ Example DAX queries for create-from-dax:
 - `EVALUATE TOPN(10, 'Products', 'Products'[Revenue], DESC)`
 - `EVALUATE FILTER('Customers', 'Customers'[Country] = "USA")`
 
-**add-to-datamodel behavior**:
+**add-to-data-model behavior**:
 
 - Only works on Excel Tables (ListObjects), not plain ranges
 - Table appears in Power Pivot with same name
@@ -52,7 +52,7 @@ Example DAX queries for create-from-dax:
 | Goal | Tool |
 |------|------|
 | Create/manage worksheet tables | excel_table |
-| Add worksheet table to Power Pivot | excel_table (add-to-datamodel) |
+| Add worksheet table to Power Pivot | excel_table (add-to-data-model) |
 | Import external data to Data Model | excel_powerquery (loadDestination='data-model') |
 | Create DAX measures | excel_datamodel |
 | Create PivotTables from Data Model | excel_pivottable |

@@ -236,3 +236,5 @@ public static class ExcelMcpTelemetry
         return Convert.ToHexString(hash)[..12].ToLowerInvariant();
     }
 }
+
+

@@ -157,7 +157,7 @@ public class SessionManagerOperationTrackingTests : IDisposable
     {
         var testFile = CreateTestFile(nameof(IsExcelVisible_SessionWithShowExcelFalse_ReturnsFalse));
         using var manager = new SessionManager();
-        var sessionId = manager.CreateSession(testFile, showExcel: false);
+        var sessionId = manager.CreateSession(testFile, show: false);
 
         Assert.False(manager.IsExcelVisible(sessionId));
 
@@ -169,7 +169,7 @@ public class SessionManagerOperationTrackingTests : IDisposable
     {
         var testFile = CreateTestFile(nameof(IsExcelVisible_SessionWithShowExcelTrue_ReturnsTrue));
         using var manager = new SessionManager();
-        var sessionId = manager.CreateSession(testFile, showExcel: true);
+        var sessionId = manager.CreateSession(testFile, show: true);
 
         Assert.True(manager.IsExcelVisible(sessionId));
 
@@ -258,7 +258,7 @@ public class SessionManagerOperationTrackingTests : IDisposable
     {
         var testFile = CreateTestFile(nameof(ValidateClose_IncludesVisibilityInfo));
         using var manager = new SessionManager();
-        var sessionId = manager.CreateSession(testFile, showExcel: true);
+        var sessionId = manager.CreateSession(testFile, show: true);
 
         var result = manager.ValidateClose(sessionId);
 
@@ -338,7 +338,7 @@ public class SessionManagerOperationTrackingTests : IDisposable
     {
         var testFile = CreateTestFile(nameof(CloseSession_CleansUpOperationTracking));
         using var manager = new SessionManager();
-        var sessionId = manager.CreateSession(testFile, showExcel: true);
+        var sessionId = manager.CreateSession(testFile, show: true);
 
         // Set some state
         manager.BeginOperation(sessionId);
@@ -358,8 +358,8 @@ public class SessionManagerOperationTrackingTests : IDisposable
         var testFile2 = CreateTestFile($"{nameof(Dispose_CleansUpAllTracking)}_2");
         using var manager = new SessionManager();
 
-        var session1 = manager.CreateSession(testFile1, showExcel: true);
-        var session2 = manager.CreateSession(testFile2, showExcel: false);
+        var session1 = manager.CreateSession(testFile1, show: true);
+        var session2 = manager.CreateSession(testFile2, show: false);
 
         manager.BeginOperation(session1);
         manager.BeginOperation(session2);
@@ -372,3 +372,7 @@ public class SessionManagerOperationTrackingTests : IDisposable
 
     #endregion
 }
+
+
+
+

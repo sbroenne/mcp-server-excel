@@ -20,3 +20,5 @@ internal static class VersionReporter
         AnsiConsole.MarkupLine("[bold]License:[/] MIT");
     }
 }
+
+

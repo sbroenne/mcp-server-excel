@@ -1,8 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.CLI.Daemon;
-using Sbroenne.ExcelMcp.CLI.Infrastructure;
-using Sbroenne.ExcelMcp.Core.Models.Actions;
+using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.Generated;
 using Spectre.Console.Cli;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
@@ -14,28 +13,15 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
 {
     public override int Execute(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
-        var actionsByCommand = new Dictionary<string, IEnumerable<string>>(StringComparer.OrdinalIgnoreCase)
+        // Session actions are hand-maintained (bootstrap operations, not generated)
+        // All other commands use the generated ValidActionsByCommand mapping
+        var actionsByCommand = new Dictionary<string, IEnumerable<string>>(
+            _CliCategoryMetadata.ValidActionsByCommand.Select(kv =>
+                new KeyValuePair<string, IEnumerable<string>>(kv.Key, kv.Value)),
+            StringComparer.OrdinalIgnoreCase)
         {
-            // Session management (REQUIRED FIRST STEP)
-            ["session"] = new[] { "create", "open", "close", "list", "save" },
-            ["sheet"] = ActionValidator.GetValidActions<WorksheetAction>()
-                .Concat(ActionValidator.GetValidActions<WorksheetStyleAction>()),
-            ["range"] = ActionValidator.GetValidActions<RangeAction>()
-                .Concat(ActionValidator.GetValidActions<RangeEditAction>())
-                .Concat(ActionValidator.GetValidActions<RangeFormatAction>())
-                .Concat(ActionValidator.GetValidActions<RangeLinkAction>()),
-            ["table"] = ActionValidator.GetValidActions<TableAction>(),
-            ["powerquery"] = ActionValidator.GetValidActions<PowerQueryAction>(),
-            ["pivottable"] = ActionValidator.GetValidActions<PivotTableAction>(),
-            ["chart"] = ActionValidator.GetValidActions<ChartAction>(),
-            ["chartconfig"] = ActionValidator.GetValidActions<ChartConfigAction>(),
-            ["connection"] = ActionValidator.GetValidActions<ConnectionAction>(),
-            ["calculation"] = ActionValidator.GetValidActions<CalculationModeAction>(),
-            ["namedrange"] = ActionValidator.GetValidActions<NamedRangeAction>(),
-            ["conditionalformat"] = ActionValidator.GetValidActions<ConditionalFormatAction>(),
-            ["vba"] = ActionValidator.GetValidActions<VbaAction>(),
-            ["datamodel"] = ActionValidator.GetValidActions<DataModelAction>(),
-            ["slicer"] = ActionValidator.GetValidActions<SlicerAction>()
+            // Session management (REQUIRED FIRST STEP - not generated)
+            ["session"] = new[] { "create", "open", "close", "list", "save" }
         };
 
         if (!string.IsNullOrWhiteSpace(settings.CommandName))
@@ -44,7 +30,7 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
             if (!actionsByCommand.TryGetValue(key, out var actions))
             {
                 var error = new { success = false, error = $"Unknown command '{key}'." };
-                Console.WriteLine(JsonSerializer.Serialize(error, DaemonProtocol.JsonOptions));
+                Console.WriteLine(JsonSerializer.Serialize(error, ServiceProtocol.JsonOptions));
                 return 1;
             }
 
@@ -54,7 +40,7 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
                 command = key,
                 actions = actions.OrderBy(a => a, StringComparer.OrdinalIgnoreCase).ToArray()
             };
-            Console.WriteLine(JsonSerializer.Serialize(result, DaemonProtocol.JsonOptions));
+            Console.WriteLine(JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions));
             return 0;
         }
 
@@ -70,7 +56,7 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
             example = "session create file.xlsx → returns {sessionId:'abc'} → range set-values --session abc --range A1 --values 'Hello' → session close --save --session abc",
             commands = all
         };
-        Console.WriteLine(JsonSerializer.Serialize(payload, DaemonProtocol.JsonOptions));
+        Console.WriteLine(JsonSerializer.Serialize(payload, ServiceProtocol.JsonOptions));
         return 0;
     }
 
@@ -81,3 +67,5 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
         public string? CommandName { get; init; }
     }
 }
+
+

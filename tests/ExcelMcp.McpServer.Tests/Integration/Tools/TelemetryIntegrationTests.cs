@@ -107,11 +107,11 @@ public class TelemetryIntegrationTests(ITestOutputHelper output)
         // Using Test action since it doesn't require an actual file
         var result = ExcelFileTool.ExcelFile(
             FileAction.Test,
-            excelPath: "C:\\fake\\test.xlsx",
-            sessionId: null,
+            path: "C:\\fake\\test.xlsx",
+            session_id: null,
             save: false,
-            showExcel: false,
-            timeoutSeconds: 300);
+            show: false,
+            timeout_seconds: 300);
 
         output.WriteLine($"Tool result: {result[..Math.Min(200, result.Length)]}...\n");
 
@@ -120,3 +120,8 @@ public class TelemetryIntegrationTests(ITestOutputHelper output)
         Assert.Contains("success", result.ToLowerInvariant());
     }
 }
+
+
+
+
+

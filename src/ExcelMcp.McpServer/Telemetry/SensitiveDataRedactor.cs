@@ -83,3 +83,5 @@ public static partial class SensitiveDataRedactor
     [GeneratedRegex(@"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", RegexOptions.Compiled)]
     private static partial Regex CreateEmailRegex();
 }
+
+

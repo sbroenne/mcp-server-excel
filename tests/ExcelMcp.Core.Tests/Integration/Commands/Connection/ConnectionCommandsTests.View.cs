@@ -43,3 +43,7 @@ public partial class ConnectionCommandsTests
         Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 }
+
+
+
+

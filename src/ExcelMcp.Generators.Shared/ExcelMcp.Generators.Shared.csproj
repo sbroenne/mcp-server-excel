@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Sbroenne.ExcelMcp.Generators.Shared</RootNamespace>
+
+    <!-- This is a shared library for generators - not a generator itself -->
+    <IsRoslynComponent>false</IsRoslynComponent>
+
+    <!-- Generators are special - disable some strict rules -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);IDE0055;CA1310;CS1591;IDE0005;IDE0059;IDE0060;CS8604;CS8601</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

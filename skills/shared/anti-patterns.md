@@ -139,11 +139,11 @@ Always close sessions:
 ```
 CORRECT: Proper lifecycle
 
-session1 = excel_file(action: 'open', excelPath: 'file1.xlsx')
+session1 = excel_file(action: 'open', path: 'file1.xlsx')
 // ... work with file1 ...
 excel_file(action: 'close', sessionId: session1, save: true)
 
-session2 = excel_file(action: 'open', excelPath: 'file2.xlsx')
+session2 = excel_file(action: 'open', path: 'file2.xlsx')
 // ... work with file2 ...
 excel_file(action: 'close', sessionId: session2, save: true)
 ```

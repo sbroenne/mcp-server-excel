@@ -30,7 +30,7 @@ Excel's Power Pivot has key limitations compared to Power BI/SSAS:
 ### Data Model Prerequisites
 ```
 1. Load table (excel_powerquery refresh loadDestination="data-model")
-2. THEN create relationships (excel_datamodel_rel)
+2. THEN create relationships (excel_datamodel_rel with create-relationship action)
 3. THEN create measures (excel_datamodel create-measure)
 ```
 Skipping step 1 causes "table not found" errors.
@@ -57,5 +57,5 @@ Power Query reads via `Excel.CurrentWorkbook(){[Name = "..."]}`
 After Power Query: excel_powerquery list, excel_powerquery view
 After refresh:     excel_datamodel list-tables
 After measure:     excel_datamodel list-measures, excel_datamodel evaluate
-After relationship: excel_datamodel_rel list
+After relationship: excel_datamodel_rel list-relationships
 ```

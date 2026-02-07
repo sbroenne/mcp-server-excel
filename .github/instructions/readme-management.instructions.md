@@ -92,3 +92,69 @@ The project uses a **centralized changelog** at `/CHANGELOG.md` covering all com
 | Missing safety callout | Add COM API benefits |
 | Manual version updates | Let workflow handle it |
 | Missing CHANGELOG entry | Add before creating release tag |
+| External GitHub links in gh-pages | Use local pages (see gh-pages pattern below) |
+
+## gh-pages Local Documentation Pattern
+
+**CRITICAL: All documentation in gh-pages should use LOCAL pages, NOT external GitHub links.**
+
+### Pattern: Jekyll Includes
+
+gh-pages uses Jekyll includes to pull content from source READMEs:
+
+1. **Source file** (e.g., `src/ExcelMcp.McpServer/README.md`)
+2. **build.sh copies** to `_includes/mcp-server.md` (stripping H1, badges)
+3. **Page file** (e.g., `gh-pages/mcp-server.md`) uses Jekyll include
+4. **Result**: Local URL `/mcp-server/` instead of GitHub link
+
+### Current Local Pages
+
+| URL | Source | Page File |
+|-----|--------|-----------|
+| `/features/` | `/FEATURES.md` | `gh-pages/features.md` |
+| `/installation/` | `/docs/INSTALLATION.md` | `gh-pages/installation.md` |
+| `/changelog/` | `/CHANGELOG.md` | `gh-pages/changelog.md` |
+| `/mcp-server/` | `/src/ExcelMcp.McpServer/README.md` | `gh-pages/mcp-server.md` |
+| `/cli/` | `/src/ExcelMcp.CLI/README.md` | `gh-pages/cli.md` |
+| `/skills/` | `/skills/README.md` | `gh-pages/skills.md` |
+| `/contributing/` | `/docs/CONTRIBUTING.md` | `gh-pages/contributing.md` |
+
+### Adding New Local Pages
+
+1. **Update `build.sh`** - Add awk command to copy source file to `_includes/`:
+   ```bash
+   awk '
+       BEGIN { inheader=0; headerdone=0 }
+       {
+           if (headerdone==0 && /^# /) { inheader=1; next }
+           if (inheader==1 && /^$/) { inheader=0; headerdone=1; next }
+           if (/^# /) { sub(/^# /, "## "); print; next }
+           print
+       }
+   ' "$ROOT_DIR/path/to/SOURCE.md" > "$SCRIPT_DIR/_includes/target.md"
+   ```
+
+2. **Create page file** in `gh-pages/`:
+   ```markdown
+   ---
+   layout: default
+   title: "Page Title"
+   permalink: /url-path/
+   ---
+
+   {% capture content %}{% include target.md %}{% endcapture %}
+   {{ content | markdownify }}
+   ```
+
+3. **Update `.gitignore`** - Add `_includes/target.md`
+
+4. **Update `_includes/README.md`** - Document new generated file
+
+5. **Update `index.md`** - Use local URL `/url-path/` instead of GitHub link
+
+### Why Local Pages
+
+- **Consistent UX** - All docs served from same domain
+- **Single source of truth** - Content auto-synced from source files
+- **SEO** - Better for search engine indexing
+- **Offline docs** - Works with Jekyll serve locally

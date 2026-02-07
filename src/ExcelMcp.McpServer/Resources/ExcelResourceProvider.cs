@@ -169,3 +169,5 @@ public static class ExcelResourceProvider
         return Task.FromResult(JsonSerializer.Serialize(quickRef, JsonOptions));
     }
 }
+
+

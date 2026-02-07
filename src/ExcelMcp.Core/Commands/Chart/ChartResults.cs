@@ -389,3 +389,5 @@ public class TrendlineResult : OperationResult
     public string? Name { get; set; }
 }
 
+
+

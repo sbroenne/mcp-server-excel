@@ -11,14 +11,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class DataModelCommands
 {
     /// <inheritdoc />
-    public void Refresh(IExcelBatch batch, string? tableName = null)
+    public void Refresh(IExcelBatch batch, string? tableName = null, TimeSpan? timeout = null)
     {
-        Refresh(batch, tableName, TimeSpan.FromMinutes(2));  // Default 2 minutes for Data Model refresh, LLM can override
-    }
+        // timeout parameter reserved for future use (e.g., cancellation token support)
+        _ = timeout;
 
-    /// <inheritdoc />
-    public void Refresh(IExcelBatch batch, string? tableName, TimeSpan? timeout)
-    {
         batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
@@ -76,7 +73,9 @@ public partial class DataModelCommands
             }
 
             return 0;
-        });  // Default 2 minutes for Data Model refresh, LLM can override
+        });
     }
 }
+
+
 

@@ -29,3 +29,5 @@ public partial class PivotTableCommands
         => ExecuteWithStrategy<OperationResult>(batch, pivotTableName,
             (strategy, pivot) => strategy.SetLayout(pivot, layoutType, batch.WorkbookPath, batch.Logger));
 }
+
+

@@ -407,3 +407,5 @@ public sealed class NumberFormatTranslator
                $"IsEnglishDate={IsEnglishDateLocale} IsEnglishNumber={IsEnglishNumberLocale}";
     }
 }
+
+

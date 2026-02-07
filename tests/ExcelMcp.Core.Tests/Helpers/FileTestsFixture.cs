@@ -57,8 +57,12 @@ public class FileTestsFixture : IAsyncLifetime
         var guid = Guid.NewGuid().ToString("N")[..8];
         var testFile = Path.Join(_tempDir, $"File_{testName}_{guid}.xlsx");
         using var manager = new SessionManager();
-        var sessionId = manager.CreateSessionForNewFile(testFile, showExcel: false);
+        var sessionId = manager.CreateSessionForNewFile(testFile, show: false);
         manager.CloseSession(sessionId, save: true);
         return testFile;
     }
 }
+
+
+
+

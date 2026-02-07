@@ -49,9 +49,6 @@
   "activationEvents": [
     "onStartupFinished"
   ],
-  "extensionDependencies": [
-    "ms-dotnettools.vscode-dotnet-runtime"
-  ],
   "main": "./out/extension.js",
   "files": [
     "out/**",
@@ -68,12 +65,17 @@
         "id": "excel-mcp",
         "label": "Excel MCP"
       }
+    ],
+    "chatSkills": [
+      {
+        "path": "./skills/excel-mcp/SKILL.md"
+      }
     ]
   },
   "scripts": {
     "clean": "cd .. && dotnet clean src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release",
     "copy:skills": "xcopy /E /I /Y ..\\skills\\excel-mcp skills\\excel-mcp",
-    "build:mcp-server": "npm run clean && cd .. && dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release --no-self-contained -o vscode-extension/bin --verbosity minimal",
+    "build:mcp-server": "npm run clean && cd .. && dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:NuGetAudit=false -o vscode-extension/bin --verbosity minimal",
     "vscode:prepublish": "npm run build:mcp-server && npm run copy:skills && npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",

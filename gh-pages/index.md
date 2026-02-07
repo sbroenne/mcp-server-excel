@@ -109,7 +109,7 @@ It works with any MCP-compatible AI assistant like GitHub Copilot, Claude Deskto
 Ask your AI assistant to automate Excel tasks using natural language:
 
 <div class="example-section">
-<h4>� Create & Populate Data</h4>
+<h4>📝 Create & Populate Data</h4>
 <p><strong>You:</strong> "Create a new Excel file with a table for tracking sales - include Date, Product, Quantity, Unit Price, and Total with sample data and formulas."</p>
 <p>AI creates the workbook, adds headers, enters sample data, and builds formulas automatically.</p>
 </div>
@@ -147,35 +147,55 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 | **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | **64% fewer tokens** - single tool, no large schemas. Better for cost-sensitive, high-throughput automation. |
 | **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery, persistent connection. Better for interactive, exploratory workflows. |
 
-<details>
-<summary>📊 Benchmark Results (same task, same model)</summary>
-
-| Metric | CLI | MCP Server | Winner |
-|--------|-----|------------|--------|
-| **Tokens** | ~59K | ~163K | 🏆 CLI (64% fewer) |
-
-
-**Key insight:** MCP sends 23 tool schemas to the LLM on each request (~100K+ tokens). CLI wraps everything in one `excel_execute` tool and offloads guidance to a skill file.
-
-</details>
-
-
-## CLI Tool (Optional)
-
+**Manual Installation:**
 ```powershell
-dotnet tool install -g Sbroenne.ExcelMcp.CLI
+# Unified package - includes both MCP Server and CLI
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+
+# Install skill (prompts to select excel-cli, excel-mcp, or both)
+npx skills add sbroenne/mcp-server-excel
 ```
 
-```powershell
-# Session-based workflow (keeps Excel open between commands)
-excelcli -q session open report.xlsx     # Returns session ID
-excelcli -q range set-values --session 1 --sheet Sheet1 --range A1 --values '[["Hello","World"]]'
-excelcli -q session close --session 1 --save
+> 💡 **Skills provide AI guidance** - The CLI skill is highly recommended (agents don't work perfectly with CLI without it). The MCP skill adds workflow best practices and reduces token usage.
+
+
+## ⚙️ How It Works - Unified Service Architecture
+
+**ExcelMcp uses Windows COM automation to control the actual Excel application (not just .xlsx files).**
+
+Both the **MCP Server** and **CLI** communicate with a shared **ExcelMCP Service** that manages Excel sessions:
+
+```
+┌─────────────────────┐     ┌─────────────────────┐
+│   MCP Server        │     │   CLI (excelcli)    │
+│  (AI assistants)    │     │  (coding agents)    │
+└─────────┬───────────┘     └─────────┬───────────┘
+          │                           │
+          └──────────┬────────────────┘
+                     ▼
+          ┌─────────────────────────┐
+          │   ExcelMCP Service      │
+          │  (shared session mgmt)  │
+          └─────────┬───────────────┘
+                    ▼
+          ┌─────────────────────────┐
+          │   Excel COM API         │
+          │  (Excel.Application)    │
+          └─────────────────────────┘
 ```
 
-**Background Daemon:** A system tray icon appears when the CLI is running. Right-click to view active sessions, close files, or stop the daemon.
+**Key Benefits:**
+- ✅ **Shared Sessions** - CLI and MCP Server can access the same open workbooks
+- ✅ **Single Excel Instance** - No duplicate Excel processes or file locks
+- ✅ **System Tray UI** - Monitor active sessions via the ExcelMCP tray icon
 
-📖 **[CLI Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** — Full command reference and examples
+**💡 Tip: Watch Excel While AI Works**
+By default, Excel runs hidden for faster automation. To see changes in real-time, just ask:
+- *"Show me Excel while you work"*
+- *"Let me watch what you're doing"*
+- *"Open Excel so I can see the changes"*
+
+The AI will display the Excel window so you can watch every operation happen live!
 
 
 ## Documentation
@@ -184,35 +204,24 @@ excelcli -q session close --session 1 --save
 
 📥 **[Installation Guide](/installation/)** — Setup for VS Code, Claude Desktop, other MCP clients, and CLI
 
-🤖 **[Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/README.md)** — Cross-platform AI guidance for Copilot, Claude Code, Cursor, Windsurf
+📖 **[MCP Server Documentation](/mcp-server/)** — Complete MCP tool reference and examples
+
+📖 **[CLI Documentation](/cli/)** — Full CLI command reference and examples
+
+🤖 **[Agent Skills](/skills/)** — Cross-platform AI guidance for 43+ agents (auto-installed by VS Code extension)
 
 📋 **[Changelog](/changelog/)** — Release notes and version history
-
-## Agent Skills
-
-Skills are auto-installed by the VS Code extension. For other platforms:
-
-```powershell
-# CLI skill (for coding agents - Copilot, Cursor, Windsurf, Codex, Gemini, etc.)
-npx skills add sbroenne/mcp-server-excel --skill excel-cli
-
-# MCP skill (for conversational AI - Claude Desktop, VS Code Chat)
-npx skills add sbroenne/mcp-server-excel --skill excel-mcp
-```
-
-**Supports 43+ agents** including claude-code, github-copilot, cursor, windsurf, gemini-cli, codex, and more.
-
-📚 **[More details →](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/README.md)**
 
 ## More Information
 
 - [GitHub Repository](https://github.com/sbroenne/mcp-server-excel) — Source code, issues, and contributions
-- [Contributing Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/CONTRIBUTING.md) — How to contribute
+- [Contributing Guide](/contributing/) — How to contribute
 
 ## Related Projects
 
 Other projects by the author:
 
+- [pytest-aitest](https://github.com/sbroenne/pytest-aitest) — LLM-powered testing framework for AI agents — validate that LLMs correctly understand and use your tools
 - [Windows MCP Server](https://windowsmcpserver.dev/) — AI-powered Windows automation via GitHub Copilot, Claude, and other MCP clients — including mouse, keyboard, windows, and screenshots
 - [OBS Studio MCP Server](https://github.com/sbroenne/mcp-server-obs) — AI-powered OBS Studio automation for recording, streaming, and window capture
 - [HeyGen MCP Server](https://github.com/sbroenne/heygen-mcp) — MCP server for HeyGen AI video generation

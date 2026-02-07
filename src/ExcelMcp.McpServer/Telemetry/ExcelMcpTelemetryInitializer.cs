@@ -83,3 +83,5 @@ public sealed class ExcelMcpTelemetryInitializer : ITelemetryInitializer
             ?? "1.0.0";
     }
 }
+
+

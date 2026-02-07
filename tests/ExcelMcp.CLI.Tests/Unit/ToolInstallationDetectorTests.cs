@@ -9,7 +9,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 /// </summary>
 [Trait("Layer", "CLI")]
 [Trait("Category", "Unit")]
-[Trait("Feature", "DaemonTray")]
+[Trait("Feature", "ServiceTray")]
 [Trait("Speed", "Fast")]
 public sealed class ToolInstallationDetectorTests
 {
@@ -93,3 +93,7 @@ public sealed class ToolInstallationDetectorTests
         // and whether there's an update available
     }
 }
+
+
+
+

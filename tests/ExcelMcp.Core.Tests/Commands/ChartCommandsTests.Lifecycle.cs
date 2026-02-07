@@ -540,3 +540,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
         Assert.Equal(chartTypes.Length, charts.Count);
     }
 }
+
+
+
+

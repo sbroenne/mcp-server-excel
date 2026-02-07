@@ -125,7 +125,7 @@ public partial class ChartCommandsTests
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
 
         // Act - Show values at outside end of bars
-        _commands.SetDataLabels(batch, createResult.ChartName, showValue: true, position: DataLabelPosition.OutsideEnd);
+        _commands.SetDataLabels(batch, createResult.ChartName, showValue: true, labelPosition: DataLabelPosition.OutsideEnd);
 
         // Assert - Operation succeeded
     }
@@ -795,3 +795,7 @@ public partial class ChartCommandsTests
             _commands.DeleteTrendline(batch, createResult.ChartName, seriesIndex: 1, trendlineIndex: 1));
     }
 }
+
+
+
+

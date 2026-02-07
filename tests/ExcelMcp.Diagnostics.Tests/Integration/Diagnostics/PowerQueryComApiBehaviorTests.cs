@@ -2256,3 +2256,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
         }
     }
 }
+
+
+
+

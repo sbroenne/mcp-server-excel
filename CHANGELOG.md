@@ -10,16 +10,78 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### ⚠️ BREAKING CHANGES
+
+**See [BREAKING-CHANGES.md](docs/BREAKING-CHANGES.md) for complete migration guide.**
+
+**📌 Note:** LLMs will automatically pick up these changes via `tools/list` (MCP) and `--help` (CLI). This section is informational for human developers updating hardcoded scripts.
+
+### Added
+
+- **CLI Code Generation** (#433): CLI commands are now automatically generated from Core service definitions
+  - Uses Roslyn source generators to create 22 command classes from `ServiceRegistry` metadata
+  - Ensures 1:1 parity between CLI and MCP tools - impossible to accidentally diverge
+  - Each command class inherits `ServiceCommandBase<T>` and routes through `RouteFromSettings()`
+  - New categories added to Core automatically generate corresponding CLI commands
+  - See docs/DEVELOPMENT.md for architecture details
+
+- **Calculation Mode Control** (#430): Added `excel_calculation_mode` tool and CLI `calculation` command to set/get calculation mode and trigger recalculation
+  - Modes: automatic, manual, semi-automatic
+  - Calculate scopes: workbook, sheet, range
+  - Now available via code generation (see CLI Code Generation above)
+
+### Changed
+
+- **Release with breaking changes**: Fix consistency issues between CLI and MCP and ensure feature parity. LLMs should pick these up automatically. You might need to delete the cached tools in your IDE.
+
 - **LLM Integration Tests (pytest-aitest)**: Migrated LLM tool validation to pytest-aitest with unified MCP/CLI test suite
   - YAML legacy scenarios removed in favor of pytest-aitest Python tests
   - Local editable dependency configured via `tool.uv.sources`
 
-### Added
+- **VS Code Extension: CLI Removed** (#435): CLI is no longer bundled in the VS Code extension
+  - Extension = MCP Server only (for GitHub Copilot)
+  - Global tool = Both MCP + CLI (for terminal automation)
+  - Prevents version conflicts with shared ExcelMCP Service
+  - Users need separate `dotnet tool install` for CLI in VS Code context
 
-- **Calculation Mode Control**: Added `excel_calculation_mode` tool and CLI `calculation` command to set/get calculation mode and trigger recalculation
-  - Modes: automatic, manual, semi-automatic
-  - Calculate scopes: workbook, sheet, range
+- **VS Code Extension: Self-Contained Publishing** (#434): Extension now bundles self-contained executables - no .NET runtime dependency required
+  - Removed `ms-dotnettools.vscode-dotnet-runtime` extension dependency
+  - MCP Server published as self-contained single-file executable
+  - Extension "just works" after install - zero external dependencies
+  - VSIX size increased from ~3.7 MB to ~68-70 MB (includes .NET runtime)
 
+- **VS Code Extension: Skills Registration** (#434): Skills now use VS Code's `chatSkills` contribution point
+  - Replaced file-copy to `~/.copilot/skills/` with declarative `chatSkills` in `package.json`
+  - Skills automatically cleaned up on extension uninstall
+  - Only `excel-mcp` skill included (CLI removed per #435)
+
+- **MCPB: Removed Agent Skills** (#434): Skills removed from Claude Desktop bundle
+  - Claude Desktop doesn't use agent skills
+  - Reduces MCPB bundle size
+
+- **Release Pipeline** (#434): Updated release workflow for self-contained VS Code extension
+  - `build-vscode` job now bumps MCP Server version before packaging
+  - Release notes updated: .NET runtime only required for NuGet installation, VS Code and MCPB bundle it
+  - Agent Skills section notes VS Code includes excel-mcp skill automatically
+
+- **Unified NuGet Package** (#432): MCP Server package now includes CLI - install once, get both tools!
+  - `dotnet tool install --global Sbroenne.ExcelMcp.McpServer` installs both `mcp-excel` and `excelcli`
+  - Eliminates version mismatch issues between MCP Server and CLI
+  - Guarantees ExcelMCP Service is always available for MCP Server operations
+  - CLI package (`Sbroenne.ExcelMcp.CLI`) is now deprecated - use the unified package
+
+- **MCP Server Service-Only Mode** (#432): MCP Server now forwards ALL requests to the shared ExcelMCP Service - just like the CLI did
+  - CLI and MCP Server now share sessions transparently via the ExcelMCP Service
+  - System tray UI shows sessions from both CLI and MCP origins
+  - Update notifications now show once (from service) instead of twice
+
+- **Terminology Update**: "Daemon" renamed to "ExcelMCP Service" throughout documentation
+  - Reflects unified architecture where both CLI and MCP Server use the same service
+  - Updated README, gh-pages, skills, and technical docs
+
+### Fixed
+
+- **Broken Emoji Characters**: Fixed corrupted emoji characters in README files (Slicers, Conditional Formatting, etc.)
 ## [1.6.9] - 2026-02-04
 
 ### Added

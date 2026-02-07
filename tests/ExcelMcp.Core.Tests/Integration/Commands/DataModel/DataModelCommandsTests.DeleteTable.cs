@@ -149,3 +149,7 @@ public class DataModelDeleteTableTests : IClassFixture<DataModelTestsFixture>
         Assert.Contains("no tables", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 }
+
+
+
+

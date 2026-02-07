@@ -278,3 +278,5 @@ public sealed class DaxFormulaTranslator
         return $"DaxFormulaTranslator: SystemDecimal='{SystemDecimalSeparator}' SystemList='{SystemListSeparator}' ExcelList='{ExcelListSeparator}' ExcelDecimal='{ExcelDecimalSeparator}' DaxArgSeparator='{DaxArgumentSeparator}' RequiresTranslation={RequiresTranslation}{conflict}";
     }
 }
+
+

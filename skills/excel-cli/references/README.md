@@ -2,7 +2,7 @@
 
 This folder contains behavioral guidance and quirks documentation for the Excel CLI.
 
-**Note for developers:** During development, run `./scripts/Build-AgentSkills.ps1 -PopulateReferences` to copy shared content from `skills/shared/` to this folder.
+**Note for developers:** Run `dotnet build -c Release` to generate SKILL.md and copy shared content from `skills/shared/` to this folder.
 
 **Note for users:** When distributed as a skill package, this folder is pre-populated with all necessary reference files.
 

@@ -44,20 +44,14 @@ This follows the official MCP specification which defines two error mechanisms:
 2. **Tool Execution Errors**: Business logic failures → return JSON with `isError: true` → HTTP 200
 
 ```csharp
-private static string SomeAction(Commands commands, string excelPath, string? param, string? batchId)
+private static string ForwardSomeAction(string sessionId, string? param)
 {
     // 1. Validate parameters (throw McpException for invalid input - PROTOCOL ERROR)
     if (string.IsNullOrEmpty(param))
         throw new ModelContextProtocol.McpException("param is required for action");
 
-    // 2. Call Core Command via WithSession
-    var result = ExcelToolsBase.WithSession(
-        batchId,
-        batch => commands.Some(batch, param));
-
-    // 3. ✅ CORRECT: Always return JSON - let result.Success indicate business errors
-    // MCP clients receive: { "success": false, "errorMessage": "...", "isError": true }
-    return JsonSerializer.Serialize(result, ExcelToolsBase.JsonOptions);
+    // 2. Forward to ExcelMCP Service - service handles Core Commands
+    return ExcelToolsBase.ForwardToService("category.action", sessionId, new { param });
 }
 ```
 
@@ -166,18 +160,23 @@ public static async Task<string> ExcelPowerQuery(string action, ...)
     // Action methods: synchronous (no await!)
     return action.ToLowerInvariant() switch
     {
-        "list" => List(...),        // ✅ Synchronous
-        "view" => View(...),        // ✅ Synchronous
+        "list" => ForwardList(...),        // ✅ Synchronous
+        "view" => ForwardView(...),        // ✅ Synchronous
         _ => throw new McpException("Unknown action")
     };
 }
 
-// Action methods are synchronous:
-private static string List(Commands commands, string sessionId)
+// Action methods forward to ExcelMCP Service:
+private static string ForwardList(string sessionId)
 {
-    var result = ExcelToolsBase.WithSession(sessionId,
-        batch => commands.List(batch));  // No await needed
-    return JsonSerializer.Serialize(result, JsonOptions);
+    return ExcelToolsBase.ForwardToService("powerquery.list", sessionId);
+}
+
+private static string ForwardView(string sessionId, string queryName)
+{
+    if (string.IsNullOrEmpty(queryName))
+        ExcelToolsBase.ThrowMissingParameter("queryName", "view");
+    return ExcelToolsBase.ForwardToService("powerquery.view", sessionId, new { queryName });
 }
 ```
 

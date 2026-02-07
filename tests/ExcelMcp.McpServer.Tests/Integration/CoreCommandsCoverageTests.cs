@@ -6,8 +6,9 @@ using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
+using Sbroenne.ExcelMcp.Core.Commands.Slicer;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
-using Sbroenne.ExcelMcp.Core.Models.Actions;
+using Sbroenne.ExcelMcp.Generated;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration;
@@ -41,18 +42,18 @@ public class CoreCommandsCoverageTests
     }
 
     /// <summary>
-    /// Verifies ISheetCommands has matching WorksheetAction enum values
+    /// Verifies ISheetCommands has matching SheetAction enum values
     /// </summary>
     [Fact]
     public void ISheetCommands_AllMethodsHaveEnumValues()
     {
         var coreMethodCount = GetAsyncMethodCount(typeof(ISheetCommands));
-        var enumValueCount = Enum.GetValues<WorksheetAction>().Length;
+        var enumValueCount = Enum.GetValues<SheetAction>().Length;
 
         Assert.True(
             enumValueCount >= coreMethodCount,
-            $"ISheetCommands has {coreMethodCount} methods but WorksheetAction has only {enumValueCount} enum values. " +
-            $"Add missing enum values to ToolActions.cs!");
+            $"ISheetCommands has {coreMethodCount} methods but SheetAction has only {enumValueCount} enum values. " +
+            $"Add missing enum values to interface or regenerate!");
     }
 
     /// <summary>
@@ -127,7 +128,52 @@ public class CoreCommandsCoverageTests
         Assert.True(
             enumValueCount >= coreMethodCount,
             $"IPivotTableCommands has {coreMethodCount} methods but PivotTableAction has only {enumValueCount} enum values. " +
-            $"Add missing enum values to ToolActions.cs!");
+            $"Add missing enum values to interface or regenerate!");
+    }
+
+    /// <summary>
+    /// Verifies IPivotTableFieldCommands has matching PivotTableFieldAction enum values
+    /// </summary>
+    [Fact]
+    public void IPivotTableFieldCommands_AllMethodsHaveEnumValues()
+    {
+        var coreMethodCount = GetAsyncMethodCount(typeof(IPivotTableFieldCommands));
+        var enumValueCount = Enum.GetValues<PivotTableFieldAction>().Length;
+
+        Assert.True(
+            enumValueCount >= coreMethodCount,
+            $"IPivotTableFieldCommands has {coreMethodCount} methods but PivotTableFieldAction has only {enumValueCount} enum values. " +
+            $"Add missing enum values to interface or regenerate!");
+    }
+
+    /// <summary>
+    /// Verifies IPivotTableCalcCommands has matching PivotTableCalcAction enum values
+    /// </summary>
+    [Fact]
+    public void IPivotTableCalcCommands_AllMethodsHaveEnumValues()
+    {
+        var coreMethodCount = GetAsyncMethodCount(typeof(IPivotTableCalcCommands));
+        var enumValueCount = Enum.GetValues<PivotTableCalcAction>().Length;
+
+        Assert.True(
+            enumValueCount >= coreMethodCount,
+            $"IPivotTableCalcCommands has {coreMethodCount} methods but PivotTableCalcAction has only {enumValueCount} enum values. " +
+            $"Add missing enum values to interface or regenerate!");
+    }
+
+    /// <summary>
+    /// Verifies ISlicerCommands has matching SlicerAction enum values
+    /// </summary>
+    [Fact]
+    public void ISlicerCommands_AllMethodsHaveEnumValues()
+    {
+        var coreMethodCount = GetAsyncMethodCount(typeof(ISlicerCommands));
+        var enumValueCount = Enum.GetValues<SlicerAction>().Length;
+
+        Assert.True(
+            enumValueCount >= coreMethodCount,
+            $"ISlicerCommands has {coreMethodCount} methods but SlicerAction has only {enumValueCount} enum values. " +
+            $"Add missing enum values to interface or regenerate!");
     }
 
     /// <summary>
@@ -142,7 +188,22 @@ public class CoreCommandsCoverageTests
         Assert.True(
             enumValueCount >= coreMethodCount,
             $"IChartCommands has {coreMethodCount} methods but ChartAction has only {enumValueCount} enum values. " +
-            $"Add missing enum values to ToolActions.cs!");
+            $"Add missing enum values or regenerate!");
+    }
+
+    /// <summary>
+    /// Verifies IChartConfigCommands has matching ChartConfigAction enum values
+    /// </summary>
+    [Fact]
+    public void IChartConfigCommands_AllMethodsHaveEnumValues()
+    {
+        var coreMethodCount = GetAsyncMethodCount(typeof(IChartConfigCommands));
+        var enumValueCount = Enum.GetValues<ChartConfigAction>().Length;
+
+        Assert.True(
+            enumValueCount >= coreMethodCount,
+            $"IChartConfigCommands has {coreMethodCount} methods but ChartConfigAction has only {enumValueCount} enum values. " +
+            $"Add missing enum values or regenerate!");
     }
 
     /// <summary>
@@ -153,23 +214,37 @@ public class CoreCommandsCoverageTests
     {
         foreach (var action in Enum.GetValues<PowerQueryAction>())
         {
-            var exception = Record.Exception(() => action.ToActionString());
+            var exception = Record.Exception(() => ServiceRegistry.PowerQuery.ToActionString(action));
             Assert.Null(exception);
-            Assert.NotEmpty(action.ToActionString());
+            Assert.NotEmpty(ServiceRegistry.PowerQuery.ToActionString(action));
         }
     }
 
     /// <summary>
-    /// Verifies all WorksheetAction enum values have ToActionString mappings
+    /// Verifies all SheetAction enum values have ToActionString mappings (via generated ServiceRegistry)
     /// </summary>
     [Fact]
-    public void WorksheetAction_AllEnumValuesHaveMappings()
+    public void SheetAction_AllEnumValuesHaveMappings()
     {
-        foreach (var action in Enum.GetValues<WorksheetAction>())
+        foreach (var action in Enum.GetValues<SheetAction>())
         {
-            var exception = Record.Exception(() => action.ToActionString());
+            var exception = Record.Exception(() => ServiceRegistry.Sheet.ToActionString(action));
             Assert.Null(exception);
-            Assert.NotEmpty(action.ToActionString());
+            Assert.NotEmpty(ServiceRegistry.Sheet.ToActionString(action));
+        }
+    }
+
+    /// <summary>
+    /// Verifies all SheetStyleAction enum values have ToActionString mappings (via generated ServiceRegistry)
+    /// </summary>
+    [Fact]
+    public void SheetStyleAction_AllEnumValuesHaveMappings()
+    {
+        foreach (var action in Enum.GetValues<SheetStyleAction>())
+        {
+            var exception = Record.Exception(() => ServiceRegistry.SheetStyle.ToActionString(action));
+            Assert.Null(exception);
+            Assert.NotEmpty(ServiceRegistry.SheetStyle.ToActionString(action));
         }
     }
 
@@ -181,9 +256,9 @@ public class CoreCommandsCoverageTests
     {
         foreach (var action in Enum.GetValues<RangeAction>())
         {
-            var exception = Record.Exception(() => action.ToActionString());
+            var exception = Record.Exception(() => ServiceRegistry.Range.ToActionString(action));
             Assert.Null(exception);
-            Assert.NotEmpty(action.ToActionString());
+            Assert.NotEmpty(ServiceRegistry.Range.ToActionString(action));
         }
     }
 
@@ -195,9 +270,9 @@ public class CoreCommandsCoverageTests
     {
         foreach (var action in Enum.GetValues<TableAction>())
         {
-            var exception = Record.Exception(() => action.ToActionString());
+            var exception = Record.Exception(() => ServiceRegistry.Table.ToActionString(action));
             Assert.Null(exception);
-            Assert.NotEmpty(action.ToActionString());
+            Assert.NotEmpty(ServiceRegistry.Table.ToActionString(action));
         }
     }
 
@@ -209,9 +284,9 @@ public class CoreCommandsCoverageTests
     {
         foreach (var action in Enum.GetValues<ConnectionAction>())
         {
-            var exception = Record.Exception(() => action.ToActionString());
+            var exception = Record.Exception(() => ServiceRegistry.Connection.ToActionString(action));
             Assert.Null(exception);
-            Assert.NotEmpty(action.ToActionString());
+            Assert.NotEmpty(ServiceRegistry.Connection.ToActionString(action));
         }
     }
 
@@ -223,9 +298,9 @@ public class CoreCommandsCoverageTests
     {
         foreach (var action in Enum.GetValues<DataModelAction>())
         {
-            var exception = Record.Exception(() => action.ToActionString());
+            var exception = Record.Exception(() => ServiceRegistry.DataModel.ToActionString(action));
             Assert.Null(exception);
-            Assert.NotEmpty(action.ToActionString());
+            Assert.NotEmpty(ServiceRegistry.DataModel.ToActionString(action));
         }
     }
 
@@ -237,23 +312,65 @@ public class CoreCommandsCoverageTests
     {
         foreach (var action in Enum.GetValues<PivotTableAction>())
         {
-            var exception = Record.Exception(() => action.ToActionString());
+            var exception = Record.Exception(() => ServiceRegistry.PivotTable.ToActionString(action));
             Assert.Null(exception);
-            Assert.NotEmpty(action.ToActionString());
+            Assert.NotEmpty(ServiceRegistry.PivotTable.ToActionString(action));
         }
     }
 
     /// <summary>
-    /// Verifies all ChartAction enum values have ToActionString mappings
+    /// Verifies all PivotTableFieldAction enum values have ToActionString mappings
+    /// </summary>
+    [Fact]
+    public void PivotTableFieldAction_AllEnumValuesHaveMappings()
+    {
+        foreach (var action in Enum.GetValues<PivotTableFieldAction>())
+        {
+            var exception = Record.Exception(() => ServiceRegistry.PivotTableField.ToActionString(action));
+            Assert.Null(exception);
+            Assert.NotEmpty(ServiceRegistry.PivotTableField.ToActionString(action));
+        }
+    }
+
+    /// <summary>
+    /// Verifies all PivotTableCalcAction enum values have ToActionString mappings
+    /// </summary>
+    [Fact]
+    public void PivotTableCalcAction_AllEnumValuesHaveMappings()
+    {
+        foreach (var action in Enum.GetValues<PivotTableCalcAction>())
+        {
+            var exception = Record.Exception(() => ServiceRegistry.PivotTableCalc.ToActionString(action));
+            Assert.Null(exception);
+            Assert.NotEmpty(ServiceRegistry.PivotTableCalc.ToActionString(action));
+        }
+    }
+
+    /// <summary>
+    /// Verifies all ChartAction enum values have ToActionString mappings (via generated ServiceRegistry)
     /// </summary>
     [Fact]
     public void ChartAction_AllEnumValuesHaveMappings()
     {
         foreach (var action in Enum.GetValues<ChartAction>())
         {
-            var exception = Record.Exception(() => action.ToActionString());
+            var exception = Record.Exception(() => ServiceRegistry.Chart.ToActionString(action));
             Assert.Null(exception);
-            Assert.NotEmpty(action.ToActionString());
+            Assert.NotEmpty(ServiceRegistry.Chart.ToActionString(action));
+        }
+    }
+
+    /// <summary>
+    /// Verifies all ChartConfigAction enum values have ToActionString mappings (via generated ServiceRegistry)
+    /// </summary>
+    [Fact]
+    public void ChartConfigAction_AllEnumValuesHaveMappings()
+    {
+        foreach (var action in Enum.GetValues<ChartConfigAction>())
+        {
+            var exception = Record.Exception(() => ServiceRegistry.ChartConfig.ToActionString(action));
+            Assert.Null(exception);
+            Assert.NotEmpty(ServiceRegistry.ChartConfig.ToActionString(action));
         }
     }
 
@@ -265,9 +382,9 @@ public class CoreCommandsCoverageTests
     {
         foreach (var action in Enum.GetValues<SlicerAction>())
         {
-            var exception = Record.Exception(() => action.ToActionString());
+            var exception = Record.Exception(() => ServiceRegistry.Slicer.ToActionString(action));
             Assert.Null(exception);
-            Assert.NotEmpty(action.ToActionString());
+            Assert.NotEmpty(ServiceRegistry.Slicer.ToActionString(action));
         }
     }
 
@@ -287,3 +404,7 @@ public class CoreCommandsCoverageTests
             .Count();
     }
 }
+
+
+
+

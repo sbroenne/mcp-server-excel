@@ -6,7 +6,7 @@ This document describes how version checking and update notifications work in Ex
 
 ExcelMcp provides version checking in two contexts:
 
-1. **CLI Tool** - Manual version check and automatic daemon startup notification
+1. **CLI Tool** - Manual version check and automatic service startup notification
 2. **MCP Server** - Protocol-level version negotiation (handled by MCP SDK)
 
 ## CLI Version Checking
@@ -28,21 +28,21 @@ This command:
 **Example output when update is available:**
 ```
 ⚠ Update available: 1.0.0 → 1.1.0
-Run: dotnet tool update --global Sbroenne.ExcelMcp.CLI
+Run: dotnet tool update --global Sbroenne.ExcelMcp.McpServer
 Release notes: https://github.com/sbroenne/mcp-server-excel/releases/latest
 ```
 
-### Automatic Daemon Notification
+### Automatic Service Notification
 
-When the CLI daemon starts, it automatically checks for updates in the background:
+When the ExcelMCP Service starts, it automatically checks for updates in the background:
 
-1. **Timing**: Check occurs 5 seconds after daemon startup
-2. **Non-blocking**: Version check runs asynchronously and never blocks daemon operations
+1. **Timing**: Check occurs 5 seconds after service startup
+2. **Non-blocking**: Version check runs asynchronously and never blocks service operations
 3. **Silent on failure**: If the check fails (network error, timeout), no notification is shown
 4. **Windows notification**: If an update is available, a system tray notification appears
 
 **Notification Details:**
-- **Title**: "Excel CLI Update Available"
+- **Title**: "Excel MCP Update Available"
 - **Message**: Shows current version, new version, and update command
 - **Duration**: 3 seconds (Windows standard)
 - **Type**: Info balloon (NotifyIcon.ShowBalloonTip)
@@ -51,17 +51,17 @@ When the CLI daemon starts, it automatically checks for updates in the backgroun
 
 **Components:**
 
-1. **`DaemonVersionChecker.cs`** - Core version checking logic
+1. **`ServiceVersionChecker.cs`** - Core version checking logic
    - `CheckForUpdateAsync()` - Compares current version with latest NuGet version
    - Returns `UpdateInfo` if update available, `null` otherwise
    - Non-blocking with 5-second timeout (inherited from `NuGetVersionChecker`)
 
-2. **`DaemonTray.cs`** - System tray UI
+2. **`ServiceTray.cs`** - System tray UI
    - `ShowUpdateNotification()` - Displays Windows notification
    - Thread-safe (invokes on UI thread if needed)
    - Integrates with existing tray icon
 
-3. **`ExcelDaemon.cs`** - Daemon startup
+3. **`ExcelMcpService.cs`** - Service startup
    - Triggers version check 5 seconds after startup
    - Runs in background Task.Run() to avoid blocking
    - Fails silently on any errors
@@ -69,8 +69,8 @@ When the CLI daemon starts, it automatically checks for updates in the backgroun
 **Best Practices Followed:**
 
 1. **Non-intrusive**: Balloon tip notification, not modal dialog
-2. **Non-blocking**: Runs asynchronously after daemon is fully initialized
-3. **Fail-safe**: All errors caught and ignored - never impacts daemon operation
+2. **Non-blocking**: Runs asynchronously after service is fully initialized
+3. **Fail-safe**: All errors caught and ignored - never impacts service operation
 4. **Windows-native**: Uses NotifyIcon balloon tips (Windows Forms standard)
 5. **Actionable**: Message includes exact command to update
 
@@ -207,7 +207,7 @@ Adding a separate version check mechanism would:
 
 ### Unit Tests
 
-**CLI Location**: `tests/ExcelMcp.CLI.Tests/Unit/DaemonVersionCheckerTests.cs`
+**CLI Location**: `tests/ExcelMcp.CLI.Tests/Unit/ServiceVersionCheckerTests.cs`
 **MCP Server Location**: `tests/ExcelMcp.McpServer.Tests/Unit/McpServerVersionCheckerTests.cs`
 
 Tests verify:
@@ -228,8 +228,8 @@ dotnet test tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj --fil
 
 ### Manual Testing
 
-**Test CLI daemon notification:**
-1. Start daemon: `excelcli daemon start`
+**Test ExcelMCP Service notification:**
+1. Start service via CLI: `excelcli session open <file>` (service starts automatically)
 2. Wait 5 seconds after startup
 3. If update is available, Windows notification should appear in system tray
 
@@ -254,17 +254,17 @@ Currently, version checking is enabled by default with no configuration options.
 
 **Future options could include:**
 - Disable version check entirely
-- Adjust check frequency for daemon
+- Adjust check frequency for service
 - Opt-out of notifications (check only on manual request)
 
-These would require adding configuration to `DaemonVersionChecker` or daemon settings.
+These would require adding configuration to `ServiceVersionChecker` or service settings.
 
 ## Troubleshooting
 
 **CLI - No notification shown:**
 - Check: Is an update actually available? Run `excelcli --version` to verify
 - Check: Network connectivity (version check requires internet to reach NuGet)
-- Check: Daemon logs for any errors during version check
+- Check: Service logs for any errors during version check
 
 **MCP Server - No log message shown:**
 - Check: Is an update actually available? Run `Sbroenne.ExcelMcp.McpServer.exe --version` to verify

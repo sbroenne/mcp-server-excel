@@ -31,3 +31,5 @@ public class DataModelTableViewResult : ResultBase
     /// </summary>
     public int MeasureCount { get; set; }
 }
+
+

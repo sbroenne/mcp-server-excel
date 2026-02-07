@@ -181,3 +181,7 @@ public class DataModelCommandsTests_DaxFormatting
         Assert.Contains("SUM", viewResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
     }
 }
+
+
+
+

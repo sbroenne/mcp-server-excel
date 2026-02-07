@@ -198,3 +198,5 @@ public interface IPivotTableFieldStrategy
     /// </remarks>
     OperationResult SetGrandTotals(dynamic pivot, bool showRowGrandTotals, bool showColumnGrandTotals, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
 }
+
+

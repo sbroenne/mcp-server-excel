@@ -29,3 +29,5 @@ public partial class PivotTableCommands
         => ExecuteWithStrategy<PivotFieldResult>(batch, pivotTableName,
             (strategy, pivot) => strategy.SetSubtotals(pivot, fieldName, showSubtotals, batch.WorkbookPath, batch.Logger));
 }
+
+

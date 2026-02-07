@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- MSBuild tasks must target netstandard2.0 for compatibility -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Sbroenne.ExcelMcp.Build.Tasks</RootNamespace>
+    <AssemblyName>Sbroenne.ExcelMcp.Build.Tasks</AssemblyName>
+
+    <!-- Build task specific settings -->
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+
+    <!-- Exclude from main solution build by default - built on demand -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Template engine -->
+    <PackageReference Include="Scriban" />
+
+    <!-- JSON parsing for manifest -->
+    <PackageReference Include="System.Text.Json" />
+
+    <!-- MSBuild task development -->
+    <PackageReference Include="Microsoft.Build.Framework" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" PrivateAssets="all" />
+  </ItemGroup>
+</Project>
