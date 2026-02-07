@@ -5,12 +5,37 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Power Pivot Data Model - DAX measures, DAX queries, and DMV introspection.
-/// Tables must be added first with table add-to-datamodel.
+/// Data Model (Power Pivot) - DAX measures and table management.
+///
+/// CRITICAL: WORKSHEET TABLES AND DATA MODEL ARE SEPARATE!
+/// - After table append changes, Data Model still has OLD data
+/// - MUST call refresh to sync changes
+/// - Power Query refresh auto-syncs (no manual refresh needed)
+///
+/// PREREQUISITE: Tables must be added to the Data Model first.
+/// Use table add-to-datamodel for worksheet tables,
+/// or powerquery to import and load data directly to the Data Model.
+///
+/// DAX MEASURES:
+/// - Create with DAX formulas like 'SUM(Sales[Amount])'
+/// - DAX formulas are auto-formatted on CREATE/UPDATE via Dax.Formatter (SQLBI)
+/// - Read operations return raw DAX as stored
+///
+/// DAX EVALUATE QUERIES:
+/// - Use evaluate to execute DAX EVALUATE queries against the Data Model
+/// - Returns tabular results from queries like 'EVALUATE TableName'
+/// - Supports complex DAX: SUMMARIZE, FILTER, CALCULATETABLE, TOPN, etc.
+///
+/// DMV (DYNAMIC MANAGEMENT VIEW) QUERIES:
+/// - Use execute-dmv to query Data Model metadata via SQL-like syntax
+/// - Syntax: SELECT * FROM $SYSTEM.SchemaRowset (ONLY SELECT * supported)
+/// - Use DISCOVER_SCHEMA_ROWSETS to list all available DMVs
+///
 /// Use datamodelrel for relationships between tables.
 /// </summary>
 [ServiceCategory("datamodel", "DataModel")]
-[McpTool("excel_datamodel")]
+[McpTool("excel_datamodel", Title = "Excel Data Model Operations", Destructive = true, Category = "analysis",
+    Description = "Data Model (Power Pivot) - DAX measures and table management. CRITICAL: Worksheet tables and Data Model are separate! After excel_table(append), MUST call excel_datamodel(refresh) to sync. Power Query refresh auto-syncs. DAX MEASURES: Create with formulas like SUM(Sales[Amount]), auto-formatted via daxformatter.com. DAX EVALUATE: Execute queries (SUMMARIZE, FILTER, CALCULATETABLE, TOPN). DMV QUERIES: SELECT * FROM $SYSTEM.SchemaRowset for metadata. DAX FILE INPUT: daxFormulaFile/daxQueryFile for complex multi-line DAX. TIMEOUT: 2 min. Use excel_datamodel_rel for relationships, excel_table for add-to-datamodel.")]
 public interface IDataModelCommands
 {
     /// <summary>

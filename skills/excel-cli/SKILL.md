@@ -26,8 +26,10 @@ documentation: https://excelmcpserver.dev/
 | 4. Save & close | `session close --save` | Always last |
 
 **Writing Data (Step 3):**
-- **Simple (1-3 cells):** `--values '[[value]]'` inline works
-- **Complex (4+ cells):** Use `--values '[[...]]'` with proper JSON escaping
+- `--values` takes a JSON 2D array string: `--values '[["Header1","Header2"],[1,2]]'`
+- Write **one row at a time** for reliability: `--range-address A1:B1 --values '[["Name","Age"]]'`
+- Strings MUST be double-quoted in JSON: `"text"`. Numbers are bare: `42`
+- Always wrap the entire JSON value in single quotes to protect special characters
 
 ## CRITICAL RULES (MUST FOLLOW)
 
@@ -99,8 +101,9 @@ When writing many values/formulas (10+ cells), disable auto-recalc for performan
 # 1. Set manual mode
 excelcli -q calculationmode set-mode --session 1 --mode manual
 
-# 2. Perform bulk writes (use actual parameter names from --help)
-excelcli -q range set-values --session 1 --sheet-name Sheet1 --range-address A1 --values '[["data"]]'
+# 2. Write data row by row for reliability
+excelcli -q range set-values --session 1 --sheet-name Sheet1 --range-address A1:B1 --values '[["Name","Amount"]]'
+excelcli -q range set-values --session 1 --sheet-name Sheet1 --range-address A2:B2 --values '[["Salary",5000]]'
 
 # 3. Recalculate once at end
 excelcli -q calculationmode calculate --session 1 --scope workbook

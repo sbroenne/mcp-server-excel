@@ -29,33 +29,33 @@ public static partial class ExcelFileTool
     /// </summary>
     /// <param name="action">The file operation to perform</param>
     /// <param name="path">Full Windows path to Excel file (.xlsx or .xlsm). ASK USER for the path - do not guess or use placeholder usernames. Required for: open, create, test</param>
-    /// <param name="sessionId">Session ID returned from 'open' or 'create'. Required for: close. Used by all other tools.</param>
+    /// <param name="session_id">Session ID returned from 'open' or 'create'. Required for: close. Used by all other tools.</param>
     /// <param name="save">Whether to save changes when closing. Default: false (discard changes)</param>
     /// <param name="show">Whether to make Excel window visible. Default: false (hidden automation)</param>
-    /// <param name="timeoutSeconds">Maximum time in seconds for any operation in this session. Default: 300 (5 min). Range: 10-3600. Used for: open, create</param>
+    /// <param name="timeout_seconds">Maximum time in seconds for any operation in this session. Default: 300 (5 min). Range: 10-3600. Used for: open, create</param>
     [McpServerTool(Name = "excel_file", Title = "Excel File Operations", Destructive = true)]
     [McpMeta("category", "session")]
     [McpMeta("requiresSession", false)]
     public static partial string ExcelFile(
         FileAction action,
         [DefaultValue(null)] string? path,
-        [DefaultValue(null)] string? sessionId,
+        [DefaultValue(null)] string? session_id,
         [DefaultValue(false)] bool save,
         [DefaultValue(false)] bool show,
-        [DefaultValue(300)] int timeoutSeconds)
+        [DefaultValue(300)] int timeout_seconds)
     {
         // Validate timeout range
-        if (timeoutSeconds < 10 || timeoutSeconds > 3600)
+        if (timeout_seconds < 10 || timeout_seconds > 3600)
         {
             return JsonSerializer.Serialize(new
             {
                 success = false,
-                errorMessage = $"timeoutSeconds must be between 10 and 3600 seconds, got {timeoutSeconds}",
+                errorMessage = $"timeout_seconds must be between 10 and 3600 seconds, got {timeout_seconds}",
                 isError = true
             }, ExcelToolsBase.JsonOptions);
         }
 
-        var timeout = TimeSpan.FromSeconds(timeoutSeconds);
+        var timeout = TimeSpan.FromSeconds(timeout_seconds);
 
         return ExcelToolsBase.ExecuteToolAction(
             "excel_file",
@@ -68,7 +68,7 @@ public static partial class ExcelFileTool
                 {
                     FileAction.List => ListSessions(),
                     FileAction.Open => OpenSessionAsync(path!, show, timeout),
-                    FileAction.Close => CloseSessionAsync(sessionId!, save),
+                    FileAction.Close => CloseSessionAsync(session_id!, save),
                     FileAction.Create => CreateSessionAsync(path!, show, timeout),
                     FileAction.CloseWorkbook => CloseWorkbook(path!),
                     FileAction.Test => TestFileAsync(path!),

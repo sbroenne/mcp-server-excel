@@ -6,10 +6,18 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Slicer;
 
 /// <summary>
 /// Slicer visual filters for PivotTables and Excel Tables.
-/// Create interactive filter controls that can be shared across multiple PivotTables.
+///
+/// PIVOTTABLE SLICERS: create-slicer, list-slicers, set-slicer-selection, delete-slicer.
+/// TABLE SLICERS: create-table-slicer, list-table-slicers, set-table-slicer-selection, delete-table-slicer.
+///
+/// NAMING: Auto-generate descriptive names like {FieldName}Slicer (e.g., RegionSlicer).
+///
+/// SELECTION: selectedItems as list of strings.
+/// Empty list clears filter (shows all items). Set clearFirst=false to add to existing selection.
 /// </summary>
 [ServiceCategory("slicer", "Slicer")]
-[McpTool("excel_slicer")]
+[McpTool("excel_slicer", Title = "Excel Slicer Operations", Destructive = true, Category = "analysis",
+    Description = "Slicer management: create, list, configure, delete visual filtering controls for PivotTables and Tables. NAMING: Auto-generate descriptive names like RegionSlicer, CategorySlicer. PIVOTTABLE SLICERS: create-slicer, list-slicers, set-slicer-selection, delete-slicer. TABLE SLICERS: create-table-slicer, list-table-slicers, set-table-slicer-selection, delete-table-slicer. SELECTION: selectedItems as JSON array of strings. Use clearFirst=false to add to existing selection.")]
 public interface ISlicerCommands
 {
     /// <summary>

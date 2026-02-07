@@ -18,6 +18,10 @@ public static class ServiceInfoExtractor
         string? pascalName = null;
         string? mcpTool = null;
         bool noSession = false;
+        string? mcpToolTitle = null;
+        bool mcpToolDestructive = true;
+        string? mcpToolCategory = null;
+        string? mcpToolDescription = null;
 
         foreach (var attr in interfaceSymbol.GetAttributes())
         {
@@ -34,9 +38,33 @@ public static class ServiceInfoExtractor
                     pascalName = attr.ConstructorArguments[1].Value?.ToString();
                 }
             }
-            else if (attrName == "McpToolAttribute" && attr.ConstructorArguments.Length > 0)
+            else if (attrName == "McpToolAttribute")
             {
-                mcpTool = attr.ConstructorArguments[0].Value?.ToString();
+                if (attr.ConstructorArguments.Length > 0)
+                {
+                    mcpTool = attr.ConstructorArguments[0].Value?.ToString();
+                }
+
+                // Read named properties: Title, Destructive, Category
+                foreach (var namedArg in attr.NamedArguments)
+                {
+                    switch (namedArg.Key)
+                    {
+                        case "Title":
+                            mcpToolTitle = namedArg.Value.Value?.ToString();
+                            break;
+                        case "Destructive":
+                            if (namedArg.Value.Value is bool destructive)
+                                mcpToolDestructive = destructive;
+                            break;
+                        case "Category":
+                            mcpToolCategory = namedArg.Value.Value?.ToString();
+                            break;
+                        case "Description":
+                            mcpToolDescription = namedArg.Value.Value?.ToString();
+                            break;
+                    }
+                }
             }
             else if (attrName == "NoSessionAttribute")
             {
@@ -60,6 +88,7 @@ public static class ServiceInfoExtractor
                 var methodMcpTool = GetMethodMcpTool(method) ?? mcpTool;
                 var xmlDoc = ExtractXmlDocumentation(method);
 
+                var hasBatchParameter = method.Parameters.Any(p => p.Type.Name == "IExcelBatch");
                 var parameters = method.Parameters
                     .Where(p => p.Type.Name != "IExcelBatch") // Skip batch parameter
                     .Select(p => ExtractParameterInfo(p, xmlDoc))
@@ -71,7 +100,8 @@ public static class ServiceInfoExtractor
                     TypeNameHelper.GetTypeName(method.ReturnType),
                     methodMcpTool ?? "unknown",
                     parameters,
-                    xmlDoc?.Summary));
+                    xmlDoc?.Summary,
+                    hasBatchParameter));
             }
         }
 
@@ -84,7 +114,11 @@ public static class ServiceInfoExtractor
             mcpTool ?? "unknown",
             noSession,
             methods,
-            interfaceSummary);
+            interfaceSummary,
+            mcpToolTitle,
+            mcpToolDestructive,
+            mcpToolCategory,
+            mcpToolDescription);
     }
 
     private static string? ExtractInterfaceSummary(INamedTypeSymbol interfaceSymbol)
@@ -175,8 +209,23 @@ public static class ServiceInfoExtractor
             }
         }
 
-        // Detect if this is an enum type
+        // Detect if this is an enum type (including Nullable<Enum>)
         bool isEnum = param.Type.TypeKind == TypeKind.Enum;
+        string? enumTypeName = null;
+        if (isEnum)
+        {
+            enumTypeName = TypeNameHelper.GetTypeName(param.Type);
+        }
+        else if (param.Type is INamedTypeSymbol nullableType
+            && nullableType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T
+            && nullableType.TypeArguments.Length == 1)
+        {
+            isEnum = nullableType.TypeArguments[0].TypeKind == TypeKind.Enum;
+            if (isEnum)
+            {
+                enumTypeName = TypeNameHelper.GetTypeName(nullableType.TypeArguments[0]);
+            }
+        }
 
         // Get XML doc description for this parameter
         string? paramDescription = null;
@@ -196,7 +245,8 @@ public static class ServiceInfoExtractor
             exposedName,
             isRequired,
             isEnum,
-            paramDescription);
+            paramDescription,
+            enumTypeName);
     }
 
     private static XmlDocumentation? ExtractXmlDocumentation(IMethodSymbol method)

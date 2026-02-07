@@ -5,11 +5,17 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// VBA macro management - list, view, create, edit, run VBA modules and procedures.
-/// Requires macro-enabled workbooks (.xlsm) and proper trust settings.
+/// VBA scripts (requires .xlsm and VBA trust enabled).
+///
+/// PREREQUISITES:
+/// - Workbook must be macro-enabled (.xlsm)
+/// - VBA trust must be enabled for automation
+///
+/// RUN: procedureName format is 'Module.Procedure' (e.g., 'Module1.MySub').
 /// </summary>
 [ServiceCategory("vba", "Vba")]
-[McpTool("excel_vba")]
+[McpTool("excel_vba", Title = "Excel VBA Operations", Destructive = true, Category = "automation",
+    Description = "VBA scripts (requires .xlsm and VBA trust enabled). Manages VBA macro operations, code import/export, and script execution in macro-enabled workbooks. Prerequisites: Use setup-vba-trust to configure VBA trust for automation.")]
 public interface IVbaCommands
 {
     /// <summary>

@@ -5,11 +5,18 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Worksheet lifecycle - create, rename, copy, delete, list, activate worksheets.
-/// Use range command for data operations. Use worksheetstyle for tab colors and visibility.
+/// Worksheet lifecycle management: create, rename, copy, delete, move, list sheets.
+/// Use range for data operations. Use sheetstyle for tab colors and visibility.
+///
+/// ATOMIC OPERATIONS: 'copy-to-file' and 'move-to-file' don't require a session -
+/// they open/close files automatically.
+///
+/// POSITIONING: For 'move', 'copy-to-file', 'move-to-file' - use 'before' OR 'after'
+/// (not both) to position the sheet relative to another. If neither specified, moves to end.
 /// </summary>
 [ServiceCategory("sheet", "Sheet")]
-[McpTool("excel_worksheet")]
+[McpTool("excel_worksheet", Title = "Excel Worksheet Operations", Destructive = true, Category = "structure",
+    Description = "Worksheet lifecycle: create, rename, copy, delete, move. ATOMIC OPERATIONS: copy-to-file and move-to-file don't require a session (open/close automatically). POSITIONING: Use before OR after (not both) to place sheet relative to another. Use excel_worksheet_style for tab colors and visibility.")]
 public interface ISheetCommands
 {
     // === LIFECYCLE OPERATIONS ===

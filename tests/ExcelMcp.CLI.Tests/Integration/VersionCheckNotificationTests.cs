@@ -37,7 +37,7 @@ public sealed class VersionCheckNotificationTests
             Assert.Contains(updateInfo.CurrentVersion, message);
             Assert.Contains(updateInfo.LatestVersion, message);
             Assert.Contains("dotnet tool update", message);
-            Assert.Contains("Sbroenne.ExcelMcp.CLI", message);
+            Assert.Contains("Sbroenne.ExcelMcp.McpServer", message);
 
             // Verify versions are valid semver-like strings
             Assert.Matches(@"^\d+\.\d+", updateInfo.CurrentVersion);

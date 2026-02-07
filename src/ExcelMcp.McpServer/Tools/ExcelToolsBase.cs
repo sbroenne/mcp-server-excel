@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using ModelContextProtocol;
 using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 
@@ -64,18 +63,6 @@ public static class ExcelToolsBase
 
         using var client = new ExcelServiceClient("mcp-server", requestTimeout: timeout);
         return await client.SendCommandAsync(command, sessionId, args, cancellationToken);
-    }
-
-    /// <summary>
-    /// Creates an ExcelServiceClient for sending commands.
-    /// </summary>
-    public static ExcelServiceClient CreateServiceClient(int? timeoutSeconds = null)
-    {
-        var timeout = timeoutSeconds.HasValue
-            ? TimeSpan.FromSeconds(timeoutSeconds.Value)
-            : ExcelServiceClient.DefaultRequestTimeout;
-
-        return new ExcelServiceClient("mcp-server", requestTimeout: timeout);
     }
 
     /// <summary>
@@ -175,46 +162,6 @@ public static class ExcelToolsBase
         {
             success = true
         }, JsonOptions);
-    }
-
-    /// <summary>
-    /// Throws exception for missing required parameters.
-    /// </summary>
-    /// <param name="parameterName">Name of the missing parameter</param>
-    /// <param name="action">The action that requires the parameter</param>
-    /// <exception cref="ArgumentException">Always throws with descriptive error message</exception>
-    public static void ThrowMissingParameter(string parameterName, string action)
-    {
-        throw new ArgumentException(
-            $"{parameterName} is required for {action} action", parameterName);
-    }
-
-    /// <summary>
-    /// Wraps exceptions in MCP exceptions for better error reporting.
-    /// SDK Pattern: Wrap business logic exceptions in McpException with context.
-    /// LLM-Optimized: Include full exception details including stack trace context for debugging.
-    /// </summary>
-    /// <param name="ex">The exception that occurred</param>
-    /// <param name="action">The action that was being attempted</param>
-    /// <param name="filePath">The file path involved (optional)</param>
-    /// <exception cref="McpException">Always throws with contextual error message</exception>
-    public static void ThrowInternalError(Exception ex, string action, string? filePath = null)
-    {
-        // Build comprehensive error message for LLM debugging
-        var errorMessage = filePath != null
-            ? $"{action} failed for '{filePath}': {ex.Message}"
-            : $"{action} failed: {ex.Message}";
-
-        // Include exception type and inner exception details for better diagnostics
-        if (ex.InnerException != null)
-        {
-            errorMessage += $" (Inner: {ex.InnerException.Message})";
-        }
-
-        // Add exception type to help identify the root cause
-        errorMessage += $" [Exception Type: {ex.GetType().Name}]";
-
-        throw new McpException(errorMessage, ex);
     }
 
     /// <summary>

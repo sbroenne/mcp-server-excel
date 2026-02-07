@@ -5,11 +5,26 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Define relationships between Data Model tables for cross-table DAX calculations.
-/// Relationships link a foreign key column to a primary key column.
+/// Data Model relationships - link tables for cross-table DAX calculations.
+///
+/// CRITICAL: Deleting or recreating tables removes ALL their relationships.
+/// Use list-relationships before table operations to backup,
+/// then recreate relationships after schema changes.
+///
+/// RELATIONSHIP REQUIREMENTS:
+/// - Both tables must exist in the Data Model first
+/// - Columns must have compatible data types
+/// - fromTable/fromColumn = many-side (detail table, foreign key)
+/// - toTable/toColumn = one-side (lookup table, primary key)
+///
+/// ACTIVE VS INACTIVE:
+/// - Only ONE active relationship can exist between two tables
+/// - Use active=false when creating alternative paths
+/// - DAX USERELATIONSHIP() activates inactive relationships
 /// </summary>
 [ServiceCategory("datamodelrel", "DataModelRel")]
-[McpTool("excel_datamodel_rel")]
+[McpTool("excel_datamodel_rel", Title = "Excel Data Model Relationship Operations", Destructive = true, Category = "analysis",
+    Description = "Data Model relationships - link tables for cross-table DAX calculations. CRITICAL: Deleting/recreating tables removes ALL their relationships. Use list before table operations to backup. REQUIREMENTS: Both tables in Data Model, compatible column types. From=many-side (detail), To=one-side (lookup). ACTIVE VS INACTIVE: One active relationship per table pair. Use DAX USERELATIONSHIP() for inactive. TIMEOUT: 2 min. Use excel_datamodel for tables and DAX measures.")]
 public interface IDataModelRelCommands
 {
     /// <summary>

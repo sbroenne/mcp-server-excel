@@ -6,55 +6,88 @@ namespace Sbroenne.ExcelMcp.Generators.Cli;
 
 /// <summary>
 /// Generates CLI command classes and registration.
-/// Coordinates with Core-generated ServiceRegistry to produce CLI commands.
+/// Discovers [ServiceCategory] interfaces from referenced assemblies (Core)
+/// to eliminate hard-coded category lists.
 /// </summary>
 [Generator]
 public class CliSettingsGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Hard-coded categories matching Core's ServiceRegistry
-        var categories = new[]
-        {
-            ("worksheet", "Sheet", true),
-            ("worksheetstyle", "SheetStyle", true),
-            ("range", "Range", true),
-            ("rangeedit", "RangeEdit", true),
-            ("rangeformat", "RangeFormat", true),
-            ("rangelink", "RangeLink", true),
-            ("table", "Table", true),
-            ("tablecolumn", "TableColumn", true),
-            ("powerquery", "PowerQuery", true),
-            ("pivottable", "PivotTable", true),
-            ("pivottablefield", "PivotTableField", true),
-            ("pivottablecalc", "PivotTableCalc", true),
-            ("chart", "Chart", true),
-            ("chartconfig", "ChartConfig", true),
-            ("connection", "Connection", true),
-            ("calculationmode", "Calculation", true),
-            ("namedrange", "NamedRange", true),
-            ("conditionalformat", "ConditionalFormat", true),
-            ("vba", "Vba", true),
-            ("datamodel", "DataModel", true),
-            ("datamodelrel", "DataModelRel", true),
-            ("slicer", "Slicer", true)
-        };
+        // Scan the compilation (including referenced assemblies) for [ServiceCategory] interfaces
+        context.RegisterSourceOutput(context.CompilationProvider,
+            static (spc, compilation) =>
+            {
+                var categories = DiscoverCategories(compilation);
+                if (categories.Count == 0)
+                    return;
 
-        context.RegisterSourceOutput(
-            context.CompilationProvider,
-            (spc, _) => Generate(categories, spc));
+                foreach (var (_, registryName, requiresSession) in categories)
+                {
+                    var cmdCode = GenerateCommandClass(registryName, requiresSession);
+                    spc.AddSource($"CliCommand.{registryName}.g.cs", SourceText.From(cmdCode, Encoding.UTF8));
+                }
+
+                var regCode = GenerateRegistration(categories);
+                spc.AddSource("CliCommandRegistration.Generated.g.cs", SourceText.From(regCode, Encoding.UTF8));
+            });
     }
 
-    private static void Generate((string CliName, string RegistryName, bool RequiresSession)[] categories, SourceProductionContext context)
+    /// <summary>
+    /// Discovers [ServiceCategory] interfaces from referenced assemblies.
+    /// This replaces the hard-coded category list — adding a new [ServiceCategory]
+    /// interface to Core automatically generates the corresponding CLI command.
+    /// Uses string-based attribute matching for cross-compilation robustness.
+    /// </summary>
+    private static List<(string CliName, string RegistryName, bool RequiresSession)> DiscoverCategories(Compilation compilation)
     {
-        foreach (var (cliName, registryName, requiresSession) in categories)
+        var result = new List<(string CliName, string RegistryName, bool RequiresSession)>();
+
+        // Search referenced assemblies for interfaces with [ServiceCategory]
+        foreach (var reference in compilation.References)
         {
-            var cmdCode = GenerateCommandClass(registryName, requiresSession);
-            context.AddSource($"CliCommand.{registryName}.g.cs", SourceText.From(cmdCode, System.Text.Encoding.UTF8));
+            if (compilation.GetAssemblyOrModuleSymbol(reference) is not IAssemblySymbol assembly)
+                continue;
+
+            foreach (var type in GetAllTypes(assembly.GlobalNamespace))
+            {
+                if (type.TypeKind != TypeKind.Interface)
+                    continue;
+
+                // Use string-based matching (robust across compilation boundaries)
+                var attr = type.GetAttributes().FirstOrDefault(a =>
+                    a.AttributeClass?.Name == "ServiceCategoryAttribute" &&
+                    a.AttributeClass?.ContainingNamespace?.ToDisplayString() == "Sbroenne.ExcelMcp.Core.Attributes");
+                if (attr == null || attr.ConstructorArguments.Length < 2)
+                    continue;
+
+                var categoryPascal = attr.ConstructorArguments[1].Value?.ToString() ?? "";
+
+                // Get McpTool name for deriving CLI command name
+                var mcpToolAttr = type.GetAttributes().FirstOrDefault(a =>
+                    a.AttributeClass?.Name == "McpToolAttribute");
+                var mcpToolName = mcpToolAttr?.ConstructorArguments.FirstOrDefault().Value?.ToString()
+                    ?? $"excel_{attr.ConstructorArguments[0].Value}";
+
+                // Check for NoSession attribute
+                var noSession = type.GetAttributes().Any(a =>
+                    a.AttributeClass?.Name == "NoSessionAttribute");
+
+                var cliName = mcpToolName.Replace("excel_", "").Replace("_", "");
+                result.Add((cliName, categoryPascal, !noSession));
+            }
         }
 
-        var regCode = GenerateRegistration(categories);
-        context.AddSource("CliCommandRegistration.Generated.g.cs", SourceText.From(regCode, System.Text.Encoding.UTF8));
+        return result;
+    }
+
+    private static IEnumerable<INamedTypeSymbol> GetAllTypes(INamespaceSymbol ns)
+    {
+        foreach (var type in ns.GetTypeMembers())
+            yield return type;
+        foreach (var child in ns.GetNamespaceMembers())
+            foreach (var type in GetAllTypes(child))
+                yield return type;
     }
 
     private static string GenerateCommandClass(string registryName, bool requiresSession)
@@ -79,7 +112,7 @@ public class CliSettingsGenerator : IIncrementalGenerator
         return sb.ToString();
     }
 
-    private static string GenerateRegistration((string CliName, string RegistryName, bool RequiresSession)[] categories)
+    private static string GenerateRegistration(List<(string CliName, string RegistryName, bool RequiresSession)> categories)
     {
         var sb = new StringBuilder();
         sb.AppendLine("// <auto-generated />");

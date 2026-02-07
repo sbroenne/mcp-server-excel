@@ -36,6 +36,23 @@ Commands/Range/
 
 ---
 
+## TWO EQUAL ENTRY POINTS (CRITICAL)
+
+**ExcelMcp has TWO first-class entry points: MCP Server AND CLI.** Both must have:
+- **Feature parity**: Every action in MCP must exist in CLI and vice versa
+- **Parameter parity**: Same parameters, same defaults, same validation
+- **Behavior parity**: Same Core command, same result format
+
+When adding or changing ANY feature, ALWAYS update BOTH entry points. See Rule 24 (Post-Change Sync).
+
+```
+MCP Server (MCP tools, JSON-RPC) ──┐
+                                    ├──► Named Pipe Service ──► Core Commands ──► Excel COM
+CLI (command-line args, console)  ──┘
+```
+
+---
+
 ## Command Pattern
 
 ### Structure

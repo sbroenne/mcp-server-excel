@@ -284,26 +284,31 @@ public class PowerQueryViewResult : ResultBase
 /// <summary>
 /// Power Query load configuration modes
 /// </summary>
+[System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<PowerQueryLoadMode>))]
 public enum PowerQueryLoadMode
 {
     /// <summary>
     /// Connection only - no data loaded to worksheet or data model
     /// </summary>
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("connection-only")]
     ConnectionOnly,
 
     /// <summary>
     /// Load to table in worksheet
     /// </summary>
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("load-to-table")]
     LoadToTable,
 
     /// <summary>
     /// Load to Data Model (PowerPivot)
     /// </summary>
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("load-to-data-model")]
     LoadToDataModel,
 
     /// <summary>
     /// Load to both table and data model
     /// </summary>
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("load-to-both")]
     LoadToBoth
 }
 

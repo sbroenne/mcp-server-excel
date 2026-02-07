@@ -21,21 +21,30 @@ public sealed class ActionValidatorTests
         [typeof(RangeLinkAction), typeof(ServiceRegistry.RangeLink)]
     ];
 
-    // Note: datamodelrel is MCP-only (not in CLI) - it's a sub-tool of datamodel
     private static readonly string[] ExpectedCommands =
     [
-        "sheet",
+        "session",
+        "worksheet",
+        "worksheetstyle",
         "range",
+        "rangeedit",
+        "rangeformat",
+        "rangelink",
         "table",
+        "tablecolumn",
         "powerquery",
         "pivottable",
+        "pivottablefield",
+        "pivottablecalc",
         "chart",
         "chartconfig",
         "connection",
+        "calculationmode",
         "namedrange",
         "conditionalformat",
         "vba",
         "datamodel",
+        "datamodelrel",
         "slicer"
     ];
 

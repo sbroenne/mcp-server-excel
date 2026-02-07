@@ -5,11 +5,14 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Named ranges give human-readable aliases to cell ranges or formulas.
-/// Use for dynamic references, input parameters, and improving formula readability.
+/// Named ranges for formulas/parameters.
+/// CREATE/UPDATE: value is cell reference (e.g., 'Sheet1!$A$1').
+/// WRITE: value is data to store.
+/// TIP: range(rangeAddress=namedRangeName) for bulk data read/write.
 /// </summary>
 [ServiceCategory("namedrange", "NamedRange")]
-[McpTool("excel_namedrange")]
+[McpTool("excel_namedrange", Title = "Excel Named Range Operations", Destructive = true, Category = "data",
+    Description = "Named ranges for formulas/parameters. CREATE/UPDATE: value is cell reference (e.g., Sheet1!$A$1). WRITE: value is data to store in the named range. TIP: Use excel_range(rangeAddress=namedRangeName) for bulk data operations.")]
 public interface INamedRangeCommands
 {
     /// <summary>

@@ -4,11 +4,34 @@ using Sbroenne.ExcelMcp.Core.Attributes;
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
 /// <summary>
-/// Excel chart configuration operations - data sources, titles, axes, styling, trendlines.
-/// Use chart command for lifecycle operations (create, delete, move).
+/// Chart configuration - data source, series, type, title, axis labels, legend, and styling.
+///
+/// SERIES MANAGEMENT:
+/// - add-series: Add data series with valuesRange (required) and optional categoryRange
+/// - remove-series: Remove series by 1-based index
+/// - set-source-range: Replace entire chart data source
+///
+/// TITLES AND LABELS:
+/// - set-title: Set chart title (empty string hides title)
+/// - set-axis-title: Set axis labels (Category, Value, CategorySecondary, ValueSecondary)
+///
+/// CHART STYLES: 1-48 (built-in Excel styles with different color schemes)
+///
+/// DATA LABELS: Show values, percentages, series/category names.
+/// Positions: Center, InsideEnd, InsideBase, OutsideEnd, BestFit.
+///
+/// TRENDLINES: Linear, Exponential, Logarithmic, Polynomial (order 2-6), Power, MovingAverage.
+///
+/// PLACEMENT MODE:
+/// - 1: Move and size with cells
+/// - 2: Move but don't size with cells
+/// - 3: Don't move or size with cells (free floating)
+///
+/// Use chart for lifecycle operations (create, delete, move, fit-to-range).
 /// </summary>
 [ServiceCategory("chartconfig", "ChartConfig")]
-[McpTool("excel_chart_config")]
+[McpTool("excel_chart_config", Title = "Excel Chart Configuration", Destructive = true, Category = "analysis",
+    Description = "Chart configuration - data source, series, type, title, axis labels, legend, and styling. SERIES: add-series (valuesRange required), remove-series (1-based index), set-source-range. TITLES: set-title, set-axis-title (Category/Value/Secondary). AXIS: number format, scale min/max/units. LEGEND: Bottom, Corner, Top, Right, Left. STYLES: 1-48 built-in. DATA LABELS: values, percentages, positions (Center, InsideEnd, OutsideEnd, BestFit). GRIDLINES: major/minor for value/category axes. TRENDLINES: Linear, Exponential, Logarithmic, Polynomial, Power, MovingAverage. SERIES FORMAT: marker style/size/colors, invert if negative. PLACEMENT: 1=move+size with cells, 2=move only, 3=free floating. Use excel_chart for lifecycle.")]
 public interface IChartConfigCommands
 {
     // === DATA SOURCE OPERATIONS ===

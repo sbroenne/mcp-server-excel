@@ -5,11 +5,28 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Power Query (M code) management - create, edit, execute, and load queries.
-/// Use for ETL operations, data transformation, and connecting to external data sources.
+/// Power Query M code and data loading.
+///
+/// TEST-FIRST DEVELOPMENT WORKFLOW (BEST PRACTICE):
+/// 1. evaluate - Test M code WITHOUT persisting (catches syntax errors, validates sources, shows data preview)
+/// 2. create/update - Store VALIDATED query in workbook
+/// 3. refresh/load-to - Load data to destination
+/// Skip evaluate only for trivial literal tables.
+///
+/// IF CREATE/UPDATE FAILS: Use evaluate to get the actual M engine error message, fix code, retry.
+///
+/// DATETIME COLUMNS: Always include Table.TransformColumnTypes() in M code to set column types explicitly.
+/// Without explicit types, dates may be stored as numbers and Data Model relationships may fail.
+///
+/// DESTINATIONS: 'worksheet' (default), 'data-model' (for DAX), 'both', 'connection-only'.
+/// Use 'data-model' to load to Power Pivot, then use datamodel to create DAX measures.
+///
+/// TARGET CELL: targetCellAddress places tables without clearing sheet.
+/// TIMEOUT: 5 min auto-timeout for refresh/load.
 /// </summary>
 [ServiceCategory("powerquery", "PowerQuery")]
-[McpTool("excel_powerquery")]
+[McpTool("excel_powerquery", Title = "Excel Power Query Operations", Destructive = true, Category = "query",
+    Description = "Power Query M code and data loading. TEST-FIRST WORKFLOW: 1. evaluate (test M code without persisting) 2. create/update (store validated query) 3. refresh/load-to (load data to destination). IF CREATE FAILS: Use evaluate for detailed M engine error. DATETIME: Always include Table.TransformColumnTypes() for explicit column types. DESTINATIONS: worksheet (default), data-model (for DAX), both, connection-only. M-CODE: Auto-formatted via powerqueryformatter.com. TARGET CELL: targetCellAddress places tables without clearing sheet. TIMEOUT: 5 min auto-timeout.")]
 public interface IPowerQueryCommands
 {
     /// <summary>

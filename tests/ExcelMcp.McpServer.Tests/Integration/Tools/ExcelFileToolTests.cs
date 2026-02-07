@@ -29,10 +29,10 @@ public class ExcelFileToolTests(ITestOutputHelper output)
         var result = ExcelFileTool.ExcelFile(
             FileAction.Create,
             path: protectedPath,
-            sessionId: null,
+            session_id: null,
             save: false,
             show: false,
-            timeoutSeconds: 300);
+            timeout_seconds: 300);
 
         output.WriteLine($"Result: {result}");
 
@@ -58,10 +58,10 @@ public class ExcelFileToolTests(ITestOutputHelper output)
         var result = ExcelFileTool.ExcelFile(
             FileAction.Create,
             path: invalidPath,
-            sessionId: null,
+            session_id: null,
             save: false,
             show: false,
-            timeoutSeconds: 300);
+            timeout_seconds: 300);
 
         output.WriteLine($"Result: {result}");
 
@@ -84,10 +84,10 @@ public class ExcelFileToolTests(ITestOutputHelper output)
         var result = ExcelFileTool.ExcelFile(
             FileAction.Create,
             path: null,
-            sessionId: null,
+            session_id: null,
             save: false,
             show: false,
-            timeoutSeconds: 300);
+            timeout_seconds: 300);
 
         output.WriteLine($"Result: {result}");
 
@@ -114,10 +114,10 @@ public class ExcelFileToolTests(ITestOutputHelper output)
             var result = ExcelFileTool.ExcelFile(
                 FileAction.Create,
                 path: tempPath,
-                sessionId: null,
+                session_id: null,
                 save: false,
                 show: false,
-                timeoutSeconds: 300);
+                timeout_seconds: 300);
 
             output.WriteLine($"Result: {result}");
 
@@ -138,10 +138,10 @@ public class ExcelFileToolTests(ITestOutputHelper output)
                 ExcelFileTool.ExcelFile(
                     FileAction.Close,
                     path: null,
-                    sessionId: sessionId,
+                    session_id: sessionId,
                     save: false,
                     show: false,
-                    timeoutSeconds: 300);
+                    timeout_seconds: 300);
             }
 
             if (File.Exists(tempPath))
@@ -161,10 +161,10 @@ public class ExcelFileToolTests(ITestOutputHelper output)
         var result = ExcelFileTool.ExcelFile(
             FileAction.Test,
             path: fakePath,
-            sessionId: null,
+            session_id: null,
             save: false,
             show: false,
-            timeoutSeconds: 300);
+            timeout_seconds: 300);
 
         output.WriteLine($"Result: {result}");
 

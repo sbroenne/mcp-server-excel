@@ -4,12 +4,28 @@ using Sbroenne.ExcelMcp.Core.Attributes;
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
 /// <summary>
-/// Excel chart lifecycle operations - creating, reading, moving, and deleting charts.
-/// Supports Regular charts (static, from ranges) and PivotCharts (dynamic, from PivotTables).
-/// Use chartconfig command for series, titles, and styling.
+/// Chart lifecycle - create, read, move, and delete embedded charts.
+///
+/// CRITICAL - AVOID OVERLAPPING DATA:
+/// 1. Check used range first with range get-used-range
+/// 2. Position chart BELOW or to the RIGHT of data
+/// 3. NEVER place charts at default position (0,0) - it overlaps data!
+///
+/// POSITIONING: left/top in points (72 points = 1 inch).
+/// Use fit-to-range to position chart within a cell range like 'F2:K15'.
+///
+/// CHART TYPES: 70+ types available including Column, Line, Pie, Bar, Area, XY Scatter.
+///
+/// CREATE OPTIONS:
+/// - create-from-range: Create from cell range (e.g., 'A1:D10')
+/// - create-from-table: Create from Excel Table (uses table's data range)
+/// - create-from-pivottable: Create linked PivotChart
+///
+/// Use chartconfig for series, titles, legends, styles, placement mode.
 /// </summary>
 [ServiceCategory("chart", "Chart")]
-[McpTool("excel_chart")]
+[McpTool("excel_chart", Title = "Excel Chart Operations", Destructive = true, Category = "analysis",
+    Description = "Chart lifecycle - create, read, move, and delete embedded charts. CRITICAL - AVOID OVERLAPPING DATA: 1. Check used range first with get-used-range 2. Position chart BELOW or RIGHT of data 3. NEVER place at default (0,0). POSITIONING: targetRange (cell-relative, PREFERRED) or left/top (points, 72pts=1in). CHART TYPES: 70+ types (ColumnClustered, Line, Pie, Bar, Area, XYScatter, etc.). CREATE: create-from-range (cell range), create-from-table (Excel Table), create-from-pivottable (linked PivotChart). Use excel_chart_config for series, titles, legends, and styling.")]
 public interface IChartCommands
 {
     // === LIFECYCLE OPERATIONS ===

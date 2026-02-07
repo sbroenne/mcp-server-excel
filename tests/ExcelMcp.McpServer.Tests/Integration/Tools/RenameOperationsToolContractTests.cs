@@ -262,8 +262,8 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         {
             ["action"] = "RenameTable",
             ["sessionId"] = _sessionId,
-            ["tn"] = "NonExistentTable",
-            ["nn"] = "NewTableName"
+            ["tableName"] = "NonExistentTable",
+            ["newName"] = "NewTableName"
         });
         _output.WriteLine($"Response: {json}");
 
@@ -285,7 +285,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
     public async Task DataModelRenameTable_ExcelLimitation_ReturnsJsonWithClearError()
     {
         // Arrange - create a Power Query and load it to the Data Model
-        await CreatePowerQuery("TestData", "let x = 1 in x");
+        await CreatePowerQuery("TestData", "let Source = #table({\"Col1\", \"Col2\"}, {{\"A\", 1}, {\"B\", 2}}) in Source");
         await LoadQueryToDataModel("TestData");
 
         // Act - attempt to rename the table in Data Model
@@ -293,8 +293,8 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         {
             ["action"] = "RenameTable",
             ["sessionId"] = _sessionId,
-            ["tn"] = "TestData",
-            ["nn"] = "NewTableName"
+            ["tableName"] = "TestData",
+            ["newName"] = "NewTableName"
         });
         _output.WriteLine($"Response: {json}");
 
@@ -324,7 +324,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
     public async Task DataModelRenameTable_EmptyNewName_ReturnsJsonWithSuccessFalse()
     {
         // Arrange - create table in Data Model
-        await CreatePowerQuery("DataTable", "let x = 1 in x");
+        await CreatePowerQuery("DataTable", "let Source = #table({\"Col1\", \"Col2\"}, {{\"A\", 1}, {\"B\", 2}}) in Source");
         await LoadQueryToDataModel("DataTable");
 
         // Act - try to rename with empty new name
@@ -332,8 +332,8 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         {
             ["action"] = "RenameTable",
             ["sessionId"] = _sessionId,
-            ["tn"] = "DataTable",
-            ["nn"] = "   " // Empty after trim
+            ["tableName"] = "DataTable",
+            ["newName"] = "   " // Empty after trim
         });
         _output.WriteLine($"Response: {json}");
 

@@ -5,11 +5,19 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Worksheet styling and appearance - tab colors, visibility, freeze panes.
-/// Use worksheet command for lifecycle operations (create, rename, copy, delete).
+/// Worksheet styling operations for tab colors and visibility.
+/// Use sheet for lifecycle operations (create, rename, copy, delete, move).
+///
+/// TAB COLORS: Use RGB values (0-255 each) to set custom tab colors for visual organization.
+///
+/// VISIBILITY LEVELS:
+/// - 'visible': Normal visible sheet
+/// - 'hidden': Hidden but accessible via Format > Sheet > Unhide
+/// - 'veryhidden': Only accessible via VBA (protection against casual unhiding)
 /// </summary>
 [ServiceCategory("sheet", "SheetStyle")]
-[McpTool("excel_worksheet_style")]
+[McpTool("excel_worksheet_style", Title = "Excel Worksheet Style Operations", Destructive = true, Category = "structure",
+    Description = "Worksheet styling: tab colors and visibility. TAB COLORS: RGB values 0-255 each for custom tab colors. VISIBILITY: visible (normal), hidden (accessible via Format > Sheet > Unhide), veryhidden (only accessible via VBA). Use excel_worksheet for lifecycle operations.")]
 public interface ISheetStyleCommands
 {
     // === TAB COLOR OPERATIONS ===
@@ -20,10 +28,10 @@ public interface ISheetStyleCommands
     /// Throws exception on error.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="sheetName">Name of the worksheet</param>
-    /// <param name="red">Red component (0-255)</param>
-    /// <param name="green">Green component (0-255)</param>
-    /// <param name="blue">Blue component (0-255)</param>
+    /// <param name="sheetName">Name of the worksheet to color</param>
+    /// <param name="red">Red color component (0-255)</param>
+    /// <param name="green">Green color component (0-255)</param>
+    /// <param name="blue">Blue color component (0-255)</param>
     [ServiceAction("set-tab-color")]
     void SetTabColor(
         IExcelBatch batch,
@@ -61,12 +69,13 @@ public interface ISheetStyleCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
-    /// <param name="visibility">Visibility level: visible, hidden, or veryhidden</param>
+    /// <param name="visibility">Visibility level: 'visible', 'hidden', or 'veryhidden'</param>
     [ServiceAction("set-visibility")]
     void SetVisibility(
         IExcelBatch batch,
         [RequiredParameter] string sheetName,
-        [RequiredParameter] SheetVisibility visibility);
+        [RequiredParameter]
+        [FromString] SheetVisibility visibility);
 
     /// <summary>
     /// Gets worksheet visibility level

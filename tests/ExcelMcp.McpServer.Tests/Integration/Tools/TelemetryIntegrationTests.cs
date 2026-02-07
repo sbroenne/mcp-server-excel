@@ -108,10 +108,10 @@ public class TelemetryIntegrationTests(ITestOutputHelper output)
         var result = ExcelFileTool.ExcelFile(
             FileAction.Test,
             path: "C:\\fake\\test.xlsx",
-            sessionId: null,
+            session_id: null,
             save: false,
             show: false,
-            timeoutSeconds: 300);
+            timeout_seconds: 300);
 
         output.WriteLine($"Tool result: {result[..Math.Min(200, result.Length)]}...\n");
 

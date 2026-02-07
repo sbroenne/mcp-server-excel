@@ -12,7 +12,21 @@ public sealed class ServiceInfo
     public string? XmlDocSummary { get; }
     public List<MethodInfo> Methods { get; }
 
-    public ServiceInfo(string category, string categoryPascal, string mcpToolName, bool noSession, List<MethodInfo> methods, string? xmlDocSummary = null)
+    /// <summary>Human-readable title for the MCP tool (e.g., "Excel Power Query Operations").</summary>
+    public string? McpToolTitle { get; }
+
+    /// <summary>Whether the tool is destructive (modifies data). Default: true.</summary>
+    public bool McpToolDestructive { get; }
+
+    /// <summary>MCP meta category (e.g., "data", "analysis", "query").</summary>
+    public string? McpToolCategory { get; }
+
+    /// <summary>Tool description for LLMs via [Description], since XML docs aren't available from metadata refs.</summary>
+    public string? McpToolDescription { get; }
+
+    public ServiceInfo(string category, string categoryPascal, string mcpToolName, bool noSession, List<MethodInfo> methods,
+        string? xmlDocSummary = null, string? mcpToolTitle = null, bool mcpToolDestructive = true, string? mcpToolCategory = null,
+        string? mcpToolDescription = null)
     {
         Category = category;
         CategoryPascal = categoryPascal;
@@ -20,6 +34,10 @@ public sealed class ServiceInfo
         NoSession = noSession;
         XmlDocSummary = xmlDocSummary;
         Methods = methods;
+        McpToolTitle = mcpToolTitle;
+        McpToolDestructive = mcpToolDestructive;
+        McpToolCategory = mcpToolCategory;
+        McpToolDescription = mcpToolDescription;
     }
 }
 
@@ -34,9 +52,11 @@ public sealed class MethodInfo
     public string McpTool { get; }
     public List<ParameterInfo> Parameters { get; }
     public string? XmlDocSummary { get; }
+    /// <summary>Whether the original interface method has an IExcelBatch parameter.</summary>
+    public bool HasBatchParameter { get; }
 
     public MethodInfo(string methodName, string actionName, string returnType, string mcpTool,
-        List<ParameterInfo> parameters, string? xmlDocSummary = null)
+        List<ParameterInfo> parameters, string? xmlDocSummary = null, bool hasBatchParameter = true)
     {
         MethodName = methodName;
         ActionName = actionName;
@@ -44,6 +64,7 @@ public sealed class MethodInfo
         McpTool = mcpTool;
         Parameters = parameters;
         XmlDocSummary = xmlDocSummary;
+        HasBatchParameter = hasBatchParameter;
     }
 }
 
@@ -64,11 +85,17 @@ public sealed class ParameterInfo
     public bool IsEnum { get; }
     public string? XmlDocDescription { get; }
 
+    /// <summary>
+    /// The fully qualified enum type name when IsFromString and IsEnum are both true.
+    /// Used by MCP generator to emit typed enum parameters instead of strings.
+    /// </summary>
+    public string? EnumTypeName { get; }
+
     public ParameterInfo(string name, string typeName, bool hasDefault, string? defaultValue,
         bool isFileOrValue = false, string? fileSuffix = null,
         bool isFromString = false, string? exposedName = null,
         bool isRequired = false, bool isEnum = false,
-        string? xmlDocDescription = null)
+        string? xmlDocDescription = null, string? enumTypeName = null)
     {
         Name = name;
         TypeName = typeName;
@@ -81,6 +108,7 @@ public sealed class ParameterInfo
         IsRequired = isRequired;
         IsEnum = isEnum;
         XmlDocDescription = xmlDocDescription;
+        EnumTypeName = enumTypeName;
     }
 }
 

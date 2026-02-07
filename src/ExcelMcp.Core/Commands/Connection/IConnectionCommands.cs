@@ -5,11 +5,14 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Manage external data connections (ODBC, OLE DB) and their refresh/load behavior.
-/// For M code authoring and query logic, use the powerquery command instead.
+/// Data connections (OLEDB, ODBC, ODC import).
+/// TEXT/WEB/CSV: Use powerquery instead.
+/// Power Query connections auto-redirect to powerquery.
+/// TIMEOUT: 5 min auto-timeout for refresh/load-to.
 /// </summary>
 [ServiceCategory("connection", "Connection")]
-[McpTool("excel_connection")]
+[McpTool("excel_connection", Title = "Excel Data Connection Operations", Destructive = true, Category = "query",
+    Description = "Data connections (OLEDB, ODBC, ODC import). TEXT/WEB/CSV: Use excel_powerquery instead. Power Query connections auto-redirect to excel_powerquery. TIMEOUT: 5 min auto-timeout for refresh/loadto.")]
 public interface IConnectionCommands
 {
     /// <summary>

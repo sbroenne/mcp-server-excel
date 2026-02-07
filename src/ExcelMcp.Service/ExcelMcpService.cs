@@ -9,7 +9,6 @@ using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Commands.Slicer;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
-using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Generated;
 
 namespace Sbroenne.ExcelMcp.Service;
@@ -266,23 +265,51 @@ public sealed class ExcelMcpService : IDisposable
             {
                 "service" => HandleServiceCommand(action),
                 "session" => HandleSessionCommand(action, request),
-                "sheet" => await HandleSheetCommandAsync(action, request),
-                "range" => await HandleRangeCommandAsync(action, request),
-                "table" => await HandleTableCommandAsync(action, request),
-                "powerquery" => await HandlePowerQueryCommandAsync(action, request),
-                "pivottable" => await HandlePivotTableCommandAsync(action, request),
-                "pivottablefield" => await HandlePivotTableFieldCommandAsync(action, request),
-                "pivottablecalc" => await HandlePivotTableCalcCommandAsync(action, request),
-                "chart" => await HandleChartCommandAsync(action, request),
-                "chartconfig" => await HandleChartConfigCommandAsync(action, request),
-                "connection" => await HandleConnectionCommandAsync(action, request),
-                "calculation" => await HandleCalculationModeCommandAsync(action, request),
-                "namedrange" => await HandleNamedRangeCommandAsync(action, request),
-                "conditionalformat" => await HandleConditionalFormatCommandAsync(action, request),
-                "vba" => await HandleVbaCommandAsync(action, request),
-                "datamodel" => await HandleDataModelCommandAsync(action, request),
-                "datamodelrel" => await HandleDataModelRelCommandAsync(action, request),
-                "slicer" => await HandleSlicerCommandAsync(action, request),
+                "sheet" or "sheetstyle" => await DispatchSheetAsync(action, request),
+                "range" or "rangeedit" or "rangeformat" or "rangelink" => await DispatchRangeAsync(action, request),
+                "table" or "tablecolumn" => await DispatchTableAsync(action, request),
+                "powerquery" => await DispatchSimpleAsync<PowerQueryAction>(action, request,
+                    ServiceRegistry.PowerQuery.TryParseAction,
+                    (a, batch) => ServiceRegistry.PowerQuery.DispatchToCore(_powerQueryCommands, a, batch, request.Args)),
+                "pivottable" => await DispatchSimpleAsync<PivotTableAction>(action, request,
+                    ServiceRegistry.PivotTable.TryParseAction,
+                    (a, batch) => ServiceRegistry.PivotTable.DispatchToCore(_pivotTableCommands, a, batch, request.Args)),
+                "pivottablefield" => await DispatchSimpleAsync<PivotTableFieldAction>(action, request,
+                    ServiceRegistry.PivotTableField.TryParseAction,
+                    (a, batch) => ServiceRegistry.PivotTableField.DispatchToCore(_pivotTableCommands, a, batch, request.Args)),
+                "pivottablecalc" => await DispatchSimpleAsync<PivotTableCalcAction>(action, request,
+                    ServiceRegistry.PivotTableCalc.TryParseAction,
+                    (a, batch) => ServiceRegistry.PivotTableCalc.DispatchToCore(_pivotTableCommands, a, batch, request.Args)),
+                "chart" => await DispatchSimpleAsync<ChartAction>(action, request,
+                    ServiceRegistry.Chart.TryParseAction,
+                    (a, batch) => ServiceRegistry.Chart.DispatchToCore(_chartCommands, a, batch, request.Args)),
+                "chartconfig" => await DispatchSimpleAsync<ChartConfigAction>(action, request,
+                    ServiceRegistry.ChartConfig.TryParseAction,
+                    (a, batch) => ServiceRegistry.ChartConfig.DispatchToCore(_chartCommands, a, batch, request.Args)),
+                "connection" => await DispatchSimpleAsync<ConnectionAction>(action, request,
+                    ServiceRegistry.Connection.TryParseAction,
+                    (a, batch) => ServiceRegistry.Connection.DispatchToCore(_connectionCommands, a, batch, request.Args)),
+                "calculation" => await DispatchSimpleAsync<CalculationAction>(action, request,
+                    ServiceRegistry.Calculation.TryParseAction,
+                    (a, batch) => ServiceRegistry.Calculation.DispatchToCore(_calculationModeCommands, a, batch, request.Args)),
+                "namedrange" => await DispatchSimpleAsync<NamedRangeAction>(action, request,
+                    ServiceRegistry.NamedRange.TryParseAction,
+                    (a, batch) => ServiceRegistry.NamedRange.DispatchToCore(_namedRangeCommands, a, batch, request.Args)),
+                "conditionalformat" => await DispatchSimpleAsync<ConditionalFormatAction>(action, request,
+                    ServiceRegistry.ConditionalFormat.TryParseAction,
+                    (a, batch) => ServiceRegistry.ConditionalFormat.DispatchToCore(_conditionalFormatCommands, a, batch, request.Args)),
+                "vba" => await DispatchSimpleAsync<VbaAction>(action, request,
+                    ServiceRegistry.Vba.TryParseAction,
+                    (a, batch) => ServiceRegistry.Vba.DispatchToCore(_vbaCommands, a, batch, request.Args)),
+                "datamodel" => await DispatchSimpleAsync<DataModelAction>(action, request,
+                    ServiceRegistry.DataModel.TryParseAction,
+                    (a, batch) => ServiceRegistry.DataModel.DispatchToCore(_dataModelCommands, a, batch, request.Args)),
+                "datamodelrel" => await DispatchSimpleAsync<DataModelRelAction>(action, request,
+                    ServiceRegistry.DataModelRel.TryParseAction,
+                    (a, batch) => ServiceRegistry.DataModelRel.DispatchToCore(_dataModelCommands, a, batch, request.Args)),
+                "slicer" => await DispatchSimpleAsync<SlicerAction>(action, request,
+                    ServiceRegistry.Slicer.TryParseAction,
+                    (a, batch) => ServiceRegistry.Slicer.DispatchToCore(_slicerCommands, a, batch, request.Args)),
                 _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown command category: {category}" }
             };
         }
@@ -340,7 +367,7 @@ public sealed class ExcelMcpService : IDisposable
 
     private ServiceResponse HandleSessionCreate(ServiceRequest request)
     {
-        var args = DeserializeArgs<SessionOpenArgs>(request.Args);
+        var args = ServiceRegistry.DeserializeArgs<SessionOpenArgs>(request.Args);
         if (string.IsNullOrWhiteSpace(args?.FilePath))
         {
             return new ServiceResponse { Success = false, ErrorMessage = "filePath is required" };
@@ -390,7 +417,7 @@ public sealed class ExcelMcpService : IDisposable
 
     private ServiceResponse HandleSessionOpen(ServiceRequest request)
     {
-        var args = DeserializeArgs<SessionOpenArgs>(request.Args);
+        var args = ServiceRegistry.DeserializeArgs<SessionOpenArgs>(request.Args);
         if (string.IsNullOrWhiteSpace(args?.FilePath))
         {
             return new ServiceResponse { Success = false, ErrorMessage = "filePath is required" };
@@ -421,7 +448,7 @@ public sealed class ExcelMcpService : IDisposable
             return new ServiceResponse { Success = false, ErrorMessage = "sessionId is required" };
         }
 
-        var args = DeserializeArgs<SessionCloseArgs>(request.Args);
+        var args = ServiceRegistry.DeserializeArgs<SessionCloseArgs>(request.Args);
         var closed = _sessionManager.CloseSession(request.SessionId, save: args?.Save ?? false);
 
         return closed
@@ -477,1529 +504,172 @@ public sealed class ExcelMcpService : IDisposable
         };
     }
 
-    // === SHEET COMMANDS ===
 
-    private Task<ServiceResponse> HandleSheetCommandAsync(string action, ServiceRequest request)
+
+    // === GENERATED DISPATCH ===
+
+    // All command routing uses ServiceRegistry.*.DispatchToCore() generated methods.
+
+    // See ServiceRegistry.*.Dispatch.g.cs for the generated code.
+
+
+
+    private delegate bool TryParseDelegate<TAction>(string action, out TAction result);
+
+
+
+    private static ServiceResponse WrapResult(string? dispatchResult)
+
     {
-        if (ServiceRegistry.Sheet.TryParseAction(action, out var sheetAction))
+
+        return dispatchResult == null
+
+            ? new ServiceResponse { Success = true }
+
+            : new ServiceResponse { Success = true, Result = dispatchResult };
+
+    }
+
+
+
+    private async Task<ServiceResponse> DispatchSimpleAsync<TAction>(
+
+        string actionString, ServiceRequest request,
+
+        TryParseDelegate<TAction> tryParse,
+
+        Func<TAction, IExcelBatch, string?> dispatch) where TAction : struct
+
+    {
+
+        if (!tryParse(actionString, out var action))
+
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown action: {actionString}" };
+
+
+
+        return await WithSessionAsync(request.SessionId, batch => WrapResult(dispatch(action, batch)));
+
+    }
+
+
+
+    private async Task<ServiceResponse> DispatchSheetAsync(string actionString, ServiceRequest request)
+
+    {
+
+        if (ServiceRegistry.Sheet.TryParseAction(actionString, out var sheetAction))
+
         {
+
+            // CopyToFile/MoveToFile are atomic operations without session
+
             if (sheetAction is SheetAction.CopyToFile or SheetAction.MoveToFile)
+
             {
-                return Task.FromResult(HandleSheetCrossFileCommand(sheetAction, request));
+
+                try
+
+                {
+
+                    return WrapResult(ServiceRegistry.Sheet.DispatchToCore(
+
+                        _sheetCommands, sheetAction, null!, request.Args));
+
+                }
+
+                catch (Exception ex)
+
+                {
+
+                    return new ServiceResponse { Success = false, ErrorMessage = ex.Message };
+
+                }
+
             }
 
-            return WithSessionAsync(request.SessionId, batch => sheetAction switch
-            {
-                // Lifecycle operations
-                SheetAction.List => SerializeResult(_sheetCommands.List(batch)),
-                SheetAction.Create => ExecuteVoid(() => _sheetCommands.Create(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                SheetAction.Rename => ExecuteVoid(() =>
-                {
-                    var args = GetArg<SheetRenameArgs>(request.Args);
-                    _sheetCommands.Rename(batch, args.SheetName!, args.NewName!);
-                }),
-                SheetAction.Delete => ExecuteVoid(() => _sheetCommands.Delete(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                SheetAction.Copy => ExecuteVoid(() =>
-                {
-                    var args = GetArg<SheetCopyArgs>(request.Args);
-                    _sheetCommands.Copy(batch, args.SourceSheet!, args.TargetSheet!);
-                }),
-                SheetAction.Move => ExecuteVoid(() =>
-                {
-                    var args = GetArg<SheetMoveArgs>(request.Args);
-                    _sheetCommands.Move(batch, args.SheetName!, args.BeforeSheet, args.AfterSheet);
-                }),
 
-                _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported sheet action: {action}" }
-            });
+
+            return await WithSessionAsync(request.SessionId, batch =>
+
+                WrapResult(ServiceRegistry.Sheet.DispatchToCore(_sheetCommands, sheetAction, batch, request.Args)));
+
         }
 
-        if (ServiceRegistry.SheetStyle.TryParseAction(action, out var styleAction))
+
+
+        if (ServiceRegistry.SheetStyle.TryParseAction(actionString, out var styleAction))
+
         {
-            return WithSessionAsync(request.SessionId, batch => styleAction switch
-            {
-                SheetStyleAction.SetTabColor => ExecuteVoid(() =>
-                {
-                    var args = GetArg<SheetTabColorArgs>(request.Args);
-                    _sheetCommands.SetTabColor(batch, args.SheetName!, args.Red ?? 0, args.Green ?? 0, args.Blue ?? 0);
-                }),
-                SheetStyleAction.GetTabColor => SerializeResult(_sheetCommands.GetTabColor(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                SheetStyleAction.ClearTabColor => ExecuteVoid(() => _sheetCommands.ClearTabColor(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
 
-                SheetStyleAction.SetVisibility => ExecuteVoid(() =>
-                {
-                    var args = GetArg<SheetVisibilityArgs>(request.Args);
-                    var visibility = args.Visibility?.ToLowerInvariant() switch
-                    {
-                        "visible" => SheetVisibility.Visible,
-                        "hidden" => SheetVisibility.Hidden,
-                        "veryhidden" or "very-hidden" => SheetVisibility.VeryHidden,
-                        _ => SheetVisibility.Visible
-                    };
-                    _sheetCommands.SetVisibility(batch, args.SheetName!, visibility);
-                }),
-                SheetStyleAction.GetVisibility => SerializeResult(_sheetCommands.GetVisibility(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                SheetStyleAction.Show => ExecuteVoid(() => _sheetCommands.Show(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                SheetStyleAction.Hide => ExecuteVoid(() => _sheetCommands.Hide(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
-                SheetStyleAction.VeryHide => ExecuteVoid(() => _sheetCommands.VeryHide(batch, GetArg<SheetArgs>(request.Args).SheetName!)),
+            return await WithSessionAsync(request.SessionId, batch =>
 
-                _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported sheet style action: {action}" }
-            });
+                WrapResult(ServiceRegistry.SheetStyle.DispatchToCore(_sheetCommands, styleAction, batch, request.Args)));
+
         }
 
-        return Task.FromResult(new ServiceResponse { Success = false, ErrorMessage = $"Unknown sheet action: {action}" });
+
+
+        return new ServiceResponse { Success = false, ErrorMessage = $"Unknown sheet action: {actionString}" };
+
     }
 
-    private ServiceResponse HandleSheetCrossFileCommand(SheetAction action, ServiceRequest request)
+
+
+    private async Task<ServiceResponse> DispatchRangeAsync(string actionString, ServiceRequest request)
+
     {
-        try
+
+        return await WithSessionAsync(request.SessionId, batch =>
+
         {
-            return action switch
-            {
-                SheetAction.CopyToFile => ExecuteVoid(() =>
-                {
-                    var args = GetArg<SheetCopyToFileArgs>(request.Args);
-                    _sheetCommands.CopyToFile(args.SourceFile!, args.SourceSheet!, args.TargetFile!, args.TargetSheetName, args.BeforeSheet, args.AfterSheet);
-                }),
-                SheetAction.MoveToFile => ExecuteVoid(() =>
-                {
-                    var args = GetArg<SheetMoveToFileArgs>(request.Args);
-                    _sheetCommands.MoveToFile(args.SourceFile!, args.SourceSheet!, args.TargetFile!, args.BeforeSheet, args.AfterSheet);
-                }),
-                _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown cross-file sheet action: {action}" }
-            };
-        }
-        catch (Exception ex)
-        {
-            return new ServiceResponse { Success = false, ErrorMessage = ex.Message };
-        }
-    }
 
-    // === RANGE COMMANDS (stub - implement as needed) ===
+            if (ServiceRegistry.Range.TryParseAction(actionString, out var ra))
 
-    private Task<ServiceResponse> HandleRangeCommandAsync(string action, ServiceRequest request)
-    {
-        return WithSessionAsync(request.SessionId, batch =>
-        {
-            if (ServiceRegistry.Range.TryParseAction(action, out var rangeAction))
-            {
-                return rangeAction switch
-                {
-                    RangeAction.GetValues => ExecuteRangeGetValues(batch, request),
-                    RangeAction.SetValues => ExecuteRangeSetValues(batch, request),
-                    RangeAction.GetUsedRange => ExecuteRangeGetUsedRange(batch, request),
-                    RangeAction.GetCurrentRegion => ExecuteRangeGetCurrentRegion(batch, request),
-                    RangeAction.GetInfo => ExecuteRangeGetInfo(batch, request),
-                    RangeAction.GetFormulas => ExecuteRangeGetFormulas(batch, request),
-                    RangeAction.SetFormulas => ExecuteRangeSetFormulas(batch, request),
-                    RangeAction.ClearAll => ExecuteRangeClearAll(batch, request),
-                    RangeAction.ClearContents => ExecuteRangeClearContents(batch, request),
-                    RangeAction.ClearFormats => ExecuteRangeClearFormats(batch, request),
-                    RangeAction.Copy => ExecuteRangeCopy(batch, request),
-                    RangeAction.CopyValues => ExecuteRangeCopyValues(batch, request),
-                    RangeAction.CopyFormulas => ExecuteRangeCopyFormulas(batch, request),
-                    RangeAction.GetNumberFormats => ExecuteRangeGetNumberFormats(batch, request),
-                    RangeAction.SetNumberFormat => ExecuteRangeSetNumberFormat(batch, request),
-                    RangeAction.SetNumberFormats => ExecuteRangeSetNumberFormats(batch, request),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported range action: {action}" }
-                };
-            }
+                return WrapResult(ServiceRegistry.Range.DispatchToCore(_rangeCommands, ra, batch, request.Args));
 
-            if (ServiceRegistry.RangeEdit.TryParseAction(action, out var editAction))
-            {
-                return editAction switch
-                {
-                    RangeEditAction.InsertCells => ExecuteRangeInsertCells(batch, request),
-                    RangeEditAction.DeleteCells => ExecuteRangeDeleteCells(batch, request),
-                    RangeEditAction.InsertRows => ExecuteRangeInsertRows(batch, request),
-                    RangeEditAction.DeleteRows => ExecuteRangeDeleteRows(batch, request),
-                    RangeEditAction.InsertColumns => ExecuteRangeInsertColumns(batch, request),
-                    RangeEditAction.DeleteColumns => ExecuteRangeDeleteColumns(batch, request),
-                    RangeEditAction.Find => ExecuteRangeFind(batch, request),
-                    RangeEditAction.Replace => ExecuteRangeReplace(batch, request),
-                    RangeEditAction.Sort => ExecuteRangeSort(batch, request),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported range edit action: {action}" }
-                };
-            }
+            if (ServiceRegistry.RangeEdit.TryParseAction(actionString, out var rea))
 
-            if (ServiceRegistry.RangeFormat.TryParseAction(action, out var formatAction))
-            {
-                return formatAction switch
-                {
-                    RangeFormatAction.SetStyle => ExecuteRangeSetStyle(batch, request),
-                    RangeFormatAction.GetStyle => ExecuteRangeGetStyle(batch, request),
-                    RangeFormatAction.FormatRange => ExecuteRangeFormatRange(batch, request),
-                    RangeFormatAction.ValidateRange => ExecuteRangeValidateRange(batch, request),
-                    RangeFormatAction.GetValidation => ExecuteRangeGetValidation(batch, request),
-                    RangeFormatAction.RemoveValidation => ExecuteRangeRemoveValidation(batch, request),
-                    RangeFormatAction.AutoFitColumns => ExecuteRangeAutoFitColumns(batch, request),
-                    RangeFormatAction.AutoFitRows => ExecuteRangeAutoFitRows(batch, request),
-                    RangeFormatAction.MergeCells => ExecuteRangeMergeCells(batch, request),
-                    RangeFormatAction.UnmergeCells => ExecuteRangeUnmergeCells(batch, request),
-                    RangeFormatAction.GetMergeInfo => ExecuteRangeGetMergeInfo(batch, request),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported range format action: {action}" }
-                };
-            }
+                return WrapResult(ServiceRegistry.RangeEdit.DispatchToCore(_rangeCommands, rea, batch, request.Args));
 
-            if (ServiceRegistry.RangeLink.TryParseAction(action, out var linkAction))
-            {
-                return linkAction switch
-                {
-                    RangeLinkAction.AddHyperlink => ExecuteRangeAddHyperlink(batch, request),
-                    RangeLinkAction.RemoveHyperlink => ExecuteRangeRemoveHyperlink(batch, request),
-                    RangeLinkAction.ListHyperlinks => ExecuteRangeListHyperlinks(batch, request),
-                    RangeLinkAction.GetHyperlink => ExecuteRangeGetHyperlink(batch, request),
-                    RangeLinkAction.SetCellLock => ExecuteRangeSetCellLock(batch, request),
-                    RangeLinkAction.GetCellLock => ExecuteRangeGetCellLock(batch, request),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported range link action: {action}" }
-                };
-            }
+            if (ServiceRegistry.RangeFormat.TryParseAction(actionString, out var rfa))
 
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown range action: {action}" };
+                return WrapResult(ServiceRegistry.RangeFormat.DispatchToCore(_rangeCommands, rfa, batch, request.Args));
+
+            if (ServiceRegistry.RangeLink.TryParseAction(actionString, out var rla))
+
+                return WrapResult(ServiceRegistry.RangeLink.DispatchToCore(_rangeCommands, rla, batch, request.Args));
+
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown range action: {actionString}" };
+
         });
+
     }
 
-    private ServiceResponse ExecuteRangeGetValues(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        var result = _rangeCommands.GetValues(batch, args.SheetName!, args.Range!);
-        return SerializeResult(result);
-    }
 
-    private ServiceResponse ExecuteRangeSetValues(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeSetValuesArgs>(request.Args);
-        var result = _rangeCommands.SetValues(batch, args.SheetName!, args.Range!, args.Values!);
-        return SerializeResult(result);
-    }
 
-    private ServiceResponse ExecuteRangeGetUsedRange(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<SheetArgs>(request.Args);
-        var result = _rangeCommands.GetUsedRange(batch, args.SheetName!);
-        return SerializeResult(result);
-    }
+    private async Task<ServiceResponse> DispatchTableAsync(string actionString, ServiceRequest request)
 
-    private ServiceResponse ExecuteRangeGetCurrentRegion(IExcelBatch batch, ServiceRequest request)
     {
-        var args = GetArg<RangeCellArgs>(request.Args);
-        var result = _rangeCommands.GetCurrentRegion(batch, args.SheetName!, args.CellAddress!);
-        return SerializeResult(result);
-    }
 
-    private ServiceResponse ExecuteRangeGetInfo(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        var result = _rangeCommands.GetInfo(batch, args.SheetName!, args.Range!);
-        return SerializeResult(result);
-    }
+        return await WithSessionAsync(request.SessionId, batch =>
 
-    private ServiceResponse ExecuteRangeGetFormulas(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        var result = _rangeCommands.GetFormulas(batch, args.SheetName!, args.Range!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeSetFormulas(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeSetFormulasArgs>(request.Args);
-        var result = _rangeCommands.SetFormulas(batch, args.SheetName!, args.Range!, args.Formulas!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeClearAll(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        var result = _rangeCommands.ClearAll(batch, args.SheetName!, args.Range!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeClearContents(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        var result = _rangeCommands.ClearContents(batch, args.SheetName!, args.Range!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeClearFormats(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        var result = _rangeCommands.ClearFormats(batch, args.SheetName!, args.Range!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeCopy(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeCopyArgs>(request.Args);
-        var result = _rangeCommands.Copy(batch, args.SourceSheet!, args.SourceRange!, args.TargetSheet!, args.TargetRange!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeCopyValues(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeCopyArgs>(request.Args);
-        var result = _rangeCommands.CopyValues(batch, args.SourceSheet!, args.SourceRange!, args.TargetSheet!, args.TargetRange!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeCopyFormulas(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeCopyArgs>(request.Args);
-        var result = _rangeCommands.CopyFormulas(batch, args.SourceSheet!, args.SourceRange!, args.TargetSheet!, args.TargetRange!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeInsertCells(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeInsertCellsArgs>(request.Args);
-        var shift = args.ShiftDirection?.ToLowerInvariant() == "right"
-            ? InsertShiftDirection.Right
-            : InsertShiftDirection.Down;
-        var result = _rangeCommands.InsertCells(batch, args.SheetName!, args.Range!, shift);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeDeleteCells(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeDeleteCellsArgs>(request.Args);
-        var shift = args.ShiftDirection?.ToLowerInvariant() == "left"
-            ? DeleteShiftDirection.Left
-            : DeleteShiftDirection.Up;
-        var result = _rangeCommands.DeleteCells(batch, args.SheetName!, args.Range!, shift);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeInsertRows(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        var result = _rangeCommands.InsertRows(batch, args.SheetName!, args.Range!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeDeleteRows(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        var result = _rangeCommands.DeleteRows(batch, args.SheetName!, args.Range!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeInsertColumns(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        var result = _rangeCommands.InsertColumns(batch, args.SheetName!, args.Range!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeDeleteColumns(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        var result = _rangeCommands.DeleteColumns(batch, args.SheetName!, args.Range!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeFind(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeFindArgs>(request.Args);
-        var options = new FindOptions
         {
-            MatchCase = args.MatchCase ?? false,
-            MatchEntireCell = args.MatchEntireCell ?? false,
-            SearchFormulas = args.SearchFormulas ?? true,
-            SearchValues = args.SearchValues ?? true,
-            SearchComments = args.SearchComments ?? false
-        };
-        var result = _rangeCommands.Find(batch, args.SheetName!, args.Range!, args.SearchValue!, options);
-        return SerializeResult(result);
-    }
 
-    private ServiceResponse ExecuteRangeReplace(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeReplaceArgs>(request.Args);
-        var options = new ReplaceOptions
-        {
-            MatchCase = args.MatchCase ?? false,
-            MatchEntireCell = args.MatchEntireCell ?? false,
-            ReplaceAll = args.ReplaceAll ?? true
-        };
-        _rangeCommands.Replace(batch, args.SheetName!, args.Range!, args.FindValue!, args.ReplaceValue!, options);
-        return ExecuteVoid(() => { });
-    }
+            if (ServiceRegistry.Table.TryParseAction(actionString, out var ta))
 
-    private ServiceResponse ExecuteRangeSort(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeSortArgs>(request.Args);
-        var sortColumns = args.SortColumns?
-            .Select(sc => new SortColumn { ColumnIndex = sc.ColumnIndex, Ascending = sc.Ascending })
-            .ToList() ?? [];
-        _rangeCommands.Sort(batch, args.SheetName!, args.Range!, sortColumns, args.HasHeaders ?? true);
-        return ExecuteVoid(() => { });
-    }
+                return WrapResult(ServiceRegistry.Table.DispatchToCore(_tableCommands, ta, batch, request.Args));
 
-    private ServiceResponse ExecuteRangeAddHyperlink(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeHyperlinkArgs>(request.Args);
-        var result = _rangeCommands.AddHyperlink(batch, args.SheetName!, args.CellAddress!, args.Url!, args.DisplayText, args.Tooltip);
-        return SerializeResult(result);
-    }
+            if (ServiceRegistry.TableColumn.TryParseAction(actionString, out var tca))
 
-    private ServiceResponse ExecuteRangeRemoveHyperlink(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        var result = _rangeCommands.RemoveHyperlink(batch, args.SheetName!, args.Range!);
-        return SerializeResult(result);
-    }
+                return WrapResult(ServiceRegistry.TableColumn.DispatchToCore(_tableCommands, tca, batch, request.Args));
 
-    private ServiceResponse ExecuteRangeListHyperlinks(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<SheetArgs>(request.Args);
-        var result = _rangeCommands.ListHyperlinks(batch, args.SheetName!);
-        return SerializeResult(result);
-    }
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown table action: {actionString}" };
 
-    private ServiceResponse ExecuteRangeGetHyperlink(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeCellArgs>(request.Args);
-        var result = _rangeCommands.GetHyperlink(batch, args.SheetName!, args.CellAddress!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeGetNumberFormats(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        var result = _rangeCommands.GetNumberFormats(batch, args.SheetName!, args.Range!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeSetNumberFormat(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeNumberFormatArgs>(request.Args);
-        var result = _rangeCommands.SetNumberFormat(batch, args.SheetName!, args.Range!, args.FormatCode!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeSetNumberFormats(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeNumberFormatsArgs>(request.Args);
-        var result = _rangeCommands.SetNumberFormats(batch, args.SheetName!, args.Range!, args.Formats!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeSetStyle(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeStyleArgs>(request.Args);
-        _rangeCommands.SetStyle(batch, args.SheetName!, args.Range!, args.StyleName!);
-        return ExecuteVoid(() => { });
-    }
-
-    private ServiceResponse ExecuteRangeGetStyle(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        var result = _rangeCommands.GetStyle(batch, args.SheetName!, args.Range!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeFormatRange(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeFormatArgs>(request.Args);
-        _rangeCommands.FormatRange(
-            batch, args.SheetName!, args.Range!,
-            args.FontName, args.FontSize, args.Bold, args.Italic, args.Underline,
-            args.FontColor, args.FillColor, args.BorderStyle, args.BorderColor, args.BorderWeight,
-            args.HorizontalAlignment, args.VerticalAlignment, args.WrapText, args.Orientation);
-        return ExecuteVoid(() => { });
-    }
-
-    private ServiceResponse ExecuteRangeValidateRange(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeValidationArgs>(request.Args);
-        _rangeCommands.ValidateRange(
-            batch, args.SheetName!, args.Range!,
-            args.ValidationType!, args.ValidationOperator, args.Formula1, args.Formula2,
-            args.ShowInputMessage, args.InputTitle, args.InputMessage,
-            args.ShowErrorAlert, args.ErrorStyle, args.ErrorTitle, args.ErrorMessage,
-            args.IgnoreBlank, args.ShowDropdown);
-        return ExecuteVoid(() => { });
-    }
-
-    private ServiceResponse ExecuteRangeGetValidation(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        var result = _rangeCommands.GetValidation(batch, args.SheetName!, args.Range!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeRemoveValidation(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        _rangeCommands.RemoveValidation(batch, args.SheetName!, args.Range!);
-        return ExecuteVoid(() => { });
-    }
-
-    private ServiceResponse ExecuteRangeAutoFitColumns(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        _rangeCommands.AutoFitColumns(batch, args.SheetName!, args.Range!);
-        return ExecuteVoid(() => { });
-    }
-
-    private ServiceResponse ExecuteRangeAutoFitRows(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        _rangeCommands.AutoFitRows(batch, args.SheetName!, args.Range!);
-        return ExecuteVoid(() => { });
-    }
-
-    private ServiceResponse ExecuteRangeMergeCells(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        _rangeCommands.MergeCells(batch, args.SheetName!, args.Range!);
-        return ExecuteVoid(() => { });
-    }
-
-    private ServiceResponse ExecuteRangeUnmergeCells(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        _rangeCommands.UnmergeCells(batch, args.SheetName!, args.Range!);
-        return ExecuteVoid(() => { });
-    }
-
-    private ServiceResponse ExecuteRangeGetMergeInfo(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        var result = _rangeCommands.GetMergeInfo(batch, args.SheetName!, args.Range!);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteRangeSetCellLock(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeLockArgs>(request.Args);
-        _rangeCommands.SetCellLock(batch, args.SheetName!, args.Range!, args.Locked ?? true);
-        return ExecuteVoid(() => { });
-    }
-
-    private ServiceResponse ExecuteRangeGetCellLock(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<RangeArgs>(request.Args);
-        var result = _rangeCommands.GetCellLock(batch, args.SheetName!, args.Range!);
-        return SerializeResult(result);
-    }
-
-    // === OTHER COMMAND CATEGORIES ===
-
-    private Task<ServiceResponse> HandleTableCommandAsync(string action, ServiceRequest request)
-    {
-        return WithSessionAsync(request.SessionId, batch =>
-        {
-            if (ServiceRegistry.Table.TryParseAction(action, out var tableAction))
-            {
-                return tableAction switch
-                {
-                    TableAction.List => SerializeResult(_tableCommands.List(batch)),
-                    TableAction.Create => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<TableCreateArgs>(request.Args);
-                        _tableCommands.Create(batch, a.SheetName!, a.TableName!, a.Range!, a.HasHeaders ?? true, a.TableStyle);
-                    }),
-                    TableAction.Read => SerializeResult(_tableCommands.Read(batch, GetArg<TableArgs>(request.Args).TableName!)),
-                    TableAction.Rename => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<TableRenameArgs>(request.Args);
-                        _tableCommands.Rename(batch, a.TableName!, a.NewName!);
-                    }),
-                    TableAction.Delete => ExecuteVoid(() => _tableCommands.Delete(batch, GetArg<TableArgs>(request.Args).TableName!)),
-                    TableAction.Resize => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<TableResizeArgs>(request.Args);
-                        _tableCommands.Resize(batch, a.TableName!, a.NewRange!);
-                    }),
-                    TableAction.SetStyle => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<TableStyleArgs>(request.Args);
-                        _tableCommands.SetStyle(batch, a.TableName!, a.TableStyle!);
-                    }),
-                    TableAction.ToggleTotals => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<TableToggleTotalsArgs>(request.Args);
-                        _tableCommands.ToggleTotals(batch, a.TableName!, a.ShowTotals ?? false);
-                    }),
-                    TableAction.SetColumnTotal => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<TableColumnTotalArgs>(request.Args);
-                        _tableCommands.SetColumnTotal(batch, a.TableName!, a.ColumnName!, a.TotalFunction!);
-                    }),
-                    TableAction.Append => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<TableAppendArgs>(request.Args);
-                        _tableCommands.Append(batch, a.TableName!, a.Rows!);
-                    }),
-                    TableAction.GetData => SerializeResult(_tableCommands.GetData(batch, GetArg<TableDataArgs>(request.Args).TableName!, GetArg<TableDataArgs>(request.Args).VisibleOnly ?? false)),
-                    TableAction.AddToDataModel => ExecuteVoid(() => _tableCommands.AddToDataModel(batch, GetArg<TableArgs>(request.Args).TableName!)),
-                    TableAction.CreateFromDax => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<TableDaxArgs>(request.Args);
-                        _tableCommands.CreateFromDax(batch, a.SheetName!, a.TableName!, a.DaxQuery!, a.TargetCell);
-                    }),
-                    TableAction.UpdateDax => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<TableUpdateDaxArgs>(request.Args);
-                        _tableCommands.UpdateDax(batch, a.TableName!, a.DaxQuery!);
-                    }),
-                    TableAction.GetDax => SerializeResult(_tableCommands.GetDax(batch, GetArg<TableArgs>(request.Args).TableName!)),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported table action: {action}" }
-                };
-            }
-
-            if (ServiceRegistry.TableColumn.TryParseAction(action, out var columnAction))
-            {
-                return columnAction switch
-                {
-                    TableColumnAction.ApplyFilter or TableColumnAction.ApplyFilterValues => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<TableFilterArgs>(request.Args);
-                        if (a.Criteria != null)
-                            _tableCommands.ApplyFilter(batch, a.TableName!, a.ColumnName!, a.Criteria);
-                        else if (a.Values != null)
-                            _tableCommands.ApplyFilterValues(batch, a.TableName!, a.ColumnName!, a.Values);
-                    }),
-                    TableColumnAction.ClearFilters => ExecuteVoid(() => _tableCommands.ClearFilters(batch, GetArg<TableArgs>(request.Args).TableName!)),
-                    TableColumnAction.GetFilters => SerializeResult(_tableCommands.GetFilters(batch, GetArg<TableArgs>(request.Args).TableName!)),
-                    TableColumnAction.AddColumn => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<TableAddColumnArgs>(request.Args);
-                        _tableCommands.AddColumn(batch, a.TableName!, a.ColumnName!, a.Position);
-                    }),
-                    TableColumnAction.RemoveColumn => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<TableColumnArgs>(request.Args);
-                        _tableCommands.RemoveColumn(batch, a.TableName!, a.ColumnName!);
-                    }),
-                    TableColumnAction.RenameColumn => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<TableRenameColumnArgs>(request.Args);
-                        _tableCommands.RenameColumn(batch, a.TableName!, a.OldName!, a.NewName!);
-                    }),
-                    TableColumnAction.Sort => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<TableSortArgs>(request.Args);
-                        _tableCommands.Sort(batch, a.TableName!, a.ColumnName!, a.Ascending ?? true);
-                    }),
-                    TableColumnAction.SortMulti => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<TableSortMultiArgs>(request.Args);
-                        var sortColumns = JsonSerializer.Deserialize<List<TableSortColumn>>(a.SortColumnsJson!, ServiceProtocol.JsonOptions)
-                            ?? throw new ArgumentException("sortColumnsJson must be a non-empty array");
-                        _tableCommands.SortMulti(batch, a.TableName!, sortColumns);
-                    }),
-                    TableColumnAction.GetStructuredReference => SerializeResult(() =>
-                    {
-                        var a = GetArg<TableStructuredRefArgs>(request.Args);
-                        var region = ParseTableRegion(a.Region);
-                        return _tableCommands.GetStructuredReference(batch, a.TableName!, region, a.ColumnName);
-                    }),
-                    TableColumnAction.GetColumnNumberFormat => SerializeResult(_tableCommands.GetColumnNumberFormat(batch, GetArg<TableColumnArgs>(request.Args).TableName!, GetArg<TableColumnArgs>(request.Args).ColumnName!)),
-                    TableColumnAction.SetColumnNumberFormat => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<TableColumnFormatArgs>(request.Args);
-                        _tableCommands.SetColumnNumberFormat(batch, a.TableName!, a.ColumnName!, a.FormatCode!);
-                    }),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported table column action: {action}" }
-                };
-            }
-
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown table action: {action}" };
         });
+
     }
 
-    private Task<ServiceResponse> HandlePowerQueryCommandAsync(string action, ServiceRequest request)
-    {
-        return WithSessionAsync(request.SessionId, batch =>
-        {
-            if (TryParseAction<PowerQueryAction>(action, out var pqAction))
-            {
-                return pqAction switch
-                {
-                    PowerQueryAction.List => SerializeResult(_powerQueryCommands.List(batch)),
-                    PowerQueryAction.View => SerializeResult(_powerQueryCommands.View(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!)),
-                    PowerQueryAction.Create => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<PowerQueryCreateArgs>(request.Args);
-                        var loadMode = ParseLoadMode(a.LoadDestination);
-                        _powerQueryCommands.Create(batch, a.QueryName!, a.MCode!, loadMode, a.TargetSheet, a.TargetCellAddress);
-                    }),
-                    PowerQueryAction.Update => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<PowerQueryUpdateArgs>(request.Args);
-                        _powerQueryCommands.Update(batch, a.QueryName!, a.MCode!, a.Refresh ?? true);
-                    }),
-                    PowerQueryAction.Rename => SerializeResult(_powerQueryCommands.Rename(batch, GetArg<PowerQueryRenameArgs>(request.Args).OldName!, GetArg<PowerQueryRenameArgs>(request.Args).NewName!)),
-                    PowerQueryAction.Delete => ExecuteVoid(() => _powerQueryCommands.Delete(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!)),
-                    PowerQueryAction.Refresh => SerializeResult(_powerQueryCommands.Refresh(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!, TimeSpan.FromMinutes(5))),
-                    PowerQueryAction.RefreshAll => ExecuteVoid(() => _powerQueryCommands.RefreshAll(batch)),
-                    PowerQueryAction.LoadTo => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<PowerQueryLoadToArgs>(request.Args);
-                        var loadMode = ParseLoadMode(a.LoadDestination);
-                        _powerQueryCommands.LoadTo(batch, a.QueryName!, loadMode, a.TargetSheet, a.TargetCellAddress);
-                    }),
-                    PowerQueryAction.GetLoadConfig => SerializeResult(_powerQueryCommands.GetLoadConfig(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!)),
-                    PowerQueryAction.Unload => SerializeResult(_powerQueryCommands.Unload(batch, GetArg<PowerQueryArgs>(request.Args).QueryName!)),
-                    PowerQueryAction.Evaluate => SerializeResult(_powerQueryCommands.Evaluate(batch, GetArg<PowerQueryEvaluateArgs>(request.Args).MCode!)),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported powerquery action: {action}" }
-                };
-            }
-
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown powerquery action: {action}" };
-        });
-    }
-
-    private static PowerQueryLoadMode ParseLoadMode(string? loadDestination)
-    {
-        return loadDestination?.ToLowerInvariant() switch
-        {
-            "worksheet" or "table" => PowerQueryLoadMode.LoadToTable,
-            "data-model" or "datamodel" => PowerQueryLoadMode.LoadToDataModel,
-            "both" => PowerQueryLoadMode.LoadToBoth,
-            "connection-only" or "connectiononly" => PowerQueryLoadMode.ConnectionOnly,
-            _ => PowerQueryLoadMode.LoadToTable
-        };
-    }
-
-    private Task<ServiceResponse> HandlePivotTableCommandAsync(string action, ServiceRequest request)
-    {
-        return WithSessionAsync(request.SessionId, batch =>
-        {
-            if (ServiceRegistry.PivotTable.TryParseAction(action, out var pivotAction))
-            {
-                return pivotAction switch
-                {
-                    PivotTableAction.List => SerializeResult(_pivotTableCommands.List(batch)),
-                    PivotTableAction.Read => SerializeResult(_pivotTableCommands.Read(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
-                    PivotTableAction.CreateFromRange => SerializeResult(() =>
-                    {
-                        var a = GetArg<PivotTableFromRangeArgs>(request.Args);
-                        return _pivotTableCommands.CreateFromRange(batch, a.SourceSheet!, a.SourceRange!, a.DestinationSheet!, a.DestinationCell!, a.PivotTableName!);
-                    }),
-                    PivotTableAction.CreateFromTable => SerializeResult(() =>
-                    {
-                        var a = GetArg<PivotTableFromTableArgs>(request.Args);
-                        return _pivotTableCommands.CreateFromTable(batch, a.TableName!, a.DestinationSheet!, a.DestinationCell!, a.PivotTableName!);
-                    }),
-                    PivotTableAction.CreateFromDataModel => SerializeResult(() =>
-                    {
-                        var a = GetArg<PivotTableFromDataModelArgs>(request.Args);
-                        return _pivotTableCommands.CreateFromDataModel(batch, a.TableName!, a.DestinationSheet!, a.DestinationCell!, a.PivotTableName!);
-                    }),
-                    PivotTableAction.Delete => SerializeResult(_pivotTableCommands.Delete(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
-                    PivotTableAction.Refresh => SerializeResult(_pivotTableCommands.Refresh(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!, GetArg<PivotTableRefreshArgs>(request.Args).Timeout)),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported pivottable action: {action}" }
-                };
-            }
-
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown pivottable action: {action}" };
-        });
-    }
-
-    private Task<ServiceResponse> HandlePivotTableFieldCommandAsync(string action, ServiceRequest request)
-    {
-        return WithSessionAsync(request.SessionId, batch =>
-        {
-            if (ServiceRegistry.PivotTableField.TryParseAction(action, out var fieldAction))
-            {
-                return fieldAction switch
-                {
-                    PivotTableFieldAction.ListFields => SerializeResult(_pivotTableCommands.ListFields(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
-                    PivotTableFieldAction.AddRowField => SerializeResult(() =>
-                    {
-                        var a = GetArg<PivotFieldArgs>(request.Args);
-                        return _pivotTableCommands.AddRowField(batch, a.PivotTableName!, a.FieldName!, a.Position);
-                    }),
-                    PivotTableFieldAction.AddColumnField => SerializeResult(() =>
-                    {
-                        var a = GetArg<PivotFieldArgs>(request.Args);
-                        return _pivotTableCommands.AddColumnField(batch, a.PivotTableName!, a.FieldName!, a.Position);
-                    }),
-                    PivotTableFieldAction.AddValueField => SerializeResult(() =>
-                    {
-                        var a = GetArg<PivotValueFieldArgs>(request.Args);
-                        var func = ParseAggregationFunction(a.AggregationFunction);
-                        return _pivotTableCommands.AddValueField(batch, a.PivotTableName!, a.FieldName!, func, a.CustomName);
-                    }),
-                    PivotTableFieldAction.AddFilterField => SerializeResult(_pivotTableCommands.AddFilterField(batch, GetArg<PivotFieldArgs>(request.Args).PivotTableName!, GetArg<PivotFieldArgs>(request.Args).FieldName!)),
-                    PivotTableFieldAction.RemoveField => SerializeResult(_pivotTableCommands.RemoveField(batch, GetArg<PivotFieldArgs>(request.Args).PivotTableName!, GetArg<PivotFieldArgs>(request.Args).FieldName!)),
-                    PivotTableFieldAction.SetFieldFunction => SerializeResult(() =>
-                    {
-                        var a = GetArg<PivotFieldFunctionArgs>(request.Args);
-                        var func = ParseAggregationFunction(a.AggregationFunction);
-                        return _pivotTableCommands.SetFieldFunction(batch, a.PivotTableName!, a.FieldName!, func);
-                    }),
-                    PivotTableFieldAction.SetFieldName => SerializeResult(() =>
-                    {
-                        var a = GetArg<PivotFieldNameArgs>(request.Args);
-                        return _pivotTableCommands.SetFieldName(batch, a.PivotTableName!, a.FieldName!, a.CustomName!);
-                    }),
-                    PivotTableFieldAction.SetFieldFormat => SerializeResult(() =>
-                    {
-                        var a = GetArg<PivotFieldFormatArgs>(request.Args);
-                        return _pivotTableCommands.SetFieldFormat(batch, a.PivotTableName!, a.FieldName!, a.NumberFormat!);
-                    }),
-                    PivotTableFieldAction.SetFieldFilter => SerializeResult(() =>
-                    {
-                        var a = GetArg<PivotFieldFilterArgs>(request.Args);
-                        return _pivotTableCommands.SetFieldFilter(batch, a.PivotTableName!, a.FieldName!, a.SelectedValues!);
-                    }),
-                    PivotTableFieldAction.SortField => SerializeResult(() =>
-                    {
-                        var a = GetArg<PivotFieldSortArgs>(request.Args);
-                        var dir = a.Ascending ?? true ? SortDirection.Ascending : SortDirection.Descending;
-                        return _pivotTableCommands.SortField(batch, a.PivotTableName!, a.FieldName!, dir);
-                    }),
-                    PivotTableFieldAction.GroupByDate => SerializeResult(() =>
-                    {
-                        var a = GetArg<PivotGroupByDateArgs>(request.Args);
-                        var interval = ParseDateGroupingInterval(a.Interval);
-                        return _pivotTableCommands.GroupByDate(batch, a.PivotTableName!, a.FieldName!, interval);
-                    }),
-                    PivotTableFieldAction.GroupByNumeric => SerializeResult(() =>
-                    {
-                        var a = GetArg<PivotGroupByNumericArgs>(request.Args);
-                        return _pivotTableCommands.GroupByNumeric(batch, a.PivotTableName!, a.FieldName!, a.Start, a.End, a.IntervalSize ?? 10);
-                    }),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported pivottablefield action: {action}" }
-                };
-            }
-
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown pivottablefield action: {action}" };
-        });
-    }
-
-    private Task<ServiceResponse> HandlePivotTableCalcCommandAsync(string action, ServiceRequest request)
-    {
-        return WithSessionAsync(request.SessionId, batch =>
-        {
-            if (ServiceRegistry.PivotTableCalc.TryParseAction(action, out var calcAction))
-            {
-                return calcAction switch
-                {
-                    PivotTableCalcAction.ListCalculatedFields => SerializeResult(_pivotTableCommands.ListCalculatedFields(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
-                    PivotTableCalcAction.CreateCalculatedField => SerializeResult(() =>
-                    {
-                        var a = GetArg<PivotCalculatedFieldArgs>(request.Args);
-                        return _pivotTableCommands.CreateCalculatedField(batch, a.PivotTableName!, a.FieldName!, a.Formula!);
-                    }),
-                    PivotTableCalcAction.DeleteCalculatedField => SerializeResult(_pivotTableCommands.DeleteCalculatedField(batch, GetArg<PivotCalculatedFieldArgs>(request.Args).PivotTableName!, GetArg<PivotCalculatedFieldArgs>(request.Args).FieldName!)),
-                    PivotTableCalcAction.ListCalculatedMembers => SerializeResult(_pivotTableCommands.ListCalculatedMembers(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
-                    PivotTableCalcAction.CreateCalculatedMember => SerializeResult(() =>
-                    {
-                        var a = GetArg<PivotCalculatedMemberArgs>(request.Args);
-                        var memberType = ParseCalculatedMemberType(a.MemberType);
-                        return _pivotTableCommands.CreateCalculatedMember(batch, a.PivotTableName!, a.MemberName!, a.Formula!, memberType, a.SolveOrder ?? 0, a.DisplayFolder, a.NumberFormat);
-                    }),
-                    PivotTableCalcAction.DeleteCalculatedMember => SerializeResult(_pivotTableCommands.DeleteCalculatedMember(batch, GetArg<PivotCalculatedMemberArgs>(request.Args).PivotTableName!, GetArg<PivotCalculatedMemberArgs>(request.Args).MemberName!)),
-                    PivotTableCalcAction.SetLayout => SerializeResult(_pivotTableCommands.SetLayout(batch, GetArg<PivotLayoutArgs>(request.Args).PivotTableName!, GetArg<PivotLayoutArgs>(request.Args).LayoutType ?? 1)),
-                    PivotTableCalcAction.SetSubtotals => SerializeResult(() =>
-                    {
-                        var a = GetArg<PivotSubtotalsArgs>(request.Args);
-                        return _pivotTableCommands.SetSubtotals(batch, a.PivotTableName!, a.FieldName!, a.ShowSubtotals ?? true);
-                    }),
-                    PivotTableCalcAction.SetGrandTotals => SerializeResult(_pivotTableCommands.SetGrandTotals(batch, GetArg<PivotGrandTotalsArgs>(request.Args).PivotTableName!, GetArg<PivotGrandTotalsArgs>(request.Args).ShowRowGrandTotals ?? true, GetArg<PivotGrandTotalsArgs>(request.Args).ShowColumnGrandTotals ?? true)),
-                    PivotTableCalcAction.GetData => SerializeResult(_pivotTableCommands.GetData(batch, GetArg<PivotTableArgs>(request.Args).PivotTableName!)),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported pivottablecalc action: {action}" }
-                };
-            }
-
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown pivottablecalc action: {action}" };
-        });
-    }
-
-    private static AggregationFunction ParseAggregationFunction(string? func)
-    {
-        return func?.ToLowerInvariant() switch
-        {
-            "sum" => AggregationFunction.Sum,
-            "count" => AggregationFunction.Count,
-            "average" or "avg" => AggregationFunction.Average,
-            "max" => AggregationFunction.Max,
-            "min" => AggregationFunction.Min,
-            "product" => AggregationFunction.Product,
-            "countnums" or "countnumbers" => AggregationFunction.CountNumbers,
-            "stddev" => AggregationFunction.StdDev,
-            "stddevp" => AggregationFunction.StdDevP,
-            "var" => AggregationFunction.Var,
-            "varp" => AggregationFunction.VarP,
-            _ => AggregationFunction.Sum
-        };
-    }
-
-    private static DateGroupingInterval ParseDateGroupingInterval(string? interval)
-    {
-        return interval?.ToLowerInvariant() switch
-        {
-            "days" or "day" => DateGroupingInterval.Days,
-            "months" or "month" => DateGroupingInterval.Months,
-            "quarters" or "quarter" => DateGroupingInterval.Quarters,
-            "years" or "year" => DateGroupingInterval.Years,
-            _ => DateGroupingInterval.Months
-        };
-    }
-
-    private static CalculatedMemberType ParseCalculatedMemberType(string? memberType)
-    {
-        return memberType?.ToLowerInvariant() switch
-        {
-            "member" => CalculatedMemberType.Member,
-            "set" => CalculatedMemberType.Set,
-            "measure" => CalculatedMemberType.Measure,
-            _ => CalculatedMemberType.Member
-        };
-    }
-
-    private static TableRegion ParseTableRegion(string? region)
-    {
-        return region?.ToLowerInvariant() switch
-        {
-            "all" => TableRegion.All,
-            "data" => TableRegion.Data,
-            "headers" or "header" => TableRegion.Headers,
-            "totals" or "total" => TableRegion.Totals,
-            _ => TableRegion.Data
-        };
-    }
-
-    private Task<ServiceResponse> HandleChartCommandAsync(string action, ServiceRequest request)
-    {
-        return WithSessionAsync(request.SessionId, batch =>
-        {
-            if (ServiceRegistry.Chart.TryParseAction(action, out var chartAction))
-            {
-                return chartAction switch
-                {
-                    ChartAction.List => SerializeResult(_chartCommands.List(batch)),
-                    ChartAction.Read => SerializeResult(_chartCommands.Read(batch, GetArg<ChartArgs>(request.Args).ChartName!)),
-                    ChartAction.CreateFromRange => SerializeResult(() =>
-                    {
-                        var a = GetArg<ChartFromRangeArgs>(request.Args);
-                        var chartType = ParseChartType(a.ChartType);
-                        return _chartCommands.CreateFromRange(batch, a.SheetName!, a.SourceRange!, chartType, a.Left ?? 0, a.Top ?? 0, a.Width ?? 400, a.Height ?? 300, a.ChartName);
-                    }),
-                    ChartAction.CreateFromTable => SerializeResult(() =>
-                    {
-                        var a = GetArg<ChartFromTableArgs>(request.Args);
-                        var chartType = ParseChartType(a.ChartType);
-                        return _chartCommands.CreateFromTable(batch, a.TableName!, a.SheetName!, chartType, a.Left ?? 0, a.Top ?? 0, a.Width ?? 400, a.Height ?? 300, a.ChartName);
-                    }),
-                    ChartAction.CreateFromPivotTable => SerializeResult(() =>
-                    {
-                        var a = GetArg<ChartFromPivotArgs>(request.Args);
-                        var chartType = ParseChartType(a.ChartType);
-                        return _chartCommands.CreateFromPivotTable(batch, a.PivotTableName!, a.SheetName!, chartType, a.Left ?? 0, a.Top ?? 0, a.Width ?? 400, a.Height ?? 300, a.ChartName);
-                    }),
-                    ChartAction.Delete => ExecuteVoid(() => _chartCommands.Delete(batch, GetArg<ChartArgs>(request.Args).ChartName!)),
-                    ChartAction.Move => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ChartMoveArgs>(request.Args);
-                        _chartCommands.Move(batch, a.ChartName!, a.Left, a.Top, a.Width, a.Height);
-                    }),
-                    ChartAction.FitToRange => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ChartFitArgs>(request.Args);
-                        _chartCommands.FitToRange(batch, a.ChartName!, a.SheetName!, a.RangeAddress!);
-                    }),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported chart action: {action}" }
-                };
-            }
-
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown chart action: {action}" };
-        });
-    }
-
-    private Task<ServiceResponse> HandleChartConfigCommandAsync(string action, ServiceRequest request)
-    {
-        return WithSessionAsync(request.SessionId, batch =>
-        {
-            if (ServiceRegistry.ChartConfig.TryParseAction(action, out var configAction))
-            {
-                return configAction switch
-                {
-                    ChartConfigAction.SetSourceRange => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ChartSourceRangeArgs>(request.Args);
-                        _chartCommands.SetSourceRange(batch, a.ChartName!, a.SourceRange!);
-                    }),
-                    ChartConfigAction.AddSeries => SerializeResult(() =>
-                    {
-                        var a = GetArg<ChartAddSeriesArgs>(request.Args);
-                        return _chartCommands.AddSeries(batch, a.ChartName!, a.SeriesName!, a.ValuesRange!, a.CategoryRange);
-                    }),
-                    ChartConfigAction.RemoveSeries => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ChartRemoveSeriesArgs>(request.Args);
-                        _chartCommands.RemoveSeries(batch, a.ChartName!, a.SeriesIndex ?? 1);
-                    }),
-                    ChartConfigAction.SetChartType => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ChartTypeArgs>(request.Args);
-                        _chartCommands.SetChartType(batch, a.ChartName!, ParseChartType(a.ChartType));
-                    }),
-                    ChartConfigAction.SetTitle => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ChartTitleArgs>(request.Args);
-                        _chartCommands.SetTitle(batch, a.ChartName!, a.Title!);
-                    }),
-                    ChartConfigAction.SetAxisTitle => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ChartAxisTitleArgs>(request.Args);
-                        _chartCommands.SetAxisTitle(batch, a.ChartName!, ParseAxisType(a.Axis), a.Title!);
-                    }),
-                    ChartConfigAction.GetAxisNumberFormat => SerializeResult(new { numberFormat = _chartCommands.GetAxisNumberFormat(batch, GetArg<ChartAxisArgs>(request.Args).ChartName!, ParseAxisType(GetArg<ChartAxisArgs>(request.Args).Axis)) }),
-                    ChartConfigAction.SetAxisNumberFormat => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ChartAxisFormatArgs>(request.Args);
-                        _chartCommands.SetAxisNumberFormat(batch, a.ChartName!, ParseAxisType(a.Axis), a.NumberFormat!);
-                    }),
-                    ChartConfigAction.ShowLegend => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ChartLegendArgs>(request.Args);
-                        _chartCommands.ShowLegend(batch, a.ChartName!, a.Visible ?? true, ParseLegendPosition(a.LegendPosition));
-                    }),
-                    ChartConfigAction.SetStyle => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ChartStyleArgs>(request.Args);
-                        _chartCommands.SetStyle(batch, a.ChartName!, a.StyleId ?? 1);
-                    }),
-                    ChartConfigAction.SetPlacement => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ChartPlacementArgs>(request.Args);
-                        _chartCommands.SetPlacement(batch, a.ChartName!, a.Placement ?? 2);
-                    }),
-                    ChartConfigAction.SetDataLabels => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ChartDataLabelsArgs>(request.Args);
-                        _chartCommands.SetDataLabels(batch, a.ChartName!, a.ShowValue, a.ShowPercentage, a.ShowSeriesName, a.ShowCategoryName, null, a.Separator, ParseDataLabelPosition(a.LabelPosition), a.SeriesIndex);
-                    }),
-                    ChartConfigAction.GetAxisScale => SerializeResult(_chartCommands.GetAxisScale(batch, GetArg<ChartAxisArgs>(request.Args).ChartName!, ParseAxisType(GetArg<ChartAxisArgs>(request.Args).Axis))),
-                    ChartConfigAction.SetAxisScale => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ChartAxisScaleArgs>(request.Args);
-                        _chartCommands.SetAxisScale(batch, a.ChartName!, ParseAxisType(a.Axis), a.MinimumScale, a.MaximumScale, a.MajorUnit, a.MinorUnit);
-                    }),
-                    ChartConfigAction.GetGridlines => SerializeResult(_chartCommands.GetGridlines(batch, GetArg<ChartArgs>(request.Args).ChartName!)),
-                    ChartConfigAction.SetGridlines => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ChartGridlinesArgs>(request.Args);
-                        _chartCommands.SetGridlines(batch, a.ChartName!, ParseAxisType(a.Axis), a.ShowMajor, a.ShowMinor);
-                    }),
-                    ChartConfigAction.SetSeriesFormat => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ChartSeriesFormatArgs>(request.Args);
-                        _chartCommands.SetSeriesFormat(batch, a.ChartName!, a.SeriesIndex ?? 1, ParseMarkerStyle(a.MarkerStyle), a.MarkerSize, a.MarkerBackgroundColor, a.MarkerForegroundColor, null);
-                    }),
-                    ChartConfigAction.ListTrendlines => SerializeResult(_chartCommands.ListTrendlines(batch, GetArg<ChartSeriesArgs>(request.Args).ChartName!, GetArg<ChartSeriesArgs>(request.Args).SeriesIndex ?? 1)),
-                    ChartConfigAction.AddTrendline => SerializeResult(() =>
-                    {
-                        var a = GetArg<ChartAddTrendlineArgs>(request.Args);
-                        return _chartCommands.AddTrendline(batch, a.ChartName!, a.SeriesIndex ?? 1, ParseTrendlineType(a.TrendlineType), null, null, null, null, null, a.DisplayEquation ?? false, a.DisplayRSquared ?? false, a.TrendlineName);
-                    }),
-                    ChartConfigAction.DeleteTrendline => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ChartDeleteTrendlineArgs>(request.Args);
-                        _chartCommands.DeleteTrendline(batch, a.ChartName!, a.SeriesIndex ?? 1, a.TrendlineIndex ?? 1);
-                    }),
-                    ChartConfigAction.SetTrendline => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ChartSetTrendlineArgs>(request.Args);
-                        _chartCommands.SetTrendline(batch, a.ChartName!, a.SeriesIndex ?? 1, a.TrendlineIndex ?? 1, null, null, null, a.DisplayEquation, a.DisplayRSquared, a.TrendlineName);
-                    }),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported chartconfig action: {action}" }
-                };
-            }
-
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown chartconfig action: {action}" };
-        });
-    }
-
-    private static ChartType ParseChartType(string? chartType)
-    {
-        return chartType?.ToLowerInvariant() switch
-        {
-            "column" or "columnclustered" => ChartType.ColumnClustered,
-            "columnstacked" => ChartType.ColumnStacked,
-            "bar" or "barclustered" => ChartType.BarClustered,
-            "barstacked" => ChartType.BarStacked,
-            "line" => ChartType.Line,
-            "linemarkers" => ChartType.LineMarkers,
-            "pie" => ChartType.Pie,
-            "doughnut" => ChartType.Doughnut,
-            "area" => ChartType.Area,
-            "areastacked" => ChartType.AreaStacked,
-            "scatter" or "xyscatter" => ChartType.XYScatter,
-            "scatterlines" or "xyscatterlines" => ChartType.XYScatterLines,
-            _ => ChartType.ColumnClustered
-        };
-    }
-
-    private static ChartAxisType ParseAxisType(string? axis)
-    {
-        return axis?.ToLowerInvariant() switch
-        {
-            "category" or "x" => ChartAxisType.Category,
-            "value" or "y" => ChartAxisType.Value,
-
-            _ => ChartAxisType.Value
-        };
-    }
-
-    private static LegendPosition? ParseLegendPosition(string? position)
-    {
-        return position?.ToLowerInvariant() switch
-        {
-            "bottom" => LegendPosition.Bottom,
-            "corner" => LegendPosition.Corner,
-            "left" => LegendPosition.Left,
-            "right" => LegendPosition.Right,
-            "top" => LegendPosition.Top,
-            _ => null
-        };
-    }
-
-    private static DataLabelPosition? ParseDataLabelPosition(string? position)
-    {
-        return position?.ToLowerInvariant() switch
-        {
-            "center" => DataLabelPosition.Center,
-            "insidebase" => DataLabelPosition.InsideBase,
-            "insideend" => DataLabelPosition.InsideEnd,
-            "outsideend" => DataLabelPosition.OutsideEnd,
-            "left" => DataLabelPosition.Left,
-            "right" => DataLabelPosition.Right,
-            "above" => DataLabelPosition.Above,
-            "below" => DataLabelPosition.Below,
-            _ => null
-        };
-    }
-
-    private static MarkerStyle? ParseMarkerStyle(string? style)
-    {
-        return style?.ToLowerInvariant() switch
-        {
-            "automatic" => MarkerStyle.Automatic,
-            "circle" => MarkerStyle.Circle,
-            "dash" => MarkerStyle.Dash,
-            "diamond" => MarkerStyle.Diamond,
-            "dot" => MarkerStyle.Dot,
-            "none" => MarkerStyle.None,
-            "picture" => MarkerStyle.Picture,
-            "plus" => MarkerStyle.Plus,
-            "square" => MarkerStyle.Square,
-            "star" => MarkerStyle.Star,
-            "triangle" => MarkerStyle.Triangle,
-            "x" => MarkerStyle.X,
-            _ => null
-        };
-    }
-
-    private static TrendlineType ParseTrendlineType(string? type)
-    {
-        return type?.ToLowerInvariant() switch
-        {
-            "exponential" => TrendlineType.Exponential,
-            "linear" => TrendlineType.Linear,
-            "logarithmic" => TrendlineType.Logarithmic,
-            "movingavg" or "movingaverage" => TrendlineType.MovingAverage,
-            "polynomial" => TrendlineType.Polynomial,
-            "power" => TrendlineType.Power,
-            _ => TrendlineType.Linear
-        };
-    }
-
-    private Task<ServiceResponse> HandleConnectionCommandAsync(string action, ServiceRequest request)
-    {
-        return WithSessionAsync(request.SessionId, batch =>
-        {
-            if (ServiceRegistry.Connection.TryParseAction(action, out var connectionAction))
-            {
-                return connectionAction switch
-                {
-                    ConnectionAction.List => SerializeResult(_connectionCommands.List(batch)),
-                    ConnectionAction.View => SerializeResult(_connectionCommands.View(batch, GetArg<ConnectionArgs>(request.Args).ConnectionName!)),
-                    ConnectionAction.Create => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ConnectionCreateArgs>(request.Args);
-                        _connectionCommands.Create(batch, a.ConnectionName!, a.ConnectionString!, a.CommandText, a.Description);
-                    }),
-                    ConnectionAction.Refresh => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ConnectionRefreshArgs>(request.Args);
-                        var timeout = a.TimeoutSeconds.HasValue ? TimeSpan.FromSeconds(a.TimeoutSeconds.Value) : (TimeSpan?)null;
-                        _connectionCommands.Refresh(batch, a.ConnectionName!, timeout);
-                    }),
-                    ConnectionAction.Delete => ExecuteVoid(() => _connectionCommands.Delete(batch, GetArg<ConnectionArgs>(request.Args).ConnectionName!)),
-                    ConnectionAction.LoadTo => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ConnectionLoadToArgs>(request.Args);
-                        _connectionCommands.LoadTo(batch, a.ConnectionName!, a.SheetName!);
-                    }),
-                    ConnectionAction.GetProperties => SerializeResult(_connectionCommands.GetProperties(batch, GetArg<ConnectionArgs>(request.Args).ConnectionName!)),
-                    ConnectionAction.SetProperties => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ConnectionSetPropertiesArgs>(request.Args);
-                        _connectionCommands.SetProperties(batch, a.ConnectionName!, a.ConnectionString, a.CommandText, a.Description, a.BackgroundQuery, a.RefreshOnFileOpen, a.SavePassword, a.RefreshPeriod);
-                    }),
-                    ConnectionAction.Test => ExecuteVoid(() => _connectionCommands.Test(batch, GetArg<ConnectionArgs>(request.Args).ConnectionName!)),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported connection action: {action}" }
-                };
-            }
-
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown connection action: {action}" };
-        });
-    }
-
-    private Task<ServiceResponse> HandleCalculationModeCommandAsync(string action, ServiceRequest request)
-    {
-        return WithSessionAsync(request.SessionId, batch =>
-        {
-            if (ServiceRegistry.Calculation.TryParseAction(action, out var calculationAction))
-            {
-                return calculationAction switch
-                {
-                    CalculationAction.GetMode => SerializeResult(_calculationModeCommands.GetMode(batch)),
-                    CalculationAction.SetMode => ExecuteCalculationModeSet(batch, request),
-                    CalculationAction.Calculate => ExecuteCalculationModeCalculate(batch, request),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported calculation action: {action}" }
-                };
-            }
-
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown calculation action: {action}" };
-        });
-    }
-
-    private ServiceResponse ExecuteCalculationModeSet(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<CalculationModeArgs>(request.Args);
-        if (string.IsNullOrWhiteSpace(args.Mode))
-        {
-            return new ServiceResponse { Success = false, ErrorMessage = "mode is required for set-mode" };
-        }
-
-        var mode = args.Mode.ToLowerInvariant() switch
-        {
-            "automatic" => CalculationMode.Automatic,
-            "manual" => CalculationMode.Manual,
-            "semi-automatic" => CalculationMode.SemiAutomatic,
-            _ => (CalculationMode?)null
-        };
-
-        if (mode == null)
-        {
-            return new ServiceResponse { Success = false, ErrorMessage = $"Invalid mode '{args.Mode}'. Valid values: automatic, manual, semi-automatic" };
-        }
-
-        var result = _calculationModeCommands.SetMode(batch, mode.Value);
-        return SerializeResult(result);
-    }
-
-    private ServiceResponse ExecuteCalculationModeCalculate(IExcelBatch batch, ServiceRequest request)
-    {
-        var args = GetArg<CalculationModeArgs>(request.Args);
-        var scopeValue = string.IsNullOrWhiteSpace(args.Scope) ? "workbook" : args.Scope;
-
-        var scope = scopeValue.ToLowerInvariant() switch
-        {
-            "workbook" => CalculationScope.Workbook,
-            "sheet" => CalculationScope.Sheet,
-            "range" => CalculationScope.Range,
-            _ => (CalculationScope?)null
-        };
-
-        if (scope == null)
-        {
-            return new ServiceResponse { Success = false, ErrorMessage = $"Invalid scope '{scopeValue}'. Valid values: workbook, sheet, range" };
-        }
-
-        if (scope == CalculationScope.Sheet && string.IsNullOrWhiteSpace(args.SheetName))
-        {
-            return new ServiceResponse { Success = false, ErrorMessage = "sheetName is required for sheet scope calculation" };
-        }
-
-        if (scope == CalculationScope.Range && (string.IsNullOrWhiteSpace(args.SheetName) || string.IsNullOrWhiteSpace(args.RangeAddress)))
-        {
-            return new ServiceResponse { Success = false, ErrorMessage = "sheetName and rangeAddress are required for range scope calculation" };
-        }
-
-        var result = _calculationModeCommands.Calculate(batch, scope.Value, args.SheetName, args.RangeAddress);
-        return SerializeResult(result);
-    }
-
-    private Task<ServiceResponse> HandleNamedRangeCommandAsync(string action, ServiceRequest request)
-    {
-        return WithSessionAsync(request.SessionId, batch =>
-        {
-            if (ServiceRegistry.NamedRange.TryParseAction(action, out var namedRangeAction))
-            {
-                return namedRangeAction switch
-                {
-                    NamedRangeAction.List => SerializeResult(_namedRangeCommands.List(batch)),
-                    NamedRangeAction.Read => SerializeResult(_namedRangeCommands.Read(batch, GetArg<NamedRangeArgs>(request.Args).ParamName!)),
-                    NamedRangeAction.Write => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<NamedRangeWriteArgs>(request.Args);
-                        _namedRangeCommands.Write(batch, a.ParamName!, a.Value!);
-                    }),
-                    NamedRangeAction.Create => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<NamedRangeCreateArgs>(request.Args);
-                        _namedRangeCommands.Create(batch, a.ParamName!, a.Reference!);
-                    }),
-                    NamedRangeAction.Update => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<NamedRangeCreateArgs>(request.Args);
-                        _namedRangeCommands.Update(batch, a.ParamName!, a.Reference!);
-                    }),
-                    NamedRangeAction.Delete => ExecuteVoid(() => _namedRangeCommands.Delete(batch, GetArg<NamedRangeArgs>(request.Args).ParamName!)),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported namedrange action: {action}" }
-                };
-            }
-
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown namedrange action: {action}" };
-        });
-    }
-
-    private Task<ServiceResponse> HandleConditionalFormatCommandAsync(string action, ServiceRequest request)
-    {
-        return WithSessionAsync(request.SessionId, batch =>
-        {
-            if (ServiceRegistry.ConditionalFormat.TryParseAction(action, out var formatAction))
-            {
-                return formatAction switch
-                {
-                    ConditionalFormatAction.AddRule => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ConditionalFormatAddArgs>(request.Args);
-                        _conditionalFormatCommands.AddRule(batch, a.SheetName!, a.RangeAddress!, a.RuleType!, a.OperatorType, a.Formula1, a.Formula2, a.InteriorColor, a.InteriorPattern, a.FontColor, a.FontBold, a.FontItalic, a.BorderStyle, a.BorderColor);
-                    }),
-                    ConditionalFormatAction.ClearRules => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<ConditionalFormatClearArgs>(request.Args);
-                        _conditionalFormatCommands.ClearRules(batch, a.SheetName!, a.RangeAddress!);
-                    }),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported conditionalformat action: {action}" }
-                };
-            }
-
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown conditionalformat action: {action}" };
-        });
-    }
-
-    private Task<ServiceResponse> HandleVbaCommandAsync(string action, ServiceRequest request)
-    {
-        return WithSessionAsync(request.SessionId, batch =>
-        {
-            if (ServiceRegistry.Vba.TryParseAction(action, out var vbaAction))
-            {
-                return vbaAction switch
-                {
-                    VbaAction.List => SerializeResult(_vbaCommands.List(batch)),
-                    VbaAction.View => SerializeResult(_vbaCommands.View(batch, GetArg<VbaModuleArgs>(request.Args).ModuleName!)),
-                    VbaAction.Import => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<VbaImportArgs>(request.Args);
-                        _vbaCommands.Import(batch, a.ModuleName!, a.VbaCode!);
-                    }),
-                    VbaAction.Update => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<VbaImportArgs>(request.Args);
-                        _vbaCommands.Update(batch, a.ModuleName!, a.VbaCode!);
-                    }),
-                    VbaAction.Run => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<VbaRunArgs>(request.Args);
-                        var timeout = a.TimeoutSeconds.HasValue ? TimeSpan.FromSeconds(a.TimeoutSeconds.Value) : (TimeSpan?)null;
-                        _vbaCommands.Run(batch, a.ProcedureName!, timeout, a.Parameters?.ToArray() ?? []);
-                    }),
-                    VbaAction.Delete => ExecuteVoid(() => _vbaCommands.Delete(batch, GetArg<VbaModuleArgs>(request.Args).ModuleName!)),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported vba action: {action}" }
-                };
-            }
-
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown vba action: {action}" };
-        });
-    }
-
-    private Task<ServiceResponse> HandleDataModelCommandAsync(string action, ServiceRequest request)
-    {
-        return WithSessionAsync(request.SessionId, batch =>
-        {
-            if (ServiceRegistry.DataModel.TryParseAction(action, out var modelAction))
-            {
-                return modelAction switch
-                {
-                    DataModelAction.ListTables => SerializeResult(_dataModelCommands.ListTables(batch)),
-                    DataModelAction.ListColumns => SerializeResult(_dataModelCommands.ListColumns(batch, GetArg<DataModelTableArgs>(request.Args).TableName!)),
-                    DataModelAction.ReadTable => SerializeResult(_dataModelCommands.ReadTable(batch, GetArg<DataModelTableArgs>(request.Args).TableName!)),
-                    DataModelAction.ReadInfo => SerializeResult(_dataModelCommands.ReadInfo(batch)),
-                    DataModelAction.ListMeasures => SerializeResult(_dataModelCommands.ListMeasures(batch, GetArg<DataModelTableArgs>(request.Args).TableName)),
-                    DataModelAction.Read => SerializeResult(_dataModelCommands.Read(batch, GetArg<DataModelMeasureArgs>(request.Args).MeasureName!)),
-                    DataModelAction.CreateMeasure => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<DataModelCreateMeasureArgs>(request.Args);
-                        _dataModelCommands.CreateMeasure(batch, a.TableName!, a.MeasureName!, a.DaxFormula!, a.FormatType, a.Description);
-                    }),
-                    DataModelAction.UpdateMeasure => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<DataModelUpdateMeasureArgs>(request.Args);
-                        _dataModelCommands.UpdateMeasure(batch, a.MeasureName!, a.DaxFormula, a.FormatType, a.Description);
-                    }),
-                    DataModelAction.DeleteMeasure => ExecuteVoid(() => _dataModelCommands.DeleteMeasure(batch, GetArg<DataModelMeasureArgs>(request.Args).MeasureName!)),
-                    DataModelAction.DeleteTable => ExecuteVoid(() => _dataModelCommands.DeleteTable(batch, GetArg<DataModelTableArgs>(request.Args).TableName!)),
-                    DataModelAction.RenameTable => SerializeResult(_dataModelCommands.RenameTable(batch, GetArg<DataModelRenameTableArgs>(request.Args).OldName!, GetArg<DataModelRenameTableArgs>(request.Args).NewName!)),
-                    DataModelAction.Refresh => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<DataModelRefreshArgs>(request.Args);
-                        var timeout = a.TimeoutSeconds.HasValue ? TimeSpan.FromSeconds(a.TimeoutSeconds.Value) : (TimeSpan?)null;
-                        _dataModelCommands.Refresh(batch, a.TableName, timeout);
-                    }),
-                    DataModelAction.Evaluate => SerializeResult(_dataModelCommands.Evaluate(batch, GetArg<DataModelEvaluateArgs>(request.Args).DaxQuery!)),
-                    DataModelAction.ExecuteDmv => SerializeResult(_dataModelCommands.ExecuteDmv(batch, GetArg<DataModelDmvArgs>(request.Args).DmvQuery!)),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported datamodel action: {action}" }
-                };
-            }
-
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown datamodel action: {action}" };
-        });
-    }
-
-    private Task<ServiceResponse> HandleDataModelRelCommandAsync(string action, ServiceRequest request)
-    {
-        return WithSessionAsync(request.SessionId, batch =>
-        {
-            if (ServiceRegistry.DataModelRel.TryParseAction(action, out var relAction))
-            {
-                return relAction switch
-                {
-                    DataModelRelAction.ListRelationships => SerializeResult(_dataModelCommands.ListRelationships(batch)),
-                    DataModelRelAction.ReadRelationship => SerializeResult(() =>
-                    {
-                        var a = GetArg<DataModelRelationshipArgs>(request.Args);
-                        return _dataModelCommands.ReadRelationship(batch, a.FromTable!, a.FromColumn!, a.ToTable!, a.ToColumn!);
-                    }),
-                    DataModelRelAction.CreateRelationship => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<DataModelCreateRelationshipArgs>(request.Args);
-                        _dataModelCommands.CreateRelationship(batch, a.FromTable!, a.FromColumn!, a.ToTable!, a.ToColumn!, a.Active ?? true);
-                    }),
-                    DataModelRelAction.UpdateRelationship => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<DataModelUpdateRelationshipArgs>(request.Args);
-                        _dataModelCommands.UpdateRelationship(batch, a.FromTable!, a.FromColumn!, a.ToTable!, a.ToColumn!, a.Active ?? true);
-                    }),
-                    DataModelRelAction.DeleteRelationship => ExecuteVoid(() =>
-                    {
-                        var a = GetArg<DataModelRelationshipArgs>(request.Args);
-                        _dataModelCommands.DeleteRelationship(batch, a.FromTable!, a.FromColumn!, a.ToTable!, a.ToColumn!);
-                    }),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported datamodelrel action: {action}" }
-                };
-            }
-
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown datamodelrel action: {action}" };
-        });
-    }
-
-    private Task<ServiceResponse> HandleSlicerCommandAsync(string action, ServiceRequest request)
-    {
-        return WithSessionAsync(request.SessionId, batch =>
-        {
-            if (ServiceRegistry.Slicer.TryParseAction(action, out var slicerAction))
-            {
-                return slicerAction switch
-                {
-                    SlicerAction.ListSlicers => SerializeResult(() =>
-                    {
-                        var a = GetArg<SlicerListArgs>(request.Args);
-                        return _slicerCommands.ListSlicers(batch, a.PivotTableName);
-                    }),
-                    SlicerAction.CreateSlicer => SerializeResult(() =>
-                    {
-                        var a = GetArg<SlicerFromPivotArgs>(request.Args);
-                        return _slicerCommands.CreateSlicer(batch, a.PivotTableName!, a.SourceFieldName!, a.SlicerName!, a.DestinationSheet!, BuildSlicerPosition(a.Left, a.Top, a.Width, a.Height));
-                    }),
-                    SlicerAction.SetSlicerSelection => SerializeResult(() =>
-                    {
-                        var a = GetArg<SlicerFilterArgs>(request.Args);
-                        var items = a.SelectedItems?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [];
-                        return _slicerCommands.SetSlicerSelection(batch, a.SlicerName!, items, !(a.MultiSelect ?? false));
-                    }),
-                    SlicerAction.DeleteSlicer => SerializeResult(() =>
-                    {
-                        var a = GetArg<SlicerArgs>(request.Args);
-                        return _slicerCommands.DeleteSlicer(batch, a.SlicerName!);
-                    }),
-                    SlicerAction.ListTableSlicers => SerializeResult(() =>
-                    {
-                        var a = GetArg<SlicerListArgs>(request.Args);
-                        return _slicerCommands.ListTableSlicers(batch, a.TableName);
-                    }),
-                    SlicerAction.CreateTableSlicer => SerializeResult(() =>
-                    {
-                        var a = GetArg<SlicerFromTableArgs>(request.Args);
-                        return _slicerCommands.CreateTableSlicer(batch, a.TableName!, a.ColumnName!, a.SlicerName!, a.DestinationSheet!, BuildSlicerPosition(a.Left, a.Top, a.Width, a.Height));
-                    }),
-                    SlicerAction.SetTableSlicerSelection => SerializeResult(() =>
-                    {
-                        var a = GetArg<SlicerFilterArgs>(request.Args);
-                        var items = a.SelectedItems?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList() ?? [];
-                        return _slicerCommands.SetTableSlicerSelection(batch, a.SlicerName!, items, !(a.MultiSelect ?? false));
-                    }),
-                    SlicerAction.DeleteTableSlicer => SerializeResult(() =>
-                    {
-                        var a = GetArg<SlicerArgs>(request.Args);
-                        return _slicerCommands.DeleteTableSlicer(batch, a.SlicerName!);
-                    }),
-                    _ => new ServiceResponse { Success = false, ErrorMessage = $"Unsupported slicer action: {action}" }
-                };
-            }
-
-            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown slicer action: {action}" };
-        });
-    }
-
-    private static string BuildSlicerPosition(double? left, double? top, double? width, double? height)
-    {
-        // Build position string like "100,100" or "100,100,200,150"
-        var parts = new List<string>();
-        if (left.HasValue) parts.Add(left.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        if (top.HasValue) parts.Add(top.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        if (width.HasValue) parts.Add(width.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        if (height.HasValue) parts.Add(height.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        return parts.Count > 0 ? string.Join(",", parts) : "100,100";
-    }
-
-    // === HELPERS ===
-
-    private static bool TryParseAction<T>(string actionString, out T action) where T : struct, Enum
-    {
-        var pascalCase = ToPascalCase(actionString);
-        return Enum.TryParse(pascalCase, ignoreCase: true, out action);
-    }
-
-    private static string ToPascalCase(string kebabCase)
-    {
-        if (string.IsNullOrWhiteSpace(kebabCase)) return string.Empty;
-
-        var parts = kebabCase.Split('-', StringSplitOptions.RemoveEmptyEntries);
-        var builder = new StringBuilder();
-
-        foreach (var part in parts)
-        {
-            builder.Append(char.ToUpperInvariant(part[0]));
-            if (part.Length > 1)
-            {
-                builder.Append(part[1..]);
-            }
-        }
-
-        return builder.ToString();
-    }
 
     private Task<ServiceResponse> WithSessionAsync(string? sessionId, Func<IExcelBatch, ServiceResponse> action)
     {
@@ -2035,42 +705,6 @@ public sealed class ExcelMcpService : IDisposable
         {
             return Task.FromResult(new ServiceResponse { Success = false, ErrorMessage = ex.Message });
         }
-    }
-
-    private static T? DeserializeArgs<T>(string? args) where T : class
-    {
-        if (string.IsNullOrEmpty(args)) return null;
-        return JsonSerializer.Deserialize<T>(args, ServiceProtocol.JsonOptions);
-    }
-
-    private static T GetArg<T>(string? args) where T : class, new()
-    {
-        return DeserializeArgs<T>(args) ?? new T();
-    }
-
-    private static ServiceResponse SerializeResult<T>(T result)
-    {
-        return new ServiceResponse
-        {
-            Success = true,
-            Result = JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions)
-        };
-    }
-
-    private static ServiceResponse SerializeResult<T>(Func<T> action)
-    {
-        var result = action();
-        return new ServiceResponse
-        {
-            Success = true,
-            Result = JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions)
-        };
-    }
-
-    private static ServiceResponse ExecuteVoid(Action action)
-    {
-        action();
-        return new ServiceResponse { Success = true };
     }
 
     private async Task MonitorIdleTimeoutAsync(CancellationToken cancellationToken)
@@ -2135,7 +769,7 @@ public sealed class ExcelMcpService : IDisposable
     }
 }
 
-// === ARGUMENT TYPES ===
+// === ARGUMENT TYPES (Session only - all other args are now generated in ServiceRegistry) ===
 
 // Session
 public sealed class SessionOpenArgs
@@ -2145,164 +779,3 @@ public sealed class SessionOpenArgs
     public int? TimeoutSeconds { get; set; }
 }
 public sealed class SessionCloseArgs { public bool Save { get; set; } }
-
-// Calculation Mode
-public sealed class CalculationModeArgs
-{
-    public string? Mode { get; set; }
-    public string? Scope { get; set; }
-    public string? SheetName { get; set; }
-    public string? RangeAddress { get; set; }
-}
-
-// Sheet
-public sealed class SheetArgs { public string? SheetName { get; set; } }
-public sealed class SheetRenameArgs { public string? SheetName { get; set; } public string? NewName { get; set; } }
-public sealed class SheetCopyArgs { public string? SourceSheet { get; set; } public string? TargetSheet { get; set; } }
-public sealed class SheetMoveArgs { public string? SheetName { get; set; } public string? BeforeSheet { get; set; } public string? AfterSheet { get; set; } }
-public sealed class SheetCopyToFileArgs { public string? SourceFile { get; set; } public string? SourceSheet { get; set; } public string? TargetFile { get; set; } public string? TargetSheetName { get; set; } public string? BeforeSheet { get; set; } public string? AfterSheet { get; set; } }
-public sealed class SheetMoveToFileArgs { public string? SourceFile { get; set; } public string? SourceSheet { get; set; } public string? TargetFile { get; set; } public string? BeforeSheet { get; set; } public string? AfterSheet { get; set; } }
-public sealed class SheetTabColorArgs { public string? SheetName { get; set; } public int? Red { get; set; } public int? Green { get; set; } public int? Blue { get; set; } }
-public sealed class SheetVisibilityArgs { public string? SheetName { get; set; } public string? Visibility { get; set; } }
-
-// Range
-public sealed class RangeArgs { public string? SheetName { get; set; } public string? Range { get; set; } }
-public sealed class RangeSetValuesArgs { public string? SheetName { get; set; } public string? Range { get; set; } public List<List<object?>>? Values { get; set; } }
-public sealed class RangeSetFormulasArgs { public string? SheetName { get; set; } public string? Range { get; set; } public List<List<string>>? Formulas { get; set; } }
-public sealed class RangeCopyArgs { public string? SourceSheet { get; set; } public string? SourceRange { get; set; } public string? TargetSheet { get; set; } public string? TargetRange { get; set; } }
-public sealed class RangeInsertCellsArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? ShiftDirection { get; set; } }
-public sealed class RangeDeleteCellsArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? ShiftDirection { get; set; } }
-public sealed class RangeFindArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? SearchValue { get; set; } public bool? MatchCase { get; set; } public bool? MatchEntireCell { get; set; } public bool? SearchFormulas { get; set; } public bool? SearchValues { get; set; } public bool? SearchComments { get; set; } }
-public sealed class RangeReplaceArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? FindValue { get; set; } public string? ReplaceValue { get; set; } public bool? MatchCase { get; set; } public bool? MatchEntireCell { get; set; } public bool? ReplaceAll { get; set; } }
-public sealed class RangeSortArgs { public string? SheetName { get; set; } public string? Range { get; set; } public List<SortColumnArg>? SortColumns { get; set; } public bool? HasHeaders { get; set; } }
-public sealed class SortColumnArg { public int ColumnIndex { get; set; } public bool Ascending { get; set; } = true; }
-public sealed class RangeCellArgs { public string? SheetName { get; set; } public string? CellAddress { get; set; } }
-public sealed class RangeHyperlinkArgs { public string? SheetName { get; set; } public string? CellAddress { get; set; } public string? Url { get; set; } public string? DisplayText { get; set; } public string? Tooltip { get; set; } }
-public sealed class RangeNumberFormatArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? FormatCode { get; set; } }
-public sealed class RangeNumberFormatsArgs { public string? SheetName { get; set; } public string? Range { get; set; } public List<List<string>>? Formats { get; set; } }
-public sealed class RangeStyleArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? StyleName { get; set; } }
-public sealed class RangeFormatArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? FontName { get; set; } public double? FontSize { get; set; } public bool? Bold { get; set; } public bool? Italic { get; set; } public bool? Underline { get; set; } public string? FontColor { get; set; } public string? FillColor { get; set; } public string? BorderStyle { get; set; } public string? BorderColor { get; set; } public string? BorderWeight { get; set; } public string? HorizontalAlignment { get; set; } public string? VerticalAlignment { get; set; } public bool? WrapText { get; set; } public int? Orientation { get; set; } }
-public sealed class RangeValidationArgs { public string? SheetName { get; set; } public string? Range { get; set; } public string? ValidationType { get; set; } public string? ValidationOperator { get; set; } public string? Formula1 { get; set; } public string? Formula2 { get; set; } public bool? ShowInputMessage { get; set; } public string? InputTitle { get; set; } public string? InputMessage { get; set; } public bool? ShowErrorAlert { get; set; } public string? ErrorStyle { get; set; } public string? ErrorTitle { get; set; } public string? ErrorMessage { get; set; } public bool? IgnoreBlank { get; set; } public bool? ShowDropdown { get; set; } }
-public sealed class RangeLockArgs { public string? SheetName { get; set; } public string? Range { get; set; } public bool? Locked { get; set; } }
-
-// Table
-public sealed class TableArgs { public string? TableName { get; set; } }
-public sealed class TableCreateArgs { public string? SheetName { get; set; } public string? TableName { get; set; } public string? Range { get; set; } public bool? HasHeaders { get; set; } public string? TableStyle { get; set; } }
-public sealed class TableRenameArgs { public string? TableName { get; set; } public string? NewName { get; set; } }
-public sealed class TableResizeArgs { public string? TableName { get; set; } public string? NewRange { get; set; } }
-public sealed class TableStyleArgs { public string? TableName { get; set; } public string? TableStyle { get; set; } }
-public sealed class TableToggleTotalsArgs { public string? TableName { get; set; } public bool? ShowTotals { get; set; } }
-public sealed class TableColumnTotalArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public string? TotalFunction { get; set; } }
-public sealed class TableAppendArgs { public string? TableName { get; set; } public List<List<object?>>? Rows { get; set; } }
-public sealed class TableDataArgs { public string? TableName { get; set; } public bool? VisibleOnly { get; set; } }
-public sealed class TableFilterArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public string? Criteria { get; set; } public List<string>? Values { get; set; } }
-public sealed class TableAddColumnArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public int? Position { get; set; } }
-public sealed class TableColumnArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } }
-public sealed class TableRenameColumnArgs { public string? TableName { get; set; } public string? OldName { get; set; } public string? NewName { get; set; } }
-public sealed class TableSortArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public bool? Ascending { get; set; } }
-public sealed class TableSortMultiArgs { public string? TableName { get; set; } public string? SortColumnsJson { get; set; } }
-public sealed class TableColumnFormatArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public string? FormatCode { get; set; } }
-public sealed class TableDaxArgs { public string? SheetName { get; set; } public string? TableName { get; set; } public string? DaxQuery { get; set; } public string? TargetCell { get; set; } }
-public sealed class TableUpdateDaxArgs { public string? TableName { get; set; } public string? DaxQuery { get; set; } }
-
-// PowerQuery
-public sealed class PowerQueryArgs { public string? QueryName { get; set; } }
-public sealed class PowerQueryCreateArgs { public string? QueryName { get; set; } public string? MCode { get; set; } public string? LoadDestination { get; set; } public string? TargetSheet { get; set; } public string? TargetCellAddress { get; set; } }
-public sealed class PowerQueryUpdateArgs { public string? QueryName { get; set; } public string? MCode { get; set; } public bool? Refresh { get; set; } }
-public sealed class PowerQueryRenameArgs { public string? OldName { get; set; } public string? NewName { get; set; } }
-public sealed class PowerQueryLoadToArgs { public string? QueryName { get; set; } public string? LoadDestination { get; set; } public string? TargetSheet { get; set; } public string? TargetCellAddress { get; set; } }
-public sealed class PowerQueryEvaluateArgs { public string? MCode { get; set; } }
-
-// PivotTable
-public sealed class PivotTableArgs { public string? PivotTableName { get; set; } }
-public sealed class PivotTableRefreshArgs { public string? PivotTableName { get; set; } public TimeSpan? Timeout { get; set; } }
-public sealed class PivotTableFromRangeArgs { public string? SourceSheet { get; set; } public string? SourceRange { get; set; } public string? DestinationSheet { get; set; } public string? DestinationCell { get; set; } public string? PivotTableName { get; set; } }
-public sealed class PivotTableFromTableArgs { public string? TableName { get; set; } public string? DestinationSheet { get; set; } public string? DestinationCell { get; set; } public string? PivotTableName { get; set; } }
-public sealed class PivotTableFromDataModelArgs { public string? TableName { get; set; } public string? DestinationSheet { get; set; } public string? DestinationCell { get; set; } public string? PivotTableName { get; set; } }
-public sealed class PivotFieldArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public int? Position { get; set; } }
-public sealed class PivotValueFieldArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? AggregationFunction { get; set; } public string? CustomName { get; set; } }
-public sealed class PivotFieldFilterArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public List<string>? SelectedValues { get; set; } }
-public sealed class PivotFieldSortArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public bool? Ascending { get; set; } }
-public sealed class PivotCalculatedFieldArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? Formula { get; set; } }
-public sealed class PivotLayoutArgs { public string? PivotTableName { get; set; } public int? LayoutType { get; set; } }
-public sealed class PivotSubtotalsArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public bool? ShowSubtotals { get; set; } }
-public sealed class PivotGrandTotalsArgs { public string? PivotTableName { get; set; } public bool? ShowRowGrandTotals { get; set; } public bool? ShowColumnGrandTotals { get; set; } }
-public sealed class PivotFieldFunctionArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? AggregationFunction { get; set; } }
-public sealed class PivotFieldNameArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? CustomName { get; set; } }
-public sealed class PivotFieldFormatArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? NumberFormat { get; set; } }
-public sealed class PivotGroupByDateArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public string? Interval { get; set; } }
-public sealed class PivotGroupByNumericArgs { public string? PivotTableName { get; set; } public string? FieldName { get; set; } public double? Start { get; set; } public double? End { get; set; } public double? IntervalSize { get; set; } }
-public sealed class PivotCalculatedMemberArgs { public string? PivotTableName { get; set; } public string? MemberName { get; set; } public string? Formula { get; set; } public string? MemberType { get; set; } public int? SolveOrder { get; set; } public string? DisplayFolder { get; set; } public string? NumberFormat { get; set; } }
-public sealed class TableStructuredRefArgs { public string? TableName { get; set; } public string? Region { get; set; } public string? ColumnName { get; set; } }
-
-// Chart
-public sealed class ChartArgs { public string? ChartName { get; set; } }
-public sealed class ChartFromRangeArgs { public string? SheetName { get; set; } public string? SourceRange { get; set; } public string? ChartType { get; set; } public double? Left { get; set; } public double? Top { get; set; } public double? Width { get; set; } public double? Height { get; set; } public string? ChartName { get; set; } }
-public sealed class ChartFromPivotArgs { public string? PivotTableName { get; set; } public string? SheetName { get; set; } public string? ChartType { get; set; } public double? Left { get; set; } public double? Top { get; set; } public double? Width { get; set; } public double? Height { get; set; } public string? ChartName { get; set; } }
-public sealed class ChartFromTableArgs { public string? TableName { get; set; } public string? SheetName { get; set; } public string? ChartType { get; set; } public double? Left { get; set; } public double? Top { get; set; } public double? Width { get; set; } public double? Height { get; set; } public string? ChartName { get; set; } }
-public sealed class ChartMoveArgs { public string? ChartName { get; set; } public double? Left { get; set; } public double? Top { get; set; } public double? Width { get; set; } public double? Height { get; set; } }
-public sealed class ChartFitArgs { public string? ChartName { get; set; } public string? SheetName { get; set; } public string? RangeAddress { get; set; } }
-public sealed class ChartSourceRangeArgs { public string? ChartName { get; set; } public string? SourceRange { get; set; } }
-public sealed class ChartAddSeriesArgs { public string? ChartName { get; set; } public string? SeriesName { get; set; } public string? ValuesRange { get; set; } public string? CategoryRange { get; set; } }
-public sealed class ChartRemoveSeriesArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } }
-public sealed class ChartTypeArgs { public string? ChartName { get; set; } public string? ChartType { get; set; } }
-public sealed class ChartTitleArgs { public string? ChartName { get; set; } public string? Title { get; set; } }
-public sealed class ChartAxisTitleArgs { public string? ChartName { get; set; } public string? Axis { get; set; } public string? Title { get; set; } }
-public sealed class ChartAxisArgs { public string? ChartName { get; set; } public string? Axis { get; set; } }
-public sealed class ChartAxisFormatArgs { public string? ChartName { get; set; } public string? Axis { get; set; } public string? NumberFormat { get; set; } }
-public sealed class ChartLegendArgs { public string? ChartName { get; set; } public bool? Visible { get; set; } public string? LegendPosition { get; set; } }
-public sealed class ChartStyleArgs { public string? ChartName { get; set; } public int? StyleId { get; set; } }
-public sealed class ChartDataLabelsArgs { public string? ChartName { get; set; } public bool? ShowValue { get; set; } public bool? ShowPercentage { get; set; } public bool? ShowSeriesName { get; set; } public bool? ShowCategoryName { get; set; } public string? Separator { get; set; } public string? LabelPosition { get; set; } public int? SeriesIndex { get; set; } }
-public sealed class ChartAxisScaleArgs { public string? ChartName { get; set; } public string? Axis { get; set; } public double? MinimumScale { get; set; } public double? MaximumScale { get; set; } public double? MajorUnit { get; set; } public double? MinorUnit { get; set; } }
-public sealed class ChartGridlinesArgs { public string? ChartName { get; set; } public string? Axis { get; set; } public bool? ShowMajor { get; set; } public bool? ShowMinor { get; set; } }
-public sealed class ChartSeriesFormatArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } public string? MarkerStyle { get; set; } public int? MarkerSize { get; set; } public string? MarkerBackgroundColor { get; set; } public string? MarkerForegroundColor { get; set; } }
-public sealed class ChartSeriesArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } }
-public sealed class ChartAddTrendlineArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } public string? TrendlineType { get; set; } public bool? DisplayEquation { get; set; } public bool? DisplayRSquared { get; set; } public string? TrendlineName { get; set; } }
-public sealed class ChartDeleteTrendlineArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } public int? TrendlineIndex { get; set; } }
-public sealed class ChartSetTrendlineArgs { public string? ChartName { get; set; } public int? SeriesIndex { get; set; } public int? TrendlineIndex { get; set; } public bool? DisplayEquation { get; set; } public bool? DisplayRSquared { get; set; } public string? TrendlineName { get; set; } }
-public sealed class ChartPlacementArgs { public string? ChartName { get; set; } public int? Placement { get; set; } }
-
-// Connection
-public sealed class ConnectionArgs { public string? ConnectionName { get; set; } }
-public sealed class ConnectionCreateArgs { public string? ConnectionName { get; set; } public string? ConnectionString { get; set; } public string? CommandText { get; set; } public string? Description { get; set; } }
-public sealed class ConnectionRefreshArgs { public string? ConnectionName { get; set; } public int? TimeoutSeconds { get; set; } }
-public sealed class ConnectionLoadToArgs { public string? ConnectionName { get; set; } public string? SheetName { get; set; } }
-public sealed class ConnectionSetPropertiesArgs { public string? ConnectionName { get; set; } public string? ConnectionString { get; set; } public string? CommandText { get; set; } public string? Description { get; set; } public bool? BackgroundQuery { get; set; } public bool? RefreshOnFileOpen { get; set; } public bool? SavePassword { get; set; } public int? RefreshPeriod { get; set; } }
-
-// NamedRange
-public sealed class NamedRangeArgs { public string? ParamName { get; set; } }
-public sealed class NamedRangeWriteArgs { public string? ParamName { get; set; } public string? Value { get; set; } }
-public sealed class NamedRangeCreateArgs { public string? ParamName { get; set; } public string? Reference { get; set; } }
-
-// ConditionalFormat
-public sealed class ConditionalFormatAddArgs { public string? SheetName { get; set; } public string? RangeAddress { get; set; } public string? RuleType { get; set; } public string? OperatorType { get; set; } public string? Formula1 { get; set; } public string? Formula2 { get; set; } public string? InteriorColor { get; set; } public string? InteriorPattern { get; set; } public string? FontColor { get; set; } public bool? FontBold { get; set; } public bool? FontItalic { get; set; } public string? BorderStyle { get; set; } public string? BorderColor { get; set; } }
-public sealed class ConditionalFormatClearArgs { public string? SheetName { get; set; } public string? RangeAddress { get; set; } }
-
-// VBA
-public sealed class VbaModuleArgs { public string? ModuleName { get; set; } }
-public sealed class VbaImportArgs { public string? ModuleName { get; set; } public string? VbaCode { get; set; } }
-public sealed class VbaRunArgs { public string? ProcedureName { get; set; } public int? TimeoutSeconds { get; set; } public List<string>? Parameters { get; set; } }
-
-// DataModel
-public sealed class DataModelTableArgs { public string? TableName { get; set; } }
-public sealed class DataModelMeasureArgs { public string? MeasureName { get; set; } }
-public sealed class DataModelCreateMeasureArgs { public string? TableName { get; set; } public string? MeasureName { get; set; } public string? DaxFormula { get; set; } public string? FormatType { get; set; } public string? Description { get; set; } }
-public sealed class DataModelUpdateMeasureArgs { public string? MeasureName { get; set; } public string? DaxFormula { get; set; } public string? FormatType { get; set; } public string? Description { get; set; } }
-public sealed class DataModelRelationshipArgs { public string? FromTable { get; set; } public string? FromColumn { get; set; } public string? ToTable { get; set; } public string? ToColumn { get; set; } }
-public sealed class DataModelCreateRelationshipArgs { public string? FromTable { get; set; } public string? FromColumn { get; set; } public string? ToTable { get; set; } public string? ToColumn { get; set; } public bool? Active { get; set; } }
-public sealed class DataModelUpdateRelationshipArgs { public string? FromTable { get; set; } public string? FromColumn { get; set; } public string? ToTable { get; set; } public string? ToColumn { get; set; } public bool? Active { get; set; } }
-public sealed class DataModelRenameTableArgs { public string? OldName { get; set; } public string? NewName { get; set; } }
-public sealed class DataModelRefreshArgs { public string? TableName { get; set; } public int? TimeoutSeconds { get; set; } }
-public sealed class DataModelEvaluateArgs { public string? DaxQuery { get; set; } }
-public sealed class DataModelDmvArgs { public string? DmvQuery { get; set; } }
-
-// Slicer
-public sealed class SlicerArgs { public string? SlicerName { get; set; } }
-public sealed class SlicerListArgs { public string? PivotTableName { get; set; } public string? TableName { get; set; } public string? SheetName { get; set; } }
-public sealed class SlicerPositionArgs { public double? Top { get; set; } public double? Left { get; set; } public double? Width { get; set; } public double? Height { get; set; } }
-public sealed class SlicerFromPivotArgs { public string? PivotTableName { get; set; } public string? SourceFieldName { get; set; } public string? SlicerName { get; set; } public string? DestinationSheet { get; set; } public double? Top { get; set; } public double? Left { get; set; } public double? Width { get; set; } public double? Height { get; set; } }
-public sealed class SlicerFromTableArgs { public string? TableName { get; set; } public string? ColumnName { get; set; } public string? SlicerName { get; set; } public string? DestinationSheet { get; set; } public double? Top { get; set; } public double? Left { get; set; } public double? Width { get; set; } public double? Height { get; set; } }
-public sealed class SlicerFilterArgs { public string? SlicerName { get; set; } public string? SelectedItems { get; set; } public bool? MultiSelect { get; set; } }
-
-
-

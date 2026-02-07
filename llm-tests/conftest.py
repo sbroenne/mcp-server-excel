@@ -139,7 +139,7 @@ def excel_cli_server() -> CLIServer:
         name="excel-cli",
         command=command,
         tool_prefix="excel",
-        shell="powershell",
+        shell="none",
         cwd=str(temp_dir),
         discover_help=False,  # Skill Rule 0 requires LLM to run --help first
         description="Excel CLI automation. Run 'excelcli --help' to discover available commands before use.",

@@ -4,11 +4,16 @@ using Sbroenne.ExcelMcp.Core.Attributes;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Apply conditional formatting rules based on cell values or formulas.
-/// Supports color, font, and border formatting with comparison operators.
+/// Conditional formatting - visual rules based on cell values.
+/// TYPES: cellValue (requires operatorType+formula1), expression (formula only).
+/// FORMAT: interiorColor/fontColor as #RRGGBB, fontBold/Italic, borderStyle/Color.
+///
+/// OPERATORS: equal, notEqual, greater, less, greaterEqual, lessEqual, between, notBetween.
+/// For 'between' and 'notBetween', both formula1 and formula2 are required.
 /// </summary>
 [ServiceCategory("conditionalformat", "ConditionalFormat")]
-[McpTool("excel_conditionalformat")]
+[McpTool("excel_conditionalformat", Title = "Excel Conditional Formatting", Destructive = true, Category = "structure",
+    Description = "Conditional formatting - visual rules based on cell values. TYPES: cell-value (requires operatorType + formula1), expression (formula only). FORMAT: interiorColor/fontColor as #RRGGBB hex, fontBold/fontItalic booleans, borderStyle/borderColor.")]
 public interface IConditionalFormattingCommands
 {
     /// <summary>

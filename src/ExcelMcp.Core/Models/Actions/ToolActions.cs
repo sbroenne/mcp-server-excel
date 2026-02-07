@@ -6,16 +6,28 @@ namespace Sbroenne.ExcelMcp.Core.Models.Actions;
 /// </summary>
 /// <remarks>
 /// IMPORTANT: Keep enum values synchronized with tool switch cases.
-/// Enum names are PascalCase (e.g., Create), converted to kebab-case (e.g., create) via ActionExtensions.
-///
+/// Enum names are PascalCase (e.g., Create), serialized as kebab-case (e.g., create) via JsonStringEnumMemberName.
+/// ActionExtensions.ToActionString() also returns kebab-case for logging/routing.
 /// </remarks>
+[System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<FileAction>))]
 public enum FileAction
 {
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("list")]
     List,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("open")]
     Open,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("close")]
     Close,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("create")]
     Create,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("close-workbook")]
     CloseWorkbook,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("test")]
     Test
 }
 

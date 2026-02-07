@@ -275,57 +275,35 @@ public static partial string ExcelPowerQuery(PowerQueryAction action, string ses
 
 | Project | Purpose |
 |---------|---------|
-| `ExcelMcp.Generators` | Main generator - produces ServiceRegistry files |
+| `ExcelMcp.Generators` | Main generator - produces ServiceRegistry files (validation, dispatch, helpers) |
 | `ExcelMcp.Generators.Shared` | Shared models (ServiceInfo, MethodInfo, ParameterInfo) |
-| `ExcelMcp.Generators.Mcp` | (Placeholder - architectural limitation prevents MCP-specific generation) |
-| `ExcelMcp.Generators.Cli` | (Placeholder - architectural limitation prevents CLI-specific generation) |
+| `ExcelMcp.Generators.Cli` | CLI command generator - produces per-category CLI command classes |
 
 **Limitation**: Roslyn source generators can only see the project they're attached to. We attach to Core, so we can only generate into Core (the ServiceRegistry namespace).
 
 ---
 
-## The Remaining Gap: Service Routing
+## Service Routing: Fully Generated
 
-The Service (`ExcelMcpService.cs`) still has **manual** switch statements that route commands to Core:
+The Service (`ExcelMcpService.cs`) uses **generated dispatch** methods to route commands to Core.
+The generator produces `ServiceRegistry.{Category}.DispatchToCore()` methods that handle:
+
+- JSON deserialization of arguments into typed args classes
+- Enum parsing with hyphen/underscore stripping
+- Per-method batch parameter inclusion (`HasBatchParameter`)
+- Return type handling (void vs data)
 
 ```csharp
-// This is NOT generated - must be manually maintained
-private Task<ServiceResponse> HandlePowerQueryCommandAsync(string action, ServiceRequest request)
+// Generated dispatch - no manual routing needed
+private Task<ServiceResponse> DispatchSimpleAsync<TAction>(
+    string category, string action, ServiceRequest request)
+    where TAction : struct, Enum
 {
-    if (ServiceRegistry.PowerQuery.TryParseAction(action, out var pqAction))
-    {
-        return WithSessionAsync(request.SessionId, batch => pqAction switch
-        {
-            PowerQueryAction.List => SerializeResult(_powerQueryCommands.List(batch)),
-            PowerQueryAction.Create => ExecuteCreate(batch, request),
-            // ... every action manually mapped
-        });
-    }
-    return Task.FromResult(new ServiceResponse { Success = false, ErrorMessage = $"Unknown action: {action}" });
+    // Uses ServiceRegistry.{Category}.DispatchToCore(commands, action, batch, argsJson)
 }
 ```
 
-**Why not generated?**
-- Would require the generator to understand Core method signatures deeply
-- Return type handling varies (some return data, some are void)
-- Error handling patterns differ per method
-
-**Testing strategy for this gap**: The existing pre-commit scripts verify:
-- All enum actions have Service implementations (`check-mcp-core-implementations.ps1`)
+**Testing strategy**: Pre-commit scripts verify coverage:
+- All enum actions have Core method implementations (`check-mcp-core-implementations.ps1`)
 - All CLI actions have handlers (`check-cli-action-coverage.ps1`)
-
----
-
-## Future Consideration: Service Generation
-
-If we wanted to generate Service routing, we'd need:
-
-1. **Standardized Core method signatures** - All methods return `OperationResult<T>` or `void`
-2. **Attribute-based parameter binding** - Mark which JSON property maps to which parameter
-3. **Separate generator attached to Service project** - Can see both Core and Service
-
-This is **not implemented** because the current manual approach is:
-- Well-tested via pre-commit checks
-- Clear and debuggable
-- Only ~15 lines per action (acceptable maintenance cost)
 

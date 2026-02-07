@@ -26,12 +26,17 @@
 
 **ExcelMcp** is a Windows-only toolset for programmatic Excel automation via COM interop, designed for coding agents and automation scripts.
 
+> **⚠️ CRITICAL: ExcelMcp has TWO equal entry points — MCP Server AND CLI.**
+> Both are first-class citizens. Every feature, action, and parameter must work identically through both.
+> When adding/changing features, ALWAYS verify BOTH MCP Server tools AND CLI commands are updated.
+> See Rule 24 (Post-Change Sync) for the full checklist.
+
 **Core Layers:**
 1. **ComInterop** (`src/ExcelMcp.ComInterop`) - Reusable COM automation patterns (STA threading, session management, batch operations, OLE message filter)
 2. **Core** (`src/ExcelMcp.Core`) - Excel-specific business logic (Power Query, VBA, worksheets, parameters)
 3. **Service** (`src/ExcelMcp.Service`) - Named pipe service for session sharing between MCP Server and CLI
-4. **CLI** (`src/ExcelMcp.CLI`) - Command-line interface for scripting
-5. **MCP Server** (`src/ExcelMcp.McpServer`) - Model Context Protocol for AI assistants
+4. **CLI** (`src/ExcelMcp.CLI`) - Command-line interface for scripting (EQUAL entry point)
+5. **MCP Server** (`src/ExcelMcp.McpServer`) - Model Context Protocol for AI assistants (EQUAL entry point)
 
 **Source Generators** (`src/ExcelMcp.Generators*`) - Generate CLI commands and MCP tools from Core interfaces
 
@@ -249,7 +254,7 @@ catch (Exception ex) {
 }
 ```
 
-### Service Architecture
+### Service Architecture (TWO EQUAL ENTRY POINTS)
 
 ```
 MCP Server ──┐
@@ -257,7 +262,9 @@ MCP Server ──┐
 CLI ─────────┘
 ```
 
-MCP Server and CLI share sessions via named pipe service, enabling:
+**⚠️ MCP Server and CLI are BOTH first-class entry points.** They share sessions via named pipe service, enabling:
 - Session sharing between tools
 - Consistent state across MCP and CLI workflows
+- **Feature parity**: Every action available in MCP must be available in CLI and vice versa
+- **Parameter parity**: Same parameters, same defaults, same validation
 

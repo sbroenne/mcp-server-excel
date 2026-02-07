@@ -35,6 +35,30 @@ public static class StringHelper
             p.Length > 0 ? char.ToUpperInvariant(p[0]) + p.Substring(1) : p));
     }
 
+    /// <summary>
+    /// Converts camelCase or PascalCase to snake_case.
+    /// Example: "sheetName" → "sheet_name", "rangeAddress" → "range_address"
+    /// </summary>
+    public static string ToSnakeCase(string camelCase)
+    {
+        var sb = new StringBuilder();
+        for (int i = 0; i < camelCase.Length; i++)
+        {
+            var c = camelCase[i];
+            if (char.IsUpper(c))
+            {
+                if (i > 0)
+                    sb.Append('_');
+                sb.Append(char.ToLowerInvariant(c));
+            }
+            else
+            {
+                sb.Append(c);
+            }
+        }
+        return sb.ToString();
+    }
+
     public static bool IsStringType(string typeName)
     {
         var normalized = typeName.TrimEnd('?');
@@ -143,6 +167,23 @@ public static class TypeNameHelper
                 return $"({enumType}){value}";
             }
             return value.ToString()!;
+        }
+
+        // Handle double/float defaults — ensure decimal point so C# treats as double literal
+        // Without this, double width = 400 → DefaultValue(400) → int → InvalidCastException
+        if (value is double d)
+        {
+            var ds = d.ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+            if (!ds.Contains('.') && !ds.Contains('E') && !ds.Contains('e'))
+                ds += ".0";
+            return ds;
+        }
+        if (value is float f)
+        {
+            var fs = f.ToString("G", System.Globalization.CultureInfo.InvariantCulture);
+            if (!fs.Contains('.') && !fs.Contains('E') && !fs.Contains('e'))
+                fs += ".0";
+            return fs + "f";
         }
 
         // Handle enum defaults

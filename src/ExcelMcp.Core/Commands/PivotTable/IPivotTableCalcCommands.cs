@@ -5,12 +5,27 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
 /// <summary>
-/// PivotTable calculated fields, layout mode (compact/tabular/outline),
-/// subtotals, grand totals, and raw data extraction.
+/// PivotTable calculated fields/members, layout configuration, and data extraction.
 /// Use pivottable for lifecycle, pivottablefield for field placement.
+///
+/// CALCULATED FIELDS (for regular PivotTables):
+/// - Create custom fields using formulas like '=Revenue-Cost' or '=Quantity*UnitPrice'
+/// - Can reference existing fields by name
+/// - After creating, use pivottablefield add-value-field to add to Values area
+/// - For complex multi-table calculations, prefer DAX measures with datamodel
+///
+/// CALCULATED MEMBERS (for OLAP/Data Model PivotTables only):
+/// - Create using MDX expressions
+/// - Member types: Member, Set, Measure
+///
+/// LAYOUT OPTIONS:
+/// - 0 = Compact (default, fields in single column)
+/// - 1 = Tabular (each field in separate column - best for export/analysis)
+/// - 2 = Outline (hierarchical with expand/collapse)
 /// </summary>
 [ServiceCategory("pivottablecalc", "PivotTableCalc")]
-[McpTool("excel_pivottable_calc")]
+[McpTool("excel_pivottable_calc", Title = "Excel PivotTable Calc Operations", Destructive = true, Category = "analysis",
+    Description = "PivotTable calculated fields/members, layout configuration, and data extraction. CALCULATED FIELDS: Create formulas like =Revenue-Cost, then add to Values with excel_pivottable_field. CALCULATED MEMBERS: MDX expressions (OLAP/Data Model only). LAYOUT: 0=Compact, 1=Tabular, 2=Outline. Use excel_pivottable for lifecycle, excel_pivottable_field for field management.")]
 public interface IPivotTableCalcCommands
 {
     // === ANALYSIS OPERATIONS (WITH DATA VALIDATION) ===
@@ -118,7 +133,7 @@ public interface IPivotTableCalcCommands
     /// </remarks>
     [ServiceAction("create-calculated-member")]
     CalculatedMemberResult CreateCalculatedMember(IExcelBatch batch, string pivotTableName,
-        string memberName, string formula, CalculatedMemberType type = CalculatedMemberType.Measure,
+        string memberName, string formula, [FromString] CalculatedMemberType type = CalculatedMemberType.Measure,
         int solveOrder = 0, string? displayFolder = null, string? numberFormat = null);
 
     /// <summary>

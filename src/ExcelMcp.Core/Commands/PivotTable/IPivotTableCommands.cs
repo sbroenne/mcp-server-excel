@@ -5,11 +5,24 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
 /// <summary>
-/// PivotTable lifecycle operations (create, list, read, refresh, delete).
+/// PivotTable lifecycle management: create from various sources, list, read details, refresh, and delete.
 /// Use pivottablefield for field operations, pivottablecalc for calculated fields and layout.
+///
+/// BEST PRACTICE: Use 'list' before creating. Prefer 'refresh' or field modifications over delete+recreate.
+/// Delete+recreate loses field configurations, filters, sorting, and custom layouts.
+///
+/// REFRESH: Call 'refresh' after configuring fields with pivottablefield to update the visual display.
+/// This is especially important for OLAP/Data Model PivotTables where field operations
+/// are structural only and don't automatically trigger a visual refresh.
+///
+/// CREATE OPTIONS:
+/// - 'create-from-range': Use source sheet and range address for data range
+/// - 'create-from-table': Use an Excel Table (ListObject) as source
+/// - 'create-from-datamodel': Use a Power Pivot Data Model table as source
 /// </summary>
 [ServiceCategory("pivottable", "PivotTable")]
-[McpTool("excel_pivottable")]
+[McpTool("excel_pivottable", Title = "Excel PivotTable Operations", Destructive = true, Category = "analysis",
+    Description = "PivotTable lifecycle: create from various sources, list, read, refresh, delete. BEST PRACTICE: Use list before creating. Prefer refresh over delete+recreate to preserve field configs. REFRESH: Call after configuring fields with excel_pivottable_field. LAYOUT: 0=Compact (default), 1=Tabular (best for export), 2=Outline. CREATE: create-from-range, create-from-table, create-from-datamodel. TIMEOUT: 5 min for DataModel. Use excel_pivottable_field for field management, excel_pivottable_calc for calculated fields.")]
 public interface IPivotTableCommands
 {
     // === LIFECYCLE OPERATIONS ===

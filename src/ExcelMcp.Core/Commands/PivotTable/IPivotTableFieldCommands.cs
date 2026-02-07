@@ -5,11 +5,29 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
 /// <summary>
-/// Place fields into PivotTable areas (rows, columns, values, filters),
-/// set aggregation functions, apply formatting, sort, and group by date or numeric intervals.
+/// PivotTable field management: add/remove/configure fields, filtering, sorting, and grouping.
+/// Use pivottable for lifecycle, pivottablecalc for calculated fields and layout.
+///
+/// IMPORTANT: Field operations modify structure only. Call pivottable refresh after
+/// configuring fields to update the visual display, especially for OLAP/Data Model PivotTables.
+///
+/// FIELD AREAS:
+/// - Row fields: Group data by categories (add-row-field)
+/// - Column fields: Create column headers (add-column-field)
+/// - Value fields: Aggregate numeric data with Sum, Count, Average, etc. (add-value-field)
+/// - Filter fields: Add report-level filters (add-filter-field)
+///
+/// AGGREGATION FUNCTIONS: Sum, Count, Average, Max, Min, Product, CountNumbers, StdDev, StdDevP, Var, VarP
+///
+/// GROUPING:
+/// - Date fields: Group by Days, Months, Quarters, Years (group-by-date)
+/// - Numeric fields: Group by ranges with start/end/interval (group-by-numeric)
+///
+/// NUMBER FORMAT: Use US format codes like '#,##0.00' for currency or '0.00%' for percentages.
 /// </summary>
 [ServiceCategory("pivottablefield", "PivotTableField")]
-[McpTool("excel_pivottable_field")]
+[McpTool("excel_pivottable_field", Title = "Excel PivotTable Field Operations", Destructive = true, Category = "analysis",
+    Description = "PivotTable field management: add/remove/configure fields, filtering, sorting, and grouping. IMPORTANT: Field operations modify structure only - call excel_pivottable(refresh) after configuring, especially for OLAP/Data Model PivotTables. FIELD AREAS: Row (categories), Column (headers), Value (aggregation: Sum/Count/Average/Max/Min/etc.), Filter (report-level). GROUPING: date (Days/Months/Quarters/Years), numeric (start/end/interval). NUMBER FORMAT: US format codes. Use excel_pivottable for lifecycle, excel_pivottable_calc for calculated fields.")]
 public interface IPivotTableFieldCommands
 {
     // === FIELD MANAGEMENT (WITH IMMEDIATE VALIDATION) ===
@@ -68,7 +86,7 @@ public interface IPivotTableFieldCommands
     /// <returns>Field configuration with applied function and custom name</returns>
     [ServiceAction("add-value-field")]
     PivotFieldResult AddValueField(IExcelBatch batch, string pivotTableName,
-        string fieldName, AggregationFunction aggregationFunction = AggregationFunction.Sum,
+        string fieldName, [FromString] AggregationFunction aggregationFunction = AggregationFunction.Sum,
         string? customName = null);
 
     /// <summary>
@@ -105,7 +123,7 @@ public interface IPivotTableFieldCommands
     /// <returns>Applied function and sample calculation result</returns>
     [ServiceAction("set-field-function")]
     PivotFieldResult SetFieldFunction(IExcelBatch batch, string pivotTableName,
-        string fieldName, AggregationFunction aggregationFunction);
+        string fieldName, [FromString] AggregationFunction aggregationFunction);
 
     /// <summary>
     /// Sets custom name for field in any area
@@ -155,7 +173,7 @@ public interface IPivotTableFieldCommands
     /// <returns>Applied sort configuration and preview of changes</returns>
     [ServiceAction("sort-field")]
     PivotFieldResult SortField(IExcelBatch batch, string pivotTableName,
-        string fieldName, SortDirection direction = SortDirection.Ascending);
+        string fieldName, [FromString] SortDirection direction = SortDirection.Ascending);
 
     // === GROUPING OPERATIONS (DATE AND NUMERIC) ===
 
@@ -174,7 +192,7 @@ public interface IPivotTableFieldCommands
     /// </remarks>
     [ServiceAction("group-by-date")]
     PivotFieldResult GroupByDate(IExcelBatch batch, string pivotTableName,
-        string fieldName, DateGroupingInterval interval);
+        string fieldName, [FromString] DateGroupingInterval interval);
 
     /// <summary>
     /// Groups a numeric field by specified interval (e.g., 0-100, 100-200, 200-300).
