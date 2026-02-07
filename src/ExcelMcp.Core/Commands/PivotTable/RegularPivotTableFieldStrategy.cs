@@ -878,16 +878,16 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
 
 #pragma warning disable CA1848 // Keep logging for diagnostics
     /// <inheritdoc/>
-    public OperationResult SetLayout(dynamic pivot, int layoutType, string workbookPath, ILogger? logger = null)
+    public OperationResult SetLayout(dynamic pivot, int rowLayout, string workbookPath, ILogger? logger = null)
     {
         // xlCompactRow=0, xlTabularRow=1, xlOutlineRow=2
-        pivot.RowAxisLayout(layoutType);
+        pivot.RowAxisLayout(rowLayout);
 
         // NOTE: No RefreshTable() needed - Layout is a visual-only property
 
         if (logger is not null && logger.IsEnabled(LogLevel.Information))
         {
-            logger.LogInformation("Set PivotTable layout to {LayoutType}", layoutType);
+            logger.LogInformation("Set PivotTable layout to {LayoutType}", rowLayout);
         }
 
         return new OperationResult

@@ -285,7 +285,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["action"] = "create",
             ["path"] = _testExcelFile,
             ["session_id"] = sessionId,
-            ["param_name"] = "ReportDate",
+            ["name"] = "ReportDate",
             ["reference"] = "=Data!$C$2"
         });
         AssertSuccess(createParamResult, "Create named range");
@@ -295,7 +295,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["action"] = "read",
             ["path"] = _testExcelFile,
             ["session_id"] = sessionId,
-            ["param_name"] = "ReportDate"
+            ["name"] = "ReportDate"
         });
         AssertSuccess(readParamResult, "Read named range");
         _output.WriteLine("  ✓ excel_namedrange: Create and Read passed");

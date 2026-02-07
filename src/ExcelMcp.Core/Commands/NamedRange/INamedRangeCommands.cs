@@ -27,65 +27,65 @@ public interface INamedRangeCommands
     /// Sets the value of a named range
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="paramName">Name of the named range</param>
+    /// <param name="name">Name of the named range</param>
     /// <param name="value">Value to set</param>
     /// <exception cref="InvalidOperationException">If named range not found</exception>
     [ServiceAction("write")]
     void Write(
         IExcelBatch batch,
-        [RequiredParameter, FromString("paramName")] string paramName,
+        [RequiredParameter, FromString("name")] string name,
         [RequiredParameter, FromString("value")] string value);
 
     /// <summary>
     /// Gets the value of a named range
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="paramName">Name of the named range</param>
+    /// <param name="name">Name of the named range</param>
     /// <returns>Named range value information</returns>
     /// <exception cref="InvalidOperationException">If named range not found</exception>
     [ServiceAction("read")]
     NamedRangeValue Read(
         IExcelBatch batch,
-        [RequiredParameter, FromString("paramName")] string paramName);
+        [RequiredParameter, FromString("name")] string name);
 
     /// <summary>
     /// Updates a named range reference
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="paramName">Name of the named range</param>
+    /// <param name="name">Name of the named range</param>
     /// <param name="reference">New cell reference (e.g., Sheet1!$A$1:$B$10)</param>
-    /// <exception cref="ArgumentException">If parameter name invalid or too long</exception>
+    /// <exception cref="ArgumentException">If name invalid or too long</exception>
     /// <exception cref="InvalidOperationException">If named range not found</exception>
     [ServiceAction("update")]
     void Update(
         IExcelBatch batch,
-        [RequiredParameter, FromString("paramName")] string paramName,
+        [RequiredParameter, FromString("name")] string name,
         [RequiredParameter, FromString("reference")] string reference);
 
     /// <summary>
     /// Creates a new named range
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="paramName">Name for the new named range</param>
+    /// <param name="name">Name for the new named range</param>
     /// <param name="reference">Cell reference (e.g., Sheet1!$A$1:$B$10)</param>
-    /// <exception cref="ArgumentException">If parameter name invalid or too long</exception>
+    /// <exception cref="ArgumentException">If name invalid or too long</exception>
     /// <exception cref="InvalidOperationException">If named range already exists</exception>
     [ServiceAction("create")]
     void Create(
         IExcelBatch batch,
-        [RequiredParameter, FromString("paramName")] string paramName,
+        [RequiredParameter, FromString("name")] string name,
         [RequiredParameter, FromString("reference")] string reference);
 
     /// <summary>
     /// Deletes a named range
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="paramName">Name of the named range to delete</param>
+    /// <param name="name">Name of the named range to delete</param>
     /// <exception cref="InvalidOperationException">If named range not found</exception>
     [ServiceAction("delete")]
     void Delete(
         IExcelBatch batch,
-        [RequiredParameter, FromString("paramName")] string paramName);
+        [RequiredParameter, FromString("name")] string name);
 }
 
 

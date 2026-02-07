@@ -993,17 +993,17 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
 #pragma warning disable CA1848 // Keep logging for diagnostics
     /// <inheritdoc/>
-    public OperationResult SetLayout(dynamic pivot, int layoutType, string workbookPath, ILogger? logger = null)
+    public OperationResult SetLayout(dynamic pivot, int rowLayout, string workbookPath, ILogger? logger = null)
     {
         // OLAP PivotTables support all three layout forms
         // xlCompactRow=0, xlTabularRow=1, xlOutlineRow=2
-        pivot.RowAxisLayout(layoutType);
+        pivot.RowAxisLayout(rowLayout);
 
         // NOTE: No RefreshTable() needed - Layout is a visual-only property
 
         if (logger?.IsEnabled(LogLevel.Information) is true)
         {
-            logger.LogInformation("Set OLAP PivotTable layout to {LayoutType}", layoutType);
+            logger.LogInformation("Set OLAP PivotTable layout to {LayoutType}", rowLayout);
         }
 
         return new OperationResult

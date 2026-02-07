@@ -154,7 +154,7 @@ public interface IPivotTableCalcCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>
-    /// <param name="layoutType">Layout form: 0=Compact, 1=Tabular, 2=Outline</param>
+    /// <param name="rowLayout">Layout form: 0=Compact, 1=Tabular, 2=Outline</param>
     /// <returns>Result indicating success or failure</returns>
     /// <remarks>
     /// LAYOUT FORMS:
@@ -165,7 +165,7 @@ public interface IPivotTableCalcCommands
     /// Supported by both regular and OLAP PivotTables.
     /// </remarks>
     [ServiceAction("set-layout")]
-    OperationResult SetLayout(IExcelBatch batch, string pivotTableName, int layoutType);
+    OperationResult SetLayout(IExcelBatch batch, string pivotTableName, int rowLayout);
 
     /// <summary>
     /// Shows or hides subtotals for a specific row field.
