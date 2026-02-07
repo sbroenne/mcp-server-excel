@@ -87,7 +87,13 @@ Save and close the file.
 
 @pytest.mark.asyncio
 async def test_cli_table_slicer_workflow(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = create_cli_agent(excel_cli_server, excel_cli_skill, name="cli-table-slicer")
+    agent = Agent(
+        name="cli-table-slicer",
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
+        cli_servers=[excel_cli_server],
+        skill=excel_cli_skill,
+        max_turns=20,
+    )
 
     messages = None
 

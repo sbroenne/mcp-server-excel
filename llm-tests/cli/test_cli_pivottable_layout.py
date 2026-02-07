@@ -52,7 +52,13 @@ Save and close the file.
 
 @pytest.mark.asyncio
 async def test_cli_pivottable_compact_layout(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = create_cli_agent(excel_cli_server, excel_cli_skill, name="cli-pivot-compact")
+    agent = Agent(
+        name="cli-pivot-compact",
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
+        cli_servers=[excel_cli_server],
+        skill=excel_cli_skill,
+        max_turns=20,
+    )
 
     prompt = f"""
 I want a PivotTable with the default compact view that Excel normally uses - row labels in a single column.
@@ -82,7 +88,13 @@ Save and close the file.
 
 @pytest.mark.asyncio
 async def test_cli_pivottable_outline_layout(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = create_cli_agent(excel_cli_server, excel_cli_skill, name="cli-pivot-outline")
+    agent = Agent(
+        name="cli-pivot-outline",
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
+        cli_servers=[excel_cli_server],
+        skill=excel_cli_skill,
+        max_turns=20,
+    )
 
     prompt = f"""
 I need a PivotTable with Outline layout for expanding and collapsing groups.

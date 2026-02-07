@@ -41,7 +41,13 @@ Using the Excel CLI tool:
 
 @pytest.mark.asyncio
 async def test_cli_table_lifecycle(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = create_cli_agent(excel_cli_server, excel_cli_skill, name="cli-table-lifecycle")
+    agent = Agent(
+        name="cli-table-lifecycle",
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
+        cli_servers=[excel_cli_server],
+        skill=excel_cli_skill,
+        max_turns=20,
+    )
 
     prompt = f"""
 Using the Excel CLI tool:

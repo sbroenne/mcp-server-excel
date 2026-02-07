@@ -105,7 +105,13 @@ Which category had more orders - Electronics or Furniture?
 async def test_cli_powerquery_products_workflow(
     aitest_run, excel_cli_server, excel_cli_skill, fixtures_dir
 ):
-    agent = create_cli_agent(excel_cli_server, excel_cli_skill, name="cli-pq-products")
+    agent = Agent(
+        name="cli-pq-products",
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
+        cli_servers=[excel_cli_server],
+        skill=excel_cli_skill,
+        max_turns=20,
+    )
 
     mcode_file = (fixtures_dir / "products-powerquery.m").as_posix()
 

@@ -45,7 +45,13 @@ async def test_cli_range_updates(aitest_run, excel_cli_server, excel_cli_skill):
 
 @pytest.mark.asyncio
 async def test_cli_table_updates(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = create_cli_agent(excel_cli_server, excel_cli_skill, name="cli-table-updates")
+    agent = Agent(
+        name="cli-table-updates",
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
+        cli_servers=[excel_cli_server],
+        skill=excel_cli_skill,
+        max_turns=20,
+    )
 
     prompt = f"""
 1. Create a new empty Excel file at {unique_path('llm-test-table-cli')} and open it
@@ -67,7 +73,13 @@ async def test_cli_table_updates(aitest_run, excel_cli_server, excel_cli_skill):
 
 @pytest.mark.asyncio
 async def test_cli_chart_updates(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = create_cli_agent(excel_cli_server, excel_cli_skill, name="cli-chart-updates")
+    agent = Agent(
+        name="cli-chart-updates",
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
+        cli_servers=[excel_cli_server],
+        skill=excel_cli_skill,
+        max_turns=20,
+    )
 
     prompt = f"""
 1. Create a new empty Excel file at {unique_path('llm-test-chart-cli')} and open it
@@ -89,7 +101,13 @@ async def test_cli_chart_updates(aitest_run, excel_cli_server, excel_cli_skill):
 
 @pytest.mark.asyncio
 async def test_cli_sheet_structural_changes(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = create_cli_agent(excel_cli_server, excel_cli_skill, name="cli-sheet-struct")
+    agent = Agent(
+        name="cli-sheet-struct",
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
+        cli_servers=[excel_cli_server],
+        skill=excel_cli_skill,
+        max_turns=20,
+    )
 
     prompt = f"""
 1. Create a new empty Excel file at {unique_path('llm-test-struct-cli')} and open it
