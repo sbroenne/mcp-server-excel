@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
+using ServiceManager = Sbroenne.ExcelMcp.Service.ServiceManager;
 
 #pragma warning disable IL2070 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' requirements
 
@@ -30,7 +31,7 @@ public static class ExcelToolsBase
         await _serviceLock.WaitAsync(cancellationToken);
         try
         {
-            return await ServiceLauncher.EnsureServiceRunningAsync(cancellationToken);
+            return await ServiceManager.EnsureServiceRunningAsync(cancellationToken);
         }
         finally
         {
@@ -53,7 +54,7 @@ public static class ExcelToolsBase
             return new ServiceResponse
             {
                 Success = false,
-                ErrorMessage = "Failed to start ExcelMCP Service. Ensure excelcli.exe is available (bundled with mcp-excel)."
+                ErrorMessage = "Failed to start ExcelMCP Service. The service could not be launched."
             };
         }
 

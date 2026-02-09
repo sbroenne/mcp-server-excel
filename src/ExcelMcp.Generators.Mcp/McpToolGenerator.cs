@@ -294,7 +294,7 @@ public class McpToolGenerator : IIncrementalGenerator
                     mcpTypeName: $"{pInfo.EnumTypeName}?",
                     routeActionParamName: ep.Name,
                     routeActionValue: $"{snakeName}?.ToString()",
-                    description: ep.Description,
+                    description: ep.DescriptionWithRequired,
                     defaultExpression: "null",
                     preProcessingCode: null));
             }
@@ -312,8 +312,8 @@ public class McpToolGenerator : IIncrementalGenerator
                     mcpTypeName: "int?",
                     routeActionParamName: ep.Name,
                     routeActionValue: localVarName,
-                    description: ep.Description != null
-                        ? ep.Description + " (in seconds)"
+                    description: ep.DescriptionWithRequired != null
+                        ? ep.DescriptionWithRequired + " (in seconds)"
                         : "Timeout in seconds",
                     defaultExpression: "null",
                     preProcessingCode: $"var {localVarName} = {snakeSecondsName}.HasValue ? System.TimeSpan.FromSeconds({snakeSecondsName}.Value) : (System.TimeSpan?)null;"));
@@ -328,8 +328,8 @@ public class McpToolGenerator : IIncrementalGenerator
                     mcpTypeName: "string?",
                     routeActionParamName: ep.Name,
                     routeActionValue: localVarName,
-                    description: ep.Description != null
-                        ? ep.Description + " (JSON array, e.g., '[\"value1\",\"value2\"]')"
+                    description: ep.DescriptionWithRequired != null
+                        ? ep.DescriptionWithRequired + " (JSON array, e.g., '[\"value1\",\"value2\"]')"
                         : "JSON array of strings",
                     defaultExpression: "null",
                     preProcessingCode: $"var {localVarName} = Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.ParseJsonList({snakeName}, nameof({snakeName}));"));
@@ -350,7 +350,7 @@ public class McpToolGenerator : IIncrementalGenerator
                     mcpTypeName: mcpType,
                     routeActionParamName: ep.Name,
                     routeActionValue: snakeName,
-                    description: ep.Description,
+                    description: ep.DescriptionWithRequired,
                     defaultExpression: defaultExpr,
                     preProcessingCode: null));
             }

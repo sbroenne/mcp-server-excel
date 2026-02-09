@@ -1020,6 +1020,15 @@ wheels = [
 ]
 
 [[package]]
+name = "mdutils"
+version = "1.8.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8a/44/73810a6af37f57ec00f6e480bbb0f24ea1e25e85923025eb8ddabc54fe68/mdutils-1.8.1.tar.gz", hash = "sha256:cdce6bde79822a7fea3c8fd6426cea0acfadd0f94ee3d3ebfa09aa38b561af35", size = 24077, upload-time = "2025-10-18T15:30:14.546Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/06/38/f2eeaa5d1c13e64a4dc18b5c6e28b9d5f8b20f5450ba8c3a694e4a78893d/mdutils-1.8.1-py3-none-any.whl", hash = "sha256:3d62d0a4d19fcd68d1daf956d1832f4a598663c73022bd95b09fae69c994b5ac", size = 21656, upload-time = "2025-10-18T15:30:13.129Z" },
+]
+
+[[package]]
 name = "msal"
 version = "1.34.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1478,10 +1487,10 @@ version = "0.2.0"
 source = { editable = "../../pytest-aitest" }
 dependencies = [
     { name = "htpy" },
-    { name = "jinja2" },
     { name = "litellm" },
     { name = "markdown" },
     { name = "mcp" },
+    { name = "mdutils" },
     { name = "pydantic" },
     { name = "pytest" },
 ]
@@ -1489,18 +1498,16 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "azure-identity", marker = "extra == 'azure'", specifier = ">=1.25" },
-    { name = "beautifulsoup4", marker = "extra == 'test'", specifier = ">=4.14" },
-    { name = "datamodel-code-generator", marker = "extra == 'dev'", specifier = ">=0.25" },
+    { name = "cairosvg", marker = "extra == 'docs'", specifier = ">=2.7" },
     { name = "htpy", specifier = ">=25.12.0" },
-    { name = "jinja2", specifier = ">=3.1" },
-    { name = "jsonschema", marker = "extra == 'dev'", specifier = ">=4.0" },
     { name = "litellm", specifier = ">=1.81" },
-    { name = "lxml", marker = "extra == 'test'", specifier = ">=6.0" },
     { name = "markdown", specifier = ">=3.10" },
     { name = "mcp", specifier = ">=1.26" },
+    { name = "mdutils", specifier = ">=1.8.1" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.6" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.7" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = ">=0.24" },
+    { name = "pillow", marker = "extra == 'docs'", specifier = ">=11.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.5" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.408" },
@@ -1516,11 +1523,7 @@ requires-dist = [
 provides-extras = ["dev", "test", "azure", "docs"]
 
 [package.metadata.requires-dev]
-dev = [
-    { name = "playwright", specifier = ">=1.58.0" },
-    { name = "pytest-aitest", extras = ["dev", "test", "azure", "docs"] },
-    { name = "pytest-playwright", specifier = ">=0.7.2" },
-]
+dev = [{ name = "pytest-aitest", extras = ["dev", "test", "azure", "docs"] }]
 
 [[package]]
 name = "pytest-asyncio"

@@ -69,7 +69,30 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
         }
 
         // Route and execute
-        var (command, args) = Route(settings, action);
+        string command;
+        object? args;
+        try
+        {
+            (command, args) = Route(settings, action);
+        }
+        catch (ArgumentException ex)
+        {
+            // Parameter validation failed (e.g., required param missing)
+            // Return clean JSON error with exit code 1 instead of unhandled crash
+            Console.WriteLine(JsonSerializer.Serialize(
+                new { success = false, error = ex.Message },
+                ServiceProtocol.JsonOptions));
+            return 1;
+        }
+
+        // Ensure service is running (auto-starts if needed)
+        if (!await ServiceManager.EnsureServiceRunningAsync(cancellationToken))
+        {
+            Console.WriteLine(JsonSerializer.Serialize(
+                new { success = false, error = "Failed to start ExcelMCP service." },
+                ServiceProtocol.JsonOptions));
+            return 1;
+        }
 
         using var client = new ServiceClient();
         var response = await client.SendAsync(new ServiceRequest

@@ -5,6 +5,7 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Calculation;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
+using Sbroenne.ExcelMcp.Core.Commands.Diag;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Commands.Slicer;
@@ -43,6 +44,7 @@ public sealed class ExcelMcpService : IDisposable
     private readonly VbaCommands _vbaCommands = new();
     private readonly DataModelCommands _dataModelCommands = new();
     private readonly CalculationModeCommands _calculationModeCommands = new();
+    private readonly DiagCommands _diagCommands = new();
 
     public ExcelMcpService(TimeSpan? idleTimeout = null)
     {
@@ -310,6 +312,7 @@ public sealed class ExcelMcpService : IDisposable
                 "slicer" => await DispatchSimpleAsync<SlicerAction>(action, request,
                     ServiceRegistry.Slicer.TryParseAction,
                     (a, batch) => ServiceRegistry.Slicer.DispatchToCore(_slicerCommands, a, batch, request.Args)),
+                "diag" => DispatchSessionless(action, request),
                 _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown command category: {category}" }
             };
         }
@@ -552,7 +555,17 @@ public sealed class ExcelMcpService : IDisposable
 
     }
 
+    /// <summary>
+    /// Dispatches a session-less command (no Excel batch required).
+    /// Used for [NoSession] categories like diag.
+    /// </summary>
+    private ServiceResponse DispatchSessionless(string actionString, ServiceRequest request)
+    {
+        if (!ServiceRegistry.Diag.TryParseAction(actionString, out var action))
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown action: {actionString}" };
 
+        return WrapResult(ServiceRegistry.Diag.DispatchToCore(_diagCommands, action, request.Args));
+    }
 
     private async Task<ServiceResponse> DispatchSheetAsync(string actionString, ServiceRequest request)
 

@@ -198,9 +198,11 @@ public static class ServiceSecurity
             }
 
             // Guard against PID reuse: verify it's actually the service
-            // Process name will be "excelcli" (production) or "dotnet" (dev mode)
+            // Known service hosts: excelcli, Sbroenne.ExcelMcp.McpServer, dotnet (dev mode)
             var processName = process.ProcessName.ToLowerInvariant();
-            if (processName != "excelcli" && processName != "dotnet")
+            if (processName != "excelcli" &&
+                processName != "sbroenne.excelmcp.mcpserver" &&
+                processName != "dotnet")
             {
                 // Different process reused the PID - service is dead
                 DeleteLockFile();

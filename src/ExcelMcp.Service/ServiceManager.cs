@@ -8,6 +8,16 @@ namespace Sbroenne.ExcelMcp.Service;
 public static class ServiceManager
 {
     /// <summary>
+    /// Known service binary names that can handle 'service run'.
+    /// Both MCP Server and CLI can host the service.
+    /// </summary>
+    private static readonly string[] ServiceBinaryNames =
+    [
+        "Sbroenne.ExcelMcp.McpServer.exe",
+        "excelcli.exe"
+    ];
+
+    /// <summary>
     /// Ensures service is running, starting it if necessary.
     /// </summary>
     public static async Task<bool> EnsureServiceRunningAsync(CancellationToken cancellationToken = default)
@@ -43,45 +53,10 @@ public static class ServiceManager
     /// </summary>
     public static async Task<bool> StartServiceAsync(CancellationToken cancellationToken = default)
     {
-        ProcessStartInfo startInfo;
-
-        // Check if running via 'dotnet run' (development mode)
-        var entryAssembly = System.Reflection.Assembly.GetEntryAssembly();
-        var isDotnetRun = entryAssembly != null &&
-            Environment.ProcessPath?.EndsWith("dotnet.exe", StringComparison.OrdinalIgnoreCase) == true;
-
-        // Use UseShellExecute=true to create service in separate process group
-        // This prevents parent's console handles from being inherited
-        if (isDotnetRun)
+        var startInfo = GetServiceStartInfo();
+        if (startInfo == null)
         {
-            // Development mode: use 'dotnet <dll> service run'
-            var dllPath = entryAssembly!.Location;
-            startInfo = new ProcessStartInfo
-            {
-                FileName = "dotnet",
-                Arguments = $"\"{dllPath}\" service run",
-                UseShellExecute = true,
-                CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden
-            };
-        }
-        else
-        {
-            // Production mode: use the exe directly
-            var exePath = Environment.ProcessPath;
-            if (string.IsNullOrEmpty(exePath))
-            {
-                return false;
-            }
-
-            startInfo = new ProcessStartInfo
-            {
-                FileName = exePath,
-                Arguments = "service run",
-                UseShellExecute = true,
-                CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden
-            };
+            return false;
         }
 
         try
@@ -154,6 +129,64 @@ public static class ServiceManager
         }
 
         return new ServiceStatus { Running = true, ProcessId = pid ?? 0 };
+    }
+
+    /// <summary>
+    /// Determines how to start the service process.
+    /// Priority: 1) Self-launch (current exe), 2) Co-located binary, 3) dotnet run (dev mode).
+    /// </summary>
+    private static ProcessStartInfo? GetServiceStartInfo()
+    {
+        var processPath = Environment.ProcessPath;
+        var processName = Path.GetFileName(processPath);
+
+        // 1) Self-launch: current process IS a known service binary (MCP Server or CLI)
+        if (!string.IsNullOrEmpty(processPath) &&
+            ServiceBinaryNames.Any(name => string.Equals(processName, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            return CreateStartInfo(processPath);
+        }
+
+        // 2) Co-located: find a service binary next to the current executable
+        //    Handles test hosts, dotnet.exe, or any non-service process
+        var baseDir = AppContext.BaseDirectory;
+        foreach (var binaryName in ServiceBinaryNames)
+        {
+            var candidatePath = Path.Combine(baseDir, binaryName);
+            if (File.Exists(candidatePath))
+            {
+                return CreateStartInfo(candidatePath);
+            }
+        }
+
+        // 3) Development mode: running via 'dotnet run', use 'dotnet <dll> service run'
+        var entryAssembly = System.Reflection.Assembly.GetEntryAssembly();
+        if (entryAssembly != null &&
+            processPath?.EndsWith("dotnet.exe", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            return new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = $"\"{entryAssembly.Location}\" service run",
+                UseShellExecute = true,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden
+            };
+        }
+
+        return null;
+    }
+
+    private static ProcessStartInfo CreateStartInfo(string exePath)
+    {
+        return new ProcessStartInfo
+        {
+            FileName = exePath,
+            Arguments = "service run",
+            UseShellExecute = true,
+            CreateNoWindow = true,
+            WindowStyle = ProcessWindowStyle.Hidden
+        };
     }
 }
 

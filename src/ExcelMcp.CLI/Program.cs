@@ -17,12 +17,6 @@ internal sealed class Program
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-        // Handle service run command before Spectre.Console (internal, not documented)
-        if (args.Length >= 2 && args[0] == "service" && args[1] == "run")
-        {
-            return await RunServiceAsync();
-        }
-
         // Determine if we should show the banner:
         // - Not when --quiet/-q flag is passed
         // - Not when output is redirected (piped to another process or file)
@@ -32,6 +26,13 @@ internal sealed class Program
 
         // Remove --quiet/-q from args before passing to Spectre.Console.Cli
         var filteredArgs = args.Where(arg => !QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)).ToArray();
+
+        // Handle service run command before anything else (internal, not documented)
+        // This enables the CLI to self-launch as the ExcelMCP Service process
+        if (args.Length >= 2 && args[0] == "service" && args[1] == "run")
+        {
+            return await RunServiceAsync();
+        }
 
         if (filteredArgs.Length == 0)
         {
@@ -102,39 +103,6 @@ internal sealed class Program
         }
     }
 
-    private static async Task<int> RunServiceAsync()
-    {
-        using var service = new ExcelMcpService();
-
-        // Handle Ctrl+C and process termination gracefully
-        Console.CancelKeyPress += (_, e) =>
-        {
-            e.Cancel = true; // Prevent immediate termination
-            service.RequestShutdown();
-        };
-
-        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
-        {
-            service.RequestShutdown();
-        };
-
-        try
-        {
-            await service.RunAsync();
-            return 0;
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("already running"))
-        {
-            Console.Error.WriteLine("Service is already running.");
-            return 1;
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Service error: {ex.Message}");
-            return 1;
-        }
-    }
-
     private static void RenderHeader()
     {
         AnsiConsole.Write(new FigletText("Excel CLI").Color(Spectre.Console.Color.Blue));
@@ -186,6 +154,42 @@ internal sealed class Program
         if (Version.TryParse(current, out var currentVer) && Version.TryParse(latest, out var latestVer))
             return currentVer.CompareTo(latestVer);
         return string.Compare(current, latest, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Runs the ExcelMCP Service in the current process.
+    /// Called when the CLI self-launches with 'service run' args.
+    /// </summary>
+    private static async Task<int> RunServiceAsync()
+    {
+        using var service = new ExcelMcpService();
+
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            service.RequestShutdown();
+        };
+
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            service.RequestShutdown();
+        };
+
+        try
+        {
+            await service.RunAsync();
+            return 0;
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("already running"))
+        {
+            Console.Error.WriteLine("Service is already running.");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Service error: {ex.Message}");
+            return 1;
+        }
     }
 }
 

@@ -14,7 +14,7 @@ documentation: https://excelmcpserver.dev/
 
 # Excel MCP Server Skill
 
-Provides 209 Excel operations via Model Context Protocol. The MCP Server forwards all requests to the shared ExcelMCP Service, enabling session sharing with CLI. Tools are auto-discovered - this documents quirks, workflows, and gotchas.
+Provides 212 Excel operations via Model Context Protocol. The MCP Server forwards all requests to the shared ExcelMCP Service, enabling session sharing with CLI. Tools are auto-discovered - this documents quirks, workflows, and gotchas.
 
 ## Preconditions
 
@@ -50,7 +50,11 @@ Use `excel_calculation_mode` for **bulk write performance optimization**. When w
 
 **You have tools to answer your own questions. USE THEM.**
 
-### Rule 2: Format Data Professionally
+### Rule 2: Always End With a Text Summary
+
+**NEVER end your turn with only a tool call.** After completing all operations, always provide a brief text message confirming what was done. Silent tool-call-only responses are incomplete.
+
+### Rule 3: Format Data Professionally
 
 Always apply number formats after setting values:
 
@@ -67,7 +71,7 @@ Always apply number formats after setting values:
 2. excel_range_format set-number-format (apply format)
 ```
 
-### Rule 3: Use Excel Tables (Not Plain Ranges)
+### Rule 4: Use Excel Tables (Not Plain Ranges)
 
 Always convert tabular data to Excel Tables:
 
@@ -78,7 +82,7 @@ Always convert tabular data to Excel Tables:
 
 **Why:** Structured references, auto-expand, required for Data Model/DAX.
 
-### Rule 4: Session Lifecycle
+### Rule 5: Session Lifecycle
 
 ```
 1. excel_file(action: 'open', path: '...')  → sessionId
@@ -88,7 +92,7 @@ Always convert tabular data to Excel Tables:
 
 **Unclosed sessions leave Excel processes running, locking files.**
 
-### Rule 5: Data Model Prerequisites
+### Rule 6: Data Model Prerequisites
 
 DAX operations require tables in the Data Model:
 
@@ -98,7 +102,7 @@ Step 2: excel_table(action: 'add-to-datamodel') → Table in Data Model
 Step 3: excel_datamodel(action: 'create-measure') → NOW this works
 ```
 
-### Rule 6: Power Query Development Lifecycle
+### Rule 7: Power Query Development Lifecycle
 
 **BEST PRACTICE: Test-First Workflow**
 
@@ -117,14 +121,14 @@ Step 3: excel_datamodel(action: 'create-measure') → NOW this works
 
 **Common mistake:** Creating/updating without evaluate → pollutes workbook with broken queries
 
-### Rule 7: Targeted Updates Over Delete-Rebuild
+### Rule 8: Targeted Updates Over Delete-Rebuild
 
 - **Prefer**: `set-values` on specific range (e.g., `A5:C5` for row 5)
 - **Avoid**: Deleting and recreating entire structures
 
 **Why:** Preserves formatting, formulas, and references.
 
-### Rule 8: Follow suggestedNextActions
+### Rule 9: Follow suggestedNextActions
 
 Error responses include actionable hints:
 ```json
@@ -135,7 +139,7 @@ Error responses include actionable hints:
 }
 ```
 
-### Rule 9: Use Calculation Mode for Bulk Write Performance
+### Rule 10: Use Calculation Mode for Bulk Write Performance
 
 When writing many values/formulas (10+ cells), use `excel_calculation_mode` to avoid recalculating after every write:
 

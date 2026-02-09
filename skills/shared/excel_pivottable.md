@@ -1,6 +1,10 @@
 ````markdown
 # excel_pivottable - Server Quirks
 
+## CRITICAL: Required Parameters
+
+**`pivotTableName` is REQUIRED for almost all PivotTable operations** across `excel_pivottable`, `excel_pivottable_calc`, and `excel_pivottable_field` tools. The only exception is `list` (which lists all PivotTables). Always specify the PivotTable name.
+
 ## Calculated Fields vs DAX Measures
 
 PivotTable calculated fields work well for simple single-table formulas. Use DAX measures for complex scenarios.
@@ -22,7 +26,7 @@ excel_pivottable_field(AddValueField, fieldName="Revenue", aggregationFunction="
 ### DAX Measure Workflow (for complex scenarios)
 
 ```
-excel_table(add-to-datamodel, tableName="Sales")
+excel_table(add-to-data-model, tableName="Sales")
 excel_datamodel(create-measure, measureName="Revenue", daxFormula="SUMX(Sales, Sales[Quantity]*Sales[UnitPrice])")
 excel_pivottable(create-from-datamodel, ...)  # Measure automatically available
 ```
@@ -119,8 +123,8 @@ The `layoutStyle` parameter controls PivotTable appearance:
 | Value | Style | Description |
 |-------|-------|-------------|
 | 0 | Compact | Default, nested row labels |
-| 1 | Outline | Each field in separate column |
-| 2 | Tabular | Flat table format, best for exports |
+| 1 | Tabular | Each field in separate column, best for exports |
+| 2 | Outline | Hierarchical with expand/collapse |
 
 ## Common Errors and Solutions
 

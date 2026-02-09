@@ -4,6 +4,7 @@ using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
@@ -13,10 +14,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public void Append(IExcelBatch batch, string tableName, List<List<object?>> rows)
+    public void Append(IExcelBatch batch, string tableName, List<List<object?>>? rows = null, string? rowsFile = null)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
+
+        // Resolve rows from inline parameter or file
+        var resolvedRows = ParameterTransforms.ResolveValuesOrFile(rows, rowsFile, "rows");
 
         batch.Execute((ctx, ct) =>
         {
@@ -33,7 +37,7 @@ public partial class TableCommands
                 sheet = table.Parent;
 
                 // Validate data
-                if (rows == null || rows.Count == 0)
+                if (resolvedRows.Count == 0)
                 {
                     throw new ArgumentException("No data to append", nameof(rows));
                 }
@@ -61,7 +65,7 @@ public partial class TableCommands
                 }
 
                 int columnCount = table.ListColumns.Count;
-                int rowsToAdd = rows.Count;
+                int rowsToAdd = resolvedRows.Count;
 
                 // CRITICAL: Temporarily disable automatic calculation to prevent Excel from
                 // hanging when appended data triggers dependent formulas that reference Data Model/DAX.
@@ -74,9 +78,9 @@ public partial class TableCommands
                 }
 
                 // Write data to cells below the table
-                for (int i = 0; i < rows.Count; i++)
+                for (int i = 0; i < resolvedRows.Count; i++)
                 {
-                    var rowValues = rows[i];
+                    var rowValues = resolvedRows[i];
                     for (int j = 0; j < Math.Min(rowValues.Count, columnCount); j++)
                     {
                         dynamic? cell = null;

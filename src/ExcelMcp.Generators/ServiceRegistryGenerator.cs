@@ -337,17 +337,37 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
         foreach (var method in info.Methods)
         {
-            sb.AppendLine($"                case \"{method.ActionName}\":");
+            bool hasFileOrValue = method.Parameters.Any(p => p.IsFileOrValue);
 
-            // Emit RequireNotEmpty for required string parameters (same logic as Forward methods)
-            foreach (var p in method.Parameters.Where(p => (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"))) && StringHelper.IsStringType(p.TypeName)))
+            sb.AppendLine($"                case \"{method.ActionName}\":");
+            // Use block scope when FileOrValue resolution generates local variables
+            // to avoid duplicate variable names across switch cases
+            if (hasFileOrValue)
+                sb.AppendLine("                {");
+
+            // Emit RequireNotEmpty for required string parameters (skip FileOrValue - they validate after resolution)
+            foreach (var p in method.Parameters.Where(p => !p.IsFileOrValue && (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"))) && StringHelper.IsStringType(p.TypeName)))
             {
                 var paramName = p.IsFromString && p.IsEnum ? (p.ExposedName ?? p.Name) : p.Name;
                 sb.AppendLine($"                    Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.RequireNotEmpty({paramName}, \"{paramName}\", \"{method.ActionName}\");");
             }
 
+            // Resolve FileOrValue parameters (read file content if file path provided)
+            foreach (var p in method.Parameters.Where(p => p.IsFileOrValue))
+            {
+                sb.AppendLine($"                    var resolved{StringHelper.ToPascalCase(p.Name)} = Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.ResolveFileOrValue({p.Name}, {p.Name}{p.FileSuffix});");
+                // Validate required FileOrValue parameters AFTER resolution
+                if (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?")))
+                {
+                    sb.AppendLine($"                    Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.RequireNotEmpty(resolved{StringHelper.ToPascalCase(p.Name)}, \"{p.Name}\", \"{method.ActionName}\");");
+                }
+            }
+
             var argsExpr = BuildCliArgsExpression(method);
             sb.AppendLine($"                    return (command, {argsExpr});");
+
+            if (hasFileOrValue)
+                sb.AppendLine("                }");
         }
 
         sb.AppendLine($"                default:");
@@ -439,7 +459,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         foreach (var p in allParams)
         {
             var optionName = StringHelper.ToKebabCase(p.Name);
-            var description = p.Description ?? StringHelper.GetParameterDescription(p.Name);
+            var description = p.DescriptionWithRequired ?? StringHelper.GetParameterDescription(p.Name);
             var escapedDescription = description.Replace("\"", "\\\"").Replace("\n", " ");
             var valuePlaceholder = p.Name.ToUpperInvariant();
 
@@ -469,8 +489,8 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             string valueName;
             if (p.IsFileOrValue)
             {
-                // CLI passes the raw param - caller resolves file before calling
-                valueName = p.Name;
+                // Use resolved variable (ResolveFileOrValue applied in RouteCliArgs)
+                valueName = $"resolved{StringHelper.ToPascalCase(p.Name)}";
             }
             else if (p.IsFromString && p.ExposedName != null)
             {
@@ -525,9 +545,9 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine($"        public static string Forward{method.MethodName}({string.Join(", ", methodParams)})");
         sb.AppendLine("        {");
 
-        // Generate validation for required string parameters only
+        // Generate validation for required string parameters (skip FileOrValue - they validate after resolution)
         // RequireNotEmpty only works with string? parameters
-        foreach (var p in method.Parameters.Where(p => (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"))) && StringHelper.IsStringType(p.TypeName)))
+        foreach (var p in method.Parameters.Where(p => !p.IsFileOrValue && (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"))) && StringHelper.IsStringType(p.TypeName)))
         {
             var paramName = p.IsFromString && p.IsEnum ? (p.ExposedName ?? p.Name) : p.Name;
             sb.AppendLine($"            Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.RequireNotEmpty({paramName}, \"{paramName}\", \"{method.ActionName}\");");
@@ -540,6 +560,11 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             if (p.IsFileOrValue)
             {
                 sb.AppendLine($"            var resolved{StringHelper.ToPascalCase(p.Name)} = Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.ResolveFileOrValue({p.Name}, {p.Name}{p.FileSuffix});");
+                // Validate required FileOrValue parameters AFTER resolution
+                if (p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?")))
+                {
+                    sb.AppendLine($"            Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.RequireNotEmpty(resolved{StringHelper.ToPascalCase(p.Name)}, \"{p.Name}\", \"{method.ActionName}\");");
+                }
             }
             // FromString enum parameters: pass raw string to service (no pre-parsing)
         }
@@ -626,13 +651,22 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         {
             foreach (var p in method.Parameters)
             {
+                var isRequired = p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"));
+
                 if (p.IsFileOrValue)
                 {
                     // Add both value and file params - prefer non-empty descriptions
-                    var shouldAdd = !result.TryGetValue(p.Name, out var existing) ||
-                                    (string.IsNullOrEmpty(existing.Description) && !string.IsNullOrEmpty(p.XmlDocDescription));
-                    if (shouldAdd)
-                        result[p.Name] = new ExposedParameter(p.Name, "string?", p.XmlDocDescription, "null");
+                    if (!result.TryGetValue(p.Name, out var existing) ||
+                        (string.IsNullOrEmpty(existing.Description) && !string.IsNullOrEmpty(p.XmlDocDescription)))
+                    {
+                        var ep = new ExposedParameter(p.Name, "string?", p.XmlDocDescription, "null");
+                        if (result.TryGetValue(p.Name, out var prev))
+                            ep.RequiredByActions.AddRange(prev.RequiredByActions);
+                        result[p.Name] = ep;
+                    }
+                    if (isRequired)
+                        result[p.Name].RequiredByActions.Add(method.ActionName);
+
                     var fileParamName = $"{p.Name}{p.FileSuffix}";
                     if (!result.ContainsKey(fileParamName))
                         result[fileParamName] = new ExposedParameter(fileParamName, "string?", $"Path to file containing {p.Name}", "null");
@@ -640,25 +674,40 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 else if (p.IsFromString && p.IsEnum)
                 {
                     var exposedName = p.ExposedName ?? p.Name;
-                    // Prefer non-empty descriptions
-                    var shouldAdd = !result.TryGetValue(exposedName, out var existing) ||
-                                    (string.IsNullOrEmpty(existing.Description) && !string.IsNullOrEmpty(p.XmlDocDescription));
-                    if (shouldAdd)
-                        result[exposedName] = new ExposedParameter(exposedName, "string?", p.XmlDocDescription, "null");
+                    if (!result.TryGetValue(exposedName, out var existing) ||
+                        (string.IsNullOrEmpty(existing.Description) && !string.IsNullOrEmpty(p.XmlDocDescription)))
+                    {
+                        var ep = new ExposedParameter(exposedName, "string?", p.XmlDocDescription, "null");
+                        if (result.TryGetValue(exposedName, out var prev))
+                            ep.RequiredByActions.AddRange(prev.RequiredByActions);
+                        result[exposedName] = ep;
+                    }
+                    if (isRequired)
+                        result[exposedName].RequiredByActions.Add(method.ActionName);
                 }
                 else
                 {
-                    // Prefer non-empty descriptions
-                    var shouldAdd = !result.TryGetValue(p.Name, out var existing) ||
-                                    (string.IsNullOrEmpty(existing.Description) && !string.IsNullOrEmpty(p.XmlDocDescription));
-                    if (shouldAdd)
+                    if (!result.TryGetValue(p.Name, out var existing) ||
+                        (string.IsNullOrEmpty(existing.Description) && !string.IsNullOrEmpty(p.XmlDocDescription)))
                     {
                         var typeName = p.TypeName.EndsWith("?") ? p.TypeName : $"{p.TypeName}?";
                         var defaultVal = p.HasDefault ? p.DefaultValue : "null";
-                        result[p.Name] = new ExposedParameter(p.Name, typeName, p.XmlDocDescription, defaultVal);
+                        var ep = new ExposedParameter(p.Name, typeName, p.XmlDocDescription, defaultVal);
+                        if (result.TryGetValue(p.Name, out var prev))
+                            ep.RequiredByActions.AddRange(prev.RequiredByActions);
+                        result[p.Name] = ep;
                     }
+                    if (isRequired)
+                        result[p.Name].RequiredByActions.Add(method.ActionName);
                 }
             }
+        }
+
+        // Set total action count on all params
+        var totalActions = info.Methods.Count;
+        foreach (var ep in result.Values)
+        {
+            ep.TotalActionCount = totalActions;
         }
 
         return result.Values.ToList();
@@ -853,8 +902,30 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             sb.Append(string.Join(", ", actions));
             sb.AppendLine("],");
 
-            // Parameters array
+            // Parameters array with required-by-actions tracking
             sb.AppendLine("      \"\"parameters\"\": [");
+
+            // Build required-by-actions map for each param
+            var paramRequiredMap = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            var totalActions = cat.Methods.Count;
+            foreach (var method in cat.Methods)
+            {
+                foreach (var p in method.Parameters)
+                {
+                    var pName = p.ExposedName ?? StringHelper.ToKebabCase(p.Name);
+                    var isRequired = p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"));
+                    if (isRequired)
+                    {
+                        if (!paramRequiredMap.TryGetValue(pName, out var reqActions))
+                        {
+                            reqActions = new List<string>();
+                            paramRequiredMap[pName] = reqActions;
+                        }
+                        reqActions.Add(method.ActionName);
+                    }
+                }
+            }
+
             var distinctParams = cat.Methods
                 .SelectMany(m => m.Parameters)
                 .GroupBy(p => p.ExposedName ?? StringHelper.ToKebabCase(p.Name))
@@ -867,11 +938,22 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 var paramName = StringHelper.ToKebabCase(param.ExposedName ?? param.Name);
                 // JSON requires \" for quotes inside strings
                 // In verbatim C# strings: \"" outputs \" (backslash + "" for one quote)
-                var paramDescription = (param.XmlDocDescription ?? "")
-                    .Replace("\"", "\\\"\"")  // Escape quotes for JSON in verbatim string
+                var baseDescription = (param.XmlDocDescription ?? "")
                     .Replace("\r", "")
                     .Replace("\n", " ")
                     .Trim();
+
+                // Append required-by-actions info
+                if (paramRequiredMap.TryGetValue(paramName, out var requiredActions) && requiredActions.Count > 0)
+                {
+                    var suffix = requiredActions.Count == totalActions
+                        ? "(required)"
+                        : $"(required for: {string.Join(", ", requiredActions)})";
+                    baseDescription = string.IsNullOrEmpty(baseDescription) ? suffix : $"{baseDescription} {suffix}";
+                }
+
+                var paramDescription = baseDescription
+                    .Replace("\"", "\\\"\"");  // Escape quotes for JSON in verbatim string
 
                 sb.AppendLine("        {");
                 sb.AppendLine($"          \"\"name\"\": \"\"{paramName}\"\",");

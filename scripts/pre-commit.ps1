@@ -4,7 +4,8 @@
     Git pre-commit hook to check for COM object leaks, Core Commands coverage, naming consistency, Success flag violations, CLI workflow, and MCP Server functionality
 
 .DESCRIPTION
-    Runs seven checks before allowing commits:
+    Runs checks before allowing commits:
+    0. Process cleanup - kills stale Excel, excelcli, and MCP server processes to prevent file locks
     1. COM leak checker - ensures no Excel COM objects are leaked
     2. Coverage audit - ensures 100% Core Commands are exposed via MCP Server
     3. Naming consistency - ensures enum names match Core method names exactly
@@ -47,6 +48,30 @@ if ($currentBranch -eq "main") {
 }
 
 Write-Host "✅ Branch check passed - on '$currentBranch' (not main)" -ForegroundColor Green
+Write-Host ""
+
+# Kill stale Excel and MCP server processes to avoid file locks on Release binaries
+Write-Host "🧹 Killing stale Excel and server processes..." -ForegroundColor Cyan
+
+$killedProcesses = @()
+foreach ($procName in @("EXCEL", "excelcli", "Sbroenne.ExcelMcp.McpServer", "Sbroenne.ExcelMcp.Service")) {
+    $procs = Get-Process -Name $procName -ErrorAction SilentlyContinue
+    if ($procs) {
+        $procs | Stop-Process -Force -ErrorAction SilentlyContinue
+        $killedProcesses += "$procName ($($procs.Count))"
+    }
+}
+
+if ($killedProcesses.Count -gt 0) {
+    Write-Host "   Killed: $($killedProcesses -join ', ')" -ForegroundColor Yellow
+    # Brief pause to let file handles release
+    Start-Sleep -Milliseconds 500
+}
+else {
+    Write-Host "   No stale processes found" -ForegroundColor Gray
+}
+
+Write-Host "✅ Process cleanup done" -ForegroundColor Green
 Write-Host ""
 
 Write-Host "🔍 Checking for COM object leaks..." -ForegroundColor Cyan

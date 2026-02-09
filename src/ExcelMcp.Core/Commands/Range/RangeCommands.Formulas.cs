@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
@@ -88,8 +89,11 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public OperationResult SetFormulas(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>> formulas)
+    public OperationResult SetFormulas(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>>? formulas = null, string? formulasFile = null)
     {
+        // Resolve formulas from inline parameter or file
+        var resolvedFormulas = ParameterTransforms.ResolveFormulasOrFile(formulas, formulasFile);
+
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-formulas" };
 
         return batch.Execute((ctx, ct) =>
@@ -118,8 +122,8 @@ public partial class RangeCommands
 
                 // Convert List<List<string>> to 2D array
                 // Excel COM requires 1-based arrays for multi-cell ranges
-                int rows = formulas.Count;
-                int cols = formulas.Count > 0 ? formulas[0].Count : 0;
+                int rows = resolvedFormulas.Count;
+                int cols = resolvedFormulas.Count > 0 ? resolvedFormulas[0].Count : 0;
 
                 if (rows > 0 && cols > 0)
                 {
@@ -132,7 +136,7 @@ public partial class RangeCommands
                         {
                             // Convert JsonElement to proper C# type for COM interop
                             // MCP framework deserializes JSON to JsonElement, not primitives
-                            arrayFormulas[r, c] = RangeHelpers.ConvertToCellValue(formulas[r - 1][c - 1]);
+                            arrayFormulas[r, c] = RangeHelpers.ConvertToCellValue(resolvedFormulas[r - 1][c - 1]);
                         }
                     }
 

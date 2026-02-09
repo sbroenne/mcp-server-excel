@@ -2246,4 +2246,44 @@ public class RangeLockInfoResult : ResultBase
 
 #endregion
 
+#region Diag Results
+
+/// <summary>
+/// Result for diagnostic commands. Returns echoed parameters and metadata.
+/// </summary>
+public class DiagResult : ResultBase
+{
+    /// <summary>
+    /// The diagnostic action that was performed
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Action { get; set; }
+
+    /// <summary>
+    /// Echoed message (for echo action)
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Message { get; set; }
+
+    /// <summary>
+    /// Echoed tag (for echo action)
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Tag { get; set; }
+
+    /// <summary>
+    /// ISO 8601 timestamp of the response
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Timestamp { get; set; }
+
+    /// <summary>
+    /// Echoed parameters as key-value pairs (for validate-params action)
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, object?>? Parameters { get; set; }
+}
+
+#endregion
+
 

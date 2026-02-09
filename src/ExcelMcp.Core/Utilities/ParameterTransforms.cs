@@ -138,6 +138,87 @@ public static class ParameterTransforms
     // === Options Object Construction ===
 
     /// <summary>
+    /// Resolves values from either an inline 2D array or a file path.
+    /// Supports JSON files (2D array format) and CSV files (rows/columns).
+    /// File format is auto-detected from extension (.json → JSON, anything else → CSV).
+    /// </summary>
+    /// <param name="values">Inline 2D array of values (may be null if file is provided)</param>
+    /// <param name="valuesFile">Path to JSON or CSV file containing values</param>
+    /// <param name="parameterName">Parameter name for error messages</param>
+    /// <returns>Resolved 2D array of values</returns>
+    /// <exception cref="ArgumentException">Neither values nor valuesFile provided</exception>
+    /// <exception cref="FileNotFoundException">File not found</exception>
+    public static List<List<object?>> ResolveValuesOrFile(List<List<object?>>? values, string? valuesFile, string parameterName = "values")
+    {
+        if (values != null && values.Count > 0)
+            return values;
+
+        if (string.IsNullOrWhiteSpace(valuesFile))
+            throw new ArgumentException($"Either {parameterName} or {parameterName}File must be provided for set-values action", parameterName);
+
+        if (!File.Exists(valuesFile))
+            throw new FileNotFoundException($"Values file not found: {valuesFile}", valuesFile);
+
+        var content = File.ReadAllText(valuesFile);
+
+        if (valuesFile.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<List<List<object?>>>(content, s_jsonOptions);
+                return parsed ?? throw new ArgumentException($"JSON file '{valuesFile}' deserialized to null");
+            }
+            catch (JsonException ex)
+            {
+                throw new ArgumentException(
+                    $"Invalid JSON in values file '{valuesFile}': {ex.Message}. Expected 2D array: [[1,2],[3,4]]",
+                    parameterName);
+            }
+        }
+
+        // Default: treat as CSV
+        var csvRows = ParseCsvToRows(content);
+        if (csvRows == null || csvRows.Count == 0)
+            throw new ArgumentException($"Values file '{valuesFile}' is empty or contains no parseable data");
+
+        return csvRows;
+    }
+
+    /// <summary>
+    /// Resolves string formulas from either an inline 2D array or a JSON file path.
+    /// </summary>
+    /// <param name="formulas">Inline 2D array of formulas (may be null if file is provided)</param>
+    /// <param name="formulasFile">Path to JSON file containing formulas</param>
+    /// <param name="parameterName">Parameter name for error messages</param>
+    /// <returns>Resolved 2D array of formulas</returns>
+    public static List<List<string>> ResolveFormulasOrFile(List<List<string>>? formulas, string? formulasFile, string parameterName = "formulas")
+    {
+        if (formulas != null && formulas.Count > 0)
+            return formulas;
+
+        if (string.IsNullOrWhiteSpace(formulasFile))
+            throw new ArgumentException($"Either {parameterName} or {parameterName}File must be provided for set-formulas action", parameterName);
+
+        if (!File.Exists(formulasFile))
+            throw new FileNotFoundException($"Formulas file not found: {formulasFile}", formulasFile);
+
+        var content = File.ReadAllText(formulasFile);
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<List<List<string>>>(content, s_jsonOptions);
+            return parsed ?? throw new ArgumentException($"JSON file '{formulasFile}' deserialized to null");
+        }
+        catch (JsonException ex)
+        {
+            throw new ArgumentException(
+                $"Invalid JSON in formulas file '{formulasFile}': {ex.Message}. Expected 2D array: [[\"=A1+B1\"],[\"=SUM(A:A)\"]]",
+                parameterName);
+        }
+    }
+
+    // === Options Object Construction ===
+
+    /// <summary>
     /// Builds a FindOptions object from individual boolean parameters with defaults.
     /// </summary>
     public static FindOptions BuildFindOptions(

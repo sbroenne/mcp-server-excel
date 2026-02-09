@@ -287,11 +287,11 @@ public static class ServiceInfoExtractor
 
     /// <summary>
     /// Gets all unique exposed parameters across all methods in a service.
+    /// Tracks which actions require each parameter for description enrichment.
     /// </summary>
     public static List<ExposedParameter> GetAllExposedParameters(ServiceInfo info)
     {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var result = new List<ExposedParameter>();
+        var paramMap = new Dictionary<string, ExposedParameter>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var method in info.Methods)
         {
@@ -299,24 +299,40 @@ public static class ServiceInfoExtractor
             {
                 // Get the exposed name (from attribute or original name)
                 var exposedName = p.ExposedName ?? p.Name;
-                if (!seen.Add(exposedName))
-                    continue;
 
-                result.Add(new ExposedParameter(exposedName, p.TypeName, p.XmlDocDescription));
+                if (!paramMap.TryGetValue(exposedName, out var existing))
+                {
+                    existing = new ExposedParameter(exposedName, p.TypeName, p.XmlDocDescription);
+                    paramMap[exposedName] = existing;
+                }
+
+                // Track if this param is required for this action
+                var isRequired = p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"));
+                if (isRequired)
+                {
+                    existing.RequiredByActions.Add(method.ActionName);
+                }
 
                 // If FileOrValue, also add the file variant
                 if (p.IsFileOrValue && p.FileSuffix != null)
                 {
                     var fileParamName = exposedName + p.FileSuffix;
-                    if (seen.Add(fileParamName))
+                    if (!paramMap.ContainsKey(fileParamName))
                     {
-                        result.Add(new ExposedParameter(fileParamName, "string?", $"Path to file containing {exposedName}"));
+                        paramMap[fileParamName] = new ExposedParameter(fileParamName, "string?", $"Path to file containing {exposedName}");
                     }
                 }
             }
         }
 
-        return result;
+        // Set total action count on all params
+        var totalActions = info.Methods.Count;
+        foreach (var ep in paramMap.Values)
+        {
+            ep.TotalActionCount = totalActions;
+        }
+
+        return paramMap.Values.ToList();
     }
 }
 

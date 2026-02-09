@@ -28,7 +28,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 [ServiceCategory("range", "Range")]
 [McpTool("excel_range", Title = "Excel Range Operations", Destructive = true, Category = "data",
-    Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. Use excel_range_edit for insert/delete/find/sort. Use excel_range_format for styling/validation. Use excel_range_link for hyperlinks/protection. Use excel_calculation_mode for recalculation. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. BEST PRACTICE: get-values before overwriting, clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName. NUMBER FORMATS: US locale codes.")]
+    Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. Use excel_range_edit for insert/delete/find/sort. Use excel_range_format for styling/validation. Use excel_range_link for hyperlinks/protection. Use excel_calculation_mode for recalculation. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. BEST PRACTICE: get-values before overwriting, clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
 public interface IRangeCommands
 {
     // === VALUE OPERATIONS ===
@@ -45,14 +45,18 @@ public interface IRangeCommands
     RangeValueResult GetValues(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
-    /// Sets values in a range from 2D array.
+    /// Sets values in a range from 2D array or file.
+    /// Provide EITHER values (inline JSON 2D array) OR valuesFile (path to .json or .csv file), not both.
+    /// JSON file: must contain a 2D array like [[1,2],[3,4]].
+    /// CSV file: rows become array rows, comma-separated values become columns.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range - REQUIRED for cell addresses, use empty string for named ranges only</param>
     /// <param name="rangeAddress">Cell range address matching data dimensions (e.g., 'A1' for [[value]], 'A1:B2' for [[v1,v2],[v3,v4]])</param>
-    /// <param name="values">2D array of values to set - rows are outer array, columns are inner array (e.g., [[1,2,3],[4,5,6]] for 2 rows x 3 cols)</param>
+    /// <param name="values">2D array of values to set - rows are outer array, columns are inner array (e.g., [[1,2,3],[4,5,6]] for 2 rows x 3 cols). Optional if valuesFile is provided.</param>
+    /// <param name="valuesFile">Path to a JSON or CSV file containing the values. JSON: 2D array. CSV: rows/columns. Alternative to inline values parameter.</param>
     [ServiceAction("set-values")]
-    OperationResult SetValues(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] List<List<object?>> values);
+    OperationResult SetValues(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<object?>>? values = null, string? valuesFile = null);
 
     // === FORMULA OPERATIONS ===
 
@@ -67,14 +71,16 @@ public interface IRangeCommands
     RangeFormulaResult GetFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
-    /// Sets formulas in a range from 2D array.
+    /// Sets formulas in a range from 2D array or file.
+    /// Provide EITHER formulas (inline JSON 2D array) OR formulasFile (path to .json file), not both.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address matching formulas dimensions (e.g., 'A1:B2' for 2x2 formula array)</param>
-    /// <param name="formulas">2D array of formulas to set - include '=' prefix (e.g., [['=A1+B1', '=SUM(A:A)'], ['=C1*2', '=AVERAGE(B:B)']])</param>
+    /// <param name="formulas">2D array of formulas to set - include '=' prefix (e.g., [['=A1+B1', '=SUM(A:A)'], ['=C1*2', '=AVERAGE(B:B)']]). Optional if formulasFile is provided.</param>
+    /// <param name="formulasFile">Path to a JSON file containing the formulas as a 2D array. Alternative to inline formulas parameter.</param>
     [ServiceAction("set-formulas")]
-    OperationResult SetFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] List<List<string>> formulas);
+    OperationResult SetFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<string>>? formulas = null, string? formulasFile = null);
 
     // === CLEAR OPERATIONS ===
 
@@ -171,15 +177,17 @@ public interface IRangeCommands
     OperationResult SetNumberFormat(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] string formatCode);
 
     /// <summary>
-    /// Sets number formats cell-by-cell from 2D array.
+    /// Sets number formats cell-by-cell from 2D array or file.
+    /// Provide EITHER formats (inline JSON 2D array) OR formatsFile (path to .json file), not both.
     /// Excel COM: Range.NumberFormat (per cell)
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address matching formats dimensions</param>
-    /// <param name="formats">2D array of format codes - same dimensions as target range (e.g., [['#,##0.00', '0.00%'], ['mm/dd/yyyy', 'General']])</param>
+    /// <param name="formats">2D array of format codes - same dimensions as target range (e.g., [['#,##0.00', '0.00%'], ['mm/dd/yyyy', 'General']]). Optional if formatsFile is provided.</param>
+    /// <param name="formatsFile">Path to a JSON file containing 2D array of format codes. Alternative to inline formats parameter.</param>
     [ServiceAction("set-number-formats")]
-    OperationResult SetNumberFormats(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] List<List<string>> formats);
+    OperationResult SetNumberFormats(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<string>>? formats = null, string? formatsFile = null);
 
     // === DISCOVERY OPERATIONS ===
 

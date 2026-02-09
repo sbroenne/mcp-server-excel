@@ -104,7 +104,13 @@ public class CliSettingsGenerator : IIncrementalGenerator
         sb.AppendLine($"internal sealed class {registryName}Command : ServiceCommandBase<ServiceRegistry.{registryName}.CliSettings>");
         sb.AppendLine("{");
         if (!requiresSession) sb.AppendLine("    protected override bool RequiresSession => false;");
-        sb.AppendLine($"    protected override string? GetSessionId(ServiceRegistry.{registryName}.CliSettings settings) => settings.SessionId;");
+
+        // NoSession commands don't have SessionId in CliSettings — return null
+        if (requiresSession)
+            sb.AppendLine($"    protected override string? GetSessionId(ServiceRegistry.{registryName}.CliSettings settings) => settings.SessionId;");
+        else
+            sb.AppendLine($"    protected override string? GetSessionId(ServiceRegistry.{registryName}.CliSettings settings) => null;");
+
         sb.AppendLine($"    protected override string? GetAction(ServiceRegistry.{registryName}.CliSettings settings) => settings.Action;");
         sb.AppendLine($"    protected override IReadOnlyList<string> ValidActions => ServiceRegistry.{registryName}.ValidActions;");
         sb.AppendLine($"    protected override (string command, object? args) Route(ServiceRegistry.{registryName}.CliSettings settings, string action) => ServiceRegistry.{registryName}.RouteFromSettings(action, settings);");

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
+using ServiceManager = Sbroenne.ExcelMcp.Service.ServiceManager;
 
 namespace Sbroenne.ExcelMcp.McpServer.ServiceBridge;
 
@@ -36,7 +37,7 @@ public static class ServiceBridge
                 return true;
             }
 
-            _serviceStarted = await ServiceLauncher.EnsureServiceRunningAsync(cancellationToken);
+            _serviceStarted = await ServiceManager.EnsureServiceRunningAsync(cancellationToken);
             return _serviceStarted;
         }
         finally

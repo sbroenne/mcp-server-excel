@@ -1,4 +1,4 @@
-"""CLI monthly financial report automation workflow."""
+"""MCP monthly financial report automation workflow."""
 
 from __future__ import annotations
 
@@ -6,18 +6,18 @@ import pytest
 
 from pytest_aitest import Agent, Provider
 
-from conftest import assert_cli_exit_codes, assert_regex, unique_path
+from conftest import assert_regex, unique_path
 
-pytestmark = [pytest.mark.aitest, pytest.mark.cli]
+pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
 
 
 @pytest.mark.asyncio
-async def test_cli_financial_report_automation(aitest_run, excel_cli_server, excel_cli_skill):
+async def test_mcp_financial_report_automation(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
-        name="cli-financial-report",
+        name="mcp-financial-report",
         provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
+        mcp_servers=[excel_mcp_server],
+        skill=excel_mcp_skill,
         max_turns=20,
     )
 
@@ -66,7 +66,6 @@ Report all three values to confirm formulas are working.
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert_cli_exit_codes(result)
     assert_regex(result.final_response, r"(?i)(450000|revenue|net income|formula)")
     messages = result.messages
 
@@ -107,7 +106,6 @@ Provide:
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert_cli_exit_codes(result)
     assert_regex(result.final_response, r"(?i)(variance|455000|formula|recalculate|updated)")
     messages = result.messages
 
@@ -148,5 +146,4 @@ Report:
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert_cli_exit_codes(result)
     assert_regex(result.final_response, r"(?i)(summary|margin|saved|598500|complete)")

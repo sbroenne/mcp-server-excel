@@ -11,7 +11,7 @@ These rules are validated by automated LLM tests and MUST be followed:
 - Never show Excel to the user - keep it hidden
 - Format Excel files professionally (proper column widths, headers, number formats)
 - Always format data ranges as Excel Tables (not plain ranges)
-- Report results after completion
+- **Always end with a text summary** - never end on just a tool call or command
 
 ## CRITICAL: No Clarification Questions
 
@@ -113,6 +113,17 @@ After completing operations, report:
 - File path (for new files)
 - Any relevant statistics (row counts, etc.)
 
+### CRITICAL: Always End With a Text Response
+
+**NEVER end your turn with only a tool call or command execution.** After all operations are complete, you MUST provide a text message summarizing what was accomplished.
+
+| Bad (Silent completion) | Good (Text summary) |
+|------------------------|--------------------|
+| *(tool call with no text)* | "Created PivotTable 'SalesPivot' with tabular layout on the Analysis sheet." |
+| *(just runs a command)* | "Set the PivotTable to compact layout (row fields in a single indented column)." |
+
+**Why**: Users and automation expect a text confirmation. A silent tool call or command with no follow-up text is an incomplete response.
+
 ### Session Lifecycle
 
 Always close sessions when done:
@@ -199,7 +210,7 @@ DAX operations require tables in the Data Model:
 
 ```
 Step 1: Create or import data → Table exists
-Step 2: excel_table(action: 'add-to-datamodel') → Table in Data Model
+Step 2: excel_table(action: 'add-to-data-model') → Table in Data Model
 Step 3: excel_datamodel(action: 'create-measure') → NOW this works
 ```
 

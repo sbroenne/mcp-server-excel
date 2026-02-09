@@ -102,6 +102,14 @@ public static class StringHelper
 /// </summary>
 public static class TypeNameHelper
 {
+    /// <summary>
+    /// FullyQualifiedFormat with IncludeNullableReferenceTypeModifier to preserve
+    /// nullable annotations on type arguments (e.g., object? in List&lt;List&lt;object?&gt;&gt;).
+    /// </summary>
+    private static readonly SymbolDisplayFormat NullableQualifiedFormat =
+        SymbolDisplayFormat.FullyQualifiedFormat.AddMiscellaneousOptions(
+            SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
+
     public static string GetTypeName(ITypeSymbol type, NullableAnnotation nullableAnnotation = NullableAnnotation.None)
     {
         if (type.SpecialType == SpecialType.System_Void)
@@ -123,11 +131,15 @@ public static class TypeNameHelper
             }
         }
 
-        // For custom types, use fully qualified name
-        var fullName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        // For custom types, use fully qualified name with nullable reference annotations preserved
+        var fullName = type.ToDisplayString(NullableQualifiedFormat);
         // Remove "global::" prefix
         if (fullName.StartsWith("global::"))
             fullName = fullName.Substring(8);
+
+        // Handle outer nullable annotation for reference types (e.g., List<>? parameters)
+        if (nullableAnnotation == NullableAnnotation.Annotated && !fullName.EndsWith("?"))
+            fullName += "?";
 
         return fullName;
     }

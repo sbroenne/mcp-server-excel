@@ -122,11 +122,39 @@ public sealed class ExposedParameter
     public string? Description { get; }
     public string? DefaultValue { get; }
 
+    /// <summary>Action names where this parameter is required (non-nullable, no default, or [RequiredParameter]).</summary>
+    public List<string> RequiredByActions { get; } = new();
+
+    /// <summary>Total number of actions in the service (for computing "required for all" vs subset).</summary>
+    public int TotalActionCount { get; set; }
+
     public ExposedParameter(string name, string typeName, string? description = null, string? defaultValue = null)
     {
         Name = name;
         TypeName = typeName;
         Description = description;
         DefaultValue = defaultValue;
+    }
+
+    /// <summary>
+    /// Returns the description with required-by-actions suffix appended.
+    /// E.g., "Name of the PivotTable (required for: read, delete, refresh)"
+    /// or "Name of the PivotTable (required)" if required for all actions.
+    /// </summary>
+    public string? DescriptionWithRequired
+    {
+        get
+        {
+            if (RequiredByActions.Count == 0)
+                return Description;
+
+            var suffix = RequiredByActions.Count == TotalActionCount
+                ? "(required)"
+                : $"(required for: {string.Join(", ", RequiredByActions)})";
+
+            return string.IsNullOrEmpty(Description)
+                ? suffix
+                : $"{Description} {suffix}";
+        }
     }
 }

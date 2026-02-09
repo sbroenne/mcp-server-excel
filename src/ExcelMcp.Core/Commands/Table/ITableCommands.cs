@@ -101,13 +101,15 @@ public interface ITableCommands
     void SetColumnTotal(IExcelBatch batch, string tableName, string columnName, string totalFunction);
 
     /// <summary>
-    /// Appends rows to an Excel Table (table auto-expands)
+    /// Appends rows to an Excel Table (table auto-expands).
+    /// Provide EITHER rows (inline JSON 2D array) OR rowsFile (path to .json or .csv file), not both.
     /// </summary>
     /// <param name="tableName">Name of the table to append to (table auto-expands)</param>
-    /// <param name="rows">2D array of row data to append - column order must match table columns</param>
+    /// <param name="rows">2D array of row data to append - column order must match table columns. Optional if rowsFile is provided.</param>
+    /// <param name="rowsFile">Path to a JSON or CSV file containing the rows to append. JSON: 2D array. CSV: rows/columns. Alternative to inline rows parameter.</param>
     /// <exception cref="InvalidOperationException">Table not found or append failed</exception>
     [ServiceAction("append")]
-    void Append(IExcelBatch batch, string tableName, List<List<object?>> rows);
+    void Append(IExcelBatch batch, string tableName, List<List<object?>>? rows = null, string? rowsFile = null);
 
     /// <summary>
     /// Retrieves data rows from a table, optionally limited to currently visible rows.

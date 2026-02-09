@@ -116,6 +116,13 @@ internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseCommand.Set
             return 1;
         }
 
+        // Ensure service is running (auto-starts if needed)
+        if (!await ServiceManager.EnsureServiceRunningAsync(cancellationToken))
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = "Failed to start ExcelMCP service." }, ServiceProtocol.JsonOptions));
+            return 1;
+        }
+
         using var client = new ServiceClient();
         var response = await client.SendAsync(new ServiceRequest
         {
@@ -181,6 +188,13 @@ internal sealed class SessionSaveCommand : AsyncCommand<SessionSaveCommand.Setti
         if (string.IsNullOrWhiteSpace(settings.SessionId))
         {
             AnsiConsole.MarkupLine("[red]Session ID is required.[/]");
+            return 1;
+        }
+
+        // Ensure service is running (auto-starts if needed)
+        if (!await ServiceManager.EnsureServiceRunningAsync(cancellationToken))
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = "Failed to start ExcelMCP service." }, ServiceProtocol.JsonOptions));
             return 1;
         }
 
