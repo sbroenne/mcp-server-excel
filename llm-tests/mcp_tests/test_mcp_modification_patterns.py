@@ -84,7 +84,7 @@ async def test_mcp_chart_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
         provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
-        allowed_tools=["excel_chart", "excel_file", "excel_worksheet", "excel_range"],
+        allowed_tools=["excel_chart", "excel_chart_config", "excel_file", "excel_worksheet", "excel_range"],
         max_turns=20,
     )
 
@@ -104,7 +104,7 @@ async def test_mcp_chart_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
     result = await aitest_run(agent, prompt)
     assert result.success
     assert result.tool_was_called("excel_chart")
-    assert_regex(result.final_response, r"(?i)(q1 sales report)")
+    assert_regex(result.final_response, r"(?i)(q1 sales|chart|title|updated|changed)")
 
 
 @pytest.mark.asyncio

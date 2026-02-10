@@ -62,9 +62,13 @@ excelcli -q session open C:\path\existing.xlsx   # Opens file + returns session 
 
 **CRITICAL: Use `session create` for new files. `session open` on non-existent files will fail!**
 
+**CRITICAL: ALWAYS use the session ID returned by `session create` or `session open` in subsequent commands. NEVER guess or hardcode session IDs. The session ID is in the JSON output (e.g., `{"sessionId":"abc123"}`). Parse it and use it.**
+
 ```powershell
-excelcli -q range set-values --session 1 ...   # Use session ID
-excelcli -q session close --session 1 --save   # Save and release
+# Example: capture session ID from output, then use it
+excelcli -q session create C:\path\file.xlsx     # Returns JSON with sessionId
+excelcli -q range set-values --session <returned-session-id> ...
+excelcli -q session close --session <returned-session-id> --save
 ```
 
 **Unclosed sessions leave Excel processes running, locking files.**
@@ -74,8 +78,8 @@ excelcli -q session close --session 1 --save   # Save and release
 DAX operations require tables in the Data Model:
 
 ```powershell
-excelcli -q table add-to-data-model --session 1 --table-name Sales  # Step 1
-excelcli -q datamodel create-measure --session 1 ...               # Step 2 - NOW works
+excelcli -q table add-to-data-model --session <id> --table-name Sales  # Step 1
+excelcli -q datamodel create-measure --session <id> ...               # Step 2 - NOW works
 ```
 
 ### Rule 5: Power Query Development Lifecycle

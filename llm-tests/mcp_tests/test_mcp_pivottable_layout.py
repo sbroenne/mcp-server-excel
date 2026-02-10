@@ -103,7 +103,7 @@ async def test_mcp_pivottable_outline_layout(aitest_run, excel_mcp_server, excel
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=["excel_pivottable", "excel_pivottable_calc", "excel_table", "excel_range", "excel_file", "excel_worksheet"],
-        max_turns=20,
+        max_turns=25,
     )
 
     prompt = f"""

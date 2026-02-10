@@ -403,8 +403,10 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             {
                 // CLI Settings stores nested collections as string (JSON).
                 // Deserialize back to the original type for RouteCliArgs.
+                // Uses DeserializeNestedCollection which auto-wraps 1D arrays to 2D
+                // (e.g., ["a","b"] → [["a","b"]]) for better LLM compatibility.
                 var nonNullableType = p.TypeName.TrimEnd('?');
-                sb.AppendLine($"                {p.Name}: !string.IsNullOrWhiteSpace(settings.{StringHelper.ToPascalCase(p.Name)}) ? System.Text.Json.JsonSerializer.Deserialize<{nonNullableType}>(settings.{StringHelper.ToPascalCase(p.Name)}) : null{comma}");
+                sb.AppendLine($"                {p.Name}: !string.IsNullOrWhiteSpace(settings.{StringHelper.ToPascalCase(p.Name)}) ? ServiceRegistry.DeserializeNestedCollection<{nonNullableType}>(settings.{StringHelper.ToPascalCase(p.Name)}) : null{comma}");
             }
             else
             {
@@ -1028,6 +1030,37 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("        if (string.IsNullOrEmpty(value)) return defaultValue;");
         sb.AppendLine("        var cleaned = value.Replace(\"-\", \"\").Replace(\"_\", \"\");");
         sb.AppendLine("        return System.Enum.TryParse<T>(cleaned, ignoreCase: true, out var result) ? result : defaultValue;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// Deserializes a nested collection (e.g., List&lt;List&lt;object?&gt;&gt;) from JSON.");
+        sb.AppendLine("    /// Auto-wraps a flat 1D array into a 2D array when needed.");
+        sb.AppendLine("    /// For example, [\"a\",\"b\"] is treated as [[\"a\",\"b\"]] (single row).");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    internal static T DeserializeNestedCollection<T>(string json) where T : class");
+        sb.AppendLine("    {");
+        sb.AppendLine("        try");
+        sb.AppendLine("        {");
+        sb.AppendLine("            return System.Text.Json.JsonSerializer.Deserialize<T>(json)");
+        sb.AppendLine("                ?? throw new System.Text.Json.JsonException(\"Deserialization returned null\");");
+        sb.AppendLine("        }");
+        sb.AppendLine("        catch (System.Text.Json.JsonException)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            // Auto-wrap 1D array to 2D: [\"a\",\"b\"] → [[\"a\",\"b\"]]");
+        sb.AppendLine("            var trimmed = json.Trim();");
+        sb.AppendLine("            if (trimmed.StartsWith(\"[\") && !trimmed.StartsWith(\"[[\"))");
+        sb.AppendLine("            {");
+        sb.AppendLine("                var wrapped = \"[\" + trimmed + \"]\";");
+        sb.AppendLine("                try");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    return System.Text.Json.JsonSerializer.Deserialize<T>(wrapped)");
+        sb.AppendLine("                        ?? throw new System.Text.Json.JsonException(\"Deserialization returned null\");");
+        sb.AppendLine("                }");
+        sb.AppendLine("                catch { /* fall through to error */ }");
+        sb.AppendLine("            }");
+        sb.AppendLine("            throw new System.ArgumentException(");
+        sb.AppendLine("                $\"Invalid JSON for nested collection. Expected 2D array (e.g., [[\\\"a\\\",\\\"b\\\"],[\\\"c\\\",\\\"d\\\"]]) or 1D array (auto-wrapped to single row). Got: {json}\");");
+        sb.AppendLine("        }");
         sb.AppendLine("    }");
         sb.AppendLine("}");
 

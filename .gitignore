@@ -232,7 +232,7 @@ infrastructure/azure/appinsights.secrets.local
 # Local MSBuild properties (secrets, connection strings)
 Directory.Build.props.user
 
-# Skills - generated references in excel-cli/references and excel-mcp/references (copied by MSBuild targets)
+# Skills - generated references in excel-cli/references and excel-mcp/references (copied by Build-AgentSkills.ps1)
 # Keep MCP-specific: claude-desktop.md
 # Keep CLI-specific: README.md
 # Keep all of skills/shared/ (source of truth, synced from MCP Server prompts)
@@ -241,5 +241,4 @@ skills/excel-mcp/references/*.md
 !skills/excel-cli/references/README.md
 !skills/excel-mcp/references/claude-desktop.md
 vscode-extension/skills/*
-
-llm-tests/aitest-reports
+llm-tests/aitest-reports/

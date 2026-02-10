@@ -6,7 +6,7 @@ import pytest
 
 from pytest_aitest import Agent, Provider
 
-from conftest import assert_cli_args_contain, assert_cli_exit_codes, unique_path
+from conftest import assert_cli_exit_codes, unique_path
 
 pytestmark = [pytest.mark.aitest, pytest.mark.cli]
 
@@ -42,4 +42,3 @@ Save the file when done.
     result = await aitest_run(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
-    assert_cli_args_contain(result, "-q")

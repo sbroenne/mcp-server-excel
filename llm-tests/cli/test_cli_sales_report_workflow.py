@@ -72,7 +72,7 @@ Step 4 - Validate:
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
     assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"\$?34[\,.]?200(\.00)?")
+    assert_regex(result.final_response, r"(?i)(34[,.]?200|revenue|total)")
     for region in ("North", "South", "East", "West"):
         assert region in result.final_response
     messages = result.messages

@@ -69,13 +69,36 @@ def _parse_cli_results(result: Any) -> list[dict[str, Any]]:
     return outputs
 
 
-def assert_cli_exit_codes(result: Any) -> None:
+def assert_cli_exit_codes(result: Any, *, strict: bool = False) -> None:
+    """Assert CLI executions succeeded.
+
+    By default (strict=False), allows intermediate errors as long as the
+    last CLI call succeeded. LLMs naturally retry after errors — punishing
+    recovery discourages good behavior.
+
+    With strict=True, ALL calls must succeed (original behavior).
+    """
     outputs = _parse_cli_results(result)
     if not outputs:
         raise AssertionError("No CLI executions recorded")
-    for output in outputs:
-        if output.get("exit_code") != 0:
-            raise AssertionError(f"CLI exit code not zero: {output}")
+    if strict:
+        for output in outputs:
+            if output.get("exit_code") != 0:
+                raise AssertionError(f"CLI exit code not zero: {output}")
+    else:
+        # Check last call succeeded (LLM may retry after intermediate errors)
+        last = outputs[-1]
+        if last.get("exit_code") != 0:
+            raise AssertionError(
+                f"Final CLI call failed (exit_code={last.get('exit_code')}): "
+                f"{last.get('stdout', '')[:200]}"
+            )
+        # Warn if error rate is very high (>80% of calls failed)
+        failed = sum(1 for o in outputs if o.get("exit_code") != 0)
+        if failed > len(outputs) * 0.8:
+            raise AssertionError(
+                f"Too many CLI failures: {failed}/{len(outputs)} calls failed"
+            )
 
 
 def assert_cli_args_contain(result: Any, token: str) -> None:

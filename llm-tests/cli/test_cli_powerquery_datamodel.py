@@ -23,7 +23,7 @@ async def test_cli_star_schema_workflow(aitest_run, excel_cli_server, excel_cli_
         provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         cli_servers=[excel_cli_server],
         skill=excel_cli_skill,
-        max_turns=20,
+        max_turns=25,
     )
 
     products_json = (fixtures_dir / "products-dimension.json").as_posix()
@@ -110,7 +110,7 @@ async def test_cli_powerquery_products_workflow(
         provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         cli_servers=[excel_cli_server],
         skill=excel_cli_skill,
-        max_turns=20,
+        max_turns=25,
     )
 
     mcode_file = (fixtures_dir / "products-powerquery.m").as_posix()

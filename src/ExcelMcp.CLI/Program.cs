@@ -27,7 +27,7 @@ internal sealed class Program
         // Remove --quiet/-q from args before passing to Spectre.Console.Cli
         var filteredArgs = args.Where(arg => !QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)).ToArray();
 
-        // Handle service run command before anything else (internal, not documented)
+        // Handle internal service run command before anything else (not documented in help)
         // This enables the CLI to self-launch as the ExcelMCP Service process
         if (args.Length >= 2 && args[0] == "service" && args[1] == "run")
         {
@@ -57,6 +57,18 @@ internal sealed class Program
             config.SetExceptionHandler((ex, _) =>
             {
                 AnsiConsole.MarkupLine($"[red]Unhandled error:[/] {ex.Message.EscapeMarkup()}");
+            });
+
+            // Service lifecycle commands
+            config.AddBranch("service", branch =>
+            {
+                branch.SetDescription("Service lifecycle management: start, stop, status.");
+                branch.AddCommand<ServiceStartCommand>("start")
+                    .WithDescription("Start the ExcelMCP Service if not already running.");
+                branch.AddCommand<ServiceStopCommand>("stop")
+                    .WithDescription("Gracefully stop the ExcelMCP Service.");
+                branch.AddCommand<ServiceStatusCommand>("status")
+                    .WithDescription("Show service status (running, PID, sessions, uptime).");
             });
 
             // Session commands

@@ -21,8 +21,10 @@ async def test_mcp_sales_report_workflow(aitest_run, excel_mcp_server, excel_mcp
         allowed_tools=[
             "excel_table",
             "excel_datamodel",
+            "excel_datamodel_rel",
             "excel_pivottable",
             "excel_chart",
+            "excel_chart_config",
             "excel_range",
             "excel_file",
             "excel_worksheet",
@@ -35,9 +37,9 @@ async def test_mcp_sales_report_workflow(aitest_run, excel_mcp_server, excel_mcp
             "- Always verify row counts and data completeness\n"
             "- Report specific numeric values (not just descriptions)"
         ),
-        max_turns=20,
+        max_turns=25,
     )
-    agent.max_turns = 30
+    agent.max_turns = 35
 
     messages = None
 

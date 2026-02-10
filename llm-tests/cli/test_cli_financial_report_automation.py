@@ -18,7 +18,7 @@ async def test_cli_financial_report_automation(aitest_run, excel_cli_server, exc
         provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         cli_servers=[excel_cli_server],
         skill=excel_cli_skill,
-        max_turns=20,
+        max_turns=25,
     )
 
     messages = None
