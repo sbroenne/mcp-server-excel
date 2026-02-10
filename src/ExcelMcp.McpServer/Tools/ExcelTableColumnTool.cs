@@ -93,24 +93,15 @@ public static partial class TableColumnTool
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "apply-filter");
         if (string.IsNullOrWhiteSpace(criteria)) ExcelToolsBase.ThrowMissingParameter(nameof(criteria), "apply-filter");
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    commands.ApplyFilter(batch, tableName!, columnName!, criteria!);
-                    return 0;
-                });
+        ExcelToolsBase.WithSession(
+            sessionId,
+            batch =>
+            {
+                commands.ApplyFilter(batch, tableName!, columnName!, criteria!);
+                return 0;
+            });
 
-            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Filter applied successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
+        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Filter applied successfully." }, ExcelToolsBase.JsonOptions);
     }
 
     private static string ApplyFilterValues(TableCommands commands, string sessionId, string? tableName, string? columnName, string? filterValuesJson)
@@ -129,48 +120,30 @@ public static partial class TableColumnTool
             throw new ArgumentException($"Invalid JSON array for filterValuesJson: {ex.Message}", nameof(filterValuesJson));
         }
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    commands.ApplyFilter(batch, tableName!, columnName!, filterValues);
-                    return 0;
-                });
+        ExcelToolsBase.WithSession(
+            sessionId,
+            batch =>
+            {
+                commands.ApplyFilter(batch, tableName!, columnName!, filterValues);
+                return 0;
+            });
 
-            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Filter applied successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
+        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Filter applied successfully." }, ExcelToolsBase.JsonOptions);
     }
 
     private static string ClearFilters(TableCommands commands, string sessionId, string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "clear-filters");
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    commands.ClearFilters(batch, tableName!);
-                    return 0;
-                });
+        ExcelToolsBase.WithSession(
+            sessionId,
+            batch =>
+            {
+                commands.ClearFilters(batch, tableName!);
+                return 0;
+            });
 
-            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Filters cleared successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
+        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Filters cleared successfully." }, ExcelToolsBase.JsonOptions);
     }
 
     private static string GetFilters(TableCommands commands, string sessionId, string? tableName)
@@ -202,8 +175,6 @@ public static partial class TableColumnTool
             }
         }
 
-        try
-        {
             ExcelToolsBase.WithSession(
                 sessionId,
                 batch =>
@@ -213,13 +184,6 @@ public static partial class TableColumnTool
                 });
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Column added successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string RemoveColumn(TableCommands commands, string sessionId, string? tableName, string? columnName)
@@ -227,8 +191,6 @@ public static partial class TableColumnTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "remove-column");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "remove-column");
 
-        try
-        {
             ExcelToolsBase.WithSession(
                 sessionId,
                 batch =>
@@ -238,13 +200,6 @@ public static partial class TableColumnTool
                 });
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Column removed successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string RenameColumn(TableCommands commands, string sessionId, string? tableName, string? columnName, string? newColumnName)
@@ -253,8 +208,6 @@ public static partial class TableColumnTool
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "rename-column");
         if (string.IsNullOrWhiteSpace(newColumnName)) ExcelToolsBase.ThrowMissingParameter(nameof(newColumnName), "rename-column");
 
-        try
-        {
             ExcelToolsBase.WithSession(
                 sessionId,
                 batch =>
@@ -264,13 +217,6 @@ public static partial class TableColumnTool
                 });
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Column renamed successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string GetStructuredReference(TableCommands commands, string sessionId, string? tableName, string? region, string? columnName)
@@ -295,8 +241,6 @@ public static partial class TableColumnTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "sort");
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "sort");
 
-        try
-        {
             ExcelToolsBase.WithSession(
                 sessionId,
                 batch =>
@@ -306,13 +250,6 @@ public static partial class TableColumnTool
                 });
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table sorted successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string SortTableMulti(TableCommands commands, string sessionId, string? tableName, string? sortColumnsJson)
@@ -321,8 +258,6 @@ public static partial class TableColumnTool
         if (string.IsNullOrWhiteSpace(sortColumnsJson)) ExcelToolsBase.ThrowMissingParameter(nameof(sortColumnsJson), "sort-multi");
 
         List<TableSortColumn>? sortColumns;
-        try
-        {
             sortColumns = JsonSerializer.Deserialize<List<TableSortColumn>>(sortColumnsJson!);
             if (sortColumns == null || sortColumns.Count == 0)
             {
@@ -345,13 +280,6 @@ public static partial class TableColumnTool
                 });
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table sorted successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string GetColumnNumberFormat(TableCommands commands, string sessionId, string? tableName, string? columnName)
@@ -377,8 +305,6 @@ public static partial class TableColumnTool
         if (string.IsNullOrEmpty(formatCode))
             ExcelToolsBase.ThrowMissingParameter("formatCode", "set-column-number-format");
 
-        try
-        {
             ExcelToolsBase.WithSession(
                 sessionId,
                 batch =>
@@ -388,12 +314,5 @@ public static partial class TableColumnTool
                 });
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Column number format set successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
     }
 }

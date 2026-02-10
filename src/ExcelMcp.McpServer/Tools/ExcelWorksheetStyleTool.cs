@@ -75,8 +75,6 @@ public static partial class ExcelWorksheetStyleTool
         if (!blue.HasValue)
             throw new ArgumentException("blue (0-255) is required for set-tab-color action", nameof(blue));
 
-        try
-        {
             ExcelToolsBase.WithSession(sessionId, batch =>
             {
                 sheetCommands.SetTabColor(batch, sheetName, red.Value, green.Value, blue.Value);
@@ -84,13 +82,6 @@ public static partial class ExcelWorksheetStyleTool
             });
 
             return JsonSerializer.Serialize(new { success = true, message = $"Tab color for sheet '{sheetName}' set successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string GetTabColor(SheetCommands sheetCommands, string sessionId, string? sheetName)
@@ -117,8 +108,6 @@ public static partial class ExcelWorksheetStyleTool
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for clear-tab-color action", nameof(sheetName));
 
-        try
-        {
             ExcelToolsBase.WithSession(sessionId, batch =>
             {
                 sheetCommands.ClearTabColor(batch, sheetName);
@@ -126,13 +115,6 @@ public static partial class ExcelWorksheetStyleTool
             });
 
             return JsonSerializer.Serialize(new { success = true, message = $"Tab color for sheet '{sheetName}' cleared successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string SetVisibility(SheetCommands sheetCommands, string sessionId, string? sheetName, string? visibility)
@@ -150,8 +132,6 @@ public static partial class ExcelWorksheetStyleTool
             _ => throw new ArgumentException($"Invalid visibility '{visibility}'. Use: visible, hidden, or veryhidden", nameof(visibility))
         };
 
-        try
-        {
             ExcelToolsBase.WithSession(sessionId, batch =>
             {
                 sheetCommands.SetVisibility(batch, sheetName, visibilityLevel);
@@ -159,13 +139,6 @@ public static partial class ExcelWorksheetStyleTool
             });
 
             return JsonSerializer.Serialize(new { success = true, message = $"Sheet '{sheetName}' visibility set to {visibilityLevel} successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string GetVisibility(SheetCommands sheetCommands, string sessionId, string? sheetName)
@@ -183,8 +156,6 @@ public static partial class ExcelWorksheetStyleTool
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for show action", nameof(sheetName));
 
-        try
-        {
             ExcelToolsBase.WithSession(sessionId, batch =>
             {
                 sheetCommands.Show(batch, sheetName);
@@ -192,13 +163,6 @@ public static partial class ExcelWorksheetStyleTool
             });
 
             return JsonSerializer.Serialize(new { success = true, message = $"Sheet '{sheetName}' shown successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string Hide(SheetCommands sheetCommands, string sessionId, string? sheetName)
@@ -206,8 +170,6 @@ public static partial class ExcelWorksheetStyleTool
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for hide action", nameof(sheetName));
 
-        try
-        {
             ExcelToolsBase.WithSession(sessionId, batch =>
             {
                 sheetCommands.Hide(batch, sheetName);
@@ -215,13 +177,6 @@ public static partial class ExcelWorksheetStyleTool
             });
 
             return JsonSerializer.Serialize(new { success = true, message = $"Sheet '{sheetName}' hidden successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string VeryHide(SheetCommands sheetCommands, string sessionId, string? sheetName)
@@ -229,8 +184,6 @@ public static partial class ExcelWorksheetStyleTool
         if (string.IsNullOrEmpty(sheetName))
             throw new ArgumentException("sheetName is required for very-hide action", nameof(sheetName));
 
-        try
-        {
             ExcelToolsBase.WithSession(sessionId, batch =>
             {
                 sheetCommands.VeryHide(batch, sheetName);
@@ -238,12 +191,5 @@ public static partial class ExcelWorksheetStyleTool
             });
 
             return JsonSerializer.Serialize(new { success = true, message = $"Sheet '{sheetName}' very-hidden successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
-        }
     }
 }

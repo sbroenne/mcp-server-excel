@@ -110,8 +110,6 @@ public static partial class ExcelDataModelRelTool
         if (string.IsNullOrWhiteSpace(toColumnName))
             throw new ArgumentException("toColumnName is required for create-relationship action", nameof(toColumnName));
 
-        try
-        {
             ExcelToolsBase.WithSession(sessionId,
                 batch => { commands.CreateRelationship(batch, fromTableName, fromColumnName, toTableName, toColumnName, isActive ?? true); return 0; });
 
@@ -120,13 +118,6 @@ public static partial class ExcelDataModelRelTool
                 success = true,
                 message = $"Relationship from {fromTableName}.{fromColumnName} to {toTableName}.{toColumnName} created successfully"
             }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string UpdateRelationshipAction(DataModelCommands commands, string sessionId, string? fromTableName, string? fromColumnName, string? toTableName, string? toColumnName, bool? isActive)
@@ -142,8 +133,6 @@ public static partial class ExcelDataModelRelTool
         if (!isActive.HasValue)
             throw new ArgumentException("isActive is required for update-relationship action", nameof(isActive));
 
-        try
-        {
             ExcelToolsBase.WithSession(sessionId,
                 batch => { commands.UpdateRelationship(batch, fromTableName, fromColumnName, toTableName, toColumnName, isActive.Value); return 0; });
 
@@ -152,13 +141,6 @@ public static partial class ExcelDataModelRelTool
                 success = true,
                 message = $"Relationship from {fromTableName}.{fromColumnName} to {toTableName}.{toColumnName} updated successfully"
             }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string DeleteRelationshipAction(DataModelCommands commands, string sessionId, string? fromTableName, string? fromColumnName, string? toTableName, string? toColumnName)
@@ -172,8 +154,6 @@ public static partial class ExcelDataModelRelTool
         if (string.IsNullOrWhiteSpace(toColumnName))
             throw new ArgumentException("toColumnName is required for delete-relationship action", nameof(toColumnName));
 
-        try
-        {
             ExcelToolsBase.WithSession(sessionId,
                 batch => { commands.DeleteRelationship(batch, fromTableName, fromColumnName, toTableName, toColumnName); return 0; });
 
@@ -182,12 +162,5 @@ public static partial class ExcelDataModelRelTool
                 success = true,
                 message = $"Relationship from {fromTableName}.{fromColumnName} to {toTableName}.{toColumnName} deleted successfully"
             }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message, isError = true }, ExcelToolsBase.JsonOptions);
-        }
     }
 }
