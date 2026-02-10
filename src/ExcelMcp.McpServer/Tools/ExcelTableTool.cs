@@ -114,24 +114,15 @@ public static partial class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "create");
         if (string.IsNullOrWhiteSpace(rangeAddress)) ExcelToolsBase.ThrowMissingParameter(nameof(rangeAddress), "create");
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    commands.Create(batch, sheetName!, tableName!, rangeAddress!, hasHeaders, styleName);
-                    return 0;
-                });
+        ExcelToolsBase.WithSession(
+            sessionId,
+            batch =>
+            {
+                commands.Create(batch, sheetName!, tableName!, rangeAddress!, hasHeaders, styleName);
+                return 0;
+            });
 
-            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table created successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
+        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table created successfully." }, ExcelToolsBase.JsonOptions);
     }
 
     private static string ReadTable(TableCommands commands, string sessionId, string? tableName)
@@ -161,48 +152,30 @@ public static partial class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "rename");
         if (string.IsNullOrWhiteSpace(newName)) ExcelToolsBase.ThrowMissingParameter(nameof(newName), "rename");
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    commands.Rename(batch, tableName!, newName!);
-                    return 0;
-                });
+        ExcelToolsBase.WithSession(
+            sessionId,
+            batch =>
+            {
+                commands.Rename(batch, tableName!, newName!);
+                return 0;
+            });
 
-            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table renamed successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
+        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table renamed successfully." }, ExcelToolsBase.JsonOptions);
     }
 
     private static string DeleteTable(TableCommands commands, string sessionId, string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "delete");
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    commands.Delete(batch, tableName!);
-                    return 0;
-                });
+        ExcelToolsBase.WithSession(
+            sessionId,
+            batch =>
+            {
+                commands.Delete(batch, tableName!);
+                return 0;
+            });
 
-            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table deleted successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
+        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table deleted successfully." }, ExcelToolsBase.JsonOptions);
     }
 
     private static string ResizeTable(TableCommands commands, string sessionId, string? tableName, string? rangeAddress)
@@ -210,32 +183,21 @@ public static partial class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "resize");
         if (string.IsNullOrWhiteSpace(rangeAddress)) ExcelToolsBase.ThrowMissingParameter(nameof(rangeAddress), "resize");
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    commands.Resize(batch, tableName!, rangeAddress!);
-                    return 0;
-                });
+        ExcelToolsBase.WithSession(
+            sessionId,
+            batch =>
+            {
+                commands.Resize(batch, tableName!, rangeAddress!);
+                return 0;
+            });
 
-            return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table resized successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
+        return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table resized successfully." }, ExcelToolsBase.JsonOptions);
     }
 
     private static string ToggleTotals(TableCommands commands, string sessionId, string? tableName, bool showTotals)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "toggle-totals");
 
-        try
-        {
             ExcelToolsBase.WithSession(
                 sessionId,
                 batch =>
@@ -245,13 +207,6 @@ public static partial class TableTool
                 });
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Totals toggled successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string SetColumnTotal(TableCommands commands, string sessionId, string? tableName, string? columnName, string? totalFunction)
@@ -260,8 +215,6 @@ public static partial class TableTool
         if (string.IsNullOrWhiteSpace(columnName)) ExcelToolsBase.ThrowMissingParameter(nameof(columnName), "set-column-total");
         if (string.IsNullOrWhiteSpace(totalFunction)) ExcelToolsBase.ThrowMissingParameter(nameof(totalFunction), "set-column-total");
 
-        try
-        {
             ExcelToolsBase.WithSession(
                 sessionId,
                 batch =>
@@ -271,13 +224,6 @@ public static partial class TableTool
                 });
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Column total set successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string AppendRows(TableCommands commands, string sessionId, string? tableName, string? csvData)
@@ -285,8 +231,6 @@ public static partial class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "append");
         if (string.IsNullOrWhiteSpace(csvData)) ExcelToolsBase.ThrowMissingParameter(nameof(csvData), "append");
 
-        try
-        {
             // Parse CSV data to List<List<object?>>
             var rows = ParseCsvToRows(csvData!);
 
@@ -299,13 +243,6 @@ public static partial class TableTool
                 });
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Rows appended successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     /// <summary>
@@ -334,8 +271,6 @@ public static partial class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "set-style");
         if (string.IsNullOrWhiteSpace(styleName)) ExcelToolsBase.ThrowMissingParameter(nameof(styleName), "set-style");
 
-        try
-        {
             ExcelToolsBase.WithSession(
                 sessionId,
                 batch =>
@@ -345,21 +280,12 @@ public static partial class TableTool
                 });
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table style set successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string AddToDataModel(TableCommands commands, string sessionId, string? tableName)
     {
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "add-to-datamodel");
 
-        try
-        {
             ExcelToolsBase.WithSession(
                 sessionId,
                 batch =>
@@ -369,13 +295,6 @@ public static partial class TableTool
                 });
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = "Table added to data model successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string CreateFromDaxAction(TableCommands commands, string sessionId, string? sheetName, string? tableName, string? daxQuery, string? targetCell)
@@ -387,8 +306,6 @@ public static partial class TableTool
         // Use targetCell if provided, otherwise default to "A1"
         var cellAddress = string.IsNullOrWhiteSpace(targetCell) ? "A1" : targetCell;
 
-        try
-        {
             ExcelToolsBase.WithSession(
                 sessionId,
                 batch =>
@@ -398,13 +315,6 @@ public static partial class TableTool
                 });
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"DAX-backed table '{tableName}' created successfully." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string UpdateDaxAction(TableCommands commands, string sessionId, string? tableName, string? daxQuery)
@@ -412,8 +322,6 @@ public static partial class TableTool
         if (string.IsNullOrWhiteSpace(tableName)) ExcelToolsBase.ThrowMissingParameter(nameof(tableName), "update-dax");
         if (string.IsNullOrWhiteSpace(daxQuery)) ExcelToolsBase.ThrowMissingParameter(nameof(daxQuery), "update-dax");
 
-        try
-        {
             ExcelToolsBase.WithSession(
                 sessionId,
                 batch =>
@@ -423,13 +331,6 @@ public static partial class TableTool
                 });
 
             return JsonSerializer.Serialize(new OperationResult { Success = true, Message = $"DAX query updated for table '{tableName}'." }, ExcelToolsBase.JsonOptions);
-        }
-#pragma warning disable CA1031 // MCP protocol requires JSON error responses, not thrown exceptions
-        catch (Exception ex)
-#pragma warning restore CA1031
-        {
-            return JsonSerializer.Serialize(new OperationResult { Success = false, ErrorMessage = ex.Message }, ExcelToolsBase.JsonOptions);
-        }
     }
 
     private static string GetDaxAction(TableCommands commands, string sessionId, string? tableName)
