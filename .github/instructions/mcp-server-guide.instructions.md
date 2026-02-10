@@ -248,6 +248,67 @@ errorMessage = $"Cannot read range '{range}' on sheet '{sheet}': {ex.Message}";
 
 ## Common Mistakes to Avoid
 
+### ❌ MISTAKE: Manual Try-Catch Around WithSession for Void Methods
+```csharp
+// ❌ WRONG: Redundant try-catch reduces error quality
+private static string DeleteAsync(Commands commands, string sessionId, string? name)
+{
+    if (string.IsNullOrEmpty(name))
+        throw new ArgumentException("name is required", nameof(name));
+    
+    try
+    {
+        ExcelToolsBase.WithSession(sessionId, batch => {
+            commands.Delete(batch, name);  // void method
+            return 0;
+        });
+        return JsonSerializer.Serialize(new { success = true }, JsonOptions);
+    }
+    catch (Exception ex)  // ❌ Redundant - ExecuteToolAction already handles this
+    {
+        // ❌ POOR: Missing action context, exception type, COM diagnostics
+        return JsonSerializer.Serialize(new { 
+            success = false, 
+            errorMessage = ex.Message,
+            isError = true 
+        }, JsonOptions);
+    }
+}
+```
+
+### ✅ CORRECT: Let ExecuteToolAction Handle Errors
+```csharp
+// ✅ CORRECT: ExecuteToolAction provides rich error context
+private static string DeleteAsync(Commands commands, string sessionId, string? name)
+{
+    if (string.IsNullOrEmpty(name))
+        throw new ArgumentException("name is required", nameof(name));
+    
+    ExcelToolsBase.WithSession(sessionId, batch => {
+        commands.Delete(batch, name);
+        return 0;
+    });
+    
+    return JsonSerializer.Serialize(new { success = true }, JsonOptions);
+    
+    // If Delete throws, ExecuteToolAction catches and returns:
+    // {
+    //   "success": false,
+    //   "errorMessage": "delete failed: Item not found",  // With action context
+    //   "isError": true,
+    //   "exceptionType": "InvalidOperationException",     // For diagnostics
+    //   "hresult": "0x800A03EC"                          // For COM exceptions
+    // }
+}
+```
+
+**Why This Pattern:**
+- ExecuteToolAction wraps ALL operations in try-catch (line 182-220 of ExcelToolsBase.cs)
+- SerializeToolError() provides richer error context than manual catch blocks
+- Includes: action name, exception type, COM HResult, inner exception details
+- Consistent error structure across all tools
+- Less code to maintain
+
 ### ❌ MISTAKE: Throwing Exceptions for Business Errors
 ```csharp
 // ❌ WRONG: Throws exception for business logic errors (violates MCP spec)
