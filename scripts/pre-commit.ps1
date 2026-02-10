@@ -197,6 +197,9 @@ catch {
 Write-Host ""
 Write-Host "🔍 Running MCP Server smoke test..." -ForegroundColor Cyan
 
+# Stop ExcelMCP Service before smoke test to prevent DLL locking
+& "$PSScriptRoot\Stop-ExcelMcpProcesses.ps1"
+
 try {
     # Run the smoke test - validates all MCP tools work correctly
     $smokeTestFilter = "FullyQualifiedName~McpServerSmokeTests.SmokeTest_AllTools_E2EWorkflow"
