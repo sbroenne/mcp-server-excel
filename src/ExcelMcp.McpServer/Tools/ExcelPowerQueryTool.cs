@@ -157,30 +157,18 @@ public static partial class ExcelPowerQueryTool
         if (string.IsNullOrEmpty(queryName))
             throw new ArgumentException("queryName is required for delete action", nameof(queryName));
 
-        try
-        {
-            ExcelToolsBase.WithSession(sessionId,
-                batch =>
-                {
-                    commands.Delete(batch, queryName);
-                    return 0;
-                });
+        ExcelToolsBase.WithSession(sessionId,
+            batch =>
+            {
+                commands.Delete(batch, queryName);
+                return 0;
+            });
 
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                message = $"Query '{queryName}' deleted successfully"
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
+        return JsonSerializer.Serialize(new
         {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+            success = true,
+            message = $"Query '{queryName}' deleted successfully"
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static string RenamePowerQueryAsync(PowerQueryCommands commands, string sessionId, string? queryName, string? newName)
@@ -257,33 +245,21 @@ public static partial class ExcelPowerQueryTool
             ? (string.IsNullOrWhiteSpace(targetSheet) ? queryName : targetSheet)
             : targetSheet;
 
-        try
-        {
-            ExcelToolsBase.WithSession(sessionId,
-                batch =>
-                {
-                    commands.Create(batch, queryName, mCode, loadMode, resolvedTargetSheet, targetCellAddress);
-                    return 0;
-                });
+        ExcelToolsBase.WithSession(sessionId,
+            batch =>
+            {
+                commands.Create(batch, queryName, mCode, loadMode, resolvedTargetSheet, targetCellAddress);
+                return 0;
+            });
 
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                queryName,
-                loadDestination = loadMode.ToString(),
-                worksheetName = resolvedTargetSheet,
-                message = $"Query '{queryName}' created successfully"
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
+        return JsonSerializer.Serialize(new
         {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+            success = true,
+            queryName,
+            loadDestination = loadMode.ToString(),
+            worksheetName = resolvedTargetSheet,
+            message = $"Query '{queryName}' created successfully"
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static string UpdatePowerQueryAsync(
@@ -297,30 +273,18 @@ public static partial class ExcelPowerQueryTool
         if (string.IsNullOrWhiteSpace(mCode))
             throw new ArgumentException("mCode is required for update action", nameof(mCode));
 
-        try
-        {
-            ExcelToolsBase.WithSession(sessionId,
-                batch =>
-                {
-                    commands.Update(batch, queryName, mCode);
-                    return 0;
-                });
+        ExcelToolsBase.WithSession(sessionId,
+            batch =>
+            {
+                commands.Update(batch, queryName, mCode);
+                return 0;
+            });
 
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                message = $"Query '{queryName}' updated successfully"
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
+        return JsonSerializer.Serialize(new
         {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+            success = true,
+            message = $"Query '{queryName}' updated successfully"
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static string LoadToPowerQueryAsync(
@@ -346,73 +310,40 @@ public static partial class ExcelPowerQueryTool
             ? (string.IsNullOrWhiteSpace(targetSheet) ? queryName : targetSheet)
             : targetSheet;
 
-        try
-        {
-            ExcelToolsBase.WithSession(
-                sessionId,
-                batch =>
-                {
-                    commands.LoadTo(batch, queryName, loadMode, resolvedTargetSheet, targetCellAddress);
-                    return 0;
-                });
+        ExcelToolsBase.WithSession(
+            sessionId,
+            batch =>
+            {
+                commands.LoadTo(batch, queryName, loadMode, resolvedTargetSheet, targetCellAddress);
+                return 0;
+            });
 
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                queryName,
-                loadDestination = loadMode.ToString(),
-                worksheetName = resolvedTargetSheet,
-                message = $"Query '{queryName}' load configuration applied successfully"
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (TimeoutException ex)
+        return JsonSerializer.Serialize(new
         {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+            success = true,
+            queryName,
+            loadDestination = loadMode.ToString(),
+            worksheetName = resolvedTargetSheet,
+            message = $"Query '{queryName}' load configuration applied successfully"
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static string RefreshAllPowerQueriesAsync(
         PowerQueryCommands commands,
         string sessionId)
     {
-        try
-        {
-            ExcelToolsBase.WithSession(sessionId,
-                batch =>
-                {
-                    commands.RefreshAll(batch);
-                    return 0;
-                });
+        ExcelToolsBase.WithSession(sessionId,
+            batch =>
+            {
+                commands.RefreshAll(batch);
+                return 0;
+            });
 
-            return JsonSerializer.Serialize(new
-            {
-                success = true,
-                message = "All queries refreshed successfully"
-            }, ExcelToolsBase.JsonOptions);
-        }
-        catch (Exception ex)
+        return JsonSerializer.Serialize(new
         {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = ex.Message,
-                isError = true
-            }, ExcelToolsBase.JsonOptions);
-        }
+            success = true,
+            message = "All queries refreshed successfully"
+        }, ExcelToolsBase.JsonOptions);
     }
 
     private static string UnloadPowerQueryAsync(
