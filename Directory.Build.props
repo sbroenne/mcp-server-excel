@@ -33,8 +33,9 @@
       - CS1573: Parameter has no matching param tag (batch parameter is internal, filtered by generators)
       - CA1848: Use LoggerMessage delegates (perf optimization not needed for our diagnostic logging)
       - CA1873: Logging argument evaluation (diagnostics only, performance not critical)
+      - CA1875: Regex.Count vs Regex.Matches.Count (test code readability, not perf critical)
     -->
-    <NoWarn>$(NoWarn);CA1416;CS8602;SYSLIB1045;IL2026;IL3050;CS1573;CA1848;CA1873</NoWarn>
+    <NoWarn>$(NoWarn);CA1416;CS8602;SYSLIB1045;IL2026;IL3050;CS1573;CA1848;CA1873;CA1875</NoWarn>
 
     <!-- Deterministic builds for reproducibility -->
     <Deterministic>true</Deterministic>
