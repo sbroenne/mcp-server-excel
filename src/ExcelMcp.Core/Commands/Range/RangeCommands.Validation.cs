@@ -176,7 +176,7 @@ public partial class RangeCommands
                 {
                     var testType = validation.Type;
                 }
-                catch
+                catch (System.Runtime.InteropServices.COMException)
                 {
                     hasValidation = false;
                 }

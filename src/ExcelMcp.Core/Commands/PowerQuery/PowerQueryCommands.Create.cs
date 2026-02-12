@@ -155,7 +155,7 @@ public partial class PowerQueryCommands
                 }
             }
         }
-        catch
+        catch (System.Runtime.InteropServices.COMException)
         {
             // Query not found or error accessing collection
         }

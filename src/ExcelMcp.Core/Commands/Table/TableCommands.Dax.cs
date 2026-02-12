@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -13,6 +14,51 @@ public partial class TableCommands
     private const int xlSrcModel = 4;  // PowerPivot Data Model source type
     private const int xlCmdDAX = 8;    // DAX command type
     // xlYes is defined in TableCommands.Sort.cs
+
+    /// <summary>
+    /// Finds the WorkbookConnection for a table by trying the TableObject path first,
+    /// then falling back to the QueryTable path. Returns null if neither works.
+    /// Caller is responsible for releasing the out parameters.
+    /// </summary>
+    private static dynamic? FindTableWorkbookConnection(
+        dynamic table,
+        out dynamic? tableObject,
+        out dynamic? queryTable)
+    {
+        queryTable = null;
+
+        // Try the TableObject path first (for xlSrcModel tables created with ListObjects.Add)
+        try
+        {
+            tableObject = table.TableObject;
+            if (tableObject != null)
+            {
+                dynamic? conn = tableObject.WorkbookConnection;
+                if (conn != null) return conn;
+            }
+        }
+        catch (COMException)
+        {
+            tableObject = null;
+        }
+
+        // Fall back to QueryTable path (for QueryTables.Add based tables)
+        try
+        {
+            queryTable = table.QueryTable;
+            if (queryTable != null)
+            {
+                dynamic? conn = queryTable.WorkbookConnection;
+                if (conn != null) return conn;
+            }
+        }
+        catch (COMException)
+        {
+            queryTable = null;
+        }
+
+        return null;
+    }
 
     /// <inheritdoc />
     public void CreateFromDax(IExcelBatch batch, string sheetName, string tableName, string daxQuery, string? targetCell = null)
@@ -172,37 +218,7 @@ public partial class TableCommands
                 // Find the table
                 table = FindTable(ctx.Book, tableName);
 
-                // Try the TableObject path first (for xlSrcModel tables created with ListObjects.Add)
-                try
-                {
-                    tableObject = table.TableObject;
-                    if (tableObject != null)
-                    {
-                        workbookConnection = tableObject.WorkbookConnection;
-                    }
-                }
-                catch
-                {
-                    // TableObject not available, try QueryTable path
-                    tableObject = null;
-                }
-
-                // If TableObject path didn't work, try QueryTable path
-                if (workbookConnection == null)
-                {
-                    try
-                    {
-                        queryTable = table.QueryTable;
-                        if (queryTable != null)
-                        {
-                            workbookConnection = queryTable.WorkbookConnection;
-                        }
-                    }
-                    catch
-                    {
-                        queryTable = null;
-                    }
-                }
+                workbookConnection = FindTableWorkbookConnection(table, out tableObject, out queryTable);
 
                 if (workbookConnection == null)
                 {
@@ -214,7 +230,7 @@ public partial class TableCommands
                 {
                     modelConnection = workbookConnection.ModelConnection;
                 }
-                catch
+                catch (COMException)
                 {
                     throw new InvalidOperationException($"Table '{tableName}' does not have a ModelConnection. Use update-dax only with DAX-backed tables.");
                 }
@@ -281,39 +297,7 @@ public partial class TableCommands
                 // Find the table
                 table = FindTable(ctx.Book, tableName);
 
-                // Try the TableObject path first (for xlSrcModel tables created with ListObjects.Add)
-                // Then fall back to QueryTable path (for QueryTables.Add based tables)
-                try
-                {
-                    tableObject = table.TableObject;
-                    if (tableObject != null)
-                    {
-                        workbookConnection = tableObject.WorkbookConnection;
-                    }
-                }
-                catch
-                {
-                    // TableObject not available, try QueryTable path
-                    tableObject = null;
-                }
-
-                // If TableObject path didn't work, try QueryTable path
-                if (workbookConnection == null)
-                {
-                    try
-                    {
-                        queryTable = table.QueryTable;
-                        if (queryTable != null)
-                        {
-                            workbookConnection = queryTable.WorkbookConnection;
-                        }
-                    }
-                    catch
-                    {
-                        // No QueryTable either
-                        queryTable = null;
-                    }
-                }
+                workbookConnection = FindTableWorkbookConnection(table, out tableObject, out queryTable);
 
                 if (workbookConnection == null)
                 {
@@ -327,7 +311,7 @@ public partial class TableCommands
                 {
                     modelConnection = workbookConnection.ModelConnection;
                 }
-                catch
+                catch (COMException)
                 {
                     result.HasDaxConnection = false;
                     result.Success = true;

@@ -87,7 +87,7 @@ public static class ExcelMcpTelemetry
             // 5 seconds is typically sufficient for small batches
             _telemetryClient.FlushAsync(CancellationToken.None).Wait(TimeSpan.FromSeconds(5));
         }
-        catch
+        catch (Exception)
         {
             // Don't let telemetry flush failure crash the application
         }
@@ -216,7 +216,7 @@ public static class ExcelMcpTelemetry
             var hash = SHA256.HashData(bytes);
             return Convert.ToHexString(hash)[..16].ToLowerInvariant();
         }
-        catch
+        catch (Exception)
         {
             // Fallback to a random ID if machine identity cannot be determined
             return Guid.NewGuid().ToString("N")[..16];

@@ -149,7 +149,7 @@ public partial class RangeCommands
                     {
                         ctx.App.Calculation = originalCalculation;
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
                         // Ignore errors restoring calculation mode - not critical
                     }

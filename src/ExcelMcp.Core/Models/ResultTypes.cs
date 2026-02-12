@@ -5,7 +5,8 @@ namespace Sbroenne.ExcelMcp.Core.Models;
 /// <summary>
 /// Base result type for all Core operations.
 /// NOTE: Core commands should NOT set SuggestedNextActions (workflow guidance is MCP/CLI layer responsibility).
-/// Exceptions propagate naturally to batch.Execute() which converts them to OperationResult { Success = false }.
+/// Exceptions propagate naturally — batch.Execute() re-throws them via TaskCompletionSource.
+/// The MCP/CLI layer catches exceptions and converts them to error responses.
 /// </summary>
 public abstract class ResultBase
 {

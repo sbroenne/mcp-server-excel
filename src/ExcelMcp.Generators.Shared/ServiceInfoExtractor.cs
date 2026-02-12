@@ -138,8 +138,9 @@ public static class ServiceInfoExtractor
             // Normalize multi-line XML doc comments: collapse whitespace runs into single space
             return Regex.Replace(text, @"\s+", " ");
         }
-        catch
+        catch (Exception)
         {
+            // XML comment parsing is best-effort — malformed XML should not break generation
             return null;
         }
     }
@@ -279,8 +280,9 @@ public static class ServiceInfoExtractor
 
             return new XmlDocumentation(summary, parameters);
         }
-        catch
+        catch (Exception)
         {
+            // XML doc parsing is best-effort — malformed XML should not break generation
             return null;
         }
     }

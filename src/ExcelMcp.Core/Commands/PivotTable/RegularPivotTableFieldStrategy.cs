@@ -22,7 +22,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             dynamic pivotFields = pivot.PivotFields;
             return pivotFields != null;
         }
-        catch
+        catch (System.Runtime.InteropServices.COMException)
         {
             return false;
         }
@@ -474,7 +474,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             {
                 appliedFormat = field.NumberFormat?.ToString();
             }
-            catch
+            catch (System.Runtime.InteropServices.COMException)
             {
                 // If we can't read it back, use what we set
                 appliedFormat = numberFormat;
@@ -723,9 +723,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Error))
             {
-#pragma warning disable CA1848 // Keep error logging for diagnostics
                 logger.LogError(ex, "GroupByDate failed for field '{FieldName}'", fieldName);
-#pragma warning restore CA1848
             }
             return new PivotFieldResult
             {
@@ -797,9 +795,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Error))
             {
-#pragma warning disable CA1848 // Keep error logging for diagnostics
                 logger.LogError(ex, "GroupByNumeric failed for field '{FieldName}'", fieldName);
-#pragma warning restore CA1848
             }
             return new PivotFieldResult
             {
@@ -856,9 +852,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Error))
             {
-#pragma warning disable CA1848 // Keep error logging for diagnostics
                 logger.LogError(ex, "CreateCalculatedField failed for field '{FieldName}' with formula '{Formula}'", fieldName, formula);
-#pragma warning restore CA1848
             }
             return new PivotFieldResult
             {
@@ -875,8 +869,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             ComUtilities.Release(ref calculatedFields);
         }
     }
-
-#pragma warning disable CA1848 // Keep logging for diagnostics
     /// <inheritdoc/>
     public OperationResult SetLayout(dynamic pivot, int rowLayout, string workbookPath, ILogger? logger = null)
     {
@@ -896,9 +888,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             FilePath = workbookPath
         };
     }
-#pragma warning restore CA1848
-
-#pragma warning disable CA1848 // Keep logging for diagnostics
     /// <inheritdoc/>
     public PivotFieldResult SetSubtotals(
         dynamic pivot,
@@ -941,9 +930,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             ComUtilities.Release(ref field);
         }
     }
-#pragma warning restore CA1848
-
-#pragma warning disable CA1848
     /// <inheritdoc/>
     public OperationResult SetGrandTotals(dynamic pivot, bool showRowGrandTotals, bool showColumnGrandTotals, string workbookPath, ILogger? logger = null)
     {
@@ -971,7 +957,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             // No COM objects to release in this method
         }
     }
-#pragma warning restore CA1848
 }
 
 

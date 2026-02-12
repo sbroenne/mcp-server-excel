@@ -121,8 +121,8 @@ public partial class ChartCommands
             }
             finally
             {
-                if (targetAxis != null) ComUtilities.Release(ref targetAxis!);
-                if (axes != null) ComUtilities.Release(ref axes!);
+                ComUtilities.Release(ref targetAxis!);
+                ComUtilities.Release(ref axes!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
             }
@@ -170,9 +170,9 @@ public partial class ChartCommands
             }
             finally
             {
-                if (tickLabels != null) ComUtilities.Release(ref tickLabels!);
-                if (targetAxis != null) ComUtilities.Release(ref targetAxis!);
-                if (axes != null) ComUtilities.Release(ref axes!);
+                ComUtilities.Release(ref tickLabels!);
+                ComUtilities.Release(ref targetAxis!);
+                ComUtilities.Release(ref axes!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
             }
@@ -223,9 +223,9 @@ public partial class ChartCommands
             }
             finally
             {
-                if (tickLabels != null) ComUtilities.Release(ref tickLabels!);
-                if (targetAxis != null) ComUtilities.Release(ref targetAxis!);
-                if (axes != null) ComUtilities.Release(ref axes!);
+                ComUtilities.Release(ref tickLabels!);
+                ComUtilities.Release(ref targetAxis!);
+                ComUtilities.Release(ref axes!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
             }
@@ -266,7 +266,7 @@ public partial class ChartCommands
             }
             finally
             {
-                if (legend != null) ComUtilities.Release(ref legend!);
+                ComUtilities.Release(ref legend!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
             }
@@ -439,9 +439,9 @@ public partial class ChartCommands
             }
             finally
             {
-                if (dataLabels != null) ComUtilities.Release(ref dataLabels!);
-                if (series != null) ComUtilities.Release(ref series!);
-                if (seriesCollection != null) ComUtilities.Release(ref seriesCollection!);
+                ComUtilities.Release(ref dataLabels!);
+                ComUtilities.Release(ref series!);
+                ComUtilities.Release(ref seriesCollection!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
             }
@@ -504,8 +504,8 @@ public partial class ChartCommands
             }
             finally
             {
-                if (targetAxis != null) ComUtilities.Release(ref targetAxis!);
-                if (axes != null) ComUtilities.Release(ref axes!);
+                ComUtilities.Release(ref targetAxis!);
+                ComUtilities.Release(ref axes!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
             }
@@ -571,8 +571,8 @@ public partial class ChartCommands
             }
             finally
             {
-                if (targetAxis != null) ComUtilities.Release(ref targetAxis!);
-                if (axes != null) ComUtilities.Release(ref axes!);
+                ComUtilities.Release(ref targetAxis!);
+                ComUtilities.Release(ref axes!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
             }
@@ -614,7 +614,7 @@ public partial class ChartCommands
                     result.Gridlines.HasValueMajorGridlines = valueAxis.HasMajorGridlines;
                     result.Gridlines.HasValueMinorGridlines = valueAxis.HasMinorGridlines;
                 }
-                catch
+                catch (System.Runtime.InteropServices.COMException)
                 {
                     // Value axis may not exist for some chart types
                 }
@@ -626,7 +626,7 @@ public partial class ChartCommands
                     result.Gridlines.HasCategoryMajorGridlines = categoryAxis.HasMajorGridlines;
                     result.Gridlines.HasCategoryMinorGridlines = categoryAxis.HasMinorGridlines;
                 }
-                catch
+                catch (System.Runtime.InteropServices.COMException)
                 {
                     // Category axis may not exist for some chart types
                 }
@@ -635,9 +635,9 @@ public partial class ChartCommands
             }
             finally
             {
-                if (categoryAxis != null) ComUtilities.Release(ref categoryAxis!);
-                if (valueAxis != null) ComUtilities.Release(ref valueAxis!);
-                if (axes != null) ComUtilities.Release(ref axes!);
+                ComUtilities.Release(ref categoryAxis!);
+                ComUtilities.Release(ref valueAxis!);
+                ComUtilities.Release(ref axes!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
             }
@@ -681,8 +681,8 @@ public partial class ChartCommands
             }
             finally
             {
-                if (targetAxis != null) ComUtilities.Release(ref targetAxis!);
-                if (axes != null) ComUtilities.Release(ref axes!);
+                ComUtilities.Release(ref targetAxis!);
+                ComUtilities.Release(ref axes!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
             }
@@ -761,8 +761,8 @@ public partial class ChartCommands
             }
             finally
             {
-                if (series != null) ComUtilities.Release(ref series!);
-                if (seriesCollection != null) ComUtilities.Release(ref seriesCollection!);
+                ComUtilities.Release(ref series!);
+                ComUtilities.Release(ref seriesCollection!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
             }
@@ -885,7 +885,7 @@ public partial class ChartCommands
                     }
                     finally
                     {
-                        if (trendline != null) ComUtilities.Release(ref trendline!);
+                        ComUtilities.Release(ref trendline!);
                     }
                 }
 
@@ -893,9 +893,9 @@ public partial class ChartCommands
             }
             finally
             {
-                if (trendlines != null) ComUtilities.Release(ref trendlines!);
-                if (series != null) ComUtilities.Release(ref series!);
-                if (seriesCollection != null) ComUtilities.Release(ref seriesCollection!);
+                ComUtilities.Release(ref trendlines!);
+                ComUtilities.Release(ref series!);
+                ComUtilities.Release(ref seriesCollection!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
             }
@@ -1006,10 +1006,10 @@ public partial class ChartCommands
             }
             finally
             {
-                if (newTrendline != null) ComUtilities.Release(ref newTrendline!);
-                if (trendlines != null) ComUtilities.Release(ref trendlines!);
-                if (series != null) ComUtilities.Release(ref series!);
-                if (seriesCollection != null) ComUtilities.Release(ref seriesCollection!);
+                ComUtilities.Release(ref newTrendline!);
+                ComUtilities.Release(ref trendlines!);
+                ComUtilities.Release(ref series!);
+                ComUtilities.Release(ref seriesCollection!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
             }
@@ -1058,10 +1058,10 @@ public partial class ChartCommands
             }
             finally
             {
-                if (trendline != null) ComUtilities.Release(ref trendline!);
-                if (trendlines != null) ComUtilities.Release(ref trendlines!);
-                if (series != null) ComUtilities.Release(ref series!);
-                if (seriesCollection != null) ComUtilities.Release(ref seriesCollection!);
+                ComUtilities.Release(ref trendline!);
+                ComUtilities.Release(ref trendlines!);
+                ComUtilities.Release(ref series!);
+                ComUtilities.Release(ref seriesCollection!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
             }
@@ -1150,10 +1150,10 @@ public partial class ChartCommands
             }
             finally
             {
-                if (trendline != null) ComUtilities.Release(ref trendline!);
-                if (trendlines != null) ComUtilities.Release(ref trendlines!);
-                if (series != null) ComUtilities.Release(ref series!);
-                if (seriesCollection != null) ComUtilities.Release(ref seriesCollection!);
+                ComUtilities.Release(ref trendline!);
+                ComUtilities.Release(ref trendlines!);
+                ComUtilities.Release(ref series!);
+                ComUtilities.Release(ref seriesCollection!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
             }
@@ -1197,8 +1197,8 @@ public partial class ChartCommands
             }
             finally
             {
-                if (range != null) ComUtilities.Release(ref range!);
-                if (worksheet != null) ComUtilities.Release(ref worksheet!);
+                ComUtilities.Release(ref range!);
+                ComUtilities.Release(ref worksheet!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
                 if (findResult.Chart != null) ComUtilities.Release(ref findResult.Chart!);
             }

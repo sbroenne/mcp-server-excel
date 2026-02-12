@@ -174,7 +174,7 @@ public partial class TableCommands
                 }
                 finally
                 {
-                    if (col != null) ComUtilities.Release(ref col);
+                    ComUtilities.Release(ref col);
                 }
             }
 

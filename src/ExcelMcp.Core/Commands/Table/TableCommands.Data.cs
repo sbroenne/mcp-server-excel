@@ -1,5 +1,3 @@
-#pragma warning disable IDE0005 // Using directive is unnecessary (all usings are needed for COM interop)
-
 using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -104,7 +102,7 @@ public partial class TableCommands
                         ctx.App.Calculation = originalCalculation;
                         calculationChanged = false; // Mark as restored
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
                         // Ignore errors restoring calculation mode - will try again in finally
                     }
@@ -137,7 +135,7 @@ public partial class TableCommands
                     {
                         ctx.App.Calculation = originalCalculation;
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
                         // Ignore errors restoring calculation mode - not critical
                     }

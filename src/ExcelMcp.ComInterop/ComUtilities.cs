@@ -39,9 +39,9 @@ public static class ComUtilities
             {
                 Marshal.ReleaseComObject(comObject);
             }
-            catch
+            catch (Exception)
             {
-                // Ignore errors during release
+                // Ignore errors during release — COM object may already be released or RPC disconnected
             }
             comObject = null;
         }
@@ -67,9 +67,9 @@ public static class ComUtilities
             // Excel.Application.Quit() - dynamic invocation on COM object
             excel.Quit();
         }
-        catch
+        catch (Exception)
         {
-            // Swallow errors during cleanup - Excel may already be gone
+            // Swallow errors during cleanup — Excel may already be gone
         }
     }
 
@@ -347,7 +347,7 @@ public static class ComUtilities
             };
             return value?.ToString() ?? string.Empty;
         }
-        catch
+        catch (Exception)
         {
             return string.Empty;
         }
@@ -371,7 +371,7 @@ public static class ComUtilities
             };
             return Convert.ToInt32(value);
         }
-        catch
+        catch (Exception)
         {
             return 0;
         }

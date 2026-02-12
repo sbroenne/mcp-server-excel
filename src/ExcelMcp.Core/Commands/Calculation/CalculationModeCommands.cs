@@ -137,7 +137,7 @@ public class CalculationModeCommands : ICalculationModeCommands
                     _ => "unknown"
                 };
             }
-            catch
+            catch (System.Runtime.InteropServices.COMException)
             {
                 calcState = "done"; // Fallback to done if not available
             }
@@ -243,7 +243,7 @@ public class CalculationModeCommands : ICalculationModeCommands
                         }
                         finally
                         {
-                            if (worksheet != null) ComUtilities.Release(ref worksheet);
+                            ComUtilities.Release(ref worksheet);
                         }
 
                     case CalculationScope.Range:
@@ -262,8 +262,8 @@ public class CalculationModeCommands : ICalculationModeCommands
                         }
                         finally
                         {
-                            if (rng != null) ComUtilities.Release(ref rng);
-                            if (ws != null) ComUtilities.Release(ref ws);
+                            ComUtilities.Release(ref rng);
+                            ComUtilities.Release(ref ws);
                         }
 
                     default:

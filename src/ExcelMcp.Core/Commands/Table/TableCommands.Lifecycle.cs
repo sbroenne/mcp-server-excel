@@ -257,7 +257,7 @@ public partial class TableCommands
                 {
                     tableRange = table.Range;
                 }
-                catch
+                catch (System.Runtime.InteropServices.COMException)
                 {
                     // Ignore if range is not accessible
                 }

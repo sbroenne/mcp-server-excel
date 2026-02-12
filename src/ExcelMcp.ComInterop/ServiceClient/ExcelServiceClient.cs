@@ -118,8 +118,9 @@ public sealed class ExcelServiceClient : IDisposable
             var response = await SendAsync(new ServiceRequest { Command = "service.ping", Source = _source }, cancellationToken);
             return response.Success;
         }
-        catch
+        catch (Exception)
         {
+            // Any communication failure — service is not reachable
             return false;
         }
     }

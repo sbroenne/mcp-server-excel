@@ -170,9 +170,9 @@ public sealed class ServiceTray : IDisposable
                 ? $"ExcelMCP Service - {sessions.Count} session(s)"
                 : "ExcelMCP Service";
         }
-        catch
+        catch (Exception)
         {
-            // Ignore errors during refresh
+            // Ignore errors during tray icon refresh — UI updates should never crash the service
         }
     }
 

@@ -50,7 +50,7 @@ internal static class PivotTableHelpers
             return cubeFields != null && cubeFields.Count > 0;
         }
 #pragma warning disable CA1031 // COM interop: CubeFields property doesn't exist on non-OLAP PivotTables
-        catch
+        catch (System.Runtime.InteropServices.COMException)
         {
             // CubeFields property not available or failed - not an OLAP PivotTable
             return false;
@@ -82,7 +82,7 @@ internal static class PivotTableHelpers
             return cubeFields != null && cubeFields.Count > 0;
         }
 #pragma warning disable CA1031 // COM interop: CubeFields property doesn't exist on non-OLAP PivotTables
-        catch
+        catch (System.Runtime.InteropServices.COMException)
         {
             // CubeFields property not available - not an OLAP PivotTable
             // cubeFields already null from initialization
@@ -157,7 +157,7 @@ internal static class PivotTableHelpers
             return "Text";
         }
 #pragma warning disable CA1031 // COM interop: PivotItems may not be accessible on all field types
-        catch
+        catch (System.Runtime.InteropServices.COMException)
         {
             // PivotItems access failed - cannot determine data type
             return "Unknown";
@@ -199,7 +199,7 @@ internal static class PivotTableHelpers
             }
         }
 #pragma warning disable CA1031 // COM interop: PivotItems may not be accessible on all field types
-        catch
+        catch (System.Runtime.InteropServices.COMException)
         {
             // PivotItems access failed - return partial list
         }

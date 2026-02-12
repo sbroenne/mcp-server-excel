@@ -40,9 +40,9 @@ public static class McpServerVersionChecker
             // Already up to date
             return null;
         }
-        catch
+        catch (Exception)
         {
-            // Fail silently - version check should never block server operation
+            // Fail silently — version check should never block server operation
             return null;
         }
     }

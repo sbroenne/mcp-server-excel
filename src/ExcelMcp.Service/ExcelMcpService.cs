@@ -109,7 +109,7 @@ public sealed class ExcelMcpService : IDisposable
                     // Signal the tray thread to exit
                     Application.Exit();
                 }
-                catch { }
+                catch (Exception) { /* Shutdown cleanup — Application.Exit() may fail if message loop already stopped */ }
             }
 
             // Only delete lock file if we created it
@@ -148,9 +148,9 @@ public sealed class ExcelMcpService : IDisposable
                             updateInfo.GetNotificationMessage());
                     }
                 }
-                catch
+                catch (Exception)
                 {
-                    // Fail silently - version check should never interfere with service operation
+                    // Fail silently — version check should never interfere with service operation
                 }
             });
 
@@ -205,15 +205,15 @@ public sealed class ExcelMcpService : IDisposable
             {
                 break;
             }
-            catch
+            catch (Exception)
             {
-                // Log errors but continue serving
+                // Log errors but continue serving — individual client failures should not stop the service
             }
             finally
             {
                 if (server != null)
                 {
-                    try { if (server.IsConnected) server.Disconnect(); } catch { }
+                    try { if (server.IsConnected) server.Disconnect(); } catch (Exception) { /* Cleanup — disconnect may fail if client already disconnected */ }
                     await server.DisposeAsync();
                 }
             }

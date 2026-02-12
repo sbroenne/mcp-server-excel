@@ -73,8 +73,9 @@ public sealed class ServiceClient : IDisposable
             var response = await SendAsync(new ServiceRequest { Command = "service.ping" }, cancellationToken);
             return response.Success;
         }
-        catch
+        catch (Exception)
         {
+            // Any other communication failure — service is not reachable
             return false;
         }
     }

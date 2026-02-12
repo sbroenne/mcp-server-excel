@@ -39,9 +39,9 @@ public static class ServiceVersionChecker
             // Already up to date
             return null;
         }
-        catch
+        catch (Exception)
         {
-            // Fail silently - version check should never block service startup
+            // Fail silently — version check should never block service startup
             return null;
         }
     }

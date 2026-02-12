@@ -82,8 +82,9 @@ public static class ServiceManager
 
             return false;
         }
-        catch
+        catch (Exception)
         {
+            // Process launch or connectivity check failed — report as not started
             return false;
         }
     }

@@ -53,7 +53,7 @@ public class PivotChartStrategy : IChartStrategy
         }
         finally
         {
-            if (topLeftCell != null) ComUtilities.Release(ref topLeftCell!);
+            ComUtilities.Release(ref topLeftCell!);
         }
 
         try
@@ -67,7 +67,7 @@ public class PivotChartStrategy : IChartStrategy
         }
         finally
         {
-            if (bottomRightCell != null) ComUtilities.Release(ref bottomRightCell!);
+            ComUtilities.Release(ref bottomRightCell!);
         }
 
         try
@@ -90,8 +90,8 @@ public class PivotChartStrategy : IChartStrategy
         }
         finally
         {
-            if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
-            if (pivotLayout != null) ComUtilities.Release(ref pivotLayout!);
+            ComUtilities.Release(ref pivotTable!);
+            ComUtilities.Release(ref pivotLayout!);
         }
 
         // Series count = number of value fields in PivotTable
@@ -107,9 +107,9 @@ public class PivotChartStrategy : IChartStrategy
         }
         finally
         {
-            if (dataFields != null) ComUtilities.Release(ref dataFields!);
-            if (pivotTable2 != null) ComUtilities.Release(ref pivotTable2!);
-            if (pivotLayout2 != null) ComUtilities.Release(ref pivotLayout2!);
+            ComUtilities.Release(ref dataFields!);
+            ComUtilities.Release(ref pivotTable2!);
+            ComUtilities.Release(ref pivotLayout2!);
         }
 
         return info;
@@ -145,7 +145,7 @@ public class PivotChartStrategy : IChartStrategy
         }
         finally
         {
-            if (topLeftCell != null) ComUtilities.Release(ref topLeftCell!);
+            ComUtilities.Release(ref topLeftCell!);
         }
 
         try
@@ -159,7 +159,7 @@ public class PivotChartStrategy : IChartStrategy
         }
         finally
         {
-            if (bottomRightCell != null) ComUtilities.Release(ref bottomRightCell!);
+            ComUtilities.Release(ref bottomRightCell!);
         }
 
         try
@@ -182,8 +182,8 @@ public class PivotChartStrategy : IChartStrategy
         }
         finally
         {
-            if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
-            if (pivotLayout != null) ComUtilities.Release(ref pivotLayout!);
+            ComUtilities.Release(ref pivotTable!);
+            ComUtilities.Release(ref pivotLayout!);
         }
 
         // Get title

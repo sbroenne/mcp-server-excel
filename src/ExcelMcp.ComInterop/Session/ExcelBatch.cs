@@ -244,10 +244,10 @@ internal sealed class ExcelBatch : IExcelBatch
                             {
                                 work().GetAwaiter().GetResult();
                             }
-                            catch
+                            catch (Exception)
                             {
-                                // Individual work items may fail, but keep processing queue
-                                // The exception is already captured in the TaskCompletionSource
+                                // Individual work items may fail, but keep processing queue.
+                                // The exception is already captured in the TaskCompletionSource.
                             }
                         }
                         else
@@ -269,9 +269,9 @@ internal sealed class ExcelBatch : IExcelBatch
                         _logger.LogDebug("OperationCanceledException, exiting message pump for {FileName}", Path.GetFileName(_workbookPath));
                         break;
                     }
-                    catch
+                    catch (Exception)
                     {
-                        // Unexpected error, but continue processing
+                        // Unexpected error in message loop iteration — continue processing
                     }
                 }
             }

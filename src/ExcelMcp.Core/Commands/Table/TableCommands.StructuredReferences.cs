@@ -144,7 +144,7 @@ public partial class TableCommands
                     intersection = app.Intersect(regionRange, columnRange);
                     return intersection; // Return intersection
                 }
-                catch
+                catch (System.Runtime.InteropServices.COMException)
                 {
                     // If intersection fails, return column range
                     return columnRange;

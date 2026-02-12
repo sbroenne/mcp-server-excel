@@ -463,9 +463,9 @@ public sealed class SessionManager : IDisposable
             batch.Dispose();
             return true;
         }
-        catch
+        catch (Exception)
         {
-            // Best effort - session is already removed from dictionary
+            // Best-effort — session is already removed from dictionary
             return true;
         }
     }
@@ -596,9 +596,9 @@ public sealed class SessionManager : IDisposable
                 // via ExcelShutdownService with proper timeouts and retry logic
                 session.Dispose();
             }
-            catch
+            catch (Exception)
             {
-                // Best effort cleanup - continue with remaining sessions
+                // Best-effort cleanup — continue with remaining sessions
             }
         }
     }

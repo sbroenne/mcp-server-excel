@@ -32,8 +32,9 @@ public static class ToolInstallationDetector
             // and executed from the project directory
             return InstallationType.Local;
         }
-        catch
+        catch (Exception)
         {
+            // Path resolution may fail — report as unknown installation type
             return InstallationType.Unknown;
         }
     }

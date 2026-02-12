@@ -65,7 +65,7 @@ public partial class PowerQueryCommands
                     }
                     finally
                     {
-                        if (q != null) ComUtilities.Release(ref q!);
+                        ComUtilities.Release(ref q!);
                     }
                 }
 
@@ -122,15 +122,15 @@ public partial class PowerQueryCommands
                                 }
                                 finally
                                 {
-                                    if (oledbConn != null) ComUtilities.Release(ref oledbConn!);
-                                    if (wbConn != null) ComUtilities.Release(ref wbConn!);
-                                    if (qTable != null) ComUtilities.Release(ref qTable!);
+                                    ComUtilities.Release(ref oledbConn!);
+                                    ComUtilities.Release(ref wbConn!);
+                                    ComUtilities.Release(ref qTable!);
                                 }
                             }
                         }
                         finally
                         {
-                            if (queryTables != null) ComUtilities.Release(ref queryTables!);
+                            ComUtilities.Release(ref queryTables!);
                         }
 
                         if (isLoadedToWorksheet) break;
@@ -182,21 +182,21 @@ public partial class PowerQueryCommands
                                 }
                                 finally
                                 {
-                                    if (oledbConn != null) ComUtilities.Release(ref oledbConn!);
-                                    if (wbConn != null) ComUtilities.Release(ref wbConn!);
-                                    if (queryTable != null) ComUtilities.Release(ref queryTable!);
-                                    if (listObj != null) ComUtilities.Release(ref listObj!);
+                                    ComUtilities.Release(ref oledbConn!);
+                                    ComUtilities.Release(ref wbConn!);
+                                    ComUtilities.Release(ref queryTable!);
+                                    ComUtilities.Release(ref listObj!);
                                 }
                             }
                         }
                         finally
                         {
-                            if (listObjects != null) ComUtilities.Release(ref listObjects!);
+                            ComUtilities.Release(ref listObjects!);
                         }
                     }
                     finally
                     {
-                        if (worksheet != null) ComUtilities.Release(ref worksheet!);
+                        ComUtilities.Release(ref worksheet!);
                     }
 
                     if (isLoadedToWorksheet) break;
@@ -210,9 +210,9 @@ public partial class PowerQueryCommands
             }
             finally
             {
-                if (worksheets != null) ComUtilities.Release(ref worksheets!);
-                if (query != null) ComUtilities.Release(ref query!);
-                if (queries != null) ComUtilities.Release(ref queries!);
+                ComUtilities.Release(ref worksheets!);
+                ComUtilities.Release(ref query!);
+                ComUtilities.Release(ref queries!);
             }
         });
     }

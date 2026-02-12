@@ -63,7 +63,7 @@ public partial class PowerQueryCommands
                     }
                     finally
                     {
-                        if (q != null) ComUtilities.Release(ref q!);
+                        ComUtilities.Release(ref q!);
                     }
                 }
 
@@ -83,8 +83,8 @@ public partial class PowerQueryCommands
             }
             finally
             {
-                if (targetQuery != null) ComUtilities.Release(ref targetQuery!);
-                if (queries != null) ComUtilities.Release(ref queries!);
+                ComUtilities.Release(ref targetQuery!);
+                ComUtilities.Release(ref queries!);
             }
         });
     }

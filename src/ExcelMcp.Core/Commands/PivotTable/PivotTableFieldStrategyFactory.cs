@@ -41,7 +41,7 @@ public static class PivotTableFieldStrategyFactory
             }
             ComUtilities.Release(ref pivotFields);
         }
-        catch
+        catch (System.Runtime.InteropServices.COMException)
         {
             // Not Regular either
         }

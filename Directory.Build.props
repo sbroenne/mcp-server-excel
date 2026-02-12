@@ -31,8 +31,9 @@
       - IL2026: Reflection/dynamic code incompatible with trimming (Excel COM uses dynamic)
       - IL3050: Code incompatible with Native AOT (Excel COM requires runtime COM activation)
       - CS1573: Parameter has no matching param tag (batch parameter is internal, filtered by generators)
+      - CA1848: Use LoggerMessage delegates (perf optimization not needed for our diagnostic logging)
     -->
-    <NoWarn>$(NoWarn);CA1416;CS8602;SYSLIB1045;IL2026;IL3050;CS1573</NoWarn>
+    <NoWarn>$(NoWarn);CA1416;CS8602;SYSLIB1045;IL2026;IL3050;CS1573;CA1848</NoWarn>
 
     <!-- Deterministic builds for reproducibility -->
     <Deterministic>true</Deterministic>

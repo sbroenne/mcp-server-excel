@@ -61,15 +61,15 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                         }
                         finally
                         {
-                            if (chart != null) ComUtilities.Release(ref chart!);
-                            if (shape != null) ComUtilities.Release(ref shape!);
+                            ComUtilities.Release(ref chart!);
+                            ComUtilities.Release(ref shape!);
                         }
                     }
                 }
                 finally
                 {
-                    if (shapes != null) ComUtilities.Release(ref shapes!);
-                    if (worksheet != null) ComUtilities.Release(ref worksheet!);
+                    ComUtilities.Release(ref shapes!);
+                    ComUtilities.Release(ref worksheet!);
                 }
             }
 
@@ -137,18 +137,18 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
 
                             return result;
                         }
-                        catch
+                        catch (System.Runtime.InteropServices.COMException)
                         {
-                            if (chart != null) ComUtilities.Release(ref chart!);
-                            if (shape != null) ComUtilities.Release(ref shape!);
+                            ComUtilities.Release(ref chart!);
+                            ComUtilities.Release(ref shape!);
                             throw;
                         }
                     }
                 }
                 finally
                 {
-                    if (shapes != null) ComUtilities.Release(ref shapes!);
-                    if (worksheet != null) ComUtilities.Release(ref worksheet!);
+                    ComUtilities.Release(ref shapes!);
+                    ComUtilities.Release(ref worksheet!);
                 }
             }
 
@@ -239,10 +239,10 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
             }
             finally
             {
-                if (chart != null) ComUtilities.Release(ref chart!);
-                if (shape != null) ComUtilities.Release(ref shape!);
-                if (shapes != null) ComUtilities.Release(ref shapes!);
-                if (worksheet != null) ComUtilities.Release(ref worksheet!);
+                ComUtilities.Release(ref chart!);
+                ComUtilities.Release(ref shape!);
+                ComUtilities.Release(ref shapes!);
+                ComUtilities.Release(ref worksheet!);
             }
         });
     }
@@ -319,12 +319,12 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
             }
             finally
             {
-                if (chart != null) ComUtilities.Release(ref chart!);
-                if (shape != null) ComUtilities.Release(ref shape!);
-                if (shapes != null) ComUtilities.Release(ref shapes!);
-                if (worksheet != null) ComUtilities.Release(ref worksheet!);
-                if (tableRange != null) ComUtilities.Release(ref tableRange!);
-                if (table != null) ComUtilities.Release(ref table!);
+                ComUtilities.Release(ref chart!);
+                ComUtilities.Release(ref shape!);
+                ComUtilities.Release(ref shapes!);
+                ComUtilities.Release(ref worksheet!);
+                ComUtilities.Release(ref tableRange!);
+                ComUtilities.Release(ref table!);
             }
         });
     }
@@ -409,12 +409,12 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
             }
             finally
             {
-                if (chart != null) ComUtilities.Release(ref chart!);
-                if (pivotChartShape != null) ComUtilities.Release(ref pivotChartShape!);
-                if (tableRange != null) ComUtilities.Release(ref tableRange!);
-                if (shapes != null) ComUtilities.Release(ref shapes!);
-                if (worksheet != null) ComUtilities.Release(ref worksheet!);
-                if (pivotTable != null) ComUtilities.Release(ref pivotTable!);
+                ComUtilities.Release(ref chart!);
+                ComUtilities.Release(ref pivotChartShape!);
+                ComUtilities.Release(ref tableRange!);
+                ComUtilities.Release(ref shapes!);
+                ComUtilities.Release(ref worksheet!);
+                ComUtilities.Release(ref pivotTable!);
             }
         });
     }
@@ -471,14 +471,14 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                         }
                         finally
                         {
-                            if (shape != null) ComUtilities.Release(ref shape!);
+                            ComUtilities.Release(ref shape!);
                         }
                     }
                 }
                 finally
                 {
-                    if (shapes != null) ComUtilities.Release(ref shapes!);
-                    if (worksheet != null) ComUtilities.Release(ref worksheet!);
+                    ComUtilities.Release(ref shapes!);
+                    ComUtilities.Release(ref worksheet!);
                 }
             }
 
@@ -550,14 +550,14 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                         }
                         finally
                         {
-                            if (shape != null) ComUtilities.Release(ref shape!);
+                            ComUtilities.Release(ref shape!);
                         }
                     }
                 }
                 finally
                 {
-                    if (shapes != null) ComUtilities.Release(ref shapes!);
-                    if (worksheet != null) ComUtilities.Release(ref worksheet!);
+                    ComUtilities.Release(ref shapes!);
+                    ComUtilities.Release(ref worksheet!);
                 }
             }
 

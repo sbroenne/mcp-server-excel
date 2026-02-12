@@ -152,8 +152,9 @@ public static class ServiceSecurity
             var content = File.ReadAllText(LockFilePath).Trim();
             return int.TryParse(content, out var pid) ? pid : null;
         }
-        catch
+        catch (Exception)
         {
+            // Lock file may be locked, corrupted, or inaccessible — treat as absent
             return null;
         }
     }
@@ -170,9 +171,9 @@ public static class ServiceSecurity
                 File.Delete(LockFilePath);
             }
         }
-        catch
+        catch (Exception)
         {
-            // Best effort
+            // Best-effort cleanup — lock file deletion is not critical
         }
     }
 
@@ -223,10 +224,10 @@ public static class ServiceSecurity
             DeleteLockFile();
             return false;
         }
-        catch
+        catch (Exception)
         {
-            // Other errors (e.g., access denied) - assume process might still be running
-            // Don't delete lock file in case of transient errors
+            // Other errors (e.g., access denied) — assume process might still be running.
+            // Don't delete lock file in case of transient errors.
             return true;
         }
     }

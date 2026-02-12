@@ -53,8 +53,9 @@ public static class ServiceSecurity
             var content = File.ReadAllText(LockFilePath).Trim();
             return int.TryParse(content, out var pid) ? pid : null;
         }
-        catch
+        catch (Exception)
         {
+            // Lock file may be locked, corrupted, or inaccessible — treat as absent
             return null;
         }
     }
@@ -89,11 +90,10 @@ public static class ServiceSecurity
             // Process with this PID doesn't exist
             return false;
         }
-        catch
+        catch (Exception)
         {
+            // Other errors (e.g., access denied) — assume service is not running
             return false;
         }
     }
 }
-
-
