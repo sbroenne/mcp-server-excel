@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Prompts;
 [McpServerPromptType]
 public static class ExcelElicitationPrompts
 {
-    [McpServerPrompt(Name = "excel_data_validation_checklist")]
+    [McpServerPrompt(Name = "data_validation_checklist")]
     [Description("Information needed before adding data validation to ranges")]
     public static ChatMessage DataValidationChecklist()
     {

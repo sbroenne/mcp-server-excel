@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Prompts;
 [McpServerPromptType]
 public static class ExcelRangePrompts
 {
-    [McpServerPrompt(Name = "excel_range_number_formatting_guide")]
+    [McpServerPrompt(Name = "range_number_formatting_guide")]
     [Description("Guide for number formatting: When to use SetNumberFormat (locale-aware) vs SetNumberFormatCustom (raw format codes)")]
     public static ChatMessage NumberFormattingGuide()
     {
