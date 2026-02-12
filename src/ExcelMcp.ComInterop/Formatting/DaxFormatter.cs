@@ -80,3 +80,5 @@ public static class DaxFormatter
     /// </summary>
     private static bool IsExpectedFormattingException() => true;
 }
+
+

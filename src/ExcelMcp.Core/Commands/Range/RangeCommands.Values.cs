@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
@@ -77,8 +78,11 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public OperationResult SetValues(IExcelBatch batch, string sheetName, string rangeAddress, List<List<object?>> values)
+    public OperationResult SetValues(IExcelBatch batch, string sheetName, string rangeAddress, List<List<object?>>? values = null, string? valuesFile = null)
     {
+        // Resolve values from inline parameter or file
+        var resolvedValues = ParameterTransforms.ResolveValuesOrFile(values, valuesFile);
+
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-values" };
 
         return batch.Execute((ctx, ct) =>
@@ -107,8 +111,8 @@ public partial class RangeCommands
 
                 // Convert List<List<object?>> to 2D array
                 // Excel COM requires 1-based arrays for multi-cell ranges
-                int rows = values.Count;
-                int cols = values.Count > 0 ? values[0].Count : 0;
+                int rows = resolvedValues.Count;
+                int cols = resolvedValues.Count > 0 ? resolvedValues[0].Count : 0;
 
                 if (rows > 0 && cols > 0)
                 {
@@ -121,7 +125,7 @@ public partial class RangeCommands
                         {
                             // Convert JsonElement to proper C# type for COM interop
                             // MCP framework deserializes JSON to JsonElement, not primitives
-                            arrayValues[r, c] = RangeHelpers.ConvertToCellValue(values[r - 1][c - 1]);
+                            arrayValues[r, c] = RangeHelpers.ConvertToCellValue(resolvedValues[r - 1][c - 1]);
                         }
                     }
 
@@ -145,7 +149,7 @@ public partial class RangeCommands
                     {
                         ctx.App.Calculation = originalCalculation;
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
                         // Ignore errors restoring calculation mode - not critical
                     }
@@ -155,4 +159,6 @@ public partial class RangeCommands
         });
     }
 }
+
+
 

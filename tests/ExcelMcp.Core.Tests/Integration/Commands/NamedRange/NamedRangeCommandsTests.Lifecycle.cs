@@ -70,3 +70,7 @@ public partial class NamedRangeCommandsTests
         Assert.Throws<FileNotFoundException>(() => ExcelSession.BeginBatch("nonexistent.xlsx"));
     }
 }
+
+
+
+

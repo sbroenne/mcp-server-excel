@@ -2,9 +2,9 @@
 
   <PropertyGroup>
     <!-- Common properties for all projects -->
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
+    <Version>1.7.0</Version>
+    <AssemblyVersion>1.7.0.0</AssemblyVersion>
+    <FileVersion>1.7.0.0</FileVersion>
     <Authors>Stefan Broenner</Authors>
     <Company>Open Source Developer</Company>
     <Product>Sbroenne.ExcelMcp</Product>
@@ -30,8 +30,12 @@
       - SYSLIB1045: GeneratedRegexAttribute pattern (not applicable to our regex usage)
       - IL2026: Reflection/dynamic code incompatible with trimming (Excel COM uses dynamic)
       - IL3050: Code incompatible with Native AOT (Excel COM requires runtime COM activation)
+      - CS1573: Parameter has no matching param tag (batch parameter is internal, filtered by generators)
+      - CA1848: Use LoggerMessage delegates (perf optimization not needed for our diagnostic logging)
+      - CA1873: Logging argument evaluation (diagnostics only, performance not critical)
+      - CA1875: Regex.Count vs Regex.Matches.Count (test code readability, not perf critical)
     -->
-    <NoWarn>$(NoWarn);CA1416;CS8602;SYSLIB1045;IL2026;IL3050</NoWarn>
+    <NoWarn>$(NoWarn);CA1416;CS8602;SYSLIB1045;IL2026;IL3050;CS1573;CA1848;CA1873;CA1875</NoWarn>
 
     <!-- Deterministic builds for reproducibility -->
     <Deterministic>true</Deterministic>
@@ -56,6 +60,15 @@
 
   </PropertyGroup>
 
+  <!--
+    Pre-build cleanup: gracefully stop ExcelMCP Service and kill Excel processes.
+    Prevents file locking during build. Skipped in CI (no Excel/Service there).
+  -->
+  <Target Name="StopExcelMcpProcesses" BeforeTargets="Build" Condition="'$(CI)' != 'true' AND '$(ExcelMcpSkipCleanup)' != 'true'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\Stop-ExcelMcpProcesses.ps1&quot;"
+          IgnoreExitCode="true"
+          StandardOutputImportance="low" />
+  </Target>
 
   <!-- Import user-specific properties (gitignored, for local secrets) -->
   <Import Project="Directory.Build.props.user" Condition="Exists('Directory.Build.props.user')" />

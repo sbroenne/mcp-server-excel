@@ -1,5 +1,3 @@
-#pragma warning disable IDE0005 // Using directive is unnecessary (all usings are needed for COM interop)
-
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 
@@ -171,4 +169,6 @@ public partial class TableCommands
         });
     }
 }
+
+
 

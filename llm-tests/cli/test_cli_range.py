@@ -20,7 +20,7 @@ pytestmark = [pytest.mark.aitest, pytest.mark.cli]
 async def test_cli_range_set_get(aitest_run, excel_cli_server, excel_cli_skill, fixtures_dir):
     agent = Agent(
         name="cli-range",
-        provider=Provider(model="azure/gpt-5-mini", rpm=10, tpm=10000),
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         cli_servers=[excel_cli_server],
         skill=excel_cli_skill,
         max_turns=20,
@@ -46,7 +46,13 @@ async def test_cli_range_set_get(aitest_run, excel_cli_server, excel_cli_skill, 
 
 @pytest.mark.asyncio
 async def test_cli_range_error_handling(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = create_cli_agent(excel_cli_server, excel_cli_skill, name="cli-range-error")
+    agent = Agent(
+        name="cli-range-error",
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
+        cli_servers=[excel_cli_server],
+        skill=excel_cli_skill,
+        max_turns=20,
+    )
 
     prompt = f"""
 1. Create a new empty Excel file at {unique_path('llm-test-range-error-cli')}

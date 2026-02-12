@@ -41,7 +41,7 @@ public class TempDirectoryFixture : IDisposable
         var fileName = $"{testName}_{Guid.NewGuid():N}{extension}";
         var filePath = Path.Combine(TempDir, fileName);
         using var manager = new SessionManager();
-        var sessionId = manager.CreateSessionForNewFile(filePath, showExcel: false);
+        var sessionId = manager.CreateSessionForNewFile(filePath, show: false);
         manager.CloseSession(sessionId, save: true);
         return filePath;
     }
@@ -80,3 +80,7 @@ public class TempDirectoryFixture : IDisposable
         GC.SuppressFinalize(this);
     }
 }
+
+
+
+

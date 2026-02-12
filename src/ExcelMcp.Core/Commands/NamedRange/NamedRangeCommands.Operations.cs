@@ -88,7 +88,7 @@ public partial class NamedRangeCommands
     }
 
     /// <inheritdoc />
-    public void Write(IExcelBatch batch, string paramName, string value)
+    public void Write(IExcelBatch batch, string name, string value)
     {
         batch.Execute((ctx, ct) =>
         {
@@ -99,10 +99,10 @@ public partial class NamedRangeCommands
 
             try
             {
-                nameObj = ComUtilities.FindName(ctx.Book, paramName);
+                nameObj = ComUtilities.FindName(ctx.Book, name);
                 if (nameObj == null)
                 {
-                    throw new InvalidOperationException($"Parameter '{paramName}' not found.");
+                    throw new InvalidOperationException($"Named range '{name}' not found.");
                 }
 
                 refersToRange = nameObj.RefersToRange;
@@ -142,7 +142,7 @@ public partial class NamedRangeCommands
                     {
                         ctx.App.Calculation = originalCalculation;
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
                         // Ignore errors restoring calculation mode - not critical
                     }
@@ -154,7 +154,7 @@ public partial class NamedRangeCommands
     }
 
     /// <inheritdoc />
-    public NamedRangeValue Read(IExcelBatch batch, string paramName)
+    public NamedRangeValue Read(IExcelBatch batch, string name)
     {
         return batch.Execute((ctx, ct) =>
         {
@@ -162,10 +162,10 @@ public partial class NamedRangeCommands
             dynamic? refersToRange = null;
             try
             {
-                nameObj = ComUtilities.FindName(ctx.Book, paramName);
+                nameObj = ComUtilities.FindName(ctx.Book, name);
                 if (nameObj == null)
                 {
-                    throw new InvalidOperationException($"Parameter '{paramName}' not found.");
+                    throw new InvalidOperationException($"Named range '{name}' not found.");
                 }
 
                 string refersTo = nameObj.RefersTo ?? "";
@@ -175,7 +175,7 @@ public partial class NamedRangeCommands
 
                 return new NamedRangeValue
                 {
-                    Name = paramName,
+                    Name = name,
                     RefersTo = refersTo,
                     Value = value,
                     ValueType = valueType
@@ -190,17 +190,17 @@ public partial class NamedRangeCommands
     }
 
     /// <inheritdoc />
-    public void Create(IExcelBatch batch, string paramName, string reference)
+    public void Create(IExcelBatch batch, string name, string reference)
     {
         // Validate parameter name length (Excel limit: 255 characters)
-        if (string.IsNullOrWhiteSpace(paramName))
+        if (string.IsNullOrWhiteSpace(name))
         {
-            throw new ArgumentException("Parameter name cannot be empty or whitespace", nameof(paramName));
+            throw new ArgumentException("Named range name cannot be empty or whitespace", nameof(name));
         }
 
-        if (paramName.Length > 255)
+        if (name.Length > 255)
         {
-            throw new ArgumentException($"Parameter name exceeds Excel's 255-character limit (current length: {paramName.Length})", nameof(paramName));
+            throw new ArgumentException($"Named range name exceeds Excel's 255-character limit (current length: {name.Length})", nameof(name));
         }
 
         batch.Execute((ctx, ct) =>
@@ -210,10 +210,10 @@ public partial class NamedRangeCommands
             try
             {
                 // Check if parameter already exists
-                existing = ComUtilities.FindName(ctx.Book, paramName);
+                existing = ComUtilities.FindName(ctx.Book, name);
                 if (existing != null)
                 {
-                    throw new InvalidOperationException($"Parameter '{paramName}' already exists");
+                    throw new InvalidOperationException($"Named range '{name}' already exists");
                 }
 
                 // Create new named range
@@ -222,7 +222,7 @@ public partial class NamedRangeCommands
                 string formattedReference = reference.TrimStart('=');
                 // Add exactly one = prefix (required by Excel COM API)
                 formattedReference = $"={formattedReference}";
-                namesCollection.Add(paramName, formattedReference);
+                namesCollection.Add(name, formattedReference);
 
                 return 0; // Dummy return for batch.Execute
             }
@@ -235,17 +235,17 @@ public partial class NamedRangeCommands
     }
 
     /// <inheritdoc />
-    public void Update(IExcelBatch batch, string paramName, string reference)
+    public void Update(IExcelBatch batch, string name, string reference)
     {
         // Validate parameter name length (Excel limit: 255 characters)
-        if (string.IsNullOrWhiteSpace(paramName))
+        if (string.IsNullOrWhiteSpace(name))
         {
-            throw new ArgumentException("Parameter name cannot be empty or whitespace", nameof(paramName));
+            throw new ArgumentException("Named range name cannot be empty or whitespace", nameof(name));
         }
 
-        if (paramName.Length > 255)
+        if (name.Length > 255)
         {
-            throw new ArgumentException($"Parameter name exceeds Excel's 255-character limit (current length: {paramName.Length})", nameof(paramName));
+            throw new ArgumentException($"Named range name exceeds Excel's 255-character limit (current length: {name.Length})", nameof(name));
         }
 
         batch.Execute((ctx, ct) =>
@@ -253,10 +253,10 @@ public partial class NamedRangeCommands
             dynamic? nameObj = null;
             try
             {
-                nameObj = ComUtilities.FindName(ctx.Book, paramName);
+                nameObj = ComUtilities.FindName(ctx.Book, name);
                 if (nameObj == null)
                 {
-                    throw new InvalidOperationException($"Parameter '{paramName}' not found.");
+                    throw new InvalidOperationException($"Named range '{name}' not found.");
                 }
 
                 // Remove any existing = prefix to avoid double ==
@@ -277,17 +277,17 @@ public partial class NamedRangeCommands
     }
 
     /// <inheritdoc />
-    public void Delete(IExcelBatch batch, string paramName)
+    public void Delete(IExcelBatch batch, string name)
     {
         batch.Execute((ctx, ct) =>
         {
             dynamic? nameObj = null;
             try
             {
-                nameObj = ComUtilities.FindName(ctx.Book, paramName);
+                nameObj = ComUtilities.FindName(ctx.Book, name);
                 if (nameObj == null)
                 {
-                    throw new InvalidOperationException($"Parameter '{paramName}' not found.");
+                    throw new InvalidOperationException($"Named range '{name}' not found.");
                 }
 
                 nameObj.Delete();
@@ -300,4 +300,6 @@ public partial class NamedRangeCommands
         });
     }
 }
+
+
 

@@ -15,7 +15,7 @@ pytestmark = [pytest.mark.aitest, pytest.mark.cli]
 async def test_cli_chart_position_below_data(aitest_run, excel_cli_server, excel_cli_skill):
     agent = Agent(
         name="cli-chart-below",
-        provider=Provider(model="azure/gpt-5-mini", rpm=10, tpm=10000),
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         cli_servers=[excel_cli_server],
         skill=excel_cli_skill,
         max_turns=20,
@@ -43,7 +43,13 @@ async def test_cli_chart_position_below_data(aitest_run, excel_cli_server, excel
 
 @pytest.mark.asyncio
 async def test_cli_chart_position_right_of_table(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = create_cli_agent(excel_cli_server, excel_cli_skill, name="cli-chart-right")
+    agent = Agent(
+        name="cli-chart-right",
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
+        cli_servers=[excel_cli_server],
+        skill=excel_cli_skill,
+        max_turns=20,
+    )
 
     prompt = f"""
 1. Create a new empty Excel file at {unique_path('llm-test-chart-table-cli')} and open it

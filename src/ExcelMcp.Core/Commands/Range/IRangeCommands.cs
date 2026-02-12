@@ -1,380 +1,227 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Attributes;
 using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
 /// <summary>
-/// Excel range operation commands - unified API for all range data operations
-/// Single cell is treated as 1x1 range. Named ranges work transparently via rangeAddress parameter.
-/// All operations are COM-backed (no data processing in server).
+/// Core range operations: get/set values and formulas, copy ranges, clear content, and discover data regions.
+/// Use rangeedit for insert/delete/find/sort. Use rangeformat for styling/validation.
+/// Use rangelink for hyperlinks and cell protection.
+/// Calculation mode and explicit recalculation are handled by calculationmode.
+///
+/// BEST PRACTICE: Use 'get-values' to check existing data before overwriting.
+/// Use 'clear-contents' (not 'clear-all') to preserve cell formatting when clearing data.
+/// set-values preserves existing formatting; use set-number-format after if format change needed.
+///
+/// DATA FORMAT: values and formulas are 2D JSON arrays representing rows and columns.
+/// Example: [[row1col1, row1col2], [row2col1, row2col2]]
+/// Single cell returns [[value]] (always 2D).
+///
+/// REQUIRED PARAMETERS:
+/// - sheetName + rangeAddress for cell operations (e.g., sheetName='Sheet1', rangeAddress='A1:D10')
+/// - For named ranges, use sheetName='' (empty string) and rangeAddress='MyNamedRange'
+///
+/// COPY OPERATIONS: Specify source and target sheet/range for copy operations.
+///
+/// NUMBER FORMATS: Use US locale format codes (e.g., '#,##0.00', 'mm/dd/yyyy', '0.00%').
 /// </summary>
+[ServiceCategory("range", "Range")]
+[McpTool("excel_range", Title = "Excel Range Operations", Destructive = true, Category = "data",
+    Description = "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. Use excel_range_edit for insert/delete/find/sort. Use excel_range_format for styling/validation. Use excel_range_link for hyperlinks/protection. Use excel_calculation_mode for recalculation. DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. BEST PRACTICE: get-values before overwriting, clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
 public interface IRangeCommands
 {
     // === VALUE OPERATIONS ===
 
     /// <summary>
-    /// Gets values from a range as 2D array
-    /// Single cell "A1" returns [[value]], range "A1:B2" returns [[v1,v2],[v3,v4]]
-    /// Named ranges: Use empty sheetName and rangeAddress="NamedRange"
-    /// </summary>
-    RangeValueResult GetValues(IExcelBatch batch, string sheetName, string rangeAddress);
-
-    /// <summary>
-    /// Sets values in a range from 2D array
+    /// Gets values from a range as 2D array.
+    /// Single cell "A1" returns [[value]], range "A1:B2" returns [[v1,v2],[v3,v4]].
+    /// Named ranges: Use empty sheetName and rangeAddress="NamedRange".
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="sheetName">Target worksheet name</param>
-    /// <param name="rangeAddress">
-    /// MUST specify full range matching data dimensions:
-    /// - Single cell: "A1" for [[value]]
-    /// - Multi-cell: "A1:B2" for [[v1,v2],[v3,v4]]
-    /// - Headers + data: "A1:D11" for 11 rows x 4 columns
-    /// IMPORTANT: Passing "A1" with multi-cell array may not auto-expand reliably.
-    /// Always specify the exact range address.
-    /// </param>
-    /// <param name="values">2D array of values to set</param>
-    OperationResult SetValues(IExcelBatch batch, string sheetName, string rangeAddress, List<List<object?>> values);
+    /// <param name="sheetName">Name of the worksheet containing the range - REQUIRED for cell addresses, use empty string for named ranges only</param>
+    /// <param name="rangeAddress">Cell range address (e.g., 'A1', 'A1:D10', 'B:D') or named range name (e.g., 'SalesData')</param>
+    [ServiceAction("get-values")]
+    RangeValueResult GetValues(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
+
+    /// <summary>
+    /// Sets values in a range from 2D array or file.
+    /// Provide EITHER values (inline JSON 2D array) OR valuesFile (path to .json or .csv file), not both.
+    /// JSON file: must contain a 2D array like [[1,2],[3,4]].
+    /// CSV file: rows become array rows, comma-separated values become columns.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet containing the range - REQUIRED for cell addresses, use empty string for named ranges only</param>
+    /// <param name="rangeAddress">Cell range address matching data dimensions (e.g., 'A1' for [[value]], 'A1:B2' for [[v1,v2],[v3,v4]])</param>
+    /// <param name="values">2D array of values to set - rows are outer array, columns are inner array (e.g., [[1,2,3],[4,5,6]] for 2 rows x 3 cols). Optional if valuesFile is provided.</param>
+    /// <param name="valuesFile">Path to a JSON or CSV file containing the values. JSON: 2D array. CSV: rows/columns. Alternative to inline values parameter.</param>
+    [ServiceAction("set-values")]
+    OperationResult SetValues(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<object?>>? values = null, string? valuesFile = null);
 
     // === FORMULA OPERATIONS ===
 
     /// <summary>
-    /// Gets formulas from a range as 2D array (empty string if no formula)
-    /// Single cell "A1" returns [["=SUM(B:B)"]], range "A1:B2" returns [[f1,f2],[f3,f4]]
+    /// Gets formulas from a range as 2D array (empty string if no formula).
+    /// Single cell "A1" returns [["=SUM(B:B)"]], range "A1:B2" returns [[f1,f2],[f3,f4]].
     /// </summary>
-    RangeFormulaResult GetFormulas(IExcelBatch batch, string sheetName, string rangeAddress);
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet containing the range</param>
+    /// <param name="rangeAddress">Cell range address (e.g., 'A1', 'A1:D10', 'B:D') or named range name</param>
+    [ServiceAction("get-formulas")]
+    RangeFormulaResult GetFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
-    /// Sets formulas in a range from 2D array
+    /// Sets formulas in a range from 2D array or file.
+    /// Provide EITHER formulas (inline JSON 2D array) OR formulasFile (path to .json file), not both.
     /// </summary>
-    OperationResult SetFormulas(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>> formulas);
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet containing the range</param>
+    /// <param name="rangeAddress">Cell range address matching formulas dimensions (e.g., 'A1:B2' for 2x2 formula array)</param>
+    /// <param name="formulas">2D array of formulas to set - include '=' prefix (e.g., [['=A1+B1', '=SUM(A:A)'], ['=C1*2', '=AVERAGE(B:B)']]). Optional if formulasFile is provided.</param>
+    /// <param name="formulasFile">Path to a JSON file containing the formulas as a 2D array. Alternative to inline formulas parameter.</param>
+    [ServiceAction("set-formulas")]
+    OperationResult SetFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<string>>? formulas = null, string? formulasFile = null);
 
     // === CLEAR OPERATIONS ===
 
     /// <summary>
-    /// Clears all content (values, formulas, formats) from range
+    /// Clears all content (values, formulas, formats) from range.
     /// Excel COM: Range.Clear()
     /// </summary>
-    OperationResult ClearAll(IExcelBatch batch, string sheetName, string rangeAddress);
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet containing the range</param>
+    /// <param name="rangeAddress">Cell range address to clear (e.g., 'A1:D10')</param>
+    [ServiceAction("clear-all")]
+    OperationResult ClearAll(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
-    /// Clears only values and formulas (preserves formatting)
+    /// Clears only values and formulas (preserves formatting).
     /// Excel COM: Range.ClearContents()
     /// </summary>
-    OperationResult ClearContents(IExcelBatch batch, string sheetName, string rangeAddress);
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet containing the range</param>
+    /// <param name="rangeAddress">Cell range address to clear (e.g., 'A1:D10')</param>
+    [ServiceAction("clear-contents")]
+    OperationResult ClearContents(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
-    /// Clears only formatting (preserves values and formulas)
+    /// Clears only formatting (preserves values and formulas).
     /// Excel COM: Range.ClearFormats()
     /// </summary>
-    OperationResult ClearFormats(IExcelBatch batch, string sheetName, string rangeAddress);
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet containing the range</param>
+    /// <param name="rangeAddress">Cell range address to clear (e.g., 'A1:D10')</param>
+    [ServiceAction("clear-formats")]
+    OperationResult ClearFormats(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     // === COPY OPERATIONS ===
 
     /// <summary>
-    /// Copies range to another location (all content)
+    /// Copies range to another location (all content).
     /// Excel COM: Range.Copy()
     /// </summary>
-    OperationResult Copy(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange);
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sourceSheet">Source worksheet name for copy operations</param>
+    /// <param name="sourceRange">Source range address for copy operations (e.g., 'A1:D10')</param>
+    /// <param name="targetSheet">Target worksheet name for copy operations</param>
+    /// <param name="targetRange">Target range address - can be single cell for paste destination (e.g., 'A1')</param>
+    [ServiceAction("copy")]
+    OperationResult Copy(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange);
 
     /// <summary>
-    /// Copies only values (no formulas or formatting)
+    /// Copies only values (no formulas or formatting).
     /// Excel COM: Range.PasteSpecial(xlPasteValues)
     /// </summary>
-    OperationResult CopyValues(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange);
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sourceSheet">Source worksheet name for copy operations</param>
+    /// <param name="sourceRange">Source range address for copy operations (e.g., 'A1:D10')</param>
+    /// <param name="targetSheet">Target worksheet name for copy operations</param>
+    /// <param name="targetRange">Target range address - can be single cell for paste destination (e.g., 'A1')</param>
+    [ServiceAction("copy-values")]
+    OperationResult CopyValues(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange);
 
     /// <summary>
-    /// Copies only formulas (no values or formatting)
+    /// Copies only formulas (no values or formatting).
     /// Excel COM: Range.PasteSpecial(xlPasteFormulas)
     /// </summary>
-    OperationResult CopyFormulas(IExcelBatch batch, string sourceSheet, string sourceRange, string targetSheet, string targetRange);
-
-    // === INSERT/DELETE OPERATIONS ===
-
-    /// <summary>
-    /// Inserts blank cells, shifting existing cells down or right
-    /// Excel COM: Range.Insert(shift)
-    /// </summary>
-    OperationResult InsertCells(IExcelBatch batch, string sheetName, string rangeAddress, InsertShiftDirection shift);
-
-    /// <summary>
-    /// Deletes cells, shifting remaining cells up or left
-    /// Excel COM: Range.Delete(shift)
-    /// </summary>
-    OperationResult DeleteCells(IExcelBatch batch, string sheetName, string rangeAddress, DeleteShiftDirection shift);
-
-    /// <summary>
-    /// Inserts entire rows above the range
-    /// Excel COM: Range.EntireRow.Insert()
-    /// </summary>
-    OperationResult InsertRows(IExcelBatch batch, string sheetName, string rangeAddress);
-
-    /// <summary>
-    /// Deletes entire rows in the range
-    /// Excel COM: Range.EntireRow.Delete()
-    /// </summary>
-    OperationResult DeleteRows(IExcelBatch batch, string sheetName, string rangeAddress);
-
-    /// <summary>
-    /// Inserts entire columns to the left of the range
-    /// Excel COM: Range.EntireColumn.Insert()
-    /// </summary>
-    OperationResult InsertColumns(IExcelBatch batch, string sheetName, string rangeAddress);
-
-    /// <summary>
-    /// Deletes entire columns in the range
-    /// Excel COM: Range.EntireColumn.Delete()
-    /// </summary>
-    OperationResult DeleteColumns(IExcelBatch batch, string sheetName, string rangeAddress);
-
-    // === FIND/REPLACE OPERATIONS ===
-
-    /// <summary>
-    /// Finds all cells matching criteria in range
-    /// Excel COM: Range.Find()
-    /// </summary>
-    RangeFindResult Find(IExcelBatch batch, string sheetName, string rangeAddress, string searchValue, FindOptions options);
-
-    /// <summary>
-    /// Replaces text/values in range
-    /// Excel COM: Range.Replace()
-    /// </summary>
-    void Replace(IExcelBatch batch, string sheetName, string rangeAddress, string findValue, string replaceValue, ReplaceOptions options);
-
-    // === SORT OPERATIONS ===
-
-    /// <summary>
-    /// Sorts range by one or more columns
-    /// Excel COM: Range.Sort()
-    /// </summary>
-    void Sort(IExcelBatch batch, string sheetName, string rangeAddress, List<SortColumn> sortColumns, bool hasHeaders = true);
-
-    // === NATIVE EXCEL COM OPERATIONS (AI/LLM ESSENTIAL) ===
-
-    /// <summary>
-    /// Gets the used range (all non-empty cells) from worksheet
-    /// Excel COM: Worksheet.UsedRange
-    /// </summary>
-    RangeValueResult GetUsedRange(IExcelBatch batch, string sheetName);
-
-    /// <summary>
-    /// Gets the current region (contiguous data block) around a cell
-    /// Excel COM: Range.CurrentRegion
-    /// </summary>
-    RangeValueResult GetCurrentRegion(IExcelBatch batch, string sheetName, string cellAddress);
-
-    /// <summary>
-    /// Gets range information (address, dimensions, number formats)
-    /// Excel COM: Range.Address, Range.Rows.Count, Range.Columns.Count, Range.NumberFormat
-    /// </summary>
-    RangeInfoResult GetInfo(IExcelBatch batch, string sheetName, string rangeAddress);
-
-    // === HYPERLINK OPERATIONS ===
-
-    /// <summary>
-    /// Adds hyperlink to a single cell
-    /// Excel COM: Worksheet.Hyperlinks.Add()
-    /// </summary>
-    OperationResult AddHyperlink(IExcelBatch batch, string sheetName, string cellAddress, string url, string? displayText = null, string? tooltip = null);
-
-    /// <summary>
-    /// Removes hyperlink from a single cell or all hyperlinks from a range
-    /// Excel COM: Range.Hyperlinks.Delete()
-    /// </summary>
-    OperationResult RemoveHyperlink(IExcelBatch batch, string sheetName, string rangeAddress);
-
-    /// <summary>
-    /// Lists all hyperlinks in a worksheet
-    /// Excel COM: Worksheet.Hyperlinks collection
-    /// </summary>
-    RangeHyperlinkResult ListHyperlinks(IExcelBatch batch, string sheetName);
-
-    /// <summary>
-    /// Gets hyperlink from a specific cell
-    /// Excel COM: Range.Hyperlink
-    /// </summary>
-    RangeHyperlinkResult GetHyperlink(IExcelBatch batch, string sheetName, string cellAddress);
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sourceSheet">Source worksheet name for copy operations</param>
+    /// <param name="sourceRange">Source range address for copy operations (e.g., 'A1:D10')</param>
+    /// <param name="targetSheet">Target worksheet name for copy operations</param>
+    /// <param name="targetRange">Target range address - can be single cell for paste destination (e.g., 'A1')</param>
+    [ServiceAction("copy-formulas")]
+    OperationResult CopyFormulas(IExcelBatch batch, [RequiredParameter] string sourceSheet, [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet, [RequiredParameter] string targetRange);
 
     // === NUMBER FORMAT OPERATIONS ===
 
     /// <summary>
-    /// Gets number format codes from range (2D array matching range dimensions)
+    /// Gets number format codes from range (2D array matching range dimensions).
     /// Excel COM: Range.NumberFormat
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="sheetName">Worksheet name</param>
-    /// <param name="rangeAddress">Range address (e.g., "A1:D10")</param>
+    /// <param name="sheetName">Name of the worksheet containing the range</param>
+    /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
     /// <returns>2D array of format codes (e.g., [["$#,##0.00", "0.00%"], ["m/d/yyyy", "General"]])</returns>
-    RangeNumberFormatResult GetNumberFormats(IExcelBatch batch, string sheetName, string rangeAddress);
+    [ServiceAction("get-number-formats")]
+    RangeNumberFormatResult GetNumberFormats(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
-    /// Sets uniform number format for entire range
+    /// Sets uniform number format for entire range.
     /// Excel COM: Range.NumberFormat = formatCode
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="sheetName">Worksheet name</param>
-    /// <param name="rangeAddress">Range address (e.g., "A1:D10")</param>
-    /// <param name="formatCode">
-    /// Excel format code (e.g., "$#,##0.00", "0.00%", "m/d/yyyy", "General", "@")
-    /// </param>
-    OperationResult SetNumberFormat(IExcelBatch batch, string sheetName, string rangeAddress, string formatCode);
+    /// <param name="sheetName">Name of the worksheet containing the range</param>
+    /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
+    /// <param name="formatCode">Number format code in US locale (e.g., '#,##0.00' for numbers, 'mm/dd/yyyy' for dates, '0.00%' for percentages, 'General' for default, '@' for text)</param>
+    [ServiceAction("set-number-format")]
+    OperationResult SetNumberFormat(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] string formatCode);
 
     /// <summary>
-    /// Sets number formats cell-by-cell from 2D array
+    /// Sets number formats cell-by-cell from 2D array or file.
+    /// Provide EITHER formats (inline JSON 2D array) OR formatsFile (path to .json file), not both.
     /// Excel COM: Range.NumberFormat (per cell)
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="sheetName">Worksheet name</param>
-    /// <param name="rangeAddress">Range address (e.g., "A1:D10")</param>
-    /// <param name="formats">2D array of format codes matching range dimensions</param>
-    OperationResult SetNumberFormats(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>> formats);
+    /// <param name="sheetName">Name of the worksheet containing the range</param>
+    /// <param name="rangeAddress">Cell range address matching formats dimensions</param>
+    /// <param name="formats">2D array of format codes - same dimensions as target range (e.g., [['#,##0.00', '0.00%'], ['mm/dd/yyyy', 'General']]). Optional if formatsFile is provided.</param>
+    /// <param name="formatsFile">Path to a JSON file containing 2D array of format codes. Alternative to inline formats parameter.</param>
+    [ServiceAction("set-number-formats")]
+    OperationResult SetNumberFormats(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<string>>? formats = null, string? formatsFile = null);
 
-    // === FORMATTING OPERATIONS ===
-
-    /// <summary>
-    /// Applies built-in Excel cell style to range (recommended for consistency)
-    /// Excel COM: Range.Style = styleName
-    /// </summary>
-    /// <param name="batch">Excel batch context</param>
-    /// <param name="sheetName">Sheet name (empty for active sheet)</param>
-    /// <param name="rangeAddress">Range address (e.g., "A1:D10")</param>
-    /// <param name="styleName">
-    /// Built-in style name (e.g., "Heading 1", "Accent1", "Good", "Total", "Currency", "Percent")
-    /// Use "Normal" to reset to default formatting
-    /// </param>
-    /// <remarks>
-    /// Built-in styles are theme-aware and provide professional, consistent formatting.
-    /// Common styles: Heading 1-4, Title, Total, Input, Output, Calculation,
-    /// Good/Bad/Neutral, Accent1-6, Note, Warning, Currency, Percent, Comma
-    /// </remarks>
-    void SetStyle(IExcelBatch batch, string sheetName, string rangeAddress, string styleName);
+    // === DISCOVERY OPERATIONS ===
 
     /// <summary>
-    /// Gets the current built-in style name applied to a range
-    /// Excel COM: Range.Style.Name property
+    /// Gets the used range (all non-empty cells) from worksheet.
+    /// Excel COM: Worksheet.UsedRange
     /// </summary>
-    /// <param name="batch">Excel batch context</param>
-    /// <param name="sheetName">Worksheet name</param>
-    /// <param name="rangeAddress">Range address (e.g., "A1" for single cell, "A1:D10" for range)</param>
-    /// <returns>RangeStyleResult with current style name and whether it's a built-in style</returns>
-    /// <remarks>
-    /// Returns the style name of the first cell in the range.
-    /// Use this to inspect current formatting before applying changes.
-    /// </remarks>
-    RangeStyleResult GetStyle(IExcelBatch batch, string sheetName, string rangeAddress);
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet</param>
+    [ServiceAction("get-used-range")]
+    RangeValueResult GetUsedRange(IExcelBatch batch, string sheetName);
 
     /// <summary>
-    /// Applies visual formatting to range (font, fill, border, alignment)
-    /// Excel COM: Range.Font, Range.Interior, Range.Borders, Range.HorizontalAlignment, etc.
+    /// Gets the current region (contiguous data block) around a cell.
+    /// Excel COM: Range.CurrentRegion
     /// </summary>
-    /// <remarks>
-    /// For consistent, professional formatting, prefer SetStyleAsync() with built-in styles.
-    /// Use FormatRangeAsync() only when built-in styles don't meet your needs.
-    /// </remarks>
-    void FormatRange(
-        IExcelBatch batch,
-        string sheetName,
-        string rangeAddress,
-        string? fontName,
-        double? fontSize,
-        bool? bold,
-        bool? italic,
-        bool? underline,
-        string? fontColor,
-        string? fillColor,
-        string? borderStyle,
-        string? borderColor,
-        string? borderWeight,
-        string? horizontalAlignment,
-        string? verticalAlignment,
-        bool? wrapText,
-        int? orientation);
-
-    // === VALIDATION OPERATIONS ===
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet</param>
+    /// <param name="cellAddress">Single cell address (e.g., 'B5') - expands to contiguous data region around this cell</param>
+    [ServiceAction("get-current-region")]
+    RangeValueResult GetCurrentRegion(IExcelBatch batch, string sheetName, [RequiredParameter] string cellAddress);
 
     /// <summary>
-    /// Adds data validation rules to range
-    /// Excel COM: Range.Validation.Add()
+    /// Gets range information (address, dimensions, number formats).
+    /// Excel COM: Range.Address, Range.Rows.Count, Range.Columns.Count, Range.NumberFormat
     /// </summary>
-    void ValidateRange(
-        IExcelBatch batch,
-        string sheetName,
-        string rangeAddress,
-        string validationType,
-        string? validationOperator,
-        string? formula1,
-        string? formula2,
-        bool? showInputMessage,
-        string? inputTitle,
-        string? inputMessage,
-        bool? showErrorAlert,
-        string? errorStyle,
-        string? errorTitle,
-        string? errorMessage,
-        bool? ignoreBlank,
-        bool? showDropdown);
-
-    /// <summary>
-    /// Gets data validation settings from first cell in range
-    /// Excel COM: Range.Validation
-    /// </summary>
-    RangeValidationResult GetValidation(IExcelBatch batch, string sheetName, string rangeAddress);
-
-    /// <summary>
-    /// Removes data validation from range
-    /// Excel COM: Range.Validation.Delete()
-    /// </summary>
-    void RemoveValidation(IExcelBatch batch, string sheetName, string rangeAddress);
-
-    // === AUTO-FIT OPERATIONS ===
-
-    /// <summary>
-    /// Auto-fits column widths to content
-    /// Excel COM: Range.Columns.AutoFit()
-    /// </summary>
-    void AutoFitColumns(IExcelBatch batch, string sheetName, string rangeAddress);
-
-    /// <summary>
-    /// Auto-fits row heights to content
-    /// Excel COM: Range.Rows.AutoFit()
-    /// </summary>
-    void AutoFitRows(IExcelBatch batch, string sheetName, string rangeAddress);
-
-    // === MERGE OPERATIONS ===
-
-    /// <summary>
-    /// Merges cells in range into a single cell
-    /// Excel COM: Range.Merge()
-    /// </summary>
-    void MergeCells(IExcelBatch batch, string sheetName, string rangeAddress);
-
-    /// <summary>
-    /// Unmerges previously merged cells
-    /// Excel COM: Range.UnMerge()
-    /// </summary>
-    void UnmergeCells(IExcelBatch batch, string sheetName, string rangeAddress);
-
-    /// <summary>
-    /// Checks if range contains merged cells
-    /// Excel COM: Range.MergeCells
-    /// </summary>
-    RangeMergeInfoResult GetMergeInfo(IExcelBatch batch, string sheetName, string rangeAddress);
-
-    // === CELL PROTECTION OPERATIONS ===
-
-    /// <summary>
-    /// Locks or unlocks cells (requires worksheet protection to take effect)
-    /// Excel COM: Range.Locked
-    /// </summary>
-    void SetCellLock(IExcelBatch batch, string sheetName, string rangeAddress, bool locked);
-
-    /// <summary>
-    /// Gets lock status of first cell in range
-    /// Excel COM: Range.Locked
-    /// </summary>
-    RangeLockInfoResult GetCellLock(IExcelBatch batch, string sheetName, string rangeAddress);
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet</param>
+    /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
+    [ServiceAction("get-info")]
+    RangeInfoResult GetInfo(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 }
 
-// === SUPPORTING TYPES ===
+// === SUPPORTING TYPES (shared by all range interfaces) ===
 
 /// <summary>
 /// Direction to shift cells when inserting
@@ -439,4 +286,6 @@ public class SortColumn
     /// <summary>Sort direction (true = ascending, false = descending)</summary>
     public bool Ascending { get; set; } = true;
 }
+
+
 

@@ -249,16 +249,18 @@ public partial class DataModelCommands
                 }
                 finally
                 {
-                    if (oleDbConnection != null) ComUtilities.Release(ref oleDbConnection!);
-                    if (targetQuery != null) ComUtilities.Release(ref targetQuery!);
+                    ComUtilities.Release(ref oleDbConnection!);
+                    ComUtilities.Release(ref targetQuery!);
                 }
             }
             finally
             {
-                if (sourceConnection != null) ComUtilities.Release(ref sourceConnection!);
-                if (table != null) ComUtilities.Release(ref table!);
-                if (model != null) ComUtilities.Release(ref model!);
+                ComUtilities.Release(ref sourceConnection!);
+                ComUtilities.Release(ref table!);
+                ComUtilities.Release(ref model!);
             }
         });
     }
 }
+
+

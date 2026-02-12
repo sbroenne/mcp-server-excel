@@ -5,7 +5,7 @@
 ## 📋 Critical Files (Read These First)
 
 **ALWAYS read when working on code:**
-- [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) - 19 mandatory rules (Success flag, COM cleanup, tests, etc.)
+- [CRITICAL-RULES.md](instructions/critical-rules.instructions.md) - 27 mandatory rules (Success flag, COM cleanup, tests, etc.)
 - [Architecture Patterns](instructions/architecture-patterns.instructions.md) - Batch API, command pattern, resource management
 
 **Read based on task type:**
@@ -26,11 +26,19 @@
 
 **ExcelMcp** is a Windows-only toolset for programmatic Excel automation via COM interop, designed for coding agents and automation scripts.
 
-**Four Layers:**
+> **⚠️ CRITICAL: ExcelMcp has TWO equal entry points — MCP Server AND CLI.**
+> Both are first-class citizens. Every feature, action, and parameter must work identically through both.
+> When adding/changing features, ALWAYS verify BOTH MCP Server tools AND CLI commands are updated.
+> See Rule 24 (Post-Change Sync) for the full checklist.
+
+**Core Layers:**
 1. **ComInterop** (`src/ExcelMcp.ComInterop`) - Reusable COM automation patterns (STA threading, session management, batch operations, OLE message filter)
 2. **Core** (`src/ExcelMcp.Core`) - Excel-specific business logic (Power Query, VBA, worksheets, parameters)
-3. **CLI** (`src/ExcelMcp.CLI`) - Command-line interface for scripting
-4. **MCP Server** (`src/ExcelMcp.McpServer`) - Model Context Protocol for AI assistants
+3. **Service** (`src/ExcelMcp.Service`) - Named pipe service for session sharing between MCP Server and CLI
+4. **CLI** (`src/ExcelMcp.CLI`) - Command-line interface for scripting (EQUAL entry point)
+5. **MCP Server** (`src/ExcelMcp.McpServer`) - Model Context Protocol for AI assistants (EQUAL entry point)
+
+**Source Generators** (`src/ExcelMcp.Generators*`) - Generate CLI commands and MCP tools from Core interfaces
 
 ---
 
@@ -139,4 +147,124 @@ GitHub Copilot auto-loads instructions based on files you're editing:
 - `**` (all files) → [CRITICAL-RULES.md](instructions/critical-rules.instructions.md)
 
 Modular approach = relevant context without overload.
+
+---
+
+## 🔒 Pre-Commit Hooks (10 Automated Checks)
+
+Pre-commit runs `scripts/pre-commit.ps1` which blocks commits if any check fails:
+
+| # | Check | Script | What It Validates |
+|---|-------|--------|-------------------|
+| 1 | Branch | (inline) | Never commit to `main` directly (Rule 6) |
+| 2 | COM Leaks | `check-com-leaks.ps1` | All `dynamic` COM objects have `ComUtilities.Release()` in finally |
+| 3 | Coverage Audit | `audit-core-coverage.ps1` | 100% Core methods exposed via MCP Server |
+| 4 | MCP-Core Implementation | `check-mcp-core-implementations.ps1` | All enum actions have Core method implementations |
+| 5 | Success Flag | `check-success-flag.ps1` | Rule 0: Never `Success=true` with `ErrorMessage` |
+| 6 | CLI Coverage | `check-cli-coverage.ps1` | All action enums have CLI commands |
+| 7 | CLI Action Switch | `check-cli-action-coverage.ps1` | Actions requiring args have explicit switch cases |
+| 8 | CLI Settings Usage | `check-cli-settings-usage.ps1` | All Settings properties used in args |
+| 9 | CLI Workflow Test | `Test-CliWorkflow.ps1` | E2E CLI workflow smoke test |
+| 10 | MCP Smoke Test | `dotnet test --filter "...SmokeTest..."` | All MCP tools functional |
+
+**Install hook:**
+```powershell
+# From repo root
+Copy-Item scripts\pre-commit.ps1 .git\hooks\pre-commit
+```
+
+---
+
+## 🧪 LLM Integration Tests (`llm-tests/`)
+
+Separate pytest-based project validating LLM behavior using `pytest-aitest`:
+
+```powershell
+# Setup
+cd llm-tests
+uv sync
+
+# Run tests
+uv run pytest -m mcp -v      # MCP Server tests
+uv run pytest -m cli -v      # CLI tests
+uv run pytest -m aitest -v   # All LLM tests
+```
+
+**Prerequisites:**
+- Azure OpenAI endpoint: `$env:AZURE_OPENAI_ENDPOINT = "https://<resource>.openai.azure.com/"`
+- Build MCP Server: `dotnet build src\ExcelMcp.McpServer -c Release`
+
+**Structure:**
+- `test_mcp_*.py` - MCP Server workflows
+- `test_cli_*.py` - CLI workflows
+- `Fixtures/` - Shared test inputs (CSV/JSON/M files)
+
+---
+
+## 📦 Agent Skills (`skills/`)
+
+Two cross-platform AI assistant skill packages:
+
+| Skill | File | Target | Best For |
+|-------|------|--------|----------|
+| **excel-cli** | `skills/excel-cli/SKILL.md` | CLI Tool | Coding agents (token-efficient, `--help` discoverable) |
+| **excel-mcp** | `skills/excel-mcp/SKILL.md` | MCP Server | Conversational AI (rich tool schemas) |
+
+**Build skills from source:**
+```powershell
+dotnet build -c Release  # Generates SKILL.md and copies references
+```
+
+**Install via npx:**
+```bash
+npx skills add sbroenne/mcp-server-excel --skill excel-cli   # Coding agents
+npx skills add sbroenne/mcp-server-excel --skill excel-mcp   # Conversational AI
+```
+
+---
+
+## 🏗️ Architecture Patterns
+
+### Command File Structure
+```
+Commands/Sheet/
+├── ISheetCommands.cs           # Interface (defines contract)
+├── SheetCommands.cs            # Partial class (constructor, DI)
+├── SheetCommands.Lifecycle.cs  # Partial (Create, Delete, Rename...)
+└── SheetCommands.Style.cs      # Partial (formatting operations)
+```
+
+**Rules:**
+- One public class per file
+- File name = class name
+- Partial classes for 15+ methods (split by feature domain)
+
+### Exception Propagation (CRITICAL)
+```csharp
+// ✅ CORRECT: Let batch.Execute() handle exceptions
+return await batch.Execute((ctx, ct) => {
+    var result = DoSomething();
+    return ValueTask.FromResult(result);
+});
+// Exception auto-caught by TaskCompletionSource → OperationResult { Success = false }
+
+// ❌ WRONG: Never suppress with catch returning error result
+catch (Exception ex) { 
+    return new OperationResult { Success = false, ErrorMessage = ex.Message }; 
+}
+```
+
+### Service Architecture (TWO EQUAL ENTRY POINTS)
+
+```
+MCP Server ──┐
+             ├──► Named Pipe Service ──► Core Commands ──► Excel COM
+CLI ─────────┘
+```
+
+**⚠️ MCP Server and CLI are BOTH first-class entry points.** They share sessions via named pipe service, enabling:
+- Session sharing between tools
+- Consistent state across MCP and CLI workflows
+- **Feature parity**: Every action available in MCP must be available in CLI and vice versa
+- **Parameter parity**: Same parameters, same defaults, same validation
 

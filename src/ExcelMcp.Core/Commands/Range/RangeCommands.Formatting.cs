@@ -76,7 +76,7 @@ public partial class RangeCommands
                     if (string.IsNullOrEmpty(styleName))
                         styleName = "Normal";
                 }
-                catch
+                catch (System.Runtime.InteropServices.COMException)
                 {
                     styleName = "Normal";
                 }
@@ -98,12 +98,12 @@ public partial class RangeCommands
                         if (string.IsNullOrEmpty(styleDescription))
                             styleDescription = null;
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
                         // Style description is optional
                     }
                 }
-                catch
+                catch (System.Runtime.InteropServices.COMException)
                 {
                     // If we can't find it in the Styles collection, it might be a custom style
                     isBuiltIn = false;
@@ -280,4 +280,6 @@ public partial class RangeCommands
         };
     }
 }
+
+
 

@@ -104,3 +104,5 @@ internal enum InstallationType
     Global,
     Local
 }
+
+

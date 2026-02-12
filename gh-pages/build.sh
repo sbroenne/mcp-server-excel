@@ -69,6 +69,46 @@ echo "   ✓ Copied SECURITY.md"
 cp "$ROOT_DIR/PRIVACY.md" "$SCRIPT_DIR/_includes/privacy.md"
 echo "   ✓ Copied PRIVACY.md"
 
+# Copy MCP Server README (strip top H1 block and badge lines)
+awk '
+    BEGIN { inheader=0; headerdone=0 }
+    {
+        if (headerdone==0 && /^# /) { inheader=1; next }                 # drop H1 title
+        if (inheader==1 && /^<!-- mcp-name/) { next }                    # drop mcp-name comment
+        if (inheader==1 && /^mcp-name:/) { next }                        # drop mcp-name line
+        if (inheader==1 && /^\[!\[/) { next }                            # drop badge lines
+        if (inheader==1 && /^$/) { inheader=0; headerdone=1; next }      # blank line ends header
+        if (/^# /) { sub(/^# /, "## "); print; next }                   # convert any remaining H1 → H2
+        print
+    }
+' "$ROOT_DIR/src/ExcelMcp.McpServer/README.md" > "$SCRIPT_DIR/_includes/mcp-server.md"
+echo "   ✓ Copied MCP Server README (stripped top H1 block, badges, H1→H2)"
+
+# Copy CLI README (strip top H1 block and badge lines)
+awk '
+    BEGIN { inheader=0; headerdone=0 }
+    {
+        if (headerdone==0 && /^# /) { inheader=1; next }                 # drop H1 title
+        if (inheader==1 && /^\[!\[/) { next }                            # drop badge lines
+        if (inheader==1 && /^$/) { inheader=0; headerdone=1; next }      # blank line ends header
+        if (/^# /) { sub(/^# /, "## "); print; next }                   # convert any remaining H1 → H2
+        print
+    }
+' "$ROOT_DIR/src/ExcelMcp.CLI/README.md" > "$SCRIPT_DIR/_includes/cli.md"
+echo "   ✓ Copied CLI README (stripped top H1 block, badges, H1→H2)"
+
+# Copy Agent Skills README (strip top H1 block)
+awk '
+    BEGIN { inheader=0; headerdone=0 }
+    {
+        if (headerdone==0 && /^# /) { inheader=1; next }                 # drop H1 title
+        if (inheader==1 && /^$/) { inheader=0; headerdone=1; next }      # blank line ends header
+        if (/^# /) { sub(/^# /, "## "); print; next }                   # convert any remaining H1 → H2
+        print
+    }
+' "$ROOT_DIR/skills/README.md" > "$SCRIPT_DIR/_includes/skills.md"
+echo "   ✓ Copied Agent Skills README (stripped top H1 block, H1→H2)"
+
 # Determine build mode
 if [ "$1" == "serve" ]; then
     echo ""

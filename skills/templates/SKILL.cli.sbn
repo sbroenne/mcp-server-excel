@@ -1,0 +1,179 @@
+---
+name: excel-cli
+description: >
+  Automate Microsoft Excel on Windows via CLI. Use when creating, reading,
+  or modifying Excel workbooks from scripts, CI/CD, or coding agents.
+  Supports Power Query, DAX, PivotTables, Tables, Ranges, Charts, VBA.
+  Triggers: Excel, spreadsheet, workbook, xlsx, excelcli, CLI automation.
+compatibility: Windows + Microsoft Excel 2016+ required. Uses COM interop - does NOT work on macOS or Linux.
+allowed-tools: Cmd(excelcli:*),PowerShell(excelcli:*)
+disable-model-invocation: true
+license: MIT
+version: {{ version }}
+repository: {{ repository }}
+documentation: {{ documentation }}
+---
+
+# Excel Automation with excelcli
+
+## Workflow Checklist
+
+| Step | Command | When |
+|------|---------|------|
+| 1. Session | `session create/open` | Always first |
+| 2. Sheets | `worksheet create/rename` | If needed |
+| 3. Write data | See below | If writing values |
+| 4. Save & close | `session close --save` | Always last |
+
+**Writing Data (Step 3):**
+- `--values` takes a JSON 2D array string: `--values '[["Header1","Header2"],[1,2]]'`
+- Write **one row at a time** for reliability: `--range-address A1:B1 --values '[["Name","Age"]]'`
+- Strings MUST be double-quoted in JSON: `"text"`. Numbers are bare: `42`
+- Always wrap the entire JSON value in single quotes to protect special characters
+
+## CRITICAL RULES (MUST FOLLOW)
+
+### Rule 1: NEVER Ask Clarifying Questions
+
+Execute commands to discover the answer instead:
+
+| DON'T ASK | DO THIS INSTEAD |
+|-----------|-----------------|
+| "Which file should I use?" | `excelcli -q session list` |
+| "What table should I use?" | `excelcli -q table list --session <id>` |
+| "Which sheet has the data?" | `excelcli -q worksheet list --session <id>` |
+
+**You have commands to answer your own questions. USE THEM.**
+
+### Rule 2: Always End With a Text Summary
+
+**NEVER end your turn with only a command execution.** After completing all operations, always provide a brief text message confirming what was done. Silent command-only responses are incomplete.
+
+### Rule 3: Session Lifecycle
+
+**Creating vs Opening Files:**
+```powershell
+# NEW file - use session create
+excelcli -q session create C:\path\newfile.xlsx  # Creates file + returns session ID
+
+# EXISTING file - use session open
+excelcli -q session open C:\path\existing.xlsx   # Opens file + returns session ID
+```
+
+**CRITICAL: Use `session create` for new files. `session open` on non-existent files will fail!**
+
+**CRITICAL: ALWAYS use the session ID returned by `session create` or `session open` in subsequent commands. NEVER guess or hardcode session IDs. The session ID is in the JSON output (e.g., `{"sessionId":"abc123"}`). Parse it and use it.**
+
+```powershell
+# Example: capture session ID from output, then use it
+excelcli -q session create C:\path\file.xlsx     # Returns JSON with sessionId
+excelcli -q range set-values --session <returned-session-id> ...
+excelcli -q session close --session <returned-session-id> --save
+```
+
+**Unclosed sessions leave Excel processes running, locking files.**
+
+### Rule 4: Data Model Prerequisites
+
+DAX operations require tables in the Data Model:
+
+```powershell
+excelcli -q table add-to-data-model --session <id> --table-name Sales  # Step 1
+excelcli -q datamodel create-measure --session <id> ...               # Step 2 - NOW works
+```
+
+### Rule 5: Power Query Development Lifecycle
+
+**BEST PRACTICE: Test M code before creating permanent queries**
+
+```powershell
+# Step 1: Test M code without persisting (catches errors early)
+excelcli -q powerquery evaluate --session 1 --m-code-file query.m
+
+# Step 2: Create permanent query with validated code
+excelcli -q powerquery create --session 1 --query-name Q1 --m-code-file query.m
+
+# Step 3: Load data to destination
+excelcli -q powerquery refresh --session 1 --query-name Q1
+```
+
+### Rule 6: Report File Errors Immediately
+
+If you see "File not found" or "Path not found" - STOP and report to user. Don't retry.
+
+### Rule 7: Use Calculation Mode for Bulk Writes
+
+When writing many values/formulas (10+ cells), disable auto-recalc for performance:
+
+```powershell
+# 1. Set manual mode
+excelcli -q calculationmode set-mode --session 1 --mode manual
+
+# 2. Write data row by row for reliability
+excelcli -q range set-values --session 1 --sheet-name Sheet1 --range-address A1:B1 --values '[["Name","Amount"]]'
+excelcli -q range set-values --session 1 --sheet-name Sheet1 --range-address A2:B2 --values '[["Salary",5000]]'
+
+# 3. Recalculate once at end
+excelcli -q calculationmode calculate --session 1 --scope workbook
+
+# 4. Restore automatic mode
+excelcli -q calculationmode set-mode --session 1 --mode automatic
+```
+
+## CLI Command Reference
+
+> Auto-generated from `excelcli --help`. Use these exact parameter names.
+
+{{ for cmd in clicommands }}
+### {{ cmd.name }}
+
+{{ if cmd.description }}{{ cmd.description }}{{ end }}
+
+**Actions:** {{ for action in cmd.actions }}`{{ action }}`{{ if !for.last }}, {{ end }}{{ end }}
+
+| Parameter | Description |
+|-----------|-------------|
+{{ for param in cmd.parameters }}| `--{{ param.name }}` | {{ param.description }} |
+{{ end }}
+
+{{ end }}
+
+## Common Pitfalls
+
+### --values-file Must Be an Existing File
+
+`--values-file` expects a path to an **existing** JSON or CSV file on disk. Do NOT pass inline JSON as the value — the CLI will look for a file at that path and fail with "File not found". If you don't have a file, use `--values` with inline JSON instead.
+
+### --timeout Must Be Greater Than Zero
+
+When using `--timeout`, the value must be a positive integer (seconds). `--timeout 0` is invalid and will error. Omit `--timeout` entirely to use the default (300 seconds for most operations).
+
+### Power Query Operations Are Slow
+
+`powerquery create`, `powerquery refresh`, and `powerquery evaluate` may take 30+ seconds depending on data volume. Either omit `--timeout` (uses 5-minute default) or set a generous value like `--timeout 120`.
+
+### JSON Values Format
+
+`--values` takes a 2D JSON array wrapped in single quotes:
+```powershell
+# CORRECT: 2D array with single-quote wrapper
+--values '[["Name","Age"],["Alice",30],["Bob",25]]'
+
+# WRONG: Not a 2D array
+--values '["Alice",30]'
+
+# WRONG: Object instead of array
+--values '{"Name":"Alice","Age":30}'
+```
+
+## Reference Documentation
+
+- @references/behavioral-rules.md - Core execution rules and LLM guidelines
+- @references/anti-patterns.md - Common mistakes to avoid
+- @references/workflows.md - Data Model constraints and patterns
+
+## Installation
+
+```powershell
+dotnet tool install --global Sbroenne.ExcelMcp.CLI
+```

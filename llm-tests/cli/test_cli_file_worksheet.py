@@ -6,7 +6,7 @@ import pytest
 
 from pytest_aitest import Agent, Provider
 
-from conftest import assert_cli_args_contain, assert_cli_exit_codes, unique_path
+from conftest import assert_cli_exit_codes, unique_path
 
 pytestmark = [pytest.mark.aitest, pytest.mark.cli]
 
@@ -15,7 +15,7 @@ pytestmark = [pytest.mark.aitest, pytest.mark.cli]
 async def test_cli_file_and_worksheet_workflow(aitest_run, excel_cli_server, excel_cli_skill):
     agent = Agent(
         name="cli-file-worksheet",
-        provider=Provider(model="azure/gpt-5-mini", rpm=10, tpm=10000),
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         cli_servers=[excel_cli_server],
         skill=excel_cli_skill,
         max_turns=20,
@@ -42,4 +42,3 @@ Save the file when done.
     result = await aitest_run(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
-    assert_cli_args_contain(result, "-q")

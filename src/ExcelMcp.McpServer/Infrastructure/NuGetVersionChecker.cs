@@ -34,9 +34,9 @@ internal static class NuGetVersionChecker
 
             return latestVersion ?? response.Versions.Last();
         }
-        catch
+        catch (Exception)
         {
-            // Network error, timeout, etc. - return null to indicate check failed
+            // Network error, timeout, etc. — return null to indicate check failed
             return null;
         }
     }
@@ -54,3 +54,5 @@ internal static class NuGetVersionChecker
         public List<string> Versions { get; set; } = [];
     }
 }
+
+

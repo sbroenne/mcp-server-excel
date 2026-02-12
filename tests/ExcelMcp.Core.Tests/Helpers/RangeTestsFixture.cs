@@ -88,7 +88,7 @@ public class RangeTestsFixture : IAsyncLifetime
         var fileName = $"{testName}_{Guid.NewGuid():N}{extension}";
         var filePath = Path.Join(_tempDir, fileName);
         using var manager = new SessionManager();
-        var sessionId = manager.CreateSessionForNewFile(filePath, showExcel: false);
+        var sessionId = manager.CreateSessionForNewFile(filePath, show: false);
         manager.CloseSession(sessionId, save: true);
         return filePath;
     }
@@ -108,7 +108,7 @@ public class RangeTestsFixture : IAsyncLifetime
         {
             using (var manager = new SessionManager())
             {
-                var sessionId = manager.CreateSessionForNewFile(TestFilePath, showExcel: false);
+                var sessionId = manager.CreateSessionForNewFile(TestFilePath, show: false);
                 manager.CloseSession(sessionId, save: true);
             }
             CreationResult.FileCreated = true;
@@ -165,3 +165,7 @@ public class FixtureCreationResult
     /// <summary>Error message if creation failed</summary>
     public string? ErrorMessage { get; set; }
 }
+
+
+
+

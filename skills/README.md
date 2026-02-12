@@ -60,44 +60,40 @@ Enable skills in VS Code settings:
 }
 ```
 
-### Method 2: npx add-skill (Cross-Platform)
+### Method 2: npx skills add (Cross-Platform)
 
-**Important:** The repository contains TWO separate skills. You must specify which one to install using the `--skill` flag.
+The repository contains TWO skills. The CLI will prompt you to select which one(s) to install:
 
 ```bash
-# Install CLI skill (recommended for coding agents - Copilot, Cursor, Windsurf)
-npx add-skill sbroenne/mcp-server-excel --skill excel-cli
+# Interactive install - prompts to select excel-cli, excel-mcp, or both
+npx skills add sbroenne/mcp-server-excel
 
-# Install MCP skill (for conversational AI - Claude Desktop, VS Code Chat)
-npx add-skill sbroenne/mcp-server-excel --skill excel-mcp
+# Install specific skill directly
+npx skills add sbroenne/mcp-server-excel --skill excel-cli   # Coding agents
+npx skills add sbroenne/mcp-server-excel --skill excel-mcp   # Conversational AI
 
-# Install BOTH skills (if you use multiple tools)
-npx add-skill sbroenne/mcp-server-excel --skill excel-cli
-npx add-skill sbroenne/mcp-server-excel --skill excel-mcp
+# Install both skills
+npx skills add sbroenne/mcp-server-excel --skill '*'
 
-# Install for specific agent (optional)
-npx add-skill sbroenne/mcp-server-excel --skill excel-cli -a cursor
-npx add-skill sbroenne/mcp-server-excel --skill excel-mcp -a claude-code
+# Install for specific agent
+npx skills add sbroenne/mcp-server-excel --skill excel-cli -a cursor
+npx skills add sbroenne/mcp-server-excel --skill excel-mcp -a claude-code
 
 # Install globally (user-wide)
-npx add-skill sbroenne/mcp-server-excel --skill excel-cli --global
-
-# Install to current project
-npx add-skill sbroenne/mcp-server-excel --skill excel-cli --local
+npx skills add sbroenne/mcp-server-excel --skill excel-cli --global
 ```
 
 ### Method 3: GitHub Release Download
 
-Download the skill package for your use case from [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest):
+Download `excel-skills-vX.X.X.zip` from [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest).
 
-| Package | Best For |
-|---------|----------|
-| `excel-cli-skill-vX.X.X.zip` | **Coding agents** (Copilot, Cursor, Windsurf) |
-| `excel-mcp-skill-vX.X.X.zip` | **Conversational AI** (Claude Desktop, VS Code Chat) |
+The package contains both skills:
+- `skills/excel-cli/` - for coding agents (Copilot, Cursor, Windsurf)
+- `skills/excel-mcp/` - for conversational AI (Claude Desktop, VS Code Chat)
 
-Extract to the appropriate directory for your AI assistant:
-- Copilot: `~/.copilot/skills/excel-mcp/` or `~/.copilot/skills/excel-cli/`
-- Claude Code: `.claude/skills/excel-mcp/` or `.claude/skills/excel-cli/`
+Extract the skill(s) you need to your AI assistant's skills directory:
+- Copilot: `~/.copilot/skills/excel-cli/` or `~/.copilot/skills/excel-mcp/`
+- Claude Code: `.claude/skills/excel-cli/` or `.claude/skills/excel-mcp/`
 - Cursor: `.cursor/skills/excel-mcp/` or `.cursor/skills/excel-cli/`
 - Windsurf: `.windsurf/skills/excel-mcp/` or `.windsurf/skills/excel-cli/`
 
@@ -143,7 +139,7 @@ skills/
 └── .cursorrules                 # Cursor-specific rules
 ```
 
-**Note:** Shared behavioral guidance lives in `shared/` and is copied to each skill's `references/` folder during packaging. For local development, run `./scripts/Build-AgentSkills.ps1 -PopulateReferences` to populate the references folders.
+**Note:** Shared behavioral guidance lives in `shared/` and is copied to each skill's `references/` folder during the build. Run `dotnet build -c Release` to generate SKILL.md and copy references.
 
 ## Platform-Specific Files
 
@@ -167,23 +163,22 @@ Copy `.cursorrules` to your project root:
 cp skills/.cursorrules /path/to/your/project/.cursorrules
 ```
 
-## Building the Skills Packages
+## Building the Skills Package
 
-For maintainers building release artifacts:
+Skill files are generated automatically during Release builds:
 
 ```powershell
-# Build all skill artifacts (for release)
-./scripts/Build-AgentSkills.ps1
+# Build solution - generates SKILL.md and copies references
+dotnet build -c Release
 
-# Output:
-#   artifacts/skills/excel-mcp-skill-v{version}.zip  - MCP Server skill package
-#   artifacts/skills/excel-cli-skill-v{version}.zip  - CLI skill package
-#   artifacts/skills/CLAUDE.md                       - Claude Code instructions
-#   artifacts/skills/.cursorrules                    - Cursor rules
-
-# For local development: populate references from shared/
-./scripts/Build-AgentSkills.ps1 -PopulateReferences
+# Output (in skills/ folder):
+#   excel-mcp/SKILL.md        - Generated MCP skill documentation
+#   excel-mcp/references/     - Copied shared reference files
+#   excel-cli/SKILL.md        - Generated CLI skill documentation  
+#   excel-cli/references/     - Copied shared reference files
 ```
+
+For release artifacts (ZIP package), the GitHub Actions workflow handles packaging.
 
 ## Version Compatibility
 

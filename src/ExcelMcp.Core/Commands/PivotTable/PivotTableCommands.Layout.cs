@@ -13,7 +13,7 @@ public partial class PivotTableCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>
-    /// <param name="layoutType">Layout form: 0=Compact, 1=Tabular, 2=Outline</param>
+    /// <param name="rowLayout">Layout form: 0=Compact, 1=Tabular, 2=Outline</param>
     /// <returns>Result indicating success or failure</returns>
     /// <remarks>
     /// LAYOUT FORMS:
@@ -25,7 +25,9 @@ public partial class PivotTableCommands
     /// - Regular PivotTables: Full support for all three forms
     /// - OLAP PivotTables: Full support for all three forms
     /// </remarks>
-    public OperationResult SetLayout(IExcelBatch batch, string pivotTableName, int layoutType)
+    public OperationResult SetLayout(IExcelBatch batch, string pivotTableName, int rowLayout)
         => ExecuteWithStrategy<OperationResult>(batch, pivotTableName,
-            (strategy, pivot) => strategy.SetLayout(pivot, layoutType, batch.WorkbookPath, batch.Logger));
+            (strategy, pivot) => strategy.SetLayout(pivot, rowLayout, batch.WorkbookPath, batch.Logger));
 }
+
+

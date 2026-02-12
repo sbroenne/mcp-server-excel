@@ -58,7 +58,7 @@ public class PowerQueryTestsFixture : IAsyncLifetime
         {
             using (var manager = new SessionManager())
             {
-                var sessionId = manager.CreateSessionForNewFile(TestFilePath, showExcel: false);
+                var sessionId = manager.CreateSessionForNewFile(TestFilePath, show: false);
                 manager.CloseSession(sessionId, save: true);
             }
 
@@ -135,7 +135,7 @@ public class PowerQueryTestsFixture : IAsyncLifetime
         var guid = Guid.NewGuid().ToString("N")[..8];
         var testFile = Path.Join(_tempDir, $"PQ_{testName}_{guid}.xlsx");
         using var manager = new SessionManager();
-        var sessionId = manager.CreateSessionForNewFile(testFile, showExcel: false);
+        var sessionId = manager.CreateSessionForNewFile(testFile, show: false);
         manager.CloseSession(sessionId, save: true);
         return testFile;
     }
@@ -225,3 +225,7 @@ public class PowerQueryCreationResult
     /// <inheritdoc/>
     public string? ErrorMessage { get; set; }
 }
+
+
+
+

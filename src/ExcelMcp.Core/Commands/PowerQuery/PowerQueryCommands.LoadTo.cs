@@ -82,7 +82,7 @@ public partial class PowerQueryCommands
                     }
                     finally
                     {
-                        if (q != null) ComUtilities.Release(ref q!);
+                        ComUtilities.Release(ref q!);
                     }
                 }
 
@@ -131,8 +131,8 @@ public partial class PowerQueryCommands
             }
             finally
             {
-                if (query != null) ComUtilities.Release(ref query!);
-                if (queries != null) ComUtilities.Release(ref queries!);
+                ComUtilities.Release(ref query!);
+                ComUtilities.Release(ref queries!);
             }
         }, timeoutCts.Token);
     }
@@ -185,7 +185,7 @@ public partial class PowerQueryCommands
                 }
                 finally
                 {
-                    if (ws != null) ComUtilities.Release(ref ws!);
+                    ComUtilities.Release(ref ws!);
                 }
             }
 
@@ -423,3 +423,5 @@ public partial class PowerQueryCommands
         return sheet;
     }
 }
+
+

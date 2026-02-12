@@ -1,173 +1,142 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Attributes;
 using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
 /// <summary>
-/// Excel Table (ListObject) management commands
+/// Excel Tables (ListObjects) - lifecycle and data operations.
+/// Tables provide structured references, automatic formatting, and Data Model integration.
+///
+/// BEST PRACTICE: Use 'list' to check existing tables before creating.
+/// Prefer 'append'/'resize'/'rename' over delete+recreate to preserve references.
+///
+/// WARNING: Deleting tables used as PivotTable sources or in Data Model relationships will break those objects.
+///
+/// DATA MODEL WORKFLOW: To analyze worksheet data with DAX/Power Pivot:
+/// 1. Create or identify an Excel Table on a worksheet
+/// 2. Use 'add-to-datamodel' to add the table to Power Pivot
+/// 3. Then use datamodel to create DAX measures on it
+///
+/// DAX-BACKED TABLES: Create tables populated by DAX EVALUATE queries:
+/// - 'create-from-dax': Create a new table backed by a DAX query (e.g., SUMMARIZE, FILTER)
+/// - 'update-dax': Update the DAX query for an existing DAX-backed table
+/// - 'get-dax': Get the DAX query info for a table (check if it's DAX-backed)
+///
+/// Related: tablecolumn (filter/sort/columns), datamodel (DAX measures, evaluate queries)
 /// </summary>
+[ServiceCategory("table", "Table")]
+[McpTool("excel_table", Title = "Excel Table Operations", Destructive = true, Category = "data",
+    Description = "Excel Tables (ListObjects) - lifecycle and data operations. BEST PRACTICE: List before creating, prefer append/resize/rename over delete+recreate. WARNING: Deleting tables used as PivotTable sources or in Data Model breaks those objects. DATA MODEL: add-to-datamodel to load into Power Pivot, then excel_datamodel for DAX measures. DAX-BACKED TABLES: create-from-dax, update-dax, get-dax. APPEND: csvData in CSV format (comma-separated, newline-separated rows). Use excel_table_column for filtering/sorting/columns.")]
 public interface ITableCommands
 {
     /// <summary>
     /// Lists all Excel Tables in the workbook
     /// </summary>
+    [ServiceAction("list")]
     TableListResult List(IExcelBatch batch);
 
     /// <summary>
     /// Creates a new Excel Table from a range
     /// </summary>
+    /// <param name="sheetName">Name of the worksheet to create the table on</param>
+    /// <param name="tableName">Name for the new table (must be unique in workbook)</param>
+    /// <param name="range">Cell range address for the table (e.g., 'A1:D10')</param>
+    /// <param name="hasHeaders">True if first row contains column headers (default: true)</param>
+    /// <param name="tableStyle">Table style name (e.g., 'TableStyleMedium2', 'TableStyleLight1'). Optional.</param>
     /// <exception cref="InvalidOperationException">Sheet not found, table name already exists, or range invalid</exception>
+    [ServiceAction("create")]
     void Create(IExcelBatch batch, string sheetName, string tableName, string range, bool hasHeaders = true, string? tableStyle = null);
 
     /// <summary>
     /// Renames an Excel Table
     /// </summary>
+    /// <param name="tableName">Current name of the table</param>
+    /// <param name="newName">New name for the table (must be unique in workbook)</param>
     /// <exception cref="InvalidOperationException">Table not found or new name already exists</exception>
+    [ServiceAction("rename")]
     void Rename(IExcelBatch batch, string tableName, string newName);
 
     /// <summary>
     /// Deletes an Excel Table (converts back to range)
     /// </summary>
+    /// <param name="tableName">Name of the table to delete</param>
     /// <exception cref="InvalidOperationException">Table not found</exception>
+    [ServiceAction("delete")]
     void Delete(IExcelBatch batch, string tableName);
 
     /// <summary>
     /// Gets detailed information about an Excel Table
     /// </summary>
+    /// <param name="tableName">Name of the table</param>
+    [ServiceAction("read")]
     TableInfoResult Read(IExcelBatch batch, string tableName);
 
     /// <summary>
     /// Resizes an Excel Table to a new range
     /// </summary>
+    /// <param name="tableName">Name of the table to resize</param>
+    /// <param name="newRange">New range address (e.g., 'A1:F20')</param>
     /// <exception cref="InvalidOperationException">Table not found or new range invalid</exception>
+    [ServiceAction("resize")]
     void Resize(IExcelBatch batch, string tableName, string newRange);
 
     /// <summary>
     /// Toggles the totals row for an Excel Table
     /// </summary>
+    /// <param name="tableName">Name of the table</param>
+    /// <param name="showTotals">True to show totals row, false to hide</param>
     /// <exception cref="InvalidOperationException">Table not found</exception>
+    [ServiceAction("toggle-totals")]
     void ToggleTotals(IExcelBatch batch, string tableName, bool showTotals);
 
     /// <summary>
     /// Sets the totals function for a specific column in an Excel Table
     /// </summary>
+    /// <param name="tableName">Name of the table</param>
+    /// <param name="columnName">Name of the column to set total function on</param>
+    /// <param name="totalFunction">Totals function name: Sum, Count, Average, Min, Max, CountNums, StdDev, Var, None</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
+    [ServiceAction("set-column-total")]
     void SetColumnTotal(IExcelBatch batch, string tableName, string columnName, string totalFunction);
 
     /// <summary>
-    /// Appends rows to an Excel Table (table auto-expands)
+    /// Appends rows to an Excel Table (table auto-expands).
+    /// Provide EITHER rows (inline JSON 2D array) OR rowsFile (path to .json or .csv file), not both.
     /// </summary>
+    /// <param name="tableName">Name of the table to append to (table auto-expands)</param>
+    /// <param name="rows">2D array of row data to append - column order must match table columns. Optional if rowsFile is provided.</param>
+    /// <param name="rowsFile">Path to a JSON or CSV file containing the rows to append. JSON: 2D array. CSV: rows/columns. Alternative to inline rows parameter.</param>
     /// <exception cref="InvalidOperationException">Table not found or append failed</exception>
-    void Append(IExcelBatch batch, string tableName, List<List<object?>> rows);
+    [ServiceAction("append")]
+    void Append(IExcelBatch batch, string tableName, List<List<object?>>? rows = null, string? rowsFile = null);
 
     /// <summary>
     /// Retrieves data rows from a table, optionally limited to currently visible rows.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="tableName">Table name</param>
-    /// <param name="visibleOnly">If true, only rows not hidden by filters are returned</param>
+    /// <param name="tableName">Name of the table to read data from</param>
+    /// <param name="visibleOnly">True to return only visible (non-filtered) rows; false for all rows (default: false)</param>
     /// <exception cref="InvalidOperationException">Table not found</exception>
+    [ServiceAction("get-data")]
     TableDataResult GetData(IExcelBatch batch, string tableName, bool visibleOnly = false);
 
     /// <summary>
     /// Changes the style of an Excel Table
     /// </summary>
+    /// <param name="tableName">Name of the table to style</param>
+    /// <param name="tableStyle">Table style name (e.g., 'TableStyleMedium2', 'TableStyleLight1', 'TableStyleDark1')</param>
     /// <exception cref="InvalidOperationException">Table not found or invalid style</exception>
+    [ServiceAction("set-style")]
     void SetStyle(IExcelBatch batch, string tableName, string tableStyle);
 
     /// <summary>
     /// Adds an Excel Table to the Power Pivot Data Model
     /// </summary>
+    /// <param name="tableName">Name of the table to add</param>
     /// <exception cref="InvalidOperationException">Table not found or model not available</exception>
+    [ServiceAction("add-to-data-model")]
     void AddToDataModel(IExcelBatch batch, string tableName);
-
-    // === FILTER OPERATIONS ===
-
-    /// <summary>
-    /// Applies a filter to a table column with single criteria
-    /// </summary>
-    /// <exception cref="InvalidOperationException">Table or column not found</exception>
-    void ApplyFilter(IExcelBatch batch, string tableName, string columnName, string criteria);
-
-    /// <summary>
-    /// Applies a filter to a table column with multiple values
-    /// </summary>
-    /// <exception cref="InvalidOperationException">Table or column not found</exception>
-    void ApplyFilter(IExcelBatch batch, string tableName, string columnName, List<string> values);
-
-    /// <summary>
-    /// Clears all filters from a table
-    /// </summary>
-    /// <exception cref="InvalidOperationException">Table not found</exception>
-    void ClearFilters(IExcelBatch batch, string tableName);
-
-    /// <summary>
-    /// Gets current filter state for all columns in a table
-    /// </summary>
-    TableFilterResult GetFilters(IExcelBatch batch, string tableName);
-
-    // === COLUMN OPERATIONS ===
-
-    /// <summary>
-    /// Adds a new column to a table
-    /// </summary>
-    /// <exception cref="InvalidOperationException">Table not found or position invalid</exception>
-    void AddColumn(IExcelBatch batch, string tableName, string columnName, int? position = null);
-
-    /// <summary>
-    /// Removes a column from a table
-    /// </summary>
-    /// <exception cref="InvalidOperationException">Table or column not found</exception>
-    void RemoveColumn(IExcelBatch batch, string tableName, string columnName);
-
-    /// <summary>
-    /// Renames a column in a table
-    /// </summary>
-    /// <exception cref="InvalidOperationException">Table or column not found</exception>
-    void RenameColumn(IExcelBatch batch, string tableName, string oldName, string newName);
-
-    // === STRUCTURED REFERENCE OPERATIONS ===
-
-    /// <summary>
-    /// Gets structured reference information for a table region or column
-    /// </summary>
-    TableStructuredReferenceResult GetStructuredReference(IExcelBatch batch, string tableName, TableRegion region, string? columnName = null);
-
-    // === SORT OPERATIONS ===
-
-    /// <summary>
-    /// Sorts a table by a single column
-    /// </summary>
-    /// <exception cref="InvalidOperationException">Table or column not found</exception>
-    void Sort(IExcelBatch batch, string tableName, string columnName, bool ascending = true);
-
-    /// <summary>
-    /// Sorts a table by multiple columns
-    /// </summary>
-    /// <exception cref="InvalidOperationException">Table or column not found</exception>
-    void Sort(IExcelBatch batch, string tableName, List<TableSortColumn> sortColumns);
-
-    // === NUMBER FORMATTING ===
-
-    /// <summary>
-    /// Gets number formats for a table column
-    /// Delegates to RangeCommands.GetNumberFormatsAsync() on column range
-    /// </summary>
-    /// <param name="batch">Excel batch session</param>
-    /// <param name="tableName">Table name</param>
-    /// <param name="columnName">Column name</param>
-    RangeNumberFormatResult GetColumnNumberFormat(IExcelBatch batch, string tableName, string columnName);
-
-    /// <summary>
-    /// Sets uniform number format for entire table column
-    /// Delegates to RangeCommands.SetNumberFormatAsync() on column data range (excludes header)
-    /// </summary>
-    /// <param name="batch">Excel batch session</param>
-    /// <param name="tableName">Table name</param>
-    /// <param name="columnName">Column name</param>
-    /// <param name="formatCode">Excel format code (e.g., "$#,##0.00", "0.00%")</param>
-    /// <exception cref="InvalidOperationException">Table or column not found, or format code invalid</exception>
-    void SetColumnNumberFormat(IExcelBatch batch, string tableName, string columnName, string formatCode);
 
     // === DAX-BACKED TABLE OPERATIONS ===
 
@@ -177,12 +146,13 @@ public interface ITableCommands
     /// Uses Model.CreateModelWorkbookConnection + xlCmdDAX + ListObjects.Add pattern.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="sheetName">Target worksheet name</param>
-    /// <param name="tableName">Name for the new table</param>
-    /// <param name="daxQuery">DAX EVALUATE query (e.g., "EVALUATE 'TableName'" or "EVALUATE SUMMARIZE(...)")</param>
-    /// <param name="targetCell">Target cell address for table placement (default: "A1")</param>
+    /// <param name="sheetName">Target worksheet name for the new table</param>
+    /// <param name="tableName">Name for the new DAX-backed table</param>
+    /// <param name="daxQuery">DAX EVALUATE query (e.g., 'EVALUATE Sales' or 'EVALUATE SUMMARIZE(...)')</param>
+    /// <param name="targetCell">Target cell address for table placement (default: 'A1')</param>
     /// <exception cref="ArgumentException">Thrown when required parameters are missing</exception>
     /// <exception cref="InvalidOperationException">Sheet not found, table name exists, or no Data Model</exception>
+    [ServiceAction("create-from-dax")]
     void CreateFromDax(IExcelBatch batch, string sheetName, string tableName, string daxQuery, string? targetCell = null);
 
     /// <summary>
@@ -191,9 +161,10 @@ public interface ITableCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="tableName">Name of the DAX-backed table to update</param>
-    /// <param name="daxQuery">New DAX EVALUATE query</param>
+    /// <param name="daxQuery">New DAX EVALUATE query (e.g., 'EVALUATE SUMMARIZE(...)')</param>
     /// <exception cref="ArgumentException">Thrown when required parameters are missing</exception>
     /// <exception cref="InvalidOperationException">Table not found or table is not DAX-backed</exception>
+    [ServiceAction("update-dax")]
     void UpdateDax(IExcelBatch batch, string tableName, string daxQuery);
 
     /// <summary>
@@ -205,71 +176,6 @@ public interface ITableCommands
     /// <returns>Result containing DAX query info (if any)</returns>
     /// <exception cref="ArgumentException">Thrown when tableName is missing</exception>
     /// <exception cref="InvalidOperationException">Table not found</exception>
+    [ServiceAction("get-dax")]
     TableDaxInfoResult GetDax(IExcelBatch batch, string tableName);
-
-    // === SLICER OPERATIONS ===
-
-    /// <summary>
-    /// Creates a slicer for an Excel Table column.
-    /// Slicers provide visual filtering for Table data.
-    /// </summary>
-    /// <param name="batch">Excel batch session</param>
-    /// <param name="tableName">Name of the Excel Table to create slicer for</param>
-    /// <param name="columnName">Name of the column to use for the slicer</param>
-    /// <param name="slicerName">Name for the new slicer</param>
-    /// <param name="destinationSheet">Worksheet where slicer will be placed</param>
-    /// <param name="position">Top-left cell position for the slicer (e.g., "H2")</param>
-    /// <returns>Created slicer details with available items</returns>
-    /// <remarks>
-    /// TABLE SLICER BEHAVIOR:
-    /// - Slicers are visual filter controls that filter the connected Table
-    /// - One SlicerCache is created per column, which can have multiple visual Slicers
-    /// - Unlike PivotTable slicers, Table slicers can only filter one Table
-    /// </remarks>
-    SlicerResult CreateTableSlicer(IExcelBatch batch, string tableName,
-        string columnName, string slicerName, string destinationSheet, string position);
-
-    /// <summary>
-    /// Lists all slicers in the workbook connected to Tables, optionally filtered by Table name.
-    /// </summary>
-    /// <param name="batch">Excel batch session</param>
-    /// <param name="tableName">Optional Table name to filter slicers (null = all Table slicers)</param>
-    /// <returns>List of slicers with names, columns, positions, and selections</returns>
-    /// <remarks>
-    /// Returns only Table slicers (not PivotTable slicers).
-    /// When tableName is specified, only slicers connected to that Table are returned.
-    /// </remarks>
-    SlicerListResult ListTableSlicers(IExcelBatch batch, string? tableName = null);
-
-    /// <summary>
-    /// Sets the selection for a Table slicer, filtering the connected Table.
-    /// </summary>
-    /// <param name="batch">Excel batch session</param>
-    /// <param name="slicerName">Name of the slicer to modify</param>
-    /// <param name="selectedItems">Items to select (show in Table)</param>
-    /// <param name="clearFirst">If true, clears existing selection before setting new items (default: true)</param>
-    /// <returns>Updated slicer state with current selection</returns>
-    /// <remarks>
-    /// SELECTION BEHAVIOR:
-    /// - Only selected items are visible in connected Table
-    /// - Empty selectedItems list shows all items (clears filter)
-    /// - Invalid item names are ignored with a warning
-    /// </remarks>
-    SlicerResult SetTableSlicerSelection(IExcelBatch batch, string slicerName,
-        List<string> selectedItems, bool clearFirst = true);
-
-    /// <summary>
-    /// Deletes a Table slicer from the workbook.
-    /// </summary>
-    /// <param name="batch">Excel batch session</param>
-    /// <param name="slicerName">Name of the slicer to delete</param>
-    /// <returns>Operation result indicating success or failure</returns>
-    /// <remarks>
-    /// DELETION BEHAVIOR:
-    /// - Deletes the visual Slicer object
-    /// - If this is the last Slicer using the SlicerCache, the cache is also deleted
-    /// - Connected Table filter is cleared when slicer is deleted
-    /// </remarks>
-    OperationResult DeleteTableSlicer(IExcelBatch batch, string slicerName);
 }
-

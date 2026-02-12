@@ -225,3 +225,7 @@ public class ChartCommandsOlapTests
         Assert.Equal(expectedHeight, chartInfo.Height);
     }
 }
+
+
+
+

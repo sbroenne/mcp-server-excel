@@ -117,7 +117,7 @@ public partial class PowerQueryCommands : IPowerQueryCommands
                                 return sheetName;
                             }
                         }
-                        catch
+                        catch (System.Runtime.InteropServices.COMException)
                         {
                             continue;
                         }
@@ -174,7 +174,7 @@ public partial class PowerQueryCommands : IPowerQueryCommands
                 }
             }
         }
-        catch
+        catch (System.Runtime.InteropServices.COMException)
         {
             // Data Model might not be available or accessible
         }
@@ -187,3 +187,5 @@ public partial class PowerQueryCommands : IPowerQueryCommands
         return false;
     }
 }
+
+

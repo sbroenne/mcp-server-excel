@@ -62,3 +62,7 @@ public partial class FileCommandsTests
         Assert.Contains("Invalid file extension", info.Message, StringComparison.OrdinalIgnoreCase);
     }
 }
+
+
+
+

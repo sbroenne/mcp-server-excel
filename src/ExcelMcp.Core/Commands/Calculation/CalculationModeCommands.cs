@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Attributes;
 using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Calculation;
@@ -65,9 +66,12 @@ public class CalculationModeResult : OperationResult
 }
 
 /// <summary>
-/// Interface for calculation mode commands (get-mode, set-mode, calculate).
-/// Provides explicit control over Excel's automatic/manual calculation for performance optimization.
+/// Control Excel recalculation (automatic vs manual). Set manual mode before bulk writes
+/// for faster performance, then recalculate once at the end.
 /// </summary>
+[ServiceCategory("calculation", "Calculation")]
+[McpTool("excel_calculation_mode", Title = "Excel Calculation Mode Control", Destructive = false, Category = "settings",
+    Description = "Set or get Excel calculation mode and explicitly recalculate formulas. MODES: automatic (recalculates on every change, default), manual (only when explicitly requested), semi-automatic (auto except data tables). WORKFLOW for batch operations: 1. set-mode(manual) 2. Perform data operations 3. calculate(workbook) 4. set-mode(automatic). SCOPES for calculate: workbook (all formulas), sheet (requires sheetName), range (requires sheetName + rangeAddress).")]
 public interface ICalculationModeCommands
 {
     /// <summary>
@@ -75,6 +79,7 @@ public interface ICalculationModeCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <returns>Current calculation mode (automatic/manual/semi-automatic)</returns>
+    [ServiceAction("get-mode")]
     CalculationModeResult GetMode(IExcelBatch batch);
 
     /// <summary>
@@ -83,7 +88,8 @@ public interface ICalculationModeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="mode">Target calculation mode</param>
     /// <returns>Operation result with previous and new mode</returns>
-    OperationResult SetMode(IExcelBatch batch, CalculationMode mode);
+    [ServiceAction("set-mode")]
+    OperationResult SetMode(IExcelBatch batch, [FromString("mode")] CalculationMode mode);
 
     /// <summary>
     /// Triggers calculation for the specified scope.
@@ -93,7 +99,8 @@ public interface ICalculationModeCommands
     /// <param name="sheetName">Sheet name (required for Sheet/Range scope)</param>
     /// <param name="rangeAddress">Range address (required for Range scope)</param>
     /// <returns>Operation result confirming calculation completed</returns>
-    OperationResult Calculate(IExcelBatch batch, CalculationScope scope, string? sheetName = null, string? rangeAddress = null);
+    [ServiceAction("calculate")]
+    OperationResult Calculate(IExcelBatch batch, [FromString("scope")] CalculationScope scope, string? sheetName = null, string? rangeAddress = null);
 }
 
 /// <summary>
@@ -130,7 +137,7 @@ public class CalculationModeCommands : ICalculationModeCommands
                     _ => "unknown"
                 };
             }
-            catch
+            catch (System.Runtime.InteropServices.COMException)
             {
                 calcState = "done"; // Fallback to done if not available
             }
@@ -236,7 +243,7 @@ public class CalculationModeCommands : ICalculationModeCommands
                         }
                         finally
                         {
-                            if (worksheet != null) ComUtilities.Release(ref worksheet);
+                            ComUtilities.Release(ref worksheet);
                         }
 
                     case CalculationScope.Range:
@@ -255,8 +262,8 @@ public class CalculationModeCommands : ICalculationModeCommands
                         }
                         finally
                         {
-                            if (rng != null) ComUtilities.Release(ref rng);
-                            if (ws != null) ComUtilities.Release(ref ws);
+                            ComUtilities.Release(ref rng);
+                            ComUtilities.Release(ref ws);
                         }
 
                     default:
@@ -278,3 +285,5 @@ public class CalculationModeCommands : ICalculationModeCommands
         });
     }
 }
+
+

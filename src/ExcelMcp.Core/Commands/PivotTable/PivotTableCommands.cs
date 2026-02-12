@@ -6,7 +6,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// <summary>
 /// PivotTable management commands - main partial class with shared state and helper methods
 /// </summary>
-public partial class PivotTableCommands : IPivotTableCommands
+public partial class PivotTableCommands : IPivotTableCommands, IPivotTableFieldCommands, IPivotTableCalcCommands
 {
     #region Helper Methods
 
@@ -198,3 +198,5 @@ public partial class PivotTableCommands : IPivotTableCommands
 
     #endregion
 }
+
+

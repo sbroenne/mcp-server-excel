@@ -141,7 +141,7 @@ public interface IPivotTableFieldStrategy
     /// Sets the row layout form for the PivotTable.
     /// </summary>
     /// <param name="pivot">The PivotTable object</param>
-    /// <param name="layoutType">Layout form: 0=Compact, 1=Tabular, 2=Outline</param>
+    /// <param name="rowLayout">Layout form: 0=Compact, 1=Tabular, 2=Outline</param>
     /// <param name="workbookPath">Path to workbook for error reporting</param>
     /// <param name="logger">Optional logger for diagnostics</param>
     /// <returns>Result indicating success or failure</returns>
@@ -155,7 +155,7 @@ public interface IPivotTableFieldStrategy
     /// - Regular PivotTables: Full support for all three forms
     /// - OLAP PivotTables: Full support for all three forms
     /// </remarks>
-    OperationResult SetLayout(dynamic pivot, int layoutType, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
+    OperationResult SetLayout(dynamic pivot, int rowLayout, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
 
     /// <summary>
     /// Shows or hides subtotals for a specific row field.
@@ -198,3 +198,5 @@ public interface IPivotTableFieldStrategy
     /// </remarks>
     OperationResult SetGrandTotals(dynamic pivot, bool showRowGrandTotals, bool showColumnGrandTotals, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
 }
+
+

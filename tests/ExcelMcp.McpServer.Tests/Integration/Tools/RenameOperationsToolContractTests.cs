@@ -261,9 +261,9 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         var json = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
         {
             ["action"] = "RenameTable",
-            ["sid"] = _sessionId,
-            ["tn"] = "NonExistentTable",
-            ["nn"] = "NewTableName"
+            ["sessionId"] = _sessionId,
+            ["tableName"] = "NonExistentTable",
+            ["newName"] = "NewTableName"
         });
         _output.WriteLine($"Response: {json}");
 
@@ -285,16 +285,16 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
     public async Task DataModelRenameTable_ExcelLimitation_ReturnsJsonWithClearError()
     {
         // Arrange - create a Power Query and load it to the Data Model
-        await CreatePowerQuery("TestData", "let x = 1 in x");
+        await CreatePowerQuery("TestData", "let Source = #table({\"Col1\", \"Col2\"}, {{\"A\", 1}, {\"B\", 2}}) in Source");
         await LoadQueryToDataModel("TestData");
 
         // Act - attempt to rename the table in Data Model
         var json = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
         {
             ["action"] = "RenameTable",
-            ["sid"] = _sessionId,
-            ["tn"] = "TestData",
-            ["nn"] = "NewTableName"
+            ["sessionId"] = _sessionId,
+            ["tableName"] = "TestData",
+            ["newName"] = "NewTableName"
         });
         _output.WriteLine($"Response: {json}");
 
@@ -324,16 +324,16 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
     public async Task DataModelRenameTable_EmptyNewName_ReturnsJsonWithSuccessFalse()
     {
         // Arrange - create table in Data Model
-        await CreatePowerQuery("DataTable", "let x = 1 in x");
+        await CreatePowerQuery("DataTable", "let Source = #table({\"Col1\", \"Col2\"}, {{\"A\", 1}, {\"B\", 2}}) in Source");
         await LoadQueryToDataModel("DataTable");
 
         // Act - try to rename with empty new name
         var json = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
         {
             ["action"] = "RenameTable",
-            ["sid"] = _sessionId,
-            ["tn"] = "DataTable",
-            ["nn"] = "   " // Empty after trim
+            ["sessionId"] = _sessionId,
+            ["tableName"] = "DataTable",
+            ["newName"] = "   " // Empty after trim
         });
         _output.WriteLine($"Response: {json}");
 
@@ -423,7 +423,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
                 await CallToolAsync("excel_file", new Dictionary<string, object?>
                 {
                     ["action"] = "Close",
-                    ["sid"] = _sessionId,
+                    ["sessionId"] = _sessionId,
                     ["save"] = false
                 });
                 _output.WriteLine("✓ Session closed during cleanup");
@@ -498,3 +498,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
 
     #endregion
 }
+
+
+
+

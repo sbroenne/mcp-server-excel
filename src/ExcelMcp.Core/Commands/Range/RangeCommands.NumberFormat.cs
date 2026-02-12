@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
@@ -155,8 +156,11 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    public OperationResult SetNumberFormats(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>> formats)
+    public OperationResult SetNumberFormats(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>>? formats = null, string? formatsFile = null)
     {
+        // Resolve formats from inline parameter or file
+        var resolvedFormats = ParameterTransforms.ResolveFormulasOrFile(formats, formatsFile, "formats");
+
         var result = new OperationResult
         {
             FilePath = batch.WorkbookPath,
@@ -178,16 +182,16 @@ public partial class RangeCommands
                 int columnCount = Convert.ToInt32(range.Columns.Count);
 
                 // Validate dimensions match
-                if (formats.Count != rowCount)
+                if (resolvedFormats.Count != rowCount)
                 {
-                    throw new ArgumentException($"Format array row count ({formats.Count}) doesn't match range row count ({rowCount})", nameof(formats));
+                    throw new ArgumentException($"Format array row count ({resolvedFormats.Count}) doesn't match range row count ({rowCount})", nameof(formats));
                 }
 
-                for (int i = 0; i < formats.Count; i++)
+                for (int i = 0; i < resolvedFormats.Count; i++)
                 {
-                    if (formats[i].Count != columnCount)
+                    if (resolvedFormats[i].Count != columnCount)
                     {
-                        throw new ArgumentException($"Format array row {i + 1} column count ({formats[i].Count}) doesn't match range column count ({columnCount})", nameof(formats));
+                        throw new ArgumentException($"Format array row {i + 1} column count ({resolvedFormats[i].Count}) doesn't match range column count ({columnCount})", nameof(formats));
                     }
                 }
 
@@ -205,7 +209,7 @@ public partial class RangeCommands
                             try
                             {
                                 cell = range.Cells[row, col];
-                                cell.NumberFormat = translator.TranslateToLocale(formats[row - 1][col - 1]);
+                                cell.NumberFormat = translator.TranslateToLocale(resolvedFormats[row - 1][col - 1]);
                             }
                             finally
                             {
@@ -222,7 +226,7 @@ public partial class RangeCommands
                     {
                         for (int col = 0; col < columnCount; col++)
                         {
-                            formatArray[row, col] = translator.TranslateToLocale(formats[row][col]);
+                            formatArray[row, col] = translator.TranslateToLocale(resolvedFormats[row][col]);
                         }
                     }
 
@@ -240,4 +244,6 @@ public partial class RangeCommands
         });
     }
 }
+
+
 

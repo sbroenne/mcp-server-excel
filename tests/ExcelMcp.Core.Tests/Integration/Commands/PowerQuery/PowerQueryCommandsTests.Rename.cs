@@ -294,3 +294,7 @@ public class PowerQueryCommandsRenameTests : IClassFixture<PowerQueryTestsFixtur
 
     #endregion
 }
+
+
+
+

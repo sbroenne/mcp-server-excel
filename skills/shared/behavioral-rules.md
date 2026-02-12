@@ -11,7 +11,7 @@ These rules are validated by automated LLM tests and MUST be followed:
 - Never show Excel to the user - keep it hidden
 - Format Excel files professionally (proper column widths, headers, number formats)
 - Always format data ranges as Excel Tables (not plain ranges)
-- Report results after completion
+- **Always end with a text summary** - never end on just a tool call or command
 
 ## CRITICAL: No Clarification Questions
 
@@ -97,7 +97,7 @@ Always convert tabular data to Excel Tables (ListObjects):
 - Structured references: `=SUM(Sales[Amount])` instead of `=SUM(B2:B100)`
 - Auto-expand when rows are added
 - Built-in filtering, sorting, and banded rows
-- Required for `add-to-datamodel` action (Data Model/DAX)
+- Required for `add-to-data-model` action (Data Model/DAX)
 - Named reference for Power Query: `Excel.CurrentWorkbook(){[Name="SalesData"]}`
 
 **When NOT to use Tables:**
@@ -113,12 +113,23 @@ After completing operations, report:
 - File path (for new files)
 - Any relevant statistics (row counts, etc.)
 
+### CRITICAL: Always End With a Text Response
+
+**NEVER end your turn with only a tool call or command execution.** After all operations are complete, you MUST provide a text message summarizing what was accomplished.
+
+| Bad (Silent completion) | Good (Text summary) |
+|------------------------|--------------------|
+| *(tool call with no text)* | "Created PivotTable 'SalesPivot' with tabular layout on the Analysis sheet." |
+| *(just runs a command)* | "Set the PivotTable to compact layout (row fields in a single indented column)." |
+
+**Why**: Users and automation expect a text confirmation. A silent tool call or command with no follow-up text is an incomplete response.
+
 ### Session Lifecycle
 
 Always close sessions when done:
 
 ```
-1. excel_file(action: 'open', excelPath: '...')  → sessionId
+1. excel_file(action: 'open', path: '...')  → sessionId
 2. All operations use sessionId
 3. excel_file(action: 'close', sessionId: '...', save: true)  → saves and closes
 ```
@@ -199,7 +210,7 @@ DAX operations require tables in the Data Model:
 
 ```
 Step 1: Create or import data → Table exists
-Step 2: excel_table(action: 'add-to-datamodel') → Table in Data Model
+Step 2: excel_table(action: 'add-to-data-model') → Table in Data Model
 Step 3: excel_datamodel(action: 'create-measure') → NOW this works
 ```
 
@@ -237,7 +248,7 @@ Excel MCP errors include actionable context:
 {
   "success": false,
   "errorMessage": "Table 'Sales' not found in Data Model",
-  "suggestedNextActions": ["excel_table(action: 'add-to-datamodel', tableName: 'Sales')"]
+  "suggestedNextActions": ["excel_table(action: 'add-to-data-model', tableName: 'Sales')"]
 }
 ```
 
@@ -261,6 +272,6 @@ When operations fail:
 - Explain what went wrong
 - Suggest the corrective action
 
-**Good**: "Failed to add DAX measure: Table 'Sales' is not in the Data Model. Use `excel_table(action: 'add-to-datamodel')` first."
+**Good**: "Failed to add DAX measure: Table 'Sales' is not in the Data Model. Use `excel_table(action: 'add-to-data-model')` first."
 
 **Bad**: "An error occurred."

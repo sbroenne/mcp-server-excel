@@ -15,7 +15,9 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time.
 
-**Optional CLI Tool:** For advanced users who prefer command-line scripting, ExcelMcp includes a CLI interface for RPA workflows, CI/CD pipelines, and batch automation. CLI has 15 command categories with 214 operations matching the MCP Server (23 tools with 214 operations).
+**🔗 Unified Service Architecture** - The MCP Server forwards all requests to the shared ExcelMCP Service, enabling CLI and MCP to share sessions transparently.
+
+**📦 Unified Package - Includes CLI:** This package includes both the MCP Server (`mcp-excel`) and CLI (`excelcli`). Install once, get both tools! For advanced users who prefer command-line scripting, the CLI interface supports RPA workflows, CI/CD pipelines, and batch automation. CLI has 15 command categories with 214 operations matching the MCP Server (23 tools with 214 operations).
 
 **Requirements:** Windows OS + Excel 2016+
 
@@ -32,11 +34,12 @@ Unlike third-party libraries that manipulate `.xlsx` files (risking corruption),
 Requires .NET 10 Runtime or SDK
 
 ```powershell
-# Install MCP Server
+# Install unified package (includes MCP Server + CLI)
 dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
-# Configure your AI assistant
-# See examples/mcp-configs/ for ready-to-use configs
+# Both tools are now available:
+# - mcp-excel (MCP Server for AI assistants)
+# - excelcli (CLI for coding agents and scripting)
 ```
 
 **Supported AI Assistants:**
@@ -67,7 +70,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 - 🏷️ **Named Ranges** (1 tool, 6 ops) - Parameters and configuration
 - 📁 **Files** (1 tool, 6 ops) - Session management and workbook creation
 - 🧮 **Calculation Mode** (1 tool, 3 ops) - Get/set calculation mode and trigger recalculation
-- �️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
+- 🎚️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
 - 🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
 
 📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 214 operations

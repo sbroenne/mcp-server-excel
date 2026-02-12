@@ -28,7 +28,7 @@ public static class RangeHelpers
                 dynamic name = names.Item(rangeAddress);
                 return name.RefersToRange;
             }
-            catch
+            catch (System.Runtime.InteropServices.COMException)
             {
                 specificError = $"Named range '{rangeAddress}' not found.";
                 return null;
@@ -125,7 +125,7 @@ public static class RangeHelpers
 public partial class RangeCommands
 {
     /// <summary>
-    /// Helper for clear operations
+    /// Helper for clear operations (resolve range, apply action, release)
     /// </summary>
     private static OperationResult ClearRange(
         IExcelBatch batch,
@@ -157,4 +157,88 @@ public partial class RangeCommands
             }
         });
     }
+
+    /// <summary>
+    /// Helper for copy operations (resolve source + target ranges, apply copy action, release both)
+    /// </summary>
+    private static OperationResult CopyRange(
+        IExcelBatch batch,
+        string sourceSheet,
+        string sourceRange,
+        string targetSheet,
+        string targetRange,
+        string action,
+        Action<dynamic, dynamic> copyAction)
+    {
+        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = action };
+
+        return batch.Execute((ctx, ct) =>
+        {
+            dynamic? srcRange = null;
+            dynamic? tgtRange = null;
+            try
+            {
+                srcRange = RangeHelpers.ResolveRange(ctx.Book, sourceSheet, sourceRange, out string? srcError);
+                if (srcRange == null)
+                {
+                    throw new InvalidOperationException(srcError ?? RangeHelpers.GetResolveError(sourceSheet, sourceRange));
+                }
+
+                tgtRange = RangeHelpers.ResolveRange(ctx.Book, targetSheet, targetRange, out string? tgtError);
+                if (tgtRange == null)
+                {
+                    throw new InvalidOperationException(tgtError ?? RangeHelpers.GetResolveError(targetSheet, targetRange));
+                }
+
+                copyAction(srcRange, tgtRange);
+                result.Success = true;
+                return result;
+            }
+            finally
+            {
+                ComUtilities.Release(ref srcRange);
+                ComUtilities.Release(ref tgtRange);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Helper for insert/delete row/column operations (resolve range, get EntireRow/EntireColumn, apply action, release)
+    /// </summary>
+    private static OperationResult ModifyRowsOrColumns(
+        IExcelBatch batch,
+        string sheetName,
+        string rangeAddress,
+        string action,
+        Func<dynamic, dynamic> accessor,
+        Action<dynamic> operation)
+    {
+        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = action };
+
+        return batch.Execute((ctx, ct) =>
+        {
+            dynamic? range = null;
+            dynamic? target = null;
+            try
+            {
+                range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
+                if (range == null)
+                {
+                    throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
+                }
+
+                target = accessor(range);
+                operation(target);
+                result.Success = true;
+                return result;
+            }
+            finally
+            {
+                ComUtilities.Release(ref target);
+                ComUtilities.Release(ref range);
+            }
+        });
+    }
 }
+
+

@@ -15,17 +15,10 @@ pytestmark = [pytest.mark.aitest, pytest.mark.cli]
 async def test_cli_financial_report_automation(aitest_run, excel_cli_server, excel_cli_skill):
     agent = Agent(
         name="cli-financial-report",
-        provider=Provider(model="azure/gpt-5-mini", rpm=10, tpm=10000),
+        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         cli_servers=[excel_cli_server],
         skill=excel_cli_skill,
-        system_prompt=(
-            "You are an automation engineer using excelcli. Write efficient, idempotent CLI scripts.\n"
-            "- Always use -q flag for clean JSON output\n"
-            "- Use --save flag to persist changes\n"
-            "- Keep sessions open while working on same file\n"
-            "- Validate data after each operation\n"
-            "- Provide clear status updates"
-        ),
+        max_turns=25,
     )
 
     messages = None

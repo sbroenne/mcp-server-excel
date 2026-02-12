@@ -53,7 +53,7 @@ public static class CoreTestHelper
             {
                 // Use SessionManager to create file and immediately close the session
                 using var manager = new SessionManager();
-                var sessionId = manager.CreateSessionForNewFile(filePath, showExcel: false);
+                var sessionId = manager.CreateSessionForNewFile(filePath, show: false);
                 manager.CloseSession(sessionId, save: true);
             }
             catch (Exception ex)
@@ -74,3 +74,7 @@ public static class CoreTestHelper
         return filePath;
     }
 }
+
+
+
+

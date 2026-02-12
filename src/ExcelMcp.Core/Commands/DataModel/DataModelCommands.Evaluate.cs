@@ -152,7 +152,7 @@ public partial class DataModelCommands
                             recordset.Close();
                         }
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
                         // Ignore errors closing recordset
                     }
@@ -197,3 +197,5 @@ public partial class DataModelCommands
         };
     }
 }
+
+

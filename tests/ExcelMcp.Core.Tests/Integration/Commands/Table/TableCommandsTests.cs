@@ -284,7 +284,7 @@ public partial class TableCommandsTests : IClassFixture<TableTestsFixture>
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Apply filter so only North region remains visible
-        _tableCommands.ApplyFilter(batch, "SalesTable", "Region", ["North"]);
+        _tableCommands.ApplyFilterValues(batch, "SalesTable", "Region", ["North"]);
 
         var result = _tableCommands.GetData(batch, "SalesTable", visibleOnly: true);
 
@@ -324,7 +324,7 @@ public partial class TableCommandsTests : IClassFixture<TableTestsFixture>
         var testFile = _fixture.CreateModificationTestFile();
 
         using var batch = ExcelSession.BeginBatch(testFile);
-        _tableCommands.ApplyFilter(batch, "SalesTable", "Region", ["North"]);
+        _tableCommands.ApplyFilterValues(batch, "SalesTable", "Region", ["North"]);
         // ApplyFilter throws on error, so reaching here means success
     }
 
@@ -340,7 +340,7 @@ public partial class TableCommandsTests : IClassFixture<TableTestsFixture>
         using var batch = ExcelSession.BeginBatch(testFile);
 
         // Apply filter first
-        _tableCommands.ApplyFilter(batch, "SalesTable", "Region", ["North"]);
+        _tableCommands.ApplyFilterValues(batch, "SalesTable", "Region", ["North"]);
 
         // Clear filters
         _tableCommands.ClearFilters(batch, "SalesTable");
@@ -466,3 +466,7 @@ public partial class TableCommandsTests : IClassFixture<TableTestsFixture>
 
     #endregion
 }
+
+
+
+

@@ -53,7 +53,7 @@ public class RegularChartStrategy : IChartStrategy
         }
         finally
         {
-            if (topLeftCell != null) ComUtilities.Release(ref topLeftCell!);
+            ComUtilities.Release(ref topLeftCell!);
         }
 
         try
@@ -67,7 +67,7 @@ public class RegularChartStrategy : IChartStrategy
         }
         finally
         {
-            if (bottomRightCell != null) ComUtilities.Release(ref bottomRightCell!);
+            ComUtilities.Release(ref bottomRightCell!);
         }
 
         try
@@ -88,7 +88,7 @@ public class RegularChartStrategy : IChartStrategy
         }
         finally
         {
-            if (seriesCollection != null) ComUtilities.Release(ref seriesCollection!);
+            ComUtilities.Release(ref seriesCollection!);
         }
 
         return info;
@@ -124,7 +124,7 @@ public class RegularChartStrategy : IChartStrategy
         }
         finally
         {
-            if (topLeftCell != null) ComUtilities.Release(ref topLeftCell!);
+            ComUtilities.Release(ref topLeftCell!);
         }
 
         try
@@ -138,7 +138,7 @@ public class RegularChartStrategy : IChartStrategy
         }
         finally
         {
-            if (bottomRightCell != null) ComUtilities.Release(ref bottomRightCell!);
+            ComUtilities.Release(ref bottomRightCell!);
         }
 
         try
@@ -216,7 +216,7 @@ public class RegularChartStrategy : IChartStrategy
         }
         finally
         {
-            if (seriesCollection != null) ComUtilities.Release(ref seriesCollection!);
+            ComUtilities.Release(ref seriesCollection!);
         }
 
         return info;
@@ -307,3 +307,5 @@ public class RegularChartStrategy : IChartStrategy
         }
     }
 }
+
+

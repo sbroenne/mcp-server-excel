@@ -57,7 +57,7 @@ public partial class PivotTableCommands
                                 {
                                     range = pivot.TableRange2.Address;
                                 }
-                                catch
+                                catch (System.Runtime.InteropServices.COMException)
                                 {
                                     // TableRange2 might fail for disconnected PivotTables
                                     range = "(unavailable)";
@@ -82,7 +82,7 @@ public partial class PivotTableCommands
                                         }
                                     }
                                 }
-                                catch
+                                catch (System.Runtime.InteropServices.COMException)
                                 {
                                     // SourceData might fail for Data Model or external sources
                                     sourceData = "(external or Data Model)";
@@ -223,7 +223,7 @@ public partial class PivotTableCommands
                 info.ValueFieldCount = pivot.DataFields.Count;
                 info.FilterFieldCount = pivot.PageFields.Count;
             }
-            catch
+            catch (System.Runtime.InteropServices.COMException)
             {
                 // Field counts default to 0 if unavailable
             }
@@ -233,7 +233,7 @@ public partial class PivotTableCommands
             {
                 info.LastRefresh = GetRefreshDateSafe(pivotCache.RefreshDate);
             }
-            catch
+            catch (System.Runtime.InteropServices.COMException)
             {
                 info.LastRefresh = null;
             }
@@ -511,5 +511,7 @@ public partial class PivotTableCommands
         return null;
     }
 }
+
+
 
 

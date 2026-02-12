@@ -1,10 +1,12 @@
 # ExcelMcp.CLI - Command-Line Interface for Excel Automation
 
-[![NuGet](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.CLI.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
-[![Downloads](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.CLI.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
+[![NuGet](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
+[![Downloads](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Command-line interface for Excel automation — preferred by coding agents.**
+
+> **📦 Bundled with MCP Server** - The CLI (`excelcli`) is included in the unified `Sbroenne.ExcelMcp.McpServer` package. Install once, get both tools!
 
 The CLI provides 15 command categories with 214 operations matching the MCP Server. Uses **64% fewer tokens** than MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 23 tool schemas into context.
 
@@ -24,8 +26,8 @@ Also perfect for RPA workflows, CI/CD pipelines, batch processing, and automated
 ### Installation (.NET Global Tool - Recommended)
 
 ```powershell
-# Install globally (requires .NET 10 SDK)
-dotnet tool install --global Sbroenne.ExcelMcp.CLI
+# Install unified package (includes both MCP Server and CLI)
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 # Verify installation
 excelcli --version
@@ -43,13 +45,13 @@ excelcli --help
 excelcli version --check
 
 # Update if available
-dotnet tool update --global Sbroenne.ExcelMcp.CLI
+dotnet tool update --global Sbroenne.ExcelMcp.McpServer
 ```
 
 ### Uninstall
 
 ```powershell
-dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
+dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
 ```
 
 ## 🤫 Quiet Mode (Agent-Friendly)
@@ -157,22 +159,24 @@ excelcli session close 550e8400-e29b-41d4-a716-446655440000
 - **Flexibility** - Save and close in one command, or close without saving
 - **Clean resource management** - Automatic Excel cleanup when session closes
 
-### Background Daemon & System Tray
+### Background Service & System Tray
 
-When you run your first CLI command, a **background daemon** starts automatically. The daemon:
+When you run your first CLI command, the **ExcelMCP Service** starts automatically in the background. The service:
 
 - **Manages Excel COM** - Keeps Excel instance alive between commands (no restart overhead)
-- **Shows system tray icon** - Look for the Excel CLI icon in your Windows taskbar notification area
+- **Shows system tray icon** - Look for the Excel icon in your Windows taskbar notification area
 - **Tracks sessions** - Right-click the tray icon to see active sessions and close them
+- **Shows session origin** - Sessions are labeled [CLI] or [MCP] showing which client created them
 - **Auto-updates** - Notifies you when a new version is available and allows one-click updates
 
 **Tray Icon Features:**
 - 📋 **View sessions** - Double-click to see active session count
 - 💾 **Close sessions** - Right-click → Sessions → select file → "Close Session..." (prompts to save with Cancel option)
 - 🔄 **Update CLI** - When updates are available, click "Update to X.X.X" to update automatically
-- 🛑 **Stop daemon** - Right-click → "Stop Daemon" (prompts to save active sessions with Cancel option)
+- ℹ️ **About** - Right-click → "About..." to see version info and helpful links
+- 🛑 **Stop Service** - Right-click → "Stop Service" (prompts to save active sessions with Cancel option)
 
-The daemon auto-stops after 10 minutes of inactivity (no active sessions).
+The service auto-stops after 10 minutes of inactivity (no active sessions).
 
 ---
 

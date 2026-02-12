@@ -31,3 +31,5 @@ public class DataModelInfoResult : ResultBase
     /// </summary>
     public List<string> TableNames { get; set; } = [];
 }
+
+

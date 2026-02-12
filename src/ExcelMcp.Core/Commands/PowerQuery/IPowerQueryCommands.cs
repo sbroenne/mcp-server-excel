@@ -1,38 +1,74 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Attributes;
 using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Power Query management commands
+/// Power Query M code and data loading.
+///
+/// TEST-FIRST DEVELOPMENT WORKFLOW (BEST PRACTICE):
+/// 1. evaluate - Test M code WITHOUT persisting (catches syntax errors, validates sources, shows data preview)
+/// 2. create/update - Store VALIDATED query in workbook
+/// 3. refresh/load-to - Load data to destination
+/// Skip evaluate only for trivial literal tables.
+///
+/// IF CREATE/UPDATE FAILS: Use evaluate to get the actual M engine error message, fix code, retry.
+///
+/// DATETIME COLUMNS: Always include Table.TransformColumnTypes() in M code to set column types explicitly.
+/// Without explicit types, dates may be stored as numbers and Data Model relationships may fail.
+///
+/// DESTINATIONS: 'worksheet' (default), 'data-model' (for DAX), 'both', 'connection-only'.
+/// Use 'data-model' to load to Power Pivot, then use datamodel to create DAX measures.
+///
+/// TARGET CELL: targetCellAddress places tables without clearing sheet.
+/// TIMEOUT: 5 min auto-timeout for refresh/load. For network queries, use timeout=120 or higher.
+/// timeout=0 is INVALID - must be greater than zero.
 /// </summary>
+[ServiceCategory("powerquery", "PowerQuery")]
+[McpTool("excel_powerquery", Title = "Excel Power Query Operations", Destructive = true, Category = "query",
+    Description = "Power Query M code and data loading. TEST-FIRST WORKFLOW: 1. evaluate (test M code without persisting) 2. create/update (store validated query) 3. refresh/load-to (load data to destination). IF CREATE FAILS: Use evaluate for detailed M engine error. DATETIME: Always include Table.TransformColumnTypes() for explicit column types. DESTINATIONS: worksheet (default), data-model (for DAX), both, connection-only. M-CODE: Auto-formatted via powerqueryformatter.com. TARGET CELL: targetCellAddress places tables without clearing sheet. TIMEOUT: 5 min auto-timeout. For network queries, use timeout=120 or higher. timeout=0 is INVALID.")]
 public interface IPowerQueryCommands
 {
     /// <summary>
     /// Lists all Power Query queries in the workbook
     /// </summary>
+    [ServiceAction("list")]
     PowerQueryListResult List(IExcelBatch batch);
 
     /// <summary>
     /// Views the M code of a Power Query
     /// </summary>
-    PowerQueryViewResult View(IExcelBatch batch, string queryName);
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="queryName">Name of the query to view</param>
+    [ServiceAction("view")]
+    PowerQueryViewResult View(IExcelBatch batch, [RequiredParameter] string queryName);
 
     /// <summary>
     /// Refreshes a Power Query to update its data with error detection using a caller-specified timeout
     /// </summary>
-    PowerQueryRefreshResult Refresh(IExcelBatch batch, string queryName, TimeSpan timeout);
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="queryName">Name of the query to refresh</param>
+    /// <param name="timeout">Maximum time to wait for refresh</param>
+    [ServiceAction("refresh")]
+    PowerQueryRefreshResult Refresh(IExcelBatch batch, [RequiredParameter] string queryName, TimeSpan timeout);
 
     /// <summary>
     /// Gets the current load configuration of a Power Query
     /// </summary>
-    PowerQueryLoadConfigResult GetLoadConfig(IExcelBatch batch, string queryName);
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="queryName">Name of the query</param>
+    [ServiceAction("get-load-config")]
+    PowerQueryLoadConfigResult GetLoadConfig(IExcelBatch batch, [RequiredParameter] string queryName);
 
     /// <summary>
     /// Deletes a Power Query from the workbook
     /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="queryName">Name of the query to delete</param>
     /// <exception cref="InvalidOperationException">Thrown when the Power Query is not found or cannot be deleted</exception>
-    void Delete(IExcelBatch batch, string queryName);
+    [ServiceAction("delete")]
+    void Delete(IExcelBatch batch, [RequiredParameter] string queryName);
 
     /// <summary>
     /// Creates a new Power Query by importing M code and loading data atomically
@@ -47,9 +83,9 @@ public interface IPowerQueryCommands
     /// <exception cref="InvalidOperationException">Thrown when query cannot be created, M code is invalid, or load operation fails</exception>
     void Create(
         IExcelBatch batch,
-        string queryName,
-        string mCode,
-        PowerQueryLoadMode loadMode = PowerQueryLoadMode.LoadToTable,
+        [RequiredParameter] string queryName,
+        [RequiredParameter][FileOrValue] string mCode,
+        [FromString("loadDestination")] PowerQueryLoadMode loadMode = PowerQueryLoadMode.LoadToTable,
         string? targetSheet = null,
         string? targetCellAddress = null);
 
@@ -61,7 +97,7 @@ public interface IPowerQueryCommands
     /// <param name="mCode">Raw M code (inline string)</param>
     /// <param name="refresh">Whether to refresh data after update (default: true)</param>
     /// <exception cref="InvalidOperationException">Thrown when the query is not found, M code is invalid, or refresh fails</exception>
-    void Update(IExcelBatch batch, string queryName, string mCode, bool refresh = true);
+    void Update(IExcelBatch batch, [RequiredParameter] string queryName, [RequiredParameter][FileOrValue] string mCode, bool refresh = true);
 
     /// <summary>
     /// Atomically sets load destination and refreshes data
@@ -75,8 +111,8 @@ public interface IPowerQueryCommands
     /// <exception cref="InvalidOperationException">Thrown when the query is not found, load destination is invalid, or refresh fails</exception>
     void LoadTo(
         IExcelBatch batch,
-        string queryName,
-        PowerQueryLoadMode loadMode,
+        [RequiredParameter] string queryName,
+        [FromString("loadDestination")] PowerQueryLoadMode loadMode,
         string? targetSheet = null,
         string? targetCellAddress = null);
 
@@ -99,10 +135,11 @@ public interface IPowerQueryCommands
     /// - No auto-save.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="oldName">Existing query name</param>
-    /// <param name="newName">Desired new name</param>
+    /// <param name="oldName">Current name of the query</param>
+    /// <param name="newName">New name for the query</param>
     /// <returns>Result with objectType=power-query and normalized names</returns>
-    RenameResult Rename(IExcelBatch batch, string oldName, string newName);
+    [ServiceAction("rename")]
+    RenameResult Rename(IExcelBatch batch, [RequiredParameter] string oldName, [RequiredParameter] string newName);
 
     /// <summary>
     /// Converts query to connection-only by removing data from all destinations.
@@ -111,7 +148,8 @@ public interface IPowerQueryCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query to unload</param>
     /// <returns>Operation result</returns>
-    OperationResult Unload(IExcelBatch batch, string queryName);
+    [ServiceAction("unload")]
+    OperationResult Unload(IExcelBatch batch, [RequiredParameter] string queryName);
 
     /// <summary>
     /// Evaluates M code and returns the result data without creating a permanent query.
@@ -119,8 +157,9 @@ public interface IPowerQueryCommands
     /// Useful for testing M code snippets and getting preview data.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="mCode">Raw M code to evaluate</param>
+    /// <param name="mCode">M code to evaluate</param>
     /// <returns>Result containing evaluated data as columns/rows</returns>
     /// <exception cref="InvalidOperationException">Thrown when M code has errors</exception>
-    PowerQueryEvaluateResult Evaluate(IExcelBatch batch, string mCode);
+    [ServiceAction("evaluate")]
+    PowerQueryEvaluateResult Evaluate(IExcelBatch batch, [RequiredParameter][FileOrValue] string mCode);
 }

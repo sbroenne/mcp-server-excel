@@ -361,7 +361,7 @@ public partial class DataModelCommands
                 }
                 finally
                 {
-                    if (table != null) ComUtilities.Release(ref table);
+                    ComUtilities.Release(ref table);
                 }
             }
         }
@@ -513,3 +513,5 @@ public partial class DataModelCommands
         }
     }
 }
+
+

@@ -241,3 +241,4 @@ skills/excel-mcp/references/*.md
 !skills/excel-cli/references/README.md
 !skills/excel-mcp/references/claude-desktop.md
 vscode-extension/skills/*
+llm-tests/aitest-reports/

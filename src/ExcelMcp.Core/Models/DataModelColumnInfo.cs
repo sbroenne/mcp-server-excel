@@ -21,3 +21,5 @@ public class DataModelColumnInfo
     /// </summary>
     public bool IsCalculated { get; init; }
 }
+
+

@@ -40,3 +40,5 @@ public static class RenameNameRules
             .Any(normalizedExisting => string.Equals(normalizedExisting, normalizedNewName, StringComparison.OrdinalIgnoreCase));
     }
 }
+
+

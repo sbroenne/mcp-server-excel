@@ -5,7 +5,8 @@ namespace Sbroenne.ExcelMcp.Core.Models;
 /// <summary>
 /// Base result type for all Core operations.
 /// NOTE: Core commands should NOT set SuggestedNextActions (workflow guidance is MCP/CLI layer responsibility).
-/// Exceptions propagate naturally to batch.Execute() which converts them to OperationResult { Success = false }.
+/// Exceptions propagate naturally — batch.Execute() re-throws them via TaskCompletionSource.
+/// The MCP/CLI layer catches exceptions and converts them to error responses.
 /// </summary>
 public abstract class ResultBase
 {
@@ -284,26 +285,31 @@ public class PowerQueryViewResult : ResultBase
 /// <summary>
 /// Power Query load configuration modes
 /// </summary>
+[System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<PowerQueryLoadMode>))]
 public enum PowerQueryLoadMode
 {
     /// <summary>
     /// Connection only - no data loaded to worksheet or data model
     /// </summary>
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("connection-only")]
     ConnectionOnly,
 
     /// <summary>
     /// Load to table in worksheet
     /// </summary>
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("load-to-table")]
     LoadToTable,
 
     /// <summary>
     /// Load to Data Model (PowerPivot)
     /// </summary>
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("load-to-data-model")]
     LoadToDataModel,
 
     /// <summary>
     /// Load to both table and data model
     /// </summary>
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("load-to-both")]
     LoadToBoth
 }
 
@@ -2240,3 +2246,45 @@ public class RangeLockInfoResult : ResultBase
 }
 
 #endregion
+
+#region Diag Results
+
+/// <summary>
+/// Result for diagnostic commands. Returns echoed parameters and metadata.
+/// </summary>
+public class DiagResult : ResultBase
+{
+    /// <summary>
+    /// The diagnostic action that was performed
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Action { get; set; }
+
+    /// <summary>
+    /// Echoed message (for echo action)
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Message { get; set; }
+
+    /// <summary>
+    /// Echoed tag (for echo action)
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Tag { get; set; }
+
+    /// <summary>
+    /// ISO 8601 timestamp of the response
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Timestamp { get; set; }
+
+    /// <summary>
+    /// Echoed parameters as key-value pairs (for validate-params action)
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, object?>? Parameters { get; set; }
+}
+
+#endregion
+
+

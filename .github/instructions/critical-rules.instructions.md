@@ -112,6 +112,7 @@ Discovered while debugging a Power Query that referenced a column with a hyphen
 | 24. Post-change sync | Verify ALL sync points (CLI, SKILLs, READMEs, counts) | 5-10 min |
 | 26. No confidential info | No customer/project names in commits/PRs/issues | Always |
 | 27. CHANGELOG | Update CHANGELOG.md before merging PRs | 2-5 min |
+| 28. COM API naming | Match COM param names when clear in flat schema | Always |
 
 **During PR Process:**
 | Rule | Action | Time |
@@ -470,6 +471,7 @@ Delete commented-out code (use git history). Exception: Documentation files only
 | 18. Tool descriptions | Verify XML docs (`/// <summary>`) match tool behavior | Per tool change |
 | 19. PR review comments | Check and fix all automated review comments after creating PR | 5-10 min |
 | 24. Post-change sync | Verify ALL sync points (CLI, SKILLs, READMEs, counts) before commit | 5-10 min |
+| 28. COM API naming | Match COM param names when clear in flat schema | Always |
 
 
 
@@ -950,4 +952,43 @@ Select-String -Path "**/*.md" -Pattern '```bash' -Recurse
 - Review CHANGELOG.md before every PR merge
 - Agent must ask: "Does this change need a CHANGELOG entry?"
 - Merging without CHANGELOG update for user-visible changes = bug
+
+---
+
+## Rule 28: COM API Parameter Naming (CRITICAL)
+
+**When naming parameters on COM API wrapper methods, apply this nuanced principle:**
+
+> **If the COM method's parameter name is clear and self-describing in our flat tool schema, use it.
+> If the COM name is opaque or ambiguous without its parent context, keep a more descriptive name.**
+
+**Why:** MCP tool parameters appear in a flat schema — they lose the context of the parent class/method. A name that works when you see `PivotTable.RowAxisLayout(RowLayout)` may be opaque when the LLM just sees a `row_layout` parameter. Conversely, inventing a name like `layoutType` when COM already calls it `RowLayout` adds unnecessary indirection.
+
+**Decision Framework:**
+
+| COM API | COM Param | Our Param | Rationale |
+|---------|-----------|-----------|-----------|
+| `Names.Add(Name)` | `Name` | `name` | ✅ Clear in flat schema — "name of the named range" |
+| `PivotTable.RowAxisLayout(RowLayout)` | `RowLayout` | `rowLayout` | ✅ `row_layout` values 0/1/2 are self-describing in tool schema |
+| `Range.Value2` | (property) | `value` | ✅ Clear in context |
+| `Workbook.Connections` | (collection) | `connectionName` | ✅ Keep descriptive — COM's `Name` property is too generic |
+| `PivotField.Subtotals` | (property) | `subtotalFunction` | ✅ Keep descriptive — `subtotals` alone is ambiguous |
+
+**Implementation Pattern:**
+```csharp
+// ✅ COM name is clear → use it directly
+void Write(IExcelBatch batch, [FromString("name")] string name, ...);
+
+// ✅ COM name works in flat schema → use it
+OperationResult SetLayout(IExcelBatch batch, string pivotTableName, int rowLayout);
+
+// ✅ COM name too generic → keep descriptive
+void AddField(IExcelBatch batch, string pivotTableName, string fieldName, string fieldArea);
+```
+
+**When Adding New Parameters:**
+1. Check the COM API docs for the original parameter name
+2. Ask: "Would an LLM understand `{com_param_name}` without seeing the method/class name?"
+3. If YES → use COM name (e.g., `name`, `rowLayout`, `reference`)
+4. If NO → use descriptive name (e.g., `fieldName` not `Name`, `subtotalFunction` not `Function`)
 

@@ -174,7 +174,7 @@ public partial class TableCommands
                 }
                 finally
                 {
-                    if (col != null) ComUtilities.Release(ref col);
+                    ComUtilities.Release(ref col);
                 }
             }
 
@@ -195,4 +195,6 @@ internal sealed class TableColumnRangeResult : ResultBase
     public string SheetName { get; set; } = string.Empty;
     public string RangeAddress { get; set; } = string.Empty;
 }
+
+
 

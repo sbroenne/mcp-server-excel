@@ -158,3 +158,5 @@ public partial class PowerQueryCommands
         return false;
     }
 }
+
+

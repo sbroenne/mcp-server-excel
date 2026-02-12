@@ -23,3 +23,5 @@ public enum ChartAxisType
     /// <summary>Secondary value axis (Y-axis on secondary axis group)</summary>
     ValueSecondary
 }
+
+

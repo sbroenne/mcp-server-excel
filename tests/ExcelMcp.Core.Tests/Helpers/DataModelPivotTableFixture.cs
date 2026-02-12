@@ -59,7 +59,7 @@ public class DataModelPivotTableFixture : IAsyncLifetime
         {
             using (var manager = new SessionManager())
             {
-                var sessionId = manager.CreateSessionForNewFile(TestFilePath, showExcel: false);
+                var sessionId = manager.CreateSessionForNewFile(TestFilePath, show: false);
                 manager.CloseSession(sessionId, save: true);
             }
             CreationResult.FileCreated = true;
@@ -233,8 +233,8 @@ public class DataModelPivotTableFixture : IAsyncLifetime
                 throw new InvalidOperationException(
                     $"CREATION TEST FAILED: Data Model PivotTable creation failed: {dataModelPivot.ErrorMessage}");
 
-            // Add fields from Data Model
-            pivotCommands.AddRowField(batch, "DataModelPivot", "Region", null);
+            // Add fields from Data Model (OLAP requires [TableName].[ColumnName] format)
+            pivotCommands.AddRowField(batch, "DataModelPivot", "[RegionalSalesTable].[Region]", null);
             pivotCommands.AddValueField(batch, "DataModelPivot", "[Measures].[TotalRevenue]", AggregationFunction.Sum, "Revenue");
 
             CreationResult.DataModelPivotTablesCreated = 1;
@@ -453,3 +453,7 @@ public class DataModelPivotTableCreationResult
     public long CreationTimeMs { get; set; }
     public string? ErrorMessage { get; set; }
 }
+
+
+
+

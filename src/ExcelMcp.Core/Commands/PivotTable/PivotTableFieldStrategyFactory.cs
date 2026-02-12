@@ -41,7 +41,7 @@ public static class PivotTableFieldStrategyFactory
             }
             ComUtilities.Release(ref pivotFields);
         }
-        catch
+        catch (System.Runtime.InteropServices.COMException)
         {
             // Not Regular either
         }
@@ -49,3 +49,5 @@ public static class PivotTableFieldStrategyFactory
         throw new InvalidOperationException("No strategy found for PivotTable type. Unable to determine if OLAP or Regular PivotTable.");
     }
 }
+
+

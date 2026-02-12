@@ -165,18 +165,18 @@ public partial class ChartCommands
 
                         return new ChartFindResult { Chart = chart, Shape = shape, SheetName = sheetName }; // Caller must release both
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
-                        if (chart != null) ComUtilities.Release(ref chart!);
-                        if (shape != null) ComUtilities.Release(ref shape!);
+                        ComUtilities.Release(ref chart!);
+                        ComUtilities.Release(ref shape!);
                         throw;
                     }
                 }
             }
             finally
             {
-                if (shapes != null) ComUtilities.Release(ref shapes!);
-                if (worksheet != null) ComUtilities.Release(ref worksheet!);
+                ComUtilities.Release(ref shapes!);
+                ComUtilities.Release(ref worksheet!);
             }
         }
 
@@ -184,3 +184,5 @@ public partial class ChartCommands
         return new ChartFindResult { Chart = null, Shape = null, SheetName = string.Empty };
     }
 }
+
+

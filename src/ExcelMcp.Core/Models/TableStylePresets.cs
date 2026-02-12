@@ -107,3 +107,5 @@ public static class TableStylePresets
     /// <summary>No table style - removes all formatting</summary>
     public const string None = "";
 }
+
+

@@ -1,7 +1,5 @@
 // Global usings for ExcelMcp.McpServer
-// Required for source generator compatibility - XmlToDescriptionGenerator only adds
-// System.ComponentModel and ModelContextProtocol.Server namespaces to generated files
+// Required for source generator compatibility - generated MCP tools need these namespaces
 
-global using Sbroenne.ExcelMcp.Core.Commands.Chart;
-global using Sbroenne.ExcelMcp.Core.Commands.Range;
 global using Sbroenne.ExcelMcp.Core.Models.Actions;
+global using Sbroenne.ExcelMcp.Generated;

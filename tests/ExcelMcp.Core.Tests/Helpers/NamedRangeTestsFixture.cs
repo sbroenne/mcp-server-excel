@@ -82,7 +82,7 @@ public class NamedRangeTestsFixture : IAsyncLifetime
         try
         {
             using var manager = new SessionManager();
-            var sessionId = manager.CreateSessionForNewFile(TestFilePath, showExcel: false);
+            var sessionId = manager.CreateSessionForNewFile(TestFilePath, show: false);
             manager.CloseSession(sessionId, save: true);
             CreationResult.FileCreated = true;
 
@@ -121,3 +121,7 @@ public class NamedRangeTestsFixture : IAsyncLifetime
         return Task.CompletedTask;
     }
 }
+
+
+
+

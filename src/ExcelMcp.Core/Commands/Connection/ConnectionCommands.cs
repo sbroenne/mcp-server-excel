@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
 
@@ -13,203 +14,64 @@ public partial class ConnectionCommands : IConnectionCommands
 {
     #region Helper Methods
 
+    /// <summary>
+    /// Returns the typed sub-connection (OLEDBConnection, ODBCConnection, TextConnection, or WebConnection)
+    /// based on the connection type. For types 3/4, tries TextConnection first then WebConnection
+    /// because Excel may report CSV files as either type.
+    /// </summary>
+    private static dynamic? GetTypedSubConnection(dynamic conn)
+    {
+        int connType = conn.Type;
+
+        if (connType == 1) return conn.OLEDBConnection;
+        if (connType == 2) return conn.ODBCConnection;
+        if (connType is 3 or 4)
+        {
+            try { return conn.TextConnection; }
+            catch (COMException)
+            {
+                try { return conn.WebConnection; }
+                catch (COMException) { return null; }
+            }
+        }
+
+        return null;
+    }
+
     private static bool GetBackgroundQuerySetting(dynamic conn)
     {
-        try
-        {
-            int connType = conn.Type;
-
-            if (connType == 1) // OLEDB
-            {
-                return conn.OLEDBConnection?.BackgroundQuery ?? false;
-            }
-            else if (connType == 2) // ODBC
-            {
-                return conn.ODBCConnection?.BackgroundQuery ?? false;
-            }
-            else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
-            {
-                // Try TextConnection first, fall back to WebConnection
-                try
-                {
-                    return conn.TextConnection?.BackgroundQuery ?? false;
-                }
-                catch
-                {
-                    try
-                    {
-                        return conn.WebConnection?.BackgroundQuery ?? false;
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                }
-            }
-        }
-        catch
-        {
-            // Property not available
-        }
-
-        return false;
+        try { return GetTypedSubConnection(conn)?.BackgroundQuery ?? false; }
+        catch (COMException) { return false; }
     }
 
     private static bool GetRefreshOnFileOpenSetting(dynamic conn)
     {
-        try
-        {
-            int connType = conn.Type;
-
-            if (connType == 1) // OLEDB
-            {
-                return conn.OLEDBConnection?.RefreshOnFileOpen ?? false;
-            }
-            else if (connType == 2) // ODBC
-            {
-                return conn.ODBCConnection?.RefreshOnFileOpen ?? false;
-            }
-            else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
-            {
-                // Try TextConnection first, fall back to WebConnection
-                try
-                {
-                    return conn.TextConnection?.RefreshOnFileOpen ?? false;
-                }
-                catch
-                {
-                    try
-                    {
-                        return conn.WebConnection?.RefreshOnFileOpen ?? false;
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                }
-            }
-        }
-        catch
-        {
-            // Property not available
-        }
-
-        return false;
+        try { return GetTypedSubConnection(conn)?.RefreshOnFileOpen ?? false; }
+        catch (COMException) { return false; }
     }
 
     private static bool GetSavePasswordSetting(dynamic conn)
     {
-        try
-        {
-            int connType = conn.Type;
-
-            if (connType == 1) // OLEDB
-            {
-                return conn.OLEDBConnection?.SavePassword ?? false;
-            }
-            else if (connType == 2) // ODBC
-            {
-                return conn.ODBCConnection?.SavePassword ?? false;
-            }
-            else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
-            {
-                // Try TextConnection first, fall back to WebConnection
-                try
-                {
-                    return conn.TextConnection?.SavePassword ?? false;
-                }
-                catch
-                {
-                    try
-                    {
-                        return conn.WebConnection?.SavePassword ?? false;
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                }
-            }
-        }
-        catch
-        {
-            // Property not available
-        }
-
-        return false;
+        try { return GetTypedSubConnection(conn)?.SavePassword ?? false; }
+        catch (COMException) { return false; }
     }
 
     private static int GetRefreshPeriod(dynamic conn)
     {
-        try
-        {
-            int connType = conn.Type;
-
-            if (connType == 1) // OLEDB
-            {
-                return conn.OLEDBConnection?.RefreshPeriod ?? 0;
-            }
-            else if (connType == 2) // ODBC
-            {
-                return conn.ODBCConnection?.RefreshPeriod ?? 0;
-            }
-            else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV as either
-            {
-                // Try TextConnection first, fall back to WebConnection
-                try
-                {
-                    return conn.TextConnection?.RefreshPeriod ?? 0;
-                }
-                catch
-                {
-                    try
-                    {
-                        return conn.WebConnection?.RefreshPeriod ?? 0;
-                    }
-                    catch
-                    {
-                        return 0;
-                    }
-                }
-            }
-        }
-        catch
-        {
-            // Property not available
-        }
-
-        return 0;
+        try { return GetTypedSubConnection(conn)?.RefreshPeriod ?? 0; }
+        catch (COMException) { return 0; }
     }
 
     private static DateTime? GetLastRefreshDate(dynamic conn)
     {
         try
         {
+            // RefreshDate is only available on OLEDB and ODBC connections
             int connType = conn.Type;
-
-            if (connType == 1) // OLEDB
-            {
-                var refreshDate = conn.OLEDBConnection?.RefreshDate;
-                if (refreshDate != null)
-                {
-                    return refreshDate;
-                }
-            }
-            else if (connType == 2) // ODBC
-            {
-                var refreshDate = conn.ODBCConnection?.RefreshDate;
-                if (refreshDate != null)
-                {
-                    return refreshDate;
-                }
-            }
+            if (connType is not (1 or 2)) return null;
+            return GetTypedSubConnection(conn)?.RefreshDate;
         }
-        catch
-        {
-            // Property not available
-        }
-
-        return null;
+        catch (COMException) { return null; }
     }
 
     private static string? GetConnectionString(dynamic conn)
@@ -229,7 +91,6 @@ public partial class ConnectionCommands : IConnectionCommands
             }
             else if (connType == 4) // TEXT (xlConnectionTypeTEXT)
             {
-                // Try to get from TextConnection first
                 dynamic textConn = conn.TextConnection;
                 if (textConn != null)
                 {
@@ -238,7 +99,6 @@ public partial class ConnectionCommands : IConnectionCommands
             }
             else if (connType == 5) // WEB (xlConnectionTypeWEB)
             {
-                // Try to get from WebConnection first
                 dynamic webConn = conn.WebConnection;
                 if (webConn != null)
                 {
@@ -246,14 +106,14 @@ public partial class ConnectionCommands : IConnectionCommands
                 }
             }
 
-            // If we still don't have a connection string, try the root ConnectionString property
+            // Fallback to root ConnectionString property
             if (string.IsNullOrWhiteSpace(connectionString))
             {
                 try
                 {
                     connectionString = conn.ConnectionString?.ToString();
                 }
-                catch
+                catch (COMException)
                 {
                     // Property not available
                 }
@@ -261,7 +121,7 @@ public partial class ConnectionCommands : IConnectionCommands
 
             return connectionString;
         }
-        catch
+        catch (COMException)
         {
             // Property not available
         }
@@ -271,76 +131,31 @@ public partial class ConnectionCommands : IConnectionCommands
 
     private static string? GetCommandText(dynamic conn)
     {
-        try
-        {
-            int connType = conn.Type;
-
-            if (connType == 1) // OLEDB
-            {
-                return conn.OLEDBConnection?.CommandText?.ToString();
-            }
-            else if (connType == 2) // ODBC
-            {
-                return conn.ODBCConnection?.CommandText?.ToString();
-            }
-            else if (connType == 3) // Text
-            {
-                return conn.TextConnection?.CommandText?.ToString();
-            }
-            else if (connType == 4) // Web
-            {
-                return conn.WebConnection?.CommandText?.ToString();
-            }
-        }
-        catch
-        {
-            // Property not available
-        }
-
-        return null;
+        try { return GetTypedSubConnection(conn)?.CommandText?.ToString(); }
+        catch (COMException) { return null; }
     }
 
     private static string? GetCommandType(dynamic conn)
     {
         try
         {
+            // CommandType is only available on OLEDB and ODBC connections
             int connType = conn.Type;
+            if (connType is not (1 or 2)) return null;
 
-            if (connType == 1) // OLEDB
+            int? cmdType = GetTypedSubConnection(conn)?.CommandType;
+            if (!cmdType.HasValue) return "Unknown(null)";
+            return cmdType.Value switch
             {
-                int? cmdType = conn.OLEDBConnection?.CommandType;
-                if (!cmdType.HasValue) return "Unknown(null)";
-                return cmdType.Value switch
-                {
-                    1 => "Cube",
-                    2 => "SQL",
-                    3 => "Table",
-                    4 => "Default",
-                    5 => "List",
-                    _ => $"Unknown({cmdType.Value.ToString(CultureInfo.InvariantCulture)})"
-                };
-            }
-            else if (connType == 2) // ODBC
-            {
-                int? cmdType = conn.ODBCConnection?.CommandType;
-                if (!cmdType.HasValue) return "Unknown(null)";
-                return cmdType.Value switch
-                {
-                    1 => "Cube",
-                    2 => "SQL",
-                    3 => "Table",
-                    4 => "Default",
-                    5 => "List",
-                    _ => $"Unknown({cmdType.Value.ToString(CultureInfo.InvariantCulture)})"
-                };
-            }
+                1 => "Cube",
+                2 => "SQL",
+                3 => "Table",
+                4 => "Default",
+                5 => "List",
+                _ => $"Unknown({cmdType.Value.ToString(CultureInfo.InvariantCulture)})"
+            };
         }
-        catch
-        {
-            // Property not available
-        }
-
-        return null;
+        catch (COMException) { return null; }
     }
 
     private static object GetConnectionProperties(dynamic conn)
@@ -486,13 +301,13 @@ public partial class ConnectionCommands : IConnectionCommands
                 {
                     textOrWeb = conn.TextConnection; // Try TEXT first
                 }
-                catch
+                catch (System.Runtime.InteropServices.COMException)
                 {
                     try
                     {
                         textOrWeb = conn.WebConnection; // Fall back to WEB
                     }
-                    catch
+                    catch (System.Runtime.InteropServices.COMException)
                     {
                         // Neither works - skip property updates
                     }
@@ -595,51 +410,13 @@ public partial class ConnectionCommands : IConnectionCommands
 
         try
         {
-            int connType = conn.Type;
-
-            if (connType == 1) // OLEDB
+            dynamic? subConn = GetTypedSubConnection(conn);
+            if (subConn != null)
             {
-                var oledb = conn.OLEDBConnection;
-                if (oledb != null)
-                {
-                    SetProperty(oledb, propertyName, value.Value);
-                }
-            }
-            else if (connType == 2) // ODBC
-            {
-                var odbc = conn.ODBCConnection;
-                if (odbc != null)
-                {
-                    SetProperty(odbc, propertyName, value.Value);
-                }
-            }
-            else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV files as either
-            {
-                // Try TextConnection first, fall back to WebConnection
-                dynamic? textOrWeb = null;
-                try
-                {
-                    textOrWeb = conn.TextConnection;
-                }
-                catch
-                {
-                    try
-                    {
-                        textOrWeb = conn.WebConnection;
-                    }
-                    catch
-                    {
-                        // Neither works
-                    }
-                }
-
-                if (textOrWeb != null)
-                {
-                    SetProperty(textOrWeb, propertyName, value.Value);
-                }
+                SetProperty(subConn, propertyName, value.Value);
             }
         }
-        catch
+        catch (COMException)
         {
             // Property not available for this connection type
         }
@@ -657,7 +434,7 @@ public partial class ConnectionCommands : IConnectionCommands
                 property.SetValue(obj, value);
             }
         }
-        catch
+        catch (System.Runtime.InteropServices.COMException)
         {
             // Property doesn't exist or can't be set
         }
@@ -735,3 +512,5 @@ internal sealed class ConnectionDefinition
     public bool? SavePassword { get; set; }
     public int? RefreshPeriod { get; set; }
 }
+
+

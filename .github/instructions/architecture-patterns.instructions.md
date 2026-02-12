@@ -36,6 +36,23 @@ Commands/Range/
 
 ---
 
+## TWO EQUAL ENTRY POINTS (CRITICAL)
+
+**ExcelMcp has TWO first-class entry points: MCP Server AND CLI.** Both must have:
+- **Feature parity**: Every action in MCP must exist in CLI and vice versa
+- **Parameter parity**: Same parameters, same defaults, same validation
+- **Behavior parity**: Same Core command, same result format
+
+When adding or changing ANY feature, ALWAYS update BOTH entry points. See Rule 24 (Post-Change Sync).
+
+```
+MCP Server (MCP tools, JSON-RPC) ──┐
+                                    ├──► Named Pipe Service ──► Core Commands ──► Excel COM
+CLI (command-line args, console)  ──┘
+```
+
+---
+
 ## Command Pattern
 
 ### Structure
@@ -134,30 +151,47 @@ public async Task<OperationResult> ComplexAsync(IExcelBatch batch, string param)
 
 ## MCP Server Resource-Based Tools
 
-**11 Focused Tools:**
-1. `excel_batch` - Batch session management (start, commit, discard)
-2. `excel_connection` - Data connections (OLEDB, ODBC, ODC import)
-3. `excel_datamodel` - Power Pivot / Data Model / DAX measures
-4. `excel_file` - File operations (create, close, test)
-5. `excel_namedrange` - Named ranges (parameters)
-6. `excel_pivottable` - PivotTables for interactive analysis
-7. `excel_powerquery` - Power Query M code management
-8. `excel_range` - Range operations (values, formulas, hyperlinks)
-9. `excel_table` - Excel Tables (ListObjects)
-10. `excel_vba` - VBA macros
-11. `excel_worksheet` - Worksheet lifecycle management
+**Service-Only Architecture**: MCP Server forwards ALL requests to the ExcelMCP Service via named pipe.
+No local Core Command execution - the server is a thin JSON-over-named-pipe layer.
 
-### Action-Based Routing
+**19 Focused Tools:**
+1. `excel_file` - Session lifecycle (open, close, create, list)
+2. `excel_worksheet` - Worksheet operations
+3. `excel_worksheet_style` - Tab colors and visibility
+4. `excel_range` - Range values and formulas
+5. `excel_range_edit` - Insert/delete/find/replace
+6. `excel_table` - Excel Tables (ListObjects)
+7. `excel_table_column` - Table columns/filters/sorts
+8. `excel_powerquery` - Power Query M code
+9. `excel_pivottable` - PivotTable lifecycle
+10. `excel_pivottable_field` - PivotTable fields
+11. `excel_pivottable_calc` - Calculated fields/items
+12. `excel_chart` - Chart lifecycle
+13. `excel_chart_config` - Chart configuration
+14. `excel_connection` - Data connections
+15. `excel_slicer` - Slicers
+16. `excel_vba` - VBA macros
+17. `excel_datamodel` - Power Pivot / DAX
+18. `excel_datamodel_rel` - Data Model relationships
+19. `excel_namedrange` - Named ranges
+20. `excel_calculation` - Calculation mode
+
+### Action-Based Routing with ForwardToService
 ```csharp
 [McpServerTool]
-public async Task<string> ExcelPowerQuery(string action, ...)
+public static string ExcelPowerQuery(string action, string sessionId, ...)
 {
     return action.ToLowerInvariant() switch
     {
-        "list" => ListPowerQueries(...),
-        "view" => ViewPowerQuery(...),
+        "list" => ForwardList(sessionId),
+        "view" => ForwardView(sessionId, queryName),
         _ => throw new McpException($"Unknown action: {action}")
     };
+}
+
+private static string ForwardList(string sessionId)
+{
+    return ExcelToolsBase.ForwardToService("powerquery.list", sessionId);
 }
 ```
 

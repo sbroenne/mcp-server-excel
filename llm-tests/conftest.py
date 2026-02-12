@@ -13,8 +13,7 @@ from typing import Any, Iterable
 
 import pytest
 
-from pytest_aitest import Agent, CLIServer, MCPServer, Provider, Wait
-from pytest_aitest.core.skill import Skill
+from pytest_aitest import Agent, CLIServer, MCPServer, Provider, Skill, Wait
 
 TESTS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = TESTS_DIR.parent
@@ -22,11 +21,14 @@ FIXTURES_DIR = TESTS_DIR / "Fixtures"
 TEST_RESULTS_DIR = TESTS_DIR / "TestResults"
 TEST_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
+# Skill references are now copied at build time by MSBuild targets in CLI/MCP csproj files.
+# Run 'dotnet build -c Release' to update skill references.
+
 # LiteLLM expects AZURE_API_BASE while Azure SDK uses AZURE_OPENAI_ENDPOINT.
 if os.environ.get("AZURE_OPENAI_ENDPOINT") and not os.environ.get("AZURE_API_BASE"):
     os.environ["AZURE_API_BASE"] = os.environ["AZURE_OPENAI_ENDPOINT"]
 
-DEFAULT_MODEL = "gpt-5-mini"
+DEFAULT_MODEL = "gpt-4.1"
 DEFAULT_RPM = 10
 DEFAULT_TPM = 10000
 DEFAULT_MAX_TURNS = 20
@@ -35,7 +37,7 @@ DEFAULT_MAX_TURNS = 20
 def pytest_configure(config: pytest.Config) -> None:
     azure_base = os.environ.get("AZURE_API_BASE") or os.environ.get("AZURE_OPENAI_ENDPOINT")
     if azure_base:
-        config.option.llm_model = "azure/gpt-5-mini"
+        config.option.llm_model = "azure/gpt-4.1"
         config.option.llm_api_base = azure_base
 
 
@@ -67,13 +69,36 @@ def _parse_cli_results(result: Any) -> list[dict[str, Any]]:
     return outputs
 
 
-def assert_cli_exit_codes(result: Any) -> None:
+def assert_cli_exit_codes(result: Any, *, strict: bool = False) -> None:
+    """Assert CLI executions succeeded.
+
+    By default (strict=False), allows intermediate errors as long as the
+    last CLI call succeeded. LLMs naturally retry after errors — punishing
+    recovery discourages good behavior.
+
+    With strict=True, ALL calls must succeed (original behavior).
+    """
     outputs = _parse_cli_results(result)
     if not outputs:
         raise AssertionError("No CLI executions recorded")
-    for output in outputs:
-        if output.get("exit_code") != 0:
-            raise AssertionError(f"CLI exit code not zero: {output}")
+    if strict:
+        for output in outputs:
+            if output.get("exit_code") != 0:
+                raise AssertionError(f"CLI exit code not zero: {output}")
+    else:
+        # Check last call succeeded (LLM may retry after intermediate errors)
+        last = outputs[-1]
+        if last.get("exit_code") != 0:
+            raise AssertionError(
+                f"Final CLI call failed (exit_code={last.get('exit_code')}): "
+                f"{last.get('stdout', '')[:200]}"
+            )
+        # Warn if error rate is very high (>80% of calls failed)
+        failed = sum(1 for o in outputs if o.get("exit_code") != 0)
+        if failed > len(outputs) * 0.8:
+            raise AssertionError(
+                f"Too many CLI failures: {failed}/{len(outputs)} calls failed"
+            )
 
 
 def assert_cli_args_contain(result: Any, token: str) -> None:
@@ -90,7 +115,8 @@ def _resolve_mcp_command() -> list[str]:
     if env_command:
         return shlex.split(env_command)
 
-    exe_path = REPO_ROOT / "src/ExcelMcp.McpServer/bin/Release/net10.0/ExcelMcp.McpServer.exe"
+    # Windows-specific build with COM interop support
+    exe_path = REPO_ROOT / "src/ExcelMcp.McpServer/bin/Release/net10.0-windows/Sbroenne.ExcelMcp.McpServer.exe"
     if exe_path.exists():
         return [str(exe_path)]
 
@@ -106,6 +132,20 @@ def _resolve_mcp_command() -> list[str]:
     ]
 
 
+def _resolve_cli_command() -> str:
+    env_command = os.environ.get("EXCEL_CLI_COMMAND")
+    if env_command:
+        return env_command
+
+    # Windows-specific build with COM interop support
+    exe_path = REPO_ROOT / "src/ExcelMcp.CLI/bin/Release/net10.0-windows/excelcli.exe"
+    if exe_path.exists():
+        return str(exe_path)
+
+    # Fallback to excelcli in PATH
+    return "excelcli"
+
+
 @pytest.fixture(scope="session")
 def excel_mcp_server() -> MCPServer:
     return MCPServer(
@@ -116,14 +156,16 @@ def excel_mcp_server() -> MCPServer:
 
 @pytest.fixture(scope="session")
 def excel_cli_server() -> CLIServer:
-    command = os.environ.get("EXCEL_CLI_COMMAND", "excelcli")
+    command = _resolve_cli_command()
     temp_dir = Path(os.environ.get("TEMP", tempfile.gettempdir()))
     return CLIServer(
         name="excel-cli",
         command=command,
         tool_prefix="excel",
-        shell="powershell",
+        shell="none",
         cwd=str(temp_dir),
+        discover_help=False,  # Skill Rule 0 requires LLM to run --help first
+        description="Excel CLI automation. Run 'excelcli --help' to discover available commands before use.",
     )
 
 

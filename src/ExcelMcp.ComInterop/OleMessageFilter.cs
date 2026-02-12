@@ -151,3 +151,5 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
         nint lpMessageFilter,
         out nint lplpMessageFilter);
 }
+
+

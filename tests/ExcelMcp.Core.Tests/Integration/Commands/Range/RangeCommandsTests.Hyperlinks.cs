@@ -74,3 +74,7 @@ public partial class RangeCommandsTests
         Assert.Equal(3, result.Hyperlinks.Count);
     }
 }
+
+
+
+

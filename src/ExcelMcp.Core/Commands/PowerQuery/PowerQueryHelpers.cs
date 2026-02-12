@@ -93,7 +93,7 @@ public static class PowerQueryHelpers
                 return true;
             }
         }
-        catch
+        catch (System.Runtime.InteropServices.COMException)
         {
             // If any error occurs, assume not a Power Query connection
         }
@@ -153,7 +153,7 @@ public static class PowerQueryHelpers
                 }
             }
         }
-        catch
+        catch (System.Runtime.InteropServices.COMException)
         {
             // Ignore errors when removing QueryTables - they may not exist
         }
@@ -211,3 +211,5 @@ public static class PowerQueryHelpers
         public bool RefreshImmediately { get; init; }
     }
 }
+
+

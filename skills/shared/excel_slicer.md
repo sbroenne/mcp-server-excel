@@ -20,6 +20,8 @@ Two distinct slicer types exist:
 | `set-table-slicer-selection` | Set Table slicer filter | slicerName, selectedItems |
 | `delete-table-slicer` | Delete Table slicer | slicerName |
 
+**CRITICAL: Required Parameters** - The "Required Parameters" column above is strict. Missing any required parameter will cause an error. Pay special attention to `pivotTableName` for PivotTable slicers and `slicerName` for selection/deletion operations.
+
 **Naming Convention**:
 
 - If `slicerName` not provided, auto-generates `{FieldName}Slicer` or `{ColumnName}Slicer`

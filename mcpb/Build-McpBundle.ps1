@@ -37,10 +37,6 @@
     ├── CHANGELOG.md
     └── server/
         └── excel-mcp-server.exe
-
-    Installation:
-    - Double-click .mcpb file to install in Claude Desktop
-    - Or drag-and-drop onto Claude Desktop window
 #>
 
 [CmdletBinding()]
@@ -164,15 +160,8 @@ $ChangelogDst = Join-Path $StagingDir "CHANGELOG.md"
 Copy-Item $ChangelogSrc $ChangelogDst -Force
 Write-Host "   ✓ Copied CHANGELOG.md" -ForegroundColor Green
 
-# Copy Agent Skills from skills/excel-mcp directory
-$SkillsSrc = Join-Path $RootDir "skills/excel-mcp"
-$SkillsDst = Join-Path $StagingDir "skills/excel-mcp"
-if (Test-Path $SkillsSrc) {
-    Copy-Item $SkillsSrc $SkillsDst -Recurse -Force
-    Write-Host "   ✓ Copied Agent Skills (skills/excel-mcp)" -ForegroundColor Green
-} else {
-    Write-Host "   ⚠ Agent Skills not found at $SkillsSrc" -ForegroundColor Yellow
-}
+# Note: Agent Skills are NOT included in MCPB bundle - Claude Desktop doesn't use them.
+# Skills are only bundled with the VS Code extension (via chatSkills contribution point).
 
 # Create mcpb file (zip with .mcpb extension)
 $McpbFileName = "excel-mcp-$Version.mcpb"
@@ -181,7 +170,7 @@ $McpbPath = Join-Path $OutputDir $McpbFileName
 Write-Host ""
 Write-Host "📦 Creating MCPB bundle..." -ForegroundColor Yellow
 
-# Get files/directories to include (manifest.json, icon, README, LICENSE, CHANGELOG at root, server/ directory with exe, skills/)
+# Get files/directories to include (manifest.json, icon, README, LICENSE, CHANGELOG at root, server/ directory with exe)
 $FilesToZip = @(
     (Join-Path $StagingDir "manifest.json"),
     (Join-Path $StagingDir "icon-512.png"),
@@ -190,12 +179,6 @@ $FilesToZip = @(
     (Join-Path $StagingDir "CHANGELOG.md"),
     (Join-Path $StagingDir "server")
 )
-
-# Add skills directory if it exists
-$SkillsZipDir = Join-Path $StagingDir "skills"
-if (Test-Path $SkillsZipDir) {
-    $FilesToZip += $SkillsZipDir
-}
 
 # Remove .mcp directory if it exists (MCP registry metadata not needed in MCPB bundle)
 $McpMetaDir = Join-Path $StagingDir ".mcp"

@@ -56,3 +56,5 @@ public sealed class ExcelContext
     /// </remarks>
     public NumberFormatTranslator FormatTranslator { get; }
 }
+
+
