@@ -27,7 +27,20 @@ namespace Sbroenne.ExcelMcp.Service;
 /// </remarks>
 public static class ServiceSecurity
 {
-    private static readonly string UserSid = WindowsIdentity.GetCurrent().User?.Value ?? "default";
+    private static readonly Lazy<string> LazyUserSid = new(() =>
+    {
+        try
+        {
+            return WindowsIdentity.GetCurrent().User?.Value ?? "default";
+        }
+        catch (Exception)
+        {
+            // WindowsIdentity may fail in containerized/restricted environments
+            return "default";
+        }
+    });
+
+    private static string UserSid => LazyUserSid.Value;
 
     /// <summary>
     /// Gets the per-user pipe name.

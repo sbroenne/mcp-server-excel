@@ -125,6 +125,7 @@ public class CliSettingsGenerator : IIncrementalGenerator
         sb.AppendLine("#nullable enable");
         sb.AppendLine();
         sb.AppendLine("using Sbroenne.ExcelMcp.Generated;");
+        sb.AppendLine("using Spectre.Console;");
         sb.AppendLine("using Spectre.Console.Cli;");
         sb.AppendLine();
         sb.AppendLine("namespace Sbroenne.ExcelMcp.CLI.Generated;");
@@ -134,7 +135,7 @@ public class CliSettingsGenerator : IIncrementalGenerator
         sb.AppendLine("    public static void RegisterCommands(IConfigurator config)");
         sb.AppendLine("    {");
         foreach (var (cliName, registryName, _) in categories.OrderBy(c => c.CliName))
-            sb.AppendLine($"        config.AddCommand<{registryName}Command>(\"{cliName}\").WithDescription(ServiceRegistry.{registryName}.Description);");
+            sb.AppendLine($"        config.AddCommand<{registryName}Command>(\"{cliName}\").WithDescription(ServiceRegistry.{registryName}.Description.EscapeMarkup());");
         sb.AppendLine("    }");
         sb.AppendLine("}");
         return sb.ToString();
