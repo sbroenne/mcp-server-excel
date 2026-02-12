@@ -47,7 +47,7 @@ How is the MCP Server configured?
 ```json
 {
   "mcpServers": {
-    "excel": {
+    "excel-mcp": {
       "command": "mcp-excel",
       // or other configuration
     }

@@ -27,7 +27,7 @@ Select the configuration file for your AI assistant and follow the instructions 
 1. Open File Explorer and navigate to: `%APPDATA%\Claude\`
 2. If `claude_desktop_config.json` doesn't exist, create it
 3. Copy the contents of `claude-desktop-config.json` from this folder
-4. If you already have a config file, merge the `excel` server entry into your existing `mcpServers` section
+4. If you already have a config file, merge the `excel-mcp` server entry into your existing `mcpServers` section
 5. Restart Claude Desktop
 
 **Test it:**
@@ -51,7 +51,7 @@ Create an Excel file called "test.xlsx"
 2. Search for "MCP" in settings
 3. Click "Edit in settings.json" or manually create the config file at the location above
 4. Copy the contents of `cursor-mcp-config.json` from this folder
-5. If you already have a config file, merge the `excel` server entry
+5. If you already have a config file, merge the `excel-mcp` server entry
 6. Restart Cursor
 
 **Test it:**
