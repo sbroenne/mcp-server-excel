@@ -161,18 +161,26 @@ public static class ServiceManager
         }
 
         // 3) Development mode: running via 'dotnet run', use 'dotnet <dll> service run'
+        // Note: Assembly.Location returns empty in single-file apps (IL3000), but this
+        // code path only executes when processPath ends with "dotnet.exe" (dev mode).
         var entryAssembly = System.Reflection.Assembly.GetEntryAssembly();
         if (entryAssembly != null &&
             processPath?.EndsWith("dotnet.exe", StringComparison.OrdinalIgnoreCase) == true)
         {
-            return new ProcessStartInfo
+#pragma warning disable IL3000 // Only reached in dev mode (dotnet run), never in single-file publish
+            var assemblyLocation = entryAssembly.Location;
+#pragma warning restore IL3000
+            if (!string.IsNullOrEmpty(assemblyLocation))
             {
-                FileName = "dotnet",
-                Arguments = $"\"{entryAssembly.Location}\" service run",
-                UseShellExecute = true,
-                CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden
-            };
+                return new ProcessStartInfo
+                {
+                    FileName = "dotnet",
+                    Arguments = $"\"{assemblyLocation}\" service run",
+                    UseShellExecute = true,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                };
+            }
         }
 
         return null;

@@ -2,7 +2,7 @@
   "name": "excel-mcp",
   "displayName": "Excel MCP Server",
   "description": "Excel automation for AI assistants - manage Sheets, Power Query, DAX, VBA, PowerPivot, Tables, Ranges, Charts, Formatting, Validation & more - requires Excel to be installed",
-  "version": "1.1.3",
+  "version": "1.6.9",
   "publisher": "sbroenne",
   "icon": "icon.png",
   "repository": {
@@ -50,15 +50,6 @@
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
-  "files": [
-    "out/**",
-    "bin/**",
-    "skills/**",
-    "README.md",
-    "CHANGELOG.md",
-    "LICENSE",
-    "icon.png"
-  ],
   "contributes": {
     "mcpServerDefinitionProviders": [
       {
@@ -74,23 +65,24 @@
   },
   "scripts": {
     "clean": "cd .. && dotnet clean src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release",
+    "clean:bin": "node -e \"const fs=require('fs'); try{fs.rmSync('bin',{recursive:true,force:true})}catch{}\"",
     "copy:skills": "xcopy /E /I /Y ..\\skills\\excel-mcp skills\\excel-mcp",
-    "build:mcp-server": "npm run clean && cd .. && dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:NuGetAudit=false -o vscode-extension/bin --verbosity minimal",
-    "vscode:prepublish": "npm run build:mcp-server && npm run copy:skills && npm run compile",
+    "build:mcp-server": "npm run clean && npm run clean:bin && cd .. && dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:NuGetAudit=false -o vscode-extension/bin --verbosity minimal",
+    "copy:changelog": "node -e \"const fs=require('fs'); fs.copyFileSync('../CHANGELOG.md','CHANGELOG.md');\"",
+    "vscode:prepublish": "npm run build:mcp-server && npm run copy:skills && npm run copy:changelog && npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "prepackage": "node -e \"const fs=require('fs'); if(!fs.existsSync('CHANGELOG.md')){fs.copyFileSync('../CHANGELOG.md','CHANGELOG.md');}\"",
-    "package": "npm run build:mcp-server && npm run copy:skills && vsce package",
+    "package": "vsce package",
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
-    "@types/node": "^22.19.1",
-    "@types/vscode": "^1.106.1",
+    "@types/node": "^22.19.11",
+    "@types/vscode": "^1.106.0",
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
     "@vscode/vsce": "^3.7.1",
-    "eslint": "^9.39.1",
+    "eslint": "^9.39.2",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.48.0"
+    "typescript-eslint": "^8.55.0"
   }
 }
