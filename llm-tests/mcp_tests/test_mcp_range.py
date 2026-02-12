@@ -32,7 +32,7 @@ async def test_mcp_range_set_get(aitest_run, excel_mcp_server, excel_mcp_skill, 
 """
     result = await aitest_run(agent, prompt)
     assert result.success
-    assert result.tool_was_called("excel_range")
+    assert result.tool_was_called("range")
     assert_regex(result.final_response, r"(?i)(Product)")
 
 

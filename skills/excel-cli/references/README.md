@@ -11,11 +11,11 @@ This folder contains behavioral guidance and quirks documentation for the Excel 
 - `behavioral-rules.md` - Core execution rules
 - `anti-patterns.md` - Common mistakes to avoid  
 - `workflows.md` - Production workflow patterns
-- `excel_powerquery.md` - Power Query quirks
-- `excel_datamodel.md` - Data Model/DAX quirks
-- `excel_table.md` - Table operations
-- `excel_range.md` - Range operations
-- `excel_worksheet.md` - Worksheet operations
-- `excel_chart.md` - Chart operations
-- `excel_slicer.md` - Slicer operations
-- `excel_conditionalformat.md` - Conditional formatting
+- `powerquery.md` - Power Query quirks
+- `datamodel.md` - Data Model/DAX quirks
+- `table.md` - Table operations
+- `range.md` - Range operations
+- `worksheet.md` - Worksheet operations
+- `chart.md` - Chart operations
+- `slicer.md` - Slicer operations
+- `conditionalformat.md` - Conditional formatting

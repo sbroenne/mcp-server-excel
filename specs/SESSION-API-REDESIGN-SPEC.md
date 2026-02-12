@@ -126,9 +126,9 @@ This is the universal pattern for file operations across all systems.
 
 **Sessions are the ONLY way to work with Excel files. No exceptions.**
 
-1. **`excel_file(action: 'open')`** - Opens a workbook, returns a `sessionId`
-2. **`excel_file(action: 'save')`** - Saves changes to an open workbook
-3. **`excel_file(action: 'close')`** - Closes workbook and session
+1. **`file(action: 'open')`** - Opens a workbook, returns a `sessionId`
+2. **`file(action: 'save')`** - Saves changes to an open workbook
+3. **`file(action: 'close')`** - Closes workbook and session
 4. **ALL other tools REQUIRE `sessionId`** - No standalone operation mode
 
 **Revolutionary Change:** Remove the `batchId` optional parameter pattern entirely. Sessions are mandatory, not optional.
@@ -137,9 +137,9 @@ This is the universal pattern for file operations across all systems.
 
 | Old Pattern | New Pattern | Benefit |
 |------------|-------------|---------|
-| `excel_batch(action: 'begin')` | `excel_file(action: 'open')` | Matches universal file paradigm |
+| `excel_batch(action: 'begin')` | `file(action: 'open')` | Matches universal file paradigm |
 | Track `batchId` GUID | Track `sessionId` (still a GUID) | More intuitive name |
-| `excel_batch(action: 'commit', save: true)` | `excel_file(action: 'close')` | Natural action name |
+| `excel_batch(action: 'commit', save: true)` | `file(action: 'close')` | Natural action name |
 | Optional `batchId` parameter | **REQUIRED** `sessionId` parameter | No decision fatigue |
 | "Should I use batch mode?" | Sessions always used | Zero cognitive load |
 | Dual code paths (batch vs. single) | **Single code path only** | Simpler implementation |
@@ -163,7 +163,7 @@ excelPath    → REMOVED    → Session knows the file (except open/create)
 
 ## Detailed API Design
 
-### 1. `excel_file` Tool - Updated Actions
+### 1. `file` Tool - Updated Actions
 
 **Current Actions:**
 
@@ -186,7 +186,7 @@ excelPath    → REMOVED    → Session knows the file (except open/create)
 #### Open Workbook
 
 ```csharp
-[McpServerTool(Name = "excel_file")]
+[McpServerTool(Name = "file")]
 [Description(@"Manage Excel file lifecycle. All Excel operations require an active session.
 
 REQUIRED WORKFLOW:
@@ -229,8 +229,8 @@ public static async Task<string> ExcelFile(
   "message": "Workbook opened successfully",
   "suggestedNextActions": [
     "Use sessionId='abc-123-def-456' for all operations",
-    "Call excel_file(action: 'save', sessionId='...') to save changes (explicit only)",
-    "Call excel_file(action: 'close', sessionId='...') when done (does NOT save)"
+    "Call file(action: 'save', sessionId='...') to save changes (explicit only)",
+    "Call file(action: 'close', sessionId='...') when done (does NOT save)"
   ],
   "workflowHint": "Session active. Remember: close does NOT save - use explicit save action."
 }
@@ -251,7 +251,7 @@ public static async Task<string> ExcelPowerQuery(
 
 **BREAKING CHANGE:** No more optional `batchId`. Every tool method signature changes to require `sessionId`.
 
-**BREAKING CHANGE:** `excelPath` parameter REMOVED from all tools except `excel_file` open/create actions. The session already knows which file is open, so passing `excelPath` is redundant and creates potential for mismatches (sessionId points to fileA.xlsx, but excelPath says fileB.xlsx).
+**BREAKING CHANGE:** `excelPath` parameter REMOVED from all tools except `file` open/create actions. The session already knows which file is open, so passing `excelPath` is redundant and creates potential for mismatches (sessionId points to fileA.xlsx, but excelPath says fileB.xlsx).
 
 **Implementation simplification:**
 
@@ -284,10 +284,10 @@ public static async Task<string> ExcelPowerQuery(
    - `ExcelBatch` → `ExcelSession` (implementation rename)
    - `BeginBatchAsync` → `OpenSessionAsync`
 
-#### Step 2: Add Session Lifecycle to excel_file (2-3 days)
+#### Step 2: Add Session Lifecycle to file (2-3 days)
 
 ```csharp
-// Add new actions to existing excel_file tool
+// Add new actions to existing file tool
 public enum FileAction
 {
     CreateEmpty,
@@ -362,7 +362,7 @@ var result = await commands.SomeAsync(session, args);
 
 **Update:**
 
-- `excel_file.md` - Add session lifecycle patterns
+- `file.md` - Add session lifecycle patterns
 - `tool_selection_guide.md` - Remove batch decision logic
 - All tool descriptions - Change to "sessionId (required)"
 - README - Update examples to show session workflow
@@ -525,24 +525,24 @@ return await commands.SomeAsync(session, args);
 ## Excel File Operations - ALWAYS Use Sessions
 
 **EVERY workflow follows this pattern:**
-1. excel_file(action: 'open', filePath: '...') → Get sessionId
+1. file(action: 'open', filePath: '...') → Get sessionId
 2. Perform operations (ALL require sessionId)
-3. excel_file(action: 'close', sessionId: '...') → Close file
+3. file(action: 'close', sessionId: '...') → Close file
 
 **No exceptions.** You cannot list queries, create worksheets, or read ranges without an active session.
 
 **Single operation?** Still requires open/close:
 ```yaml
 # Even for "just list worksheets"
-1. excel_file(action: 'open', filePath: 'data.xlsx')
+1. file(action: 'open', filePath: 'data.xlsx')
    → { sessionId: 'abc-123' }
-2. excel_worksheet(action: 'list', sessionId: 'abc-123')
-3. excel_file(action: 'close', sessionId: 'abc-123')
+2. worksheet(action: 'list', sessionId: 'abc-123')
+3. file(action: 'close', sessionId: 'abc-123')
 ```
 
 **Why?** Sessions ensure proper Excel COM lifecycle management. There are no "quick operations" - all operations are safe and optimized.
 
-Only `excel_file(action: 'open'|'create-empty')` accepts `filePath`. All other tools use `sessionId` only and do not take a file path.
+Only `file(action: 'open'|'create-empty')` accepts `filePath`. All other tools use `sessionId` only and do not take a file path.
 
 ```
 
@@ -568,19 +568,19 @@ Only `excel_file(action: 'open'|'create-empty')` accepts `filePath`. All other t
 ```
 
 Current System (Issue #173):
-  Call 1: excel_range(action, NO batchId)
+  Call 1: range(action, NO batchId)
     → Create temp Excel → Use → Start disposal (2-17s background)
-  Call 2: excel_range(action, NO batchId)
+  Call 2: range(action, NO batchId)
     → Try create NEW Excel → File locked! ❌
 
 New System (Mandatory Sessions):
-  Call 1: excel_file(action: 'open')
+  Call 1: file(action: 'open')
     → Create Excel instance, return sessionId
-  Call 2: excel_range(action, sessionId='abc-123')
+  Call 2: range(action, sessionId='abc-123')
     → Reuse SAME Excel instance ✅
-  Call 3: excel_range(action, sessionId='abc-123')
+  Call 3: range(action, sessionId='abc-123')
     → Reuse SAME Excel instance ✅
-  Call 4: excel_file(action: 'close')
+  Call 4: file(action: 'close')
     → Dispose Excel once (at end)
 
 ```
@@ -636,8 +636,8 @@ New System (Mandatory Sessions):
 - [ ] **ADD** `FileAction.Open`, `FileAction.Save`, `FileAction.Close` enum values
 - [ ] **IMPLEMENT** `OpenWorkbookAsync()`, `SaveWorkbookAsync()`, `CloseWorkbookAsync()` in ExcelFileTool
 - [ ] **CHANGE** all 12 tools: `batchId` (optional) → `sessionId` (required)
-- [ ] **REMOVE** `excelPath` parameter from all 11 tools (except excel_file open/create)
-- [ ] **REMOVE** `save` parameter from close action in excel_file tool
+- [ ] **REMOVE** `excelPath` parameter from all 11 tools (except file open/create)
+- [ ] **REMOVE** `save` parameter from close action in file tool
 - [ ] **SIMPLIFY** all tool methods: remove WithBatchAsync, direct session lookup
 - [ ] **UPDATE** session to track filePath internally (for excelPath removal)
 
@@ -662,7 +662,7 @@ New System (Mandatory Sessions):
 
 - [ ] **DELETE** `excel_batch.md` prompt file
 - [ ] **DELETE** all references to "batch mode" and "when to batch"
-- [ ] **REWRITE** `excel_file.md` with session lifecycle patterns
+- [ ] **REWRITE** `file.md` with session lifecycle patterns
 - [ ] **REWRITE** `tool_selection_guide.md` (remove batch decision logic)
 - [ ] **REWRITE** README examples (all use session pattern)
 - [ ] **UPDATE** all 12 tool `[Description]` attributes: "sessionId (required)"
@@ -700,7 +700,7 @@ New System (Mandatory Sessions):
    "errorMessage": "Session 'xyz' not found. The workbook may have already been closed.",
    "isError": true,
    "suggestedNextActions": [
-      "Call excel_file(action: 'open', filePath: '...') to open the workbook again",
+      "Call file(action: 'open', filePath: '...') to open the workbook again",
       "Check if another process closed the file"
    ]
 }
@@ -721,7 +721,7 @@ MCP exceptions (`McpException`) are reserved for protocol issues only (missing/i
 
 1. **Process termination cleanup** - When MCP client (VS Code, Claude Desktop) closes, all Excel instances automatically close
 2. **Manual process kill** - User can terminate Excel via Task Manager if needed
-3. **Session listing** - Future enhancement: `excel_file(action: 'list-sessions')` to show active sessions
+3. **Session listing** - Future enhancement: `file(action: 'list-sessions')` to show active sessions
 4. **No automatic timeout** - Client-side execution means no server-side cleanup needed
 
 **Why this works:**
@@ -828,7 +828,7 @@ for each file:
 - **Multiple saves** - Save multiple times during session, close at end
 - **Predictable behavior** - close always does same thing (cleanup only)
 
-**Implementation:** Remove `save` parameter from close entirely. Users call `excel_file(action: 'save')` explicitly when needed.
+**Implementation:** Remove `save` parameter from close entirely. Users call `file(action: 'save')` explicitly when needed.
 
 ### 3. Should sessions timeout automatically after inactivity?
 
@@ -915,7 +915,7 @@ for each file:
 **Week 1: Delete & Rename (Breaking Changes)**
 
 - Day 1-2: Delete batch infrastructure, rename classes
-- Day 3-4: Add session lifecycle to excel_file tool
+- Day 3-4: Add session lifecycle to file tool
 - Day 5: Update 3-4 tools to require sessionId
 
 **Week 2: Tool Updates & Testing**
@@ -947,13 +947,13 @@ LLM: I'll create 3 worksheets using batch mode for performance.
 1. excel_batch(action: 'begin', filePath: 'sales.xlsx')
    → { batchId: 'abc-123' }
 
-2. excel_worksheet(action: 'create', excelPath: 'sales.xlsx',
+2. worksheet(action: 'create', excelPath: 'sales.xlsx',
                    sheetName: 'Q1', batchId: 'abc-123')
 
-3. excel_worksheet(action: 'create', excelPath: 'sales.xlsx',
+3. worksheet(action: 'create', excelPath: 'sales.xlsx',
                    sheetName: 'Q2', batchId: 'abc-123')
 
-4. excel_worksheet(action: 'create', excelPath: 'sales.xlsx',
+4. worksheet(action: 'create', excelPath: 'sales.xlsx',
                    sheetName: 'Q3', batchId: 'abc-123')
 
 5. excel_batch(action: 'commit', batchId: 'abc-123', save: true)
@@ -965,19 +965,19 @@ LLM: I'll create 3 worksheets using batch mode for performance.
 ```
 LLM: I'll open the workbook and create 3 worksheets.
 
-1. excel_file(action: 'open', filePath: 'sales.xlsx')
+1. file(action: 'open', filePath: 'sales.xlsx')
    → { sessionId: 'abc-123' }
 
-2. excel_worksheet(action: 'create',
+2. worksheet(action: 'create',
                    sheetName: 'Q1', sessionId: 'abc-123')
 
-3. excel_worksheet(action: 'create',
+3. worksheet(action: 'create',
                    sheetName: 'Q2', sessionId: 'abc-123')
 
-4. excel_worksheet(action: 'create',
+4. worksheet(action: 'create',
                    sheetName: 'Q3', sessionId: 'abc-123')
 
-5. excel_file(action: 'close', sessionId: 'abc-123')
+5. file(action: 'close', sessionId: 'abc-123')
    → { success: true }
 ```
 
@@ -996,13 +996,13 @@ LLM: I'll open the workbook and create 3 worksheets.
 ```
 LLM: I'll check which Power Queries are in this workbook.
 
-1. excel_file(action: 'open', filePath: 'sales.xlsx')
+1. file(action: 'open', filePath: 'sales.xlsx')
    → { sessionId: 'abc-123' }
 
-2. excel_powerquery(action: 'list', sessionId: 'abc-123')
+2. powerquery(action: 'list', sessionId: 'abc-123')
    → { queries: ['SalesData', 'CustomerInfo', 'ProductCatalog'] }
 
-3. excel_file(action: 'close', sessionId: 'abc-123')
+3. file(action: 'close', sessionId: 'abc-123')
    → { success: true }
 ```
 
@@ -1017,31 +1017,31 @@ LLM: I'll check which Power Queries are in this workbook.
 ```
 LLM: I'll create multiple queries with checkpoints after each one.
 
-1. excel_file(action: 'open', filePath: 'sales.xlsx')
+1. file(action: 'open', filePath: 'sales.xlsx')
    → { sessionId: 'abc-123' }
 
-2. excel_powerquery(action: 'import', sessionId: 'abc-123',
+2. powerquery(action: 'import', sessionId: 'abc-123',
                     queryName: 'SalesData', mCodeFile: 'sales.m')
    → { success: true }
 
-3. excel_file(action: 'save', sessionId: 'abc-123')
+3. file(action: 'save', sessionId: 'abc-123')
    → { success: true }  // Checkpoint 1
 
-4. excel_powerquery(action: 'import', sessionId: 'abc-123',
+4. powerquery(action: 'import', sessionId: 'abc-123',
                     queryName: 'CustomerInfo', mCodeFile: 'customers.m')
    → { success: true }
 
-5. excel_file(action: 'save', sessionId: 'abc-123')
+5. file(action: 'save', sessionId: 'abc-123')
    → { success: true }  // Checkpoint 2
 
-6. excel_powerquery(action: 'import', sessionId: 'abc-123',
+6. powerquery(action: 'import', sessionId: 'abc-123',
                     queryName: 'ProductCatalog', mCodeFile: 'products.m')
    → { success: true }
 
-7. excel_file(action: 'save', sessionId: 'abc-123')
+7. file(action: 'save', sessionId: 'abc-123')
    → { success: true }  // Final checkpoint
 
-8. excel_file(action: 'close', sessionId: 'abc-123')
+8. file(action: 'close', sessionId: 'abc-123')
    → { success: true }
 ```
 

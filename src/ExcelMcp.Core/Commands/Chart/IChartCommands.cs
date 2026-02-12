@@ -24,7 +24,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// Use chartconfig for series, titles, legends, styles, placement mode.
 /// </summary>
 [ServiceCategory("chart", "Chart")]
-[McpTool("excel_chart", Title = "Excel Chart Operations", Destructive = true, Category = "analysis",
+[McpTool("chart", Title = "Chart Operations", Destructive = true, Category = "analysis",
     Description = "Chart lifecycle - create, read, move, and delete embedded charts. CRITICAL - AVOID OVERLAPPING DATA: 1. Check used range first with get-used-range 2. Position chart BELOW or RIGHT of data 3. NEVER place at default (0,0). POSITIONING: targetRange (cell-relative, PREFERRED) or left/top (points, 72pts=1in). CHART TYPES: 70+ types (ColumnClustered, Line, Pie, Bar, Area, XYScatter, etc.). CREATE: create-from-range (cell range), create-from-table (Excel Table), create-from-pivottable (linked PivotChart). Use excel_chart_config for series, titles, legends, and styling.")]
 public interface IChartCommands
 {

@@ -27,12 +27,12 @@ excelmcp datamodel rename-table -s <SESSION_ID> --table "OldTable" --new-name "N
 ## MCP
 
 ### Rename Power Query
-- Tool: `excel_powerquery`
+- Tool: `powerquery`
 - Action: `Rename`
 - Inputs: `sessionId`, `queryName` (old), `newName`
 
 ### Rename Data Model Table (KNOWN LIMITATION)
-- Tool: `excel_datamodel`
+- Tool: `datamodel`
 - Action: `RenameTable`
 - Inputs: `excelPath`, `sessionId`, `tableName` (old), `newName`
 

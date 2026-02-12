@@ -1,4 +1,4 @@
-# excel_datamodel - Server Quirks
+# datamodel - Server Quirks
 
 **PREREQUISITE: Tables must be added to Data Model first!**
 
@@ -25,22 +25,22 @@ You MUST explicitly refresh the Data Model to sync changes.
 
 ```
 # WRONG: Data still shows old values
-excel_table(append, tableName="Sales", csvData="...")  # Worksheet updated
-excel_datamodel(evaluate, daxQuery="...")               # Returns OLD values!
+table(append, tableName="Sales", csvData="...")  # Worksheet updated
+datamodel(evaluate, daxQuery="...")               # Returns OLD values!
 
 # CORRECT: Refresh Data Model after worksheet changes
-excel_table(append, tableName="Sales", csvData="...")  # Worksheet updated
-excel_datamodel(refresh)                                 # Sync to Data Model
-excel_datamodel(evaluate, daxQuery="...")               # Returns NEW values!
+table(append, tableName="Sales", csvData="...")  # Worksheet updated
+datamodel(refresh)                                 # Sync to Data Model
+datamodel(evaluate, daxQuery="...")               # Returns NEW values!
 ```
 
 **When refresh is automatic:**
-- `excel_powerquery(refresh)` refreshes BOTH Power Query AND Data Model
+- `powerquery(refresh)` refreshes BOTH Power Query AND Data Model
 - Tables loaded via Power Query auto-sync on Power Query refresh
 
 **When refresh is REQUIRED:**
-- After `excel_table(append)` to worksheet table
-- After `excel_range(set-values)` that modifies table data
+- After `table(append)` to worksheet table
+- After `range(set-values)` that modifies table data
 - After any manual/direct worksheet edits
 
 ## Excel Power Pivot Limitations (vs SSAS/Power BI)
@@ -60,9 +60,9 @@ excel_datamodel(evaluate, daxQuery="...")               # Returns NEW values!
 
 | Source | Method |
 |--------|--------|
-| Worksheet Excel Table | excel_table with add-to-data-model action |
-| External file (CSV, etc.) | excel_powerquery with loadDestination='data-model' |
-| Database/web source | excel_powerquery with loadDestination='data-model' |
+| Worksheet Excel Table | table with add-to-data-model action |
+| External file (CSV, etc.) | powerquery with loadDestination='data-model' |
+| Database/web source | powerquery with loadDestination='data-model' |
 
 **Automatic DAX Formatting**:
 
@@ -193,19 +193,19 @@ DIVIDE(SUM(Sales[Revenue]), SUM(Sales[Units]), 0)
 
 | Goal | Best Tool | Why |
 |------|-----------|-----|
-| **Flat query results** | `excel_table create-from-dax` | Clean tabular display, no PivotTable UI |
-| **Static reports/snapshots** | `excel_table create-from-dax` | DAX does aggregation, table just displays |
-| **Data for formulas** | `excel_table create-from-dax` | Use structured references like `=SUM(Sales[Amount])` |
-| **Interactive drill-down** | `excel_pivottable` | User can regroup, filter, expand/collapse |
-| **Cross-tabulation (rows × columns)** | `excel_pivottable` | Matrix layout with row/column fields |
+| **Flat query results** | `table create-from-dax` | Clean tabular display, no PivotTable UI |
+| **Static reports/snapshots** | `table create-from-dax` | DAX does aggregation, table just displays |
+| **Data for formulas** | `table create-from-dax` | Use structured references like `=SUM(Sales[Amount])` |
+| **Interactive drill-down** | `pivottable` | User can regroup, filter, expand/collapse |
+| **Cross-tabulation (rows × columns)** | `pivottable` | Matrix layout with row/column fields |
 
-**Rule**: Prefer `excel_table create-from-dax` for displaying query results.
-Use `excel_pivottable` only when the user needs interactive analysis capabilities.
+**Rule**: Prefer `table create-from-dax` for displaying query results.
+Use `pivottable` only when the user needs interactive analysis capabilities.
 
 ## Charting Data Model Data - Use PivotChart Directly
 
 **WRONG**: Create PivotTable → Create separate Chart from PivotTable data
-**RIGHT**: Use `excel_chart create-from-pivottable` to create a PivotChart directly
+**RIGHT**: Use `chart create-from-pivottable` to create a PivotChart directly
 
 A PivotChart is a single object connected to the Data Model. Creating a PivotTable + separate chart is unnecessary extra work and creates two objects to maintain.
 

@@ -2,26 +2,26 @@
 
 ## Tools
 
-- **`excel_chart`**: Create charts, manage positioning and data sources
-- **`excel_chart_config`**: Configure chart appearance, formatting, and analysis features
+- **`chart`**: Create charts, manage positioning and data sources
+- **`chart_config`**: Configure chart appearance, formatting, and analysis features
 
 ## Chart Creation
 
 ### From Range
 ```
-excel_chart(create-from-range, chartType, sourceRange, sheetName)
+chart(create-from-range, chartType, sourceRange, sheetName)
 ```
 Best for: Simple data in worksheet ranges
 
 ### From PivotTable (PivotChart)
 ```
-excel_chart(create-from-pivottable, pivotTableName)
+chart(create-from-pivottable, pivotTableName)
 ```
 Best for: Data Model data - creates a single PivotChart object (don't create separate PivotTable + Chart)
 
 ### From Table
 ```
-excel_chart(create-from-table, tableName, chartType)
+chart(create-from-table, tableName, chartType)
 ```
 Best for: Excel Tables with structured references
 
@@ -31,7 +31,7 @@ Common types: `ColumnClustered`, `Line`, `Pie`, `Bar`, `Area`, `XYScatter`, `Dou
 
 Specialized: `Waterfall`, `Funnel`, `Treemap`, `Sunburst`, `BoxWhisker`, `Histogram`, `Pareto`
 
-## Configuration Actions (excel_chart_config)
+## Configuration Actions (chart_config)
 
 ### Series Management
 - `add-series`: Add data series with valuesRange and optional categoryRange
@@ -90,17 +90,17 @@ Specialized: `Waterfall`, `Funnel`, `Treemap`, `Sunburst`, `BoxWhisker`, `Histog
 
 ### Create Chart with Formatting
 ```
-1. excel_chart(create-from-range) → chartName
-2. excel_chart_config(set-title, title="Monthly Sales")
-3. excel_chart_config(set-axis-title, axis="Value", title="Revenue ($)")
-4. excel_chart_config(set-axis-number-format, axis="Value", numberFormat="$#,##0")
-5. excel_chart_config(set-data-labels, position="OutsideEnd", showValue=true)
+1. chart(create-from-range) → chartName
+2. chart_config(set-title, title="Monthly Sales")
+3. chart_config(set-axis-title, axis="Value", title="Revenue ($)")
+4. chart_config(set-axis-number-format, axis="Value", numberFormat="$#,##0")
+5. chart_config(set-data-labels, position="OutsideEnd", showValue=true)
 ```
 
 ### Add Analysis
 ```
-1. excel_chart_config(add-trendline, trendlineType="Linear", displayEquation=true, displayRSquared=true)
-2. excel_chart_config(set-trendline, forward=3) # Forecast 3 periods ahead
+1. chart_config(add-trendline, trendlineType="Linear", displayEquation=true, displayRSquared=true)
+2. chart_config(set-trendline, forward=3) # Forecast 3 periods ahead
 ```
 
 ## Best Practices
@@ -117,25 +117,25 @@ Specialized: `Waterfall`, `Funnel`, `Treemap`, `Sunburst`, `BoxWhisker`, `Histog
 
 ### Use targetRange (PREFERRED - One Step)
 ```
-excel_chart(create-from-range, sourceRange='A1:B10', chartType='Line', targetRange='F2:K15')
+chart(create-from-range, sourceRange='A1:B10', chartType='Line', targetRange='F2:K15')
 ```
 Creates chart AND positions it to cell range in one call.
 
 ### Check Used Range First
 ```
-excel_range(action: 'get-used-range') → e.g., "Sheet1!A1:D20"
+range(action: 'get-used-range') → e.g., "Sheet1!A1:D20"
 ```
 
 ### Position with Coordinates
 ```
-excel_chart(create-from-range, sourceRange: 'A1:B10', left: 360, top: 20)
+chart(create-from-range, sourceRange: 'A1:B10', left: 360, top: 20)
 # left/top in points (72 points = 1 inch)
 ```
 
 ### Use FitToRange (After Creation)
 ```
-excel_chart(create-from-range, ...) -> chartName
-excel_chart(fit-to-range, chartName, rangeAddress: 'F2:K15')
+chart(create-from-range, ...) -> chartName
+chart(fit-to-range, chartName, rangeAddress: 'F2:K15')
 # Reposition existing chart to cell range
 ```
 

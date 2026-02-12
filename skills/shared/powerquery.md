@@ -1,4 +1,4 @@
-# excel_powerquery - Server Quirks
+# powerquery - Server Quirks
 
 ## RECOMMENDED DEVELOPMENT WORKFLOW (ALWAYS USE THIS)
 
@@ -43,12 +43,12 @@ Power Query can load data to different destinations:
 - `connection-only`: Imports query definition without loading data
 
 To create DAX measures on Power Query data:
-1. Use excel_powerquery create/load-to with `loadDestination='data-model'`
-2. Then use excel_datamodel to create DAX measures
+1. Use powerquery create/load-to with `loadDestination='data-model'`
+2. Then use datamodel to create DAX measures
 
 Alternative path (for existing worksheet tables):
-1. Use excel_table with `add-to-data-model` action
-2. Then use excel_datamodel to create DAX measures
+1. Use table with `add-to-data-model` action
+2. Then use datamodel to create DAX measures
 
 **Action disambiguation**:
 
@@ -151,7 +151,7 @@ Reference other queries by name directly: `Source = OtherQueryName`
 ### Source Control Pattern
 
 1. Store M code in `.pq` files
-2. `excel_powerquery create` or `update` with inline `mCode`
+2. `powerquery create` or `update` with inline `mCode`
 3. `refresh` to validate
 4. File name MUST match query name
 

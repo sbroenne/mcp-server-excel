@@ -183,11 +183,11 @@ public class SheetVisibilityResult : OperationResult
 
 ## MCP Server Integration (Primary Use Case)
 
-### Updated excel_worksheet Tool
+### Updated worksheet Tool
 
 ```typescript
 {
-  "name": "excel_worksheet",
+  "name": "worksheet",
   "description": "Worksheet lifecycle and appearance management",
   "parameters": {
     "action": "string",
@@ -338,12 +338,12 @@ public class SheetVisibilityResult : OperationResult
 { "tool": "begin_excel_batch", "excelPath": "Financial-Report.xlsx", "batchId": "color-coding" }
 
 // Step 2: Apply all colors in one session (no file saves between operations)
-{ "tool": "excel_worksheet", "action": "set-tab-color", "batchId": "color-coding", "sheetName": "Sales", "red": 0, "green": 176, "blue": 240 }
-{ "tool": "excel_worksheet", "action": "set-tab-color", "batchId": "color-coding", "sheetName": "Marketing", "red": 255, "green": 192, "blue": 0 }
-{ "tool": "excel_worksheet", "action": "set-tab-color", "batchId": "color-coding", "sheetName": "Operations", "red": 146, "green": 208, "blue": 80 }
-{ "tool": "excel_worksheet", "action": "set-tab-color", "batchId": "color-coding", "sheetName": "HR", "red": 112, "green": 48, "blue": 160 }
-{ "tool": "excel_worksheet", "action": "set-tab-color", "batchId": "color-coding", "sheetName": "Finance", "red": 255, "green": 217, "blue": 102 }
-{ "tool": "excel_worksheet", "action": "set-tab-color", "batchId": "color-coding", "sheetName": "Summary", "red": 192, "green": 0, "blue": 0 }
+{ "tool": "worksheet", "action": "set-tab-color", "batchId": "color-coding", "sheetName": "Sales", "red": 0, "green": 176, "blue": 240 }
+{ "tool": "worksheet", "action": "set-tab-color", "batchId": "color-coding", "sheetName": "Marketing", "red": 255, "green": 192, "blue": 0 }
+{ "tool": "worksheet", "action": "set-tab-color", "batchId": "color-coding", "sheetName": "Operations", "red": 146, "green": 208, "blue": 80 }
+{ "tool": "worksheet", "action": "set-tab-color", "batchId": "color-coding", "sheetName": "HR", "red": 112, "green": 48, "blue": 160 }
+{ "tool": "worksheet", "action": "set-tab-color", "batchId": "color-coding", "sheetName": "Finance", "red": 255, "green": 217, "blue": 102 }
+{ "tool": "worksheet", "action": "set-tab-color", "batchId": "color-coding", "sheetName": "Summary", "red": 192, "green": 0, "blue": 0 }
 
 // Step 3: Commit batch (saves once)
 { "tool": "commit_excel_batch", "batchId": "color-coding", "saveChanges": true }
@@ -392,20 +392,20 @@ public class SheetVisibilityResult : OperationResult
 
 ```json
 // Step 1: Create sheets
-{ "tool": "excel_worksheet", "action": "create", "excelPath": "Q1-Report.xlsx", "sheetName": "Dashboard" }
-{ "tool": "excel_worksheet", "action": "create", "excelPath": "Q1-Report.xlsx", "sheetName": "Sales Data" }
-{ "tool": "excel_worksheet", "action": "create", "excelPath": "Q1-Report.xlsx", "sheetName": "Calculations" }
-{ "tool": "excel_worksheet", "action": "create", "excelPath": "Q1-Report.xlsx", "sheetName": "Lookup Tables" }
+{ "tool": "worksheet", "action": "create", "excelPath": "Q1-Report.xlsx", "sheetName": "Dashboard" }
+{ "tool": "worksheet", "action": "create", "excelPath": "Q1-Report.xlsx", "sheetName": "Sales Data" }
+{ "tool": "worksheet", "action": "create", "excelPath": "Q1-Report.xlsx", "sheetName": "Calculations" }
+{ "tool": "worksheet", "action": "create", "excelPath": "Q1-Report.xlsx", "sheetName": "Lookup Tables" }
 
 // Step 2: Color-code by purpose
-{ "tool": "excel_worksheet", "action": "set-tab-color", "sheetName": "Dashboard", "red": 68, "green": 114, "blue": 196 }     // Blue - user-facing
-{ "tool": "excel_worksheet", "action": "set-tab-color", "sheetName": "Sales Data", "red": 112, "green": 173, "blue": 71 }   // Green - data
-{ "tool": "excel_worksheet", "action": "set-tab-color", "sheetName": "Calculations", "red": 255, "green": 192, "blue": 0 }  // Orange - internal
-{ "tool": "excel_worksheet", "action": "set-tab-color", "sheetName": "Lookup Tables", "red": 158, "green": 158, "blue": 158 } // Gray - reference
+{ "tool": "worksheet", "action": "set-tab-color", "sheetName": "Dashboard", "red": 68, "green": 114, "blue": 196 }     // Blue - user-facing
+{ "tool": "worksheet", "action": "set-tab-color", "sheetName": "Sales Data", "red": 112, "green": 173, "blue": 71 }   // Green - data
+{ "tool": "worksheet", "action": "set-tab-color", "sheetName": "Calculations", "red": 255, "green": 192, "blue": 0 }  // Orange - internal
+{ "tool": "worksheet", "action": "set-tab-color", "sheetName": "Lookup Tables", "red": 158, "green": 158, "blue": 158 } // Gray - reference
 
 // Step 3: Hide internal sheets
-{ "tool": "excel_worksheet", "action": "very-hide", "sheetName": "Calculations" }
-{ "tool": "excel_worksheet", "action": "very-hide", "sheetName": "Lookup Tables" }
+{ "tool": "worksheet", "action": "very-hide", "sheetName": "Calculations" }
+{ "tool": "worksheet", "action": "very-hide", "sheetName": "Lookup Tables" }
 
 // Step 4: Populate data (using other tools)
 // ... range operations, Power Query, etc.
@@ -429,7 +429,7 @@ public class SheetVisibilityResult : OperationResult
 **Best Practice for LLMs:**
 ```json
 // Always check if operation succeeded
-const result = excel_worksheet({action: "set-tab-color", sheetName: "Sales", red: 255, green: 0, blue: 0});
+const result = worksheet({action: "set-tab-color", sheetName: "Sales", red: 255, green: 0, blue: 0});
 if (!result.success) {
   // Handle error - maybe sheet was renamed or deleted
   console.error(result.errorMessage);
@@ -503,8 +503,8 @@ Chain operations for complete workflows:
 
 ```
 When creating new sheet:
-  1. excel_worksheet(action: "create", sheetName: "Sales")
-  2. excel_worksheet(action: "set-tab-color", sheetName: "Sales", red: 0, green: 176, blue: 240)
+  1. worksheet(action: "create", sheetName: "Sales")
+  2. worksheet(action: "set-tab-color", sheetName: "Sales", red: 0, green: 176, blue: 240)
   → Result: New sheet with color applied immediately
 
 When organizing workbook:
@@ -529,7 +529,7 @@ RGB color validation:
   }
 
 Sheet existence check:
-  1. Call: excel_worksheet(action: "list")
+  1. Call: worksheet(action: "list")
   2. Verify sheetName exists in list
   3. Then call: set-tab-color or set-visibility
   → Prevents "sheet not found" errors

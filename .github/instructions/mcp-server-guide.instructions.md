@@ -235,7 +235,7 @@ private static object ConvertToCellValue(object? value)
 **❌ WRONG: Verbose guidance (LLM doesn't need step-by-step instructions)**
 ```csharp
 errorMessage = "Operation failed. This usually means: (1) Sheet doesn't exist, (2) Range invalid, or (3) Session closed. " +
-               "Use excel_worksheet(action: 'list') to verify sheet exists, then excel_file(action: 'list') to check sessions.";
+               "Use worksheet(action: 'list') to verify sheet exists, then file(action: 'list') to check sessions.";
 ```
 
 **✅ CORRECT: State facts (LLM determines next action)**
@@ -347,7 +347,7 @@ Before committing MCP tool changes:
 /// 
 /// TIMEOUT: Long-running refresh/load operations auto-timeout after 5 minutes.
 /// 
-/// Use excel_datamodel tool for DAX measures after loading to Data Model.
+/// Use datamodel tool for DAX measures after loading to Data Model.
 /// </summary>
 ```
 ✅ Describes purpose and use cases

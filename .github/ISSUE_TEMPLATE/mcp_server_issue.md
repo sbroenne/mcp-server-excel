@@ -19,7 +19,7 @@ Which AI assistant are you using with the MCP Server?
 
 ## MCP Tool & Action
 Which MCP tool and action are experiencing issues?
-- **Tool**: [e.g., excel_powerquery, excel_worksheet, excel_vba, excel_cell, excel_parameter, excel_file]
+- **Tool**: [e.g., powerquery, worksheet, vba, excel_cell, excel_parameter, file]
 - **Action**: [e.g., list, view, import, export, update, refresh, delete, etc.]
 - **File Path**: [e.g., "C:\Data\workbook.xlsx"]
 - **Additional Parameters**: [describe any other parameters used]

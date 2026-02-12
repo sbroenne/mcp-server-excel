@@ -33,7 +33,7 @@ public static partial class ExcelFileTool
     /// <param name="save">Whether to save changes when closing. Default: false (discard changes)</param>
     /// <param name="show">Whether to make Excel window visible. Default: false (hidden automation)</param>
     /// <param name="timeout_seconds">Maximum time in seconds for any operation in this session. Default: 300 (5 min). Range: 10-3600. Used for: open, create</param>
-    [McpServerTool(Name = "excel_file", Title = "Excel File Operations", Destructive = true)]
+    [McpServerTool(Name = "file", Title = "File Operations", Destructive = true)]
     [McpMeta("category", "session")]
     [McpMeta("requiresSession", false)]
     public static partial string ExcelFile(
@@ -58,7 +58,7 @@ public static partial class ExcelFileTool
         var timeout = TimeSpan.FromSeconds(timeout_seconds);
 
         return ExcelToolsBase.ExecuteToolAction(
-            "excel_file",
+            "file",
             action.ToActionString(),
             path,
             () =>

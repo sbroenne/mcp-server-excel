@@ -113,7 +113,7 @@ public static class ExcelMcpTelemetry
     /// - TrackEvent: For tool usage analytics (customEvents table)
     /// - TrackRequest: For performance metrics (requests table, Performance blade)
     /// </summary>
-    /// <param name="toolName">The MCP tool name (e.g., "excel_range")</param>
+    /// <param name="toolName">The MCP tool name (e.g., "range")</param>
     /// <param name="action">The action performed (e.g., "get-values")</param>
     /// <param name="durationMs">Duration in milliseconds</param>
     /// <param name="success">Whether the operation succeeded</param>

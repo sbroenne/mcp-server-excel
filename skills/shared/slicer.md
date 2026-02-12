@@ -1,5 +1,5 @@
 ````markdown
-# excel_slicer - Server Quirks
+# slicer - Server Quirks
 
 **Slicer Types**:
 

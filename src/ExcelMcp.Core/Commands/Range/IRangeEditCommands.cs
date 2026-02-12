@@ -23,7 +23,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// Column indices are 1-based relative to the range.
 /// </summary>
 [ServiceCategory("rangeedit", "RangeEdit")]
-[McpTool("excel_range_edit", Title = "Excel Range Edit Operations", Destructive = true, Category = "data",
+[McpTool("range_edit", Title = "Range Edit Operations", Destructive = true, Category = "data",
     Description = "Range editing: insert/delete cells, rows, columns; find/replace text; sort data. INSERT/DELETE CELLS: shiftDirection controls cell movement (Down/Right for insert, Up/Left for delete). INSERT/DELETE ROWS: Use row range like 5:10. COLUMNS: Use column range like B:D. FIND: Returns up to 10 matches with total count, optional case/cell matching. REPLACE: Modifies all matches by default (replaceAll=true). SORT: sortColumns array of {columnIndex, ascending}, 1-based indices relative to range.")]
 public interface IRangeEditCommands
 {

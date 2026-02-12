@@ -139,8 +139,8 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine($"        public const string McpToolName = \"{info.McpToolName}\";");
         sb.AppendLine($"        public const bool RequiresSession = {(info.NoSession ? "false" : "true")};");
 
-        // CLI command name: strip "excel_" prefix and remove underscores
-        var cliCommandName = info.McpToolName.Replace("excel_", "").Replace("_", "");
+        // CLI command name: remove underscores from tool name
+        var cliCommandName = info.McpToolName.Replace("_", "");
         sb.AppendLine($"        public const string CliCommandName = \"{cliCommandName}\";");
         sb.AppendLine();
 
@@ -831,7 +831,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
         foreach (var cat in categories.OrderBy(c => c.CategoryPascal))
         {
-            var cliCommandName = cat.McpToolName.Replace("excel_", "").Replace("_", "");
+            var cliCommandName = cat.McpToolName.Replace("_", "");
             sb.AppendLine($"        (\"{cliCommandName}\", \"ServiceRegistry.{cat.CategoryPascal}\", {(cat.NoSession ? "false" : "true")}),");
         }
 
@@ -843,7 +843,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
         foreach (var cat in categories.OrderBy(c => c.CategoryPascal))
         {
-            var cliCommandName = cat.McpToolName.Replace("excel_", "").Replace("_", "");
+            var cliCommandName = cat.McpToolName.Replace("_", "");
             sb.AppendLine($"        [\"{cliCommandName}\"] = ServiceRegistry.{cat.CategoryPascal}.ValidActions,");
         }
 
@@ -884,7 +884,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         for (int i = 0; i < orderedCategories.Count; i++)
         {
             var cat = orderedCategories[i];
-            var cliCommandName = cat.McpToolName.Replace("excel_", "").Replace("_", "");
+            var cliCommandName = cat.McpToolName.Replace("_", "");
 
             sb.AppendLine("    {");
             sb.AppendLine($"      \"\"name\"\": \"\"{cliCommandName}\"\",");

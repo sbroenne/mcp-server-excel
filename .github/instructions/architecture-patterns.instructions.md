@@ -155,25 +155,25 @@ public async Task<OperationResult> ComplexAsync(IExcelBatch batch, string param)
 No local Core Command execution - the server is a thin JSON-over-named-pipe layer.
 
 **19 Focused Tools:**
-1. `excel_file` - Session lifecycle (open, close, create, list)
-2. `excel_worksheet` - Worksheet operations
-3. `excel_worksheet_style` - Tab colors and visibility
-4. `excel_range` - Range values and formulas
-5. `excel_range_edit` - Insert/delete/find/replace
-6. `excel_table` - Excel Tables (ListObjects)
-7. `excel_table_column` - Table columns/filters/sorts
-8. `excel_powerquery` - Power Query M code
-9. `excel_pivottable` - PivotTable lifecycle
-10. `excel_pivottable_field` - PivotTable fields
-11. `excel_pivottable_calc` - Calculated fields/items
-12. `excel_chart` - Chart lifecycle
-13. `excel_chart_config` - Chart configuration
-14. `excel_connection` - Data connections
-15. `excel_slicer` - Slicers
-16. `excel_vba` - VBA macros
-17. `excel_datamodel` - Power Pivot / DAX
-18. `excel_datamodel_rel` - Data Model relationships
-19. `excel_namedrange` - Named ranges
+1. `file` - Session lifecycle (open, close, create, list)
+2. `worksheet` - Worksheet operations
+3. `worksheet_style` - Tab colors and visibility
+4. `range` - Range values and formulas
+5. `range_edit` - Insert/delete/find/replace
+6. `table` - Excel Tables (ListObjects)
+7. `table_column` - Table columns/filters/sorts
+8. `powerquery` - Power Query M code
+9. `pivottable` - PivotTable lifecycle
+10. `pivottable_field` - PivotTable fields
+11. `pivottable_calc` - Calculated fields/items
+12. `chart` - Chart lifecycle
+13. `chart_config` - Chart configuration
+14. `connection` - Data connections
+15. `slicer` - Slicers
+16. `vba` - VBA macros
+17. `datamodel` - Power Pivot / DAX
+18. `datamodel_rel` - Data Model relationships
+19. `namedrange` - Named ranges
 20. `excel_calculation` - Calculation mode
 
 ### Action-Based Routing with ForwardToService

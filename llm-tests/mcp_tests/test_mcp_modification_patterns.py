@@ -18,7 +18,7 @@ async def test_mcp_range_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
         provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
-        allowed_tools=["excel_range", "excel_file", "excel_worksheet"],
+        allowed_tools=["range", "file", "worksheet"],
         max_turns=25,
     )
 
@@ -40,7 +40,7 @@ async def test_mcp_range_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
 """
     result = await aitest_run(agent, prompt)
     assert result.success
-    assert result.tool_was_called("excel_range")
+    assert result.tool_was_called("range")
     # Loosen assertions - either values or formula verification mentioned
     assert_regex(result.final_response, r"(?i)(1004|formula|d1|verified)")
     assert_regex(result.final_response, r"(?i)(480|food|updated|utilities)")
@@ -53,7 +53,7 @@ async def test_mcp_table_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
         provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
-        allowed_tools=["excel_range", "excel_table", "excel_file", "excel_worksheet"],
+        allowed_tools=["range", "table", "file", "worksheet"],
         max_turns=20,
     )
 
@@ -73,7 +73,7 @@ async def test_mcp_table_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
 """
     result = await aitest_run(agent, prompt)
     assert result.success
-    assert result.tool_was_called("excel_table")
+    assert result.tool_was_called("table")
     assert_regex(result.final_response, r"(?i)(salestable)")
     assert_regex(result.final_response, r"(?i)(125)")
 
@@ -85,7 +85,7 @@ async def test_mcp_chart_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
         provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
-        allowed_tools=["excel_chart", "excel_chart_config", "excel_file", "excel_worksheet", "excel_range"],
+        allowed_tools=["chart", "chart_config", "file", "worksheet", "range"],
         max_turns=20,
     )
 
@@ -104,7 +104,7 @@ async def test_mcp_chart_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
 """
     result = await aitest_run(agent, prompt)
     assert result.success
-    assert result.tool_was_called("excel_chart")
+    assert result.tool_was_called("chart")
     assert_regex(result.final_response, r"(?i)(q1 sales|chart|title|updated|changed)")
 
 
@@ -115,7 +115,7 @@ async def test_mcp_sheet_structural_changes(aitest_run, excel_mcp_server, excel_
         provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
-        allowed_tools=["excel_range", "excel_file", "excel_worksheet"],
+        allowed_tools=["range", "file", "worksheet"],
         max_turns=20,
     )
 
@@ -139,7 +139,7 @@ async def test_mcp_sheet_structural_changes(aitest_run, excel_mcp_server, excel_
 """
     result = await aitest_run(agent, prompt)
     assert result.success
-    assert result.tool_was_called("excel_range")
+    assert result.tool_was_called("range")
     assert_regex(result.final_response, r"(?i)(200)")
     assert_regex(result.final_response, r"(?i)(300)")
     assert_regex(result.final_response, r"(?i)(400)")

@@ -818,8 +818,8 @@ public async Task<RangeValueResult> GetValuesAsync(IExcelBatch batch, string she
 
 ```typescript
 // I can use either - RangeCommands handles both
-excel_range({ action: "get-values", sheetName: "", rangeAddress: "SalesData" })
-excel_range({ action: "get-values", sheetName: "Sheet1", rangeAddress: "A1:D100" })
+range({ action: "get-values", sheetName: "", rangeAddress: "SalesData" })
+range({ action: "get-values", sheetName: "Sheet1", rangeAddress: "A1:D100" })
 
 // No need for separate "get-named-range-values" action!
 ```
@@ -873,7 +873,7 @@ Since backwards compatibility is not required, we can make clean architectural d
    - ❌ Remove CLI HyperlinkCommands wrapper
    - ❌ Remove all hyperlink-* CLI commands
    - ✅ Hyperlink operations become actions in RangeCommands
-   - ✅ Hyperlink operations integrated into excel_range MCP tool
+   - ✅ Hyperlink operations integrated into range MCP tool
 
 4. **Result Types** → **SIMPLIFY**
    - ❌ Remove CellValueResult (replaced by RangeValueResult)
@@ -918,7 +918,7 @@ Commands/
 9. ⬜ **CLI**: ONLY update commands that break due to refactoring (sheet-read, sheet-write if affected)
 10. ⬜ **DELETE**: Remove CellCommands from Core (breaks CLI cell-* commands - acceptable)
 11. ⬜ **DELETE**: Remove HyperlinkCommands from Core (breaks CLI hyperlink-* commands - acceptable)
-12. ⬜ **DELETE**: Remove excel_cell from MCP server (replaced by excel_range)
+12. ⬜ **DELETE**: Remove excel_cell from MCP server (replaced by range)
 
 **Phase 1B** - CLI Implementation (After MCP Server Complete):
 1. ⬜ Create CLI RangeCommands wrapper (ExcelMcp.CLI/Commands/RangeCommands.cs)
@@ -928,15 +928,15 @@ Commands/
 5. ⬜ Update README.md and installation guides
 
 **Phase 2-4** - Future PRs (Number/Visual/Advanced Formatting):
-- MCP Server first (add actions to excel_range tool)
+- MCP Server first (add actions to range tool)
 - CLI later (add range-* subcommands)
 
 ### Breaking Changes Strategy
 
 **MCP Server** (Phase 1A):
-- ✅ excel_cell tool → REMOVED (replaced by excel_range)
-- ✅ Cell operations in excel_worksheet → REMOVED (use excel_range)
-- ✅ Hyperlink operations → MOVED to excel_range
+- ✅ excel_cell tool → REMOVED (replaced by range)
+- ✅ Cell operations in worksheet → REMOVED (use range)
+- ✅ Hyperlink operations → MOVED to range
 
 **CLI** (Phase 1B):
 - ⚠️ cell-* commands → REMOVED (replaced by range-* commands)
@@ -963,7 +963,7 @@ Commands/
 - ⬜ **MCP**: Create ExcelRangeTool for MCP server (replacing excel_cell tool)
 - ⬜ **MCP**: Update ExcelTools.cs routing
 - ⬜ **MCP**: Update server.json configuration
-- ⬜ **MCP**: Integration tests for excel_range tool
+- ⬜ **MCP**: Integration tests for range tool
 - ⬜ **CLI**: Minimal fixes for broken imports/references (don't add new range-* commands yet)
 - ⬜ Update Core documentation and copilot instructions
 
@@ -978,7 +978,7 @@ Commands/
 **Phase 2** (Future PR) - Number Formatting:
 - Add number formatting operations to IRangeCommands
 - Implement in RangeCommands.cs
-- MCP: Add actions to excel_range tool
+- MCP: Add actions to range tool
 - CLI: Add range-format-* commands
 - Tests for number formats
 - Update documentation
@@ -986,7 +986,7 @@ Commands/
 **Phase 3** (Future PR) - Visual Formatting:
 - Add visual formatting operations (fonts, colors, borders, alignment)
 - Implement in RangeCommands.cs
-- MCP: Add actions to excel_range tool
+- MCP: Add actions to range tool
 - CLI: Add range-style-* commands
 - Tests for visual formatting
 - Update documentation
@@ -994,7 +994,7 @@ Commands/
 **Phase 4** (Future PR) - Advanced Features:
 - Add advanced features (validation, merge, auto-fit, comments, protection, grouping)
 - Implement in RangeCommands.cs
-- MCP: Add actions to excel_range tool
+- MCP: Add actions to range tool
 - CLI: Add range-advanced-* commands
 - Tests for advanced features
 - Update documentation
@@ -1011,20 +1011,20 @@ Commands/
 
 **Excel Worksheet Tool** (9 actions):
 - `list` - List worksheets ✅ **KEEP** (metadata/lifecycle)
-- `read` - Read range data → **MOVE TO** `excel_range.get-values`
-- `write` - Write CSV to range → **MOVE TO** `excel_range.set-values` (CLI CSV conversion)
+- `read` - Read range data → **MOVE TO** `range.get-values`
+- `write` - Write CSV to range → **MOVE TO** `range.set-values` (CLI CSV conversion)
 - `create` - Create worksheet ✅ **KEEP** (lifecycle)
 - `rename` - Rename worksheet ✅ **KEEP** (lifecycle)
 - `copy` - Copy worksheet ✅ **KEEP** (lifecycle)
 - `delete` - Delete worksheet ✅ **KEEP** (lifecycle)
-- `clear` - Clear range → **MOVE TO** `excel_range.clear`
-- `append` - Append to range → **MOVE TO** `excel_range.append-values`
+- `clear` - Clear range → **MOVE TO** `range.clear`
+- `append` - Append to range → **MOVE TO** `range.append-values`
 
 **Excel Cell Tool** (4 actions):
-- `get-value` - Get single cell value → **REPLACE WITH** `excel_range.get-values` (1x1 range)
-- `set-value` - Set single cell value → **REPLACE WITH** `excel_range.set-values` (1x1 range)
-- `get-formula` - Get single cell formula → **REPLACE WITH** `excel_range.get-formulas` (1x1 range)
-- `set-formula` - Set single cell formula → **REPLACE WITH** `excel_range.set-formulas` (1x1 range)
+- `get-value` - Get single cell value → **REPLACE WITH** `range.get-values` (1x1 range)
+- `set-value` - Set single cell value → **REPLACE WITH** `range.set-values` (1x1 range)
+- `get-formula` - Get single cell formula → **REPLACE WITH** `range.get-formulas` (1x1 range)
+- `set-formula` - Set single cell formula → **REPLACE WITH** `range.set-formulas` (1x1 range)
 
 ### Unified Design - LLM Perspective
 
@@ -1048,7 +1048,7 @@ Commands/
 ### Impact Analysis
 
 **Actions Deleted** (13 total):
-- From `excel_worksheet`: `read`, `write`, `clear`, `append` (4 actions)
+- From `worksheet`: `read`, `write`, `clear`, `append` (4 actions)
 - From `excel_cell`: ALL 4 actions
 - All hyperlink actions (if any): estimate 5 actions
 
@@ -1100,29 +1100,29 @@ Commands/
 **Before** (fragmented):
 ```typescript
 // Read data - uses worksheet tool
-excel_worksheet({ action: "read", excelPath: "data.xlsx", sheetName: "Sales", range: "A1:D100" })
+worksheet({ action: "read", excelPath: "data.xlsx", sheetName: "Sales", range: "A1:D100" })
 
 // Get single cell - uses cell tool
 excel_cell({ action: "get-value", excelPath: "data.xlsx", sheetName: "Sales", cell: "A1" })
 
 // Clear range - uses worksheet tool
-excel_worksheet({ action: "clear", excelPath: "data.xlsx", sheetName: "Sales", range: "A1:D100" })
+worksheet({ action: "clear", excelPath: "data.xlsx", sheetName: "Sales", range: "A1:D100" })
 ```
 
 **After** (unified):
 ```typescript
 // Read data - uses range tool
-excel_range({ action: "get-values", excelPath: "data.xlsx", sheetName: "Sales", rangeAddress: "A1:D100" })
+range({ action: "get-values", excelPath: "data.xlsx", sheetName: "Sales", rangeAddress: "A1:D100" })
 
 // Get single cell - uses range tool (1x1 range)
-excel_range({ action: "get-values", excelPath: "data.xlsx", sheetName: "Sales", rangeAddress: "A1" })
+range({ action: "get-values", excelPath: "data.xlsx", sheetName: "Sales", rangeAddress: "A1" })
 // Returns: { values: [[value]] }
 
 // Clear range - uses range tool
-excel_range({ action: "clear", excelPath: "data.xlsx", sheetName: "Sales", rangeAddress: "A1:D100" })
+range({ action: "clear", excelPath: "data.xlsx", sheetName: "Sales", rangeAddress: "A1:D100" })
 
 // Bonus: Read entire sheet
-excel_range({ action: "get-used-range", excelPath: "data.xlsx", sheetName: "Sales" })
+range({ action: "get-used-range", excelPath: "data.xlsx", sheetName: "Sales" })
 ```
 
 **Key LLM Benefits**:
@@ -1367,7 +1367,7 @@ sheet-delete
 
 ---
 
-## MCP Tool: excel_range
+## MCP Tool: range
 
 > **⚠️ MCP Uses JSON, NOT CSV**  
 > Parameters use JSON arrays (2D): `[[value1, value2], [value3, value4]]`  
@@ -1377,7 +1377,7 @@ sheet-delete
 
 ```typescript
 {
-  "name": "excel_range",
+  "name": "range",
   "description": "Comprehensive Excel range operations - values, formulas, hyperlinks, formatting, and more",
   "parameters": {
     "action": "string",
@@ -1419,24 +1419,24 @@ sheet-delete
 ### Removed MCP Tools
 
 ```typescript
-// ❌ DELETED - Replaced by excel_range
+// ❌ DELETED - Replaced by range
 {
-  "name": "excel_cell",  // All actions moved to excel_range
+  "name": "excel_cell",  // All actions moved to range
   "actions": ["get-value", "set-value", "get-formula", "set-formula"]
 }
 
-// ❌ DELETED - Replaced by excel_range  
+// ❌ DELETED - Replaced by range  
 {
-  "name": "excel_hyperlink",  // All actions moved to excel_range
+  "name": "excel_hyperlink",  // All actions moved to range
   "actions": ["add", "remove", "list", "get"]
 }
 ```
 
-### Modified MCP Tool: excel_worksheet
+### Modified MCP Tool: worksheet
 
 ```typescript
 {
-  "name": "excel_worksheet",
+  "name": "worksheet",
   "description": "Worksheet lifecycle management - create, rename, copy, delete sheets",
   "actions": [
     "list",      // ✅ KEPT
@@ -1444,7 +1444,7 @@ sheet-delete
     "rename",    // ✅ KEPT
     "copy",      // ✅ KEPT
     "delete",    // ✅ KEPT
-    // ❌ REMOVED: "read", "write", "clear", "append" (use excel_range instead)
+    // ❌ REMOVED: "read", "write", "clear", "append" (use range instead)
   ]
 }
 ```
@@ -1672,7 +1672,7 @@ This demonstrates how both APIs work together seamlessly!
 
 **MCP Server**:
 - [ ] ExcelRangeTool created with all 40 actions
-- [ ] excel_cell tool deleted (replaced by excel_range)
+- [ ] excel_cell tool deleted (replaced by range)
 - [ ] ExcelTools.cs routing updated
 - [ ] server.json configuration updated
 - [ ] MCP integration tests passing (all range actions work via protocol)
@@ -1849,22 +1849,22 @@ These operations are **NOT included** because they're rarely automated or better
 - **Target**: 5-7 methods for AutoFilter workflows
 - **Timeline**: 1-2 days
 - **Scope**:
-  - ✅ MCP Server first (filter actions in excel_worksheet or new tool)
+  - ✅ MCP Server first (filter actions in worksheet or new tool)
   - ✅ CLI later (filter-* commands)
 
 ### Phase 2: Number Formatting (Future PR)
 - **Timeline**: 1 day
-- **MCP First**: Add actions to excel_range
+- **MCP First**: Add actions to range
 - **CLI Later**: Add range-format-* commands
 
 ### Phase 3: Visual Formatting (Future PR)
 - **Timeline**: 2 days
-- **MCP First**: Add actions to excel_range
+- **MCP First**: Add actions to range
 - **CLI Later**: Add range-style-* commands
 
 ### Phase 4: Advanced Features (Future PR)
 - **Timeline**: 2 days
-- **MCP First**: Add actions to excel_range
+- **MCP First**: Add actions to range
 - **CLI Later**: Add range-advanced-* commands
 
 **Total Phase 1 (MCP + CLI)**: 6-8 days

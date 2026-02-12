@@ -12,7 +12,7 @@ ExcelMcp collects **limited, anonymous telemetry** to improve the software. Here
 
 ### What We DO Collect (Anonymous Telemetry)
 
-- **Tool usage statistics** - Which tools and actions are used (e.g., "excel_range/get-values")
+- **Tool usage statistics** - Which tools and actions are used (e.g., "range/get-values")
 - **Performance metrics** - How long operations take (duration in milliseconds)
 - **Success/failure rates** - Whether operations completed successfully
 - **Session information** - A random session ID generated each time the server starts

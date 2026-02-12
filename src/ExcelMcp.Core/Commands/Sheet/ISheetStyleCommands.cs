@@ -16,7 +16,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// - 'veryhidden': Only accessible via VBA (protection against casual unhiding)
 /// </summary>
 [ServiceCategory("sheet", "SheetStyle")]
-[McpTool("excel_worksheet_style", Title = "Excel Worksheet Style Operations", Destructive = true, Category = "structure",
+[McpTool("worksheet_style", Title = "Worksheet Style Operations", Destructive = true, Category = "structure",
     Description = "Worksheet styling: tab colors and visibility. TAB COLORS: RGB values 0-255 each for custom tab colors. VISIBILITY: visible (normal), hidden (accessible via Format > Sheet > Unhide), veryhidden (only accessible via VBA). Use excel_worksheet for lifecycle operations.")]
 public interface ISheetStyleCommands
 {

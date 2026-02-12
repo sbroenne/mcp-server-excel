@@ -34,7 +34,7 @@ async def test_mcp_table_create_query(aitest_run, excel_mcp_server, excel_mcp_sk
 """
     result = await aitest_run(agent, prompt)
     assert result.success
-    assert result.tool_was_called("excel_table")
+    assert result.tool_was_called("table")
     assert_regex(result.final_response, r"(?i)(SalesData)")
 
 
@@ -61,5 +61,5 @@ async def test_mcp_table_lifecycle(aitest_run, excel_mcp_server, excel_mcp_skill
 """
     result = await aitest_run(agent, prompt)
     assert result.success
-    assert result.tool_was_called("excel_table")
+    assert result.tool_was_called("table")
     assert_regex(result.final_response, r"(?i)(TaskList)")

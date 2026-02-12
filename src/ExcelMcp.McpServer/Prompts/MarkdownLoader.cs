@@ -14,7 +14,7 @@ public static class MarkdownLoader
     /// <summary>
     /// Load a prompt markdown file from Content/ directory
     /// </summary>
-    /// <param name="fileName">File name without path (e.g., "excel_powerquery.md")</param>
+    /// <param name="fileName">File name without path (e.g., "powerquery.md")</param>
     /// <returns>Markdown content</returns>
     public static string LoadPrompt(string fileName)
     {

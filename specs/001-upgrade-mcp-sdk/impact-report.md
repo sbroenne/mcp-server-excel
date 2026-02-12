@@ -88,18 +88,18 @@ The following removed/deprecated APIs from 0.5.0-preview.1 changelog were verifi
 | Tool | Impact | Changes |
 |------|--------|---------|
 | excel_batch | ✅ None | No SDK-specific code |
-| excel_connection | ✅ None | No SDK-specific code |
-| excel_datamodel | ✅ None | No SDK-specific code |
-| excel_file | ✅ None | No SDK-specific code |
-| excel_namedrange | ✅ None | No SDK-specific code |
-| excel_pivottable | ✅ None | No SDK-specific code |
-| excel_powerquery | ✅ None | No SDK-specific code |
-| excel_range | ✅ None | No SDK-specific code |
-| excel_table | ✅ None | No SDK-specific code |
-| excel_vba | ✅ None | No SDK-specific code |
-| excel_worksheet | ✅ None | No SDK-specific code |
-| excel_chart | ✅ None | No SDK-specific code |
-| excel_conditionalformat | ✅ None | No SDK-specific code |
+| connection | ✅ None | No SDK-specific code |
+| datamodel | ✅ None | No SDK-specific code |
+| file | ✅ None | No SDK-specific code |
+| namedrange | ✅ None | No SDK-specific code |
+| pivottable | ✅ None | No SDK-specific code |
+| powerquery | ✅ None | No SDK-specific code |
+| range | ✅ None | No SDK-specific code |
+| table | ✅ None | No SDK-specific code |
+| vba | ✅ None | No SDK-specific code |
+| worksheet | ✅ None | No SDK-specific code |
+| chart | ✅ None | No SDK-specific code |
+| conditionalformat | ✅ None | No SDK-specific code |
 
 ---
 
@@ -142,18 +142,18 @@ All 12 MCP Server tools already use `[McpMeta("category", "...")]` attributes fo
 
 | Tool | Category |
 |------|----------|
-| excel_file | session |
-| excel_worksheet | structure |
-| excel_vba | automation |
-| excel_table | data |
-| excel_range | data |
-| excel_namedrange | data |
-| excel_powerquery | query |
-| excel_connection | query |
-| excel_pivottable | analysis |
-| excel_datamodel | analysis |
-| excel_chart | analysis |
-| excel_conditionalformat | structure |
+| file | session |
+| worksheet | structure |
+| vba | automation |
+| table | data |
+| range | data |
+| namedrange | data |
+| powerquery | query |
+| connection | query |
+| pivottable | analysis |
+| datamodel | analysis |
+| chart | analysis |
+| conditionalformat | structure |
 
 ### Exit Code Improvements (T039)
 

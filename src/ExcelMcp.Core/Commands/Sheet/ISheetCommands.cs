@@ -15,7 +15,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// (not both) to position the sheet relative to another. If neither specified, moves to end.
 /// </summary>
 [ServiceCategory("sheet", "Sheet")]
-[McpTool("excel_worksheet", Title = "Excel Worksheet Operations", Destructive = true, Category = "structure",
+[McpTool("worksheet", Title = "Worksheet Operations", Destructive = true, Category = "structure",
     Description = "Worksheet lifecycle: create, rename, copy, delete, move. ATOMIC OPERATIONS: copy-to-file and move-to-file don't require a session (open/close automatically). POSITIONING: Use before OR after (not both) to place sheet relative to another. Use excel_worksheet_style for tab colors and visibility.")]
 public interface ISheetCommands
 {

@@ -34,7 +34,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// Use datamodelrel for relationships between tables.
 /// </summary>
 [ServiceCategory("datamodel", "DataModel")]
-[McpTool("excel_datamodel", Title = "Excel Data Model Operations", Destructive = true, Category = "analysis",
+[McpTool("datamodel", Title = "Data Model Operations", Destructive = true, Category = "analysis",
     Description = "Data Model (Power Pivot) - DAX measures and table management. CRITICAL: Worksheet tables and Data Model are separate! After excel_table(append), MUST call excel_datamodel(refresh) to sync. Power Query refresh auto-syncs. DAX MEASURES: Create with formulas like SUM(Sales[Amount]), auto-formatted via daxformatter.com. DAX EVALUATE: Execute queries (SUMMARIZE, FILTER, CALCULATETABLE, TOPN). DMV QUERIES: SELECT * FROM $SYSTEM.SchemaRowset for metadata. DAX FILE INPUT: daxFormulaFile/daxQueryFile for complex multi-line DAX. TIMEOUT: 2 min. Use excel_datamodel_rel for relationships, excel_table for add-to-datamodel.")]
 public interface IDataModelCommands
 {

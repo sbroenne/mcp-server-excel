@@ -95,7 +95,7 @@ public static class ServiceBridge
             return new ServiceResponse
             {
                 Success = false,
-                ErrorMessage = "sessionId is required. Use excel_file 'open' action to start a session."
+                ErrorMessage = "sessionId is required. Use file 'open' action to start a session."
             };
         }
 

@@ -21,7 +21,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// Note: Cell locking only takes effect when the worksheet is protected.
 /// </summary>
 [ServiceCategory("rangelink", "RangeLink")]
-[McpTool("excel_range_link", Title = "Excel Range Link Operations", Destructive = true, Category = "data",
+[McpTool("range_link", Title = "Range Link Operations", Destructive = true, Category = "data",
     Description = "Hyperlink and cell protection operations. HYPERLINKS: add-hyperlink (URL: web, file, mailto), remove-hyperlink (keeps cell content), list-hyperlinks (all on worksheet), get-hyperlink (specific cell). CELL PROTECTION: set-cell-lock/get-cell-lock (only effective when sheet protection is enabled).")]
 public interface IRangeLinkCommands
 {

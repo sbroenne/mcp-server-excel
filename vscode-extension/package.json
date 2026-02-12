@@ -54,7 +54,7 @@
     "mcpServerDefinitionProviders": [
       {
         "id": "excel-mcp",
-        "label": "Excel MCP"
+        "label": "Excel MCP Server"
       }
     ],
     "chatSkills": [

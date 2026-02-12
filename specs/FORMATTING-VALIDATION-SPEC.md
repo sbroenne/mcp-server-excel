@@ -787,11 +787,11 @@ public static class PivotTableStylePresets
 
 ## MCP Server Integration
 
-### Updated excel_range Tool
+### Updated range Tool
 
 ```json
 {
-  "name": "excel_range",
+  "name": "range",
   "actions": [
     // EXISTING (Phase 1)
     "get-values", "set-values",
@@ -825,11 +825,11 @@ public static class PivotTableStylePresets
 }
 ```
 
-### Updated excel_table Tool
+### Updated table Tool
 
 ```json
 {
-  "name": "excel_table",
+  "name": "table",
   "actions": [
     // EXISTING
     "list", "create", "rename", "delete", "info", "resize",
@@ -848,11 +848,11 @@ public static class PivotTableStylePresets
 }
 ```
 
-### excel_pivottable Tool (Existing - Already Implemented)
+### pivottable Tool (Existing - Already Implemented)
 
 ```json
 {
-  "name": "excel_pivottable",
+  "name": "pivottable",
   "description": "PivotTable operations - create, configure, format, and analyze data",
   "actions": [
     // EXISTING (18 actions implemented in Phase 1)
@@ -884,7 +884,7 @@ public static class PivotTableStylePresets
 **Optional batch parameter:**
 - `batchId` (string) - If using batch mode, reference batch session ID
 
-### excel_range Actions - Parameter Details
+### range Actions - Parameter Details
 
 #### Number Formatting
 
@@ -964,7 +964,7 @@ public static class PivotTableStylePresets
   - `errorMessage` (string, optional): Error alert message
 - Returns: `{ success, message }`
 
-### excel_table Actions - Parameter Details
+### table Actions - Parameter Details
 
 **set-column-number-format**
 - Required: `excelPath`, `tableName`, `columnName`, `formatCode`
@@ -972,7 +972,7 @@ public static class PivotTableStylePresets
 
 **set-column-font**
 - Required: `excelPath`, `tableName`, `columnName`, `font`
-- `font`: Same structure as excel_range set-font
+- `font`: Same structure as range set-font
 - Returns: `{ success, message }`
 
 **set-column-background-color**
@@ -981,10 +981,10 @@ public static class PivotTableStylePresets
 
 **add-column-validation**
 - Required: `excelPath`, `tableName`, `columnName`, `validation`
-- `validation`: Same structure as excel_range add-validation
+- `validation`: Same structure as range add-validation
 - Returns: `{ success, message }`
 
-### excel_pivottable Actions - Parameter Details
+### pivottable Actions - Parameter Details
 
 **set-field-format**
 - Required: `excelPath`, `pivotTableName`, `fieldName`, `numberFormat`
@@ -1060,7 +1060,7 @@ Where: red, green, blue are each 0-255
 
 // Step 2: Execute multiple operations (use batchId)
 {
-  "tool": "excel_range",
+  "tool": "range",
   "action": "set-number-format",
   "batchId": "batch_abc123",
   "sheetName": "Sales",
@@ -1069,7 +1069,7 @@ Where: red, green, blue are each 0-255
 }
 
 {
-  "tool": "excel_range",
+  "tool": "range",
   "action": "set-font",
   "batchId": "batch_abc123",
   "sheetName": "Sales",
@@ -1078,7 +1078,7 @@ Where: red, green, blue are each 0-255
 }
 
 {
-  "tool": "excel_range",
+  "tool": "range",
   "action": "add-validation",
   "batchId": "batch_abc123",
   "sheetName": "Sales",
@@ -1199,7 +1199,7 @@ Where: red, green, blue are each 0-255
 
 **❌ Mistake 9: Using range address instead of table name**
 ```json
-// WRONG: excel_table needs table name
+// WRONG: table needs table name
 "tableName": "A1:D100"
 
 // CORRECT
@@ -1210,7 +1210,7 @@ Where: red, green, blue are each 0-255
 ```json
 // WRONG: Headers have fixed formatting from table style
 {
-  "tool": "excel_table",
+  "tool": "table",
   "action": "set-column-font",
   "columnName": "Amount",
   "font": { "bold": true }  // Affects data cells only, not header
@@ -1218,7 +1218,7 @@ Where: red, green, blue are each 0-255
 
 // CORRECT: Use table styles instead
 {
-  "tool": "excel_table",
+  "tool": "table",
   "action": "set-style",
   "tableName": "SalesData",
   "styleName": "TableStyleMedium2"
@@ -1236,7 +1236,7 @@ Where: red, green, blue are each 0-255
 
 // Step 1: Format currency column
 {
-  "tool": "excel_range",
+  "tool": "range",
   "action": "set-number-format",
   "sheetName": "Sales",
   "rangeAddress": "D2:D100",
@@ -1245,7 +1245,7 @@ Where: red, green, blue are each 0-255
 
 // Step 2: Format percentage column
 {
-  "tool": "excel_range",
+  "tool": "range",
   "action": "set-number-format",
   "sheetName": "Sales",
   "rangeAddress": "E2:E100",
@@ -1254,7 +1254,7 @@ Where: red, green, blue are each 0-255
 
 // Step 3: Format date column
 {
-  "tool": "excel_range",
+  "tool": "range",
   "action": "set-number-format",
   "sheetName": "Sales",
   "rangeAddress": "A2:A100",
@@ -1263,7 +1263,7 @@ Where: red, green, blue are each 0-255
 
 // Step 4: Bold headers
 {
-  "tool": "excel_range",
+  "tool": "range",
   "action": "set-font",
   "sheetName": "Sales",
   "rangeAddress": "A1:E1",
@@ -1272,7 +1272,7 @@ Where: red, green, blue are each 0-255
 
 // Step 5: Center align headers
 {
-  "tool": "excel_range",
+  "tool": "range",
   "action": "set-alignment",
   "sheetName": "Sales",
   "rangeAddress": "A1:E1",
@@ -1281,7 +1281,7 @@ Where: red, green, blue are each 0-255
 
 // Step 6: Add borders
 {
-  "tool": "excel_range",
+  "tool": "range",
   "action": "set-borders",
   "sheetName": "Sales",
   "rangeAddress": "A1:E100",
@@ -1290,7 +1290,7 @@ Where: red, green, blue are each 0-255
 
 // Step 7: Auto-fit columns
 {
-  "tool": "excel_range",
+  "tool": "range",
   "action": "auto-fit-columns",
   "sheetName": "Sales",
   "rangeAddress": "A:E"
@@ -1304,7 +1304,7 @@ Where: red, green, blue are each 0-255
 
 // Step 1: Add status dropdown validation
 {
-  "tool": "excel_range",
+  "tool": "range",
   "action": "add-validation",
   "sheetName": "Orders",
   "rangeAddress": "D2:D1000",
@@ -1320,7 +1320,7 @@ Where: red, green, blue are each 0-255
 
 // Step 2: Add quantity number validation (1-999)
 {
-  "tool": "excel_range",
+  "tool": "range",
   "action": "add-validation",
   "sheetName": "Orders",
   "rangeAddress": "E2:E1000",
@@ -1337,7 +1337,7 @@ Where: red, green, blue are each 0-255
 
 // Step 3: Add email text length validation
 {
-  "tool": "excel_range",
+  "tool": "range",
   "action": "add-validation",
   "sheetName": "Orders",
   "rangeAddress": "C2:C1000",
@@ -1359,7 +1359,7 @@ Where: red, green, blue are each 0-255
 
 // Step 1: Format amount column as currency
 {
-  "tool": "excel_table",
+  "tool": "table",
   "action": "set-column-number-format",
   "tableName": "SalesData",
   "columnName": "Amount",
@@ -1368,7 +1368,7 @@ Where: red, green, blue are each 0-255
 
 // Step 2: Format growth column as percentage
 {
-  "tool": "excel_table",
+  "tool": "table",
   "action": "set-column-number-format",
   "tableName": "SalesData",
   "columnName": "Growth",
@@ -1377,7 +1377,7 @@ Where: red, green, blue are each 0-255
 
 // Step 3: Add status dropdown validation
 {
-  "tool": "excel_table",
+  "tool": "table",
   "action": "add-column-validation",
   "tableName": "SalesData",
   "columnName": "Status",
@@ -1389,7 +1389,7 @@ Where: red, green, blue are each 0-255
 
 // Step 4: Center align status column
 {
-  "tool": "excel_table",
+  "tool": "table",
   "action": "set-column-alignment",
   "tableName": "SalesData",
   "columnName": "Status",
@@ -1398,7 +1398,7 @@ Where: red, green, blue are each 0-255
 
 // Step 5: Auto-fit all columns
 {
-  "tool": "excel_table",
+  "tool": "table",
   "action": "auto-fit-column",
   "tableName": "SalesData",
   "columnName": "Amount"
@@ -1413,7 +1413,7 @@ Where: red, green, blue are each 0-255
 
 // Step 1: Create PivotTable from table
 {
-  "tool": "excel_pivottable",
+  "tool": "pivottable",
   "action": "create-from-table",
   "tableName": "SalesData",
   "destinationSheet": "Analysis",
@@ -1423,21 +1423,21 @@ Where: red, green, blue are each 0-255
 
 // Step 2: Configure fields
 {
-  "tool": "excel_pivottable",
+  "tool": "pivottable",
   "action": "add-row-field",
   "pivotTableName": "SalesPivot",
   "fieldName": "Region"
 }
 
 {
-  "tool": "excel_pivottable",
+  "tool": "pivottable",
   "action": "add-column-field",
   "pivotTableName": "SalesPivot",
   "fieldName": "Quarter"
 }
 
 {
-  "tool": "excel_pivottable",
+  "tool": "pivottable",
   "action": "add-value-field",
   "pivotTableName": "SalesPivot",
   "fieldName": "Amount",
@@ -1447,7 +1447,7 @@ Where: red, green, blue are each 0-255
 
 // Step 3: Format value field as currency
 {
-  "tool": "excel_pivottable",
+  "tool": "pivottable",
   "action": "set-field-format",
   "pivotTableName": "SalesPivot",
   "fieldName": "Total Sales",
@@ -1456,7 +1456,7 @@ Where: red, green, blue are each 0-255
 
 // Step 4: Set layout to Tabular (easier to read)
 {
-  "tool": "excel_pivottable",
+  "tool": "pivottable",
   "action": "set-layout",
   "pivotTableName": "SalesPivot",
   "layout": "Tabular"
@@ -1464,7 +1464,7 @@ Where: red, green, blue are each 0-255
 
 // Step 5: Apply professional style
 {
-  "tool": "excel_pivottable",
+  "tool": "pivottable",
   "action": "set-style",
   "pivotTableName": "SalesPivot",
   "styleName": "PivotStyleMedium2"
@@ -1472,7 +1472,7 @@ Where: red, green, blue are each 0-255
 
 // Step 6: Refresh to show data
 {
-  "tool": "excel_pivottable",
+  "tool": "pivottable",
   "action": "refresh",
   "pivotTableName": "SalesPivot"
 }
@@ -1552,17 +1552,17 @@ User says "custom rule" or "formula validation"
 
 ```
 If user mentions PivotTable or pivot table
-  → Use excel_pivottable actions
+  → Use pivottable actions
   → For value field formatting: use set-field-format
   → For layout: use set-layout (Compact, Outline, Tabular)
   → For visual style: use set-style (PivotStyleMedium2, etc.)
   → Note: Cell-level formatting lost on refresh - use field formats
 
 If user mentions table name explicitly
-  → Use excel_table actions (e.g., set-column-number-format)
+  → Use table actions (e.g., set-column-number-format)
 
 If user mentions specific range or worksheet
-  → use excel_range actions
+  → use range actions
 
 For new tables being created
   → Create table first, then use table formatting actions
@@ -1581,7 +1581,7 @@ Step 1: Identify what needs formatting
   → Value fields (numbers) → Use set-field-format (PERSISTENT)
   → Layout/structure → Use set-layout (PERSISTENT)
   → Visual appearance → Use set-style (PERSISTENT)
-  → Specific cells → DANGER: Use excel_range (NOT PERSISTENT - see pitfalls)
+  → Specific cells → DANGER: Use range (NOT PERSISTENT - see pitfalls)
 
 Step 2: Format value fields FIRST (before layout/style)
   → Locate value field name (e.g., "Sum of Sales", "Average Price")
@@ -1610,7 +1610,7 @@ Step 5: ALWAYS refresh after formatting
 **Critical Pitfalls to Avoid:**
 
 ```
-❌ PITFALL 1: Using excel_range to format PivotTable data cells
+❌ PITFALL 1: Using range to format PivotTable data cells
   Problem: Formats lost on next refresh
   Example: set-number-format on "C5:C20" (data area)
   Why: PivotTable regenerates cells on refresh
@@ -1630,7 +1630,7 @@ Step 5: ALWAYS refresh after formatting
   Problem: Header cells regenerate on refresh
   Example: Bold the "Region" header cells
   Solution: Not supported persistently - use styles instead
-           OR format with excel_range knowing it's temporary
+           OR format with range knowing it's temporary
 
 ❌ PITFALL 5: Using wrong field name
   Problem: Field name is display name, not source name
@@ -1649,7 +1649,7 @@ Step 5: ALWAYS refresh after formatting
 ```javascript
 // ✅ CORRECT: Field-level formatting (persistent)
 {
-  "tool": "excel_pivottable",
+  "tool": "pivottable",
   "action": "set-field-format",
   "pivotTableName": "SalesPivot",
   "fieldName": "Sum of Amount",      // Use actual field name from list-fields
@@ -1658,7 +1658,7 @@ Step 5: ALWAYS refresh after formatting
 
 // ✅ CORRECT: Layout for readability
 {
-  "tool": "excel_pivottable",
+  "tool": "pivottable",
   "action": "set-layout",
   "pivotTableName": "SalesPivot",
   "layout": "Tabular"                // Most readable for most users
@@ -1666,7 +1666,7 @@ Step 5: ALWAYS refresh after formatting
 
 // ✅ CORRECT: Professional style
 {
-  "tool": "excel_pivottable",
+  "tool": "pivottable",
   "action": "set-style",
   "pivotTableName": "SalesPivot",
   "styleName": "PivotStyleMedium2"   // Popular, professional
@@ -1674,14 +1674,14 @@ Step 5: ALWAYS refresh after formatting
 
 // ✅ CORRECT: Refresh to materialize
 {
-  "tool": "excel_pivottable",
+  "tool": "pivottable",
   "action": "refresh",
   "pivotTableName": "SalesPivot"
 }
 
 // ❌ WRONG: Cell-level formatting (lost on refresh)
 {
-  "tool": "excel_range",
+  "tool": "range",
   "action": "set-number-format",
   "sheetName": "Analysis",
   "rangeAddress": "C5:C20",          // Don't format PivotTable data cells this way!
@@ -1710,7 +1710,7 @@ Use set-style when:
   ✅ User says "make it look nice"
   ✅ Default: PivotStyleMedium2 or PivotStyleMedium9
 
-Use excel_range when (RARE):
+Use range when (RARE):
   ✅ User explicitly wants one-time formatting
   ✅ PivotTable will never refresh
   ✅ Formatting grand total row/column specifically
@@ -1722,7 +1722,7 @@ Use excel_range when (RARE):
 ```javascript
 // ALWAYS discover field names first if unsure
 {
-  "tool": "excel_pivottable",
+  "tool": "pivottable",
   "action": "list-fields",
   "pivotTableName": "SalesPivot"
 }
@@ -1733,7 +1733,7 @@ Use excel_range when (RARE):
 
 // Then format using discovered names:
 {
-  "tool": "excel_pivottable",
+  "tool": "pivottable",
   "action": "set-field-format",
   "pivotTableName": "SalesPivot",
   "fieldName": "Sum of Amount",       // Use exact name from list-fields
@@ -1758,7 +1758,7 @@ User says: "Make it look professional"
 
 User says: "Format the totals row"
   → WARNING: Not supported persistently
-  → Can use excel_range but warn it's temporary
+  → Can use range but warn it's temporary
   → Better: Use styles that format totals automatically
 
 User says: "Add percentage formatting"
@@ -1813,12 +1813,12 @@ All operations return consistent error response:
 
 | Error Code | Meaning | User Action |
 |------------|---------|-------------|
-| `SHEET_NOT_FOUND` | Sheet name doesn't exist | List sheets first with excel_worksheet.list |
+| `SHEET_NOT_FOUND` | Sheet name doesn't exist | List sheets first with worksheet.list |
 | `INVALID_RANGE` | Range address malformed | Use "A1:D10" format, check column/row exists |
-| `TABLE_NOT_FOUND` | Table name doesn't exist | List tables with excel_table.list |
-| `COLUMN_NOT_FOUND` | Column name not in table | List columns with excel_table.get-structured-reference |
-| `PIVOTTABLE_NOT_FOUND` | PivotTable name doesn't exist | List pivot tables with excel_pivottable.list |
-| `FIELD_NOT_FOUND` | Field name not in PivotTable | List fields with excel_pivottable.list-fields |
+| `TABLE_NOT_FOUND` | Table name doesn't exist | List tables with table.list |
+| `COLUMN_NOT_FOUND` | Column name not in table | List columns with table.get-structured-reference |
+| `PIVOTTABLE_NOT_FOUND` | PivotTable name doesn't exist | List pivot tables with pivottable.list |
+| `FIELD_NOT_FOUND` | Field name not in PivotTable | List fields with pivottable.list-fields |
 | `FIELD_NOT_IN_VALUES` | Field not in Values area | Check area with list-fields, only Values area supports number formats |
 | `INVALID_FORMAT_CODE` | Number format code invalid | Use valid Excel format code (e.g., "$#,##0.00", not "currency") |
 | `INVALID_VALIDATION_TYPE` | Validation type not recognized | Use: "List", "WholeNumber", "Decimal", "Date", "Time", "TextLength", "Custom" |
@@ -1969,8 +1969,8 @@ All operations return consistent error response:
 - ✅ Add table methods: `GetColumnNumberFormatAsync`, `SetColumnNumberFormatAsync`
 
 **MCP Server:**
-- ✅ Add actions to excel_range tool: `get-number-formats`, `set-number-format`, `set-number-formats`
-- ✅ Add actions to excel_table tool: `get-column-number-format`, `set-column-number-format`
+- ✅ Add actions to range tool: `get-number-formats`, `set-number-format`, `set-number-formats`
+- ✅ Add actions to table tool: `get-column-number-format`, `set-column-number-format`
 
 **Tests:**
 - ✅ Currency format tests ($#,##0.00)
@@ -1995,8 +1995,8 @@ All operations return consistent error response:
 - ✅ Add table methods for column formatting
 
 **MCP Server:**
-- ✅ Add 14+ actions to excel_range tool
-- ✅ Add 4 formatting actions to excel_table tool
+- ✅ Add 14+ actions to range tool
+- ✅ Add 4 formatting actions to table tool
 
 **Tests:**
 - ✅ Font tests (bold, italic, size, color)
@@ -2022,8 +2022,8 @@ All operations return consistent error response:
 - ✅ Add table methods for column validation
 
 **MCP Server:**
-- ✅ Add 4 actions to excel_range tool
-- ✅ Add 2 actions to excel_table tool
+- ✅ Add 4 actions to range tool
+- ✅ Add 2 actions to table tool
 
 **Tests:**
 - ✅ List validation tests (dropdown)

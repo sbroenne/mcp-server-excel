@@ -58,7 +58,7 @@ def assert_regex(text: str, pattern: str) -> None:
 
 
 def _parse_cli_results(result: Any) -> list[dict[str, Any]]:
-    calls = result.tool_calls_for("excel_execute")
+    calls = result.tool_calls_for("execute")
     outputs: list[dict[str, Any]] = []
     for call in calls:
         if call.result:
@@ -102,7 +102,7 @@ def assert_cli_exit_codes(result: Any, *, strict: bool = False) -> None:
 
 
 def assert_cli_args_contain(result: Any, token: str) -> None:
-    calls = result.tool_calls_for("excel_execute")
+    calls = result.tool_calls_for("execute")
     for call in calls:
         args = call.arguments.get("args", "")
         if token in args:
@@ -111,7 +111,7 @@ def assert_cli_args_contain(result: Any, token: str) -> None:
 
 
 def _resolve_mcp_command() -> list[str]:
-    env_command = os.environ.get("EXCEL_MCP_SERVER_COMMAND")
+    env_command = os.environ.get("MCP_SERVER_COMMAND")
     if env_command:
         return shlex.split(env_command)
 
@@ -133,7 +133,7 @@ def _resolve_mcp_command() -> list[str]:
 
 
 def _resolve_cli_command() -> str:
-    env_command = os.environ.get("EXCEL_CLI_COMMAND")
+    env_command = os.environ.get("CLI_COMMAND")
     if env_command:
         return env_command
 

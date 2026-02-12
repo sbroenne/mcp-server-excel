@@ -38,9 +38,9 @@ async def test_mcp_chart_position_below_data(aitest_run, excel_mcp_server, excel
 """
     result = await aitest_run(agent, prompt)
     assert result.success
-    assert result.tool_was_called("excel_chart")
+    assert result.tool_was_called("chart")
     # Looser assertion - just confirm chart work was done
-    assert result.final_response or result.tool_was_called("excel_chart")
+    assert result.final_response or result.tool_was_called("chart")
 
 
 @pytest.mark.asyncio
@@ -69,6 +69,6 @@ async def test_mcp_chart_position_right_of_table(aitest_run, excel_mcp_server, e
 """
     result = await aitest_run(agent, prompt)
     assert result.success
-    assert result.tool_was_called("excel_chart")
+    assert result.tool_was_called("chart")
     # Loosen - either chart or table mentioned
-    assert result.final_response or result.tool_was_called("excel_chart")
+    assert result.final_response or result.tool_was_called("chart")

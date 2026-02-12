@@ -16,6 +16,18 @@ This changelog covers all components:
 
 **📌 Note:** LLMs will automatically pick up these changes via `tools/list` (MCP) and `--help` (CLI). This section is informational for human developers updating hardcoded scripts.
 
+- **Tool Name Prefix Removal**: All 23 MCP tool names no longer have the `excel_` prefix
+  - `excel_file` → `file`, `excel_range` → `range`, `excel_chart` → `chart`, etc.
+  - Tool titles also simplified: `"Excel Chart Operations"` → `"Chart Operations"`
+  - Skills shared reference files renamed accordingly (e.g., `excel_chart.md` → `chart.md`)
+  - VS Code extension: server name changed to `excel-mcp`, label to `Excel MCP Server`
+  - LLMs pick this up automatically via `tools/list` — no manual action needed
+
+### Removed
+
+- **Glama.ai Support**: Removed Docker-based deployment for Glama.ai
+  - Deleted `Dockerfile`, `glama.json`, `.dockerignore`, and `docs/GLAMA-DOCKER-SUPPORT.md`
+
 ### Added
 
 - **CLI Code Generation** (#433): CLI commands are now automatically generated from Core service definitions
@@ -25,7 +37,7 @@ This changelog covers all components:
   - New categories added to Core automatically generate corresponding CLI commands
   - See docs/DEVELOPMENT.md for architecture details
 
-- **Calculation Mode Control** (#430): Added `excel_calculation_mode` tool and CLI `calculation` command to set/get calculation mode and trigger recalculation
+- **Calculation Mode Control** (#430): Added `calculation_mode` tool and CLI `calculation` command to set/get calculation mode and trigger recalculation
   - Modes: automatic, manual, semi-automatic
   - Calculate scopes: workbook, sheet, range
   - Now available via code generation (see CLI Code Generation above)
@@ -101,7 +113,7 @@ This changelog covers all components:
   - ROOT CAUSE: `RefreshTable()` called after each field operation triggered synchronous Analysis Services queries
   - FIX: Removed RefreshTable() from field manipulation methods (AddRowField, AddColumnField, AddFilterField, RemoveField, SetFieldFunction)
   - Field changes now take effect immediately without blocking AS queries
-  - Call `excel_pivottable(refresh)` explicitly to update visual display after configuring fields
+  - Call `pivottable(refresh)` explicitly to update visual display after configuring fields
   - Applies to both OLAP (Data Model) and regular PivotTables for consistency
 
 ## [1.6.8] - 2026-02-03
@@ -182,12 +194,12 @@ This changelog covers all components:
   - Example: `excelcli powerquery evaluate --file data.xlsx --mcode "let Source = #table({\"Name\",...})"`
 
 - **MCP Power Query mCodeFile Parameter**: Read M code from file instead of inline string
-  - New `mCodeFile` parameter on `excel_powerquery` tool for `create`, `update`, `evaluate` actions
+  - New `mCodeFile` parameter on `powerquery` tool for `create`, `update`, `evaluate` actions
   - Avoids JSON escaping issues with complex M code containing special characters
   - File takes precedence if both `mCode` and `mCodeFile` provided
 
 - **MCP VBA vbaCodeFile Parameter**: Read VBA code from file instead of inline string
-  - New `vbaCodeFile` parameter on `excel_vba` tool for `create-module`, `update-module` actions
+  - New `vbaCodeFile` parameter on `vba` tool for `create-module`, `update-module` actions
   - Handles VBA code with quotes and special characters cleanly
   - File takes precedence if both `vbaCode` and `vbaCodeFile` provided
 
@@ -233,7 +245,7 @@ This changelog covers all components:
 
 #### MCP Server Enhancements  
 - **Session Operation Timeout** (#388): Configurable timeout prevents infinite hangs
-  - New `timeoutSeconds` parameter on `excel_file(open)` and `excel_file(create)` actions
+  - New `timeoutSeconds` parameter on `file(open)` and `file(create)` actions
   - Default: 300 seconds (5 minutes), configurable range: 10-3600 seconds
   - Applies to ALL operations within session; exceeding timeout throws `TimeoutException`
 
@@ -297,7 +309,7 @@ This changelog covers all components:
 ## [1.5.6] - 2025-01-20
 
 ### Added
-- **PivotTable & Table Slicers** (#363): New `excel_slicer` tool for interactive filtering
+- **PivotTable & Table Slicers** (#363): New `slicer` tool for interactive filtering
   - **PivotTable Slicers**: Create, list, filter, and delete slicers for PivotTable fields
   - **Table Slicers**: Create, list, filter, and delete slicers for Excel Table columns
   - 8 new operations for interactive data filtering
@@ -306,14 +318,14 @@ This changelog covers all components:
 
 ### Added
 - **DMV Query Execution** (#353): Query Data Model metadata using Dynamic Management Views
-  - New `execute-dmv` action on `excel_datamodel` tool
+  - New `execute-dmv` action on `datamodel` tool
   - Query TMSCHEMA_MEASURES, TMSCHEMA_RELATIONSHIPS, DISCOVER_CALC_DEPENDENCY, etc.
 
 ## [1.5.4] - 2025-01-19
 
 ### Added
 - **DAX EVALUATE Query Execution** (#356): Execute DAX queries against the Data Model
-  - New `evaluate` action on `excel_datamodel` tool for ad-hoc DAX queries
+  - New `evaluate` action on `datamodel` tool for ad-hoc DAX queries
 - **DAX-Backed Excel Tables** (#356): Create worksheet tables populated by DAX queries
   - New `create-from-dax`, `update-dax`, `get-dax` actions
 
@@ -322,12 +334,12 @@ This changelog covers all components:
 ### Changed
 - **Tool Reorganization** (#341): Split 12 monolithic tools into 21 focused tools
   - 186 operations total, better organized for AI assistants
-  - Ranges: 4 tools (excel_range, excel_range_edit, excel_range_format, excel_range_link)
-  - PivotTables: 3 tools (excel_pivottable, excel_pivottable_field, excel_pivottable_calc)
-  - Tables: 2 tools (excel_table, excel_table_column)
-  - Data Model: 2 tools (excel_datamodel, excel_datamodel_rel)
-  - Charts: 2 tools (excel_chart, excel_chart_config)
-  - Worksheets: 2 tools (excel_worksheet, excel_worksheet_style)
+  - Ranges: 4 tools (range, range_edit, range_format, range_link)
+  - PivotTables: 3 tools (pivottable, pivottable_field, pivottable_calc)
+  - Tables: 2 tools (table, table_column)
+  - Data Model: 2 tools (datamodel, datamodel_rel)
+  - Charts: 2 tools (chart, chart_config)
+  - Worksheets: 2 tools (worksheet, worksheet_style)
 
 ### Added
 - **LLM Integration Testing** (#341): Real AI agent testing using [pytest-aitest](https://github.com/sbroenne/pytest-aitest)

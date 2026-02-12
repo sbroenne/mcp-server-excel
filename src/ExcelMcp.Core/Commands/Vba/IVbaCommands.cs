@@ -14,7 +14,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// RUN: procedureName format is 'Module.Procedure' (e.g., 'Module1.MySub').
 /// </summary>
 [ServiceCategory("vba", "Vba")]
-[McpTool("excel_vba", Title = "Excel VBA Operations", Destructive = true, Category = "automation",
+[McpTool("vba", Title = "VBA Operations", Destructive = true, Category = "automation",
     Description = "VBA scripts (requires .xlsm and VBA trust enabled). Manages VBA macro operations, code import/export, and script execution in macro-enabled workbooks. Prerequisites: Use setup-vba-trust to configure VBA trust for automation.")]
 public interface IVbaCommands
 {

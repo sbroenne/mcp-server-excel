@@ -409,7 +409,7 @@ public class ExcelFileTool
     public static async Task<string> Open(string path, bool showExcel)
     {
         using var client = DaemonClient.Connect();
-        return await client.SendCommandAsync("excel_file", "open", new { path, showExcel });
+        return await client.SendCommandAsync("file", "open", new { path, showExcel });
     }
 }
 ```
@@ -430,7 +430,7 @@ public class ExcelFileTool
 ```json
 {
   "id": "uuid-v4",
-  "tool": "excel_file",
+  "tool": "file",
   "action": "open",
   "parameters": {
     "excelPath": "C:\\test.xlsx",

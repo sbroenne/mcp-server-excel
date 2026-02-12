@@ -15,7 +15,7 @@ public static class ExcelRangePrompts
     [Description("Guide for number formatting: When to use SetNumberFormat (locale-aware) vs SetNumberFormatCustom (raw format codes)")]
     public static ChatMessage NumberFormattingGuide()
     {
-        return new ChatMessage(ChatRole.User, MarkdownLoader.LoadPrompt("excel_range.md"));
+        return new ChatMessage(ChatRole.User, MarkdownLoader.LoadPrompt("range.md"));
     }
 }
 

@@ -67,13 +67,13 @@ public class CliSettingsGenerator : IIncrementalGenerator
                 var mcpToolAttr = type.GetAttributes().FirstOrDefault(a =>
                     a.AttributeClass?.Name == "McpToolAttribute");
                 var mcpToolName = mcpToolAttr?.ConstructorArguments.FirstOrDefault().Value?.ToString()
-                    ?? $"excel_{attr.ConstructorArguments[0].Value}";
+                    ?? $"{attr.ConstructorArguments[0].Value}";
 
                 // Check for NoSession attribute
                 var noSession = type.GetAttributes().Any(a =>
                     a.AttributeClass?.Name == "NoSessionAttribute");
 
-                var cliName = mcpToolName.Replace("excel_", "").Replace("_", "");
+                var cliName = mcpToolName.Replace("_", "");
                 result.Add((cliName, categoryPascal, !noSession));
             }
         }

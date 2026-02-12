@@ -24,7 +24,7 @@ LLMs already know Excel, JSON, and MCP protocol. They need server-specific patte
 
 **3. Tool Selection:**
 - When to use this tool vs other tools
-- Example: "Use excel_range for data, excel_worksheet for lifecycle"
+- Example: "Use range for data, worksheet for lifecycle"
 
 **4. Server-Specific Behavior:**
 - Quirks of THIS implementation

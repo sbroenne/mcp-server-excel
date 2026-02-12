@@ -1,4 +1,4 @@
-# excel_table - Server Quirks
+# table - Server Quirks
 
 **Data Model workflow (CRITICAL)**:
 
@@ -7,7 +7,7 @@ To analyze worksheet data with DAX measures:
 
 1. Ensure data is formatted as an Excel Table (use create action if needed)
 2. Use `add-to-data-model` action to add the table to Power Pivot
-3. Then use `excel_datamodel` to create DAX measures on it
+3. Then use `datamodel` to create DAX measures on it
 
 **Action disambiguation**:
 
@@ -29,7 +29,7 @@ Perfect for creating summary/report tables with aggregated data.
 
 ```
 Workflow:
-1. Have data in Data Model (via excel_table add-to-data-model or excel_powerquery)
+1. Have data in Data Model (via table add-to-data-model or powerquery)
 2. Use create-from-dax with a DAX EVALUATE query
 3. Table is created on worksheet with query results
 4. Use update-dax to change the query, get-dax to inspect it
@@ -44,23 +44,23 @@ Example DAX queries for create-from-dax:
 
 - Only works on Excel Tables (ListObjects), not plain ranges
 - Table appears in Power Pivot with same name
-- After adding, use excel_datamodel to create DAX measures
+- After adding, use datamodel to create DAX measures
 - Idempotent: calling on already-added table is a no-op
 
 **When to use which tool**:
 
 | Goal | Tool |
 |------|------|
-| Create/manage worksheet tables | excel_table |
-| Add worksheet table to Power Pivot | excel_table (add-to-data-model) |
-| Import external data to Data Model | excel_powerquery (loadDestination='data-model') |
-| Create DAX measures | excel_datamodel |
-| Create PivotTables from Data Model | excel_pivottable |
+| Create/manage worksheet tables | table |
+| Add worksheet table to Power Pivot | table (add-to-data-model) |
+| Import external data to Data Model | powerquery (loadDestination='data-model') |
+| Create DAX measures | datamodel |
+| Create PivotTables from Data Model | pivottable |
 
 **Common mistakes**:
 
 - Trying to create DAX measures without first adding table to Data Model
-- Using excel_datamodel to add tables (it only manages existing Data Model tables)
+- Using datamodel to add tables (it only manages existing Data Model tables)
 - Confusing get-data (returns cell values) with read (returns metadata)
 - Forgetting hasHeaders parameter when creating tables from headerless data
 

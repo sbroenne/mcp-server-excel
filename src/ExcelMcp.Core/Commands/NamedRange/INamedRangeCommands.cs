@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// TIP: range(rangeAddress=namedRangeName) for bulk data read/write.
 /// </summary>
 [ServiceCategory("namedrange", "NamedRange")]
-[McpTool("excel_namedrange", Title = "Excel Named Range Operations", Destructive = true, Category = "data",
+[McpTool("namedrange", Title = "Named Range Operations", Destructive = true, Category = "data",
     Description = "Named ranges for formulas/parameters. CREATE/UPDATE: value is cell reference (e.g., Sheet1!$A$1). WRITE: value is data to store in the named range. TIP: Use excel_range(rangeAddress=namedRangeName) for bulk data operations.")]
 public interface INamedRangeCommands
 {

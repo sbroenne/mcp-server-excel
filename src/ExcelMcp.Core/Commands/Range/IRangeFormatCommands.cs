@@ -24,7 +24,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// MERGE: Combines cells into one. Only top-left cell value is preserved.
 /// </summary>
 [ServiceCategory("rangeformat", "RangeFormat")]
-[McpTool("excel_range_format", Title = "Excel Range Format Operations", Destructive = true, Category = "data",
+[McpTool("range_format", Title = "Range Format Operations", Destructive = true, Category = "data",
     Description = "Range formatting: styles, fonts/colors/borders, data validation, merge cells, auto-fit. STYLES: Built-in names (Heading 1, Good, Bad, Currency, Percent). COLORS: Hex #RRGGBB (e.g., #FF0000 red, #00FF00 green). FONT: size in points, alignment horizontal (left/center/right) and vertical (top/middle/bottom). DATA VALIDATION: Types list, whole, decimal, date, time, textLength, custom. For list: validationFormula1 is source (=$A$1:$A$10 or Option1,Option2). Operators: between, equal, greaterThan, etc. MERGE: Only top-left cell value preserved.")]
 public interface IRangeFormatCommands
 {

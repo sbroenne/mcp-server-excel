@@ -38,10 +38,10 @@ async def test_mcp_calculation_mode_batch_with_skill(aitest_run, excel_mcp_serve
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=[
-            "excel_calculation_mode",
-            "excel_file",
-            "excel_range",
-            "excel_worksheet",
+            "calculation_mode",
+            "file",
+            "range",
+            "worksheet",
         ],
         max_turns=25,
     )
@@ -65,9 +65,9 @@ Report the calculated grand total in D6.
 """
     result = await aitest_run(agent, prompt, timeout_ms=180000)
     assert result.success
-    assert result.tool_was_called("excel_calculation_mode"), \
+    assert result.tool_was_called("calculation_mode"), \
         "LLM with skill should use excel_calculation_mode for batch writes"
-    assert result.tool_was_called("excel_range")
+    assert result.tool_was_called("range")
     assert_regex(result.final_response, r"(?i)(total|grand|sum|\d{4,})")
 
 
@@ -89,10 +89,10 @@ async def test_mcp_calculation_mode_batch_no_skill(aitest_run, excel_mcp_server)
         mcp_servers=[excel_mcp_server],
         # No skill - relying on tool descriptions only
         allowed_tools=[
-            "excel_calculation_mode",
-            "excel_file",
-            "excel_range",
-            "excel_worksheet",
+            "calculation_mode",
+            "file",
+            "range",
+            "worksheet",
         ],
         max_turns=25,
     )
@@ -116,8 +116,8 @@ Report the calculated grand total in D6.
 """
     result = await aitest_run(agent, prompt, timeout_ms=180000)
     assert result.success
-    assert result.tool_was_called("excel_calculation_mode"), \
+    assert result.tool_was_called("calculation_mode"), \
         "LLM without skill should discover and use excel_calculation_mode for batch writes"
-    assert result.tool_was_called("excel_range")
+    assert result.tool_was_called("range")
     assert_regex(result.final_response, r"(?i)(total|grand|sum|\d{4,})")
 

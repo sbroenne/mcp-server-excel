@@ -1,4 +1,4 @@
-# excel_range - Number Formats
+# range - Number Formats
 
 **IMPORTANT: Always use US format codes.** The server automatically translates to the user's locale.
 

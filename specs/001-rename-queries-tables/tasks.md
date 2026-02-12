@@ -57,11 +57,11 @@
 
 ### MCP tests for User Story 1
 
-- [X] T014 [US1] Extend MCP smoke coverage in tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpServerSmokeTests.cs to include excel_powerquery rename (create → rename → list)
+- [X] T014 [US1] Extend MCP smoke coverage in tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpServerSmokeTests.cs to include powerquery rename (create → rename → list)
 
 ### Docs for User Story 1
 
-- [X] T015 [US1] Update tool prompt guidance in src/ExcelMcp.McpServer/Prompts/Content/excel_powerquery.md to document rename semantics (trim+CI uniqueness, no-op, case-only allowed)
+- [X] T015 [US1] Update tool prompt guidance in src/ExcelMcp.McpServer/Prompts/Content/powerquery.md to document rename semantics (trim+CI uniqueness, no-op, case-only allowed)
 - [X] T016 [US1] Update tool XML summary in src/ExcelMcp.McpServer/Tools/ExcelPowerQueryTool.cs to mention rename action behavior (no auto-save, no-op, case-only)
 
 **Checkpoint**: US1 complete when Core tests + MCP smoke pass and CLI can execute rename and return RenameResult JSON.
@@ -101,11 +101,11 @@
 
 ### MCP tests for User Story 2
 
-- [X] T024 [US2] Extend MCP smoke coverage in tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpServerSmokeTests.cs to include excel_datamodel rename-table (verify error message returned)
+- [X] T024 [US2] Extend MCP smoke coverage in tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpServerSmokeTests.cs to include datamodel rename-table (verify error message returned)
 
 ### Docs for User Story 2
 
-- [X] T025 [US2] Update tool prompt guidance in src/ExcelMcp.McpServer/Prompts/Content/excel_datamodel.md to document rename-table limitation (immutable names, workaround: delete and recreate)
+- [X] T025 [US2] Update tool prompt guidance in src/ExcelMcp.McpServer/Prompts/Content/datamodel.md to document rename-table limitation (immutable names, workaround: delete and recreate)
 - [X] T026 [US2] Update tool XML summary in src/ExcelMcp.McpServer/Tools/ExcelDataModelTool.cs to mention rename-table limitation
 
 **Checkpoint**: US2 complete when Core tests verify error message and MCP/CLI surface the action successfully.
@@ -120,7 +120,7 @@
 
 ### Tests for User Story 3
 
-- [X] T027 [P] [US3] Add MCP contract tests in tests/ExcelMcp.McpServer.Tests/Integration/Tools/RenameOperationsToolContractTests.cs to verify tool error behavior (business errors return JSON with success=false + isError=true) for excel_powerquery rename and excel_datamodel rename-table
+- [X] T027 [P] [US3] Add MCP contract tests in tests/ExcelMcp.McpServer.Tests/Integration/Tools/RenameOperationsToolContractTests.cs to verify tool error behavior (business errors return JSON with success=false + isError=true) for powerquery rename and datamodel rename-table
 
 ### Implementation for User Story 3
 
@@ -166,12 +166,12 @@
 ### Parallel Example: User Story 1
 
 - T008 Add tests in tests/ExcelMcp.Core.Tests/Integration/Commands/PowerQuery/PowerQueryCommandsTests.Rename.cs
-- T015 Update prompt doc in src/ExcelMcp.McpServer/Prompts/Content/excel_powerquery.md
+- T015 Update prompt doc in src/ExcelMcp.McpServer/Prompts/Content/powerquery.md
 
 ### Parallel Example: User Story 2
 
 - T017 Add tests in tests/ExcelMcp.Core.Tests/Integration/Commands/DataModel/DataModelCommandsTests.RenameTable.cs
-- T025 Update prompt doc in src/ExcelMcp.McpServer/Prompts/Content/excel_datamodel.md
+- T025 Update prompt doc in src/ExcelMcp.McpServer/Prompts/Content/datamodel.md
 
 ---
 

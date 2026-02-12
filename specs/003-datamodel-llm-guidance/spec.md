@@ -14,8 +14,8 @@ Secondary issue: LLMs "forget" the MCP tools exist in long conversations and sug
 
 Two simple changes:
 
-1. **Update `excel_datamodel` tool description** - Add clear warnings about destructive operations and a quick recovery guide
-2. **Create `excel_datamodel.md` prompt file** - Troubleshooting reference LLMs can consult when stuck
+1. **Update `datamodel` tool description** - Add clear warnings about destructive operations and a quick recovery guide
+2. **Create `datamodel.md` prompt file** - Troubleshooting reference LLMs can consult when stuck
 
 ## Requirements
 

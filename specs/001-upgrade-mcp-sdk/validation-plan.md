@@ -33,8 +33,8 @@
 |------|-----------|-----------------|
 | 1. Server Startup | `dotnet run --project src/ExcelMcp.McpServer` | Starts without error |
 | 2. Claude Desktop | Connect via MCP config | Tools discovered |
-| 3. excel_file | Open test file | Session created |
-| 4. excel_worksheet | List sheets | Sheets returned |
+| 3. file | Open test file | Session created |
+| 4. worksheet | List sheets | Sheets returned |
 
 ---
 

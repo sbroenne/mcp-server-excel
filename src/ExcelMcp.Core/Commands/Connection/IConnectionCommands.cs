@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// TIMEOUT: 5 min auto-timeout for refresh/load-to.
 /// </summary>
 [ServiceCategory("connection", "Connection")]
-[McpTool("excel_connection", Title = "Excel Data Connection Operations", Destructive = true, Category = "query",
+[McpTool("connection", Title = "Data Connection Operations", Destructive = true, Category = "query",
     Description = "Data connections (OLEDB, ODBC, ODC import). TEXT/WEB/CSV: Use excel_powerquery instead. Power Query connections auto-redirect to excel_powerquery. TIMEOUT: 5 min auto-timeout for refresh/loadto.")]
 public interface IConnectionCommands
 {

@@ -12,7 +12,7 @@ pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
 
 
 def _has_row_layout(result, value: int) -> bool:
-    calls = result.tool_calls_for("excel_pivottable_calc")
+    calls = result.tool_calls_for("pivottable_calc")
     return any(call.arguments.get("row_layout") == value for call in calls)
 
 
@@ -23,7 +23,7 @@ async def test_mcp_pivottable_tabular_layout(aitest_run, excel_mcp_server, excel
         provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
-        allowed_tools=["excel_pivottable", "excel_pivottable_calc", "excel_table", "excel_range", "excel_file", "excel_worksheet"],
+        allowed_tools=["pivottable", "pivottable_calc", "table", "range", "file", "worksheet"],
         max_turns=20,
     )
 
@@ -53,7 +53,7 @@ After creating the PivotTable, summarize what you created and confirm it uses a 
 """
     result = await aitest_run(agent, prompt)
     assert result.success
-    assert result.tool_was_called("excel_pivottable")
+    assert result.tool_was_called("pivottable")
     assert _has_row_layout(result, 1)
     # Empty response is OK if tools were called successfully
     if result.final_response:
@@ -67,7 +67,7 @@ async def test_mcp_pivottable_compact_layout(aitest_run, excel_mcp_server, excel
         provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
-        allowed_tools=["excel_pivottable", "excel_pivottable_calc", "excel_table", "excel_range", "excel_file", "excel_worksheet"],
+        allowed_tools=["pivottable", "pivottable_calc", "table", "range", "file", "worksheet"],
         max_turns=20,
     )
 
@@ -94,7 +94,7 @@ Add Department and Team as row fields, and Hours as a value field.
 """
     result = await aitest_run(agent, prompt)
     assert result.success
-    assert result.tool_was_called("excel_pivottable")
+    assert result.tool_was_called("pivottable")
     assert _has_row_layout(result, 0)
     assert_regex(result.final_response, r"(?i)(pivot|compact|layout|created|success)")
 
@@ -106,7 +106,7 @@ async def test_mcp_pivottable_outline_layout(aitest_run, excel_mcp_server, excel
         provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
-        allowed_tools=["excel_pivottable", "excel_pivottable_calc", "excel_table", "excel_range", "excel_file", "excel_worksheet"],
+        allowed_tools=["pivottable", "pivottable_calc", "table", "range", "file", "worksheet"],
         max_turns=25,
     )
 
@@ -135,6 +135,6 @@ Summarize: What are the three layout styles and when should each be used?
 """
     result = await aitest_run(agent, prompt)
     assert result.success
-    assert result.tool_was_called("excel_pivottable")
+    assert result.tool_was_called("pivottable")
     assert _has_row_layout(result, 2)
     assert_regex(result.final_response, r"(?i)(compact|tabular|outline)")
