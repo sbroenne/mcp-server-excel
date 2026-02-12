@@ -8,7 +8,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 /// <summary>
 /// Tests for calculated fields with Data Model / OLAP PivotTables.
 /// OLAP PivotTables do NOT support CalculatedFields (Excel COM limitation).
-/// For OLAP, use DAX measures via excel_datamodel tool instead.
+/// For OLAP, use DAX measures via datamodel tool instead.
 /// </summary>
 [Collection("DataModel")]
 [Trait("Category", "Integration")]
@@ -61,7 +61,7 @@ public class PivotTableCalculatedFieldsDataModelTests
 
         // Verify workflow hint points to DAX measures
         Assert.NotNull(result.WorkflowHint);
-        Assert.Contains("excel_datamodel", result.WorkflowHint);
+        Assert.Contains("datamodel", result.WorkflowHint);
         Assert.Contains("DAX", result.WorkflowHint);
     }
 }

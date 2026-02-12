@@ -114,14 +114,14 @@ skills/
 │   ├── behavioral-rules.md      # Core execution rules
 │   ├── anti-patterns.md         # Common mistakes to avoid
 │   ├── workflows.md             # Production workflow patterns
-│   ├── excel_powerquery.md      # Power Query specifics
-│   ├── excel_datamodel.md       # Data Model/DAX specifics
-│   ├── excel_table.md           # Table operations
-│   ├── excel_range.md           # Range operations
-│   ├── excel_worksheet.md       # Worksheet operations
-│   ├── excel_chart.md           # Chart operations
-│   ├── excel_slicer.md          # Slicer operations
-│   └── excel_conditionalformat.md # Conditional formatting
+│   ├── powerquery.md        # Power Query specifics
+│   ├── datamodel.md         # Data Model/DAX specifics
+│   ├── table.md             # Table operations
+│   ├── range.md             # Range operations
+│   ├── worksheet.md         # Worksheet operations
+│   ├── chart.md             # Chart operations
+│   ├── slicer.md            # Slicer operations
+│   └── conditionalformat.md # Conditional formatting
 ├── excel-mcp/                   # MCP Server skill package
 │   ├── SKILL.md                 # Primary skill definition (MCP tools)
 │   ├── README.md                # MCP skill installation guide

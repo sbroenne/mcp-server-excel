@@ -342,7 +342,7 @@ OperationResult DeleteTableSlicer(IExcelBatch batch, string slicerName);
 - Table slicers use `SlicerCaches.Add(table, columnName)` (deprecated but required for non-OLAP sources)
 - Detection uses `SlicerCache.List` boolean property (returns `true` for Table slicers)
 - Cannot use `SlicerCaches.Add2()` for Table slicers - it only supports PivotTable sources
-- Exposed via `excel_slicer` MCP tool with `create-table-slicer`, `list-table-slicers`, etc.
+- Exposed via `slicer` MCP tool with `create-table-slicer`, `list-table-slicers`, etc.
 
 ---
 
@@ -498,6 +498,6 @@ This maintains clear separation of concerns and prevents duplication!
 
 4. ~~**Should we support table slicers?**~~ ✅ **DONE - Implemented in Issue #363**
    - Table slicers implemented via `ITableCommands` interface
-   - Exposed via `excel_slicer` MCP tool
+   - Exposed via `slicer` MCP tool
 
 **Next Step:** Review this specification and decide on Phase 1 scope before implementation!

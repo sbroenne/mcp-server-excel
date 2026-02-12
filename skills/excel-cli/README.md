@@ -67,14 +67,14 @@ excel-cli/
     ├── behavioral-rules.md
     ├── anti-patterns.md
     ├── workflows.md
-    ├── excel_range.md
-    ├── excel_table.md
-    ├── excel_worksheet.md
-    ├── excel_chart.md
-    ├── excel_slicer.md
-    ├── excel_powerquery.md
-    ├── excel_datamodel.md
-    └── excel_conditionalformat.md
+    ├── range.md
+    ├── table.md
+    ├── worksheet.md
+    ├── chart.md
+    ├── slicer.md
+    ├── powerquery.md
+    ├── datamodel.md
+    └── conditionalformat.md
 ```
 
 ## CLI Installation

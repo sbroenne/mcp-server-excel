@@ -86,7 +86,7 @@ public enum PowerQueryAction
 ### 2. String Constants
 ```csharp
 public const string Category = "powerquery";
-public const string McpToolName = "excel_powerquery";
+public const string McpToolName = "powerquery";
 
 // Action constants
 public const string ListAction = "list";
@@ -235,7 +235,7 @@ return ExcelToolsBase.ForwardToService("powerquery.create", sessionId, new { que
 public static partial string ExcelPowerQuery(PowerQueryAction action, string sessionId, ...)
 {
     return ExcelToolsBase.ExecuteToolAction(
-        "excel_powerquery",
+        "powerquery",
         ServiceRegistry.PowerQuery.ToActionString(action),
         () => ServiceRegistry.PowerQuery.RouteAction(
             action,

@@ -325,10 +325,10 @@
 **Supported Types:**
 - OLEDB (requires Microsoft.ACE.OLEDB.16.0 or similar)
 - ODBC (requires ODBC driver installed)
-- Power Query connections (atomic redirect to excel_powerquery)
+- Power Query connections (atomic redirect to powerquery)
 
 **Automatic Fallback:**
-- TEXT/WEB connections automatically redirect to excel_powerquery for reliable imports
+- TEXT/WEB connections automatically redirect to powerquery for reliable imports
 
 ---
 
@@ -448,13 +448,13 @@
 
 | Task | Tool |
 |------|------|
-| Import data | `excel_powerquery` or `excel_connection` |
-| Create analysis | `excel_pivottable` (data model-based for OLAP) |
-| Visualize data | `excel_chart` |
-| Update parameters | `excel_namedrange` (write operation) |
-| Manage formulas | `excel_range` (set-formulas) |
-| Format data | `excel_range` (format-range, validate-range) |
-| Script automation | `excel_vba` (run macro) |
+| Import data | `powerquery` or `connection` |
+| Create analysis | `pivottable` (data model-based for OLAP) |
+| Visualize data | `chart` |
+| Update parameters | `namedrange` (write operation) |
+| Manage formulas | `range` (set-formulas) |
+| Format data | `range` (format-range, validate-range) |
+| Script automation | `vba` (run macro) |
 
 ---
 

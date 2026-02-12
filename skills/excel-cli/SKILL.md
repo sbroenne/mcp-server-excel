@@ -283,7 +283,7 @@ Data Model (Power Pivot) - DAX measures and table management. CRITICAL: WORKSHEE
 
 
 
-### datamodelrel
+### datamodelrelationship
 
 Data Model relationships - link tables for cross-table DAX calculations. CRITICAL: Deleting or recreating tables removes ALL their relationships. Use list-relationships before table operations to backup, then recreate relationships after schema changes. RELATIONSHIP REQUIREMENTS: - Both tables must exist in the Data Model first - Columns must have compatible data types - fromTable/fromColumn = many-side (detail table, foreign key) - toTable/toColumn = one-side (lookup table, primary key) ACTIVE VS INACTIVE: - Only ONE active relationship can exist between two tables - Use active=false when creating alternative paths - DAX USERELATIONSHIP() activates inactive relationships
 

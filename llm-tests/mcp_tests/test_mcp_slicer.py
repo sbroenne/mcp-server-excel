@@ -19,12 +19,12 @@ async def test_mcp_pivottable_slicer_workflow(aitest_run, excel_mcp_server, exce
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=[
-            "excel_pivottable",
-            "excel_slicer",
-            "excel_table",
-            "excel_range",
-            "excel_file",
-            "excel_worksheet",
+            "pivottable",
+            "slicer",
+            "table",
+            "range",
+            "file",
+            "worksheet",
         ],
         max_turns=20,
     )
@@ -56,7 +56,7 @@ Then create a PivotTable on a new sheet called "Analysis" that shows:
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_pivottable")
+    assert result.tool_was_called("pivottable")
     messages = result.messages
 
     prompt = """
@@ -69,7 +69,7 @@ After creating, list all slicers to confirm it was created.
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_slicer")
+    assert result.tool_was_called("slicer")
     assert_regex(result.final_response, r"(?i)(slicer|region|created|success)")
     messages = result.messages
 
@@ -80,7 +80,7 @@ After applying the filter, what does the PivotTable show for total North sales?
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_slicer")
+    assert result.tool_was_called("slicer")
     assert_regex(result.final_response, r"(?i)(north|filter|slicer|50500|sales)")
     messages = result.messages
 
@@ -93,7 +93,7 @@ How many slicers do we have now?
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_slicer")
+    assert result.tool_was_called("slicer")
     assert_regex(result.final_response, r"(?i)(slicer|product|2|two|created)")
     messages = result.messages
 
@@ -106,7 +106,7 @@ Confirm both slicers were removed.
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_file")
+    assert result.tool_was_called("file")
     assert_regex(result.final_response, r"(?i)(delete|removed|closed|saved|success)")
 
 
@@ -118,11 +118,11 @@ async def test_mcp_table_slicer_workflow(aitest_run, excel_mcp_server, excel_mcp
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=[
-            "excel_slicer",
-            "excel_table",
-            "excel_range",
-            "excel_file",
-            "excel_worksheet",
+            "slicer",
+            "table",
+            "range",
+            "file",
+            "worksheet",
         ],
         max_turns=20,
     )
@@ -150,7 +150,7 @@ Convert this to an Excel table called "Employees".
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_table")
+    assert result.tool_was_called("table")
     messages = result.messages
 
     prompt = """
@@ -161,7 +161,7 @@ List all Table slicers to confirm it was created.
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_slicer")
+    assert result.tool_was_called("slicer")
     assert_regex(result.final_response, r"(?i)(slicer|department|table|created|success)")
     messages = result.messages
 
@@ -172,7 +172,7 @@ How many Engineering employees are there?
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_slicer")
+    assert result.tool_was_called("slicer")
     assert_regex(result.final_response, r"(?i)(engineering|3|three|filter|alice|bob|grace)")
     messages = result.messages
 
@@ -185,7 +185,7 @@ How many active employees are there total?
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_slicer")
+    assert result.tool_was_called("slicer")
     assert_regex(result.final_response, r"(?i)(status|active|6|six|slicer)")
     messages = result.messages
 
@@ -198,7 +198,7 @@ Summarize: what's the difference between Table slicers and PivotTable slicers?
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_file")
+    assert result.tool_was_called("file")
     assert_regex(result.final_response, r"(?i)(delete|table|pivot|different|closed|saved)")
 
 
@@ -210,12 +210,12 @@ async def test_mcp_combined_slicer_workflow(aitest_run, excel_mcp_server, excel_
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=[
-            "excel_pivottable",
-            "excel_slicer",
-            "excel_table",
-            "excel_range",
-            "excel_file",
-            "excel_worksheet",
+            "pivottable",
+            "slicer",
+            "table",
+            "range",
+            "file",
+            "worksheet",
         ],
         max_turns=20,
     )
@@ -244,8 +244,8 @@ Furniture, Chair, East, 55, 175
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_table")
-    assert result.tool_was_called("excel_pivottable")
+    assert result.tool_was_called("table")
+    assert result.tool_was_called("pivottable")
     messages = result.messages
 
     prompt = """
@@ -258,7 +258,7 @@ List all slicers of each type to confirm both were created.
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_slicer")
+    assert result.tool_was_called("slicer")
     assert_regex(result.final_response, r"(?i)(warehouse|category|slicer|table|pivot|created)")
     messages = result.messages
 
@@ -272,7 +272,7 @@ How much Electronics stock is in the West warehouse?
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_slicer")
+    assert result.tool_was_called("slicer")
     assert_regex(result.final_response, r"(?i)(west|electronics|170|filter|stock)")
     messages = result.messages
 
@@ -285,5 +285,5 @@ How many total slicers did we create (both Table and PivotTable)?
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_file")
+    assert result.tool_was_called("file")
     assert_regex(result.final_response, r"(?i)(2|two|clear|saved|closed|success)")

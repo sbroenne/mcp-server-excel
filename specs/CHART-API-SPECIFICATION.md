@@ -202,7 +202,7 @@ public interface IChartCommands
     
     /// <summary>
     /// Sets data source range for Regular Charts
-    /// PivotCharts: Returns error guiding to excel_pivottable
+    /// PivotCharts: Returns error guiding to pivottable
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
@@ -212,7 +212,7 @@ public interface IChartCommands
     
     /// <summary>
     /// Adds a data series to Regular Charts
-    /// PivotCharts: Returns error guiding to excel_pivottable(action: 'add-value-field')
+    /// PivotCharts: Returns error guiding to pivottable(action: 'add-value-field')
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
@@ -225,7 +225,7 @@ public interface IChartCommands
     
     /// <summary>
     /// Removes a data series from Regular Charts
-    /// PivotCharts: Returns error guiding to excel_pivottable(action: 'remove-field')
+    /// PivotCharts: Returns error guiding to pivottable(action: 'remove-field')
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
@@ -599,7 +599,7 @@ public class PivotChartStrategy : IChartStrategy
             Success = false,
             ErrorMessage = "Cannot set source range for PivotChart. " +
                           "PivotCharts automatically sync with their PivotTable data source. " +
-                          "To modify data, use excel_pivottable tool to update the linked PivotTable."
+                          "To modify data, use pivottable tool to update the linked PivotTable."
         };
     }
     
@@ -613,7 +613,7 @@ public class PivotChartStrategy : IChartStrategy
             Success = false,
             ErrorMessage = $"Cannot add series directly to PivotChart. " +
                           $"PivotCharts automatically sync with PivotTable '{pivotTableName}' fields. " +
-                          $"Use excel_pivottable(action: 'add-value-field', pivotTableName: '{pivotTableName}', fieldName: '<field>') " +
+                          $"Use pivottable(action: 'add-value-field', pivotTableName: '{pivotTableName}', fieldName: '<field>') " +
                           $"to add data series."
         };
     }
@@ -720,13 +720,13 @@ for (int i = 1; i <= chartObjects.Count; i++)
 
 ---
 
-## MCP Tool: excel_chart
+## MCP Tool: chart
 
 ### Actions (20-25 operations)
 
 ```typescript
 {
-  "name": "excel_chart",
+  "name": "chart",
   "description": "Excel chart operations - create and manage Regular Charts and PivotCharts",
   "parameters": {
     "action": "enum<ChartAction>",
@@ -841,7 +841,7 @@ var result = await chartCommands.CreateFromPivotTable(
 );
 
 // PivotChart automatically syncs with PivotTable
-// To add data series, use excel_pivottable tool:
+// To add data series, use pivottable tool:
 await pivotCommands.AddValueField(batch, "SalesPivot", "Revenue", AggregationFunction.Sum);
 // PivotChart updates automatically!
 ```
@@ -873,7 +873,7 @@ await pivotCommands.AddValueField(batch, "SalesPivot", "Revenue", AggregationFun
 - 🚧 `SetStyle` - Apply chart style
 
 **Integration:**
-- 🚧 MCP Server tool (`excel_chart` with ~15 actions)
+- 🚧 MCP Server tool (`chart` with ~15 actions)
 - 🚧 CLI commands (all 15 operations)
 - 🚧 Integration tests with both chart types
 

@@ -14,20 +14,20 @@
 
 ### 1. `excelPath` Parameter Removed (11 Tools)
 
-**Removed from:** `excel_calculation_mode`, `excel_conditionalformat`, `excel_connection`, `excel_namedrange`, `excel_range`, `excel_range_edit`, `excel_range_format`, `excel_range_link`, `excel_table`, `excel_table_column`, `excel_vba`
+**Removed from:** `calculation_mode`, `conditionalformat`, `connection`, `namedrange`, `range`, `range_edit`, `range_format`, `range_link`, `table`, `table_column`, `vba`
 
 **Why:** Daemon architecture — session already knows the file context. Only `sessionId` required.
 
 ---
 
-### 2. `excel_file` Parameter Renames
+### 2. `file` Parameter Renames
 
 - `excelPath` → `path`
 - `showExcel` → `show`
 
 ---
 
-### 3. `excel_connection` (-4 params)
+### 3. `connection` (-4 params)
 
 **Removed:** `newCommandText`, `newConnectionString`, `newDescription`
 
@@ -35,7 +35,7 @@
 
 ---
 
-### 4. `excel_datamodel` (+4 params, 2 renames)
+### 4. `datamodel` (+4 params, 2 renames)
 
 **Added:** `daxFormulaFile`, `daxQueryFile`, `dmvQueryFile`, `timeout`
 
@@ -43,7 +43,7 @@
 
 ---
 
-### 5. `excel_datamodel_rel` (5 action renames + 5 param renames)
+### 5. `datamodel_relationship` (5 action renames + 5 param renames)
 
 **Actions renamed:**
 - `list` → `list-relationships`
@@ -90,7 +90,7 @@ Merged actions from `pivottablefield` and `pivottablecalc` into single command. 
 
 **Update hardcoded scripts:**
 1. Remove `excelPath` from 11 session-based MCP tools
-2. Update `excel_file`, `excel_connection`, `excel_datamodel`, `excel_datamodel_rel` parameter names
+2. Update `file`, `connection`, `datamodel`, `datamodel_relationship` parameter names
 3. Update CLI parameter names (use `excelcli <command> --help` to see current names)
 4. Rename `add-to-datamodel` → `add-to-data-model` in table commands
 

@@ -32,7 +32,7 @@ public partial class ConnectionCommandsTests
             _commands.Create(batch, connectionName, connectionString));
 
         Assert.Contains("TEXT and WEB connections are no longer supported", exception.Message);
-        Assert.Contains("excel_powerquery", exception.Message);
+        Assert.Contains("powerquery", exception.Message);
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public partial class ConnectionCommandsTests
             _commands.Create(batch, connectionName, connectionString));
 
         Assert.Contains("TEXT and WEB connections are no longer supported", exception.Message);
-        Assert.Contains("excel_powerquery", exception.Message);
+        Assert.Contains("powerquery", exception.Message);
     }
 
     [Fact]

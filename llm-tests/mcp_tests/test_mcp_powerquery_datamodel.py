@@ -19,15 +19,15 @@ async def test_mcp_star_schema_workflow(aitest_run, excel_mcp_server, excel_mcp_
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=[
-            "excel_table",
-            "excel_datamodel",
-            "excel_datamodel_rel",
-            "excel_pivottable",
-            "excel_chart",
-            "excel_chart_config",
-            "excel_range",
-            "excel_file",
-            "excel_worksheet",
+            "table",
+            "datamodel",
+            "datamodel_relationship",
+            "pivottable",
+            "chart",
+            "chart_config",
+            "range",
+            "file",
+            "worksheet",
         ],
         max_turns=25,
     )
@@ -52,7 +52,7 @@ Make it a table called "Products" and add it to the Data Model.
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_table")
+    assert result.tool_was_called("table")
     messages = result.messages
 
     prompt = """
@@ -83,7 +83,7 @@ Create a relationship between the Orders and Products tables using ProductID.
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_datamodel_rel")
+    assert result.tool_was_called("datamodel_relationship")
     messages = result.messages
 
     prompt = """
@@ -93,7 +93,7 @@ Now for the analysis! Create a PivotTable on a new sheet that shows:
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_pivottable")
+    assert result.tool_was_called("pivottable")
     messages = result.messages
 
     prompt = """
@@ -105,7 +105,7 @@ Which category had more orders - Electronics or Furniture?
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_chart")
+    assert result.tool_was_called("chart")
     assert_regex(result.final_response, r"(?i)(pie|chart|saved|closed|success)")
 
 
@@ -135,7 +135,7 @@ Name the query "Products".
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_powerquery")
+    assert result.tool_was_called("powerquery")
     messages = result.messages
 
     prompt = """
@@ -151,7 +151,7 @@ Confirm the table is now in the Data Model and ready for DAX measures.
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_table")
+    assert result.tool_was_called("table")
     assert_regex(result.final_response, r"(?i)(dimension|fact|data.?model|added)")
     messages = result.messages
 
@@ -165,7 +165,7 @@ Now create some useful DAX measures on your fact table:
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_datamodel")
+    assert result.tool_was_called("datamodel")
     assert_regex(result.final_response, r"(?i)(measure|rating|discount|revenue|created)")
     messages = result.messages
 
@@ -178,7 +178,7 @@ Which category has the most products and what's their average rating?
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_pivottable")
+    assert result.tool_was_called("pivottable")
     assert_regex(result.final_response, r"(?i)(pivot|category|rating|products)")
     messages = result.messages
 
@@ -193,5 +193,5 @@ Summarize the star schema you built: how many dimension tables, fact tables, rel
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_chart")
+    assert result.tool_was_called("chart")
     assert_regex(result.final_response, r"(?i)(chart|star.?schema|dimension|fact|relationship|measure|saved|closed)")

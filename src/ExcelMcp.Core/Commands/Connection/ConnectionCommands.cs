@@ -185,7 +185,7 @@ public partial class ConnectionCommands : IConnectionCommands
         {
             throw new NotSupportedException(
                 "TEXT and WEB connections are no longer supported via create action. " +
-                "Use excel_powerquery tool for file/web imports, or create an ODC file and use import-odc action.");
+                "Use powerquery tool for file/web imports, or create an ODC file and use import-odc action.");
         }
 
         dynamic? connections = null;

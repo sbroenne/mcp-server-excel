@@ -18,7 +18,7 @@ async def test_mcp_chart_workflows(aitest_run, excel_mcp_server, excel_mcp_skill
         provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
-        allowed_tools=["excel_chart", "excel_table", "excel_file", "excel_range", "excel_worksheet"],
+        allowed_tools=["chart", "table", "file", "range", "worksheet"],
         max_turns=20,
     )
 
@@ -41,8 +41,8 @@ Create a sales analysis chart:
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_chart")
-    assert result.tool_was_called("excel_table")
+    assert result.tool_was_called("chart")
+    assert result.tool_was_called("table")
     assert_regex(result.final_response, r"(?i)(salesdata|chart|created)")
     messages = result.messages
 
@@ -64,7 +64,7 @@ I need a chart that doesn't overlap my data:
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_chart")
+    assert result.tool_was_called("chart")
     assert_regex(result.final_response, r"(?i)(chart|row [7-9]|\$[A-Z]+\$[7-9])")
     messages = result.messages
 
@@ -86,7 +86,7 @@ Create a dashboard with multiple chart types:
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_chart")
+    assert result.tool_was_called("chart")
     assert_regex(result.final_response, r"(?i)(pie|bar|2 chart|two chart)")
     messages = result.messages
 
@@ -106,5 +106,5 @@ Create a chart with precise cell-based positioning:
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_chart")
+    assert result.tool_was_called("chart")
     assert_regex(result.final_response, r"(?i)(\$G\$2|G2|chart|created)")

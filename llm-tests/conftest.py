@@ -111,7 +111,7 @@ def assert_cli_args_contain(result: Any, token: str) -> None:
 
 
 def _resolve_mcp_command() -> list[str]:
-    env_command = os.environ.get("EXCEL_MCP_SERVER_COMMAND")
+    env_command = os.environ.get("MCP_SERVER_COMMAND")
     if env_command:
         return shlex.split(env_command)
 
@@ -133,7 +133,7 @@ def _resolve_mcp_command() -> list[str]:
 
 
 def _resolve_cli_command() -> str:
-    env_command = os.environ.get("EXCEL_CLI_COMMAND")
+    env_command = os.environ.get("CLI_COMMAND")
     if env_command:
         return env_command
 

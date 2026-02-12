@@ -28,13 +28,13 @@
 | **Total Actions** | 215 | 215 | ✅ Same action count |
 | **Total Parameters** | 297 | 287 | ⚠️ **-10 params** |
 | **`excelPath` Removed** | — | — | ⚠️ 11 session-based tools (no longer need file path with daemon) |
-| **Parameter Renames** | — | — | ⚠️ `excel_file` + `excel_datamodel` + `excel_datamodel_rel` |
+| **Parameter Renames** | — | — | ⚠️ `file` + `datamodel` + `datamodel_relationship` |
 | **Changed Tools** | — | — | ⚠️ 13 of 23 |
 | **Identical Tools** | — | — | ✅ 10 of 23 |
 
 ### Key Findings
 
-1. **MCP Server: `excel_file` parameters renamed** — `excelPath` → `path` and `showExcel` → `show`. All other MCP tools are identical by schema.
+1. **MCP Server: `file` parameters renamed** — `excelPath` → `path` and `showExcel` → `show`. All other MCP tools are identical by schema.
 2. **CLI has breaking changes** — 1 action rename (`add-to-datamodel` → `add-to-data-model`), parameter renames in 9/15 commands, and pivottable merges +23 actions.
 3. **Actions are identical across both layers** — All 215 MCP actions and all action enum values are preserved 1:1.
 4. **CLI pivottable absorbs +23 actions** from pivottablefield/pivottablecalc into one CLI command.
@@ -211,9 +211,9 @@ Complete restructure — main used generic params, branch exposes all formatting
 | Total actions | 215 | 215 | ✅ Same |
 | Total parameters | 297 | 287 | ⚠️ **-10 params** (net) |
 | `excelPath` removals | — | 11 tools | ⚠️ All session-based tools (daemon architecture change) |
-| Parameter renames | — | 8 params | ⚠️ `excel_file` (2), `excel_datamodel` (2), `excel_datamodel_rel` (5) + 1 removal |
-| New params added | — | 6 params | ✅ `excel_datamodel` file-based inputs + timeout |
-| Params removed | — | 4 params | ⚠️ `excel_connection` set-properties cleanup |
+| Parameter renames | — | 8 params | ⚠️ `file` (2), `datamodel` (2), `datamodel_relationship` (5) + 1 removal |
+| New params added | — | 6 params | ✅ `datamodel` file-based inputs + timeout |
+| Params removed | — | 4 params | ⚠️ `connection` set-properties cleanup |
 
 ### Identical Tools (10/23)
 
@@ -221,57 +221,57 @@ These tools have **zero differences** in actions, parameters, or descriptions be
 
 | MCP Tool | Actions | Params | Notes |
 |----------|---------|--------|-------|
-| `excel_chart` | 8 | 14 | All chart lifecycle |
-| `excel_chart_config` | 21 | 44 | Chart configuration |
-| `excel_pivottable` | 7 | 10 | PivotTable lifecycle |
-| `excel_pivottable_calc` | 10 | 11 | Calculated fields/members |
-| `excel_pivottable_field` | 13 | 14 | Field configuration |
-| `excel_powerquery` | 12 | 10 | Power Query operations |
-| `excel_slicer` | 8 | 11 | Slicer operations |
-| `excel_worksheet` | 8 | 8 | Sheet lifecycle |
-| `excel_worksheet_style` | 8 | 7 | Sheet styling |
-| `excel_file` | 6 | 6 | ⚠️ File management (params ARE renamed — see below) |
+| `chart` | 8 | 14 | All chart lifecycle |
+| `chart_config` | 21 | 44 | Chart configuration |
+| `pivottable` | 7 | 10 | PivotTable lifecycle |
+| `pivottable_calc` | 10 | 11 | Calculated fields/members |
+| `pivottable_field` | 13 | 14 | Field configuration |
+| `powerquery` | 12 | 10 | Power Query operations |
+| `slicer` | 8 | 11 | Slicer operations |
+| `worksheet` | 8 | 8 | Sheet lifecycle |
+| `worksheet_style` | 8 | 7 | Sheet styling |
+| `file` | 6 | 6 | ⚠️ File management (params ARE renamed — see below) |
 
-> **Note:** `excel_file` is listed here for action/param count only. It has 2 parameter renames (see Category 2).
+> **Note:** `file` is listed here for action/param count only. It has 2 parameter renames (see Category 2).
 
 ### Category 1: `excelPath` Removal from Session-Based Tools (11 tools, -11 params)
 
 These tools are **session-based** (operate within an existing Excel file context managed by the daemon). The `excelPath` parameter was a legacy artifact from pre-daemon architecture where tools needed the file path on every call. With the daemon, the session already knows the file context.
 
-**Architecture Rationale:** MCP daemon architecture centralizes session management. The client opens a file once (`excel_file` with `action=open`), receives a `sessionId`, then all subsequent operations use only the `sessionId`. The daemon tracks which file each session points to, eliminating the need for `excelPath` on every tool call.
+**Architecture Rationale:** MCP daemon architecture centralizes session management. The client opens a file once (`file` with `action=open`), receives a `sessionId`, then all subsequent operations use only the `sessionId`. The daemon tracks which file each session points to, eliminating the need for `excelPath` on every tool call.
 
 | MCP Tool | Param Removed | Notes |
 |----------|--------------|-------|
-| `excel_calculation_mode` | `excelPath` | -1 param (7 → 6) |
-| `excel_conditionalformat` | `excelPath` | -1 param (16 → 15) |
-| `excel_connection` | `excelPath` | -1 param (15 → 11, but also -3 from Category 3) |
-| `excel_namedrange` | `excelPath` | -1 param (5 → 4) |
-| `excel_range` | `excelPath` | -1 param (14 → 13) |
-| `excel_range_edit` | `excelPath` | -1 param (15 → 14) |
-| `excel_range_format` | `excelPath` | -1 param (33 → 32) |
-| `excel_range_link` | `excelPath` | -1 param (10 → 9) |
-| `excel_table` | `excelPath` | -1 param (12 → 11) |
-| `excel_table_column` | `excelPath` | -1 param (11 → 10) |
-| `excel_vba` | `excelPath` | -1 param (7 → 6) |
+| `calculation_mode` | `excelPath` | -1 param (7 → 6) |
+| `conditionalformat` | `excelPath` | -1 param (16 → 15) |
+| `connection` | `excelPath` | -1 param (15 → 11, but also -3 from Category 3) |
+| `namedrange` | `excelPath` | -1 param (5 → 4) |
+| `range` | `excelPath` | -1 param (14 → 13) |
+| `range_edit` | `excelPath` | -1 param (15 → 14) |
+| `range_format` | `excelPath` | -1 param (33 → 32) |
+| `range_link` | `excelPath` | -1 param (10 → 9) |
+| `table` | `excelPath` | -1 param (12 → 11) |
+| `table_column` | `excelPath` | -1 param (11 → 10) |
+| `vba` | `excelPath` | -1 param (7 → 6) |
 
 **Impact:** This is a **breaking change** for direct MCP clients that were passing `excelPath` to these tools. However, it's an **architectural improvement** — tools now correctly reflect that they operate within a session context, not independently on arbitrary files.
 
-### Category 2: `excel_file` Parameter Renames (1 tool, 2 params renamed)
+### Category 2: `file` Parameter Renames (1 tool, 2 params renamed)
 
-#### `excel_file` (6 actions, 6 params → 6 params)
+#### `file` (6 actions, 6 params → 6 params)
 
 | Main Param | Branch Param | Notes |
 |-----------|-------------|-------|
 | `excelPath` | `path` | Renamed (shorter, more generic) |
 | `showExcel` | `show` | Renamed (shorter, boolean clarity) |
 
-**Rationale:** `excel_file` is the **only** MCP tool that retains a file path parameter because it's the file management/session creation tool. The rename to `path` and `show` aligns with modern MCP conventions (shorter param names, boolean clarity).
+**Rationale:** `file` is the **only** MCP tool that retains a file path parameter because it's the file management/session creation tool. The rename to `path` and `show` aligns with modern MCP conventions (shorter param names, boolean clarity).
 
-**Impact:** ⚠️ **Breaking change** — MCP clients calling `excel_file` must update param names.
+**Impact:** ⚠️ **Breaking change** — MCP clients calling `file` must update param names.
 
 ### Category 3: Additional Parameter Changes (3 tools)
 
-#### `excel_connection` (9 actions, 15 params → 11 params, -4 params)
+#### `connection` (9 actions, 15 params → 11 params, -4 params)
 
 | Main Param | Branch Param | Notes |
 |-----------|-------------|-------|
@@ -284,7 +284,7 @@ These tools are **session-based** (operate within an existing Excel file context
 
 **Impact:** ⚠️ **Breaking change** — `SetProperties` calls must use standard param names, not `new*` prefixed versions.
 
-#### `excel_datamodel` (14 actions, 10 params → 14 params, +4 params)
+#### `datamodel` (14 actions, 10 params → 14 params, +4 params)
 
 **Renames:**
 | Main Param | Branch Param | Notes |
@@ -304,7 +304,7 @@ These tools are **session-based** (operate within an existing Excel file context
 
 **Impact:** ✅ **Additive** — new params are optional. ⚠️ **Breaking** — `formatString` rename requires update.
 
-#### `excel_datamodel_rel` (5 actions, 7 params → 7 params, 5 renames)
+#### `datamodel_relationship` (5 actions, 7 params → 7 params, 5 renames)
 
 **All Parameters Renamed (Shorter):**
 | Main Param | Branch Param | Notes |
@@ -324,12 +324,12 @@ These tools are **session-based** (operate within an existing Excel file context
 | Pattern | Examples | Count |
 |---------|----------|-------|
 | `excelPath` removed (session-based) | 11 tools (all session-based operations) | 11 |
-| File param rename: `excelPath` → `path` | `excel_file` only | 1 |
-| Boolean clarity: `showExcel` → `show` | `excel_file` | 1 |
+| File param rename: `excelPath` → `path` | `file` only | 1 |
+| Boolean clarity: `showExcel` → `show` | `file` | 1 |
 | Verbose → shorter | `fromTableName` → `fromTable`, `isActive` → `active` | 5 |
 | Semantic rename | `formatString` → `formatType`, `newTableName` → `newName` | 2 |
 | New file-based inputs | `daxFormulaFile`, `daxQueryFile`, `dmvQueryFile` | 3 |
-| New timeout param | `excel_datamodel` | 1 |
+| New timeout param | `datamodel` | 1 |
 | Removed `new*` params | `newCommandText`, `newConnectionString`, `newDescription` | 3 |
 
 **Root cause:** Branch generates MCP tool parameters from Core interface method signatures. Main had hand-written MCP tool methods with:
@@ -359,17 +359,17 @@ CLI scripts using `--sheet`, `--query`, `--mcode`, `--table`, `--module`, etc. w
 
 ### 3. MCP `excelPath` Removed from Session-Based Tools (Intentional Cleanup)
 
-**11 of 23 MCP tools** had `excelPath` removed entirely (not renamed). Only `excel_file` retains a file path parameter (`path`, renamed from `excelPath`). Additionally, `excel_file` renames `showExcel` to `show`.
+**11 of 23 MCP tools** had `excelPath` removed entirely (not renamed). Only `file` retains a file path parameter (`path`, renamed from `excelPath`). Additionally, `file` renames `showExcel` to `show`.
 
 **Decision: RESOLVED** — `excelPath` was a legacy artifact in session-based tools. These tools use `sessionId` and never needed a file path. The parameter was only used for error messages and telemetry, with 4 tools even having `_ = path;` discard statements. Removal is an API improvement, not a breaking change in the traditional sense — the parameter was always redundant.
 
-### 4. MCP `excel_connection` — 3 Params Removed
+### 4. MCP `connection` — 3 Params Removed
 
-`newCommandText`, `newConnectionString`, `newDescription` removed from `excel_connection`. The `SetProperties` action on branch reuses existing params instead.
+`newCommandText`, `newConnectionString`, `newDescription` removed from `connection`. The `SetProperties` action on branch reuses existing params instead.
 
 **Impact:** MCP clients using `SetProperties` with `new*` params will break. Lower impact since `SetProperties` is rarely used directly.
 
-### 5. MCP `excel_datamodel` — Parameter Restructure
+### 5. MCP `datamodel` — Parameter Restructure
 
 - `formatString` → `formatType` (rename)
 - `newTableName` → `newName` (rename)
@@ -377,7 +377,7 @@ CLI scripts using `--sheet`, `--query`, `--mcode`, `--table`, `--module`, etc. w
 
 **Impact:** Clients using `formatString` or `newTableName` will break. New params are additive.
 
-### 6. MCP `excel_datamodel_rel` — All 5 Params Renamed
+### 6. MCP `datamodel_relationship` — All 5 Params Renamed
 
 All non-action params renamed to shorter forms (`fromTableName` → `fromTable`, etc.). Any client code for relationship management will break.
 

@@ -72,7 +72,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         _output.WriteLine($"✓ Connected to server: {_client.ServerInfo?.Name} v{_client.ServerInfo?.Version}");
 
         // Create a fresh workbook and open session in one call (Create)
-        var createJson = await CallToolAsync("excel_file", new Dictionary<string, object?>
+        var createJson = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "Create",
             ["path"] = _testExcelFile
@@ -100,7 +100,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         // Arrange - no query exists
 
         // Act - attempt to rename non-existent query
-        var json = await CallToolAsync("excel_powerquery", new Dictionary<string, object?>
+        var json = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
             ["action"] = "Rename",
             ["sessionId"] = _sessionId,
@@ -130,7 +130,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         await CreatePowerQuery("QueryB", "let y = 2 in y");
 
         // Act - try to rename QueryA to QueryB (conflict)
-        var json = await CallToolAsync("excel_powerquery", new Dictionary<string, object?>
+        var json = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
             ["action"] = "Rename",
             ["sessionId"] = _sessionId,
@@ -164,7 +164,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         await CreatePowerQuery("ValidQuery", "let x = 1 in x");
 
         // Act - try to rename with empty new name
-        var json = await CallToolAsync("excel_powerquery", new Dictionary<string, object?>
+        var json = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
             ["action"] = "Rename",
             ["sessionId"] = _sessionId,
@@ -198,7 +198,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         await CreatePowerQuery("TestQuery", "let x = 1 in x");
 
         // Act - rename to same name with extra whitespace
-        var json = await CallToolAsync("excel_powerquery", new Dictionary<string, object?>
+        var json = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
             ["action"] = "Rename",
             ["sessionId"] = _sessionId,
@@ -225,7 +225,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         await CreatePowerQuery("OriginalName", "let x = 1 in x");
 
         // Act - perform valid rename
-        var json = await CallToolAsync("excel_powerquery", new Dictionary<string, object?>
+        var json = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
             ["action"] = "Rename",
             ["sessionId"] = _sessionId,
@@ -258,7 +258,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         // Arrange - no data model table exists
 
         // Act - attempt to rename non-existent table
-        var json = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
+        var json = await CallToolAsync("datamodel", new Dictionary<string, object?>
         {
             ["action"] = "RenameTable",
             ["sessionId"] = _sessionId,
@@ -289,7 +289,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         await LoadQueryToDataModel("TestData");
 
         // Act - attempt to rename the table in Data Model
-        var json = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
+        var json = await CallToolAsync("datamodel", new Dictionary<string, object?>
         {
             ["action"] = "RenameTable",
             ["sessionId"] = _sessionId,
@@ -328,7 +328,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         await LoadQueryToDataModel("DataTable");
 
         // Act - try to rename with empty new name
-        var json = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
+        var json = await CallToolAsync("datamodel", new Dictionary<string, object?>
         {
             ["action"] = "RenameTable",
             ["sessionId"] = _sessionId,
@@ -370,7 +370,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
 
     private async Task CreatePowerQuery(string name, string mCode)
     {
-        var json = await CallToolAsync("excel_powerquery", new Dictionary<string, object?>
+        var json = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
             ["action"] = "Create",
             ["sessionId"] = _sessionId,
@@ -385,7 +385,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
 
     private async Task LoadQueryToDataModel(string queryName)
     {
-        var json = await CallToolAsync("excel_powerquery", new Dictionary<string, object?>
+        var json = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
             ["action"] = "LoadTo",
             ["sessionId"] = _sessionId,
@@ -420,7 +420,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         {
             try
             {
-                await CallToolAsync("excel_file", new Dictionary<string, object?>
+                await CallToolAsync("file", new Dictionary<string, object?>
                 {
                     ["action"] = "Close",
                     ["sessionId"] = _sessionId,

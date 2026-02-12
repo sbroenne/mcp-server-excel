@@ -24,16 +24,16 @@ Provides 212 Excel operations via Model Context Protocol. The MCP Server forward
 
 ## Calculation Mode Workflow (Batch Performance)
 
-Use `excel_calculation_mode` for **bulk write performance optimization**. When writing many values or formulas, disable auto-recalc to avoid recalculating after every cell:
+Use `calculation_mode` for **bulk write performance optimization**. When writing many values or formulas, disable auto-recalc to avoid recalculating after every cell:
 
 ```
-1. excel_calculation_mode(action: 'set-mode', mode: 'manual')  → Disable auto-recalc
-2. Perform all writes (excel_range set-values, set-formulas)
-3. excel_calculation_mode(action: 'calculate', scope: 'workbook')  → Recalculate once
-4. excel_calculation_mode(action: 'set-mode', mode: 'automatic')  → Restore default
+1. calculation_mode(action: 'set-mode', mode: 'manual')  → Disable auto-recalc
+2. Perform all writes (range set-values, set-formulas)
+3. calculation_mode(action: 'calculate', scope: 'workbook')  → Recalculate once
+4. calculation_mode(action: 'set-mode', mode: 'automatic')  → Restore default
 ```
 
-**Note:** You do NOT need manual mode to read formulas - `excel_range get-formulas` returns formula text regardless of calculation mode.
+**Note:** You do NOT need manual mode to read formulas - `range get-formulas` returns formula text regardless of calculation mode.
 
 ## CRITICAL: Execution Rules (MUST FOLLOW)
 
@@ -43,9 +43,9 @@ Use `excel_calculation_mode` for **bulk write performance optimization**. When w
 
 | Bad (Asking) | Good (Discovering) |
 |--------------|-------------------|
-| "Which Excel file should I use?" | `excel_file(list)` → use the open session |
-| "What's the table name?" | `excel_table(list)` → discover tables |
-| "Which sheet has the data?" | `excel_worksheet(list)` → check all sheets |
+| "Which Excel file should I use?" | `file(list)` → use the open session |
+| "What's the table name?" | `table(list)` → discover tables |
+| "Which sheet has the data?" | `worksheet(list)` → check all sheets |
 | "Should I create a PivotTable?" | YES - create it on a new sheet |
 
 **You have tools to answer your own questions. USE THEM.**
@@ -67,8 +67,8 @@ Always apply number formats after setting values:
 
 **Workflow:**
 ```
-1. excel_range set-values (data is now in cells)
-2. excel_range_format set-number-format (apply format)
+1. range set-values (data is now in cells)
+2. range_format set-number-format (apply format)
 ```
 
 ### Rule 4: Use Excel Tables (Not Plain Ranges)
@@ -76,8 +76,8 @@ Always apply number formats after setting values:
 Always convert tabular data to Excel Tables:
 
 ```
-1. excel_range set-values (write data including headers)
-2. excel_table create tableName="SalesData" rangeAddress="A1:D100"
+1. range set-values (write data including headers)
+2. table create tableName="SalesData" rangeAddress="A1:D100"
 ```
 
 **Why:** Structured references, auto-expand, required for Data Model/DAX.
@@ -85,9 +85,9 @@ Always convert tabular data to Excel Tables:
 ### Rule 5: Session Lifecycle
 
 ```
-1. excel_file(action: 'open', path: '...')  → sessionId
+1. file(action: 'open', path: '...')  → sessionId
 2. All operations use sessionId
-3. excel_file(action: 'close', save: true)  → saves and closes
+3. file(action: 'close', save: true)  → saves and closes
 ```
 
 **Unclosed sessions leave Excel processes running, locking files.**
@@ -98,8 +98,8 @@ DAX operations require tables in the Data Model:
 
 ```
 Step 1: Create table → Table exists
-Step 2: excel_table(action: 'add-to-datamodel') → Table in Data Model
-Step 3: excel_datamodel(action: 'create-measure') → NOW this works
+Step 2: table(action: 'add-to-datamodel') → Table in Data Model
+Step 3: datamodel(action: 'create-measure') → NOW this works
 ```
 
 ### Rule 7: Power Query Development Lifecycle
@@ -107,9 +107,9 @@ Step 3: excel_datamodel(action: 'create-measure') → NOW this works
 **BEST PRACTICE: Test-First Workflow**
 
 ```
-1. excel_powerquery(action: 'evaluate', mCode: '...') → Test WITHOUT persisting
-2. excel_powerquery(action: 'create', ...) → Store validated query
-3. excel_powerquery(action: 'refresh', ...) → Load data
+1. powerquery(action: 'evaluate', mCode: '...') → Test WITHOUT persisting
+2. powerquery(action: 'create', ...) → Store validated query
+3. powerquery(action: 'refresh', ...) → Load data
 ```
 
 **Why evaluate first:**
@@ -135,19 +135,19 @@ Error responses include actionable hints:
 {
   "success": false,
   "errorMessage": "Table 'Sales' not found in Data Model",
-  "suggestedNextActions": ["excel_table(action: 'add-to-data-model', tableName: 'Sales')"]
+  "suggestedNextActions": ["table(action: 'add-to-data-model', tableName: 'Sales')"]
 }
 ```
 
 ### Rule 10: Use Calculation Mode for Bulk Write Performance
 
-When writing many values/formulas (10+ cells), use `excel_calculation_mode` to avoid recalculating after every write:
+When writing many values/formulas (10+ cells), use `calculation_mode` to avoid recalculating after every write:
 
 ```
-1. excel_calculation_mode(action: 'set-mode', mode: 'manual')  → Disable auto-recalc
-2. Perform data writes (excel_range set-values, set-formulas)
-3. excel_calculation_mode(action: 'calculate', scope: 'workbook')  → Recalculate once at end
-4. excel_calculation_mode(action: 'set-mode', mode: 'automatic')  → Restore default
+1. calculation_mode(action: 'set-mode', mode: 'manual')  → Disable auto-recalc
+2. Perform data writes (range set-values, set-formulas)
+3. calculation_mode(action: 'calculate', scope: 'workbook')  → Recalculate once at end
+4. calculation_mode(action: 'set-mode', mode: 'automatic')  → Restore default
 ```
 
 **When NOT needed:** Reading formulas, small edits (1-10 cells), or when you need immediate calculation results.
@@ -156,16 +156,16 @@ When writing many values/formulas (10+ cells), use `excel_calculation_mode` to a
 
 | Task | Tool | Key Action |
 |------|------|------------|
-| Create/open/save workbooks | `excel_file` | open, create, close |
-| Write/read cell data | `excel_range` | set-values, get-values |
-| Format cells | `excel_range_format` | set-number-format |
-| Create tables from data | `excel_table` | create |
-| Add table to Power Pivot | `excel_table` | add-to-data-model |
-| Create DAX formulas | `excel_datamodel` | create-measure |
-| Create PivotTables | `excel_pivottable` | create, create-from-datamodel |
-| Filter with slicers | `excel_slicer` | set-slicer-selection |
-| Create charts | `excel_chart` | create-from-range |
-| Control calculation mode | `excel_calculation_mode` | get-mode, set-mode, calculate |
+| Create/open/save workbooks | `file` | open, create, close |
+| Write/read cell data | `range` | set-values, get-values |
+| Format cells | `range_format` | set-number-format |
+| Create tables from data | `table` | create |
+| Add table to Power Pivot | `table` | add-to-data-model |
+| Create DAX formulas | `datamodel` | create-measure |
+| Create PivotTables | `pivottable` | create, create-from-datamodel |
+| Filter with slicers | `slicer` | set-slicer-selection |
+| Create charts | `chart` | create-from-range |
+| Control calculation mode | `calculation_mode` | get-mode, set-mode, calculate |
 
 ## Reference Documentation
 
@@ -174,11 +174,11 @@ See `references/` for detailed guidance:
 - @references/behavioral-rules.md - Core execution rules and LLM guidelines
 - @references/anti-patterns.md - Common mistakes to avoid
 - @references/workflows.md - Data Model constraints and patterns
-- @references/excel_chart.md - Charts and formatting
-- @references/excel_conditionalformat.md - Conditional formatting operations
-- @references/excel_datamodel.md - Data Model/DAX specifics
-- @references/excel_powerquery.md - Power Query specifics
-- @references/excel_range.md - Range operations and number formats
-- @references/excel_slicer.md - Slicer operations
-- @references/excel_table.md - Table operations
-- @references/excel_worksheet.md - Worksheet operations
+- @references/chart.md - Charts and formatting
+- @references/conditionalformat.md - Conditional formatting operations
+- @references/datamodel.md - Data Model/DAX specifics
+- @references/powerquery.md - Power Query specifics
+- @references/range.md - Range operations and number formats
+- @references/slicer.md - Slicer operations
+- @references/table.md - Table operations
+- @references/worksheet.md - Worksheet operations

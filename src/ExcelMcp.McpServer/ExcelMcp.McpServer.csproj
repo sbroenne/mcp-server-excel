@@ -223,15 +223,15 @@ internal static class TelemetryConfig
       <McpReferenceFiles Include="$(SharedDir)\behavioral-rules.md" />
       <McpReferenceFiles Include="$(SharedDir)\anti-patterns.md" />
       <McpReferenceFiles Include="$(SharedDir)\workflows.md" />
-      <McpReferenceFiles Include="$(SharedDir)\excel_chart.md" />
-      <McpReferenceFiles Include="$(SharedDir)\excel_conditionalformat.md" />
-      <McpReferenceFiles Include="$(SharedDir)\excel_datamodel.md" />
-      <McpReferenceFiles Include="$(SharedDir)\excel_pivottable.md" />
-      <McpReferenceFiles Include="$(SharedDir)\excel_powerquery.md" />
-      <McpReferenceFiles Include="$(SharedDir)\excel_range.md" />
-      <McpReferenceFiles Include="$(SharedDir)\excel_slicer.md" />
-      <McpReferenceFiles Include="$(SharedDir)\excel_table.md" />
-      <McpReferenceFiles Include="$(SharedDir)\excel_worksheet.md" />
+      <McpReferenceFiles Include="$(SharedDir)\chart.md" />
+      <McpReferenceFiles Include="$(SharedDir)\conditionalformat.md" />
+      <McpReferenceFiles Include="$(SharedDir)\datamodel.md" />
+      <McpReferenceFiles Include="$(SharedDir)\pivottable.md" />
+      <McpReferenceFiles Include="$(SharedDir)\powerquery.md" />
+      <McpReferenceFiles Include="$(SharedDir)\range.md" />
+      <McpReferenceFiles Include="$(SharedDir)\slicer.md" />
+      <McpReferenceFiles Include="$(SharedDir)\table.md" />
+      <McpReferenceFiles Include="$(SharedDir)\worksheet.md" />
     </ItemGroup>
     <MakeDir Directories="$(RefsDir)" Condition="!Exists('$(RefsDir)')" />
     <Copy SourceFiles="@(McpReferenceFiles)" DestinationFolder="$(RefsDir)" SkipUnchangedFiles="true" />

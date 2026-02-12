@@ -30,7 +30,7 @@
 
 | MCP Attribute | Example | In Core? | Notes |
 |---------------|---------|----------|-------|
-| `Name = "excel_xxx"` | `excel_powerquery` | ✅ YES | `[McpTool]` attribute already exists |
+| `Name = "excel_xxx"` | `powerquery` | ✅ YES | `[McpTool]` attribute already exists |
 | `Title = "..."` | `"Excel Power Query Operations"` | ❌ **NO** | Human-readable title for MCP clients |
 | `Destructive = true/false` | `true` (most), `false` (calc mode) | ❌ **NO** | Whether tool modifies data |
 | `[McpMeta("category", "...")]` | `"data"`, `"analysis"`, `"query"` | ❌ **NO** | UI grouping category |
@@ -43,11 +43,11 @@
 
 | Tool | MCP Summary Lines | Core Summary Lines | Same? |
 |------|-------------------|-------------------|-------|
-| excel_range | 18 lines (best practices, data format, named ranges, copy ops, number formats) | 14 lines (similar but shorter) | ⚠️ SIMILAR but MCP has more LLM-specific tips |
-| excel_powerquery | 18 lines (test-first workflow, datetime columns, M-code formatting, destinations) | 12 lines (similar core) | ⚠️ SIMILAR |
-| excel_chart | 24 lines (overlapping data avoidance, positioning, chart types, create options) | Not on interface | ❌ NO - only on MCP |
-| excel_file | 10 lines (workflow, session reuse, timeout) | 3 lines (minimal) | ❌ VERY DIFFERENT |
-| excel_table | 14 lines (best practices, data model workflow, DAX-backed tables, CSV append) | Not examined | ❌ DIFFERENT |
+| range | 18 lines (best practices, data format, named ranges, copy ops, number formats) | 14 lines (similar but shorter) | ⚠️ SIMILAR but MCP has more LLM-specific tips |
+| powerquery | 18 lines (test-first workflow, datetime columns, M-code formatting, destinations) | 12 lines (similar core) | ⚠️ SIMILAR |
+| chart | 24 lines (overlapping data avoidance, positioning, chart types, create options) | Not on interface | ❌ NO - only on MCP |
+| file | 10 lines (workflow, session reuse, timeout) | 3 lines (minimal) | ❌ VERY DIFFERENT |
+| table | 14 lines (best practices, data model workflow, DAX-backed tables, CSV append) | Not examined | ❌ DIFFERENT |
 
 **Verdict:** The MCP summary is LLM-specific guidance text. Core summaries describe the API technically. A new `[McpSummary("...")]` or `[LlmGuidance("...")]` attribute (or conventionally a separate doc block) would be needed if we want to auto-generate the MCP `<summary>`.
 
@@ -57,7 +57,7 @@ MCP `<param>` docs are often **different** from Core `<param>` docs — the MCP 
 
 | Parameter | MCP Description | Core Description |
 |-----------|----------------|-----------------|
-| `sessionId` | `"Session ID from excel_file 'open'. Required for all actions."` | Not present (batch param instead) |
+| `sessionId` | `"Session ID from file 'open'. Required for all actions."` | Not present (batch param instead) |
 | `sheetName` | `"Name of worksheet - REQUIRED for cell addresses, use empty string for named ranges"` | `"Name of the worksheet containing the range"` |
 | `rangeAddress` | `"Cell range address (e.g., 'A1', 'A1:D10') or named range name (e.g., 'SalesData')"` | `"Cell range address (e.g., 'A1', 'A1:D10')"` |
 | `values` | `"2D array of values - rows are outer array, columns are inner array (e.g., [[1,2,3],[4,5,6]])"` | `"2D array of values to set"` (shorter) |
@@ -76,29 +76,29 @@ MCP `<param>` docs are often **different** from Core `<param>` docs — the MCP 
 
 | # | MCP Tool Name | Title | Destr. | Category | reqSession | Meta | Core Interface(s) | PP Logic | Notes |
 |---|--------------|-------|--------|----------|-----------|------|-------------------|----------|-------|
-| 1 | `excel_file` | Excel File Operations | true | session | **false** | | `IFileCommands` (partial) | ✅ Extensive custom routing, path validation, timeout conversion | **Most custom** - manual Open/Close/Create/List, no RouteAction |
-| 2 | `excel_worksheet` | Excel Worksheet Operations | true | structure | true | | `ISheetCommands` | ✅ CopyToFile/MoveToFile use ForwardToServiceNoSession; param remapping (sheetName→oldName/sourceName) | Cross-file ops bypass session |
-| 3 | `excel_worksheet_style` | Excel Worksheet Style Operations | true | structure | true | | `ISheetStyleCommands` | Minimal (visibility?.ToString()) | Clean routing |
-| 4 | `excel_range` | Excel Range Operations | true | data | true | | `IRangeCommands` | ✅ `values as List<List<object>>` cast | Type cast |
-| 5 | `excel_range_edit` | Excel Range Edit Operations | true | data | true | | `IRangeEditCommands` | ✅ `BuildFindOptions()`, `BuildReplaceOptions()` | Object construction from flat params |
-| 6 | `excel_range_format` | Excel Range Format Operations | true | data | true | | `IRangeFormatCommands` | Minimal remapping (e.g., `backgroundColor`→`fillColor`) | Param name remapping |
-| 7 | `excel_range_link` | Excel Range Link Operations | true | data | true | | `IRangeLinkCommands` | Minimal (`isLocked`→`locked`) | Param name remapping |
-| 8 | `excel_table` | Excel Table Operations | true | data | true | | `ITableCommands` | ✅ `ParseCsvToRows(csvData)`, `rows as List<List<object>>`, multi-param reuse (hasHeaders→showTotals, styleName→totalFunction, newName→columnName) | Significant param overloading |
-| 9 | `excel_table_column` | Excel Table Column Operations | true | data | true | | `ITableColumnCommands` | ✅ `int.TryParse(columnPosition)`, `ParseJsonList()` / `DeserializeJson<List<TableSortColumn>>()` conditional on action | JSON parsing + type conversion |
-| 10 | `excel_powerquery` | Excel Power Query Operations | true | query | true | | `IPowerQueryCommands` | ✅ `TimeSpan.FromSeconds(refreshTimeoutSeconds)`, `loadDestination?.ToString()`, `oldName` mapping for rename | TimeSpan conversion, enum→string |
-| 11 | `excel_connection` | Excel Data Connection Operations | true | query | true | | `IConnectionCommands` | Minimal (timeout: null) | Clean routing |
-| 12 | `excel_namedrange` | Excel Named Range Operations | true | data | true | | `INamedRangeCommands` | ✅ `value` doubles as `reference` for create/update | Param reuse |
-| 13 | `excel_pivottable` | Excel PivotTable Operations | true | analysis | true | | `IPivotTableCommands` | ✅ `tableName: sourceTableName ?? dataModelTableName` | Param merging |
-| 14 | `excel_pivottable_field` | Excel PivotTable Field Operations | true | analysis | true | | `IPivotTableFieldCommands` | ✅ `ParseJsonList(filterValues)`, `aggregationFunction?.ToString()`, `sortDirection?.ToString()`, `dateGroupingInterval?.ToString()` | JSON parsing + enum→string |
-| 15 | `excel_pivottable_calc` | Excel PivotTable Calc Operations | true | analysis | true | | `IPivotTableCalcCommands` | ✅ `memberType?.ToString()`, `fieldName` → `memberName` remapping | Enum→string, param remapping |
-| 16 | `excel_chart` | Excel Chart Operations | true | analysis | true | | `IChartCommands` | ✅ targetRange pre-processing: sets left/top to 0 when targetRange provided | Positioning logic |
-| 17 | `excel_chart_config` | Excel Chart Configuration | true | analysis | true | | `IChartConfigCommands` | Minimal (trendlineType→type remapping) | Clean routing, many params |
-| 18 | `excel_slicer` | Excel Slicer Operations | true | analysis | true | | `ISlicerCommands` | ✅ Auto-generate slicerName from field/column, `ParseJsonListOrSingle(selectedItems)` | Name generation + JSON parsing |
-| 19 | `excel_vba` | Excel VBA Operations | true | automation | true | `fileFormat=.xlsm` | `IVbaCommands` | ✅ `SplitCsvParameters(parameters)`, `moduleName` → `procedureName` remapping | CSV split, param remapping |
-| 20 | `excel_datamodel` | Excel Data Model Operations | true | analysis | true | | `IDataModelCommands` | ✅ `tableName` → `oldName` remapping for rename | Param remapping |
-| 21 | `excel_datamodel_rel` | Excel Data Model Relationship Operations | true | analysis | true | | `IDataModelRelCommands` | Minimal | Clean routing |
-| 22 | `excel_conditionalformat` | Excel Conditional Formatting | true | structure | true | | `IConditionalFormattingCommands` | Minimal | Clean routing |
-| 23 | `excel_calculation_mode` | Excel Calculation Mode Control | **false** | settings | true | | `ICalculationCommands` | Minimal | **Only non-destructive tool** |
+| 1 | `file` | Excel File Operations | true | session | **false** | | `IFileCommands` (partial) | ✅ Extensive custom routing, path validation, timeout conversion | **Most custom** - manual Open/Close/Create/List, no RouteAction |
+| 2 | `worksheet` | Excel Worksheet Operations | true | structure | true | | `ISheetCommands` | ✅ CopyToFile/MoveToFile use ForwardToServiceNoSession; param remapping (sheetName→oldName/sourceName) | Cross-file ops bypass session |
+| 3 | `worksheet_style` | Excel Worksheet Style Operations | true | structure | true | | `ISheetStyleCommands` | Minimal (visibility?.ToString()) | Clean routing |
+| 4 | `range` | Excel Range Operations | true | data | true | | `IRangeCommands` | ✅ `values as List<List<object>>` cast | Type cast |
+| 5 | `range_edit` | Excel Range Edit Operations | true | data | true | | `IRangeEditCommands` | ✅ `BuildFindOptions()`, `BuildReplaceOptions()` | Object construction from flat params |
+| 6 | `range_format` | Excel Range Format Operations | true | data | true | | `IRangeFormatCommands` | Minimal remapping (e.g., `backgroundColor`→`fillColor`) | Param name remapping |
+| 7 | `range_link` | Excel Range Link Operations | true | data | true | | `IRangeLinkCommands` | Minimal (`isLocked`→`locked`) | Param name remapping |
+| 8 | `table` | Excel Table Operations | true | data | true | | `ITableCommands` | ✅ `ParseCsvToRows(csvData)`, `rows as List<List<object>>`, multi-param reuse (hasHeaders→showTotals, styleName→totalFunction, newName→columnName) | Significant param overloading |
+| 9 | `table_column` | Excel Table Column Operations | true | data | true | | `ITableColumnCommands` | ✅ `int.TryParse(columnPosition)`, `ParseJsonList()` / `DeserializeJson<List<TableSortColumn>>()` conditional on action | JSON parsing + type conversion |
+| 10 | `powerquery` | Excel Power Query Operations | true | query | true | | `IPowerQueryCommands` | ✅ `TimeSpan.FromSeconds(refreshTimeoutSeconds)`, `loadDestination?.ToString()`, `oldName` mapping for rename | TimeSpan conversion, enum→string |
+| 11 | `connection` | Excel Data Connection Operations | true | query | true | | `IConnectionCommands` | Minimal (timeout: null) | Clean routing |
+| 12 | `namedrange` | Excel Named Range Operations | true | data | true | | `INamedRangeCommands` | ✅ `value` doubles as `reference` for create/update | Param reuse |
+| 13 | `pivottable` | Excel PivotTable Operations | true | analysis | true | | `IPivotTableCommands` | ✅ `tableName: sourceTableName ?? dataModelTableName` | Param merging |
+| 14 | `pivottable_field` | Excel PivotTable Field Operations | true | analysis | true | | `IPivotTableFieldCommands` | ✅ `ParseJsonList(filterValues)`, `aggregationFunction?.ToString()`, `sortDirection?.ToString()`, `dateGroupingInterval?.ToString()` | JSON parsing + enum→string |
+| 15 | `pivottable_calc` | Excel PivotTable Calc Operations | true | analysis | true | | `IPivotTableCalcCommands` | ✅ `memberType?.ToString()`, `fieldName` → `memberName` remapping | Enum→string, param remapping |
+| 16 | `chart` | Excel Chart Operations | true | analysis | true | | `IChartCommands` | ✅ targetRange pre-processing: sets left/top to 0 when targetRange provided | Positioning logic |
+| 17 | `chart_config` | Excel Chart Configuration | true | analysis | true | | `IChartConfigCommands` | Minimal (trendlineType→type remapping) | Clean routing, many params |
+| 18 | `slicer` | Excel Slicer Operations | true | analysis | true | | `ISlicerCommands` | ✅ Auto-generate slicerName from field/column, `ParseJsonListOrSingle(selectedItems)` | Name generation + JSON parsing |
+| 19 | `vba` | Excel VBA Operations | true | automation | true | `fileFormat=.xlsm` | `IVbaCommands` | ✅ `SplitCsvParameters(parameters)`, `moduleName` → `procedureName` remapping | CSV split, param remapping |
+| 20 | `datamodel` | Excel Data Model Operations | true | analysis | true | | `IDataModelCommands` | ✅ `tableName` → `oldName` remapping for rename | Param remapping |
+| 21 | `datamodel_relationship` | Excel Data Model Relationship Operations | true | analysis | true | | `IDataModelRelCommands` | Minimal | Clean routing |
+| 22 | `conditionalformat` | Excel Conditional Formatting | true | structure | true | | `IConditionalFormattingCommands` | Minimal | Clean routing |
+| 23 | `calculation_mode` | Excel Calculation Mode Control | **false** | settings | true | | `ICalculationCommands` | Minimal | **Only non-destructive tool** |
 
 ---
 
@@ -150,15 +150,15 @@ Most parameters use `[DefaultValue(null)]`. Non-null defaults:
 
 | Tool | Parameter | Default | Core Default |
 |------|-----------|---------|-------------|
-| excel_file | `save` | `false` | N/A (custom) |
-| excel_file | `show` | `false` | N/A (custom) |
-| excel_file | `timeoutSeconds` | `300` | N/A (custom) |
-| excel_table | `hasHeaders` | `true` | `true` (same) |
-| excel_table | `visibleOnly` | `false` | N/A |
-| excel_table_column | `ascending` | `true` | `true` (same) |
-| excel_slicer | `clearFirst` | `true` | `true` (same) |
-| excel_datamodel_rel | `active` | `true` | `true` (same) |
-| excel_calculation_mode | (Destructive) | `false` | N/A |
+| file | `save` | `false` | N/A (custom) |
+| file | `show` | `false` | N/A (custom) |
+| file | `timeoutSeconds` | `300` | N/A (custom) |
+| table | `hasHeaders` | `true` | `true` (same) |
+| table | `visibleOnly` | `false` | N/A |
+| table_column | `ascending` | `true` | `true` (same) |
+| slicer | `clearFirst` | `true` | `true` (same) |
+| datamodel_relationship | `active` | `true` | `true` (same) |
+| calculation_mode | (Destructive) | `false` | N/A |
 
 ---
 
@@ -202,7 +202,7 @@ These patterns are harder to express as attributes and may need **code hooks** o
 | Auto-generation logic (slicer name) | Custom hook / `[AutoGenerate]` | Hard |
 | Conditional logic (chart targetRange → left/top=0) | Custom hook | Hard |
 | No-session routing (CopyToFile) | Already signaled by no `IExcelBatch` param in Core | ✅ Done |
-| Fully custom tools (excel_file) | Cannot auto-generate. Keep as hand-written. | N/A |
+| Fully custom tools (file) | Cannot auto-generate. Keep as hand-written. | N/A |
 
 ---
 
@@ -217,7 +217,7 @@ These patterns are harder to express as attributes and may need **code hooks** o
 [McpCategory("query")]                          // → McpMeta("category", ...)
 
 // These already exist and work:
-[McpTool("excel_powerquery")]                   // → McpServerTool.Name
+[McpTool("powerquery")]                   // → McpServerTool.Name
 [NoSession]                                     // → McpMeta("requiresSession", false)
 ```
 
@@ -238,11 +238,11 @@ These patterns are harder to express as attributes and may need **code hooks** o
 
 These tools have too much custom logic to auto-generate and should remain hand-written:
 
-1. **`excel_file`** - Completely custom routing, no RouteAction, custom JSON responses
-2. **`excel_worksheet`** - CopyToFile/MoveToFile no-session routing  
-3. **`excel_table`** - Heavy param overloading (hasHeaders→showTotals, styleName→totalFunction)
-4. **`excel_chart`** - targetRange pre-processing logic
-5. **`excel_slicer`** - Auto-name generation
+1. **`file`** - Completely custom routing, no RouteAction, custom JSON responses
+2. **`worksheet`** - CopyToFile/MoveToFile no-session routing  
+3. **`table`** - Heavy param overloading (hasHeaders→showTotals, styleName→totalFunction)
+4. **`chart`** - targetRange pre-processing logic
+5. **`slicer`** - Auto-name generation
 
 The remaining **~17 tools** could be auto-generated with Tier 1 + Tier 2 attributes.
 
@@ -252,13 +252,13 @@ The remaining **~17 tools** could be auto-generated with Tier 1 + Tier 2 attribu
 
 | Metric | Count |
 |--------|-------|
-| Total MCP tools | 23 (including excel_file) |
+| Total MCP tools | 23 (including file) |
 | Tools using `[McpServerToolType]` | 23 |
 | Tools with `Destructive = true` | 22 |
-| Tools with `Destructive = false` | 1 (excel_calculation_mode) |
+| Tools with `Destructive = false` | 1 (calculation_mode) |
 | Unique `[McpMeta("category")]` values | 7 (data, analysis, query, structure, session, automation, settings) |
 | Tools with `requiresSession = true` | 21 |
-| Tools with `requiresSession = false` | 2 (excel_file, excel_file has it explicit) |
+| Tools with `requiresSession = false` | 2 (file, file has it explicit) |
 | Tools with pre-processing logic | 15 |
 | Tools with clean/minimal routing | 8 |
 | Tools likely auto-generatable (Tier 1+2) | ~17-18 |

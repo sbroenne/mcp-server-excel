@@ -11,9 +11,9 @@ Deleting entire structures to make small changes:
 ```
 WRONG: User wants to update cell B5
 
-excel_table(action: 'delete', tableName: 'SalesData')
-excel_range(action: 'set-values', values: [[entire dataset with B5 fixed]])
-excel_table(action: 'create', tableName: 'SalesData', ...)
+table(action: 'delete', tableName: 'SalesData')
+range(action: 'set-values', values: [[entire dataset with B5 fixed]])
+table(action: 'create', tableName: 'SalesData', ...)
 ```
 
 This destroys:
@@ -31,7 +31,7 @@ Use targeted modifications:
 ```
 CORRECT: Update only the changed cell
 
-excel_range(action: 'set-values', rangeAddress: 'B5', values: [[newValue]])
+range(action: 'set-values', rangeAddress: 'B5', values: [[newValue]])
 ```
 
 ### When Rebuild IS Appropriate
@@ -90,9 +90,9 @@ Reading entire range, modifying in memory, writing entire range back:
 ```
 WRONG: Update one cell by rewriting thousands
 
-data = excel_range(action: 'get-values', rangeAddress: 'A1:Z1000')
+data = range(action: 'get-values', rangeAddress: 'A1:Z1000')
 data[4][1] = "new value"  // Modify row 5, column B
-excel_range(action: 'set-values', rangeAddress: 'A1', values: data)
+range(action: 'set-values', rangeAddress: 'A1', values: data)
 ```
 
 This:
@@ -108,7 +108,7 @@ Write only the changed cells:
 ```
 CORRECT: Direct cell update
 
-excel_range(action: 'set-values', rangeAddress: 'B5', values: [["new value"]])
+range(action: 'set-values', rangeAddress: 'B5', values: [["new value"]])
 ```
 
 ## Session Leak Anti-Pattern
@@ -120,9 +120,9 @@ Opening files without closing them:
 ```
 WRONG: Session accumulation
 
-excel_file(action: 'open', filePath: 'file1.xlsx')  // Session 1
-excel_file(action: 'open', filePath: 'file2.xlsx')  // Session 2
-excel_file(action: 'open', filePath: 'file3.xlsx')  // Session 3
+file(action: 'open', filePath: 'file1.xlsx')  // Session 1
+file(action: 'open', filePath: 'file2.xlsx')  // Session 2
+file(action: 'open', filePath: 'file3.xlsx')  // Session 3
 // ... never closed
 ```
 
@@ -139,13 +139,13 @@ Always close sessions:
 ```
 CORRECT: Proper lifecycle
 
-session1 = excel_file(action: 'open', path: 'file1.xlsx')
+session1 = file(action: 'open', path: 'file1.xlsx')
 // ... work with file1 ...
-excel_file(action: 'close', sessionId: session1, save: true)
+file(action: 'close', sessionId: session1, save: true)
 
-session2 = excel_file(action: 'open', path: 'file2.xlsx')
+session2 = file(action: 'open', path: 'file2.xlsx')
 // ... work with file2 ...
-excel_file(action: 'close', sessionId: session2, save: true)
+file(action: 'close', sessionId: session2, save: true)
 ```
 
 ## Ignoring Error Context Anti-Pattern
@@ -157,9 +157,9 @@ Retrying failed operations without reading the error:
 ```
 WRONG: Blind retry
 
-excel_datamodel(action: 'create-measure', ...) → Error: Table not in Data Model
-excel_datamodel(action: 'create-measure', ...) → Error: Table not in Data Model
-excel_datamodel(action: 'create-measure', ...) → Error: Table not in Data Model
+datamodel(action: 'create-measure', ...) → Error: Table not in Data Model
+datamodel(action: 'create-measure', ...) → Error: Table not in Data Model
+datamodel(action: 'create-measure', ...) → Error: Table not in Data Model
 ```
 
 ### The Solution
@@ -169,12 +169,12 @@ Read and act on error context:
 ```
 CORRECT: Error-driven correction
 
-excel_datamodel(action: 'create-measure', ...) 
+datamodel(action: 'create-measure', ...) 
 → Error: Table 'Sales' not in Data Model
-→ Suggested: excel_table(action: 'add-to-data-model', tableName: 'Sales')
+→ Suggested: table(action: 'add-to-data-model', tableName: 'Sales')
 
-excel_table(action: 'add-to-data-model', tableName: 'Sales')  // Fix prerequisite
-excel_datamodel(action: 'create-measure', ...)  // Now succeeds
+table(action: 'add-to-data-model', tableName: 'Sales')  // Fix prerequisite
+datamodel(action: 'create-measure', ...)  // Now succeeds
 ```
 
 ## Number Format Locale Anti-Pattern
@@ -186,8 +186,8 @@ Using locale-specific format codes:
 ```
 WRONG: German/European format
 
-excel_range(action: 'set-number-format', formatCode: '#.##0,00')  // German
-excel_range(action: 'set-number-format', formatCode: '# ##0,00')  // French
+range(action: 'set-number-format', formatCode: '#.##0,00')  // German
+range(action: 'set-number-format', formatCode: '# ##0,00')  // French
 ```
 
 ### The Solution
@@ -197,7 +197,7 @@ Always use US format codes (Excel translates automatically):
 ```
 CORRECT: US format codes (universal)
 
-excel_range(action: 'set-number-format', formatCode: '#,##0.00')
+range(action: 'set-number-format', formatCode: '#,##0.00')
 ```
 
 Excel displays the result in the user's locale setting, but the API requires US format input.
@@ -211,8 +211,8 @@ Wrong load destination for the workflow:
 ```
 WRONG: Loading to worksheet when DAX is needed
 
-excel_powerquery(action: 'create', loadDestination: 'worksheet', ...)
-excel_datamodel(action: 'create-measure', ...)  // FAILS: table not in Data Model
+powerquery(action: 'create', loadDestination: 'worksheet', ...)
+datamodel(action: 'create-measure', ...)  // FAILS: table not in Data Model
 ```
 
 ### The Solution
@@ -222,9 +222,9 @@ Match load destination to workflow:
 ```
 CORRECT: Load to Data Model for DAX workflows
 
-excel_powerquery(action: 'create', loadDestination: 'data-model', ...)
-excel_powerquery(action: 'refresh', ...)
-excel_datamodel(action: 'create-measure', ...)  // Works
+powerquery(action: 'create', loadDestination: 'data-model', ...)
+powerquery(action: 'refresh', ...)
+datamodel(action: 'create-measure', ...)  // Works
 ```
 
 | Workflow Goal | Load Destination |
@@ -243,7 +243,7 @@ Creating or updating Power Query queries without testing M code first:
 ```
 WRONG: Creating permanent query with untested M code
 
-excel_powerquery(action: 'create', mCode: '...', ...)
+powerquery(action: 'create', mCode: '...', ...)
 // M code has syntax error → COM exception with cryptic message
 // Now workbook is polluted with broken query
 ```
@@ -262,15 +262,15 @@ Always evaluate M code BEFORE creating permanent queries:
 CORRECT: Test-first development workflow
 
 // Step 1: Test M code without persisting
-excel_powerquery(action: 'evaluate', mCode: '...')
+powerquery(action: 'evaluate', mCode: '...')
 // → Returns actual data preview with columns and rows
 // → Better error messages if M code has issues
 
 // Step 2: Create permanent query with validated code
-excel_powerquery(action: 'create', mCode: '...', ...)
+powerquery(action: 'create', mCode: '...', ...)
 
 // Step 3: Load data to destination
-excel_powerquery(action: 'refresh', ...)
+powerquery(action: 'refresh', ...)
 ```
 
 **Benefits:**
@@ -291,8 +291,8 @@ excel_powerquery(action: 'refresh', ...)
 If create/update fails with COM error, use evaluate to get detailed Power Query error message:
 
 ```
-excel_powerquery(action: 'create', ...)  // → COM exception
-excel_powerquery(action: 'evaluate', mCode: '...')  // → Detailed M error
+powerquery(action: 'create', ...)  // → COM exception
+powerquery(action: 'evaluate', mCode: '...')  // → Detailed M error
 // Fix M code based on error
-excel_powerquery(action: 'create', ...)  // → Success
+powerquery(action: 'create', ...)  // → Success
 ```

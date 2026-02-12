@@ -5,7 +5,7 @@
 
 ## Implementation
 - [x] 2. Update ExcelDataModelTool.cs XML comments with destructive operation warnings
-- [x] 3. Create excel_datamodel.md prompt file with recovery guidance
+- [x] 3. Create datamodel.md prompt file with recovery guidance
 
 ## Validation
 - [x] 4. Build project to verify no syntax errors

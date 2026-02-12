@@ -222,9 +222,9 @@ These hints apply at **tool level**, but our tools have **mixed action behaviors
 
 | Tool | Example Actions | ReadOnly? | Destructive? |
 |------|-----------------|-----------|--------------|
-| excel_table | List | ✅ Yes | ❌ No |
-| excel_table | Delete | ❌ No | ✅ Yes |
-| excel_table | Create | ❌ No | ❌ No |
+| table | List | ✅ Yes | ❌ No |
+| table | Delete | ❌ No | ✅ Yes |
+| table | Create | ❌ No | ❌ No |
 
 Setting these at tool level would be **misleading to LLMs** - they'd assume all actions share the same behavior.
 

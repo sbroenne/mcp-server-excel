@@ -1,4 +1,4 @@
-# excel_worksheet - Cross-File Operations
+# worksheet - Cross-File Operations
 
 ## Atomic Operations (Recommended)
 

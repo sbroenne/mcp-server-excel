@@ -1498,7 +1498,7 @@ This design ensures **incremental value delivery** while maintaining the high qu
 
 #### Phase 4.3: MCP Server Integration ✅
 - **ExcelDataModelTool.cs** - Extended existing tool with TOM actions
-  - Added 6 new actions to excel_datamodel tool
+  - Added 6 new actions to datamodel tool
   - Parameter schema updated for TOM operations
   - Comprehensive validation and error handling
   - Workflow guidance for each TOM operation
@@ -1586,11 +1586,11 @@ excelcli dm-validate-dax Sales.xlsx "SUM(Sales[Amount])"
 **MCP Server Example (via GitHub Copilot):**
 ```
 User: "Create a Total Sales measure in the Sales table using SUM of Amount column"
-Copilot: [Uses excel_datamodel with action=create-measure]
+Copilot: [Uses datamodel with action=create-measure]
          "Measure created successfully. Use dm-read-measure to verify."
 
 User: "Update the Total Sales measure to include a 10% markup"
-Copilot: [Uses excel_datamodel with action=update-measure]
+Copilot: [Uses datamodel with action=update-measure]
          "Measure updated. Formula now includes 10% markup."
 ```
 
@@ -1646,7 +1646,7 @@ All Phase 4.1-4.3 success criteria met:
 
 **Status:** Research complete. Implementation approach validated via diagnostic tests. Ready for implementation.
 
-**Issue Reference:** [#356 - Add DAX EVALUATE query execution to excel_datamodel tool](https://github.com/sbroenne/mcp-server-excel/issues/356)
+**Issue Reference:** [#356 - Add DAX EVALUATE query execution to datamodel tool](https://github.com/sbroenne/mcp-server-excel/issues/356)
 
 ### Background
 
@@ -1721,7 +1721,7 @@ listObject.Refresh();
 
 ### Proposed Feature Design
 
-#### New `excel_datamodel` Action: `evaluate`
+#### New `datamodel` Action: `evaluate`
 
 **Purpose:** Execute DAX EVALUATE queries and return results as JSON
 
@@ -1753,7 +1753,7 @@ listObject.Refresh();
 }
 ```
 
-#### New `excel_table` Action: `create-from-dax`
+#### New `table` Action: `create-from-dax`
 
 **Purpose:** Create an Excel Table populated by a DAX EVALUATE query
 
@@ -1774,7 +1774,7 @@ listObject.Refresh();
 }
 ```
 
-#### New `excel_table` Action: `update-dax`
+#### New `table` Action: `update-dax`
 
 **Purpose:** Update the DAX query for an existing DAX-backed Excel Table
 
@@ -1808,7 +1808,7 @@ workbookConnection.Refresh();
 listObject.Refresh();
 ```
 
-#### New `excel_table` Action: `get-dax`
+#### New `table` Action: `get-dax`
 
 **Purpose:** Get the DAX query backing an existing DAX-backed Excel Table
 

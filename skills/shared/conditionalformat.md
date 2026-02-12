@@ -1,5 +1,5 @@
 ````markdown
-# excel_conditionalformat - Server Quirks
+# conditionalformat - Server Quirks
 
 **Rule Types**:
 

@@ -12,7 +12,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// For 'between' and 'notBetween', both formula1 and formula2 are required.
 /// </summary>
 [ServiceCategory("conditionalformat", "ConditionalFormat")]
-[McpTool("excel_conditionalformat", Title = "Excel Conditional Formatting", Destructive = true, Category = "structure",
+[McpTool("conditionalformat", Title = "Conditional Formatting", Destructive = true, Category = "structure",
     Description = "Conditional formatting - visual rules based on cell values. TYPES: cell-value (requires operatorType + formula1), expression (formula only). FORMAT: interiorColor/fontColor as #RRGGBB hex, fontBold/fontItalic booleans, borderStyle/borderColor.")]
 public interface IConditionalFormattingCommands
 {

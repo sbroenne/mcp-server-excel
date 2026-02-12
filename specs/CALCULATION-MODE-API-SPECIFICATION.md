@@ -124,7 +124,7 @@ public OperationResult SetValues(IExcelBatch batch, string sheetName, string ran
 
 ## Proposed API Design
 
-### New Tool: `excel_calculation_mode`
+### New Tool: `calculation_mode`
 
 A dedicated tool for calculation mode control, separate from existing tools.
 
@@ -179,7 +179,7 @@ A dedicated tool for calculation mode control, separate from existing tools.
   "message": "Calculation mode set to manual. Call calculate action when ready to recalculate.",
   "suggestedNextActions": [
     "Perform your write operations (values, formulas, data)",
-    "excel_calculation_mode(action: 'calculate') when ready to recalculate"
+    "calculation_mode(action: 'calculate') when ready to recalculate"
   ]
 }
 ```
@@ -514,7 +514,7 @@ public static class ExcelCalculationTool
     /// 
     /// IMPORTANT: Mode is restored to original when session closes.
     /// </summary>
-    [McpServerTool(Name = "excel_calculation_mode")]
+    [McpServerTool(Name = "calculation_mode")]
     public static async Task<string> ExecuteAsync(
         [Description("Action: get-mode, set-mode, calculate")]
         CalculationModeAction action,
@@ -587,7 +587,7 @@ public static class ExcelCalculationTool
 - Add unit tests
 
 ### Phase 2: MCP Server
-- Add `excel_calculation_mode` tool
+- Add `calculation_mode` tool
 - Add `CalculationModeAction` enum
 - Update tool count in docs
 
@@ -684,7 +684,7 @@ Manual mode adds complexity. Use automatic mode (default) when:
 
 ## Integration with Other Tools
 
-### Power Query (`excel_powerquery`)
+### Power Query (`powerquery`)
 
 Manual mode is **highly recommended** when:
 - Importing multiple queries in sequence
@@ -700,7 +700,7 @@ excelcli calculation calculate --session 1
 excelcli calculation set-mode --session 1 --mode automatic
 ```
 
-### Data Model (`excel_datamodel`)
+### Data Model (`datamodel`)
 
 **Critical for timeout prevention:**
 - Writing to cells that feed DAX measures
@@ -716,7 +716,7 @@ excelcli calculation calculate --session 1
 excelcli calculation set-mode --session 1 --mode automatic
 ```
 
-### PivotTables (`excel_pivottable`)
+### PivotTables (`pivottable`)
 
 Consider manual mode when:
 - Creating multiple PivotTables from same source
@@ -738,7 +738,7 @@ When this feature is implemented, **ALL** these files require updates:
 | `src/ExcelMcp.CLI/README.md` | Lines ~9, ~102 | Update counts (14 → 15 categories) |
 | `vscode-extension/README.md` | Line ~19 | Update counts |
 | `gh-pages/index.md` | Feature reference link | Update counts |
-| `gh-pages/features.md` | Add new section | Add `excel_calculation_mode` tool |
+| `gh-pages/features.md` | Add new section | Add `calculation_mode` tool |
 | `gh-pages/404.md` | Line ~20 | Update counts |
 | `mcpb/manifest.json` | `long_description` | Update counts |
 | `src/ExcelMcp.McpServer/Program.cs` | Line ~280 | Update server description |
@@ -751,7 +751,7 @@ When this feature is implemented, **ALL** these files require updates:
 |------|--------|
 | `skills/shared/workflows.md` | Add "Batch Operations with Calculation Mode" workflow |
 | `skills/shared/behavioral-rules.md` | Add rule: "Use manual mode for batch operations" |
-| `skills/excel-mcp/SKILL.md` | Add `excel_calculation_mode` to tool reference |
+| `skills/excel-mcp/SKILL.md` | Add `calculation_mode` to tool reference |
 | `skills/excel-cli/SKILL.md` | Add `calculation` command reference |
 | **NEW:** `skills/shared/excel_calculation.md` | Dedicated calculation mode guidance |
 
@@ -759,8 +759,8 @@ When this feature is implemented, **ALL** these files require updates:
 
 | File | Change |
 |------|--------|
-| `src/ExcelMcp.McpServer/Prompts/Content/excel_datamodel.md` | Add: "Use manual mode when writing to cells with DAX dependencies" |
-| `src/ExcelMcp.McpServer/Prompts/Content/excel_powerquery.md` | Add: "Consider manual mode during batch query operations" |
+| `src/ExcelMcp.McpServer/Prompts/Content/datamodel.md` | Add: "Use manual mode when writing to cells with DAX dependencies" |
+| `src/ExcelMcp.McpServer/Prompts/Content/powerquery.md` | Add: "Consider manual mode during batch query operations" |
 
 ### Code Changes
 
@@ -877,7 +877,7 @@ class TestCalculationModeDebugging:
 
 | Category | What It Tests |
 |----------|---------------|
-| **Discovery** | LLM finds and uses `excel_calculation_mode` appropriately |
+| **Discovery** | LLM finds and uses `calculation_mode` appropriately |
 | **Batch Optimization** | LLM uses manual mode for bulk operations |
 | **Debugging Workflow** | LLM uses range-scope calculation for step-through |
 | **Safety** | LLM restores automatic mode after batch |
@@ -892,7 +892,7 @@ With pytest-aitest's AI-powered reports, we expect insights like:
 Tool description is clear - 100% of models correctly identified when to use manual mode.
 
 🔧 MCP TOOL FEEDBACK
-⚠️ excel_calculation_mode(action='calculate', scope='range')
+⚠️ calculation_mode(action='calculate', scope='range')
    Low usage (2 calls across 15 tests)
    Suggested: Add example to tool description showing range-scope debugging workflow
 ```

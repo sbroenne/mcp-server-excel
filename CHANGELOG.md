@@ -13,75 +13,43 @@ This changelog covers all components:
 ### ⚠️ BREAKING CHANGES
 
 **See [BREAKING-CHANGES.md](docs/BREAKING-CHANGES.md) for complete migration guide.**
+LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CLI).
 
-**📌 Note:** LLMs will automatically pick up these changes via `tools/list` (MCP) and `--help` (CLI). This section is informational for human developers updating hardcoded scripts.
+- **Tool Names Simplified**: Removed `excel_` prefix from all 23 MCP tool names (e.g., `excel_range` → `range`, `excel_file` → `file`). Titles also shortened (e.g., `"Chart Operations"`). VS Code extension server name → `excel-mcp`.
+
+### Removed
+
+- **Glama.ai Support**: Removed Docker-based deployment (`Dockerfile`, `glama.json`, `.dockerignore`, docs)
+
+- **Tool Name Prefix Removal**: All 23 MCP tool names no longer have the `excel_` prefix
+  - `excel_file` → `file`, `excel_range` → `range`, `excel_chart` → `chart`, etc.
+  - Tool titles also simplified: `"Excel Chart Operations"` → `"Chart Operations"`
+  - Skills shared reference files renamed accordingly (e.g., `excel_chart.md` → `chart.md`)
+  - VS Code extension: server name changed to `excel-mcp`, label to `Excel MCP Server`
+  - LLMs pick this up automatically via `tools/list` — no manual action needed
+
+### Removed
+
+- **Glama.ai Support**: Removed Docker-based deployment for Glama.ai
+  - Deleted `Dockerfile`, `glama.json`, `.dockerignore`, and `docs/GLAMA-DOCKER-SUPPORT.md`
 
 ### Added
 
-- **CLI Code Generation** (#433): CLI commands are now automatically generated from Core service definitions
-  - Uses Roslyn source generators to create 22 command classes from `ServiceRegistry` metadata
-  - Ensures 1:1 parity between CLI and MCP tools - impossible to accidentally diverge
-  - Each command class inherits `ServiceCommandBase<T>` and routes through `RouteFromSettings()`
-  - New categories added to Core automatically generate corresponding CLI commands
-  - See docs/DEVELOPMENT.md for architecture details
-
-- **Calculation Mode Control** (#430): Added `excel_calculation_mode` tool and CLI `calculation` command to set/get calculation mode and trigger recalculation
-  - Modes: automatic, manual, semi-automatic
-  - Calculate scopes: workbook, sheet, range
-  - Now available via code generation (see CLI Code Generation above)
+- **CLI Code Generation** (#433): CLI commands auto-generated from Core via Roslyn source generators — guarantees 1:1 MCP/CLI parity
+- **Calculation Mode Control** (#430): New `calculation_mode` tool/CLI command (automatic, manual, semi-automatic modes; workbook/sheet/range scopes)
 
 ### Changed
 
-- **Release with breaking changes**: Fix consistency issues between CLI and MCP and ensure feature parity. LLMs should pick these up automatically. You might need to delete the cached tools in your IDE.
-
-- **LLM Integration Tests (pytest-aitest)**: Migrated LLM tool validation to pytest-aitest with unified MCP/CLI test suite
-  - YAML legacy scenarios removed in favor of pytest-aitest Python tests
-  - Local editable dependency configured via `tool.uv.sources`
-
-- **VS Code Extension: CLI Removed** (#435): CLI is no longer bundled in the VS Code extension
-  - Extension = MCP Server only (for GitHub Copilot)
-  - Global tool = Both MCP + CLI (for terminal automation)
-  - Prevents version conflicts with shared ExcelMCP Service
-  - Users need separate `dotnet tool install` for CLI in VS Code context
-
-- **VS Code Extension: Self-Contained Publishing** (#434): Extension now bundles self-contained executables - no .NET runtime dependency required
-  - Removed `ms-dotnettools.vscode-dotnet-runtime` extension dependency
-  - MCP Server published as self-contained single-file executable
-  - Extension "just works" after install - zero external dependencies
-  - VSIX size increased from ~3.7 MB to ~68-70 MB (includes .NET runtime)
-
-- **VS Code Extension: Skills Registration** (#434): Skills now use VS Code's `chatSkills` contribution point
-  - Replaced file-copy to `~/.copilot/skills/` with declarative `chatSkills` in `package.json`
-  - Skills automatically cleaned up on extension uninstall
-  - Only `excel-mcp` skill included (CLI removed per #435)
-
-- **MCPB: Removed Agent Skills** (#434): Skills removed from Claude Desktop bundle
-  - Claude Desktop doesn't use agent skills
-  - Reduces MCPB bundle size
-
-- **Release Pipeline** (#434): Updated release workflow for self-contained VS Code extension
-  - `build-vscode` job now bumps MCP Server version before packaging
-  - Release notes updated: .NET runtime only required for NuGet installation, VS Code and MCPB bundle it
-  - Agent Skills section notes VS Code includes excel-mcp skill automatically
-
-- **Unified NuGet Package** (#432): MCP Server package now includes CLI - install once, get both tools!
-  - `dotnet tool install --global Sbroenne.ExcelMcp.McpServer` installs both `mcp-excel` and `excelcli`
-  - Eliminates version mismatch issues between MCP Server and CLI
-  - Guarantees ExcelMCP Service is always available for MCP Server operations
-  - CLI package (`Sbroenne.ExcelMcp.CLI`) is now deprecated - use the unified package
-
-- **MCP Server Service-Only Mode** (#432): MCP Server now forwards ALL requests to the shared ExcelMCP Service - just like the CLI did
-  - CLI and MCP Server now share sessions transparently via the ExcelMCP Service
-  - System tray UI shows sessions from both CLI and MCP origins
-  - Update notifications now show once (from service) instead of twice
-
-- **Terminology Update**: "Daemon" renamed to "ExcelMCP Service" throughout documentation
-  - Reflects unified architecture where both CLI and MCP Server use the same service
-  - Updated README, gh-pages, skills, and technical docs
+- **Unified NuGet Package** (#432): `dotnet tool install --global Sbroenne.ExcelMcp.McpServer` now installs both `mcp-excel` and `excelcli`. CLI package deprecated.
+- **MCP Server Service-Only Mode** (#432): MCP Server forwards all requests to shared ExcelMCP Service — CLI and MCP share sessions transparently
+- **VS Code Extension** (#434, #435): Self-contained publishing (no .NET runtime needed), CLI removed from extension, skills use `chatSkills` contribution point
+- **MCPB**: Removed agent skills from Claude Desktop bundle
+- **LLM Tests**: Migrated to pytest-aitest with unified MCP/CLI test suite
+- **Terminology**: "Daemon" → "ExcelMCP Service" throughout docs
 
 ### Fixed
 
-- **Broken Emoji Characters**: Fixed corrupted emoji characters in README files (Slicers, Conditional Formatting, etc.)
+- **Broken Emoji Characters**: Fixed corrupted emoji in README files
 ## [1.6.9] - 2026-02-04
 
 ### Added
@@ -101,7 +69,7 @@ This changelog covers all components:
   - ROOT CAUSE: `RefreshTable()` called after each field operation triggered synchronous Analysis Services queries
   - FIX: Removed RefreshTable() from field manipulation methods (AddRowField, AddColumnField, AddFilterField, RemoveField, SetFieldFunction)
   - Field changes now take effect immediately without blocking AS queries
-  - Call `excel_pivottable(refresh)` explicitly to update visual display after configuring fields
+  - Call `pivottable(refresh)` explicitly to update visual display after configuring fields
   - Applies to both OLAP (Data Model) and regular PivotTables for consistency
 
 ## [1.6.8] - 2026-02-03
@@ -182,12 +150,12 @@ This changelog covers all components:
   - Example: `excelcli powerquery evaluate --file data.xlsx --mcode "let Source = #table({\"Name\",...})"`
 
 - **MCP Power Query mCodeFile Parameter**: Read M code from file instead of inline string
-  - New `mCodeFile` parameter on `excel_powerquery` tool for `create`, `update`, `evaluate` actions
+  - New `mCodeFile` parameter on `powerquery` tool for `create`, `update`, `evaluate` actions
   - Avoids JSON escaping issues with complex M code containing special characters
   - File takes precedence if both `mCode` and `mCodeFile` provided
 
 - **MCP VBA vbaCodeFile Parameter**: Read VBA code from file instead of inline string
-  - New `vbaCodeFile` parameter on `excel_vba` tool for `create-module`, `update-module` actions
+  - New `vbaCodeFile` parameter on `vba` tool for `create-module`, `update-module` actions
   - Handles VBA code with quotes and special characters cleanly
   - File takes precedence if both `vbaCode` and `vbaCodeFile` provided
 
@@ -233,7 +201,7 @@ This changelog covers all components:
 
 #### MCP Server Enhancements  
 - **Session Operation Timeout** (#388): Configurable timeout prevents infinite hangs
-  - New `timeoutSeconds` parameter on `excel_file(open)` and `excel_file(create)` actions
+  - New `timeoutSeconds` parameter on `file(open)` and `file(create)` actions
   - Default: 300 seconds (5 minutes), configurable range: 10-3600 seconds
   - Applies to ALL operations within session; exceeding timeout throws `TimeoutException`
 
@@ -297,7 +265,7 @@ This changelog covers all components:
 ## [1.5.6] - 2025-01-20
 
 ### Added
-- **PivotTable & Table Slicers** (#363): New `excel_slicer` tool for interactive filtering
+- **PivotTable & Table Slicers** (#363): New `slicer` tool for interactive filtering
   - **PivotTable Slicers**: Create, list, filter, and delete slicers for PivotTable fields
   - **Table Slicers**: Create, list, filter, and delete slicers for Excel Table columns
   - 8 new operations for interactive data filtering
@@ -306,14 +274,14 @@ This changelog covers all components:
 
 ### Added
 - **DMV Query Execution** (#353): Query Data Model metadata using Dynamic Management Views
-  - New `execute-dmv` action on `excel_datamodel` tool
+  - New `execute-dmv` action on `datamodel` tool
   - Query TMSCHEMA_MEASURES, TMSCHEMA_RELATIONSHIPS, DISCOVER_CALC_DEPENDENCY, etc.
 
 ## [1.5.4] - 2025-01-19
 
 ### Added
 - **DAX EVALUATE Query Execution** (#356): Execute DAX queries against the Data Model
-  - New `evaluate` action on `excel_datamodel` tool for ad-hoc DAX queries
+  - New `evaluate` action on `datamodel` tool for ad-hoc DAX queries
 - **DAX-Backed Excel Tables** (#356): Create worksheet tables populated by DAX queries
   - New `create-from-dax`, `update-dax`, `get-dax` actions
 
@@ -322,12 +290,12 @@ This changelog covers all components:
 ### Changed
 - **Tool Reorganization** (#341): Split 12 monolithic tools into 21 focused tools
   - 186 operations total, better organized for AI assistants
-  - Ranges: 4 tools (excel_range, excel_range_edit, excel_range_format, excel_range_link)
-  - PivotTables: 3 tools (excel_pivottable, excel_pivottable_field, excel_pivottable_calc)
-  - Tables: 2 tools (excel_table, excel_table_column)
-  - Data Model: 2 tools (excel_datamodel, excel_datamodel_rel)
-  - Charts: 2 tools (excel_chart, excel_chart_config)
-  - Worksheets: 2 tools (excel_worksheet, excel_worksheet_style)
+  - Ranges: 4 tools (range, range_edit, range_format, range_link)
+  - PivotTables: 3 tools (pivottable, pivottable_field, pivottable_calc)
+  - Tables: 2 tools (table, table_column)
+  - Data Model: 2 tools (datamodel, datamodel_rel)
+  - Charts: 2 tools (chart, chart_config)
+  - Worksheets: 2 tools (worksheet, worksheet_style)
 
 ### Added
 - **LLM Integration Testing** (#341): Real AI agent testing using [pytest-aitest](https://github.com/sbroenne/pytest-aitest)

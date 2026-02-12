@@ -6,7 +6,7 @@
 
 **Phase 1 (MVP): ✅ 100% COMPLETE** (As of October 30, 2025)
 - ✅ All 19 core operations implemented in `PivotTableCommands`
-- ✅ Complete MCP Server integration (`excel_pivottable` tool with 25 actions)
+- ✅ Complete MCP Server integration (`pivottable` tool with 25 actions)
 - ✅ CLI commands implemented
 - ✅ Integration tests passing
 - ✅ Covers 95% of common LLM/AI agent use cases
@@ -982,13 +982,13 @@ excelcli pivot-get-cache-info <file.xlsx> <pivot-name>
 
 ---
 
-## MCP Tool: excel_pivottable
+## MCP Tool: pivottable
 
 ### Phase 1 Actions
 
 ```typescript
 {
-  "name": "excel_pivottable",
+  "name": "pivottable",
   "description": "Comprehensive Excel PivotTable operations - creation, field management, analysis, and formatting",
   "parameters": {
     "action": "string",
@@ -1158,7 +1158,7 @@ var results = await rangeCommands.GetValuesAsync(batch, "Summary", "A1:D20");
 - ✅ `SortField` - Sort field ascending/descending
 
 **Integration:**
-- ✅ MCP Server tool (`excel_pivottable` with 25 actions)
+- ✅ MCP Server tool (`pivottable` with 25 actions)
 - ✅ CLI commands (all 25 operations)
 - ✅ Integration tests with comprehensive coverage
 - ✅ Workflow guidance and suggested next actions
@@ -1215,7 +1215,7 @@ var results = await rangeCommands.GetValuesAsync(batch, "Summary", "A1:D20");
 
 **Phase 2b (Slicer Integration): ✅ COMPLETE** (January 18, 2025)
 - ✅ Slicer integration: CreateSlicer, ListSlicers, SetSlicerSelection, DeleteSlicer (4 operations)
-- ✅ New `excel_slicer` MCP tool
+- ✅ New `slicer` MCP tool
 - ✅ Integration tests for slicer features (10 tests)
 - **Actual Time:** ~1 day
 
@@ -1236,7 +1236,7 @@ var results = await rangeCommands.GetValuesAsync(batch, "Summary", "A1:D20");
 
 **Core Lifecycle & Field Management (19 ops):**
 1. ✅ LLM/AI agents can create, configure, and analyze PivotTables through MCP Server
-2. ✅ All 19 core operations fully functional via `excel_pivottable` tool
+2. ✅ All 19 core operations fully functional via `pivottable` tool
 3. ✅ Data extraction via `GetData` returns 2D arrays ready for LLM analysis
 4. ✅ Field type detection (numeric, text, date) guides appropriate aggregation functions
 5. ✅ Comprehensive error handling with actionable error messages
@@ -1356,7 +1356,7 @@ public async Task<string> ExcelPivotTable(
 **Scenario 1: LLM creates analysis from scratch**
 ```typescript
 // Step 1: LLM explores available data
-excel_pivottable({ 
+pivottable({ 
     action: "create-from-range", 
     excelPath: "sales.xlsx", 
     sourceSheet: "RawData", 
@@ -1368,7 +1368,7 @@ excel_pivottable({
 // Returns: { success: true, availableFields: ["Region", "Product", "Sales", "Date", "Salesperson", "Category"], numericFields: ["Sales"], dateFields: ["Date"] }
 
 // Step 2: LLM builds row structure
-excel_pivottable({ 
+pivottable({ 
     action: "add-row-field", 
     excelPath: "sales.xlsx", 
     pivotTableName: "SalesAnalysis", 
@@ -1377,7 +1377,7 @@ excel_pivottable({
 // Returns: { success: true, fieldName: "Region", area: "Row", position: 1, uniqueValues: ["North", "South", "East", "West"] }
 
 // Step 3: LLM adds analysis dimension
-excel_pivottable({ 
+pivottable({ 
     action: "add-column-field", 
     excelPath: "sales.xlsx", 
     pivotTableName: "SalesAnalysis", 
@@ -1386,7 +1386,7 @@ excel_pivottable({
 // Returns: { success: true, fieldName: "Product", area: "Column", position: 1, uniqueValues: ["Product A", "Product B", "Product C"] }
 
 // Step 4: LLM adds metrics
-excel_pivottable({ 
+pivottable({ 
     action: "add-value-field", 
     excelPath: "sales.xlsx", 
     pivotTableName: "SalesAnalysis", 
@@ -1397,7 +1397,7 @@ excel_pivottable({
 // Returns: { success: true, fieldName: "Sales", customName: "Total Sales", function: "Sum", sampleValue: 125000.0 }
 
 // Step 5: LLM applies filtering for focused analysis
-excel_pivottable({ 
+pivottable({ 
     action: "set-field-filter", 
     excelPath: "sales.xlsx", 
     pivotTableName: "SalesAnalysis", 

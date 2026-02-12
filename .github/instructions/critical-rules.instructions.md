@@ -510,7 +510,7 @@ public static string ToActionString(this RangeAction action) => action switch
 - When adding enum value, add mapping immediately
 - Code review MUST verify completeness
 
-**Example Bug:** `GetUsedRange` missing → "An error occurred invoking 'excel_range'" (not JSON!)
+**Example Bug:** `GetUsedRange` missing → "An error occurred invoking 'range'" (not JSON!)
 
 ---
 

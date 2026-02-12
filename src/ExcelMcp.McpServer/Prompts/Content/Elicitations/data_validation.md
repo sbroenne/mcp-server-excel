@@ -46,4 +46,4 @@ OPTIONAL (RECOMMENDED):
 ☐ Error title and message (help users fix mistakes)
 ☐ Input message (show when cell selected)
 
-ASK USER FOR MISSING INFO before calling excel_range(action: 'validate-range')
+ASK USER FOR MISSING INFO before calling range(action: 'validate-range')

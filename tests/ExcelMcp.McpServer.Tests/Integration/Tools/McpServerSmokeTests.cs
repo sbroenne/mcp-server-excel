@@ -183,7 +183,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         // =====================================================================
         _output.WriteLine("✓ Step 1: Creating workbook and opening session via MCP protocol...");
 
-        var createResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
+        var createResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "create",
             ["path"] = _testExcelFile
@@ -192,28 +192,28 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         Assert.True(File.Exists(_testExcelFile), "Excel file should exist");
         var sessionId = GetJsonProperty(createResult, "sessionId");
         Assert.NotNull(sessionId);
-        _output.WriteLine($"  ✓ excel_file: Create passed (session: {sessionId})");
+        _output.WriteLine($"  ✓ file: Create passed (session: {sessionId})");
 
         // =====================================================================
         // STEP 3: WORKSHEET OPERATIONS
         // =====================================================================
         _output.WriteLine("\n✓ Step 3: Worksheet operations...");
 
-        var listSheetsResult = await CallToolAsync("excel_worksheet", new Dictionary<string, object?>
+        var listSheetsResult = await CallToolAsync("worksheet", new Dictionary<string, object?>
         {
             ["action"] = "list",
             ["session_id"] = sessionId
         });
         AssertSuccess(listSheetsResult, "List worksheets");
 
-        var createSheetResult = await CallToolAsync("excel_worksheet", new Dictionary<string, object?>
+        var createSheetResult = await CallToolAsync("worksheet", new Dictionary<string, object?>
         {
             ["action"] = "create",
             ["session_id"] = sessionId,
             ["sheet_name"] = "Data"
         });
         AssertSuccess(createSheetResult, "Create worksheet");
-        _output.WriteLine("  ✓ excel_worksheet: List and Create passed");
+        _output.WriteLine("  ✓ worksheet: List and Create passed");
 
         // =====================================================================
         // STEP 4: RANGE OPERATIONS
@@ -227,7 +227,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             new() { "Item2", 200, "2024-01-02" }
         };
 
-        var setValuesResult = await CallToolAsync("excel_range", new Dictionary<string, object?>
+        var setValuesResult = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-values",
             ["path"] = _testExcelFile,
@@ -238,7 +238,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         });
         AssertSuccess(setValuesResult, "Set values");
 
-        var getValuesResult = await CallToolAsync("excel_range", new Dictionary<string, object?>
+        var getValuesResult = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
             ["path"] = _testExcelFile,
@@ -247,14 +247,14 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["range_address"] = "A1:C3"
         });
         AssertSuccess(getValuesResult, "Get values");
-        _output.WriteLine("  ✓ excel_range: SetValues and GetValues passed");
+        _output.WriteLine("  ✓ range: SetValues and GetValues passed");
 
         // =====================================================================
         // STEP 5: TABLE OPERATIONS
         // =====================================================================
         _output.WriteLine("\n✓ Step 5: Table operations...");
 
-        var createTableResult = await CallToolAsync("excel_table", new Dictionary<string, object?>
+        var createTableResult = await CallToolAsync("table", new Dictionary<string, object?>
         {
             ["action"] = "create",
             ["path"] = _testExcelFile,
@@ -266,21 +266,21 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         });
         AssertSuccess(createTableResult, "Create table");
 
-        var listTablesResult = await CallToolAsync("excel_table", new Dictionary<string, object?>
+        var listTablesResult = await CallToolAsync("table", new Dictionary<string, object?>
         {
             ["action"] = "list",
             ["path"] = _testExcelFile,
             ["session_id"] = sessionId
         });
         AssertSuccess(listTablesResult, "List tables");
-        _output.WriteLine("  ✓ excel_table: Create and List passed");
+        _output.WriteLine("  ✓ table: Create and List passed");
 
         // =====================================================================
         // STEP 6: NAMED RANGE OPERATIONS
         // =====================================================================
         _output.WriteLine("\n✓ Step 6: Named range operations...");
 
-        var createParamResult = await CallToolAsync("excel_namedrange", new Dictionary<string, object?>
+        var createParamResult = await CallToolAsync("namedrange", new Dictionary<string, object?>
         {
             ["action"] = "create",
             ["path"] = _testExcelFile,
@@ -290,7 +290,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         });
         AssertSuccess(createParamResult, "Create named range");
 
-        var readParamResult = await CallToolAsync("excel_namedrange", new Dictionary<string, object?>
+        var readParamResult = await CallToolAsync("namedrange", new Dictionary<string, object?>
         {
             ["action"] = "read",
             ["path"] = _testExcelFile,
@@ -298,7 +298,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["name"] = "ReportDate"
         });
         AssertSuccess(readParamResult, "Read named range");
-        _output.WriteLine("  ✓ excel_namedrange: Create and Read passed");
+        _output.WriteLine("  ✓ namedrange: Create and Read passed");
 
         // =====================================================================
         // STEP 7: POWER QUERY OPERATIONS
@@ -315,7 +315,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
 in
     PromotedHeaders";
 
-        var createQueryResult = await CallToolAsync("excel_powerquery", new Dictionary<string, object?>
+        var createQueryResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
             ["action"] = "create",
             ["session_id"] = sessionId,
@@ -325,7 +325,7 @@ in
         });
         AssertSuccess(createQueryResult, "Create Power Query");
 
-        var listQueriesResult = await CallToolAsync("excel_powerquery", new Dictionary<string, object?>
+        var listQueriesResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
             ["action"] = "list",
             ["session_id"] = sessionId
@@ -333,7 +333,7 @@ in
         AssertSuccess(listQueriesResult, "List Power Queries");
 
         // Rename the query (US1: Power Query rename)
-        var renameQueryResult = await CallToolAsync("excel_powerquery", new Dictionary<string, object?>
+        var renameQueryResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
             ["action"] = "rename",
             ["session_id"] = sessionId,
@@ -344,7 +344,7 @@ in
         Assert.Contains("ProductData", renameQueryResult);
 
         // Verify rename by listing again
-        var listAfterRenameResult = await CallToolAsync("excel_powerquery", new Dictionary<string, object?>
+        var listAfterRenameResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
             ["action"] = "list",
             ["session_id"] = sessionId
@@ -353,28 +353,28 @@ in
         Assert.Contains("ProductData", listAfterRenameResult);
         Assert.DoesNotContain("CsvData", listAfterRenameResult);
 
-        _output.WriteLine("  ✓ excel_powerquery: Create, List, and Rename passed");
+        _output.WriteLine("  ✓ powerquery: Create, List, and Rename passed");
 
         // =====================================================================
         // STEP 8: CONNECTION OPERATIONS
         // =====================================================================
         _output.WriteLine("\n✓ Step 8: Connection operations...");
 
-        var listConnectionsResult = await CallToolAsync("excel_connection", new Dictionary<string, object?>
+        var listConnectionsResult = await CallToolAsync("connection", new Dictionary<string, object?>
         {
             ["action"] = "list",
             ["path"] = _testExcelFile,
             ["session_id"] = sessionId
         });
         AssertSuccess(listConnectionsResult, "List connections");
-        _output.WriteLine("  ✓ excel_connection: List passed");
+        _output.WriteLine("  ✓ connection: List passed");
 
         // =====================================================================
         // STEP 9: PIVOTTABLE OPERATIONS
         // =====================================================================
         _output.WriteLine("\n✓ Step 9: PivotTable operations...");
 
-        var createPivotResult = await CallToolAsync("excel_pivottable", new Dictionary<string, object?>
+        var createPivotResult = await CallToolAsync("pivottable", new Dictionary<string, object?>
         {
             ["action"] = "create-from-table",
             ["session_id"] = sessionId,
@@ -385,20 +385,20 @@ in
         });
         AssertSuccess(createPivotResult, "Create PivotTable");
 
-        var listPivotsResult = await CallToolAsync("excel_pivottable", new Dictionary<string, object?>
+        var listPivotsResult = await CallToolAsync("pivottable", new Dictionary<string, object?>
         {
             ["action"] = "list",
             ["session_id"] = sessionId
         });
         AssertSuccess(listPivotsResult, "List PivotTables");
-        _output.WriteLine("  ✓ excel_pivottable: Create and List passed");
+        _output.WriteLine("  ✓ pivottable: Create and List passed");
 
         // =====================================================================
         // STEP 10: CHART OPERATIONS
         // =====================================================================
         _output.WriteLine("\n✓ Step 10: Chart operations...");
 
-        var createChartResult = await CallToolAsync("excel_chart", new Dictionary<string, object?>
+        var createChartResult = await CallToolAsync("chart", new Dictionary<string, object?>
         {
             ["action"] = "create-from-range",
             ["session_id"] = sessionId,
@@ -413,21 +413,21 @@ in
         });
         AssertSuccess(createChartResult, "Create Chart");
 
-        var listChartsResult = await CallToolAsync("excel_chart", new Dictionary<string, object?>
+        var listChartsResult = await CallToolAsync("chart", new Dictionary<string, object?>
         {
             ["action"] = "list",
             ["session_id"] = sessionId
         });
         // Chart List returns array directly
         Assert.NotNull(listChartsResult);
-        _output.WriteLine("  ✓ excel_chart: Create and List passed");
+        _output.WriteLine("  ✓ chart: Create and List passed");
 
         // =====================================================================
         // STEP 11: DATA MODEL OPERATIONS
         // =====================================================================
         _output.WriteLine("\n✓ Step 11: Data Model operations...");
 
-        var listDataModelResult = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
+        var listDataModelResult = await CallToolAsync("datamodel", new Dictionary<string, object?>
         {
             ["action"] = "list-tables",
             ["session_id"] = sessionId
@@ -437,7 +437,7 @@ in
         // Test rename-table returns expected failure due to Excel limitation (not a crash)
         // First, we need a PQ-backed table in the Data Model
         // The ProductData query was created above - load it to Data Model
-        var loadToDmResult = await CallToolAsync("excel_powerquery", new Dictionary<string, object?>
+        var loadToDmResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
             ["action"] = "load-to",
             ["session_id"] = sessionId,
@@ -447,7 +447,7 @@ in
         AssertSuccess(loadToDmResult, "Load Power Query to Data Model");
 
         // Verify table exists
-        var listAfterLoadResult = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
+        var listAfterLoadResult = await CallToolAsync("datamodel", new Dictionary<string, object?>
         {
             ["action"] = "list-tables",
             ["session_id"] = sessionId
@@ -456,7 +456,7 @@ in
         Assert.Contains("ProductData", listAfterLoadResult);
 
         // Attempt rename-table - this will return success=false due to Excel limitation
-        var renameTableResult = await CallToolAsync("excel_datamodel", new Dictionary<string, object?>
+        var renameTableResult = await CallToolAsync("datamodel", new Dictionary<string, object?>
         {
             ["action"] = "rename-table",
             ["session_id"] = sessionId,
@@ -475,16 +475,16 @@ in
             renameErrorText.Contains("cannot be renamed", StringComparison.OrdinalIgnoreCase) ||
             renameErrorText.Contains("not found", StringComparison.OrdinalIgnoreCase),
             $"Expected error about rename limitation but got: {renameErrorText}");
-        _output.WriteLine("  ✓ excel_datamodel: RenameTable correctly returns error (Excel limitation)");
+        _output.WriteLine("  ✓ datamodel: RenameTable correctly returns error (Excel limitation)");
 
-        _output.WriteLine("  ✓ excel_datamodel: ListTables passed");
+        _output.WriteLine("  ✓ datamodel: ListTables passed");
 
         // =====================================================================
         // STEP 12: CONDITIONAL FORMAT OPERATIONS
         // =====================================================================
         _output.WriteLine("\n✓ Step 12: Conditional Format operations...");
 
-        var addRuleResult = await CallToolAsync("excel_conditionalformat", new Dictionary<string, object?>
+        var addRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
         {
             ["action"] = "add-rule",
             ["path"] = _testExcelFile,
@@ -497,28 +497,28 @@ in
             ["interior_color"] = "#00FF00"
         });
         AssertSuccess(addRuleResult, "Add conditional format rule");
-        _output.WriteLine("  ✓ excel_conditionalformat: AddRule passed");
+        _output.WriteLine("  ✓ conditionalformat: AddRule passed");
 
         // =====================================================================
         // STEP 13: VBA OPERATIONS
         // =====================================================================
         _output.WriteLine("\n✓ Step 13: VBA operations...");
 
-        var listVbaResult = await CallToolAsync("excel_vba", new Dictionary<string, object?>
+        var listVbaResult = await CallToolAsync("vba", new Dictionary<string, object?>
         {
             ["action"] = "list",
             ["path"] = _testExcelFile,
             ["session_id"] = sessionId
         });
         AssertSuccess(listVbaResult, "List VBA modules");
-        _output.WriteLine("  ✓ excel_vba: List passed");
+        _output.WriteLine("  ✓ vba: List passed");
 
         // =====================================================================
         // STEP 14: CLOSE SESSION (save changes)
         // =====================================================================
         _output.WriteLine("\n✓ Step 14: Closing session (saving changes)...");
 
-        var closeResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
+        var closeResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "close",
             ["session_id"] = sessionId,
@@ -532,7 +532,7 @@ in
         // =====================================================================
         _output.WriteLine("\n✓ Step 15: Verifying persistence...");
 
-        var verifyOpenResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
+        var verifyOpenResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "open",
             ["path"] = _testExcelFile
@@ -542,7 +542,7 @@ in
 
         try
         {
-            var finalSheetsResult = await CallToolAsync("excel_worksheet", new Dictionary<string, object?>
+            var finalSheetsResult = await CallToolAsync("worksheet", new Dictionary<string, object?>
             {
                 ["action"] = "list",
                 ["session_id"] = verifySessionId
@@ -555,7 +555,7 @@ in
         }
         finally
         {
-            await CallToolAsync("excel_file", new Dictionary<string, object?>
+            await CallToolAsync("file", new Dictionary<string, object?>
             {
                 ["action"] = "close",
                 ["session_id"] = verifySessionId,
@@ -583,7 +583,7 @@ in
     {
         _output.WriteLine("Testing error handling via MCP protocol...");
 
-        var result = await CallToolAsync("excel_file", new Dictionary<string, object?>
+        var result = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "close",
             ["session_id"] = "nonexistent-session-id"

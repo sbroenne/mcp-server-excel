@@ -29,7 +29,7 @@ ExcelMcp new-command <file.xlsx> <parameters>
 ```
 
 **For MCP Server:**
-- Tool: [e.g., excel_powerquery, excel_worksheet, excel_vba]
+- Tool: [e.g., powerquery, worksheet, vba]
 - Action: [e.g., new-action]
 - Parameters: [describe expected parameters]
 

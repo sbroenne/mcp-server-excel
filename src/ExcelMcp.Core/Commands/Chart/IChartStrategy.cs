@@ -26,7 +26,7 @@ public interface IChartStrategy
     /// <summary>
     /// Sets the data source range.
     /// Regular Charts: Updates source range.
-    /// PivotCharts: Throws exception guiding to excel_pivottable.
+    /// PivotCharts: Throws exception guiding to pivottable.
     /// </summary>
     /// <param name="chart">Excel Chart COM object</param>
     /// <param name="sourceRange">New source range</param>
@@ -35,7 +35,7 @@ public interface IChartStrategy
     /// <summary>
     /// Adds a data series.
     /// Regular Charts: Adds to SeriesCollection.
-    /// PivotCharts: Throws exception guiding to excel_pivottable.
+    /// PivotCharts: Throws exception guiding to pivottable.
     /// </summary>
     /// <param name="chart">Excel Chart COM object</param>
     /// <param name="seriesName">Name for the series</param>
@@ -47,7 +47,7 @@ public interface IChartStrategy
     /// <summary>
     /// Removes a data series.
     /// Regular Charts: Removes from SeriesCollection.
-    /// PivotCharts: Throws exception guiding to excel_pivottable.
+    /// PivotCharts: Throws exception guiding to pivottable.
     /// </summary>
     /// <param name="chart">Excel Chart COM object</param>
     /// <param name="seriesIndex">1-based series index</param>

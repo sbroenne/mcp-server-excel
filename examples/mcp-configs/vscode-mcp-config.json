@@ -1,6 +1,6 @@
 {
   "servers": {
-    "excel": {
+    "excel-mcp": {
       "command": "mcp-excel"
     }
   }

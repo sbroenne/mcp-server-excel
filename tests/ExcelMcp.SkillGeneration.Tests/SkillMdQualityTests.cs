@@ -72,9 +72,9 @@ public class SkillMdQualityTests
         // Verify it has the expected curated content
         var skillPath = Path.Combine(SkillsFolder, "excel-mcp", "SKILL.md");
         var content = File.ReadAllText(skillPath);
-        Assert.Contains("excel_file", content);
-        Assert.Contains("excel_range", content);
-        Assert.Contains("excel_calculation_mode", content);
+        Assert.Contains("file", content);
+        Assert.Contains("range", content);
+        Assert.Contains("calculation_mode", content);
     }
 
     [Fact]

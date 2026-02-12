@@ -360,7 +360,7 @@ dnx Sbroenne.ExcelMcp.McpServer --yes
   "version": "2.0.0",          // ← Updated by release workflow
   "tools": [                   // ← Must match Tools/*.cs implementations
     {
-      "name": "excel_file",    // ← Must match [McpServerTool] attribute
+      "name": "file",    // ← Must match [McpServerTool] attribute
       "description": "...",    // ← Keep description accurate
       "inputSchema": {         // ← Must match method parameters
         "properties": {

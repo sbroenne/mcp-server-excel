@@ -2,7 +2,7 @@
 namespace Sbroenne.ExcelMcp.Core.Models.Actions;
 
 /// <summary>
-/// Actions available for excel_file tool
+/// Actions available for file tool
 /// </summary>
 /// <remarks>
 /// IMPORTANT: Keep enum values synchronized with tool switch cases.

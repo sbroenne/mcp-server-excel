@@ -103,12 +103,12 @@ public class Program
                     CRITICAL: File must be CLOSED in Excel desktop app (COM requires exclusive access).
 
                     SESSION LIFECYCLE:
-                    1. excel_file(action:'open') → returns sessionId
+                    1. file(action:'open') → returns sessionId
                     2. Use sessionId with ALL subsequent tools
-                    3. excel_file(action:'close', save:true/false) → ONLY when completely done
+                    3. file(action:'close', save:true/false) → ONLY when completely done
 
                     CALCULATION MODE:
-                    - When a task mentions manual/automatic calculation or explicit recalculation, you MUST use excel_calculation_mode.
+                    - When a task mentions manual/automatic calculation or explicit recalculation, you MUST use calculation_mode.
                     - Sequence: set-mode manual → perform writes → calculate (scope: workbook) → set-mode automatic.
                     - Use get-mode when user asks for current calculation mode.
 

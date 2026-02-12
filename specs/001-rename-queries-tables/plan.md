@@ -117,8 +117,8 @@ Post-design constitution check: still PASS (no new violations introduced by desi
 ### MCP Server (src/ExcelMcp.McpServer)
 
 1) Add new actions to the relevant tool enums and switch routing:
-   - `excel_powerquery`: add `rename` action.
-   - `excel_datamodel`: add `rename-table` action.
+   - `powerquery`: add `rename` action.
+   - `datamodel`: add `rename-table` action.
 
 2) Follow MCP result contract:
    - Validation/precondition failures throw `McpException`.
@@ -153,5 +153,5 @@ DataModel:
 
 ### Documentation & Guidance
 
-- Update tool descriptions (XML summaries) for `excel_powerquery` and `excel_datamodel` to include rename semantics and constraints.
+- Update tool descriptions (XML summaries) for `powerquery` and `datamodel` to include rename semantics and constraints.
 - Add/update MCP prompt guidance markdown to document the Data Model limitation.

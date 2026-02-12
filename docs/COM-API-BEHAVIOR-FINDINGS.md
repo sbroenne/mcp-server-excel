@@ -332,9 +332,9 @@ The embedded VertiPaq/Analysis Services engine uses **INPROC transport** for in-
 
 **Workaround - Use PivotTables:**
 To evaluate DAX measures programmatically, use PivotTable-based approaches:
-1. Create a PivotTable connected to the Data Model (`excel_pivottable action: 'CreateFromDataModel'`)
-2. Add the measure as a value field (`excel_pivottable action: 'AddValueField'`)
-3. Read the PivotTable values (`excel_pivottable action: 'GetData'`)
+1. Create a PivotTable connected to the Data Model (`pivottable action: 'CreateFromDataModel'`)
+2. Add the measure as a value field (`pivottable action: 'AddValueField'`)
+3. Read the PivotTable values (`pivottable action: 'GetData'`)
 
 **Microsoft Docs References:**
 - CUBEVALUE returns #N/A if "member doesn't exist in the cube"
@@ -403,7 +403,7 @@ Despite CUBEVALUE/CUBEMEMBER worksheet functions failing (see above), DAX EVALUA
 - ADOConnection.Execute uses the MSOLAP provider directly → works!
 
 **Implication for Issue #356:**
-An `evaluate` action can be added to `excel_datamodel` tool using the ADOConnection approach:
+An `evaluate` action can be added to `datamodel` tool using the ADOConnection approach:
 1. Get `Workbook.Model.DataModelConnection.ModelConnection.ADOConnection`
 2. Execute DAX EVALUATE query via `adoConnection.Execute(daxQuery)`
 3. Convert ADO Recordset to JSON result
@@ -467,7 +467,7 @@ listObject.Refresh();
 4. **Auto-Refreshable** - Tables update when underlying Data Model refreshes
 
 **Potential New Features for Issue #356:**
-- Add `create-table-from-dax` action to `excel_table` tool
+- Add `create-table-from-dax` action to `table` tool
 - Allow users to create Excel Tables populated by arbitrary DAX EVALUATE queries
 - Tables stay linked to Data Model and can be refreshed
 

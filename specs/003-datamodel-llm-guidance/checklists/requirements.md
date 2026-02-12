@@ -12,7 +12,7 @@
 ## Deliverables
 
 1. [x] Update `ExcelDataModelTool.cs` XML comments with warnings
-2. [x] Create `src/ExcelMcp.McpServer/Prompts/Content/excel_datamodel.md`
+2. [x] Create `src/ExcelMcp.McpServer/Prompts/Content/datamodel.md`
 
 ## Ready for Implementation
 

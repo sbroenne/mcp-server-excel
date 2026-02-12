@@ -20,15 +20,15 @@ async def test_mcp_sales_report_workflow(aitest_run, excel_mcp_server, excel_mcp
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=[
-            "excel_table",
-            "excel_datamodel",
-            "excel_datamodel_rel",
-            "excel_pivottable",
-            "excel_chart",
-            "excel_chart_config",
-            "excel_range",
-            "excel_file",
-            "excel_worksheet",
+            "table",
+            "datamodel",
+            "datamodel_relationship",
+            "pivottable",
+            "chart",
+            "chart_config",
+            "range",
+            "file",
+            "worksheet",
         ],
         system_prompt=(
             "You are a professional Excel analyst. Execute tasks efficiently using available tools.\n"
@@ -80,7 +80,7 @@ Step 4 - Validate:
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_table")
+    assert result.tool_was_called("table")
     assert_regex(result.final_response, r"(?i)(10 data rows|10 rows|10)")
     assert_regex(result.final_response, r"\$?34[\,.]?200(\.00)?")
     for region in ("North", "South", "East", "West"):
@@ -90,7 +90,7 @@ Step 4 - Validate:
     prompt = """
 Great! Now let me set up the Data Model for deeper analysis.
 
-IMPORTANT: First, use the excel_file List action to discover which Excel file we have open.
+IMPORTANT: First, use the file List action to discover which Excel file we have open.
 Then use that file path for all subsequent operations.
 
 IMPORTANT: Do NOT ask clarifying questions. If the relationship creation fails due to type mismatch,
@@ -130,7 +130,7 @@ Step 3 - Verify Measure Values:
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_datamodel")
+    assert result.tool_was_called("datamodel")
     assert_regex(result.final_response, r"\$?34[\,.]?200(\.00)?")
     assert_regex(result.final_response, r"\$?1[\,.]?930(\.00)?")
     assert_regex(result.final_response, r"\$?32[\,.]?270(\.00)?")
@@ -140,10 +140,10 @@ Step 3 - Verify Measure Values:
     prompt = """
 Perfect! Now let me create analysis views.
 
-IMPORTANT: First, use the excel_file List action to discover which Excel file we have open.
+IMPORTANT: First, use the file List action to discover which Excel file we have open.
 Then use that file path for all subsequent operations.
 
-IMPORTANT: Before creating PivotTables, use excel_table List or Read to confirm the SalesTransactions table exists.
+IMPORTANT: Before creating PivotTables, use table List or Read to confirm the SalesTransactions table exists.
 
 Create two PivotTables from the SalesTransactions table:
 
@@ -176,7 +176,7 @@ Important: Provide specific numeric values, not just descriptions.
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("excel_pivottable")
+    assert result.tool_was_called("pivottable")
     assert "Alice" in result.final_response
     assert_regex(result.final_response, r"\$?11[\,.]?030(\.00)?")
     assert_regex(result.final_response, r"\b231\b")
@@ -187,7 +187,7 @@ Important: Provide specific numeric values, not just descriptions.
     prompt = """
 We just received additional February data!
 
-IMPORTANT: First, use the excel_file List action to discover which Excel file we have open.
+IMPORTANT: First, use the file List action to discover which Excel file we have open.
 Then use that file path for all subsequent operations.
 
 Add these three new transactions to the SalesTransactions table:
@@ -219,7 +219,7 @@ Important: Do NOT delete and recreate the tables. Use targeted inserts and refre
     prompt = """
 Perfect! Let me do a final comprehensive check and save our report.
 
-IMPORTANT: First, use the excel_file List action to discover which Excel file we have open.
+IMPORTANT: First, use the file List action to discover which Excel file we have open.
 Then use that file path for all subsequent operations.
 
 Step 1 - Structure Verification:
@@ -227,7 +227,7 @@ Step 1 - Structure Verification:
 2. Verify the SalesTransactions table has EXACTLY 13 data rows (plus header = 14 rows total)
 3. Verify the DimDate table has 20 unique dates
 4. Confirm no formulas exist in raw data columns (Quantity, UnitPrice, Discount should be values only)
-   - Use excel_range GetFormulas on Sales!B2:D14 to verify these columns contain values only.
+   - Use range GetFormulas on Sales!B2:D14 to verify these columns contain values only.
 5. Confirm formulas/measures exist IN the Data Model
 
 IMPORTANT: In your response, explicitly include the phrase "13 rows" when reporting the SalesTransactions row count.

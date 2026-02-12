@@ -176,14 +176,14 @@ function Copy-SharedReferences {
             "behavioral-rules.md"
             "anti-patterns.md"
             "workflows.md"
-            "excel_chart.md"
-            "excel_conditionalformat.md"
-            "excel_datamodel.md"
-            "excel_powerquery.md"
-            "excel_range.md"
-            "excel_slicer.md"
-            "excel_table.md"
-            "excel_worksheet.md"
+            "chart.md"
+            "conditionalformat.md"
+            "datamodel.md"
+            "powerquery.md"
+            "range.md"
+            "slicer.md"
+            "table.md"
+            "worksheet.md"
         )
     }
 

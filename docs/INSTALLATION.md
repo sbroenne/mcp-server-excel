@@ -96,7 +96,7 @@ Create `.vscode/mcp.json` in your workspace:
 ```json
 {
   "servers": {
-    "excel": {
+    "excel-mcp": {
       "command": "mcp-excel"
     }
   }
@@ -110,7 +110,7 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 ```json
 {
   "servers": {
-    "excel": {
+    "excel-mcp": {
       "command": "mcp-excel"
     }
   }
@@ -121,12 +121,12 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 
 1. Locate config file: `%APPDATA%\Claude\claude_desktop_config.json`
 2. If file doesn't exist, create it with the content below
-3. If file exists, merge the `excel` entry into your existing `mcpServers` section
+3. If file exists, merge the `excel-mcp` entry into your existing `mcpServers` section
 
 ```json
 {
   "mcpServers": {
-    "excel": {
+    "excel-mcp": {
       "command": "mcp-excel",
       "args": [],
       "env": {}
@@ -147,7 +147,7 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 ```json
 {
   "mcpServers": {
-    "excel": {
+    "excel-mcp": {
       "command": "mcp-excel",
       "args": [],
       "env": {}
@@ -167,7 +167,7 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 ```json
 {
   "mcpServers": {
-    "excel": {
+    "excel-mcp": {
       "command": "mcp-excel",
       "args": [],
       "env": {}
@@ -187,7 +187,7 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 ```json
 {
   "mcpServers": {
-    "excel": {
+    "excel-mcp": {
       "command": "mcp-excel",
       "args": [],
       "env": {}

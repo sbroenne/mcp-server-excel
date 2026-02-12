@@ -1,0 +1,31 @@
+# VS Code Extension - Exclude from VSIX package
+# Note: When .vscodeignore exists, the "files" field in package.json is ignored.
+# All files in the directory are included by default, then these patterns exclude.
+
+# Source files (compiled output is in out/)
+src/**
+**/*.ts
+
+# Test files - should not ship to users
+out/tests/**
+
+# Source maps - not needed in production
+**/*.js.map
+
+# Development configuration and tooling
+.vscode/**
+.github/**
+tsconfig.json
+eslint.config.mjs
+node_modules/**
+*.vsix
+.gitignore
+package-lock.json
+
+# Development documentation (not needed by users)
+DEVELOPMENT.md
+MARKETPLACE-PUBLISHING.md
+PUBLISHER-GUIDE.md
+
+# SVG icon (PNG is used for marketplace)
+icon.svg

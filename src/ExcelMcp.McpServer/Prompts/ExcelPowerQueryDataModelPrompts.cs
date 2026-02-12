@@ -5,38 +5,24 @@ using ModelContextProtocol.Server;
 namespace Sbroenne.ExcelMcp.McpServer.Prompts;
 
 /// <summary>
-/// MCP prompts for teaching LLMs about Power Query, Data Model, and Table workflows.
-/// Critical upfront knowledge to prevent common mistakes.
+/// MCP prompts for Power Query M code syntax and Data Model DMV references.
+/// Only content NOT already covered by tool descriptions.
 /// </summary>
 [McpServerPromptType]
 public static class ExcelPowerQueryDataModelPrompts
 {
-    [McpServerPrompt(Name = "excel_powerquery_guide")]
-    [Description("Power Query M code, load destinations, and data import workflows")]
-    public static ChatMessage PowerQueryGuide()
+    [McpServerPrompt(Name = "m_code_syntax")]
+    [Description("Power Query M code syntax: column quoting rules, named range access, query chaining")]
+    public static ChatMessage MCodeSyntax()
     {
-        return new ChatMessage(ChatRole.User, MarkdownLoader.LoadPrompt("excel_powerquery.md"));
+        return new ChatMessage(ChatRole.User, MarkdownLoader.LoadPrompt("m_code_syntax.md"));
     }
 
-    [McpServerPrompt(Name = "excel_table_guide")]
-    [Description("Excel Tables: lifecycle, data operations, and adding tables to Power Pivot Data Model")]
-    public static ChatMessage TableGuide()
+    [McpServerPrompt(Name = "dmv_reference")]
+    [Description("Data Model DMV query reference: working queries, limitations, and TMSCHEMA catalog for Excel's embedded Analysis Services")]
+    public static ChatMessage DmvReference()
     {
-        return new ChatMessage(ChatRole.User, MarkdownLoader.LoadPrompt("excel_table.md"));
-    }
-
-    [McpServerPrompt(Name = "excel_datamodel_guide")]
-    [Description("Data Model (Power Pivot): DAX measures, table management, and prerequisites for analysis")]
-    public static ChatMessage DataModelGuide()
-    {
-        return new ChatMessage(ChatRole.User, MarkdownLoader.LoadPrompt("excel_datamodel.md"));
-    }
-
-    [McpServerPrompt(Name = "excel_chart_guide")]
-    [Description("Chart operations: PivotCharts vs regular charts, charting Data Model data")]
-    public static ChatMessage ChartGuide()
-    {
-        return new ChatMessage(ChatRole.User, MarkdownLoader.LoadPrompt("excel_chart.md"));
+        return new ChatMessage(ChatRole.User, MarkdownLoader.LoadPrompt("dmv_reference.md"));
     }
 }
 

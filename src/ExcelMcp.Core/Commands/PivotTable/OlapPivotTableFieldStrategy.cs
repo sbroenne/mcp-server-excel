@@ -981,10 +981,10 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             Formula = formula,
             ErrorMessage = "Calculated fields are not supported for OLAP PivotTables. " +
                           "OLAP PivotTables use CalculatedMembers with MDX/DAX formulas instead. " +
-                          "For Data Model PivotTables, use DAX measures via excel_datamodel tool.",
+                          "For Data Model PivotTables, use DAX measures via datamodel tool.",
             FilePath = workbookPath,
             WorkflowHint = "For OLAP/Data Model PivotTables: " +
-                          "1) Use excel_datamodel tool to create DAX measures with formulas, " +
+                          "1) Use datamodel tool to create DAX measures with formulas, " +
                           "2) Refresh PivotTable to see new measures in field list, " +
                           "3) Add measure to Values area with AddValueField. " +
                           "Example DAX: Profit = SUM('Sales'[Revenue]) - SUM('Sales'[Cost])"

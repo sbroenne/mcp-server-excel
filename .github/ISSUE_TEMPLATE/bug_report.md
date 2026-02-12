@@ -24,7 +24,7 @@ ExcelMcp <command> <arguments>
 ```
 
 **For MCP Server:**
-- Tool name: [e.g., excel_powerquery, excel_worksheet, etc.]
+- Tool name: [e.g., powerquery, worksheet, etc.]
 - Action: [e.g., list, view, import, etc.]
 - Parameters used: [describe what was passed]
 

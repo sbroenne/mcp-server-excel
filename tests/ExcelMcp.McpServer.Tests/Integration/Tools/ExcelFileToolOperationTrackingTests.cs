@@ -70,7 +70,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         _output.WriteLine($"✓ Connected to server: {_client.ServerInfo?.Name} v{_client.ServerInfo?.Version}");
 
         // Create a test Excel file and open session
-        var createResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
+        var createResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "Create",
             ["path"] = _testExcelFile
@@ -81,7 +81,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         if (createResult.TryGetProperty("sessionId", out var sessionIdProp))
         {
             var sessionId = sessionIdProp.GetString();
-            await CallToolAsync("excel_file", new Dictionary<string, object?>
+            await CallToolAsync("file", new Dictionary<string, object?>
             {
                 ["action"] = "Close",
                 ["sessionId"] = sessionId,
@@ -178,7 +178,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
     public async Task List_ReturnsSessionsWithOperationStatus()
     {
         // Open a session
-        var openResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
+        var openResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "Open",
             ["path"] = _testExcelFile,
@@ -192,7 +192,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         try
         {
             // List sessions
-            var listResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
+            var listResult = await CallToolAsync("file", new Dictionary<string, object?>
             {
                 ["action"] = "List"
             });
@@ -214,7 +214,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         finally
         {
             // Cleanup
-            await CallToolAsync("excel_file", new Dictionary<string, object?>
+            await CallToolAsync("file", new Dictionary<string, object?>
             {
                 ["action"] = "Close",
                 ["sessionId"] = sessionId,
@@ -227,7 +227,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
     public async Task List_SessionWithShowExcelTrue_ReturnsIsExcelVisibleTrue()
     {
         // Open a session with show=true
-        var openResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
+        var openResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "Open",
             ["path"] = _testExcelFile,
@@ -240,7 +240,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         try
         {
             // List sessions
-            var listResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
+            var listResult = await CallToolAsync("file", new Dictionary<string, object?>
             {
                 ["action"] = "List"
             });
@@ -251,7 +251,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         }
         finally
         {
-            await CallToolAsync("excel_file", new Dictionary<string, object?>
+            await CallToolAsync("file", new Dictionary<string, object?>
             {
                 ["action"] = "Close",
                 ["sessionId"] = sessionId,
@@ -268,7 +268,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
     public async Task Close_NoOperationsRunning_ClosesSuccessfully()
     {
         // Open a session
-        var openResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
+        var openResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "Open",
             ["path"] = _testExcelFile,
@@ -278,7 +278,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         var sessionId = openResult.GetProperty("sessionId").GetString();
 
         // Close should succeed (no operations running)
-        var closeResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
+        var closeResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "Close",
             ["sessionId"] = sessionId,
@@ -288,7 +288,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         Assert.True(closeResult.GetProperty("success").GetBoolean());
 
         // Verify session is gone
-        var listResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
+        var listResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "List"
         });
@@ -299,7 +299,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
     [Fact]
     public async Task Close_NonExistentSession_ReturnsError()
     {
-        var closeResult = await CallToolAsync("excel_file", new Dictionary<string, object?>
+        var closeResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "Close",
             ["sessionId"] = "nonexistent-session-id",

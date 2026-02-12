@@ -13,12 +13,12 @@ namespace Sbroenne.ExcelMcp.Core.Attributes;
 public sealed class McpToolAttribute : Attribute
 {
     /// <summary>
-    /// The MCP tool name (e.g., "excel_powerquery", "excel_range").
+    /// The MCP tool name (e.g., "powerquery", "range").
     /// </summary>
     public string ToolName { get; }
 
     /// <summary>
-    /// Human-readable title for the MCP tool (e.g., "Excel Power Query Operations").
+    /// Human-readable title for the MCP tool (e.g., "Power Query Operations").
     /// Used in [McpServerTool(Title = ...)].
     /// </summary>
     public string? Title { get; set; }
@@ -45,7 +45,7 @@ public sealed class McpToolAttribute : Attribute
     /// <summary>
     /// Creates a new McpToolAttribute.
     /// </summary>
-    /// <param name="toolName">The MCP tool name (e.g., "excel_powerquery")</param>
+    /// <param name="toolName">The MCP tool name (e.g., "powerquery")</param>
     public McpToolAttribute(string toolName)
     {
         ToolName = toolName ?? throw new ArgumentNullException(nameof(toolName));

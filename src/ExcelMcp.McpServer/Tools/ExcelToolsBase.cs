@@ -115,7 +115,7 @@ public static class ExcelToolsBase
             return JsonSerializer.Serialize(new
             {
                 success = false,
-                errorMessage = "sessionId is required. Use excel_file 'open' action to start a session.",
+                errorMessage = "sessionId is required. Use file 'open' action to start a session.",
                 isError = true
             }, JsonOptions);
         }
@@ -169,7 +169,7 @@ public static class ExcelToolsBase
     /// Executes a tool operation and serializes any exception using shared error formatting.
     /// Tracks tool usage telemetry (if enabled).
     /// </summary>
-    /// <param name="toolName">Tool name for telemetry (e.g., "excel_range").</param>
+    /// <param name="toolName">Tool name for telemetry (e.g., "range").</param>
     /// <param name="actionName">Action string (kebab-case) included in error context.</param>
     /// <param name="operation">Synchronous operation to execute.</param>
     /// <param name="customHandler">Optional handler that can override default error serialization. Return null/empty to fall back to default.</param>
@@ -185,7 +185,7 @@ public static class ExcelToolsBase
     /// Executes a tool operation and serializes any exception using shared error formatting.
     /// Tracks tool usage telemetry (if enabled).
     /// </summary>
-    /// <param name="toolName">Tool name for telemetry (e.g., "excel_range").</param>
+    /// <param name="toolName">Tool name for telemetry (e.g., "range").</param>
     /// <param name="actionName">Action string (kebab-case) included in error context.</param>
     /// <param name="path">Optional Excel path for context in error messages.</param>
     /// <param name="operation">Synchronous operation to execute.</param>

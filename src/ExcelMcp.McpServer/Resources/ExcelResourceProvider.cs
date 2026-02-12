@@ -10,7 +10,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Resources;
 /// 
 /// NOTE: MCP SDK 0.4.0-preview.2 does NOT support McpServerResourceTemplate yet.
 /// Dynamic URI patterns (excel://{path}/queries/{name}) will be added when SDK supports it.
-/// For now, use tools (excel_powerquery list, etc.) for actual data retrieval.
+/// For now, use tools (powerquery list, etc.) for actual data retrieval.
 /// </summary>
 [McpServerResourceType]
 public static class ExcelResourceProvider
@@ -32,56 +32,56 @@ public static class ExcelResourceProvider
         {
             title = "Excel Workbook Resources",
             description = "URI patterns for inspecting Excel workbooks",
-            note = "Use excel_* tools to retrieve actual data (MCP SDK resource templates not yet supported)",
+            note = "Use tools to retrieve actual data (MCP SDK resource templates not yet supported)",
             resourceTypes = new[]
             {
                 new
                 {
                     type = "Power Queries",
-                    toolAction = "Use excel_powerquery tool with action='list' to see all queries",
-                    example = "excel_powerquery(action: 'list', excelPath: 'workbook.xlsx')"
+                    toolAction = "Use powerquery tool with action='list' to see all queries",
+                    example = "powerquery(action: 'list', excelPath: 'workbook.xlsx')"
                 },
                 new
                 {
                     type = "Worksheets",
-                    toolAction = "Use excel_worksheet tool with action='list' to see all worksheets",
-                    example = "excel_worksheet(action: 'list', excelPath: 'workbook.xlsx')"
+                    toolAction = "Use worksheet tool with action='list' to see all worksheets",
+                    example = "worksheet(action: 'list', excelPath: 'workbook.xlsx')"
                 },
                 new
                 {
                     type = "Parameters (Named Ranges)",
-                    toolAction = "Use excel_parameter tool with action='list' to see all parameters",
-                    example = "excel_namedrange(action: 'list', excelPath: 'workbook.xlsx')"
+                    toolAction = "Use namedrange tool with action='list' to see all parameters",
+                    example = "namedrange(action: 'list', excelPath: 'workbook.xlsx')"
                 },
                 new
                 {
                     type = "Data Model Tables",
-                    toolAction = "Use excel_datamodel tool with action='list-tables'",
-                    example = "excel_datamodel(action: 'list-tables', excelPath: 'workbook.xlsx')"
+                    toolAction = "Use datamodel tool with action='list-tables'",
+                    example = "datamodel(action: 'list-tables', excelPath: 'workbook.xlsx')"
                 },
                 new
                 {
                     type = "DAX Measures",
-                    toolAction = "Use excel_datamodel tool with action='list-measures'",
-                    example = "excel_datamodel(action: 'list-measures', excelPath: 'workbook.xlsx')"
+                    toolAction = "Use datamodel tool with action='list-measures'",
+                    example = "datamodel(action: 'list-measures', excelPath: 'workbook.xlsx')"
                 },
                 new
                 {
                     type = "VBA Modules",
-                    toolAction = "Use excel_vba tool with action='list'",
-                    example = "excel_vba(action: 'list', excelPath: 'workbook.xlsm')"
+                    toolAction = "Use vba tool with action='list'",
+                    example = "vba(action: 'list', excelPath: 'workbook.xlsm')"
                 },
                 new
                 {
                     type = "Excel Tables",
-                    toolAction = "Use excel_table tool with action='list'",
-                    example = "excel_table(action: 'list', excelPath: 'workbook.xlsx')"
+                    toolAction = "Use table tool with action='list'",
+                    example = "table(action: 'list', excelPath: 'workbook.xlsx')"
                 },
                 new
                 {
                     type = "Connections",
-                    toolAction = "Use excel_connection tool with action='list'",
-                    example = "excel_connection(action: 'list', excelPath: 'workbook.xlsx')"
+                    toolAction = "Use connection tool with action='list'",
+                    example = "connection(action: 'list', excelPath: 'workbook.xlsx')"
                 }
             },
             usage = new
@@ -111,58 +111,58 @@ public static class ExcelResourceProvider
                 new
                 {
                     task = "List all Power Queries",
-                    tool = "excel_powerquery",
+                    tool = "powerquery",
                     action = "list",
-                    example = "excel_powerquery(action: 'list', excelPath: 'workbook.xlsx')"
+                    example = "powerquery(action: 'list', excelPath: 'workbook.xlsx')"
                 },
                 new
                 {
                     task = "View Power Query M code",
-                    tool = "excel_powerquery",
+                    tool = "powerquery",
                     action = "view",
-                    example = "excel_powerquery(action: 'view', excelPath: 'workbook.xlsx', queryName: 'SalesData')"
+                    example = "powerquery(action: 'view', excelPath: 'workbook.xlsx', queryName: 'SalesData')"
                 },
                 new
                 {
                     task = "Import query to Data Model",
-                    tool = "excel_powerquery",
+                    tool = "powerquery",
                     action = "import",
-                    example = "excel_powerquery(action: 'import', excelPath: 'workbook.xlsx', queryName: 'Sales', sourcePath: 'sales.pq', loadDestination: 'data-model')"
+                    example = "powerquery(action: 'import', excelPath: 'workbook.xlsx', queryName: 'Sales', sourcePath: 'sales.pq', loadDestination: 'data-model')"
                 },
                 new
                 {
                     task = "List all worksheets",
-                    tool = "excel_worksheet",
+                    tool = "worksheet",
                     action = "list",
-                    example = "excel_worksheet(action: 'list', excelPath: 'workbook.xlsx')"
+                    example = "worksheet(action: 'list', excelPath: 'workbook.xlsx')"
                 },
                 new
                 {
                     task = "List all DAX measures",
-                    tool = "excel_datamodel",
+                    tool = "datamodel",
                     action = "list-measures",
-                    example = "excel_datamodel(action: 'list-measures', excelPath: 'workbook.xlsx')"
+                    example = "datamodel(action: 'list-measures', excelPath: 'workbook.xlsx')"
                 },
                 new
                 {
                     task = "Get cell values",
-                    tool = "excel_range",
+                    tool = "range",
                     action = "get-values",
-                    example = "excel_range(action: 'get-values', excelPath: 'workbook.xlsx', sheetName: 'Data', rangeAddress: 'A1:D10')"
+                    example = "range(action: 'get-values', excelPath: 'workbook.xlsx', sheetName: 'Data', rangeAddress: 'A1:D10')"
                 },
                 new
                 {
                     task = "Work with sessions",
-                    tool = "excel_file",
+                    tool = "file",
                     action = "open/close",
-                    example = "excel_file(action: 'open') → operations with sessionId → excel_file(action: 'close', save: true)"
+                    example = "file(action: 'open') → operations with sessionId → file(action: 'close', save: true)"
                 }
             },
             sessionWorkflow = new[]
             {
-                "Open session: excel_file(action: 'open', excelPath: '...')",
+                "Open session: file(action: 'open', excelPath: '...')",
                 "Use sessionId with all subsequent operations",
-                "Close session: excel_file(action: 'close', sessionId: '...', save: true)"
+                "Close session: file(action: 'close', sessionId: '...', save: true)"
             }
         };
 

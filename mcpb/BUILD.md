@@ -94,7 +94,7 @@ The manifest follows MCPB version 0.3 specification:
 All 22 MCP tools include the `Destructive = true` annotation since they can modify Excel files:
 
 ```csharp
-[McpServerTool(Name = "excel_range", Title = "Excel Range Operations", Destructive = true)]
+[McpServerTool(Name = "range", Title = "Excel Range Operations", Destructive = true)]
 ```
 
 ## Technical Notes
