@@ -64,10 +64,10 @@
     ]
   },
   "scripts": {
-    "clean": "cd .. && dotnet clean src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release",
+    "clean": "cd .. && dotnet build-server shutdown && dotnet clean src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release -nodeReuse:false",
     "clean:bin": "node -e \"const fs=require('fs'); try{fs.rmSync('bin',{recursive:true,force:true})}catch{}\"",
     "copy:skills": "xcopy /E /I /Y ..\\skills\\excel-mcp skills\\excel-mcp",
-    "build:mcp-server": "npm run clean && npm run clean:bin && cd .. && dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:NuGetAudit=false -o vscode-extension/bin --verbosity minimal",
+    "build:mcp-server": "npm run clean && npm run clean:bin && cd .. && dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:NuGetAudit=false -nodeReuse:false -o vscode-extension/bin --verbosity minimal",
     "copy:changelog": "node -e \"const fs=require('fs'); fs.copyFileSync('../CHANGELOG.md','CHANGELOG.md');\"",
     "vscode:prepublish": "npm run build:mcp-server && npm run copy:skills && npm run copy:changelog && npm run compile",
     "compile": "tsc -p ./",
