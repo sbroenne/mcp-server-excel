@@ -7,7 +7,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// <summary>
 /// Calculated Fields operations for PivotTableCommands.
 /// Creates custom fields with formulas for Regular PivotTables.
-/// OLAP PivotTables use DAX measures instead (see excel_datamodel tool).
+/// OLAP PivotTables use DAX measures instead (see datamodel tool).
 /// </summary>
 public partial class PivotTableCommands
 {

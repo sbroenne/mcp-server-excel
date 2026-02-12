@@ -28,7 +28,7 @@
 | **Total Actions** | 215 | 215 | ✅ Same action count |
 | **Total Parameters** | 297 | 287 | ⚠️ **-10 params** |
 | **`excelPath` Removed** | — | — | ⚠️ 11 session-based tools (no longer need file path with daemon) |
-| **Parameter Renames** | — | — | ⚠️ `file` + `datamodel` + `datamodel_rel` |
+| **Parameter Renames** | — | — | ⚠️ `file` + `datamodel` + `datamodel_relationship` |
 | **Changed Tools** | — | — | ⚠️ 13 of 23 |
 | **Identical Tools** | — | — | ✅ 10 of 23 |
 
@@ -211,7 +211,7 @@ Complete restructure — main used generic params, branch exposes all formatting
 | Total actions | 215 | 215 | ✅ Same |
 | Total parameters | 297 | 287 | ⚠️ **-10 params** (net) |
 | `excelPath` removals | — | 11 tools | ⚠️ All session-based tools (daemon architecture change) |
-| Parameter renames | — | 8 params | ⚠️ `file` (2), `datamodel` (2), `datamodel_rel` (5) + 1 removal |
+| Parameter renames | — | 8 params | ⚠️ `file` (2), `datamodel` (2), `datamodel_relationship` (5) + 1 removal |
 | New params added | — | 6 params | ✅ `datamodel` file-based inputs + timeout |
 | Params removed | — | 4 params | ⚠️ `connection` set-properties cleanup |
 
@@ -304,7 +304,7 @@ These tools are **session-based** (operate within an existing Excel file context
 
 **Impact:** ✅ **Additive** — new params are optional. ⚠️ **Breaking** — `formatString` rename requires update.
 
-#### `datamodel_rel` (5 actions, 7 params → 7 params, 5 renames)
+#### `datamodel_relationship` (5 actions, 7 params → 7 params, 5 renames)
 
 **All Parameters Renamed (Shorter):**
 | Main Param | Branch Param | Notes |
@@ -377,7 +377,7 @@ CLI scripts using `--sheet`, `--query`, `--mcode`, `--table`, `--module`, etc. w
 
 **Impact:** Clients using `formatString` or `newTableName` will break. New params are additive.
 
-### 6. MCP `datamodel_rel` — All 5 Params Renamed
+### 6. MCP `datamodel_relationship` — All 5 Params Renamed
 
 All non-action params renamed to shorter forms (`fromTableName` → `fromTable`, etc.). Any client code for relationship management will break.
 

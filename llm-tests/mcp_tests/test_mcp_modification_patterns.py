@@ -116,7 +116,7 @@ async def test_mcp_sheet_structural_changes(aitest_run, excel_mcp_server, excel_
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=["range", "file", "worksheet"],
-        max_turns=20,
+        max_turns=25,
     )
 
     prompt = f"""

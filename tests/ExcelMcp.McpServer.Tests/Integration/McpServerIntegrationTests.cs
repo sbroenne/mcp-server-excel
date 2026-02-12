@@ -46,39 +46,39 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     /// <summary>
     /// Expected tool names from our assembly - the source of truth.
     /// After token optimization split (issue #341):
-    /// - excel_range split into 4 tools (excel_range, excel_range_edit, excel_range_format, excel_range_link)
-    /// - excel_table split into 2 tools (excel_table, excel_table_column)
-    /// - excel_pivottable split into 3 tools (excel_pivottable, excel_pivottable_field, excel_pivottable_calc)
-    /// - excel_datamodel split into 2 tools (excel_datamodel, excel_datamodel_rel)
-    /// - excel_chart split into 2 tools (excel_chart, excel_chart_config)
-    /// - excel_worksheet split into 2 tools (excel_worksheet, excel_worksheet_style)
-    /// - Added excel_slicer and excel_calculation_mode
+    /// - range split into 4 tools (range, range_edit, range_format, range_link)
+    /// - table split into 2 tools (table, table_column)
+    /// - pivottable split into 3 tools (pivottable, pivottable_field, pivottable_calc)
+    /// - datamodel split into 2 tools (datamodel, datamodel_relationship)
+    /// - chart split into 2 tools (chart, chart_config)
+    /// - worksheet split into 2 tools (worksheet, worksheet_style)
+    /// - Added slicer and calculation_mode
     /// </summary>
     private static readonly HashSet<string> ExpectedToolNames =
     [
-        "excel_calculation_mode",
-        "excel_chart",
-        "excel_chart_config",
-        "excel_conditionalformat",
-        "excel_connection",
-        "excel_datamodel",
-        "excel_datamodel_rel",
-        "excel_file",
-        "excel_namedrange",
-        "excel_pivottable",
-        "excel_pivottable_calc",
-        "excel_pivottable_field",
-        "excel_powerquery",
-        "excel_range",
-        "excel_range_edit",
-        "excel_range_format",
-        "excel_range_link",
-        "excel_slicer",
-        "excel_table",
-        "excel_table_column",
-        "excel_vba",
-        "excel_worksheet",
-        "excel_worksheet_style"
+        "calculation_mode",
+        "chart",
+        "chart_config",
+        "conditionalformat",
+        "connection",
+        "datamodel",
+        "datamodel_relationship",
+        "file",
+        "namedrange",
+        "pivottable",
+        "pivottable_calc",
+        "pivottable_field",
+        "powerquery",
+        "range",
+        "range_edit",
+        "range_format",
+        "range_link",
+        "slicer",
+        "table",
+        "table_column",
+        "vba",
+        "worksheet",
+        "worksheet_style"
     ];
 
     /// <summary>
@@ -188,12 +188,12 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     /// Tests that all 21 expected tools are discoverable via the MCP protocol.
     /// After token optimization (issue #341):
     /// - Original 12 tools split into focused tools for better token efficiency
-    /// - excel_range → excel_range, excel_range_edit, excel_range_format, excel_range_link
-    /// - excel_table → excel_table, excel_table_column
-    /// - excel_pivottable → excel_pivottable, excel_pivottable_field, excel_pivottable_calc
-    /// - excel_datamodel → excel_datamodel, excel_datamodel_rel
-    /// - excel_chart → excel_chart, excel_chart_config
-    /// - excel_worksheet → excel_worksheet, excel_worksheet_style
+    /// - range → range, range_edit, range_format, range_link
+    /// - table → table, table_column
+    /// - pivottable → pivottable, pivottable_field, pivottable_calc
+    /// - datamodel → datamodel, datamodel_relationship
+    /// - chart → chart, chart_config
+    /// - worksheet → worksheet, worksheet_style
     /// This is THE definitive test - it uses client.ListToolsAsync() which exercises:
     /// - DI pipeline
     /// - WithToolsFromAssembly() discovery
@@ -267,7 +267,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     }
 
     /// <summary>
-    /// Tests that excel_file tool's Test action works via MCP protocol.
+    /// Tests that file tool's Test action works via MCP protocol.
     /// This exercises the complete tool invocation path.
     /// </summary>
     [Fact]
@@ -285,7 +285,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
 
         // Act - Call tool via MCP protocol
         var result = await _client!.CallToolAsync(
-            "excel_file",
+            "file",
             arguments,
             cancellationToken: _cts.Token);
 
@@ -304,7 +304,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         // The test action should return success (property name is "success" in success responses)
         Assert.Contains("success", textBlock.Text.ToLowerInvariant());
 
-        output.WriteLine("\n✓ excel_file Test action executed successfully via MCP protocol");
+        output.WriteLine("\n✓ file Test action executed successfully via MCP protocol");
     }
 
     /// <summary>

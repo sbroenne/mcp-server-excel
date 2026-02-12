@@ -58,7 +58,7 @@ def assert_regex(text: str, pattern: str) -> None:
 
 
 def _parse_cli_results(result: Any) -> list[dict[str, Any]]:
-    calls = result.tool_calls_for("execute")
+    calls = result.tool_calls_for("excel_execute")
     outputs: list[dict[str, Any]] = []
     for call in calls:
         if call.result:
@@ -102,7 +102,7 @@ def assert_cli_exit_codes(result: Any, *, strict: bool = False) -> None:
 
 
 def assert_cli_args_contain(result: Any, token: str) -> None:
-    calls = result.tool_calls_for("execute")
+    calls = result.tool_calls_for("excel_execute")
     for call in calls:
         args = call.arguments.get("args", "")
         if token in args:

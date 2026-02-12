@@ -21,7 +21,7 @@ async def test_mcp_star_schema_workflow(aitest_run, excel_mcp_server, excel_mcp_
         allowed_tools=[
             "table",
             "datamodel",
-            "datamodel_rel",
+            "datamodel_relationship",
             "pivottable",
             "chart",
             "chart_config",
@@ -83,7 +83,7 @@ Create a relationship between the Orders and Products tables using ProductID.
 """
     result = await aitest_run(agent, prompt, messages=messages)
     assert result.success
-    assert result.tool_was_called("datamodel_rel")
+    assert result.tool_was_called("datamodel_relationship")
     messages = result.messages
 
     prompt = """

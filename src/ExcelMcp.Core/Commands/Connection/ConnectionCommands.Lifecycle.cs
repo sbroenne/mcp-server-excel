@@ -177,9 +177,9 @@ public partial class ConnectionCommands
                 // Check if this is an orphaned Power Query connection
                 if (PowerQueryHelpers.IsOrphanedPowerQueryConnection(ctx.Book, conn))
                 {
-                    throw new InvalidOperationException($"Connection '{connectionName}' is an orphaned Power Query connection with no corresponding query. Use excel_connection 'delete' to remove it.");
+                    throw new InvalidOperationException($"Connection '{connectionName}' is an orphaned Power Query connection with no corresponding query. Use connection 'delete' to remove it.");
                 }
-                throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Use excel_powerquery 'refresh' instead.");
+                throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Use powerquery 'refresh' instead.");
             }
 
             // Pure COM passthrough - just refresh the connection
@@ -209,7 +209,7 @@ public partial class ConnectionCommands
                 // Orphaned connections can be safely deleted via the connection API
                 if (!PowerQueryHelpers.IsOrphanedPowerQueryConnection(ctx.Book, conn))
                 {
-                    throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Use excel_powerquery with action 'Delete' instead.");
+                    throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Use powerquery with action 'Delete' instead.");
                 }
                 // Orphaned connection - allow deletion to proceed
             }

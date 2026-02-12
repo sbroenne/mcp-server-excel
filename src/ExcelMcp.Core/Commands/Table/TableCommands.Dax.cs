@@ -119,7 +119,7 @@ public partial class TableCommands
                     modelTables = model.ModelTables;
                     if (modelTables == null || modelTables.Count == 0)
                     {
-                        throw new InvalidOperationException("Workbook has no Data Model tables. Add data to the Data Model first using excel_powerquery or excel_table add-to-datamodel.");
+                        throw new InvalidOperationException("Workbook has no Data Model tables. Add data to the Data Model first using powerquery or table add-to-datamodel.");
                     }
 
                     // Get the first ModelTable name to use as base for connection

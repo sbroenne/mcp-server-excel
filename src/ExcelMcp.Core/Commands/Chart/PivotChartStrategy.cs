@@ -214,7 +214,7 @@ public class PivotChartStrategy : IChartStrategy
         throw new NotSupportedException(
             "Cannot set source range for PivotChart. " +
             "PivotCharts automatically sync with their PivotTable data source. " +
-            "Use excel_pivottable tool to update the linked PivotTable.");
+            "Use pivottable tool to update the linked PivotTable.");
     }
 
     /// <inheritdoc />
@@ -223,7 +223,7 @@ public class PivotChartStrategy : IChartStrategy
         throw new NotSupportedException(
             "Cannot add series directly to PivotChart. " +
             "PivotCharts automatically sync with PivotTable fields. " +
-            "Use excel_pivottable tool with 'add-value-field' action to add data series.");
+            "Use pivottable tool with 'add-value-field' action to add data series.");
     }
 
     /// <inheritdoc />
@@ -232,7 +232,7 @@ public class PivotChartStrategy : IChartStrategy
         throw new NotSupportedException(
             "Cannot remove series directly from PivotChart. " +
             "PivotCharts automatically sync with PivotTable fields. " +
-            "Use excel_pivottable tool with 'remove-field' action to remove data series.");
+            "Use pivottable tool with 'remove-field' action to remove data series.");
     }
 }
 

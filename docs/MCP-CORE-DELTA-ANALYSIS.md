@@ -96,7 +96,7 @@ MCP `<param>` docs are often **different** from Core `<param>` docs — the MCP 
 | 18 | `slicer` | Excel Slicer Operations | true | analysis | true | | `ISlicerCommands` | ✅ Auto-generate slicerName from field/column, `ParseJsonListOrSingle(selectedItems)` | Name generation + JSON parsing |
 | 19 | `vba` | Excel VBA Operations | true | automation | true | `fileFormat=.xlsm` | `IVbaCommands` | ✅ `SplitCsvParameters(parameters)`, `moduleName` → `procedureName` remapping | CSV split, param remapping |
 | 20 | `datamodel` | Excel Data Model Operations | true | analysis | true | | `IDataModelCommands` | ✅ `tableName` → `oldName` remapping for rename | Param remapping |
-| 21 | `datamodel_rel` | Excel Data Model Relationship Operations | true | analysis | true | | `IDataModelRelCommands` | Minimal | Clean routing |
+| 21 | `datamodel_relationship` | Excel Data Model Relationship Operations | true | analysis | true | | `IDataModelRelCommands` | Minimal | Clean routing |
 | 22 | `conditionalformat` | Excel Conditional Formatting | true | structure | true | | `IConditionalFormattingCommands` | Minimal | Clean routing |
 | 23 | `calculation_mode` | Excel Calculation Mode Control | **false** | settings | true | | `ICalculationCommands` | Minimal | **Only non-destructive tool** |
 
@@ -157,7 +157,7 @@ Most parameters use `[DefaultValue(null)]`. Non-null defaults:
 | table | `visibleOnly` | `false` | N/A |
 | table_column | `ascending` | `true` | `true` (same) |
 | slicer | `clearFirst` | `true` | `true` (same) |
-| datamodel_rel | `active` | `true` | `true` (same) |
+| datamodel_relationship | `active` | `true` | `true` (same) |
 | calculation_mode | (Destructive) | `false` | N/A |
 
 ---

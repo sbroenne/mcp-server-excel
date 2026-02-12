@@ -31,14 +31,14 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// </summary>
 [ServiceCategory("chartconfig", "ChartConfig")]
 [McpTool("chart_config", Title = "Chart Configuration", Destructive = true, Category = "analysis",
-    Description = "Chart configuration - data source, series, type, title, axis labels, legend, and styling. SERIES: add-series (valuesRange required), remove-series (1-based index), set-source-range. TITLES: set-title, set-axis-title (Category/Value/Secondary). AXIS: number format, scale min/max/units. LEGEND: Bottom, Corner, Top, Right, Left. STYLES: 1-48 built-in. DATA LABELS: values, percentages, positions (Center, InsideEnd, OutsideEnd, BestFit). GRIDLINES: major/minor for value/category axes. TRENDLINES: Linear, Exponential, Logarithmic, Polynomial, Power, MovingAverage. SERIES FORMAT: marker style/size/colors, invert if negative. PLACEMENT: 1=move+size with cells, 2=move only, 3=free floating. Use excel_chart for lifecycle.")]
+    Description = "Chart configuration - data source, series, type, title, axis labels, legend, and styling. SERIES: add-series (valuesRange required), remove-series (1-based index), set-source-range. TITLES: set-title, set-axis-title (Category/Value/Secondary). AXIS: number format, scale min/max/units. LEGEND: Bottom, Corner, Top, Right, Left. STYLES: 1-48 built-in. DATA LABELS: values, percentages, positions (Center, InsideEnd, OutsideEnd, BestFit). GRIDLINES: major/minor for value/category axes. TRENDLINES: Linear, Exponential, Logarithmic, Polynomial, Power, MovingAverage. SERIES FORMAT: marker style/size/colors, invert if negative. PLACEMENT: 1=move+size with cells, 2=move only, 3=free floating. Use chart for lifecycle.")]
 public interface IChartConfigCommands
 {
     // === DATA SOURCE OPERATIONS ===
 
     /// <summary>
     /// Sets data source range for Regular Charts.
-    /// PivotCharts: Throws exception guiding to excel_pivottable.
+    /// PivotCharts: Throws exception guiding to pivottable.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
@@ -51,7 +51,7 @@ public interface IChartConfigCommands
 
     /// <summary>
     /// Adds a data series to Regular Charts.
-    /// PivotCharts: Throws exception guiding to excel_pivottable(action: 'add-value-field').
+    /// PivotCharts: Throws exception guiding to pivottable(action: 'add-value-field').
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
@@ -68,7 +68,7 @@ public interface IChartConfigCommands
 
     /// <summary>
     /// Removes a data series from Regular Charts.
-    /// PivotCharts: Throws exception guiding to excel_pivottable(action: 'remove-field').
+    /// PivotCharts: Throws exception guiding to pivottable(action: 'remove-field').
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>

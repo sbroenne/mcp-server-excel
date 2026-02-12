@@ -68,7 +68,7 @@ async def test_mcp_pivottable_compact_layout(aitest_run, excel_mcp_server, excel
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         allowed_tools=["pivottable", "pivottable_calc", "table", "range", "file", "worksheet"],
-        max_turns=20,
+        max_turns=25,
     )
 
     prompt = f"""

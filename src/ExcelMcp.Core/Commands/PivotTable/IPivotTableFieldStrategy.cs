@@ -128,7 +128,7 @@ public interface IPivotTableFieldStrategy
     /// IMPORTANT LIMITATIONS:
     /// - Regular PivotTables: Full support via CalculatedFields collection
     /// - OLAP PivotTables: NOT SUPPORTED (use CalculatedMembers with MDX/DAX instead)
-    /// - For OLAP, use Data Model DAX measures via excel_datamodel tool
+    /// - For OLAP, use Data Model DAX measures via datamodel tool
     ///
     /// COMMON USE CASES:
     /// - Financial: Profit = Revenue - Cost, Margin% = Profit/Revenue

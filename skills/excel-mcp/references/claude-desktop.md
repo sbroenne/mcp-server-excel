@@ -59,18 +59,18 @@ The container has limited file system access. Excel files should be in accessibl
 Sessions are tied to the Claude Desktop session:
 - Closing Claude Desktop terminates active Excel sessions
 - Unsaved changes may be lost
-- Use explicit `excel_file(action: 'close', save: true)` to persist work
+- Use explicit `file(action: 'close', save: true)` to persist work
 
 ## Recommended Workflow
 
 ```
 1. Create or open file in accessible location:
-   excel_file(action: 'create', filePath: 'C:\\Users\\Me\\Documents\\report.xlsx')
+   file(action: 'create', filePath: 'C:\\Users\\Me\\Documents\\report.xlsx')
 
 2. Perform operations with returned sessionId
 
 3. Explicitly save and close when done:
-   excel_file(action: 'close', sessionId: '...', save: true)
+   file(action: 'close', sessionId: '...', save: true)
 ```
 
 ## Troubleshooting

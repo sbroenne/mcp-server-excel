@@ -277,7 +277,7 @@ public partial class ConnectionCommandsTests
 
     /// <summary>
     /// Tests that a valid Power Query connection (with matching query) cannot be deleted
-    /// via the connection API - should redirect to excel_powerquery.
+    /// via the connection API - should redirect to powerquery.
     /// </summary>
     [Fact]
     public void Delete_ValidPowerQueryConnection_ThrowsWithRedirect()
@@ -308,7 +308,7 @@ public partial class ConnectionCommandsTests
             _commands.Delete(batch, "Query - Milestones");
         });
 
-        Assert.Contains("excel_powerquery", exception.Message);
+        Assert.Contains("powerquery", exception.Message);
     }
 
     /// <summary>

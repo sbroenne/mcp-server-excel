@@ -1,6 +1,6 @@
 """MCP calculation mode workflows.
 
-Tests that the LLM autonomously uses excel_calculation_mode for batch performance
+Tests that the LLM autonomously uses calculation_mode for batch performance
 optimization - should recognize bulk writes benefit from manual mode.
 
 Tests both WITH skill (guided by skill documentation) and WITHOUT skill
@@ -66,7 +66,7 @@ Report the calculated grand total in D6.
     result = await aitest_run(agent, prompt, timeout_ms=180000)
     assert result.success
     assert result.tool_was_called("calculation_mode"), \
-        "LLM with skill should use excel_calculation_mode for batch writes"
+        "LLM with skill should use calculation_mode for batch writes"
     assert result.tool_was_called("range")
     assert_regex(result.final_response, r"(?i)(total|grand|sum|\d{4,})")
 
@@ -117,7 +117,7 @@ Report the calculated grand total in D6.
     result = await aitest_run(agent, prompt, timeout_ms=180000)
     assert result.success
     assert result.tool_was_called("calculation_mode"), \
-        "LLM without skill should discover and use excel_calculation_mode for batch writes"
+        "LLM without skill should discover and use calculation_mode for batch writes"
     assert result.tool_was_called("range")
     assert_regex(result.final_response, r"(?i)(total|grand|sum|\d{4,})")
 

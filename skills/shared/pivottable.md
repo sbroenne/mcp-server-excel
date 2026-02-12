@@ -111,7 +111,7 @@ Always use Data Model for multi-table analysis:
 ```
 table(add-to-data-model, tableName="Sales")
 table(add-to-data-model, tableName="Products")
-datamodel_rel(create-relationship, fromTable="Sales", fromColumn="ProductID", toTable="Products", toColumn="ProductID")
+datamodel_relationship(create-relationship, fromTable="Sales", fromColumn="ProductID", toTable="Products", toColumn="ProductID")
 datamodel(create-measure, tableName="Sales", measureName="Revenue", daxFormula="SUMX(Sales, RELATED(Products[Price])*Sales[Quantity])")
 pivottable(create-from-datamodel)
 ```

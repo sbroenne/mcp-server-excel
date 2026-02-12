@@ -43,7 +43,7 @@
 
 ---
 
-### 5. `datamodel_rel` (5 action renames + 5 param renames)
+### 5. `datamodel_relationship` (5 action renames + 5 param renames)
 
 **Actions renamed:**
 - `list` → `list-relationships`
@@ -90,7 +90,7 @@ Merged actions from `pivottablefield` and `pivottablecalc` into single command. 
 
 **Update hardcoded scripts:**
 1. Remove `excelPath` from 11 session-based MCP tools
-2. Update `file`, `connection`, `datamodel`, `datamodel_rel` parameter names
+2. Update `file`, `connection`, `datamodel`, `datamodel_relationship` parameter names
 3. Update CLI parameter names (use `excelcli <command> --help` to see current names)
 4. Rename `add-to-datamodel` → `add-to-data-model` in table commands
 

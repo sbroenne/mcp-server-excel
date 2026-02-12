@@ -82,7 +82,7 @@ public partial class ConnectionCommands
                 throw new InvalidOperationException(
                     $"Cannot update connection string for connection '{connectionName}'. " +
                     "Excel blocks connection string changes for ODC-imported connections (security restriction). " +
-                    "To change the data source, delete this connection and import a new ODC file, or create a new connection with excel_connection create action.",
+                    "To change the data source, delete this connection and import a new ODC file, or create a new connection with connection create action.",
                     ex);
             }
             return 0;

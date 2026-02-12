@@ -172,7 +172,7 @@ No local Core Command execution - the server is a thin JSON-over-named-pipe laye
 15. `slicer` - Slicers
 16. `vba` - VBA macros
 17. `datamodel` - Power Pivot / DAX
-18. `datamodel_rel` - Data Model relationships
+18. `datamodel_relationship` - Data Model relationships
 19. `namedrange` - Named ranges
 20. `excel_calculation` - Calculation mode
 

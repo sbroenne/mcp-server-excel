@@ -348,11 +348,11 @@ public partial class PivotTableCommandsTests
 
     /// <summary>
     /// Test UPDATE: Format a PRE-EXISTING measure (not created in same test).
-    /// This covers the bug scenario where SetFieldFormat failed for measures 
-    /// created via excel_datamodel tool, which exist in CubeFields but not 
+    /// This covers the bug scenario where SetFieldFormat failed for measures
+    /// created via datamodel tool, which exist in CubeFields but not
     /// in the same code path as AddValueField-created measures.
-    /// 
-    /// BUG REGRESSION TEST: The old SetFieldFormat searched model.ModelMeasures 
+    ///
+    /// BUG REGRESSION TEST: The old SetFieldFormat searched model.ModelMeasures
     /// but pre-existing measures may not be there in the expected format.
     /// The fix uses CubeField.PivotFields[1].NumberFormat directly.
     /// </summary>

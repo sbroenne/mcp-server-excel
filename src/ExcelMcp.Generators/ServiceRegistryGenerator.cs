@@ -408,6 +408,14 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 var nonNullableType = p.TypeName.TrimEnd('?');
                 sb.AppendLine($"                {p.Name}: !string.IsNullOrWhiteSpace(settings.{StringHelper.ToPascalCase(p.Name)}) ? ServiceRegistry.DeserializeNestedCollection<{nonNullableType}>(settings.{StringHelper.ToPascalCase(p.Name)}) : null{comma}");
             }
+            else if (IsSimpleListType(p.TypeName))
+            {
+                // CLI Settings stores simple lists as string (JSON) for LLM compatibility.
+                // LLMs pass JSON arrays (e.g., '["a","b"]') instead of repeated CLI flags.
+                // Deserialize back to the original type for RouteCliArgs.
+                var nonNullableType = p.TypeName.TrimEnd('?');
+                sb.AppendLine($"                {p.Name}: !string.IsNullOrWhiteSpace(settings.{StringHelper.ToPascalCase(p.Name)}) ? ServiceRegistry.DeserializeList<{nonNullableType}>(settings.{StringHelper.ToPascalCase(p.Name)}) : null{comma}");
+            }
             else
             {
                 sb.AppendLine($"                {p.Name}: settings.{StringHelper.ToPascalCase(p.Name)}{comma}");
@@ -430,6 +438,18 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         if (idx < 0) return false;
         var afterFirst = typeName.IndexOf("List<", idx + 5, StringComparison.Ordinal);
         return afterFirst >= 0;
+    }
+
+    /// <summary>
+    /// Detects simple list types (e.g., List&lt;string&gt;) that are NOT nested collections.
+    /// LLMs often pass JSON arrays (e.g., '["a","b"]') instead of repeated CLI flags
+    /// (--flag a --flag b), so these are emitted as string? in CLI Settings and deserialized
+    /// from JSON in RouteFromSettings.
+    /// </summary>
+    private static bool IsSimpleListType(string typeName)
+    {
+        return !IsNestedCollectionType(typeName) &&
+               typeName.IndexOf("List<", StringComparison.Ordinal) >= 0;
     }
 
     private static void GenerateCliSettings(StringBuilder sb, ServiceInfo info, List<ExposedParameter> allParams)
@@ -465,10 +485,12 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             var escapedDescription = description.Replace("\"", "\\\"").Replace("\n", " ");
             var valuePlaceholder = p.Name.ToUpperInvariant();
 
-            // Nested collections (List<List<T>>) cannot be parsed by Spectre.Console.
-            // Emit as string? so CLI accepts raw JSON, then deserialize in RouteFromSettings.
-            var cliTypeName = IsNestedCollectionType(p.TypeName) ? "string?" : p.TypeName;
-            if (IsNestedCollectionType(p.TypeName) && !escapedDescription.Contains("JSON"))
+            // Collection types (List<T>, List<List<T>>) are emitted as string? so CLI accepts
+            // raw JSON. LLMs pass JSON arrays instead of repeated CLI flags.
+            // Deserialized back to the original type in RouteFromSettings.
+            var isCollectionForJson = IsNestedCollectionType(p.TypeName) || IsSimpleListType(p.TypeName);
+            var cliTypeName = isCollectionForJson ? "string?" : p.TypeName;
+            if (isCollectionForJson && !escapedDescription.Contains("JSON"))
                 escapedDescription += " (JSON format)";
 
             sb.AppendLine($"            [Spectre.Console.Cli.CommandOption(\"--{optionName} <{valuePlaceholder}>\")]");
@@ -1061,6 +1083,17 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("            throw new System.ArgumentException(");
         sb.AppendLine("                $\"Invalid JSON for nested collection. Expected 2D array (e.g., [[\\\"a\\\",\\\"b\\\"],[\\\"c\\\",\\\"d\\\"]]) or 1D array (auto-wrapped to single row). Got: {json}\");");
         sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// Deserializes a simple list (e.g., List&lt;string&gt;) from a JSON array string.");
+        sb.AppendLine("    /// Used for CLI parameters where LLMs pass JSON arrays instead of repeated flags.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    internal static T? DeserializeList<T>(string? json) where T : class");
+        sb.AppendLine("    {");
+        sb.AppendLine("        if (string.IsNullOrWhiteSpace(json)) return null;");
+        sb.AppendLine("        return System.Text.Json.JsonSerializer.Deserialize<T>(json)");
+        sb.AppendLine("            ?? throw new System.Text.Json.JsonException($\"Failed to deserialize list from JSON: {json}\");");
         sb.AppendLine("    }");
         sb.AppendLine("}");
 

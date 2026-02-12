@@ -21,9 +21,9 @@ These rules are validated by automated LLM tests and MUST be followed:
 
 | Bad (Asking) | Good (Discovering) |
 |--------------|-------------------|
-| "Which Excel file should I use?" | `excel_file(list)` → use the open session |
-| "What's the table name?" | `excel_table(list)` → discover tables |
-| "Which sheet has the data?" | `excel_worksheet(list)` → check all sheets |
+| "Which Excel file should I use?" | `file(list)` → use the open session |
+| "What's the table name?" | `table(list)` → discover tables |
+| "Which sheet has the data?" | `worksheet(list)` → check all sheets |
 | "Should I create a PivotTable?" | YES - create it on a new sheet |
 | "What values should I filter?" | Read the data first, then filter appropriately |
 
@@ -80,8 +80,8 @@ Always apply number formats after setting values. Without formatting:
 
 **Workflow:**
 ```
-1. excel_range set-values (data is now in cells)
-2. excel_range_format set-number-format (apply format to range)
+1. range set-values (data is now in cells)
+2. range_format set-number-format (apply format to range)
 ```
 
 ### Format Tabular Data as Excel Tables
@@ -89,8 +89,8 @@ Always apply number formats after setting values. Without formatting:
 Always convert tabular data to Excel Tables (ListObjects):
 
 ```
-1. excel_range set-values (write data including headers)
-2. excel_table create tableName="SalesData" rangeAddress="A1:D100"
+1. range set-values (write data including headers)
+2. table create tableName="SalesData" rangeAddress="A1:D100"
 ```
 
 **Why Tables over plain ranges:**
@@ -129,9 +129,9 @@ After completing operations, report:
 Always close sessions when done:
 
 ```
-1. excel_file(action: 'open', path: '...')  → sessionId
+1. file(action: 'open', path: '...')  → sessionId
 2. All operations use sessionId
-3. excel_file(action: 'close', sessionId: '...', save: true)  → saves and closes
+3. file(action: 'close', sessionId: '...', save: true)  → saves and closes
 ```
 
 **Why**: Unclosed sessions leave Excel processes running, consuming memory and locking files.
@@ -156,11 +156,11 @@ When displaying Data Model data:
 
 | Scenario | Use | NOT |
 |----------|-----|-----|
-| Show DAX query results | `excel_table create-from-dax` | PivotTable |
-| Static report/snapshot | `excel_table create-from-dax` | PivotTable |
-| Data needed in formulas | `excel_table create-from-dax` | PivotTable |
-| User needs interactive filtering | `excel_pivottable` | DAX table |
-| Cross-tabulation layout | `excel_pivottable` | DAX table |
+| Show DAX query results | `table create-from-dax` | PivotTable |
+| Static report/snapshot | `table create-from-dax` | PivotTable |
+| Data needed in formulas | `table create-from-dax` | PivotTable |
+| User needs interactive filtering | `pivottable` | DAX table |
+| Cross-tabulation layout | `pivottable` | DAX table |
 
 **Why**: PivotTables add UI complexity (field panes, refresh prompts) that's unnecessary for simple data display. DAX-backed tables are cleaner for presenting query results.
 
@@ -168,7 +168,7 @@ When displaying Data Model data:
 
 When creating charts from Data Model:
 
-- **Use**: `excel_chart create-from-pivottable` (creates PivotChart)
+- **Use**: `chart create-from-pivottable` (creates PivotChart)
 - **NOT**: Create PivotTable → Create separate Chart from the PivotTable
 
 **Why**: A PivotChart is a single object connected to the Data Model. Creating PivotTable + Chart is redundant - two objects instead of one.
@@ -196,7 +196,7 @@ When updating data:
 
 ### Save Explicitly
 
-Call `excel_file(action: 'close', save: true)` to persist changes:
+Call `file(action: 'close', save: true)` to persist changes:
 
 - Operations modify the in-memory workbook
 - Changes are NOT automatically saved to disk
@@ -210,8 +210,8 @@ DAX operations require tables in the Data Model:
 
 ```
 Step 1: Create or import data → Table exists
-Step 2: excel_table(action: 'add-to-data-model') → Table in Data Model
-Step 3: excel_datamodel(action: 'create-measure') → NOW this works
+Step 2: table(action: 'add-to-data-model') → Table in Data Model
+Step 3: datamodel(action: 'create-measure') → NOW this works
 ```
 
 Skipping Step 2 causes DAX operations to fail with "table not found".
@@ -229,11 +229,11 @@ Choose load destination based on workflow:
 
 ### Refresh After Create
 
-`excel_powerquery(action: 'create')` imports the M code but does NOT execute it:
+`powerquery(action: 'create')` imports the M code but does NOT execute it:
 
 ```
-Step 1: excel_powerquery(action: 'create', ...) → Query created
-Step 2: excel_powerquery(action: 'refresh', queryName: '...') → Data loaded
+Step 1: powerquery(action: 'create', ...) → Query created
+Step 2: powerquery(action: 'refresh', queryName: '...') → Data loaded
 ```
 
 Without refresh, the query exists but contains no data.
@@ -248,7 +248,7 @@ Excel MCP errors include actionable context:
 {
   "success": false,
   "errorMessage": "Table 'Sales' not found in Data Model",
-  "suggestedNextActions": ["excel_table(action: 'add-to-data-model', tableName: 'Sales')"]
+  "suggestedNextActions": ["table(action: 'add-to-data-model', tableName: 'Sales')"]
 }
 ```
 
@@ -272,6 +272,6 @@ When operations fail:
 - Explain what went wrong
 - Suggest the corrective action
 
-**Good**: "Failed to add DAX measure: Table 'Sales' is not in the Data Model. Use `excel_table(action: 'add-to-data-model')` first."
+**Good**: "Failed to add DAX measure: Table 'Sales' is not in the Data Model. Use `table(action: 'add-to-data-model')` first."
 
 **Bad**: "An error occurred."
