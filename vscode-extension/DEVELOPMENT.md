@@ -281,19 +281,16 @@ npm run package
 ## Versioning
 
 **Automatic Version Management** (Recommended):
-The unified release workflow automatically updates version numbers from git tags:
+The unified release workflow automatically calculates version numbers from the latest git tag:
 
-```powershell
-# Just create and push the tag - workflow does the rest for ALL components
-git tag v1.2.3
-git push --tags
-```
+1. Go to **Actions** → **Release All Components** → **Run workflow**
+2. Select version bump type (patch/minor/major) or enter a custom version
 
 The workflow will:
-- Extract version from tag (`v1.2.3` → `1.2.3`)
+- Calculate the next version from the latest git tag
 - Update `package.json` version for VS Code extension
 - Update all component versions (MCP Server, CLI, MCPB manifest)
-- Create unified GitHub release with all artifacts
+- Create git tag and unified GitHub release with all artifacts
 
 **Manual Version Updates** (if needed):
 If you need to update the version locally before tagging:

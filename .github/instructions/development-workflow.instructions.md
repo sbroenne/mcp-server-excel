@@ -86,18 +86,18 @@ Quick reference:
 
 ## Release Process (Maintainers)
 
-**Tag Pattern:** `v1.2.3` - Releases ALL components with same version:
+**Release:** Use `workflow_dispatch` on the release workflow with version bump (major/minor/patch) or custom version. Releases ALL components with same version:
 - MCP Server → NuGet + ZIP
 - CLI → NuGet + ZIP
 - VS Code Extension → Marketplace + VSIX
 - MCPB → Claude Desktop bundle
 
-**Before Tagging:**
-1. Update `/CHANGELOG.md` with new version section
-2. Use format: `## [1.2.3] - YYYY-MM-DD`
-3. Release workflow auto-extracts this for GitHub Release notes
+**Before Releasing:**
+1. Ensure all changes are documented under `## [Unreleased]` in `CHANGELOG.md`
+2. Go to Actions → Release All Components → Run workflow
+3. Select version bump type (patch/minor/major) or enter a custom version
 
-Push tag → Workflow builds all 4 components → GitHub release created with all artifacts
+Workflow calculates version → builds all components → creates git tag → GitHub release with all artifacts
 
 ## Key Principles
 
