@@ -54,7 +54,7 @@ public static class ExcelToolsBase
             return new ServiceResponse
             {
                 Success = false,
-                ErrorMessage = "Failed to start ExcelMCP Service. The service could not be launched."
+                ErrorMessage = "Failed to start ExcelMCP Service in-process."
             };
         }
 

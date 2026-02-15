@@ -15,19 +15,16 @@ using Sbroenne.ExcelMcp.Generated;
 namespace Sbroenne.ExcelMcp.Service;
 
 /// <summary>
-/// The ExcelMCP Service process. Holds SessionManager and executes Core commands.
-/// Runs as a background process, accepting commands via named pipe.
-/// Architecture mirrors MCP Server: CLI sends serialized requests → Service executes → Returns JSON.
+/// The ExcelMCP Service. Holds SessionManager and executes Core commands.
+/// Runs in-process within the host (MCP Server or CLI), accepting commands via named pipe.
+/// The named pipe enables cross-thread communication between the host's request threads
+/// and the service's STA thread (required for COM interop).
 /// </summary>
 public sealed class ExcelMcpService : IDisposable
 {
     private readonly SessionManager _sessionManager = new();
     private readonly CancellationTokenSource _shutdownCts = new();
-    private readonly TimeSpan _idleTimeout;
     private readonly DateTime _startTime = DateTime.UtcNow;
-    private Mutex? _instanceMutex;
-    private ServiceTray? _tray;
-    private DateTime _lastActivityTime = DateTime.UtcNow;
     private bool _disposed;
 
     // Core command instances - use concrete types per CA1859
@@ -46,123 +43,21 @@ public sealed class ExcelMcpService : IDisposable
     private readonly CalculationModeCommands _calculationModeCommands = new();
     private readonly DiagCommands _diagCommands = new();
 
-    public ExcelMcpService(TimeSpan? idleTimeout = null)
+    public ExcelMcpService()
     {
-        _idleTimeout = idleTimeout ?? DefaultIdleTimeout;
         _powerQueryCommands = new PowerQueryCommands(_dataModelCommands);
     }
-
-    public static readonly TimeSpan DefaultIdleTimeout = TimeSpan.FromMinutes(10);
-
-
 
     public DateTime StartTime => _startTime;
     public int SessionCount => _sessionManager.GetActiveSessions().Count;
 
     /// <summary>
-    /// Runs the service, listening for commands on the named pipe.
+    /// Runs the service in-process, listening for commands on the named pipe.
+    /// This method blocks until shutdown is requested via <see cref="RequestShutdown"/>.
     /// </summary>
     public async Task RunAsync()
     {
-        // Acquire single-instance mutex
-        _instanceMutex = ServiceSecurity.TryAcquireSingleInstanceMutex();
-        if (_instanceMutex == null)
-        {
-            throw new InvalidOperationException("Another service instance is already running");
-        }
-
-        // Track that we own the lock file (only delete it if we created it)
-        bool ownsLockFile = false;
-
-        Thread? trayThread = null;
-
-        try
-        {
-            // Write lock file - now we own it
-            ServiceSecurity.WriteLockFile(Environment.ProcessId);
-            ownsLockFile = true;
-
-            // Start tray UI on STA thread (Windows Forms requires STA)
-            trayThread = new Thread(() => RunTrayLoop())
-            {
-                IsBackground = true,
-                Name = "ServiceTray"
-            };
-            trayThread.SetApartmentState(ApartmentState.STA);
-            trayThread.Start();
-
-            // Start idle monitor
-            var idleMonitorTask = MonitorIdleTimeoutAsync(_shutdownCts.Token);
-
-            // Main pipe server loop
-            await RunPipeServerAsync(_shutdownCts.Token);
-
-            await idleMonitorTask;
-        }
-        finally
-        {
-            // Cleanup tray
-            if (_tray != null)
-            {
-                try
-                {
-                    // Signal the tray thread to exit
-                    Application.Exit();
-                }
-                catch (Exception) { /* Shutdown cleanup — Application.Exit() may fail if message loop already stopped */ }
-            }
-
-            // Only delete lock file if we created it
-            if (ownsLockFile)
-            {
-                ServiceSecurity.DeleteLockFile();
-            }
-
-            // _instanceMutex is guaranteed non-null here (method throws if null)
-            _instanceMutex.ReleaseMutex();
-            _instanceMutex.Dispose();
-            _instanceMutex = null;
-        }
-    }
-
-    private void RunTrayLoop()
-    {
-        try
-        {
-            _tray = new ServiceTray(_sessionManager, RequestShutdown);
-
-            // Check for updates asynchronously after tray is initialized
-            // This runs in the background and doesn't block service startup
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    // Wait a bit after startup to avoid slowing down service initialization
-                    await Task.Delay(TimeSpan.FromSeconds(5));
-
-                    var updateInfo = await Infrastructure.ServiceVersionChecker.CheckForUpdateAsync();
-                    if (updateInfo != null && _tray != null)
-                    {
-                        _tray.ShowUpdateNotification(
-                            Infrastructure.UpdateInfo.GetNotificationTitle(),
-                            updateInfo.GetNotificationMessage());
-                    }
-                }
-                catch (Exception)
-                {
-                    // Fail silently — version check should never interfere with service operation
-                }
-            });
-
-            // Run Windows Forms message loop - this blocks until Application.Exit() is called
-            Application.Run();
-        }
-        finally
-        {
-            // Ensure _tray is disposed even if exception occurs
-            _tray?.Dispose();
-            _tray = null;
-        }
+        await RunPipeServerAsync(_shutdownCts.Token);
     }
 
     public void RequestShutdown() => _shutdownCts.Cancel();
@@ -179,7 +74,6 @@ public sealed class ExcelMcpService : IDisposable
             {
                 server = ServiceSecurity.CreateSecureServer();
                 await server.WaitForConnectionAsync(cancellationToken);
-                _lastActivityTime = DateTime.UtcNow;
 
                 // Capture server for the task
                 var clientServer = server;
@@ -254,8 +148,6 @@ public sealed class ExcelMcpService : IDisposable
 
     private async Task<ServiceResponse> ProcessRequestAsync(ServiceRequest request)
     {
-        _lastActivityTime = DateTime.UtcNow;
-
         try
         {
             // Route command
@@ -329,7 +221,6 @@ public sealed class ExcelMcpService : IDisposable
         return action switch
         {
             "ping" => new ServiceResponse { Success = true },
-            "version" => HandleVersion(),
             "shutdown" => HandleShutdown(),
             "status" => HandleStatus(),
             _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown service action: {action}" }
@@ -340,15 +231,6 @@ public sealed class ExcelMcpService : IDisposable
     {
         _shutdownCts.Cancel();
         return new ServiceResponse { Success = true };
-    }
-
-    private static ServiceResponse HandleVersion()
-    {
-        return new ServiceResponse
-        {
-            Success = true,
-            Result = JsonSerializer.Serialize(new { version = ComInterop.ServiceClient.ServiceProtocol.Version }, ServiceProtocol.JsonOptions)
-        };
     }
 
     private ServiceResponse HandleStatus()
@@ -730,65 +612,14 @@ public sealed class ExcelMcpService : IDisposable
         }
     }
 
-    private async Task MonitorIdleTimeoutAsync(CancellationToken cancellationToken)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            try
-            {
-                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
-
-                if (_sessionManager.GetActiveSessions().Count == 0)
-                {
-                    var idleTime = DateTime.UtcNow - _lastActivityTime;
-                    if (idleTime >= _idleTimeout)
-                    {
-                        Console.Error.WriteLine($"Service idle for {idleTime.TotalMinutes:F1} minutes, shutting down");
-                        _shutdownCts.Cancel();
-                        break;
-                    }
-                }
-                else
-                {
-                    _lastActivityTime = DateTime.UtcNow;
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-        }
-    }
-
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
 
         _shutdownCts.Cancel();
-
-        // Cleanup tray
-        if (_tray != null)
-        {
-            try
-            {
-                Application.Exit();
-                _tray.Dispose();
-            }
-            catch { }
-            _tray = null;
-        }
-
         _sessionManager.Dispose();
         _shutdownCts.Dispose();
-
-        if (_instanceMutex != null)
-        {
-            try { _instanceMutex.ReleaseMutex(); } catch { }
-            _instanceMutex.Dispose();
-        }
-
-        ServiceSecurity.DeleteLockFile();
     }
 }
 

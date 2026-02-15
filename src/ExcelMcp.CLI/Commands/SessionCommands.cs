@@ -159,7 +159,7 @@ internal sealed class SessionListCommand : AsyncCommand
 {
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
-        if (!await ServiceManager.IsServiceRunningAsync(cancellationToken))
+        if (!await ServiceManager.EnsureServiceRunningAsync(cancellationToken))
         {
             Console.WriteLine(JsonSerializer.Serialize(new { sessions = Array.Empty<object>() }, ServiceProtocol.JsonOptions));
             return 0;

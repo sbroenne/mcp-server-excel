@@ -33,11 +33,6 @@ public sealed class ExcelServiceClient : IDisposable
     }
 
     /// <summary>
-    /// Checks if the service is running (based on lock file).
-    /// </summary>
-    public static bool IsServiceRunning => ServiceSecurity.IsServiceProcessRunning();
-
-    /// <summary>
     /// Sends a request to the service and waits for response.
     /// </summary>
     public async Task<ServiceResponse> SendAsync(ServiceRequest request, CancellationToken cancellationToken = default)

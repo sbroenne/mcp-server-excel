@@ -1,243 +1,120 @@
-using System.Diagnostics;
-using System.Text.Json;
-using SharedProtocol = Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceProtocol;
-
 namespace Sbroenne.ExcelMcp.Service;
 
 /// <summary>
-/// Manages ExcelMCP Service lifecycle: start, stop, status.
+/// Manages ExcelMCP Service lifecycle for in-process hosting.
+/// The service runs within the host process (MCP Server or CLI),
+/// communicating via named pipe for cross-thread STA marshalling.
 /// </summary>
 public static class ServiceManager
 {
-    /// <summary>
-    /// Known service binary names that can handle 'service run'.
-    /// Both MCP Server and CLI can host the service.
-    /// </summary>
-    private static readonly string[] ServiceBinaryNames =
-    [
-        "Sbroenne.ExcelMcp.McpServer.exe",
-        "excelcli.exe"
-    ];
+    private static ExcelMcpService? _service;
+    private static Task? _serviceTask;
+    private static readonly SemaphoreSlim _startLock = new(1, 1);
 
     /// <summary>
-    /// Ensures service is running, starting it if necessary.
-    /// Validates that the service version matches the client version.
+    /// Ensures the in-process service is running, starting it if necessary.
+    /// Thread-safe — only one service instance will be created.
     /// </summary>
     public static async Task<bool> EnsureServiceRunningAsync(CancellationToken cancellationToken = default)
     {
-        // Check if already running
-        if (await IsServiceRunningAsync(cancellationToken))
+        // Fast path: already running
+        if (_service != null && _serviceTask != null && !_serviceTask.IsCompleted)
         {
-            await ValidateServiceVersionAsync(cancellationToken);
             return true;
         }
 
-        // Start service
-        var started = await StartServiceAsync(cancellationToken);
-        if (started)
-        {
-            await ValidateServiceVersionAsync(cancellationToken);
-        }
-        return started;
-    }
-
-    /// <summary>
-    /// Checks if service is running and responsive.
-    /// </summary>
-    public static async Task<bool> IsServiceRunningAsync(CancellationToken cancellationToken = default)
-    {
-        // First check lock file
-        if (!ServiceSecurity.IsServiceProcessRunning())
-        {
-            return false;
-        }
-
-        // Then ping
-        using var client = new ServiceClient(connectTimeout: TimeSpan.FromSeconds(2));
-        return await client.PingAsync(cancellationToken);
-    }
-
-    /// <summary>
-    /// Starts the service as a background process.
-    /// </summary>
-    public static async Task<bool> StartServiceAsync(CancellationToken cancellationToken = default)
-    {
-        var startInfo = GetServiceStartInfo();
-        if (startInfo == null)
-        {
-            return false;
-        }
-
+        await _startLock.WaitAsync(cancellationToken);
         try
         {
-            var process = Process.Start(startInfo);
-            if (process == null)
+            // Double-check after acquiring lock
+            if (_service != null && _serviceTask != null && !_serviceTask.IsCompleted)
             {
-                return false;
+                return true;
             }
 
-            // Wait a bit for service to start
-            await Task.Delay(500, cancellationToken);
-
-            // Verify it's running
-            for (int i = 0; i < 10; i++)
+            // Clean up any previous failed instance
+            if (_service != null)
             {
-                if (await IsServiceRunningAsync(cancellationToken))
+                _service.Dispose();
+                _service = null;
+                _serviceTask = null;
+            }
+
+            _service = new ExcelMcpService();
+            _serviceTask = Task.Run(() => _service.RunAsync(), cancellationToken);
+
+            // Wait for the pipe server to be ready
+            for (int i = 0; i < 20; i++)
+            {
+                await Task.Delay(100, cancellationToken);
+                using var client = new ServiceClient(connectTimeout: TimeSpan.FromSeconds(1));
+                if (await client.PingAsync(cancellationToken))
                 {
                     return true;
                 }
-                await Task.Delay(200, cancellationToken);
             }
 
             return false;
         }
         catch (Exception)
         {
-            // Process launch or connectivity check failed — report as not started
             return false;
+        }
+        finally
+        {
+            _startLock.Release();
         }
     }
 
     /// <summary>
-    /// Stops the service.
+    /// Stops the in-process service.
     /// </summary>
     public static async Task<bool> StopServiceAsync(CancellationToken cancellationToken = default)
     {
-        if (!await IsServiceRunningAsync(cancellationToken))
+        if (_service == null)
         {
-            return true; // Already stopped
+            return true;
         }
 
-        using var client = new ServiceClient();
-        var response = await client.SendAsync(new ServiceRequest { Command = "service.shutdown" }, cancellationToken);
-        return response.Success;
-    }
+        _service.RequestShutdown();
 
-    /// <summary>
-    /// Validates that the running service version matches the client version.
-    /// Throws InvalidOperationException on mismatch (exact match required).
-    /// </summary>
-    public static async Task ValidateServiceVersionAsync(CancellationToken cancellationToken = default)
-    {
-        var clientVersion = SharedProtocol.Version;
-
-        using var client = new ServiceClient(connectTimeout: TimeSpan.FromSeconds(2));
-        var response = await client.SendAsync(
-            new ServiceRequest { Command = "service.version" }, cancellationToken);
-
-        if (!response.Success || string.IsNullOrEmpty(response.Result))
+        if (_serviceTask != null)
         {
-            // Service doesn't support version command (older version)
-            throw new InvalidOperationException(
-                $"Service does not support version negotiation. " +
-                $"This client is version {clientVersion}. " +
-                $"Stop any running mcp-excel or excelcli processes and retry.");
+            try
+            {
+                await _serviceTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+            }
+            catch (TimeoutException)
+            {
+                // Service didn't stop in time — dispose anyway
+            }
         }
 
-        // Parse version from response JSON
-        using var doc = JsonDocument.Parse(response.Result);
-        var serviceVersion = doc.RootElement.GetProperty("version").GetString();
+        _service.Dispose();
+        _service = null;
+        _serviceTask = null;
 
-        if (!string.Equals(clientVersion, serviceVersion, StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException(
-                $"Service version mismatch: service is v{serviceVersion}, client is v{clientVersion}. " +
-                $"Stop any running mcp-excel or excelcli processes and retry.");
-        }
+        return true;
     }
 
     /// <summary>
     /// Gets service status information.
     /// </summary>
-    public static async Task<ServiceStatus> GetStatusAsync(CancellationToken cancellationToken = default)
+    public static Task<ServiceStatus> GetStatusAsync(CancellationToken cancellationToken = default)
     {
-        var pid = ServiceSecurity.ReadLockFilePid();
-        var isRunning = await IsServiceRunningAsync(cancellationToken);
-
-        if (!isRunning)
+        _ = cancellationToken; // Reserved for future use
+        if (_service == null || _serviceTask == null || _serviceTask.IsCompleted)
         {
-            return new ServiceStatus { Running = false };
+            return Task.FromResult(new ServiceStatus { Running = false });
         }
 
-        using var client = new ServiceClient();
-        var response = await client.SendAsync(new ServiceRequest { Command = "service.status" }, cancellationToken);
-
-        if (response.Success && response.Result != null)
+        return Task.FromResult(new ServiceStatus
         {
-            var status = ServiceProtocol.Deserialize<ServiceStatus>(response.Result);
-            if (status != null)
-            {
-                return status;
-            }
-        }
-
-        return new ServiceStatus { Running = true, ProcessId = pid ?? 0 };
-    }
-
-    /// <summary>
-    /// Determines how to start the service process.
-    /// Priority: 1) Self-launch (current exe), 2) Co-located binary, 3) dotnet run (dev mode).
-    /// </summary>
-    private static ProcessStartInfo? GetServiceStartInfo()
-    {
-        var processPath = Environment.ProcessPath;
-        var processName = Path.GetFileName(processPath);
-
-        // 1) Self-launch: current process IS a known service binary (MCP Server or CLI)
-        if (!string.IsNullOrEmpty(processPath) &&
-            ServiceBinaryNames.Any(name => string.Equals(processName, name, StringComparison.OrdinalIgnoreCase)))
-        {
-            return CreateStartInfo(processPath);
-        }
-
-        // 2) Co-located: find a service binary next to the current executable
-        //    Handles test hosts, dotnet.exe, or any non-service process
-        var baseDir = AppContext.BaseDirectory;
-        foreach (var binaryName in ServiceBinaryNames)
-        {
-            var candidatePath = Path.Combine(baseDir, binaryName);
-            if (File.Exists(candidatePath))
-            {
-                return CreateStartInfo(candidatePath);
-            }
-        }
-
-        // 3) Development mode: running via 'dotnet run', use 'dotnet <dll> service run'
-        // Note: Assembly.Location returns empty in single-file apps (IL3000), but this
-        // code path only executes when processPath ends with "dotnet.exe" (dev mode).
-        var entryAssembly = System.Reflection.Assembly.GetEntryAssembly();
-        if (entryAssembly != null &&
-            processPath?.EndsWith("dotnet.exe", StringComparison.OrdinalIgnoreCase) == true)
-        {
-#pragma warning disable IL3000 // Only reached in dev mode (dotnet run), never in single-file publish
-            var assemblyLocation = entryAssembly.Location;
-#pragma warning restore IL3000
-            if (!string.IsNullOrEmpty(assemblyLocation))
-            {
-                return new ProcessStartInfo
-                {
-                    FileName = "dotnet",
-                    Arguments = $"\"{assemblyLocation}\" service run",
-                    UseShellExecute = true,
-                    CreateNoWindow = true,
-                    WindowStyle = ProcessWindowStyle.Hidden
-                };
-            }
-        }
-
-        return null;
-    }
-
-    private static ProcessStartInfo CreateStartInfo(string exePath)
-    {
-        return new ProcessStartInfo
-        {
-            FileName = exePath,
-            Arguments = "service run",
-            UseShellExecute = true,
-            CreateNoWindow = true,
-            WindowStyle = ProcessWindowStyle.Hidden
-        };
+            Running = true,
+            ProcessId = Environment.ProcessId,
+            SessionCount = _service.SessionCount,
+            StartTime = _service.StartTime
+        });
     }
 }
 
@@ -252,5 +129,3 @@ public sealed class ServiceStatus
     public DateTime StartTime { get; init; }
     public TimeSpan Uptime => Running ? DateTime.UtcNow - StartTime : TimeSpan.Zero;
 }
-
-

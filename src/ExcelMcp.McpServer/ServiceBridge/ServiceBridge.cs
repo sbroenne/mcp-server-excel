@@ -24,7 +24,7 @@ public static class ServiceBridge
     /// </summary>
     public static async Task<bool> EnsureServiceAsync(CancellationToken cancellationToken = default)
     {
-        if (_serviceStarted && ExcelServiceClient.IsServiceRunning)
+        if (_serviceStarted)
         {
             return true;
         }
@@ -32,7 +32,7 @@ public static class ServiceBridge
         await _initLock.WaitAsync(cancellationToken);
         try
         {
-            if (_serviceStarted && ExcelServiceClient.IsServiceRunning)
+            if (_serviceStarted)
             {
                 return true;
             }
@@ -68,7 +68,7 @@ public static class ServiceBridge
             return new ServiceResponse
             {
                 Success = false,
-                ErrorMessage = "Failed to start ExcelMCP Service. Ensure excelcli.exe is installed and accessible."
+                ErrorMessage = "Failed to start ExcelMCP Service in-process."
             };
         }
 

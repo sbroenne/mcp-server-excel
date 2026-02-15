@@ -1,8 +1,7 @@
 using System.Reflection;
 using Sbroenne.ExcelMcp.CLI.Commands;
 using Sbroenne.ExcelMcp.CLI.Generated;
-using Sbroenne.ExcelMcp.Service;
-using Sbroenne.ExcelMcp.Service.Infrastructure;
+using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -26,13 +25,6 @@ internal sealed class Program
 
         // Remove --quiet/-q from args before passing to Spectre.Console.Cli
         var filteredArgs = args.Where(arg => !QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)).ToArray();
-
-        // Handle internal service run command before anything else (not documented in help)
-        // This enables the CLI to self-launch as the ExcelMCP Service process
-        if (args.Length >= 2 && args[0] == "service" && args[1] == "run")
-        {
-            return await RunServiceAsync();
-        }
 
         if (filteredArgs.Length == 0)
         {
@@ -137,7 +129,7 @@ internal sealed class Program
         if (updateAvailable)
         {
             AnsiConsole.MarkupLine($"[yellow]⚠ Update available:[/] [dim]{currentVersion}[/] → [green]{latestVersion}[/]");
-            AnsiConsole.MarkupLine($"[cyan]Run:[/] [white]dotnet tool update --global Sbroenne.ExcelMcp.McpServer[/]");
+            AnsiConsole.MarkupLine($"[cyan]Run:[/] [white]dotnet tool update --global Sbroenne.ExcelMcp.CLI[/]");
             AnsiConsole.MarkupLine($"[cyan]Release notes:[/] [blue]https://github.com/sbroenne/mcp-server-excel/releases/latest[/]");
         }
         else if (latestVersion != null)
@@ -168,41 +160,5 @@ internal sealed class Program
         return string.Compare(current, latest, StringComparison.Ordinal);
     }
 
-    /// <summary>
-    /// Runs the ExcelMCP Service in the current process.
-    /// Called when the CLI self-launches with 'service run' args.
-    /// </summary>
-    private static async Task<int> RunServiceAsync()
-    {
-        using var service = new ExcelMcpService();
-
-        Console.CancelKeyPress += (_, e) =>
-        {
-            e.Cancel = true;
-            service.RequestShutdown();
-        };
-
-        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
-        {
-            service.RequestShutdown();
-        };
-
-        try
-        {
-            await service.RunAsync();
-            return 0;
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("already running"))
-        {
-            Console.Error.WriteLine("Service is already running.");
-            return 1;
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Service error: {ex.Message}");
-            return 1;
-        }
-    }
 }
-
 

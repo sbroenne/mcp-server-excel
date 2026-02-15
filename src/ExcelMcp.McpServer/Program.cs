@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
-using Sbroenne.ExcelMcp.Service;
 
 namespace Sbroenne.ExcelMcp.McpServer;
 
@@ -44,13 +43,6 @@ public class Program
 
     public static async Task<int> Main(string[] args)
     {
-        // Handle service run command before anything else (internal, not documented)
-        // This enables the MCP Server to self-launch as the ExcelMCP Service process
-        if (args.Length >= 2 && args[0] == "service" && args[1] == "run")
-        {
-            return await RunServiceAsync();
-        }
-
         // Handle --help and --version flags for easy verification
         if (args.Length > 0)
         {
@@ -267,42 +259,6 @@ public class Program
     /// <summary>
     /// Shows help information.
     /// </summary>
-    /// <summary>
-    /// Runs the ExcelMCP Service in the current process.
-    /// Called when the MCP Server self-launches with 'service run' args.
-    /// </summary>
-    private static async Task<int> RunServiceAsync()
-    {
-        using var service = new ExcelMcpService();
-
-        Console.CancelKeyPress += (_, e) =>
-        {
-            e.Cancel = true;
-            service.RequestShutdown();
-        };
-
-        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
-        {
-            service.RequestShutdown();
-        };
-
-        try
-        {
-            await service.RunAsync();
-            return 0;
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("already running"))
-        {
-            Console.Error.WriteLine("Service is already running.");
-            return 1;
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Service error: {ex.Message}");
-            return 1;
-        }
-    }
-
     private static void ShowHelp()
     {
         var version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0";
@@ -342,18 +298,13 @@ public class Program
         Console.WriteLine($"Excel MCP Server v{currentVersion}");
 
         // Check for updates (non-blocking, 5-second timeout)
-        var updateInfo = await Infrastructure.McpServerVersionChecker.CheckForUpdateAsync();
-        if (updateInfo != null)
+        var latestVersion = await Infrastructure.McpServerVersionChecker.CheckForUpdateAsync();
+        if (latestVersion != null)
         {
             Console.WriteLine();
-            Console.WriteLine($"Update available: {updateInfo.CurrentVersion} -> {updateInfo.LatestVersion}");
+            Console.WriteLine($"Update available: {currentVersion} -> {latestVersion}");
             Console.WriteLine("Run: dotnet tool update --global Sbroenne.ExcelMcp.McpServer");
             Console.WriteLine("Release notes: https://github.com/sbroenne/mcp-server-excel/releases/latest");
-        }
-        else
-        {
-            // Check completed but no update available (or check failed silently)
-            // Don't show anything - keep output clean for scripting
         }
     }
 }

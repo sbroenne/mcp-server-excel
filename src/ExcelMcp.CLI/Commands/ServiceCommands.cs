@@ -16,13 +16,7 @@ internal sealed class ServiceStartCommand : AsyncCommand
 {
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
-        if (await ServiceManager.IsServiceRunningAsync(cancellationToken))
-        {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service is already running." }, ServiceProtocol.JsonOptions));
-            return 0;
-        }
-
-        var started = await ServiceManager.StartServiceAsync(cancellationToken);
+        var started = await ServiceManager.EnsureServiceRunningAsync(cancellationToken);
         if (started)
         {
             Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service started." }, ServiceProtocol.JsonOptions));
@@ -43,12 +37,6 @@ internal sealed class ServiceStopCommand : AsyncCommand
 {
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
-        if (!await ServiceManager.IsServiceRunningAsync(cancellationToken))
-        {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service is not running." }, ServiceProtocol.JsonOptions));
-            return 0;
-        }
-
         var stopped = await ServiceManager.StopServiceAsync(cancellationToken);
         if (stopped)
         {
