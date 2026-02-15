@@ -149,10 +149,13 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 
 **Manual Installation:**
 ```powershell
-# Unified package - includes both MCP Server and CLI
+# Step 1: Install the unified package (MCP Server + CLI)
 dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
-# Install skill (prompts to select excel-cli, excel-mcp, or both)
+# Step 2: Auto-configure all your coding agents
+npx add-mcp "mcp-excel" --name excel-mcp
+
+# Optional: Install agent skills for better AI guidance
 npx skills add sbroenne/mcp-server-excel
 ```
 

@@ -57,7 +57,7 @@ That's it! The MCPB bundle includes everything needed - no .NET installation req
 
 ## Manual Installation  & Configuration (MCP Server)
 
-**Best for:** Other MCP clients (Cursor, Windsurf, Cline), advanced users
+**Best for:** Other MCP clients (Cursor, Windsurf, Cline, Claude Code, Codex), advanced users
 
 ### Step 1: Install .NET 10
 
@@ -86,6 +86,31 @@ dotnet tool list --global | Select-String "ExcelMcp"
 ```
 
 ### Step 3: Configure Your MCP Client
+
+#### Option A: Auto-Configure All Agents (Recommended)
+
+Use [`add-mcp`](https://github.com/neondatabase/add-mcp) to configure all detected coding agents with a single command:
+
+```powershell
+npx add-mcp "mcp-excel" --name excel-mcp
+```
+
+This auto-detects and configures **Cursor, VS Code, Claude Code, Claude Desktop, Codex, Zed, Gemini CLI**, and more. Use flags to customize:
+
+```powershell
+# Configure specific agents only
+npx add-mcp "mcp-excel" --name excel-mcp -a cursor -a claude-code
+
+# Configure globally (user-wide, all projects)
+npx add-mcp "mcp-excel" --name excel-mcp -g
+
+# Non-interactive (skip prompts)
+npx add-mcp "mcp-excel" --name excel-mcp --all -y
+```
+
+> **Requires:** [Node.js](https://nodejs.org/) (for `npx`). No permanent installation needed — `npx` downloads, runs, and cleans up automatically.
+
+#### Option B: Manual Configuration
 
 **Quick Start:** Ready-to-use config files for all clients are available in [`examples/mcp-configs/`](https://github.com/sbroenne/mcp-server-excel/tree/main/examples/mcp-configs/)
 
