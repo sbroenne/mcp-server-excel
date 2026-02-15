@@ -31,7 +31,7 @@ public interface INamedRangeCommands
     /// <param name="value">Value to set</param>
     /// <exception cref="InvalidOperationException">If named range not found</exception>
     [ServiceAction("write")]
-    void Write(
+    OperationResult Write(
         IExcelBatch batch,
         [RequiredParameter, FromString("name")] string name,
         [RequiredParameter, FromString("value")] string value);
@@ -57,7 +57,7 @@ public interface INamedRangeCommands
     /// <exception cref="ArgumentException">If name invalid or too long</exception>
     /// <exception cref="InvalidOperationException">If named range not found</exception>
     [ServiceAction("update")]
-    void Update(
+    OperationResult Update(
         IExcelBatch batch,
         [RequiredParameter, FromString("name")] string name,
         [RequiredParameter, FromString("reference")] string reference);
@@ -71,7 +71,7 @@ public interface INamedRangeCommands
     /// <exception cref="ArgumentException">If name invalid or too long</exception>
     /// <exception cref="InvalidOperationException">If named range already exists</exception>
     [ServiceAction("create")]
-    void Create(
+    OperationResult Create(
         IExcelBatch batch,
         [RequiredParameter, FromString("name")] string name,
         [RequiredParameter, FromString("reference")] string reference);
@@ -83,7 +83,7 @@ public interface INamedRangeCommands
     /// <param name="name">Name of the named range to delete</param>
     /// <exception cref="InvalidOperationException">If named range not found</exception>
     [ServiceAction("delete")]
-    void Delete(
+    OperationResult Delete(
         IExcelBatch batch,
         [RequiredParameter, FromString("name")] string name);
 }

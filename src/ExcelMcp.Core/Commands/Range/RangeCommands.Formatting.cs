@@ -12,14 +12,13 @@ public partial class RangeCommands
     private static readonly int[] BorderEdges = [7, 8, 9, 10];
 
     /// <inheritdoc />
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
-    public void SetStyle(
+    public OperationResult SetStyle(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
         string styleName)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -37,7 +36,12 @@ public partial class RangeCommands
                 // Apply built-in style
                 range.Style = styleName;
 
-                return ValueTask.CompletedTask;
+                return new OperationResult
+                {
+                    Success = true,
+                    FilePath = batch.WorkbookPath,
+                    Action = "set-style"
+                };
             }
             finally
             {
@@ -129,8 +133,7 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
-    public void FormatRange(
+    public OperationResult FormatRange(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
@@ -149,7 +152,7 @@ public partial class RangeCommands
         bool? wrapText,
         int? orientation)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -229,7 +232,7 @@ public partial class RangeCommands
                     range.Orientation = orientation.Value;
                 }
 
-                return ValueTask.CompletedTask;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {

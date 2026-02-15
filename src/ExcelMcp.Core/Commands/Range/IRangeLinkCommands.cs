@@ -75,7 +75,7 @@ public interface IRangeLinkCommands
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
     /// <param name="locked">Lock status: true = locked (protected when sheet protection enabled), false = unlocked (editable)</param>
     [ServiceAction("set-cell-lock")]
-    void SetCellLock(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] bool locked);
+    OperationResult SetCellLock(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] bool locked);
 
     /// <summary>
     /// Gets lock status of first cell in range.

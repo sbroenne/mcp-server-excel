@@ -81,7 +81,7 @@ public class DataModelCommandsTests_DaxFormatting
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
         // Create measure (should format automatically)
-        _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, unformattedDax);
+        _ = _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, unformattedDax);
 
         // Retrieve and verify
         var viewResult = await _dataModelCommands.Read(batch, measureName);
@@ -109,10 +109,10 @@ public class DataModelCommandsTests_DaxFormatting
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
         // Create measure
-        _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, originalFormula);
+        _ = _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, originalFormula);
 
         // Update with unformatted DAX (should format automatically)
-        _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: unformattedUpdate);
+        _ = _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: unformattedUpdate);
 
         // Retrieve and verify
         var viewResult = await _dataModelCommands.Read(batch, measureName);
@@ -144,7 +144,7 @@ public class DataModelCommandsTests_DaxFormatting
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
         // Create measure with pre-formatted DAX
-        _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, formattedDax);
+        _ = _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, formattedDax);
 
         // Retrieve and verify it was saved correctly
         var viewResult = await _dataModelCommands.Read(batch, measureName);
@@ -169,10 +169,10 @@ public class DataModelCommandsTests_DaxFormatting
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
         // Create measure
-        _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, originalFormula);
+        _ = _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, originalFormula);
 
         // Update only description (null daxFormula should not trigger formatting)
-        _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: null, description: newDescription);
+        _ = _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: null, description: newDescription);
 
         // Verify description updated, formula unchanged
         var viewResult = await _dataModelCommands.Read(batch, measureName);

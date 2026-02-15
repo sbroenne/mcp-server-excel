@@ -65,7 +65,7 @@ public interface IDataModelRelCommands
     /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when tables/columns not found or creation fails</exception>
     [ServiceAction("create-relationship")]
-    void CreateRelationship(
+    OperationResult CreateRelationship(
         IExcelBatch batch,
         [RequiredParameter] string fromTable,
         [RequiredParameter] string fromColumn,
@@ -86,7 +86,7 @@ public interface IDataModelRelCommands
     /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when relationship not found or update fails</exception>
     [ServiceAction("update-relationship")]
-    void UpdateRelationship(
+    OperationResult UpdateRelationship(
         IExcelBatch batch,
         [RequiredParameter] string fromTable,
         [RequiredParameter] string fromColumn,
@@ -105,7 +105,7 @@ public interface IDataModelRelCommands
     /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when relationship not found or deletion fails</exception>
     [ServiceAction("delete-relationship")]
-    void DeleteRelationship(
+    OperationResult DeleteRelationship(
         IExcelBatch batch,
         [RequiredParameter] string fromTable,
         [RequiredParameter] string fromColumn,

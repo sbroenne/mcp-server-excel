@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Formatting;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -23,7 +24,7 @@ public partial class PowerQueryCommands
     /// <param name="refresh">Whether to refresh data after update (default: true)</param>
     /// <exception cref="ArgumentException">Thrown when queryName or mCode is invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when query not found or update fails</exception>
-    public void Update(IExcelBatch batch, string queryName, string mCode, bool refresh = true)
+    public OperationResult Update(IExcelBatch batch, string queryName, string mCode, bool refresh = true)
     {
         if (!ValidateQueryName(queryName, out string? validationError))
         {
@@ -40,7 +41,7 @@ public partial class PowerQueryCommands
         // Falls back to original if formatting fails
         string formattedMCode = MCodeFormatter.FormatAsync(mCode).GetAwaiter().GetResult();
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
             dynamic? query = null;
@@ -266,7 +267,7 @@ public partial class PowerQueryCommands
                 }
                 // Connection-only queries (no QueryTable, no Data Model connection) don't need refresh
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {

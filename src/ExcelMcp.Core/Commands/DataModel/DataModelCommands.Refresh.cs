@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.DataModel;
 
 
@@ -11,12 +12,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class DataModelCommands
 {
     /// <inheritdoc />
-    public void Refresh(IExcelBatch batch, string? tableName = null, TimeSpan? timeout = null)
+    public OperationResult Refresh(IExcelBatch batch, string? tableName = null, TimeSpan? timeout = null)
     {
         // timeout parameter reserved for future use (e.g., cancellation token support)
         _ = timeout;
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             try
@@ -72,7 +73,7 @@ public partial class DataModelCommands
                 ComUtilities.Release(ref model);
             }
 
-            return 0;
+            return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
         });
     }
 }

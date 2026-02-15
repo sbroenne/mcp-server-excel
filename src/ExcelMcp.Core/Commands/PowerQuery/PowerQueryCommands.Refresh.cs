@@ -75,9 +75,9 @@ public partial class PowerQueryCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <exception cref="InvalidOperationException">Thrown when refresh fails</exception>
-    public void RefreshAll(IExcelBatch batch)
+    public OperationResult RefreshAll(IExcelBatch batch)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
 
@@ -121,7 +121,7 @@ public partial class PowerQueryCommands
                     throw new InvalidOperationException($"Some queries failed to refresh: {string.Join(", ", errors)}");
                 }
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {

@@ -79,7 +79,7 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // STEP 1: Create PowerQuery and load to Data Model
-        _powerQueryCommands.Create(batch, queryName, initialMCode, PowerQueryLoadMode.LoadToDataModel);
+        _ = _powerQueryCommands.Create(batch, queryName, initialMCode, PowerQueryLoadMode.LoadToDataModel);
 
         // STEP 2: Verify initial load configuration
         var loadConfigBefore = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -93,7 +93,7 @@ in
         Assert.Single(queryTablesBefore);
 
         // STEP 4: Update the M code (this triggers auto-refresh)
-        _powerQueryCommands.Update(batch, queryName, updatedMCode);
+        _ = _powerQueryCommands.Update(batch, queryName, updatedMCode);
 
         // STEP 5: Verify load configuration is PRESERVED after Update
         var loadConfigAfter = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -130,13 +130,13 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Create with LoadToDataModel
-        _powerQueryCommands.Create(batch, queryName, mCodeV1, PowerQueryLoadMode.LoadToDataModel);
+        _ = _powerQueryCommands.Create(batch, queryName, mCodeV1, PowerQueryLoadMode.LoadToDataModel);
 
         // Update #1
-        _powerQueryCommands.Update(batch, queryName, mCodeV2);
+        _ = _powerQueryCommands.Update(batch, queryName, mCodeV2);
 
         // Update #2
-        _powerQueryCommands.Update(batch, queryName, mCodeV3);
+        _ = _powerQueryCommands.Update(batch, queryName, mCodeV3);
 
         // Verify still LoadToDataModel
         var loadConfig = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -165,7 +165,7 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Create with LoadToDataModel
-        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToDataModel);
+        _ = _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToDataModel);
 
         // Verify initial state
         var loadConfigBefore = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -260,7 +260,7 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Create with LoadToBoth
-        _powerQueryCommands.Create(batch, queryName, initialMCode, PowerQueryLoadMode.LoadToBoth);
+        _ = _powerQueryCommands.Create(batch, queryName, initialMCode, PowerQueryLoadMode.LoadToBoth);
 
         // Verify initial state
         var loadConfigBefore = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -269,7 +269,7 @@ in
         Assert.Equal(PowerQueryLoadMode.LoadToBoth, loadConfigBefore.LoadMode);
 
         // Update
-        _powerQueryCommands.Update(batch, queryName, updatedMCode);
+        _ = _powerQueryCommands.Update(batch, queryName, updatedMCode);
 
         // Verify LoadToBoth preserved
         var loadConfigAfter = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -298,7 +298,7 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Create with LoadToBoth
-        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToBoth);
+        _ = _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToBoth);
 
         // Verify initial state
         var loadConfigBefore = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -343,10 +343,10 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Create queries with different load modes
-        _powerQueryCommands.Create(batch, queryConnOnly, mCode, PowerQueryLoadMode.ConnectionOnly);
-        _powerQueryCommands.Create(batch, queryTable, mCode, PowerQueryLoadMode.LoadToTable, "Sheet1");
-        _powerQueryCommands.Create(batch, queryDataModel, mCode, PowerQueryLoadMode.LoadToDataModel);
-        _powerQueryCommands.Create(batch, queryBoth, mCode, PowerQueryLoadMode.LoadToBoth, "Sheet2");
+        _ = _powerQueryCommands.Create(batch, queryConnOnly, mCode, PowerQueryLoadMode.ConnectionOnly);
+        _ = _powerQueryCommands.Create(batch, queryTable, mCode, PowerQueryLoadMode.LoadToTable, "Sheet1");
+        _ = _powerQueryCommands.Create(batch, queryDataModel, mCode, PowerQueryLoadMode.LoadToDataModel);
+        _ = _powerQueryCommands.Create(batch, queryBoth, mCode, PowerQueryLoadMode.LoadToBoth, "Sheet2");
 
         // Act & Assert - each query should report its correct load mode
         var configConnOnly = _powerQueryCommands.GetLoadConfig(batch, queryConnOnly);
@@ -425,7 +425,7 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // STEP 1: Create PowerQuery and load to Data Model
-        _powerQueryCommands.Create(batch, queryName, twoColumnMCode, PowerQueryLoadMode.LoadToDataModel);
+        _ = _powerQueryCommands.Create(batch, queryName, twoColumnMCode, PowerQueryLoadMode.LoadToDataModel);
 
         // STEP 2: Verify initial state - 1 table with 2 columns
         var tablesBefore = await _dataModelCommands.ListTables(batch);
@@ -438,7 +438,7 @@ in
 
         // STEP 3: Update the M code to ADD A COLUMN
         // This is the bug scenario - schema change on Data Model-connected query
-        _powerQueryCommands.Update(batch, queryName, threeColumnMCode);
+        _ = _powerQueryCommands.Update(batch, queryName, threeColumnMCode);
 
         // STEP 4: Verify load configuration is PRESERVED
         var loadConfigAfter = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -499,7 +499,7 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // STEP 1: Create PowerQuery and load to Data Model
-        _powerQueryCommands.Create(batch, queryName, threeColumnMCode, PowerQueryLoadMode.LoadToDataModel);
+        _ = _powerQueryCommands.Create(batch, queryName, threeColumnMCode, PowerQueryLoadMode.LoadToDataModel);
 
         // STEP 2: Verify initial state - 1 table with 3 columns
         var tableBefore = await _dataModelCommands.ReadTable(batch, queryName);
@@ -507,7 +507,7 @@ in
         Assert.Equal(3, tableBefore.Columns.Count);  // ID, Name, Amount
 
         // STEP 3: Update the M code to REMOVE A COLUMN
-        _powerQueryCommands.Update(batch, queryName, twoColumnMCode);
+        _ = _powerQueryCommands.Update(batch, queryName, twoColumnMCode);
 
         // STEP 4: Verify load configuration is PRESERVED
         var loadConfigAfter = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -568,7 +568,7 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // STEP 1: Create PowerQuery and load to Data Model
-        _powerQueryCommands.Create(batch, queryName, numberTypeMCode, PowerQueryLoadMode.LoadToDataModel);
+        _ = _powerQueryCommands.Create(batch, queryName, numberTypeMCode, PowerQueryLoadMode.LoadToDataModel);
 
         // STEP 2: Verify initial state
         var tableBefore = await _dataModelCommands.ReadTable(batch, queryName);
@@ -576,7 +576,7 @@ in
         Assert.Equal(2, tableBefore.Columns.Count);
 
         // STEP 3: Update the M code to CHANGE COLUMN TYPE
-        _powerQueryCommands.Update(batch, queryName, textTypeMCode);
+        _ = _powerQueryCommands.Update(batch, queryName, textTypeMCode);
 
         // STEP 4: Verify load configuration is PRESERVED
         var loadConfigAfter = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -638,7 +638,7 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // STEP 1: Create PowerQuery and load to Data Model
-        _powerQueryCommands.Create(batch, queryName, twoColumnMCode, PowerQueryLoadMode.LoadToDataModel);
+        _ = _powerQueryCommands.Create(batch, queryName, twoColumnMCode, PowerQueryLoadMode.LoadToDataModel);
 
         // STEP 2: Verify table exists in Data Model
         var tableBefore = await _dataModelCommands.ReadTable(batch, queryName);
@@ -648,7 +648,7 @@ in
         // STEP 3: Create DAX measure that references the Amount column
         var measureName = "TotalAmount";
         var daxFormula = $"SUM('{queryName}'[Amount])";
-        _dataModelCommands.CreateMeasure(batch, queryName, measureName, daxFormula);  // Throws on error
+        _ = _dataModelCommands.CreateMeasure(batch, queryName, measureName, daxFormula);  // Throws on error
 
         // STEP 4: Verify measure exists
         var measuresBefore = _dataModelCommands.ListMeasures(batch);
@@ -657,7 +657,7 @@ in
 
         // STEP 5: Update the M code to ADD A COLUMN (this is the bug scenario)
         // The DAX measure references Amount - adding Category should NOT break it
-        _powerQueryCommands.Update(batch, queryName, threeColumnMCode);
+        _ = _powerQueryCommands.Update(batch, queryName, threeColumnMCode);
 
         // STEP 6: Verify load configuration is PRESERVED
         var loadConfigAfter = _powerQueryCommands.GetLoadConfig(batch, queryName);
@@ -726,7 +726,7 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // STEP 1: Create PowerQuery and load to Data Model
-        _powerQueryCommands.Create(batch, queryName, withAmountMCode, PowerQueryLoadMode.LoadToDataModel);
+        _ = _powerQueryCommands.Create(batch, queryName, withAmountMCode, PowerQueryLoadMode.LoadToDataModel);
 
         // STEP 2: Verify table exists with Amount column
         var tableBefore = await _dataModelCommands.ReadTable(batch, queryName);
@@ -736,14 +736,14 @@ in
         // STEP 3: Create DAX measure that references the Amount column
         var measureName = "TotalAmount";
         var daxFormula = $"SUM('{queryName}'[Amount])";
-        _dataModelCommands.CreateMeasure(batch, queryName, measureName, daxFormula);  // Throws on error
+        _ = _dataModelCommands.CreateMeasure(batch, queryName, measureName, daxFormula);  // Throws on error
 
         // STEP 4: Update the M code to REMOVE the Amount column
         // This should cause issues because the DAX measure references Amount
         // The system should either:
         // a) Fail gracefully with a meaningful error, OR
         // b) Succeed but leave the DAX measure in an invalid state
-        _powerQueryCommands.Update(batch, queryName, withoutAmountMCode);
+        _ = _powerQueryCommands.Update(batch, queryName, withoutAmountMCode);
 
         // STEP 5: Verify M code was updated (the update itself should succeed)
         var viewResult = _powerQueryCommands.View(batch, queryName);
@@ -809,15 +809,15 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // STEP 1: Create PowerQuery and load to Data Model
-        _powerQueryCommands.Create(batch, queryName, initialMCode, PowerQueryLoadMode.LoadToDataModel);
+        _ = _powerQueryCommands.Create(batch, queryName, initialMCode, PowerQueryLoadMode.LoadToDataModel);
 
         // STEP 2: Create initial DAX measure
         var measureName = "TotalAmount";
         var initialDaxFormula = $"SUM('{queryName}'[Amount])";
-        _dataModelCommands.CreateMeasure(batch, queryName, measureName, initialDaxFormula);  // Throws on error
+        _ = _dataModelCommands.CreateMeasure(batch, queryName, measureName, initialDaxFormula);  // Throws on error
 
         // STEP 3: Update the M code (schema change - adds Quantity column)
-        _powerQueryCommands.Update(batch, queryName, updatedMCode);
+        _ = _powerQueryCommands.Update(batch, queryName, updatedMCode);
 
         // STEP 4: Verify schema change worked
         var tableAfter = await _dataModelCommands.ReadTable(batch, queryName);
@@ -826,7 +826,7 @@ in
 
         // STEP 5: Update the DAX measure to use the NEW column (this is the 0x800AC472 bug scenario)
         var updatedDaxFormula = $"SUM('{queryName}'[Amount]) + SUM('{queryName}'[Quantity])";
-        _dataModelCommands.UpdateMeasure(batch, measureName, updatedDaxFormula);  // Throws on error
+        _ = _dataModelCommands.UpdateMeasure(batch, measureName, updatedDaxFormula);  // Throws on error
 
         // STEP 6: Verify measure was updated
         var readMeasure = _dataModelCommands.Read(batch, measureName);
@@ -901,27 +901,27 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // STEP 1: Create PowerQuery V1
-        _powerQueryCommands.Create(batch, queryName, v1MCode, PowerQueryLoadMode.LoadToDataModel);
+        _ = _powerQueryCommands.Create(batch, queryName, v1MCode, PowerQueryLoadMode.LoadToDataModel);
 
         // STEP 2: Create DAX measure on Value column
         var measureName = "SumValue";
         var daxFormula = $"SUM('{queryName}'[Value])";
-        _dataModelCommands.CreateMeasure(batch, queryName, measureName, daxFormula);  // Throws on error
+        _ = _dataModelCommands.CreateMeasure(batch, queryName, measureName, daxFormula);  // Throws on error
 
         // STEP 3: Update to V2 (add Category)
-        _powerQueryCommands.Update(batch, queryName, v2MCode);
+        _ = _powerQueryCommands.Update(batch, queryName, v2MCode);
         var tableV2 = await _dataModelCommands.ReadTable(batch, queryName);
         Assert.True(tableV2.Success, $"ReadTable V2 failed: {tableV2.ErrorMessage}");
         Assert.Equal(3, tableV2.Columns.Count);
 
         // STEP 4: Update to V3 (add Quantity)
-        _powerQueryCommands.Update(batch, queryName, v3MCode);
+        _ = _powerQueryCommands.Update(batch, queryName, v3MCode);
         var tableV3 = await _dataModelCommands.ReadTable(batch, queryName);
         Assert.True(tableV3.Success, $"ReadTable V3 failed: {tableV3.ErrorMessage}");
         Assert.Equal(4, tableV3.Columns.Count);
 
         // STEP 5: Update to V4 (remove Category)
-        _powerQueryCommands.Update(batch, queryName, v4MCode);
+        _ = _powerQueryCommands.Update(batch, queryName, v4MCode);
         var tableV4 = await _dataModelCommands.ReadTable(batch, queryName);
         Assert.True(tableV4.Success, $"ReadTable V4 failed: {tableV4.ErrorMessage}");
         Assert.Equal(3, tableV4.Columns.Count);  // ID, Value, Quantity
@@ -985,7 +985,7 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // STEP 1: Create PowerQuery with complex M code
-        _powerQueryCommands.Create(batch, queryName, initialMCode, PowerQueryLoadMode.LoadToDataModel);
+        _ = _powerQueryCommands.Create(batch, queryName, initialMCode, PowerQueryLoadMode.LoadToDataModel);
 
         // STEP 2: Verify initial state - should have 3 columns (ID, RawValue, DoubleValue)
         var tableBefore = await _dataModelCommands.ReadTable(batch, queryName);
@@ -995,10 +995,10 @@ in
         // STEP 3: Create DAX measure
         var measureName = "AvgDouble";
         var daxFormula = $"AVERAGE('{queryName}'[DoubleValue])";
-        _dataModelCommands.CreateMeasure(batch, queryName, measureName, daxFormula);  // Throws on error
+        _ = _dataModelCommands.CreateMeasure(batch, queryName, measureName, daxFormula);  // Throws on error
 
         // STEP 4: Update with more complex M code (adds TripleValue column)
-        _powerQueryCommands.Update(batch, queryName, updatedMCode);
+        _ = _powerQueryCommands.Update(batch, queryName, updatedMCode);
 
         // STEP 5: Verify schema change - should now have 4 columns
         var tableAfter = await _dataModelCommands.ReadTable(batch, queryName);

@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Attributes;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
@@ -44,7 +45,7 @@ public interface IChartConfigCommands
     /// <param name="chartName">Name of the chart</param>
     /// <param name="sourceRange">New data source range (e.g., Sheet1!A1:D10)</param>
     [ServiceAction("set-source-range")]
-    void SetSourceRange(
+    OperationResult SetSourceRange(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
         [RequiredParameter] string sourceRange);
@@ -74,7 +75,7 @@ public interface IChartConfigCommands
     /// <param name="chartName">Name of the chart</param>
     /// <param name="seriesIndex">1-based index of the series to remove</param>
     [ServiceAction("remove-series")]
-    void RemoveSeries(
+    OperationResult RemoveSeries(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
         [RequiredParameter] int seriesIndex);
@@ -88,7 +89,7 @@ public interface IChartConfigCommands
     /// <param name="chartName">Name of the chart</param>
     /// <param name="chartType">New chart type to apply</param>
     [ServiceAction("set-chart-type")]
-    void SetChartType(
+    OperationResult SetChartType(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
         [RequiredParameter] ChartType chartType);
@@ -100,7 +101,7 @@ public interface IChartConfigCommands
     /// <param name="chartName">Name of the chart</param>
     /// <param name="title">Title text to display</param>
     [ServiceAction("set-title")]
-    void SetTitle(
+    OperationResult SetTitle(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
         [RequiredParameter] string title);
@@ -113,7 +114,7 @@ public interface IChartConfigCommands
     /// <param name="axis">Which axis to set title for (Category, Value, SeriesAxis)</param>
     /// <param name="title">Axis title text</param>
     [ServiceAction("set-axis-title")]
-    void SetAxisTitle(
+    OperationResult SetAxisTitle(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
         [RequiredParameter] ChartAxisType axis,
@@ -139,7 +140,7 @@ public interface IChartConfigCommands
     /// <param name="axis">Which axis to format</param>
     /// <param name="numberFormat">Excel number format code (e.g., "$#,##0", "0.00%")</param>
     [ServiceAction("set-axis-number-format")]
-    void SetAxisNumberFormat(
+    OperationResult SetAxisNumberFormat(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
         [RequiredParameter] ChartAxisType axis,
@@ -153,7 +154,7 @@ public interface IChartConfigCommands
     /// <param name="visible">True to show legend, false to hide</param>
     /// <param name="legendPosition">Optional position for the legend</param>
     [ServiceAction("show-legend")]
-    void ShowLegend(
+    OperationResult ShowLegend(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
         [RequiredParameter] bool visible,
@@ -166,7 +167,7 @@ public interface IChartConfigCommands
     /// <param name="chartName">Name of the chart</param>
     /// <param name="styleId">Excel chart style ID (1-48 for most chart types)</param>
     [ServiceAction("set-style")]
-    void SetStyle(
+    OperationResult SetStyle(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
         [RequiredParameter] int styleId);
@@ -178,7 +179,7 @@ public interface IChartConfigCommands
     /// <param name="chartName">Name of the chart</param>
     /// <param name="placement">Placement mode: 1=MoveAndSize, 2=Move, 3=FreeFloating</param>
     [ServiceAction("set-placement")]
-    void SetPlacement(
+    OperationResult SetPlacement(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
         [RequiredParameter] int placement);
@@ -199,7 +200,7 @@ public interface IChartConfigCommands
     /// <param name="labelPosition">Position of data labels relative to data points</param>
     /// <param name="seriesIndex">Optional 1-based series index (null for all series)</param>
     [ServiceAction("set-data-labels")]
-    void SetDataLabels(
+    OperationResult SetDataLabels(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
         bool? showValue = null,
@@ -236,7 +237,7 @@ public interface IChartConfigCommands
     /// <param name="majorUnit">Major gridline interval (null for auto)</param>
     /// <param name="minorUnit">Minor gridline interval (null for auto)</param>
     [ServiceAction("set-axis-scale")]
-    void SetAxisScale(
+    OperationResult SetAxisScale(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
         [RequiredParameter] ChartAxisType axis,
@@ -266,7 +267,7 @@ public interface IChartConfigCommands
     /// <param name="showMajor">Show major gridlines (null to keep current)</param>
     /// <param name="showMinor">Show minor gridlines (null to keep current)</param>
     [ServiceAction("set-gridlines")]
-    void SetGridlines(
+    OperationResult SetGridlines(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
         [RequiredParameter] ChartAxisType axis,
@@ -287,7 +288,7 @@ public interface IChartConfigCommands
     /// <param name="markerForegroundColor">Marker border color (#RRGGBB)</param>
     /// <param name="invertIfNegative">Invert colors for negative values</param>
     [ServiceAction("set-series-format")]
-    void SetSeriesFormat(
+    OperationResult SetSeriesFormat(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
         [RequiredParameter] int seriesIndex,
@@ -349,7 +350,7 @@ public interface IChartConfigCommands
     /// <param name="seriesIndex">1-based index of the series</param>
     /// <param name="trendlineIndex">1-based index of the trendline to delete</param>
     [ServiceAction("delete-trendline")]
-    void DeleteTrendline(
+    OperationResult DeleteTrendline(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
         [RequiredParameter] int seriesIndex,
@@ -369,7 +370,7 @@ public interface IChartConfigCommands
     /// <param name="displayRSquared">Display R-squared (null to keep current)</param>
     /// <param name="name">Custom name (null to keep current)</param>
     [ServiceAction("set-trendline")]
-    void SetTrendline(
+    OperationResult SetTrendline(
         IExcelBatch batch,
         [RequiredParameter] string chartName,
         [RequiredParameter] int seriesIndex,

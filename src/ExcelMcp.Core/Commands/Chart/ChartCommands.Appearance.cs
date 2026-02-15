@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
@@ -10,9 +11,9 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 public partial class ChartCommands
 {
     /// <inheritdoc />
-    public void SetChartType(IExcelBatch batch, string chartName, ChartType chartType)
+    public OperationResult SetChartType(IExcelBatch batch, string chartName, ChartType chartType)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
@@ -26,7 +27,7 @@ public partial class ChartCommands
                 // Set chart type (works for both Regular and PivotCharts)
                 findResult.Chart.ChartType = (int)chartType;
 
-                return 0; // Void operation completed
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }
             finally
             {
@@ -37,9 +38,9 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public void SetTitle(IExcelBatch batch, string chartName, string title)
+    public OperationResult SetTitle(IExcelBatch batch, string chartName, string title)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
@@ -61,7 +62,7 @@ public partial class ChartCommands
                     findResult.Chart.ChartTitle.Text = title;
                 }
 
-                return 0; // Void operation completed
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }
             finally
             {
@@ -72,13 +73,13 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public void SetAxisTitle(
+    public OperationResult SetAxisTitle(
         IExcelBatch batch,
         string chartName,
         ChartAxisType axis,
         string title)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
@@ -117,7 +118,7 @@ public partial class ChartCommands
                     targetAxis.AxisTitle.Text = title;
                 }
 
-                return 0; // Void operation completed
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }
             finally
             {
@@ -180,13 +181,13 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public void SetAxisNumberFormat(
+    public OperationResult SetAxisNumberFormat(
         IExcelBatch batch,
         string chartName,
         ChartAxisType axis,
         string numberFormat)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
@@ -219,7 +220,7 @@ public partial class ChartCommands
                 // Set the number format for axis tick labels
                 tickLabels.NumberFormat = numberFormat;
 
-                return 0; // Void operation completed
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }
             finally
             {
@@ -233,13 +234,13 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public void ShowLegend(
+    public OperationResult ShowLegend(
         IExcelBatch batch,
         string chartName,
         bool visible,
         LegendPosition? legendPosition = null)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
@@ -262,7 +263,7 @@ public partial class ChartCommands
                     legend.Position = (int)legendPosition.Value;
                 }
 
-                return 0; // Void operation completed
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }
             finally
             {
@@ -274,9 +275,9 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public void SetStyle(IExcelBatch batch, string chartName, int styleId)
+    public OperationResult SetStyle(IExcelBatch batch, string chartName, int styleId)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
@@ -296,7 +297,7 @@ public partial class ChartCommands
                 // Set chart style
                 findResult.Chart.ChartStyle = styleId;
 
-                return 0; // Void operation completed
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }
             finally
             {
@@ -307,9 +308,9 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public void SetPlacement(IExcelBatch batch, string chartName, int placement)
+    public OperationResult SetPlacement(IExcelBatch batch, string chartName, int placement)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
@@ -331,7 +332,7 @@ public partial class ChartCommands
                 // Set placement on the shape (ChartObject)
                 findResult.Shape.Placement = placement;
 
-                return 0; // Void operation completed
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }
             finally
             {
@@ -344,7 +345,7 @@ public partial class ChartCommands
     // === DATA LABELS ===
 
     /// <inheritdoc />
-    public void SetDataLabels(
+    public OperationResult SetDataLabels(
         IExcelBatch batch,
         string chartName,
         bool? showValue = null,
@@ -356,7 +357,7 @@ public partial class ChartCommands
         DataLabelPosition? labelPosition = null,
         int? seriesIndex = null)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
@@ -435,7 +436,7 @@ public partial class ChartCommands
                     series = null;
                 }
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -513,7 +514,7 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public void SetAxisScale(
+    public OperationResult SetAxisScale(
         IExcelBatch batch,
         string chartName,
         ChartAxisType axis,
@@ -522,7 +523,7 @@ public partial class ChartCommands
         double? majorUnit = null,
         double? minorUnit = null)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
@@ -567,7 +568,7 @@ public partial class ChartCommands
                     targetAxis.MinorUnit = minorUnit.Value;
                 }
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -645,14 +646,14 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public void SetGridlines(
+    public OperationResult SetGridlines(
         IExcelBatch batch,
         string chartName,
         ChartAxisType axis,
         bool? showMajor = null,
         bool? showMinor = null)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
@@ -677,7 +678,7 @@ public partial class ChartCommands
                 if (showMinor.HasValue)
                     targetAxis.HasMinorGridlines = showMinor.Value;
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -692,7 +693,7 @@ public partial class ChartCommands
     // === SERIES FORMATTING ===
 
     /// <inheritdoc />
-    public void SetSeriesFormat(
+    public OperationResult SetSeriesFormat(
         IExcelBatch batch,
         string chartName,
         int seriesIndex,
@@ -702,7 +703,7 @@ public partial class ChartCommands
         string? markerForegroundColor = null,
         bool? invertIfNegative = null)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
@@ -757,7 +758,7 @@ public partial class ChartCommands
                 if (invertIfNegative.HasValue)
                     series.InvertIfNegative = invertIfNegative.Value;
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -1017,9 +1018,9 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public void DeleteTrendline(IExcelBatch batch, string chartName, int seriesIndex, int trendlineIndex)
+    public OperationResult DeleteTrendline(IExcelBatch batch, string chartName, int seriesIndex, int trendlineIndex)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
@@ -1054,7 +1055,7 @@ public partial class ChartCommands
                 trendline = trendlines.Item(trendlineIndex);
                 trendline.Delete();
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -1069,7 +1070,7 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public void SetTrendline(
+    public OperationResult SetTrendline(
         IExcelBatch batch,
         string chartName,
         int seriesIndex,
@@ -1081,7 +1082,7 @@ public partial class ChartCommands
         bool? displayRSquared = null,
         string? name = null)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             var findResult = FindChart(ctx.Book, chartName);
             if (findResult.Chart == null)
@@ -1146,7 +1147,7 @@ public partial class ChartCommands
                     trendline.Name = name;
                 }
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -1161,9 +1162,9 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public void FitToRange(IExcelBatch batch, string chartName, string sheetName, string rangeAddress)
+    public OperationResult FitToRange(IExcelBatch batch, string chartName, string sheetName, string rangeAddress)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
@@ -1193,7 +1194,7 @@ public partial class ChartCommands
                 findResult.Shape.Width = width;
                 findResult.Shape.Height = height;
 
-                return 0; // Void operation completed
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }
             finally
             {

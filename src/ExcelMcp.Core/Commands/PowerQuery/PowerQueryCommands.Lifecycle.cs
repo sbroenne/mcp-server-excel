@@ -417,7 +417,7 @@ public partial class PowerQueryCommands
     }
 
     /// <inheritdoc />
-    public void Delete(IExcelBatch batch, string queryName)
+    public OperationResult Delete(IExcelBatch batch, string queryName)
     {
         // Validate query name
         if (!ValidateQueryName(queryName, out string? validationError))
@@ -425,7 +425,7 @@ public partial class PowerQueryCommands
             throw new ArgumentException(validationError, nameof(queryName));
         }
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? query = null;
             dynamic? queriesCollection = null;
@@ -570,7 +570,7 @@ public partial class PowerQueryCommands
                 queriesCollection = ctx.Book.Queries;
                 queriesCollection.Item(queryName).Delete();
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {

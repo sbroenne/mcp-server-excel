@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Attributes;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -37,7 +38,7 @@ public interface IConditionalFormattingCommands
     /// <exception cref="InvalidOperationException">Sheet or range not found</exception>
     /// <exception cref="ArgumentException">Invalid rule type, operator, color, or format value</exception>
     [ServiceAction("add-rule")]
-    void AddRule(
+    OperationResult AddRule(
         IExcelBatch batch,
         [RequiredParameter, FromString("sheetName")] string sheetName,
         [RequiredParameter, FromString("rangeAddress")] string rangeAddress,
@@ -62,7 +63,7 @@ public interface IConditionalFormattingCommands
     /// <param name="rangeAddress">Range address to clear rules from (e.g., A1:D10)</param>
     /// <exception cref="InvalidOperationException">Sheet or range not found</exception>
     [ServiceAction("clear-rules")]
-    void ClearRules(
+    OperationResult ClearRules(
         IExcelBatch batch,
         [RequiredParameter, FromString("sheetName")] string sheetName,
         [RequiredParameter, FromString("rangeAddress")] string rangeAddress);

@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
@@ -9,12 +10,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public void AddToDataModel(IExcelBatch batch, string tableName)
+    public OperationResult AddToDataModel(IExcelBatch batch, string tableName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? model = null;
@@ -98,7 +99,7 @@ public partial class TableCommands
                 // Table is immediately available in Data Model - no refresh needed
                 // Connections.Add2() makes the table accessible for relationships/measures instantly
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {

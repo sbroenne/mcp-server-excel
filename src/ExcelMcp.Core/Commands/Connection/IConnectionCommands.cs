@@ -40,7 +40,7 @@ public interface IConnectionCommands
     /// <param name="commandText">SQL query or table name</param>
     /// <param name="description">Optional description for the connection</param>
     [ServiceAction("create")]
-    void Create(
+    OperationResult Create(
         IExcelBatch batch,
         [RequiredParameter, FromString("connectionName")] string connectionName,
         [RequiredParameter, FromString("connectionString")] string connectionString,
@@ -54,7 +54,7 @@ public interface IConnectionCommands
     /// <param name="connectionName">Name of the connection to refresh</param>
     /// <param name="timeout">Optional timeout for the refresh operation</param>
     [ServiceAction("refresh")]
-    void Refresh(
+    OperationResult Refresh(
         IExcelBatch batch,
         [RequiredParameter, FromString("connectionName")] string connectionName,
         [FromString("timeout")] TimeSpan? timeout = null);
@@ -65,7 +65,7 @@ public interface IConnectionCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="connectionName">Name of the connection to delete</param>
     [ServiceAction("delete")]
-    void Delete(
+    OperationResult Delete(
         IExcelBatch batch,
         [RequiredParameter, FromString("connectionName")] string connectionName);
 
@@ -76,7 +76,7 @@ public interface IConnectionCommands
     /// <param name="connectionName">Name of the connection</param>
     /// <param name="sheetName">Target worksheet name</param>
     [ServiceAction("load-to")]
-    void LoadTo(
+    OperationResult LoadTo(
         IExcelBatch batch,
         [RequiredParameter, FromString("connectionName")] string connectionName,
         [RequiredParameter, FromString("sheetName")] string sheetName);
@@ -104,7 +104,7 @@ public interface IConnectionCommands
     /// <param name="savePassword">Save password in connection (null to keep current)</param>
     /// <param name="refreshPeriod">Auto-refresh interval in minutes (null to keep current)</param>
     [ServiceAction("set-properties")]
-    void SetProperties(
+    OperationResult SetProperties(
         IExcelBatch batch,
         [RequiredParameter, FromString("connectionName")] string connectionName,
         string? connectionString = null,
@@ -121,7 +121,7 @@ public interface IConnectionCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="connectionName">Name of the connection to test</param>
     [ServiceAction("test")]
-    void Test(
+    OperationResult Test(
         IExcelBatch batch,
         [RequiredParameter, FromString("connectionName")] string connectionName);
 }

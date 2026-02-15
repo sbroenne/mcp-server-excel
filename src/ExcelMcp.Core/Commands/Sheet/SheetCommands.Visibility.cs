@@ -10,9 +10,9 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class SheetCommands
 {
     /// <inheritdoc />
-    public void SetVisibility(IExcelBatch batch, string sheetName, SheetVisibility visibility)
+    public OperationResult SetVisibility(IExcelBatch batch, string sheetName, SheetVisibility visibility)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             try
@@ -25,7 +25,7 @@ public partial class SheetCommands
 
                 // Set visibility using the enum value (maps to XlSheetVisibility)
                 sheet.Visible = (int)visibility;
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -66,21 +66,21 @@ public partial class SheetCommands
     }
 
     /// <inheritdoc />
-    public void Show(IExcelBatch batch, string sheetName)
+    public OperationResult Show(IExcelBatch batch, string sheetName)
     {
-        SetVisibility(batch, sheetName, SheetVisibility.Visible);
+        return SetVisibility(batch, sheetName, SheetVisibility.Visible);
     }
 
     /// <inheritdoc />
-    public void Hide(IExcelBatch batch, string sheetName)
+    public OperationResult Hide(IExcelBatch batch, string sheetName)
     {
-        SetVisibility(batch, sheetName, SheetVisibility.Hidden);
+        return SetVisibility(batch, sheetName, SheetVisibility.Hidden);
     }
 
     /// <inheritdoc />
-    public void VeryHide(IExcelBatch batch, string sheetName)
+    public OperationResult VeryHide(IExcelBatch batch, string sheetName)
     {
-        SetVisibility(batch, sheetName, SheetVisibility.VeryHidden);
+        return SetVisibility(batch, sheetName, SheetVisibility.VeryHidden);
     }
 }
 

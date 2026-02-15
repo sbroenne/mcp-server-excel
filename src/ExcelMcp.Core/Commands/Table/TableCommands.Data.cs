@@ -12,7 +12,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public void Append(IExcelBatch batch, string tableName, List<List<object?>>? rows = null, string? rowsFile = null)
+    public OperationResult Append(IExcelBatch batch, string tableName, List<List<object?>>? rows = null, string? rowsFile = null)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
@@ -20,7 +20,7 @@ public partial class TableCommands
         // Resolve rows from inline parameter or file
         var resolvedRows = ParameterTransforms.ResolveValuesOrFile(rows, rowsFile, "rows");
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? sheet = null;
@@ -124,7 +124,7 @@ public partial class TableCommands
                     ComUtilities.Release(ref resizeRange);
                 }
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {

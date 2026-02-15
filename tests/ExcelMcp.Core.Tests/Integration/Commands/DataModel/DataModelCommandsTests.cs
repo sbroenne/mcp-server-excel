@@ -181,7 +181,7 @@ public partial class DataModelCommandsTests
         var daxFormula = "SUM(SalesTable[Amount])";
 
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
-        _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, daxFormula);  // CreateMeasure throws on error
+        _ = _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, daxFormula);  // CreateMeasure throws on error
 
         // Verify measure created
         var listResult = await _dataModelCommands.ListMeasures(batch);
@@ -202,10 +202,10 @@ public partial class DataModelCommandsTests
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
         // Create measure
-        _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, originalFormula);  // CreateMeasure throws on error
+        _ = _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, originalFormula);  // CreateMeasure throws on error
 
         // Update formula
-        _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: updatedFormula);  // UpdateMeasure throws on error
+        _ = _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: updatedFormula);  // UpdateMeasure throws on error
 
         // Verify update
         var viewResult = await _dataModelCommands.Read(batch, measureName);
@@ -224,10 +224,10 @@ public partial class DataModelCommandsTests
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
         // Create measure
-        _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, "SUM(SalesTable[Amount])");  // CreateMeasure throws on error
+        _ = _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, "SUM(SalesTable[Amount])");  // CreateMeasure throws on error
 
         // Delete measure
-        _dataModelCommands.DeleteMeasure(batch, measureName);  // DeleteMeasure throws on error
+        _ = _dataModelCommands.DeleteMeasure(batch, measureName);  // DeleteMeasure throws on error
 
         // Verify deletion
         var listResult = await _dataModelCommands.ListMeasures(batch);
@@ -284,11 +284,11 @@ public partial class DataModelCommandsTests
             r.FromTable == "SalesTable" && r.ToTable == "CustomersTable" &&
             r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID") == true)
         {
-            _dataModelCommands.DeleteRelationship(batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");  // DeleteRelationship throws on error
+            _ = _dataModelCommands.DeleteRelationship(batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");  // DeleteRelationship throws on error
         }
 
         // Create relationship
-        _dataModelCommands.CreateRelationship(
+        _ = _dataModelCommands.CreateRelationship(
             batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");  // CreateRelationship throws on error
 
         // Verify creation
@@ -308,7 +308,7 @@ public partial class DataModelCommandsTests
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
         // Delete relationship
-        _dataModelCommands.DeleteRelationship(
+        _ = _dataModelCommands.DeleteRelationship(
             batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");  // DeleteRelationship throws on error
 
         // Verify deletion
@@ -318,7 +318,7 @@ public partial class DataModelCommandsTests
             r.FromColumn == "CustomerID" && r.ToColumn == "CustomerID");
 
         // Recreate for other tests (shared file)
-        _dataModelCommands.CreateRelationship(batch,
+        _ = _dataModelCommands.CreateRelationship(batch,
             "SalesTable", "CustomerID", "CustomersTable", "CustomerID", active: true);  // CreateRelationship throws on error
     }
 

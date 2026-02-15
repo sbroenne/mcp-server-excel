@@ -81,10 +81,9 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
-    public void Replace(IExcelBatch batch, string sheetName, string rangeAddress, string findValue, string replaceValue, ReplaceOptions replaceOptions)
+    public OperationResult Replace(IExcelBatch batch, string sheetName, string rangeAddress, string findValue, string replaceValue, ReplaceOptions replaceOptions)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             try
@@ -109,7 +108,7 @@ public partial class RangeCommands
                     MatchByte: false
                 );
 
-                return ValueTask.CompletedTask;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -121,10 +120,9 @@ public partial class RangeCommands
     // === SORT OPERATIONS ===
 
     /// <inheritdoc />
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
-    public void Sort(IExcelBatch batch, string sheetName, string rangeAddress, List<SortColumn> sortColumns, bool hasHeaders = true)
+    public OperationResult Sort(IExcelBatch batch, string sheetName, string rangeAddress, List<SortColumn> sortColumns, bool hasHeaders = true)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? range = null;
             dynamic? key1 = null;
@@ -175,7 +173,7 @@ public partial class RangeCommands
                     SortMethod: 1   // xlPinYin
                 );
 
-                return ValueTask.CompletedTask;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {

@@ -28,7 +28,7 @@ public partial class DataModelCommandsTests
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
         // This should NOT throw - the DaxFormulaTranslator should handle locale conversion
-        _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, daxFormula);
+        _ = _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, daxFormula);
 
         // Verify measure was created
         var listResult = await _dataModelCommands.ListMeasures(batch);
@@ -54,7 +54,7 @@ public partial class DataModelCommandsTests
         var daxFormula = "CALCULATE(SUM(SalesTable[Amount]), FILTER(ALL(SalesTable), SalesTable[Amount] > 100))";
 
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
-        _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, daxFormula);
+        _ = _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, daxFormula);
 
         // Verify measure was created and formula is valid
         var readResult = await _dataModelCommands.Read(batch, measureName);
@@ -78,10 +78,10 @@ public partial class DataModelCommandsTests
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
         // Create measure with simple formula
-        _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, originalFormula);
+        _ = _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, originalFormula);
 
         // Update with complex formula - should handle locale conversion
-        _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: updatedFormula);
+        _ = _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: updatedFormula);
 
         // Verify the formula was updated
         var readResult = await _dataModelCommands.Read(batch, measureName);
@@ -102,7 +102,7 @@ public partial class DataModelCommandsTests
         var daxFormula = "IF(SalesTable[Region] = \"North, South\", 1, 0)";
 
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
-        _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, daxFormula);
+        _ = _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, daxFormula);
 
         // Verify measure was created
         var readResult = await _dataModelCommands.Read(batch, measureName);
@@ -121,7 +121,7 @@ public partial class DataModelCommandsTests
         var daxFormula = "SUM(SalesTable[Amount])";
 
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
-        _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, daxFormula);
+        _ = _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, daxFormula);
 
         var readResult = await _dataModelCommands.Read(batch, measureName);
         Assert.True(readResult.Success, $"Read measure failed: {readResult.ErrorMessage}");

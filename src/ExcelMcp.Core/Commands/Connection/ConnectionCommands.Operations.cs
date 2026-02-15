@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -12,11 +13,11 @@ public partial class ConnectionCommands
     /// <summary>
     /// Loads connection data to a worksheet
     /// </summary>
-    public void LoadTo(IExcelBatch batch, string connectionName, string sheetName)
+    public OperationResult LoadTo(IExcelBatch batch, string connectionName, string sheetName)
     {
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? conn = null;
             dynamic? sheets = null;
@@ -76,7 +77,7 @@ public partial class ConnectionCommands
                 };
 
                 CreateQueryTableForConnection(targetSheet, conn, options);
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -91,9 +92,9 @@ public partial class ConnectionCommands
     /// Gets connection properties
     /// </summary>
 
-    public void Test(IExcelBatch batch, string connectionName)
+    public OperationResult Test(IExcelBatch batch, string connectionName)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
@@ -109,7 +110,7 @@ public partial class ConnectionCommands
             // until a QueryTable is created. Just verify the connection object exists.
             if (connType is 4 or 5)
             {
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
 
             // For other connection types (OLEDB, ODBC), validate connection string
@@ -121,7 +122,7 @@ public partial class ConnectionCommands
             }
 
             // Connection exists and is accessible
-            return 0;
+            return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
         });
     }
 }

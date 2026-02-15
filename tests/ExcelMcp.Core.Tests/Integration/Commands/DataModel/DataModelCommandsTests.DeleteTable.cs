@@ -105,7 +105,7 @@ public class DataModelDeleteTableTests : IClassFixture<DataModelTestsFixture>
         Assert.Contains(listBefore.Tables, t => t.Name == "TestTable");
 
         // Act - Delete the table from Data Model
-        _dataModelCommands.DeleteTable(batch, "TestTable");
+        _ = _dataModelCommands.DeleteTable(batch, "TestTable");
 
         // Assert - Table should be gone from Data Model
         var listAfter = await _dataModelCommands.ListTables(batch);

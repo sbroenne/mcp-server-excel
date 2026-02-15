@@ -2,6 +2,7 @@ using Polly;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Formatting;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.DataModel;
 
 
@@ -18,11 +19,11 @@ public partial class DataModelCommands
     private static readonly ResiliencePipeline _dataModelPipeline = ResiliencePipelines.CreateDataModelPipeline();
 
     /// <inheritdoc />
-    public void DeleteMeasure(IExcelBatch batch, string measureName)
+    public OperationResult DeleteMeasure(IExcelBatch batch, string measureName)
     {
-        ExecuteWithRetry(() =>
+        return ExecuteWithRetry(() =>
         {
-            batch.Execute((ctx, ct) =>
+            return batch.Execute((ctx, ct) =>
             {
                 dynamic? model = null;
                 dynamic? measure = null;
@@ -52,17 +53,17 @@ public partial class DataModelCommands
                     ComUtilities.Release(ref model);
                 }
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             });
         });
     }
 
     /// <inheritdoc />
-    public void DeleteTable(IExcelBatch batch, string tableName)
+    public OperationResult DeleteTable(IExcelBatch batch, string tableName)
     {
-        ExecuteWithRetry(() =>
+        return ExecuteWithRetry(() =>
         {
-            batch.Execute((ctx, ct) =>
+            return batch.Execute((ctx, ct) =>
             {
                 dynamic? model = null;
                 dynamic? table = null;
@@ -108,17 +109,17 @@ public partial class DataModelCommands
                     ComUtilities.Release(ref model);
                 }
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             });
         });
     }
 
     /// <inheritdoc />
-    public void DeleteRelationship(IExcelBatch batch, string fromTable, string fromColumn, string toTable, string toColumn)
+    public OperationResult DeleteRelationship(IExcelBatch batch, string fromTable, string fromColumn, string toTable, string toColumn)
     {
-        ExecuteWithRetry(() =>
+        return ExecuteWithRetry(() =>
         {
-            batch.Execute((ctx, ct) =>
+            return batch.Execute((ctx, ct) =>
             {
                 dynamic? model = null;
                 dynamic? modelRelationships = null;
@@ -193,13 +194,13 @@ public partial class DataModelCommands
                     ComUtilities.Release(ref model);
                 }
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             });
         });
     }
 
     /// <inheritdoc />
-    public void CreateMeasure(IExcelBatch batch, string tableName, string measureName,
+    public OperationResult CreateMeasure(IExcelBatch batch, string tableName, string measureName,
                               string daxFormula, string? formatType = null,
                               string? description = null)
     {
@@ -208,9 +209,9 @@ public partial class DataModelCommands
         // Falls back to original if formatting fails
         string formattedDax = DaxFormatter.FormatAsync(daxFormula).GetAwaiter().GetResult();
 
-        ExecuteWithRetry(() =>
+        return ExecuteWithRetry(() =>
         {
-            batch.Execute((ctx, ct) =>
+            return batch.Execute((ctx, ct) =>
             {
                 dynamic? model = null;
                 dynamic? table = null;
@@ -279,13 +280,13 @@ public partial class DataModelCommands
                     ComUtilities.Release(ref model);
                 }
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             });
         });
     }
 
     /// <inheritdoc />
-    public void UpdateMeasure(IExcelBatch batch, string measureName,
+    public OperationResult UpdateMeasure(IExcelBatch batch, string measureName,
                               string? daxFormula = null, string? formatType = null,
                               string? description = null)
     {
@@ -299,9 +300,9 @@ public partial class DataModelCommands
             formattedDax = DaxFormatter.FormatAsync(daxFormula).GetAwaiter().GetResult();
         }
 
-        ExecuteWithRetry(() =>
+        return ExecuteWithRetry(() =>
         {
-            batch.Execute((ctx, ct) =>
+            return batch.Execute((ctx, ct) =>
             {
                 dynamic? model = null;
                 dynamic? measure = null;
@@ -370,19 +371,19 @@ public partial class DataModelCommands
                     ComUtilities.Release(ref model);
                 }
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             });
         });
     }
 
     /// <inheritdoc />
-    public void CreateRelationship(IExcelBatch batch, string fromTable,
+    public OperationResult CreateRelationship(IExcelBatch batch, string fromTable,
                                    string fromColumn, string toTable,
                                    string toColumn, bool active = true)
     {
-        ExecuteWithRetry(() =>
+        return ExecuteWithRetry(() =>
         {
-            batch.Execute((ctx, ct) =>
+            return batch.Execute((ctx, ct) =>
             {
                 dynamic? model = null;
                 dynamic? relationships = null;
@@ -458,19 +459,19 @@ public partial class DataModelCommands
                     ComUtilities.Release(ref model);
                 }
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             });
         });
     }
 
     /// <inheritdoc />
-    public void UpdateRelationship(IExcelBatch batch, string fromTable,
+    public OperationResult UpdateRelationship(IExcelBatch batch, string fromTable,
                                    string fromColumn, string toTable,
                                    string toColumn, bool active)
     {
-        ExecuteWithRetry(() =>
+        return ExecuteWithRetry(() =>
         {
-            batch.Execute((ctx, ct) =>
+            return batch.Execute((ctx, ct) =>
             {
                 dynamic? model = null;
                 dynamic? relationship = null;
@@ -501,7 +502,7 @@ public partial class DataModelCommands
                     ComUtilities.Release(ref model);
                 }
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             });
         });
     }
@@ -514,6 +515,17 @@ public partial class DataModelCommands
     private static void ExecuteWithRetry(Action action)
     {
         _dataModelPipeline.Execute(action);
+    }
+
+    /// <summary>
+    /// Executes a function with resilient retry logic for intermittent Data Model errors.
+    /// Returns the result of the function.
+    /// </summary>
+    /// <typeparam name="T">The return type</typeparam>
+    /// <param name="func">The function to execute with retry</param>
+    private static T ExecuteWithRetry<T>(Func<T> func)
+    {
+        return _dataModelPipeline.Execute(func);
     }
 }
 

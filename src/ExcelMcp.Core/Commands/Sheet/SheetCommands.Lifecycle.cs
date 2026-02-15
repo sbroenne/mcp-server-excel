@@ -52,9 +52,9 @@ public partial class SheetCommands
     }
 
     /// <inheritdoc />
-    public void Create(IExcelBatch batch, string sheetName, string? filePath = null)
+    public OperationResult Create(IExcelBatch batch, string sheetName, string? filePath = null)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             // Get the workbook to create sheet in
             dynamic workbook = filePath != null ? batch.GetWorkbook(filePath) : ctx.Book;
@@ -66,7 +66,7 @@ public partial class SheetCommands
                 sheets = workbook.Worksheets;
                 newSheet = sheets.Add();
                 newSheet.Name = sheetName;
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -77,9 +77,9 @@ public partial class SheetCommands
     }
 
     /// <inheritdoc />
-    public void Rename(IExcelBatch batch, string oldName, string newName)
+    public OperationResult Rename(IExcelBatch batch, string oldName, string newName)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             try
@@ -90,7 +90,7 @@ public partial class SheetCommands
                     throw new InvalidOperationException($"Sheet '{oldName}' not found.");
                 }
                 sheet.Name = newName;
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -100,9 +100,9 @@ public partial class SheetCommands
     }
 
     /// <inheritdoc />
-    public void Copy(IExcelBatch batch, string sourceName, string targetName)
+    public OperationResult Copy(IExcelBatch batch, string sourceName, string targetName)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sourceSheet = null;
             dynamic? sheets = null;
@@ -120,7 +120,7 @@ public partial class SheetCommands
                 sourceSheet.Copy(After: lastSheet);
                 copiedSheet = sheets.Item(sheets.Count);
                 copiedSheet.Name = targetName;
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -133,9 +133,9 @@ public partial class SheetCommands
     }
 
     /// <inheritdoc />
-    public void Delete(IExcelBatch batch, string sheetName)
+    public OperationResult Delete(IExcelBatch batch, string sheetName)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             try
@@ -146,7 +146,7 @@ public partial class SheetCommands
                     throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 }
                 sheet.Delete();
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -156,7 +156,7 @@ public partial class SheetCommands
     }
 
     /// <inheritdoc />
-    public void Move(IExcelBatch batch, string sheetName, string? beforeSheet = null, string? afterSheet = null)
+    public OperationResult Move(IExcelBatch batch, string sheetName, string? beforeSheet = null, string? afterSheet = null)
     {
         // Validate parameters
         if (!string.IsNullOrWhiteSpace(beforeSheet) && !string.IsNullOrWhiteSpace(afterSheet))
@@ -164,7 +164,7 @@ public partial class SheetCommands
             throw new ArgumentException("Cannot specify both beforeSheet and afterSheet");
         }
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? targetSheet = null;
@@ -205,7 +205,7 @@ public partial class SheetCommands
                         sheet.Move(After: targetSheet);
                     }
                 }
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -220,7 +220,7 @@ public partial class SheetCommands
     // === ATOMIC CROSS-FILE OPERATIONS ===
 
     /// <inheritdoc />
-    public void CopyToFile(string sourceFile, string sourceSheet, string targetFile, string? targetSheetName = null, string? beforeSheet = null, string? afterSheet = null)
+    public OperationResult CopyToFile(string sourceFile, string sourceSheet, string targetFile, string? targetSheetName = null, string? beforeSheet = null, string? afterSheet = null)
     {
         // Validate positioning parameters
         if (!string.IsNullOrWhiteSpace(beforeSheet) && !string.IsNullOrWhiteSpace(afterSheet))
@@ -249,7 +249,7 @@ public partial class SheetCommands
         // Create a batch with both files open in the same Excel instance
         using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sourceWb = null;
             dynamic? targetWb = null;
@@ -323,7 +323,7 @@ public partial class SheetCommands
                 // Save the target workbook (source unchanged, only target modified)
                 targetWb.Save();
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -336,7 +336,7 @@ public partial class SheetCommands
     }
 
     /// <inheritdoc />
-    public void MoveToFile(string sourceFile, string sourceSheet, string targetFile, string? beforeSheet = null, string? afterSheet = null)
+    public OperationResult MoveToFile(string sourceFile, string sourceSheet, string targetFile, string? beforeSheet = null, string? afterSheet = null)
     {
         // Validate positioning parameters
         if (!string.IsNullOrWhiteSpace(beforeSheet) && !string.IsNullOrWhiteSpace(afterSheet))
@@ -365,7 +365,7 @@ public partial class SheetCommands
         // Create a batch with both files open in the same Excel instance
         using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sourceWb = null;
             dynamic? targetWb = null;
@@ -425,7 +425,7 @@ public partial class SheetCommands
                 sourceWb.Save();
                 targetWb.Save();
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {

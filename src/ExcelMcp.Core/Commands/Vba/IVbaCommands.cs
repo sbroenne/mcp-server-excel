@@ -37,7 +37,7 @@ public interface IVbaCommands
     /// <param name="moduleName">Name for the new module</param>
     /// <param name="vbaCode">VBA code to import</param>
     [ServiceAction("import")]
-    void Import(IExcelBatch batch, [RequiredParameter] string moduleName, [RequiredParameter][FileOrValue] string vbaCode);
+    OperationResult Import(IExcelBatch batch, [RequiredParameter] string moduleName, [RequiredParameter][FileOrValue] string vbaCode);
 
     /// <summary>
     /// Updates an existing VBA module with new code
@@ -45,7 +45,7 @@ public interface IVbaCommands
     /// <param name="moduleName">Name of the module to update</param>
     /// <param name="vbaCode">New VBA code</param>
     [ServiceAction("update")]
-    void Update(IExcelBatch batch, [RequiredParameter] string moduleName, [RequiredParameter][FileOrValue] string vbaCode);
+    OperationResult Update(IExcelBatch batch, [RequiredParameter] string moduleName, [RequiredParameter][FileOrValue] string vbaCode);
 
     /// <summary>
     /// Runs a VBA procedure with optional parameters
@@ -54,14 +54,14 @@ public interface IVbaCommands
     /// <param name="timeout">Optional timeout for execution</param>
     /// <param name="parameters">Optional parameters to pass to the procedure</param>
     [ServiceAction("run")]
-    void Run(IExcelBatch batch, [RequiredParameter] string procedureName, TimeSpan? timeout, params string[] parameters);
+    OperationResult Run(IExcelBatch batch, [RequiredParameter] string procedureName, TimeSpan? timeout, params string[] parameters);
 
     /// <summary>
     /// Deletes a VBA module
     /// </summary>
     /// <param name="moduleName">Name of the module to delete</param>
     [ServiceAction("delete")]
-    void Delete(IExcelBatch batch, [RequiredParameter] string moduleName);
+    OperationResult Delete(IExcelBatch batch, [RequiredParameter] string moduleName);
 }
 
 

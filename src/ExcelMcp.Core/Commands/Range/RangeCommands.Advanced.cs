@@ -10,13 +10,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public partial class RangeCommands
 {
     /// <inheritdoc />
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
-    public void MergeCells(
+    public OperationResult MergeCells(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -34,7 +33,7 @@ public partial class RangeCommands
                 // Merge cells
                 range.Merge();
 
-                return ValueTask.CompletedTask;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -45,13 +44,12 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
-    public void UnmergeCells(
+    public OperationResult UnmergeCells(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -69,7 +67,7 @@ public partial class RangeCommands
                 // Unmerge cells
                 range.UnMerge();
 
-                return ValueTask.CompletedTask;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -121,14 +119,13 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
-    public void SetCellLock(
+    public OperationResult SetCellLock(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
         bool locked)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -146,7 +143,7 @@ public partial class RangeCommands
                 // Set locked property
                 range.Locked = locked;
 
-                return ValueTask.CompletedTask;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {

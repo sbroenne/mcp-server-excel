@@ -39,7 +39,7 @@ public interface ISheetCommands
     /// <param name="sheetName">Name for the new worksheet</param>
     /// <param name="filePath">Optional file path when batch contains multiple workbooks. If omitted, creates in primary workbook.</param>
     [ServiceAction("create")]
-    void Create(IExcelBatch batch, [RequiredParameter] string sheetName, string? filePath = null);
+    OperationResult Create(IExcelBatch batch, [RequiredParameter] string sheetName, string? filePath = null);
 
     /// <summary>
     /// Renames a worksheet.
@@ -49,7 +49,7 @@ public interface ISheetCommands
     /// <param name="oldName">Current name of the worksheet</param>
     /// <param name="newName">New name for the worksheet</param>
     [ServiceAction("rename")]
-    void Rename(IExcelBatch batch, [RequiredParameter] string oldName, [RequiredParameter] string newName);
+    OperationResult Rename(IExcelBatch batch, [RequiredParameter] string oldName, [RequiredParameter] string newName);
 
     /// <summary>
     /// Copies a worksheet.
@@ -59,7 +59,7 @@ public interface ISheetCommands
     /// <param name="sourceName">Name of the source worksheet</param>
     /// <param name="targetName">Name for the copied worksheet</param>
     [ServiceAction("copy")]
-    void Copy(IExcelBatch batch, [RequiredParameter] string sourceName, [RequiredParameter] string targetName);
+    OperationResult Copy(IExcelBatch batch, [RequiredParameter] string sourceName, [RequiredParameter] string targetName);
 
     /// <summary>
     /// Deletes a worksheet.
@@ -68,7 +68,7 @@ public interface ISheetCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet to delete</param>
     [ServiceAction("delete")]
-    void Delete(IExcelBatch batch, [RequiredParameter] string sheetName);
+    OperationResult Delete(IExcelBatch batch, [RequiredParameter] string sheetName);
 
     /// <summary>
     /// Moves a worksheet to a new position within the workbook.
@@ -81,7 +81,7 @@ public interface ISheetCommands
     /// <param name="beforeSheet">Optional: Name of sheet to position before</param>
     /// <param name="afterSheet">Optional: Name of sheet to position after</param>
     [ServiceAction("move")]
-    void Move(IExcelBatch batch, [RequiredParameter] string sheetName, string? beforeSheet = null, string? afterSheet = null);
+    OperationResult Move(IExcelBatch batch, [RequiredParameter] string sheetName, string? beforeSheet = null, string? afterSheet = null);
 
     // === ATOMIC CROSS-FILE OPERATIONS ===
     // These operations don't require a session - they create temporary Excel instances internally.
@@ -98,7 +98,7 @@ public interface ISheetCommands
     /// <param name="beforeSheet">Optional: Position before this sheet in target</param>
     /// <param name="afterSheet">Optional: Position after this sheet in target</param>
     [ServiceAction("copy-to-file")]
-    void CopyToFile(
+    OperationResult CopyToFile(
         [RequiredParameter] string sourceFile,
         [RequiredParameter] string sourceSheet,
         [RequiredParameter] string targetFile,
@@ -118,7 +118,7 @@ public interface ISheetCommands
     /// <param name="beforeSheet">Optional: Position before this sheet in target</param>
     /// <param name="afterSheet">Optional: Position after this sheet in target</param>
     [ServiceAction("move-to-file")]
-    void MoveToFile(
+    OperationResult MoveToFile(
         [RequiredParameter] string sourceFile,
         [RequiredParameter] string sourceSheet,
         [RequiredParameter] string targetFile,

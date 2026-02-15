@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
@@ -420,9 +421,9 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
     }
 
     /// <inheritdoc />
-    public void Delete(IExcelBatch batch, string chartName)
+    public OperationResult Delete(IExcelBatch batch, string chartName)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             // Find and delete chart
             dynamic worksheets = ctx.Book.Worksheets;
@@ -467,7 +468,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                             ComUtilities.Release(ref worksheet!);
                             ComUtilities.Release(ref worksheets!);
 
-                            return 0; // Success
+                            return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Success
                         }
                         finally
                         {
@@ -490,7 +491,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
     }
 
     /// <inheritdoc />
-    public void Move(
+    public OperationResult Move(
         IExcelBatch batch,
         string chartName,
         double? left = null,
@@ -498,7 +499,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
         double? width = null,
         double? height = null)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             // Find chart and update position/size
             dynamic worksheets = ctx.Book.Worksheets;
@@ -546,7 +547,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                             ComUtilities.Release(ref worksheet!);
                             ComUtilities.Release(ref worksheets!);
 
-                            return 0; // Success
+                            return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Success
                         }
                         finally
                         {

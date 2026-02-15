@@ -495,14 +495,14 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Create as ConnectionOnly
-        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.ConnectionOnly);
+        _ = _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.ConnectionOnly);
 
         // Verify no Power Query connections
         var connsBefore = _connectionCommands.List(batch);
         Assert.DoesNotContain(connsBefore.Connections, c => c.IsPowerQuery);
 
         // Act - LoadTo Both
-        _powerQueryCommands.LoadTo(batch, queryName, PowerQueryLoadMode.LoadToBoth, "BothSheet");
+        _ = _powerQueryCommands.LoadTo(batch, queryName, PowerQueryLoadMode.LoadToBoth, "BothSheet");
 
         // Assert - Should have TWO connections with proper naming
         var connsAfter = _connectionCommands.List(batch);
@@ -523,7 +523,7 @@ in
         Assert.Contains(tables.Tables, t => t.Name == queryName);
 
         // Cleanup
-        _powerQueryCommands.Delete(batch, queryName);
+        _ = _powerQueryCommands.Delete(batch, queryName);
         var connsFinal = _connectionCommands.List(batch);
         Assert.DoesNotContain(connsFinal.Connections, c => c.IsPowerQuery);
     }
@@ -542,7 +542,7 @@ in
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Act
-        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToBoth, "Sheet1");
+        _ = _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToBoth, "Sheet1");
 
         // Assert - Exactly 2 Power Query connections
         var connections = _connectionCommands.List(batch);
@@ -563,7 +563,7 @@ in
         Assert.Contains(dmTables.Tables, t => t.Name == queryName);
 
         // Cleanup removes both
-        _powerQueryCommands.Delete(batch, queryName);
+        _ = _powerQueryCommands.Delete(batch, queryName);
         var connsFinal = _connectionCommands.List(batch);
         Assert.DoesNotContain(connsFinal.Connections, c => c.IsPowerQuery);
     }

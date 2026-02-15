@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
@@ -9,13 +10,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public partial class RangeCommands
 {
     /// <inheritdoc />
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
-    public void AutoFitColumns(
+    public OperationResult AutoFitColumns(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -35,7 +35,7 @@ public partial class RangeCommands
                 columns = range.Columns;
                 columns.AutoFit();
 
-                return ValueTask.CompletedTask;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -47,13 +47,12 @@ public partial class RangeCommands
     }
 
     /// <inheritdoc />
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2012:Use ValueTasks correctly")]
-    public void AutoFitRows(
+    public OperationResult AutoFitRows(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -73,7 +72,7 @@ public partial class RangeCommands
                 rows = range.Rows;
                 rows.AutoFit();
 
-                return ValueTask.CompletedTask;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {

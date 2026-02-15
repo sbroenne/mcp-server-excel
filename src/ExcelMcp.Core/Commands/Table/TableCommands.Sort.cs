@@ -17,7 +17,7 @@ public partial class TableCommands
     /// <summary>
     /// Sorts a table by a single column
     /// </summary>
-    public void Sort(
+    public OperationResult Sort(
         IExcelBatch batch,
         string tableName,
         string columnName,
@@ -26,7 +26,7 @@ public partial class TableCommands
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? columns = null;
@@ -57,7 +57,7 @@ public partial class TableCommands
                     Header: xlYes
                 );
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -71,7 +71,7 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public void SortMulti(
+    public OperationResult SortMulti(
         IExcelBatch batch,
         string tableName,
         List<TableSortColumn> sortColumns)
@@ -79,7 +79,7 @@ public partial class TableCommands
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             if (sortColumns == null || sortColumns.Count == 0)
             {
@@ -167,7 +167,7 @@ public partial class TableCommands
                 // Build description
                 var sortDesc = string.Join(", ", sortColumns.Select(sc => $"{sc.ColumnName} ({(sc.Ascending ? "asc" : "desc")})"));
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {

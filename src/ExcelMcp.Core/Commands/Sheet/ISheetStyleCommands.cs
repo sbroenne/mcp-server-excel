@@ -33,7 +33,7 @@ public interface ISheetStyleCommands
     /// <param name="green">Green color component (0-255)</param>
     /// <param name="blue">Blue color component (0-255)</param>
     [ServiceAction("set-tab-color")]
-    void SetTabColor(
+    OperationResult SetTabColor(
         IExcelBatch batch,
         [RequiredParameter] string sheetName,
         [RequiredParameter] int red,
@@ -56,7 +56,7 @@ public interface ISheetStyleCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     [ServiceAction("clear-tab-color")]
-    void ClearTabColor(IExcelBatch batch, [RequiredParameter] string sheetName);
+    OperationResult ClearTabColor(IExcelBatch batch, [RequiredParameter] string sheetName);
 
     // === VISIBILITY OPERATIONS ===
 
@@ -71,7 +71,7 @@ public interface ISheetStyleCommands
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="visibility">Visibility level: 'visible', 'hidden', or 'veryhidden'</param>
     [ServiceAction("set-visibility")]
-    void SetVisibility(
+    OperationResult SetVisibility(
         IExcelBatch batch,
         [RequiredParameter] string sheetName,
         [RequiredParameter]
@@ -93,7 +93,7 @@ public interface ISheetStyleCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     [ServiceAction("show")]
-    void Show(IExcelBatch batch, [RequiredParameter] string sheetName);
+    OperationResult Show(IExcelBatch batch, [RequiredParameter] string sheetName);
 
     /// <summary>
     /// Hides a worksheet (user can unhide via Excel UI).
@@ -103,7 +103,7 @@ public interface ISheetStyleCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     [ServiceAction("hide")]
-    void Hide(IExcelBatch batch, [RequiredParameter] string sheetName);
+    OperationResult Hide(IExcelBatch batch, [RequiredParameter] string sheetName);
 
     /// <summary>
     /// Very hides a worksheet (requires code to unhide, for protection).
@@ -113,5 +113,5 @@ public interface ISheetStyleCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     [ServiceAction("very-hide")]
-    void VeryHide(IExcelBatch batch, [RequiredParameter] string sheetName);
+    OperationResult VeryHide(IExcelBatch batch, [RequiredParameter] string sheetName);
 }

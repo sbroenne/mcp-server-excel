@@ -55,7 +55,7 @@ public class PowerQueryLifecycleCleanupTests : IClassFixture<TempDirectoryFixtur
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Create query with LoadToDataModel
-        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToDataModel);
+        _ = _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToDataModel);
 
         // Verify Data Model table exists
         var tablesBefore = await _dataModelCommands.ListTables(batch);
@@ -104,7 +104,7 @@ public class PowerQueryLifecycleCleanupTests : IClassFixture<TempDirectoryFixtur
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Create query with LoadToBoth
-        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToBoth, sheetName);
+        _ = _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToBoth, sheetName);
 
         // Verify Data Model table exists
         var tablesBefore = await _dataModelCommands.ListTables(batch);
@@ -152,7 +152,7 @@ public class PowerQueryLifecycleCleanupTests : IClassFixture<TempDirectoryFixtur
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Create query with LoadToDataModel
-        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToDataModel);
+        _ = _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToDataModel);
 
         // Verify Data Model table exists
         var tablesBefore = await _dataModelCommands.ListTables(batch);
@@ -165,7 +165,7 @@ public class PowerQueryLifecycleCleanupTests : IClassFixture<TempDirectoryFixtur
         Assert.Contains(connsBefore.Connections, c => c.Name.Contains($"Query - {queryName}"));
 
         // Act - Delete the query
-        _powerQueryCommands.Delete(batch, queryName);
+        _ = _powerQueryCommands.Delete(batch, queryName);
 
         // Assert - Verify query is gone
         var queries = _powerQueryCommands.List(batch);
@@ -193,7 +193,7 @@ public class PowerQueryLifecycleCleanupTests : IClassFixture<TempDirectoryFixtur
         using var batch = ExcelSession.BeginBatch(testExcelFile);
 
         // Create query with LoadToBoth
-        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToBoth, sheetName);
+        _ = _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToBoth, sheetName);
 
         // Verify Data Model table exists
         var tablesBefore = await _dataModelCommands.ListTables(batch);
@@ -206,7 +206,7 @@ public class PowerQueryLifecycleCleanupTests : IClassFixture<TempDirectoryFixtur
         Assert.Contains(connsBefore.Connections, c => c.Name.Contains($"Query - {queryName}"));
 
         // Act - Delete the query
-        _powerQueryCommands.Delete(batch, queryName);
+        _ = _powerQueryCommands.Delete(batch, queryName);
 
         // Assert - Verify query is gone
         var queries = _powerQueryCommands.List(batch);

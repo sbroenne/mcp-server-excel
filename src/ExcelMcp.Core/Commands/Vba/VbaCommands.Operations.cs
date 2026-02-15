@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -10,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class VbaCommands
 {
     /// <inheritdoc />
-    public void Run(IExcelBatch batch, string procedureName, TimeSpan? timeout, params string[] parameters)
+    public OperationResult Run(IExcelBatch batch, string procedureName, TimeSpan? timeout, params string[] parameters)
     {
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
@@ -24,7 +25,7 @@ public partial class VbaCommands
             throw new InvalidOperationException(VbaTrustErrorMessage);
         }
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             try
             {
@@ -38,7 +39,7 @@ public partial class VbaCommands
                     ctx.App.Run(procedureName, paramObjects);
                 }
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
@@ -49,7 +50,7 @@ public partial class VbaCommands
     }
 
     /// <inheritdoc />
-    public void Delete(IExcelBatch batch, string moduleName)
+    public OperationResult Delete(IExcelBatch batch, string moduleName)
     {
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
@@ -63,7 +64,7 @@ public partial class VbaCommands
             throw new InvalidOperationException(VbaTrustErrorMessage);
         }
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -102,7 +103,7 @@ public partial class VbaCommands
 
                 vbComponents.Remove(targetComponent);
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))

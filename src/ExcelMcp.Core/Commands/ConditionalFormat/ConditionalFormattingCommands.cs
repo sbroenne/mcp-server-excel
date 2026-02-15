@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -9,7 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class ConditionalFormattingCommands : IConditionalFormattingCommands
 {
     /// <inheritdoc />
-    public void AddRule(
+    public OperationResult AddRule(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress,
@@ -25,7 +26,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         string? borderStyle = null,
         string? borderColor = null)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -104,7 +105,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                     }
                 }
 
-                return 0; // Dummy return for batch.Execute
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Dummy return for batch.Execute
             }
             finally
             {
@@ -120,12 +121,12 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
     }
 
     /// <inheritdoc />
-    public void ClearRules(
+    public OperationResult ClearRules(
         IExcelBatch batch,
         string sheetName,
         string rangeAddress)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
@@ -145,7 +146,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 formatConditions = range.FormatConditions;
                 formatConditions.Delete();
 
-                return 0; // Dummy return for batch.Execute
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Dummy return for batch.Execute
             }
             finally
             {
