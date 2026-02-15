@@ -44,7 +44,7 @@ public sealed class ActionValidatorTests
         "conditionalformat",
         "vba",
         "datamodel",
-        "datamodelrel",
+        "datamodelrelationship",
         "slicer"
     ];
 

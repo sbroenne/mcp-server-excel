@@ -329,6 +329,7 @@ public sealed class ExcelMcpService : IDisposable
         return action switch
         {
             "ping" => new ServiceResponse { Success = true },
+            "version" => HandleVersion(),
             "shutdown" => HandleShutdown(),
             "status" => HandleStatus(),
             _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown service action: {action}" }
@@ -339,6 +340,15 @@ public sealed class ExcelMcpService : IDisposable
     {
         _shutdownCts.Cancel();
         return new ServiceResponse { Success = true };
+    }
+
+    private static ServiceResponse HandleVersion()
+    {
+        return new ServiceResponse
+        {
+            Success = true,
+            Result = JsonSerializer.Serialize(new { version = ComInterop.ServiceClient.ServiceProtocol.Version }, ServiceProtocol.JsonOptions)
+        };
     }
 
     private ServiceResponse HandleStatus()

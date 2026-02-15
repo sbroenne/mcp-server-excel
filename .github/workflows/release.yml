@@ -2,7 +2,7 @@ name: Release All Components
 
 # Unified release workflow for all ExcelMcp components:
 # - MCP Server (NuGet + ZIP) - includes CLI as bundled dependency
-# - CLI (NuGet) - deprecated, points to MCP Server package
+# - CLI (NuGet) - standalone dotnet tool for coding agents
 # - VS Code Extension (VSIX + Marketplace)
 # - MCPB (Claude Desktop bundle)
 # - Agent Skills (ZIP package)
@@ -144,17 +144,26 @@ jobs:
     - name: Build CLI
       run: dotnet build src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-restore
 
+    - name: Pack CLI NuGet
+      run: dotnet pack src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-build --output ./cli-nupkg
+
     - name: Upload CLI Build Output
       uses: actions/upload-artifact@v4
       with:
         name: cli-build
         path: src/ExcelMcp.CLI/bin/Release/net10.0-windows/
 
+    - name: Upload CLI NuGet Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: cli-nupkg
+        path: cli-nupkg/*.nupkg
+
   # =============================================================================
-  # Job 2: Build and Publish MCP Server (includes CLI bundle)
+  # Job 2: Build MCP Server (includes CLI bundle for service)
   # =============================================================================
   build-mcp-server:
-    name: MCP Server (Unified Package)
+    name: MCP Server
     needs: [version, build-cli]
     runs-on: windows-latest
     permissions:
@@ -625,6 +634,12 @@ jobs:
         name: mcp-server-nupkg
         path: nupkg
 
+    - name: Download CLI NuGet Package
+      uses: actions/download-artifact@v4
+      with:
+        name: cli-nupkg
+        path: cli-nupkg
+
     - name: Download VS Code VSIX
       uses: actions/download-artifact@v4
       with:
@@ -645,6 +660,12 @@ jobs:
           --source https://api.nuget.org/v3/index.json `
           --skip-duplicate
         Write-Output "Published Sbroenne.ExcelMcp.McpServer.$version to NuGet.org"
+
+        dotnet nuget push "cli-nupkg/Sbroenne.ExcelMcp.CLI.$version.nupkg" `
+          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} `
+          --source https://api.nuget.org/v3/index.json `
+          --skip-duplicate
+        Write-Output "Published Sbroenne.ExcelMcp.CLI.$version to NuGet.org"
       shell: pwsh
 
     - name: Publish to VS Code Marketplace
@@ -729,8 +750,10 @@ jobs:
 
         **NuGet (.NET Tool)**
         ```powershell
-        # Unified Package (MCP Server + CLI)
+        # MCP Server (for AI assistants)
         dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+        # CLI (for coding agents and scripting)
+        dotnet tool install --global Sbroenne.ExcelMcp.CLI
         ```
 
         **Agent Skills** (for AI coding assistants)

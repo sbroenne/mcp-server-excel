@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -10,6 +11,22 @@ namespace Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 /// </summary>
 public static class ServiceProtocol
 {
+    /// <summary>
+    /// Gets the protocol version from the assembly's informational version.
+    /// Returns Major.Minor.Patch (strips build metadata if present).
+    /// </summary>
+    public static string Version { get; } = GetAssemblyVersion();
+
+    private static string GetAssemblyVersion()
+    {
+        var attr = typeof(ServiceProtocol).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+        var version = attr?.InformationalVersion ?? "0.0.0";
+        // Strip build metadata (e.g., "1.7.1+abc123" → "1.7.1")
+        var plusIndex = version.IndexOf('+');
+        return plusIndex >= 0 ? version[..plusIndex] : version;
+    }
+
     /// <summary>
     /// JSON serializer options for service protocol messages.
     /// </summary>

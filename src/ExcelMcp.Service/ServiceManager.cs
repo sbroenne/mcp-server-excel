@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Text.Json;
+using SharedProtocol = Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceProtocol;
 
 namespace Sbroenne.ExcelMcp.Service;
 
@@ -19,17 +21,24 @@ public static class ServiceManager
 
     /// <summary>
     /// Ensures service is running, starting it if necessary.
+    /// Validates that the service version matches the client version.
     /// </summary>
     public static async Task<bool> EnsureServiceRunningAsync(CancellationToken cancellationToken = default)
     {
         // Check if already running
         if (await IsServiceRunningAsync(cancellationToken))
         {
+            await ValidateServiceVersionAsync(cancellationToken);
             return true;
         }
 
         // Start service
-        return await StartServiceAsync(cancellationToken);
+        var started = await StartServiceAsync(cancellationToken);
+        if (started)
+        {
+            await ValidateServiceVersionAsync(cancellationToken);
+        }
+        return started;
     }
 
     /// <summary>
@@ -102,6 +111,39 @@ public static class ServiceManager
         using var client = new ServiceClient();
         var response = await client.SendAsync(new ServiceRequest { Command = "service.shutdown" }, cancellationToken);
         return response.Success;
+    }
+
+    /// <summary>
+    /// Validates that the running service version matches the client version.
+    /// Throws InvalidOperationException on mismatch (exact match required).
+    /// </summary>
+    public static async Task ValidateServiceVersionAsync(CancellationToken cancellationToken = default)
+    {
+        var clientVersion = SharedProtocol.Version;
+
+        using var client = new ServiceClient(connectTimeout: TimeSpan.FromSeconds(2));
+        var response = await client.SendAsync(
+            new ServiceRequest { Command = "service.version" }, cancellationToken);
+
+        if (!response.Success || string.IsNullOrEmpty(response.Result))
+        {
+            // Service doesn't support version command (older version)
+            throw new InvalidOperationException(
+                $"Service does not support version negotiation. " +
+                $"This client is version {clientVersion}. " +
+                $"Stop any running mcp-excel or excelcli processes and retry.");
+        }
+
+        // Parse version from response JSON
+        using var doc = JsonDocument.Parse(response.Result);
+        var serviceVersion = doc.RootElement.GetProperty("version").GetString();
+
+        if (!string.Equals(clientVersion, serviceVersion, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Service version mismatch: service is v{serviceVersion}, client is v{clientVersion}. " +
+                $"Stop any running mcp-excel or excelcli processes and retry.");
+        }
     }
 
     /// <summary>
