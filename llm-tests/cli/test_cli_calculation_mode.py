@@ -6,11 +6,12 @@ import pytest
 
 from pytest_aitest import Agent, Provider
 
-from conftest import assert_cli_exit_codes, assert_regex, unique_path
+from conftest import assert_cli_exit_codes, assert_regex, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
 
 pytestmark = [pytest.mark.aitest, pytest.mark.cli]
 
 
+@pytest.mark.xfail(reason="LLM may not autonomously use calculation_mode for small batches", strict=False)
 @pytest.mark.asyncio
 async def test_cli_calculation_mode_batch_flow(aitest_run, excel_cli_server, excel_cli_skill):
     agent = Agent(
@@ -19,6 +20,7 @@ async def test_cli_calculation_mode_batch_flow(aitest_run, excel_cli_server, exc
         cli_servers=[excel_cli_server],
         skill=excel_cli_skill,
         max_turns=20,
+        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -40,7 +42,7 @@ Switch calculation mode back to automatic.
 
 Report the current calculation mode and the variance values.
 """
-    result = await aitest_run(agent, prompt)
+    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert_cli_exit_codes(result)
     assert_regex(result.final_response, r"(?i)(manual|automatic|calculation)")

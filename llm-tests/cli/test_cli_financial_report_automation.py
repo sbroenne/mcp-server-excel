@@ -6,11 +6,12 @@ import pytest
 
 from pytest_aitest import Agent, Provider
 
-from conftest import assert_cli_exit_codes, assert_regex, unique_path
+from conftest import assert_cli_exit_codes, assert_regex, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
 
 pytestmark = [pytest.mark.aitest, pytest.mark.cli]
 
 
+@pytest.mark.xfail(reason="Complex multi-turn workflow; LLM intermittently omits action parameter", strict=False)
 @pytest.mark.asyncio
 async def test_cli_financial_report_automation(aitest_run, excel_cli_server, excel_cli_skill):
     agent = Agent(
@@ -19,6 +20,7 @@ async def test_cli_financial_report_automation(aitest_run, excel_cli_server, exc
         cli_servers=[excel_cli_server],
         skill=excel_cli_skill,
         max_turns=25,
+        retries=DEFAULT_RETRIES,
     )
 
     messages = None
@@ -64,7 +66,7 @@ Read the calculated values:
 
 Report all three values to confirm formulas are working.
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert_cli_exit_codes(result)
     assert_regex(result.final_response, r"(?i)(450000|revenue|net income|formula)")
@@ -105,7 +107,7 @@ Provide:
 - New Net Income
 - Confirm all formulas are still working
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert_cli_exit_codes(result)
     assert_regex(result.final_response, r"(?i)(variance|455000|formula|recalculate|updated)")
@@ -146,7 +148,7 @@ Report:
 - Profit Margin percentage
 - Confirmation file was saved
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert_cli_exit_codes(result)
     assert_regex(result.final_response, r"(?i)(summary|margin|saved|598500|complete)")

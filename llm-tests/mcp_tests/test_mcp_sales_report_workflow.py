@@ -6,7 +6,7 @@ import pytest
 
 from pytest_aitest import Agent, Provider
 
-from conftest import assert_regex, unique_results_path
+from conftest import assert_regex, unique_results_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
 
 pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
 
@@ -39,6 +39,7 @@ async def test_mcp_sales_report_workflow(aitest_run, excel_mcp_server, excel_mcp
             "- Report specific numeric values (not just descriptions)"
         ),
         max_turns=25,
+        retries=DEFAULT_RETRIES,
     )
     agent.max_turns = 40
 
@@ -78,7 +79,7 @@ Step 4 - Validate:
 - List all 4 regions found in the data: North, South, East, West
 - Verify no calculation errors (row count should match)
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("table")
     assert_regex(result.final_response, r"(?i)(10 data rows|10 rows|10)")
@@ -128,7 +129,7 @@ Step 3 - Verify Measure Values:
 - Report each measure value with full precision
 - If a DAX query fails, compute the value directly from the SalesTransactions table and still report the exact numbers.
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("datamodel")
     assert_regex(result.final_response, r"\$?34[\,.]?200(\.00)?")
@@ -174,7 +175,7 @@ and use those numbers in your report. Ensure you explicitly state Alice's net re
 
 Important: Provide specific numeric values, not just descriptions.
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("pivottable")
     assert "Alice" in result.final_response
@@ -208,7 +209,7 @@ Then:
 
 Important: Do NOT delete and recreate the tables. Use targeted inserts and refreshes only.
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert_regex(result.final_response, r"(?i)(13 rows|13 transactions|13)")
     assert_regex(result.final_response, r"\$?43[\,.]?500(\.00)?")
@@ -253,7 +254,7 @@ Then save the workbook to ensure all changes are persisted.
 
 Report your findings in a structured format.
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     for sheet in ("Sales", "Summary", "DimDate", "AnalysisRegion", "AnalysisSales"):
         assert sheet in result.final_response

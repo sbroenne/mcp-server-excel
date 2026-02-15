@@ -6,7 +6,7 @@ import pytest
 
 from pytest_aitest import Agent, Provider
 
-from conftest import assert_regex, unique_path
+from conftest import assert_regex, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
 
 pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
 
@@ -19,6 +19,7 @@ async def test_mcp_range_set_get(aitest_run, excel_mcp_server, excel_mcp_skill, 
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         max_turns=20,
+        retries=DEFAULT_RETRIES,
     )
     values_file = (fixtures_dir / "range-test-data.json").as_posix()
 
@@ -30,7 +31,7 @@ async def test_mcp_range_set_get(aitest_run, excel_mcp_server, excel_mcp_skill, 
 3. Read back the data from A1:C2 to verify it was written correctly
 4. Close the file without saving
 """
-    result = await aitest_run(agent, prompt)
+    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("range")
     assert_regex(result.final_response, r"(?i)(Product)")
@@ -44,6 +45,7 @@ async def test_mcp_range_error_handling(aitest_run, excel_mcp_server, excel_mcp_
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         max_turns=20,
+        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -51,5 +53,5 @@ async def test_mcp_range_error_handling(aitest_run, excel_mcp_server, excel_mcp_
 2. Try to get values from a large range like A1:Z1000 to see what happens
 3. Then close the file without saving
 """
-    result = await aitest_run(agent, prompt)
+    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success

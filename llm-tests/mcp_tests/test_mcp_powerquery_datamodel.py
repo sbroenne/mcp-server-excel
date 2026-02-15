@@ -6,7 +6,7 @@ import pytest
 
 from pytest_aitest import Agent, Provider
 
-from conftest import assert_regex, unique_results_path
+from conftest import assert_regex, unique_results_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
 
 pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
 
@@ -30,6 +30,7 @@ async def test_mcp_star_schema_workflow(aitest_run, excel_mcp_server, excel_mcp_
             "worksheet",
         ],
         max_turns=25,
+        retries=DEFAULT_RETRIES,
     )
 
     messages = None
@@ -50,7 +51,7 @@ P005, USB Hub, Electronics, 35
 
 Make it a table called "Products" and add it to the Data Model.
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("table")
     messages = result.messages
@@ -72,7 +73,7 @@ OrderID, ProductID, Quantity, OrderDate
 
 Make it a table called "Orders" and add it to the Data Model.
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     messages = result.messages
 
@@ -81,7 +82,7 @@ Now link the tables together.
 
 Create a relationship between the Orders and Products tables using ProductID.
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("datamodel_relationship")
     messages = result.messages
@@ -91,7 +92,7 @@ Now for the analysis! Create a PivotTable on a new sheet that shows:
 - Product Categories as rows (from the Products table)
 - Sum of Quantity as the values (from the Orders table)
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("pivottable")
     messages = result.messages
@@ -103,7 +104,7 @@ Save and close the file.
 
 Which category had more orders - Electronics or Furniture?
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("chart")
     assert_regex(result.final_response, r"(?i)(pie|chart|saved|closed|success)")
@@ -118,6 +119,7 @@ async def test_mcp_powerquery_amazon_workflow(aitest_run, excel_mcp_server, exce
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         max_turns=30,
+        retries=DEFAULT_RETRIES,
     )
 
     messages = None
@@ -133,7 +135,7 @@ Use Power Query to import this CSV file:
 
 Name the query "Products".
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("powerquery")
     messages = result.messages
@@ -149,7 +151,7 @@ After adding to the Data Model, analyze the data structure:
 
 Confirm the table is now in the Data Model and ready for DAX measures.
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("table")
     assert_regex(result.final_response, r"(?i)(dimension|fact|data.?model|added)")
@@ -163,7 +165,7 @@ Now create some useful DAX measures on your fact table:
 3. Average Discount Percentage
 4. Total Potential Revenue (sum of original prices)
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("datamodel")
     assert_regex(result.final_response, r"(?i)(measure|rating|discount|revenue|created)")
@@ -176,7 +178,7 @@ Show product categories as rows with Total Products and Average Rating as values
 
 Which category has the most products and what's their average rating?
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("pivottable")
     assert_regex(result.final_response, r"(?i)(pivot|category|rating|products)")
@@ -191,7 +193,7 @@ Save and close the file.
 
 Summarize the star schema you built: how many dimension tables, fact tables, relationships, and measures did you create?
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("chart")
     assert_regex(result.final_response, r"(?i)(chart|star.?schema|dimension|fact|relationship|measure|saved|closed)")

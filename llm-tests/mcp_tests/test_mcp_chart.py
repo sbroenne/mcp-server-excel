@@ -6,7 +6,7 @@ import pytest
 
 from pytest_aitest import Agent, Provider
 
-from conftest import assert_regex, unique_path
+from conftest import assert_regex, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
 
 pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
 
@@ -20,6 +20,7 @@ async def test_mcp_chart_workflows(aitest_run, excel_mcp_server, excel_mcp_skill
         skill=excel_mcp_skill,
         allowed_tools=["chart", "table", "file", "range", "worksheet"],
         max_turns=20,
+        retries=DEFAULT_RETRIES,
     )
 
     messages = None
@@ -39,7 +40,7 @@ Create a sales analysis chart:
 5. Position it below the data (targetRange='A8:F20')
 6. Save and close
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("chart")
     assert result.tool_was_called("table")
@@ -62,7 +63,7 @@ I need a chart that doesn't overlap my data:
 5. Read chart info and confirm the topLeftCell is row 7 or later
 6. Save and close
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("chart")
     assert_regex(result.final_response, r"(?i)(chart|row [7-9]|\$[A-Z]+\$[7-9])")
@@ -84,7 +85,7 @@ Create a dashboard with multiple chart types:
 6. List charts and confirm both exist without overlapping
 7. Save and close
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("chart")
     assert_regex(result.final_response, r"(?i)(pie|bar|2 chart|two chart)")
@@ -104,7 +105,7 @@ Create a chart with precise cell-based positioning:
 4. Verify the chart's topLeftCell is at or near G2
 5. Save and close
 """
-    result = await aitest_run(agent, prompt, messages=messages)
+    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("chart")
     assert_regex(result.final_response, r"(?i)(\$G\$2|G2|chart|created)")
