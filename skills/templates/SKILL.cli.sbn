@@ -166,6 +166,23 @@ When using `--timeout`, the value must be a positive integer (seconds). `--timeo
 --values '{"Name":"Alice","Age":30}'
 ```
 
+### List Parameters Use JSON Arrays
+
+Parameters that accept lists (e.g., `--selected-items` for slicers) require JSON array format:
+```powershell
+# CORRECT: JSON array with single-quote wrapper
+--selected-items '["West","East"]'
+
+# CORRECT: Escaped inner quotes
+--selected-items "[\"West\",\"East\"]"
+
+# CORRECT: Clear selection
+--selected-items '[]'
+
+# WRONG: Comma-separated string (not valid)
+--selected-items "West,East"
+```
+
 ## Reference Documentation
 
 - @references/behavioral-rules.md - Core execution rules and LLM guidelines
