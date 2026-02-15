@@ -229,6 +229,7 @@ internal static class TelemetryConfig
       <McpReferenceFiles Include="$(SharedDir)\powerquery.md" />
       <McpReferenceFiles Include="$(SharedDir)\range.md" />
       <McpReferenceFiles Include="$(SharedDir)\slicer.md" />
+      <McpReferenceFiles Include="$(SharedDir)\screenshot.md" />
       <McpReferenceFiles Include="$(SharedDir)\table.md" />
       <McpReferenceFiles Include="$(SharedDir)\worksheet.md" />
     </ItemGroup>

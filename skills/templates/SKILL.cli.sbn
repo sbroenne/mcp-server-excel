@@ -188,6 +188,8 @@ Parameters that accept lists (e.g., `--selected-items` for slicers) require JSON
 - @references/behavioral-rules.md - Core execution rules and LLM guidelines
 - @references/anti-patterns.md - Common mistakes to avoid
 - @references/workflows.md - Data Model constraints and patterns
+- @references/chart.md - Charts, positioning, and formatting
+- @references/screenshot.md - Screenshot and visual verification
 
 ## Installation
 

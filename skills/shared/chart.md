@@ -148,3 +148,4 @@ chart(fit-to-range, chartName, rangeAddress: 'F2:K15')
 1. `get-used-range` -> Identify data boundaries
 2. **Option A (Preferred)**: Use `targetRange='F2:K15'` in create call
 3. **Option B**: Calculate `(lastRow + 2) * 15` for top, or `(lastCol + 2) * 60` for left
+4. **Verify**: Use `screenshot(capture)` to visually confirm chart doesn't overlap data

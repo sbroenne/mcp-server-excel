@@ -16,7 +16,7 @@
 
 ## Features
 
-The Excel MCP Server (excel-mcp) provides **23 specialized tools with 214 operations** for comprehensive Excel automation:
+The Excel MCP Server (excel-mcp) provides **24 specialized tools with 216 operations** for comprehensive Excel automation:
 
 - 🔄 **Power Query** (1 tool, 11 ops) - Atomic workflows, M code management, load destinations
 - 📊 **Data Model/DAX** (2 tools, 18 ops) - Measures, relationships, model structure
@@ -31,6 +31,7 @@ The Excel MCP Server (excel-mcp) provides **23 specialized tools with 214 operat
 - 📁 **Files** (1 tool, 6 ops) - Session management and workbook creation
 - 🎚️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
 - 🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
+- 📸 **Screenshot** (1 tool, 2 ops) - Capture ranges/sheets as PNG for visual verification
 
 📚 **[Complete Feature Reference →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)**
 

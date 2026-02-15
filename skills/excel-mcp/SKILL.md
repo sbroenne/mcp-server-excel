@@ -14,7 +14,7 @@ documentation: https://excelmcpserver.dev/
 
 # Excel MCP Server Skill
 
-Provides 212 Excel operations via Model Context Protocol. The MCP Server forwards all requests to the shared ExcelMCP Service, enabling session sharing with CLI. Tools are auto-discovered - this documents quirks, workflows, and gotchas.
+Provides 214 Excel operations via Model Context Protocol. The MCP Server forwards all requests to the shared ExcelMCP Service, enabling session sharing with CLI. Tools are auto-discovered - this documents quirks, workflows, and gotchas.
 
 ## Workflow Checklist
 
@@ -177,6 +177,7 @@ When writing many values/formulas (10+ cells), use `calculation_mode` to avoid r
 | Filter with slicers | `slicer` | set-slicer-selection |
 | Create charts | `chart` | create-from-range |
 | Control calculation mode | `calculation_mode` | get-mode, set-mode, calculate |
+| Visual verification | `screenshot` | capture, capture-sheet |
 
 ## Reference Documentation
 
@@ -190,6 +191,7 @@ See `references/` for detailed guidance:
 - @references/datamodel.md - Data Model/DAX specifics
 - @references/powerquery.md - Power Query specifics
 - @references/range.md - Range operations and number formats
+- @references/screenshot.md - Screenshot and visual verification
 - @references/slicer.md - Slicer operations
 - @references/table.md - Table operations
 - @references/worksheet.md - Worksheet operations

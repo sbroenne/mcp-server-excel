@@ -155,10 +155,12 @@
       <RefsDir>$(MSBuildProjectDirectory)\..\..\skills\excel-cli\references</RefsDir>
     </PropertyGroup>
     <ItemGroup>
-      <!-- CLI references: behavioral rules, anti-patterns, workflows -->
+      <!-- CLI references: behavioral rules, anti-patterns, workflows, chart, screenshot -->
       <CliReferenceFiles Include="$(SharedDir)\behavioral-rules.md" />
       <CliReferenceFiles Include="$(SharedDir)\anti-patterns.md" />
       <CliReferenceFiles Include="$(SharedDir)\workflows.md" />
+      <CliReferenceFiles Include="$(SharedDir)\chart.md" />
+      <CliReferenceFiles Include="$(SharedDir)\screenshot.md" />
     </ItemGroup>
     <MakeDir Directories="$(RefsDir)" Condition="!Exists('$(RefsDir)')" />
     <Copy SourceFiles="@(CliReferenceFiles)" DestinationFolder="$(RefsDir)" SkipUnchangedFiles="true" />

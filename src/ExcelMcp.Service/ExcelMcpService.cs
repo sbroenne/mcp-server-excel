@@ -8,6 +8,7 @@ using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.Core.Commands.Diag;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
+using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 using Sbroenne.ExcelMcp.Core.Commands.Slicer;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Generated;
@@ -44,6 +45,7 @@ public sealed class ExcelMcpService : IDisposable
     private readonly VbaCommands _vbaCommands = new();
     private readonly DataModelCommands _dataModelCommands = new();
     private readonly CalculationModeCommands _calculationModeCommands = new();
+    private readonly ScreenshotCommands _screenshotCommands = new();
     private readonly DiagCommands _diagCommands = new();
 
     public ExcelMcpService()
@@ -247,6 +249,9 @@ public sealed class ExcelMcpService : IDisposable
                 "slicer" => await DispatchSimpleAsync<SlicerAction>(action, request,
                     ServiceRegistry.Slicer.TryParseAction,
                     (a, batch) => ServiceRegistry.Slicer.DispatchToCore(_slicerCommands, a, batch, request.Args)),
+                "screenshot" => await DispatchSimpleAsync<ScreenshotAction>(action, request,
+                    ServiceRegistry.Screenshot.TryParseAction,
+                    (a, batch) => ServiceRegistry.Screenshot.DispatchToCore(_screenshotCommands, a, batch, request.Args)),
                 "diag" => DispatchSessionless(action, request),
                 _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown command category: {category}" }
             };

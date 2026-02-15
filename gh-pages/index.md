@@ -97,12 +97,17 @@ It works with any MCP-compatible AI assistant like GitHub Copilot, Claude Deskto
 </div>
 
 <div class="feature-card">
+<h3>📸 Screenshot</h3>
+<p>Capture worksheet content as PNG images for visual verification. LLMs can see formatting, charts, and data to validate their work.</p>
+</div>
+
+<div class="feature-card">
 <h3>🧪 LLM-Tested Quality</h3>
 <p>Tool behavior validated with real LLM workflows using <a href="https://github.com/sbroenne/pytest-aitest">pytest-aitest</a>. We test that LLMs correctly understand and use our tools.</p>
 </div>
 </div>
 
-<p><a href="/features/">See all 23 tools and 214 operations →</a></p>
+<p><a href="/features/">See all 24 tools and 216 operations →</a></p>
 
 ## What Can You Do With It?
 
@@ -204,7 +209,7 @@ The AI will display the Excel window so you can watch every operation happen liv
 
 ## Documentation
 
-📖 **[Complete Feature Reference](/features/)** — All 23 tools and 214 operations
+📖 **[Complete Feature Reference](/features/)** — All 24 tools and 216 operations
 
 📥 **[Installation Guide](/installation/)** — Setup for VS Code, Claude Desktop, other MCP clients, and CLI
 
