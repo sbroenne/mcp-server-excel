@@ -22,7 +22,7 @@ public partial class PowerQueryCommands
     /// <param name="targetCellAddress">Target cell address (e.g., "A1", "B5")</param>
     /// <exception cref="ArgumentException">Thrown when inputs are invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when query already exists or creation fails</exception>
-    public void Create(
+    public OperationResult Create(
         IExcelBatch batch,
         string queryName,
         string mCode,
@@ -55,7 +55,7 @@ public partial class PowerQueryCommands
         // Resolve target cell address (default to A1)
         targetCellAddress ??= "A1";
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
             dynamic? query = null;
@@ -114,7 +114,7 @@ public partial class PowerQueryCommands
                         break;
                 }
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {

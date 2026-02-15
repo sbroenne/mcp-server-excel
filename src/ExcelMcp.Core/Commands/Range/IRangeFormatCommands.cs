@@ -39,7 +39,7 @@ public interface IRangeFormatCommands
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
     /// <param name="styleName">Built-in or custom style name (e.g., 'Heading 1', 'Good', 'Bad', 'Currency', 'Percent'). Use 'Normal' to reset.</param>
     [ServiceAction("set-style")]
-    void SetStyle(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] string styleName);
+    OperationResult SetStyle(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] string styleName);
 
     /// <summary>
     /// Gets the current built-in style name applied to a range.
@@ -75,7 +75,7 @@ public interface IRangeFormatCommands
     /// Use FormatRange only when built-in styles don't meet your needs.
     /// </remarks>
     [ServiceAction("format-range")]
-    void FormatRange(
+    OperationResult FormatRange(
         IExcelBatch batch,
         string sheetName,
         [RequiredParameter] string rangeAddress,
@@ -116,7 +116,7 @@ public interface IRangeFormatCommands
     /// <param name="ignoreBlank">Whether to allow blank cells in validation (default: true)</param>
     /// <param name="showDropdown">Whether to show dropdown arrow for list validation (default: true)</param>
     [ServiceAction("validate-range")]
-    void ValidateRange(
+    OperationResult ValidateRange(
         IExcelBatch batch,
         string sheetName,
         [RequiredParameter] string rangeAddress,
@@ -150,7 +150,7 @@ public interface IRangeFormatCommands
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
     [ServiceAction("remove-validation")]
-    void RemoveValidation(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
+    OperationResult RemoveValidation(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     // === AUTO-FIT OPERATIONS ===
 
@@ -161,7 +161,7 @@ public interface IRangeFormatCommands
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Column range to auto-fit (e.g., 'A:D' or 'A1:D100')</param>
     [ServiceAction("auto-fit-columns")]
-    void AutoFitColumns(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
+    OperationResult AutoFitColumns(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
     /// Auto-fits row heights to content.
@@ -170,7 +170,7 @@ public interface IRangeFormatCommands
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Row range to auto-fit (e.g., '1:10' or 'A1:D100')</param>
     [ServiceAction("auto-fit-rows")]
-    void AutoFitRows(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
+    OperationResult AutoFitRows(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     // === MERGE OPERATIONS ===
 
@@ -181,7 +181,7 @@ public interface IRangeFormatCommands
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range to merge into a single cell (e.g., 'A1:D1')</param>
     [ServiceAction("merge-cells")]
-    void MergeCells(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
+    OperationResult MergeCells(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
     /// Unmerges previously merged cells.
@@ -190,7 +190,7 @@ public interface IRangeFormatCommands
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range to unmerge (e.g., 'A1:D1')</param>
     [ServiceAction("unmerge-cells")]
-    void UnmergeCells(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
+    OperationResult UnmergeCells(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
     /// Checks if range contains merged cells.

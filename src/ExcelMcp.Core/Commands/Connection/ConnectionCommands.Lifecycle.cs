@@ -124,10 +124,10 @@ public partial class ConnectionCommands
     /// <summary>
     /// Creates a new connection in the workbook
     /// </summary>
-    public void Create(IExcelBatch batch, string connectionName,
+    public OperationResult Create(IExcelBatch batch, string connectionName,
         string connectionString, string? commandText = null, string? description = null)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             // Create connection definition
             var definition = new ConnectionDefinition
@@ -142,27 +142,27 @@ public partial class ConnectionCommands
 
             // Create the connection using existing helper method
             CreateConnection(ctx.Book, connectionName, definition);
-            return 0;
+            return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
         });
     }
 
     /// <summary>
     /// Refreshes connection data
     /// </summary>
-    public void Refresh(IExcelBatch batch, string connectionName)
+    public OperationResult Refresh(IExcelBatch batch, string connectionName)
     {
-        Refresh(batch, connectionName, timeout: null);
+        return Refresh(batch, connectionName, timeout: null);
     }
 
     /// <summary>
     /// Refreshes connection data with timeout
     /// </summary>
-    public void Refresh(IExcelBatch batch, string connectionName, TimeSpan? timeout)
+    public OperationResult Refresh(IExcelBatch batch, string connectionName, TimeSpan? timeout)
     {
         var effectiveTimeout = timeout ?? TimeSpan.FromMinutes(5);
         using var timeoutCts = new CancellationTokenSource(effectiveTimeout);
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
@@ -184,16 +184,16 @@ public partial class ConnectionCommands
 
             // Pure COM passthrough - just refresh the connection
             conn.Refresh();
-            return 0;
+            return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
         }, timeoutCts.Token);  // Extended timeout (default 5 minutes) for slow data sources
     }
 
     /// <summary>
     /// Deletes a connection
     /// </summary>
-    public void Delete(IExcelBatch batch, string connectionName)
+    public OperationResult Delete(IExcelBatch batch, string connectionName)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
@@ -219,7 +219,7 @@ public partial class ConnectionCommands
 
             // Delete the connection
             conn.Delete();
-            return 0;
+            return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
         });
     }
 }

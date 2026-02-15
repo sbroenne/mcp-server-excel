@@ -213,7 +213,7 @@ public partial class VbaCommands
     }
 
     /// <inheritdoc />
-    public void Import(IExcelBatch batch, string moduleName, string vbaCode)
+    public OperationResult Import(IExcelBatch batch, string moduleName, string vbaCode)
     {
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
@@ -227,7 +227,7 @@ public partial class VbaCommands
             throw new InvalidOperationException(VbaTrustErrorMessage);
         }
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -263,7 +263,7 @@ public partial class VbaCommands
                 codeModule = newModule.CodeModule;
                 codeModule.AddFromString(vbaCode);
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
@@ -281,7 +281,7 @@ public partial class VbaCommands
     }
 
     /// <inheritdoc />
-    public void Update(IExcelBatch batch, string moduleName, string vbaCode)
+    public OperationResult Update(IExcelBatch batch, string moduleName, string vbaCode)
     {
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
@@ -295,7 +295,7 @@ public partial class VbaCommands
             throw new InvalidOperationException(VbaTrustErrorMessage);
         }
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? vbaProject = null;
             dynamic? vbComponents = null;
@@ -343,7 +343,7 @@ public partial class VbaCommands
 
                 codeModule.AddFromString(vbaCode);
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))

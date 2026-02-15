@@ -99,7 +99,7 @@ public interface IDataModelCommands
     /// <exception cref="ArgumentException">Thrown when measureName is invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when measure not found or deletion fails</exception>
     [ServiceAction("delete-measure")]
-    void DeleteMeasure(IExcelBatch batch, [RequiredParameter] string measureName);
+    OperationResult DeleteMeasure(IExcelBatch batch, [RequiredParameter] string measureName);
 
     /// <summary>
     /// Deletes a table from the Data Model.
@@ -111,7 +111,7 @@ public interface IDataModelCommands
     /// <exception cref="ArgumentException">Thrown when tableName is invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when table not found or deletion fails</exception>
     [ServiceAction("delete-table")]
-    void DeleteTable(IExcelBatch batch, [RequiredParameter] string tableName);
+    OperationResult DeleteTable(IExcelBatch batch, [RequiredParameter] string tableName);
 
     /// <summary>
     /// Renames a table in the Data Model.
@@ -135,7 +135,7 @@ public interface IDataModelCommands
     /// <param name="timeout">Optional: Timeout for the refresh operation</param>
     /// <exception cref="InvalidOperationException">Thrown when refresh operation fails</exception>
     [ServiceAction("refresh")]
-    void Refresh(IExcelBatch batch, string? tableName = null, TimeSpan? timeout = null);
+    OperationResult Refresh(IExcelBatch batch, string? tableName = null, TimeSpan? timeout = null);
 
     /// <summary>
     /// Creates a new DAX measure in the Data Model.
@@ -151,7 +151,7 @@ public interface IDataModelCommands
     /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when table not found or creation fails</exception>
     [ServiceAction("create-measure")]
-    void CreateMeasure(
+    OperationResult CreateMeasure(
         IExcelBatch batch,
         [RequiredParameter] string tableName,
         [RequiredParameter] string measureName,
@@ -172,7 +172,7 @@ public interface IDataModelCommands
     /// <exception cref="ArgumentException">Thrown when measureName is invalid or all parameters are null</exception>
     /// <exception cref="InvalidOperationException">Thrown when measure not found or update fails</exception>
     [ServiceAction("update-measure")]
-    void UpdateMeasure(
+    OperationResult UpdateMeasure(
         IExcelBatch batch,
         [RequiredParameter] string measureName,
         [FileOrValue] string? daxFormula = null,

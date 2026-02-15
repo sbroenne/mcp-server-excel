@@ -127,12 +127,12 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public void Create(IExcelBatch batch, string sheetName, string tableName, string range, bool hasHeaders = true, string? tableStyle = null)
+    public OperationResult Create(IExcelBatch batch, string sheetName, string tableName, string range, bool hasHeaders = true, string? tableStyle = null)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? rangeObj = null;
@@ -196,7 +196,7 @@ public partial class TableCommands
                     newTable.TableStyle = tableStyle;
                 }
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -209,13 +209,13 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public void Rename(IExcelBatch batch, string tableName, string newName)
+    public OperationResult Rename(IExcelBatch batch, string tableName, string newName)
     {
         // Security: Validate table names
         ValidateTableName(tableName);
         ValidateTableName(newName);
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             try
@@ -229,7 +229,7 @@ public partial class TableCommands
                 }
 
                 table.Name = newName;
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -239,12 +239,12 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public void Delete(IExcelBatch batch, string tableName)
+    public OperationResult Delete(IExcelBatch batch, string tableName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? tableRange = null;
@@ -269,7 +269,7 @@ public partial class TableCommands
                 // The table object is no longer valid but still holds a COM reference
                 ComUtilities.Release(ref table);
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {

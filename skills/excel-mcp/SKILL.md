@@ -16,6 +16,17 @@ documentation: https://excelmcpserver.dev/
 
 Provides 212 Excel operations via Model Context Protocol. The MCP Server forwards all requests to the shared ExcelMCP Service, enabling session sharing with CLI. Tools are auto-discovered - this documents quirks, workflows, and gotchas.
 
+## Workflow Checklist
+
+| Step | Tool | Action | When |
+|------|------|--------|------|
+| 1. Open file | `file` | `open` or `create` | Always first |
+| 2. Create sheets | `worksheet` | `create`, `rename` | If needed |
+| 3. Write data | `range` | `set-values` | Always (2D arrays) |
+| 4. Format | `range_format` | `set-number-format`, `set-style` | After writing |
+| 5. Structure | `table` | `create` | Convert data to tables |
+| 6. Save & close | `file` | `close` with `save: true` | Always last |
+
 ## Preconditions
 
 - Windows host with Microsoft Excel installed (2016+)

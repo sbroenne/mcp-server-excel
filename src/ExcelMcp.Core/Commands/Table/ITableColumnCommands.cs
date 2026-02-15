@@ -38,7 +38,7 @@ public interface ITableColumnCommands
     /// <param name="criteria">Filter criteria string (e.g., '&gt;100', '=Active', '&lt;&gt;Closed')</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
     [ServiceAction("apply-filter")]
-    void ApplyFilter(IExcelBatch batch, string tableName, string columnName, string criteria);
+    OperationResult ApplyFilter(IExcelBatch batch, string tableName, string columnName, string criteria);
 
     /// <summary>
     /// Applies a filter to a table column with multiple values
@@ -48,7 +48,7 @@ public interface ITableColumnCommands
     /// <param name="values">List of exact values to include in the filter</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
     [ServiceAction("apply-filter-values")]
-    void ApplyFilterValues(IExcelBatch batch, string tableName, string columnName, List<string> values);
+    OperationResult ApplyFilterValues(IExcelBatch batch, string tableName, string columnName, List<string> values);
 
     /// <summary>
     /// Clears all filters from a table
@@ -56,7 +56,7 @@ public interface ITableColumnCommands
     /// <param name="tableName">Name of the Excel table</param>
     /// <exception cref="InvalidOperationException">Table not found</exception>
     [ServiceAction("clear-filters")]
-    void ClearFilters(IExcelBatch batch, string tableName);
+    OperationResult ClearFilters(IExcelBatch batch, string tableName);
 
     /// <summary>
     /// Gets current filter state for all columns in a table
@@ -75,7 +75,7 @@ public interface ITableColumnCommands
     /// <param name="position">1-based column position (optional, defaults to end of table)</param>
     /// <exception cref="InvalidOperationException">Table not found or position invalid</exception>
     [ServiceAction("add-column")]
-    void AddColumn(IExcelBatch batch, string tableName, string columnName, int? position = null);
+    OperationResult AddColumn(IExcelBatch batch, string tableName, string columnName, int? position = null);
 
     /// <summary>
     /// Removes a column from a table
@@ -84,7 +84,7 @@ public interface ITableColumnCommands
     /// <param name="columnName">Name of the column to remove</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
     [ServiceAction("remove-column")]
-    void RemoveColumn(IExcelBatch batch, string tableName, string columnName);
+    OperationResult RemoveColumn(IExcelBatch batch, string tableName, string columnName);
 
     /// <summary>
     /// Renames a column in a table
@@ -94,7 +94,7 @@ public interface ITableColumnCommands
     /// <param name="newName">New column name</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
     [ServiceAction("rename-column")]
-    void RenameColumn(IExcelBatch batch, string tableName, string oldName, string newName);
+    OperationResult RenameColumn(IExcelBatch batch, string tableName, string oldName, string newName);
 
     // === STRUCTURED REFERENCE OPERATIONS ===
 
@@ -117,7 +117,7 @@ public interface ITableColumnCommands
     /// <param name="ascending">Sort order: true = ascending (A-Z, 0-9), false = descending (default: true)</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
     [ServiceAction("sort")]
-    void Sort(IExcelBatch batch, string tableName, string columnName, bool ascending = true);
+    OperationResult Sort(IExcelBatch batch, string tableName, string columnName, bool ascending = true);
 
     /// <summary>
     /// Sorts a table by multiple columns
@@ -126,7 +126,7 @@ public interface ITableColumnCommands
     /// <param name="sortColumns">List of sort specifications: [{columnName: 'Col1', ascending: true}, ...] - applied in order</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
     [ServiceAction("sort-multi")]
-    void SortMulti(IExcelBatch batch, string tableName, List<TableSortColumn> sortColumns);
+    OperationResult SortMulti(IExcelBatch batch, string tableName, List<TableSortColumn> sortColumns);
 
     // === NUMBER FORMATTING ===
 
@@ -150,5 +150,5 @@ public interface ITableColumnCommands
     /// <param name="formatCode">Number format code in US locale (e.g., '#,##0.00', '0%', 'yyyy-mm-dd')</param>
     /// <exception cref="InvalidOperationException">Table or column not found, or format code invalid</exception>
     [ServiceAction("set-column-number-format")]
-    void SetColumnNumberFormat(IExcelBatch batch, string tableName, string columnName, string formatCode);
+    OperationResult SetColumnNumberFormat(IExcelBatch batch, string tableName, string columnName, string formatCode);
 }

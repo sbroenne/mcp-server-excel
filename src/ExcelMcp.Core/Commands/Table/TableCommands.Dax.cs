@@ -61,7 +61,7 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public void CreateFromDax(IExcelBatch batch, string sheetName, string tableName, string daxQuery, string? targetCell = null)
+    public OperationResult CreateFromDax(IExcelBatch batch, string sheetName, string tableName, string daxQuery, string? targetCell = null)
     {
         // Validate parameters
         if (string.IsNullOrWhiteSpace(sheetName))
@@ -84,7 +84,7 @@ public partial class TableCommands
         // Default target cell
         targetCell ??= "A1";
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? modelWbConn = null;
@@ -174,7 +174,7 @@ public partial class TableCommands
                 // Refresh the table to populate data
                 listObject.Refresh();
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -190,7 +190,7 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public void UpdateDax(IExcelBatch batch, string tableName, string daxQuery)
+    public OperationResult UpdateDax(IExcelBatch batch, string tableName, string daxQuery)
     {
         // Validate parameters
         if (string.IsNullOrWhiteSpace(tableName))
@@ -205,7 +205,7 @@ public partial class TableCommands
             throw new ArgumentException("daxQuery is required for update-dax action", nameof(daxQuery));
         }
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? tableObject = null;
@@ -254,7 +254,7 @@ public partial class TableCommands
                 workbookConnection.Refresh();
                 table.Refresh();
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {

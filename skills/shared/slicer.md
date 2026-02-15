@@ -30,10 +30,25 @@ Two distinct slicer types exist:
 
 **Selection Behavior**:
 
-- `selectedItems` is a JSON array of strings: `["Value1", "Value2"]`
-- Empty array `[]` clears all filters (shows all items)
+- `selectedItems` is a list of strings: `["Value1", "Value2"]`
+- Empty list `[]` clears all filters (shows all items)
 - Values must match exactly (case-sensitive)
 - Invalid values are silently ignored
+
+**CLI: JSON Array Quoting** (important for `--selected-items`):
+
+The `--selected-items` parameter requires a JSON array. Use proper shell escaping:
+
+```bash
+# PowerShell: use single quotes around the JSON, double quotes inside
+--selected-items '["West","East"]'
+
+# Or escape inner quotes with backslash
+--selected-items "[\"West\",\"East\"]"
+
+# Clear filter (show all items)
+--selected-items '[]'
+```
 
 **Positioning**:
 

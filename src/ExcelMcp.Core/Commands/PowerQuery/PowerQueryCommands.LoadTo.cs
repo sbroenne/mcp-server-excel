@@ -24,7 +24,7 @@ public partial class PowerQueryCommands
     /// IMPORTANT: Uses ListObjects.Add() (not QueryTables.Add()) for worksheet loading.
     /// This is the CORRECT approach per Microsoft docs and matches Create() behavior.
     /// </remarks>
-    public void LoadTo(
+    public OperationResult LoadTo(
         IExcelBatch batch,
         string queryName,
         PowerQueryLoadMode loadMode,
@@ -48,7 +48,7 @@ public partial class PowerQueryCommands
 
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? queries = null;
             dynamic? query = null;
@@ -127,7 +127,7 @@ public partial class PowerQueryCommands
                     result.DataRefreshed = (loadMode != PowerQueryLoadMode.ConnectionOnly);
                 }
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {

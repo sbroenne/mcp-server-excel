@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
@@ -9,12 +10,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public void Resize(IExcelBatch batch, string tableName, string newRange)
+    public OperationResult Resize(IExcelBatch batch, string tableName, string newRange)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? sheet = null;
@@ -29,7 +30,7 @@ public partial class TableCommands
                 // Resize the table
                 table.Resize(newRangeObj);
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -41,12 +42,12 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public void ToggleTotals(IExcelBatch batch, string tableName, bool showTotals)
+    public OperationResult ToggleTotals(IExcelBatch batch, string tableName, bool showTotals)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             try
@@ -55,7 +56,7 @@ public partial class TableCommands
 
                 table.ShowTotals = showTotals;
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -65,12 +66,12 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public void SetColumnTotal(IExcelBatch batch, string tableName, string columnName, string totalFunction)
+    public OperationResult SetColumnTotal(IExcelBatch batch, string tableName, string columnName, string totalFunction)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? listColumns = null;
@@ -134,7 +135,7 @@ public partial class TableCommands
 
                 column.TotalsCalculation = xlFunction;
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -146,12 +147,12 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public void SetStyle(IExcelBatch batch, string tableName, string tableStyle)
+    public OperationResult SetStyle(IExcelBatch batch, string tableName, string tableStyle)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             try
@@ -160,7 +161,7 @@ public partial class TableCommands
 
                 table.TableStyle = tableStyle;
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {

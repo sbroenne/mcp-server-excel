@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
@@ -19,9 +20,9 @@ internal sealed class ChartFindResult
 public partial class ChartCommands
 {
     /// <inheritdoc />
-    public void SetSourceRange(IExcelBatch batch, string chartName, string sourceRange)
+    public OperationResult SetSourceRange(IExcelBatch batch, string chartName, string sourceRange)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
@@ -38,7 +39,7 @@ public partial class ChartCommands
                 strategy.SetSourceRange(findResult.Chart, sourceRange);
 #pragma warning restore CS8604
 
-                return 0; // Void operation completed
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }
             finally
             {
@@ -84,9 +85,9 @@ public partial class ChartCommands
     }
 
     /// <inheritdoc />
-    public void RemoveSeries(IExcelBatch batch, string chartName, int seriesIndex)
+    public OperationResult RemoveSeries(IExcelBatch batch, string chartName, int seriesIndex)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
@@ -103,7 +104,7 @@ public partial class ChartCommands
                 strategy.RemoveSeries(findResult.Chart, seriesIndex);
 #pragma warning restore CS8604
 
-                return 0; // Void operation completed
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }
             finally
             {

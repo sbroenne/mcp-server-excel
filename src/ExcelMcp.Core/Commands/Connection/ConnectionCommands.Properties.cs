@@ -39,12 +39,12 @@ public partial class ConnectionCommands
     }
 
     /// <inheritdoc />
-    public void SetProperties(IExcelBatch batch, string connectionName,
+    public OperationResult SetProperties(IExcelBatch batch, string connectionName,
         string? connectionString = null, string? commandText = null, string? description = null,
         bool? backgroundQuery = null, bool? refreshOnFileOpen = null,
         bool? savePassword = null, int? refreshPeriod = null)
     {
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
@@ -85,7 +85,7 @@ public partial class ConnectionCommands
                     "To change the data source, delete this connection and import a new ODC file, or create a new connection with connection create action.",
                     ex);
             }
-            return 0;
+            return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
         });
     }
 }

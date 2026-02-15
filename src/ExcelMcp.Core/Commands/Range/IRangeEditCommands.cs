@@ -124,7 +124,7 @@ public interface IRangeEditCommands
     /// <param name="replaceValue">Text or value to replace matches with</param>
     /// <param name="replaceOptions">Replace options: matchCase (default: false), matchEntireCell (default: false), replaceAll (default: true)</param>
     [ServiceAction("replace")]
-    void Replace(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] string findValue, [RequiredParameter] string replaceValue, ReplaceOptions replaceOptions);
+    OperationResult Replace(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] string findValue, [RequiredParameter] string replaceValue, ReplaceOptions replaceOptions);
 
     // === SORT OPERATIONS ===
 
@@ -138,5 +138,5 @@ public interface IRangeEditCommands
     /// <param name="sortColumns">Array of sort specifications: [{columnIndex: 1, ascending: true}, ...] - columnIndex is 1-based relative to range</param>
     /// <param name="hasHeaders">Whether the range has a header row to exclude from sorting (default: true)</param>
     [ServiceAction("sort")]
-    void Sort(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] List<SortColumn> sortColumns, bool hasHeaders = true);
+    OperationResult Sort(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] List<SortColumn> sortColumns, bool hasHeaders = true);
 }

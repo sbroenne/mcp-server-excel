@@ -10,12 +10,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public void ApplyFilter(IExcelBatch batch, string tableName, string columnName, string criteria)
+    public OperationResult ApplyFilter(IExcelBatch batch, string tableName, string columnName, string criteria)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? autoFilter = null;
@@ -84,7 +84,7 @@ public partial class TableCommands
                     Operator: xlFilterValues
                 );
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -95,12 +95,12 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public void ApplyFilterValues(IExcelBatch batch, string tableName, string columnName, List<string> values)
+    public OperationResult ApplyFilterValues(IExcelBatch batch, string tableName, string columnName, List<string> values)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? autoFilter = null;
@@ -169,7 +169,7 @@ public partial class TableCommands
                     Operator: 7 // xlFilterValues
                 );
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {
@@ -180,12 +180,12 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public void ClearFilters(IExcelBatch batch, string tableName)
+    public OperationResult ClearFilters(IExcelBatch batch, string tableName)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
 
-        batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? autoFilter = null;
@@ -199,7 +199,7 @@ public partial class TableCommands
                     autoFilter.ShowAllData();
                 }
 
-                return 0;
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
             {

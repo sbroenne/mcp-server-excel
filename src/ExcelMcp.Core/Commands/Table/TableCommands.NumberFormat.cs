@@ -36,7 +36,7 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public void SetColumnNumberFormat(IExcelBatch batch, string tableName, string columnName, string formatCode)
+    public OperationResult SetColumnNumberFormat(IExcelBatch batch, string tableName, string columnName, string formatCode)
     {
         // First, get the table's sheet name and column data range (excludes header)
         var columnRange = GetColumnDataRange(batch, tableName, columnName);
@@ -47,7 +47,7 @@ public partial class TableCommands
         }
 
         // Delegate to RangeCommands to set number format
-        _rangeCommands.SetNumberFormat(batch, columnRange.SheetName, columnRange.RangeAddress, formatCode);
+        return _rangeCommands.SetNumberFormat(batch, columnRange.SheetName, columnRange.RangeAddress, formatCode);
     }
 
     // === HELPER METHODS ===
