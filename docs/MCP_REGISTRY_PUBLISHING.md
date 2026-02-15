@@ -197,10 +197,11 @@ The workflow has `id-token: write` permission enabled for OIDC authentication.
 
 ### Workflow Doesn't Trigger
 
-**Issue**: Tag pushed but workflow doesn't run
+**Issue**: Release workflow doesn't run
 
 **Solution**:
-- Verify tag format is `v*` (e.g., `v1.2.3`)
+- Trigger via **Actions** → **Release All Components** → **Run workflow**
+- Select version bump type or enter custom version
 - Check that the workflow file is on the main branch
 - Look for workflow errors in GitHub Actions
 

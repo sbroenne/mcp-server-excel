@@ -17,11 +17,11 @@ All ExcelMcp components are released together with a single version tag:
 ## Unified Release Workflow
 
 **Workflow**: `.github/workflows/release.yml`  
-**Trigger**: Tags matching `v*` (e.g., `v1.5.6`)
+**Trigger**: `workflow_dispatch` with version bump (major/minor/patch) or custom version
 
 ### What Gets Released
 
-When you push a `v*` tag:
+When you run the release workflow:
 
 1. **CLI** → Built as dependency (artifact shared with MCP Server job)
 2. **MCP Server** → Unified NuGet (`Sbroenne.ExcelMcp.McpServer` — includes CLI) + ZIP
@@ -67,17 +67,22 @@ Before creating a release tag, ensure all changes are documented under `## [Unre
 
 > **Important:** Do NOT rename `[Unreleased]` to a version number manually. The release workflow extracts content from `[Unreleased]` for release notes, then creates an auto-PR to rename it to `[X.Y.Z] - date` and add a fresh `[Unreleased]` section.
 
-### 2. Create Release Tag
+### 2. Run the Release Workflow
 
-```powershell
-# Ensure you're on main with latest changes
-git checkout main
-git pull origin main
+1. Go to **Actions** → **Release All Components** → **Run workflow**
+2. Select the version bump type:
+   - **patch** (default): `1.5.6` → `1.5.7`
+   - **minor**: `1.5.6` → `1.6.0`
+   - **major**: `1.5.6` → `2.0.0`
+3. Or enter a **custom version** (e.g., `1.5.7`) to override the bump
 
-# Create and push tag
-git tag v1.5.7
-git push origin v1.5.7
-```
+The workflow will:
+1. Calculate the next version from the latest git tag
+2. Build all components with the new version
+3. Create and push the git tag (`v1.5.7`)
+4. Publish to NuGet, VS Code Marketplace, MCP Registry
+5. Create GitHub Release with all artifacts
+6. Auto-PR to update `CHANGELOG.md`
 
 ### 3. Monitor Workflow
 

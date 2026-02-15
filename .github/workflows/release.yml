@@ -7,8 +7,10 @@ name: Release All Components
 # - MCPB (Claude Desktop bundle)
 # - Agent Skills (ZIP package)
 #
-# All components are released with the same version from a single tag.
-# Tag pattern: v1.2.3
+# All components are released with the same version.
+# Trigger: workflow_dispatch with version bump (major/minor/patch) or custom version.
+# The workflow auto-calculates the next version from the latest git tag,
+# creates the git tag after successful builds, then creates the GitHub release.
 #
 # Required GitHub Secrets:
 # - NUGET_USER: Your NuGet.org username (profile name, NOT email)
@@ -16,9 +18,21 @@ name: Release All Components
 # - APPINSIGHTS_CONNECTION_STRING: Application Insights connection string
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        default: 'patch'
+        options:
+          - major
+          - minor
+          - patch
+      custom_version:
+        description: 'Custom version (e.g., 1.2.3, overrides version_bump)'
+        required: false
+        type: string
 
 env:
   DOTNET_VERSION: '10.0.x'
@@ -26,16 +40,78 @@ env:
 
 jobs:
   # =============================================================================
+  # Job 0: Calculate Version and Create Tag
+  # =============================================================================
+  version:
+    name: Calculate Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.calculate_version.outputs.version }}
+      tag: ${{ steps.calculate_version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history and tags
+
+      - name: Calculate version
+        id: calculate_version
+        run: |
+          # If custom version is provided, use it
+          if [ -n "${{ inputs.custom_version }}" ]; then
+            VERSION="${{ inputs.custom_version }}"
+            echo "Using custom version: ${VERSION}"
+          else
+            # Get the latest tag
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            echo "Latest tag: ${LATEST_TAG}"
+
+            # Remove 'v' prefix if present
+            CURRENT_VERSION="${LATEST_TAG#v}"
+            echo "Current version: ${CURRENT_VERSION}"
+
+            # Parse version components
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+            # Increment based on bump type
+            case "${{ inputs.version_bump }}" in
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              patch)
+                PATCH=$((PATCH + 1))
+                ;;
+            esac
+
+            VERSION="${MAJOR}.${MINOR}.${PATCH}"
+            echo "New version: ${VERSION}"
+          fi
+
+          TAG="v${VERSION}"
+
+          # Check if tag already exists
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag $TAG already exists"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  # =============================================================================
   # Job 1: Build CLI (dependency for MCP Server)
   # =============================================================================
   build-cli:
     name: CLI (Dependency)
+    needs: [version]
     runs-on: windows-latest
     permissions:
       contents: read
-
-    outputs:
-      version: ${{ steps.version.outputs.version }}
 
     steps:
     - uses: actions/checkout@v4
@@ -45,11 +121,9 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    - name: Extract Version
-      id: version
+    - name: Set Version
       run: |
-        $version = "${{ github.ref_name }}" -replace '^v', ''
-        echo "version=$version" >> $env:GITHUB_OUTPUT
+        $version = "${{ needs.version.outputs.version }}"
         echo "VERSION=$version" >> $env:GITHUB_ENV
       shell: pwsh
 
@@ -81,15 +155,12 @@ jobs:
   # =============================================================================
   build-mcp-server:
     name: MCP Server (Unified Package)
-    needs: [build-cli]
+    needs: [version, build-cli]
     runs-on: windows-latest
     permissions:
       contents: read
       packages: write
       id-token: write  # Required for NuGet OIDC
-
-    outputs:
-      version: ${{ steps.version.outputs.version }}
 
     steps:
     - uses: actions/checkout@v4
@@ -105,11 +176,9 @@ jobs:
         name: cli-build
         path: src/ExcelMcp.CLI/bin/Release/net10.0-windows/
 
-    - name: Extract Version
-      id: version
+    - name: Set Version
       run: |
-        $version = "${{ github.ref_name }}" -replace '^v', ''
-        echo "version=$version" >> $env:GITHUB_OUTPUT
+        $version = "${{ needs.version.outputs.version }}"
         echo "VERSION=$version" >> $env:GITHUB_ENV
         Write-Output "Version: $version"
       shell: pwsh
@@ -190,6 +259,7 @@ jobs:
   # =============================================================================
   build-vscode:
     name: VS Code Extension
+    needs: [version]
     runs-on: windows-latest
     permissions:
       contents: read
@@ -207,9 +277,9 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    - name: Extract Version
+    - name: Set Version
       run: |
-        $version = "${{ github.ref_name }}" -replace '^v', ''
+        $version = "${{ needs.version.outputs.version }}"
         echo "VERSION=$version" >> $env:GITHUB_ENV
       shell: pwsh
 
@@ -288,6 +358,7 @@ jobs:
   # =============================================================================
   build-mcpb:
     name: MCPB Bundle
+    needs: [version]
     runs-on: windows-latest
     permissions:
       contents: read
@@ -300,9 +371,9 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    - name: Extract Version
+    - name: Set Version
       run: |
-        $version = "${{ github.ref_name }}" -replace '^v', ''
+        $version = "${{ needs.version.outputs.version }}"
         echo "VERSION=$version" >> $env:GITHUB_ENV
       shell: pwsh
 
@@ -325,6 +396,7 @@ jobs:
   # =============================================================================
   build-agent-skills:
     name: Agent Skills
+    needs: [version]
     runs-on: windows-latest
     permissions:
       contents: read
@@ -337,9 +409,9 @@ jobs:
       with:
         global-json-file: global.json
 
-    - name: Extract Version
+    - name: Set Version
       run: |
-        $version = "${{ github.ref_name }}" -replace '^v', ''
+        $version = "${{ needs.version.outputs.version }}"
         echo "VERSION=$version" >> $env:GITHUB_ENV
       shell: pwsh
 
@@ -441,7 +513,7 @@ jobs:
   # =============================================================================
   publish-mcp-registry:
     name: MCP Registry
-    needs: [build-mcp-server]
+    needs: [version, build-mcp-server]
     runs-on: windows-latest
     permissions:
       id-token: write
@@ -449,9 +521,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Extract Version
+    - name: Set Version
       run: |
-        $version = "${{ github.ref_name }}" -replace '^v', ''
+        $version = "${{ needs.version.outputs.version }}"
         echo "VERSION=$version" >> $env:GITHUB_ENV
       shell: pwsh
 
@@ -511,11 +583,37 @@ jobs:
       continue-on-error: true
 
   # =============================================================================
-  # Job 7: Create Unified GitHub Release
+  # Job 7: Create Git Tag
+  # =============================================================================
+  create-tag:
+    name: Create Git Tag
+    needs: [version, build-mcp-server, build-vscode, build-mcpb, build-agent-skills]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and push tag
+        run: |
+          TAG="${{ needs.version.outputs.tag }}"
+          echo "Creating tag: $TAG"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+  # =============================================================================
+  # Job 8: Create Unified GitHub Release
   # =============================================================================
   create-release:
     name: Create GitHub Release
-    needs: [build-mcp-server, build-vscode, build-mcpb, build-agent-skills]
+    needs: [version, create-tag]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -523,10 +621,9 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Extract Version
+    - name: Set Version
       run: |
-        VERSION="${GITHUB_REF_NAME#v}"
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "VERSION=${{ needs.version.outputs.version }}" >> $GITHUB_ENV
 
     - name: Download All Artifacts
       uses: actions/download-artifact@v4
@@ -562,7 +659,7 @@ jobs:
     - name: Create Release
       run: |
         VERSION=${{ env.VERSION }}
-        TAG=${{ github.ref_name }}
+        TAG=${{ needs.version.outputs.tag }}
 
         # Build release notes
         cat > release_notes.md << 'NOTES'

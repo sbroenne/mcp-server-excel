@@ -47,9 +47,10 @@ The release workflow requires the following secret to be configured in your GitH
 
 **Note:** The VS Code extension is now released as part of the unified release workflow (`.github/workflows/release.yml`).
 
-When you push a tag matching `v*` (e.g., `v1.5.7`):
+When you run the release workflow (via `workflow_dispatch`):
 
-1. **Extracts version from tag** and updates `package.json`
+1. **Calculates version** from latest git tag (or custom version input)
+2. **Updates `package.json`** version for VS Code extension
 2. **Updates CHANGELOG.md** with release date
 3. **Builds the extension** from source
 4. **Packages as VSIX** file
