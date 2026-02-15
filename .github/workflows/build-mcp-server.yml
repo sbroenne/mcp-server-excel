@@ -51,13 +51,13 @@ jobs:
     - name: Verify MCP Server build
       run: |
         # Check MCP Server executable
-        if (Test-Path "src/ExcelMcp.McpServer/bin/Release/net10.0/Sbroenne.ExcelMcp.McpServer.exe") {
+        if (Test-Path "src/ExcelMcp.McpServer/bin/Release/net10.0-windows/Sbroenne.ExcelMcp.McpServer.exe") {
           Write-Output "✅ Sbroenne.ExcelMcp.McpServer.exe built successfully"
-          $mcpVersion = (Get-Item "src/ExcelMcp.McpServer/bin/Release/net10.0/Sbroenne.ExcelMcp.McpServer.exe").VersionInfo.FileVersion
+          $mcpVersion = (Get-Item "src/ExcelMcp.McpServer/bin/Release/net10.0-windows/Sbroenne.ExcelMcp.McpServer.exe").VersionInfo.FileVersion
           Write-Output "📦 MCP Server Version: $mcpVersion"
 
           # Check for MCP server.json configuration
-          if (Test-Path "src/ExcelMcp.McpServer/bin/Release/net10.0/.mcp/server.json") {
+          if (Test-Path "src/ExcelMcp.McpServer/bin/Release/net10.0-windows/.mcp/server.json") {
             Write-Output "✅ MCP server.json configuration found"
           } else {
             Write-Warning "⚠️ MCP server.json configuration not found"
@@ -74,4 +74,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ExcelMcp-MCP-Server-${{ github.sha }}
-        path: src/ExcelMcp.McpServer/bin/Release/net10.0/
+        path: src/ExcelMcp.McpServer/bin/Release/net10.0-windows/
