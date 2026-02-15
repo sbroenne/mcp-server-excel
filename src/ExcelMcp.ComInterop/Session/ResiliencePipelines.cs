@@ -93,8 +93,8 @@ public static class ResiliencePipelines
                 UseJitter = true,
                 Delay = TimeSpan.FromMilliseconds(config.DelayMs),
 
+                // Only retry transient errors, NOT fatal RPC connection failures
                 ShouldHandle = new PredicateBuilder().Handle<COMException>(ex =>
-                    // Only retry transient errors, NOT fatal RPC connection failures
                     ex.HResult != RPC_E_CALL_FAILED &&
                     (ex.HResult == RPC_E_SERVERCALL_RETRYLATER ||
                      ex.HResult == RPC_E_CALL_REJECTED ||
