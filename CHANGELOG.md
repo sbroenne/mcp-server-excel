@@ -10,6 +10,20 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### Changed
+
+- **Core Commands return OperationResult**: All 82 void-returning Core command methods now return `OperationResult` with `Success=true` and `FilePath`, giving LLMs confirmation metadata instead of bare `{"success": true}` responses. Affects 16 interfaces across all command domains (Range, Sheet, Table, Chart, Connection, DataModel, PowerQuery, VBA, NamedRange, ConditionalFormatting).
+
+### Improved
+
+- **MCP SKILL template**: Added Workflow Checklist table for quick reference (open → create → write → format → save)
+- **CLI SKILL template**: Added "List Parameters Use JSON Arrays" to Common Pitfalls section
+- **Slicer reference doc**: Added CLI JSON Array Quoting section with PowerShell escaping examples
+
+### Fixed
+
+- **MCP Server tests**: Fixed 13 pre-existing test failures caused by tests using camelCase parameter names (`sessionId`, `queryName`) instead of correct snake_case (`session_id`, `query_name`). All 93 MCP Server tests now pass.
+
 ### ⚠️ BREAKING CHANGES
 
 **See [BREAKING-CHANGES.md](docs/BREAKING-CHANGES.md) for complete migration guide.**
