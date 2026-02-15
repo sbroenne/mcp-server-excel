@@ -26,22 +26,25 @@ internal sealed class CliServiceTray : IDisposable
 
         _contextMenu = new ContextMenuStrip();
 
-        // Sessions submenu
-        _sessionsMenu = new ToolStripMenuItem("Sessions (0)");
+        // Sessions submenu (Alt+S mnemonic)
+        _sessionsMenu = new ToolStripMenuItem("&Sessions (0)");
+        _sessionsMenu.AccessibleDescription = "Lists active Excel sessions";
         _sessionsMenu.DropDownItems.Add(new ToolStripMenuItem("No active sessions") { Enabled = false });
         _contextMenu.Items.Add(_sessionsMenu);
 
         _contextMenu.Items.Add(new ToolStripSeparator());
 
-        // About
-        var aboutItem = new ToolStripMenuItem("About...");
+        // About (Alt+A mnemonic)
+        var aboutItem = new ToolStripMenuItem("&About...");
+        aboutItem.AccessibleDescription = "Show version and project information";
         aboutItem.Click += (_, _) => ShowAbout();
         _contextMenu.Items.Add(aboutItem);
 
         _contextMenu.Items.Add(new ToolStripSeparator());
 
-        // Exit
-        var exitItem = new ToolStripMenuItem("Exit");
+        // Exit (Alt+X mnemonic)
+        var exitItem = new ToolStripMenuItem("E&xit");
+        exitItem.AccessibleDescription = "Stop the ExcelMCP CLI service and exit";
         exitItem.Click += (_, _) => ExitService();
         _contextMenu.Items.Add(exitItem);
 
@@ -128,7 +131,7 @@ internal sealed class CliServiceTray : IDisposable
                 return;
             }
 
-            _sessionsMenu.Text = $"Sessions ({sessions.Count})";
+            _sessionsMenu.Text = $"&Sessions ({sessions.Count})";
             _sessionsMenu.DropDownItems.Clear();
 
             if (sessions.Count == 0)
@@ -141,10 +144,13 @@ internal sealed class CliServiceTray : IDisposable
                 {
                     var fileName = Path.GetFileName(session.FilePath);
                     var sessionMenu = new ToolStripMenuItem(fileName);
+                    sessionMenu.AccessibleName = $"Session: {fileName}";
+                    sessionMenu.AccessibleDescription = $"Excel session for {session.FilePath}";
                     sessionMenu.ToolTipText = $"Session: {session.SessionId}\nPath: {session.FilePath}";
 
                     // Close session with save prompt
-                    var closeItem = new ToolStripMenuItem("Close Session...");
+                    var closeItem = new ToolStripMenuItem("&Close Session...");
+                    closeItem.AccessibleDescription = $"Close {fileName} with option to save";
                     closeItem.Click += (_, _) => PromptCloseSession(session.SessionId, fileName);
                     sessionMenu.DropDownItems.Add(closeItem);
 
@@ -153,7 +159,8 @@ internal sealed class CliServiceTray : IDisposable
 
                 _sessionsMenu.DropDownItems.Add(new ToolStripSeparator());
 
-                var closeAllItem = new ToolStripMenuItem("Close All Sessions");
+                var closeAllItem = new ToolStripMenuItem("Close &All Sessions");
+                closeAllItem.AccessibleDescription = "Close all active sessions without saving";
                 closeAllItem.Click += (_, _) => CloseAllSessions();
                 _sessionsMenu.DropDownItems.Add(closeAllItem);
             }
@@ -264,14 +271,24 @@ internal sealed class CliServiceTray : IDisposable
             StartPosition = FormStartPosition.CenterScreen,
             MaximizeBox = false,
             MinimizeBox = false,
-            ShowInTaskbar = false
+            ShowInTaskbar = false,
+            KeyPreview = true
+        };
+
+        // Allow Escape to close the dialog
+        form.KeyDown += (_, e) =>
+        {
+            if (e.KeyCode == Keys.Escape) form.Close();
         };
 
         var iconBox = new PictureBox
         {
             Image = SystemIcons.Information.ToBitmap(),
             SizeMode = PictureBoxSizeMode.AutoSize,
-            Location = new Point(20, 20)
+            Location = new Point(20, 20),
+            AccessibleName = "ExcelMCP CLI icon",
+            AccessibleRole = AccessibleRole.Graphic,
+            TabStop = false
         };
 
         var nameLabel = new Label
@@ -279,42 +296,77 @@ internal sealed class CliServiceTray : IDisposable
             Text = "ExcelMCP CLI Service",
             Font = new Font(Control.DefaultFont.FontFamily, 10, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(70, 20)
+            Location = new Point(70, 20),
+            AccessibleName = "ExcelMCP CLI Service",
+            AccessibleRole = AccessibleRole.StaticText
         };
 
         var versionLabel = new Label
         {
             Text = $"Version: {version}",
             AutoSize = true,
-            Location = new Point(70, 45)
+            Location = new Point(70, 45),
+            AccessibleName = $"Version {version}",
+            AccessibleRole = AccessibleRole.StaticText
         };
 
         var descLabel = new Label
         {
             Text = "Excel automation for coding agents.",
             AutoSize = true,
-            Location = new Point(70, 75)
+            Location = new Point(70, 75),
+            AccessibleName = "Excel automation for coding agents",
+            AccessibleRole = AccessibleRole.StaticText
         };
 
         const string githubUrl = "https://github.com/sbroenne/mcp-server-excel";
         const string docsUrl = "https://excelmcpserver.dev/";
 
-        var githubLabel = new Label { Text = "GitHub:", AutoSize = true, Location = new Point(70, 105) };
-        var githubLink = new LinkLabel { Text = githubUrl, AutoSize = true, Location = new Point(125, 105) };
+        var githubLabel = new Label
+        {
+            Text = "GitHub:",
+            AutoSize = true,
+            Location = new Point(70, 105),
+            AccessibleRole = AccessibleRole.StaticText
+        };
+        var githubLink = new LinkLabel
+        {
+            Text = githubUrl,
+            AutoSize = true,
+            Location = new Point(125, 105),
+            TabIndex = 0,
+            AccessibleName = "GitHub repository link",
+            AccessibleDescription = $"Opens {githubUrl} in browser"
+        };
         githubLink.Click += (_, _) =>
         {
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(githubUrl) { UseShellExecute = true }); }
             catch { /* Ignore navigation errors */ }
         };
 
-        var docsLabel = new Label { Text = "Docs:", AutoSize = true, Location = new Point(70, 130) };
-        var docsLink = new LinkLabel { Text = docsUrl, AutoSize = true, Location = new Point(125, 130) };
+        var docsLabel = new Label
+        {
+            Text = "Docs:",
+            AutoSize = true,
+            Location = new Point(70, 130),
+            AccessibleRole = AccessibleRole.StaticText
+        };
+        var docsLink = new LinkLabel
+        {
+            Text = docsUrl,
+            AutoSize = true,
+            Location = new Point(125, 130),
+            TabIndex = 1,
+            AccessibleName = "Documentation link",
+            AccessibleDescription = $"Opens {docsUrl} in browser"
+        };
         docsLink.Click += (_, _) =>
         {
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(docsUrl) { UseShellExecute = true }); }
             catch { /* Ignore navigation errors */ }
         };
 
+        var tabIndex = 2;
         var buttonY = 165;
         form.Controls.AddRange([iconBox, nameLabel, versionLabel, descLabel, githubLabel, githubLink, docsLabel, docsLink]);
 
@@ -323,10 +375,12 @@ internal sealed class CliServiceTray : IDisposable
             var updateLabel = new Label
             {
                 Text = $"Update available: {version} \u2192 {latestVersion}",
-                ForeColor = Color.DarkGreen,
+                ForeColor = SystemColors.HotTrack,
                 Font = new Font(Control.DefaultFont, FontStyle.Bold),
                 AutoSize = true,
-                Location = new Point(70, 160)
+                Location = new Point(70, 160),
+                AccessibleName = $"Update available from version {version} to {latestVersion}",
+                AccessibleRole = AccessibleRole.StaticText
             };
 
             var updateCmd = new TextBox
@@ -336,7 +390,10 @@ internal sealed class CliServiceTray : IDisposable
                 BorderStyle = BorderStyle.None,
                 BackColor = form.BackColor,
                 Location = new Point(70, 180),
-                Size = new Size(320, 20)
+                Size = new Size(320, 20),
+                TabIndex = tabIndex++,
+                AccessibleName = "Update command, select to copy",
+                AccessibleDescription = "Run this command in a terminal to update"
             };
 
             form.Controls.AddRange([updateLabel, updateCmd]);
@@ -345,10 +402,12 @@ internal sealed class CliServiceTray : IDisposable
 
         var okButton = new Button
         {
-            Text = "OK",
+            Text = "&OK",
             DialogResult = System.Windows.Forms.DialogResult.OK,
             Size = new Size(80, 28),
-            Location = new Point(160, buttonY)
+            Location = new Point(160, buttonY),
+            TabIndex = tabIndex,
+            AccessibleName = "OK, close dialog"
         };
         form.AcceptButton = okButton;
         form.Controls.Add(okButton);
