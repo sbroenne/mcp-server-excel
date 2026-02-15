@@ -279,7 +279,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         // Parameter names shortened for token optimization: excelPath -> path
         var arguments = new Dictionary<string, object?>
         {
-            ["action"] = "Test",
+            ["action"] = "test",
             ["path"] = "C:\\fake\\test.xlsx"
         };
 

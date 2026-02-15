@@ -74,7 +74,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         // Create a fresh workbook and open session in one call (Create)
         var createJson = await CallToolAsync("file", new Dictionary<string, object?>
         {
-            ["action"] = "Create",
+            ["action"] = "create",
             ["path"] = _testExcelFile
         });
 
@@ -102,10 +102,10 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         // Act - attempt to rename non-existent query
         var json = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
-            ["action"] = "Rename",
-            ["sessionId"] = _sessionId,
-            ["queryName"] = "NonExistentQuery",
-            ["newName"] = "NewName"
+            ["action"] = "rename",
+            ["session_id"] = _sessionId,
+            ["old_name"] = "NonExistentQuery",
+            ["new_name"] = "NewName"
         });
         _output.WriteLine($"Response: {json}");
 
@@ -132,10 +132,10 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         // Act - try to rename QueryA to QueryB (conflict)
         var json = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
-            ["action"] = "Rename",
-            ["sessionId"] = _sessionId,
-            ["queryName"] = "QueryA",
-            ["newName"] = "QueryB" // Already exists!
+            ["action"] = "rename",
+            ["session_id"] = _sessionId,
+            ["old_name"] = "QueryA",
+            ["new_name"] = "QueryB" // Already exists!
         });
         _output.WriteLine($"Response: {json}");
 
@@ -166,10 +166,10 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         // Act - try to rename with empty new name
         var json = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
-            ["action"] = "Rename",
-            ["sessionId"] = _sessionId,
-            ["queryName"] = "ValidQuery",
-            ["newName"] = "   " // Empty after trim
+            ["action"] = "rename",
+            ["session_id"] = _sessionId,
+            ["old_name"] = "ValidQuery",
+            ["new_name"] = "   " // Empty after trim
         });
         _output.WriteLine($"Response: {json}");
 
@@ -200,10 +200,10 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         // Act - rename to same name with extra whitespace
         var json = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
-            ["action"] = "Rename",
-            ["sessionId"] = _sessionId,
-            ["queryName"] = "TestQuery",
-            ["newName"] = "  TestQuery  " // Same after trim = no-op
+            ["action"] = "rename",
+            ["session_id"] = _sessionId,
+            ["old_name"] = "TestQuery",
+            ["new_name"] = "  TestQuery  " // Same after trim = no-op
         });
         _output.WriteLine($"Response: {json}");
 
@@ -227,10 +227,10 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         // Act - perform valid rename
         var json = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
-            ["action"] = "Rename",
-            ["sessionId"] = _sessionId,
-            ["queryName"] = "OriginalName",
-            ["newName"] = "NewName"
+            ["action"] = "rename",
+            ["session_id"] = _sessionId,
+            ["old_name"] = "OriginalName",
+            ["new_name"] = "NewName"
         });
         _output.WriteLine($"Response: {json}");
 
@@ -260,10 +260,10 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         // Act - attempt to rename non-existent table
         var json = await CallToolAsync("datamodel", new Dictionary<string, object?>
         {
-            ["action"] = "RenameTable",
-            ["sessionId"] = _sessionId,
-            ["tableName"] = "NonExistentTable",
-            ["newName"] = "NewTableName"
+            ["action"] = "rename-table",
+            ["session_id"] = _sessionId,
+            ["old_name"] = "NonExistentTable",
+            ["new_name"] = "NewTableName"
         });
         _output.WriteLine($"Response: {json}");
 
@@ -291,10 +291,10 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         // Act - attempt to rename the table in Data Model
         var json = await CallToolAsync("datamodel", new Dictionary<string, object?>
         {
-            ["action"] = "RenameTable",
-            ["sessionId"] = _sessionId,
-            ["tableName"] = "TestData",
-            ["newName"] = "NewTableName"
+            ["action"] = "rename-table",
+            ["session_id"] = _sessionId,
+            ["old_name"] = "TestData",
+            ["new_name"] = "NewTableName"
         });
         _output.WriteLine($"Response: {json}");
 
@@ -330,10 +330,10 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         // Act - try to rename with empty new name
         var json = await CallToolAsync("datamodel", new Dictionary<string, object?>
         {
-            ["action"] = "RenameTable",
-            ["sessionId"] = _sessionId,
-            ["tableName"] = "DataTable",
-            ["newName"] = "   " // Empty after trim
+            ["action"] = "rename-table",
+            ["session_id"] = _sessionId,
+            ["old_name"] = "DataTable",
+            ["new_name"] = "   " // Empty after trim
         });
         _output.WriteLine($"Response: {json}");
 
@@ -372,10 +372,10 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
     {
         var json = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
-            ["action"] = "Create",
-            ["sessionId"] = _sessionId,
-            ["queryName"] = name,
-            ["mCode"] = mCode
+            ["action"] = "create",
+            ["session_id"] = _sessionId,
+            ["query_name"] = name,
+            ["m_code"] = mCode
         });
 
         var doc = JsonDocument.Parse(json);
@@ -387,10 +387,10 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
     {
         var json = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
-            ["action"] = "LoadTo",
-            ["sessionId"] = _sessionId,
-            ["queryName"] = queryName,
-            ["loadDestination"] = "data-model"
+            ["action"] = "load-to",
+            ["session_id"] = _sessionId,
+            ["query_name"] = queryName,
+            ["load_destination"] = "load-to-data-model"
         });
 
         var doc = JsonDocument.Parse(json);
@@ -422,8 +422,8 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
             {
                 await CallToolAsync("file", new Dictionary<string, object?>
                 {
-                    ["action"] = "Close",
-                    ["sessionId"] = _sessionId,
+                    ["action"] = "close",
+                    ["session_id"] = _sessionId,
                     ["save"] = false
                 });
                 _output.WriteLine("✓ Session closed during cleanup");
