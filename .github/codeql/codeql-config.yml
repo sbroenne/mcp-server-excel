@@ -12,13 +12,12 @@
 
 name: "ExcelMcp CodeQL Configuration v3.0"
 
-# Disable default query suite and use custom ones
-disable-default-queries: false
+# Disable default query suite and use custom security-focused queries
+disable-default-queries: true
 
 # Query packs to run
 queries:
-  # Built-in security queries
-  - uses: security-and-quality
+  # Built-in security queries (do not include quality-only rules)
   - uses: security-extended
 
 # Paths to exclude from analysis
@@ -125,12 +124,6 @@ trap-caching: true
 
 # Build mode for compiled languages
 # build-mode: 'manual' for custom build commands
-
-# Additional configuration
-packs:
-  csharp:
-    - codeql/csharp-queries
-    - codeql/csharp-all
 
 # Security policy
 security-policy:

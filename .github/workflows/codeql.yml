@@ -65,8 +65,8 @@ jobs:
         languages: ${{ matrix.language }}
         # Use custom configuration file
         config-file: ./.github/codeql/codeql-config.yml
-        # Additional query packs
-        queries: +security-and-quality
+        # Additional query packs (security-focused only)
+        queries: +security-extended
 
     # Restore dependencies before build
     - name: Restore dependencies
