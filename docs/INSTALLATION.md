@@ -108,7 +108,7 @@ npx add-mcp "mcp-excel" --name excel-mcp -g
 npx add-mcp "mcp-excel" --name excel-mcp --all -y
 ```
 
-> **Requires:** [Node.js](https://nodejs.org/) (for `npx`). No permanent installation needed — `npx` downloads, runs, and cleans up automatically.
+> **Requires:** [Node.js](https://nodejs.org/) for `npx`. Install with `winget install OpenJS.NodeJS.LTS` if not already available. No permanent `add-mcp` installation needed — `npx` downloads, runs, and cleans up automatically.
 
 #### Option B: Manual Configuration
 
