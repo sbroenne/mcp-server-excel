@@ -297,7 +297,7 @@ internal sealed class CliServiceTray : IDisposable
         };
 
         const string githubUrl = "https://github.com/sbroenne/mcp-server-excel";
-        const string docsUrl = "https://sbroenne.github.io/mcp-server-excel/";
+        const string docsUrl = "https://excelmcpserver.dev/";
 
         var githubLabel = new Label { Text = "GitHub:", AutoSize = true, Location = new Point(70, 105) };
         var githubLink = new LinkLabel { Text = githubUrl, AutoSize = true, Location = new Point(125, 105) };

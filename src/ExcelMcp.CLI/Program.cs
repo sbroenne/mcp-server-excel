@@ -39,11 +39,21 @@ internal sealed class Program
         }
 
         // Handle "service run" — runs the CLI daemon with tray icon (no banner)
+        // Optional: --pipe-name <name> to override the default CLI pipe (used by tests)
         if (filteredArgs.Length >= 2
             && string.Equals(filteredArgs[0], "service", StringComparison.OrdinalIgnoreCase)
             && string.Equals(filteredArgs[1], "run", StringComparison.OrdinalIgnoreCase))
         {
-            return RunServiceDaemon();
+            string? pipeNameOverride = null;
+            for (int i = 2; i < filteredArgs.Length - 1; i++)
+            {
+                if (string.Equals(filteredArgs[i], "--pipe-name", StringComparison.OrdinalIgnoreCase))
+                {
+                    pipeNameOverride = filteredArgs[i + 1];
+                    break;
+                }
+            }
+            return RunServiceDaemon(pipeNameOverride);
         }
 
         if (showBanner) RenderHeader();
@@ -173,12 +183,12 @@ internal sealed class Program
     /// The service listens on the CLI pipe name (shared across CLI invocations).
     /// Auto-exits after 10 minutes of inactivity with no active sessions.
     /// </summary>
-    private static int RunServiceDaemon()
+    private static int RunServiceDaemon(string? pipeNameOverride = null)
     {
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
 
-        var pipeName = Service.ServiceSecurity.GetCliPipeName();
+        var pipeName = pipeNameOverride ?? Service.ServiceSecurity.GetCliPipeName();
         var service = new Service.ExcelMcpService();
 
         // Capture the UI synchronization context after Application starts

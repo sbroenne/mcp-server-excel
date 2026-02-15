@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 /// Integration tests for the CLI daemon process (excelcli service run).
 /// Verifies the daemon starts, accepts pipe connections, and shuts down cleanly.
 /// These tests do NOT require Excel — they validate daemon infrastructure.
+/// Uses a test-specific pipe name to avoid conflicting with ServiceFixture.
 /// </summary>
 [Trait("Layer", "CLI")]
 [Trait("Category", "Integration")]
@@ -18,14 +19,15 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 public sealed class CliDaemonTests : IAsyncLifetime
 {
     private readonly ITestOutputHelper _output;
+    private readonly string _testPipeName = $"excelmcp-test-daemon-{Guid.NewGuid():N}";
     private Process? _daemonProcess;
 
     public CliDaemonTests(ITestOutputHelper output) => _output = output;
 
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
     {
-        // Kill any leftover daemon that might hold the CLI pipe
-        await StopExistingDaemonAsync();
+        // No need to stop existing daemons — we use a unique test pipe name
+        return Task.CompletedTask;
     }
 
     public Task DisposeAsync()
@@ -34,18 +36,20 @@ public sealed class CliDaemonTests : IAsyncLifetime
         return Task.CompletedTask;
     }
 
+    private Dictionary<string, string> TestEnv => new() { ["EXCELMCP_CLI_PIPE"] = _testPipeName };
+
     [Fact]
     public async Task ServiceRun_StartsAndAcceptsConnections()
     {
         // Start daemon as background process
         _daemonProcess = StartDaemon();
-        _output.WriteLine($"Daemon started with PID {_daemonProcess.Id}");
+        _output.WriteLine($"Daemon started with PID {_daemonProcess.Id}, pipe: {_testPipeName}");
 
         // Wait for daemon pipe to be ready
         await WaitForDaemonReadyAsync();
 
         // Verify we can connect and get status
-        var (result, json) = await CliProcessHelper.RunJsonAsync("service status");
+        var (result, json) = await CliProcessHelper.RunJsonAsync("service status", environmentVariables: TestEnv);
         _output.WriteLine($"Status response: {result.Stdout}");
 
         Assert.Equal(0, result.ExitCode);
@@ -60,7 +64,7 @@ public sealed class CliDaemonTests : IAsyncLifetime
         _daemonProcess = StartDaemon();
         await WaitForDaemonReadyAsync();
 
-        var (result, json) = await CliProcessHelper.RunJsonAsync("service status");
+        var (result, json) = await CliProcessHelper.RunJsonAsync("service status", environmentVariables: TestEnv);
         _output.WriteLine($"Status response: {result.Stdout}");
 
         Assert.Equal(0, result.ExitCode);
@@ -73,7 +77,7 @@ public sealed class CliDaemonTests : IAsyncLifetime
         _daemonProcess = StartDaemon();
         await WaitForDaemonReadyAsync();
 
-        var (result, json) = await CliProcessHelper.RunJsonAsync("diag ping");
+        var (result, json) = await CliProcessHelper.RunJsonAsync("diag ping", environmentVariables: TestEnv);
         _output.WriteLine($"Ping response: {result.Stdout}");
 
         Assert.Equal(0, result.ExitCode);
@@ -88,7 +92,7 @@ public sealed class CliDaemonTests : IAsyncLifetime
         await WaitForDaemonReadyAsync();
 
         // Send stop command
-        var stopResult = await CliProcessHelper.RunAsync("service stop");
+        var stopResult = await CliProcessHelper.RunAsync("service stop", environmentVariables: TestEnv);
         _output.WriteLine($"Stop response: {stopResult.Stdout}");
         Assert.Equal(0, stopResult.ExitCode);
 
@@ -97,13 +101,13 @@ public sealed class CliDaemonTests : IAsyncLifetime
         Assert.True(exited, "Daemon process should exit after stop command");
     }
 
-    private static Process StartDaemon()
+    private Process StartDaemon()
     {
         var exePath = CliProcessHelper.GetExePath();
         var startInfo = new ProcessStartInfo
         {
             FileName = exePath,
-            Arguments = "service run",
+            Arguments = $"service run --pipe-name {_testPipeName}",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -122,7 +126,7 @@ public sealed class CliDaemonTests : IAsyncLifetime
         {
             try
             {
-                var result = await CliProcessHelper.RunAsync("service status", timeoutMs: 5000);
+                var result = await CliProcessHelper.RunAsync("service status", timeoutMs: 5000, environmentVariables: TestEnv);
                 if (result.ExitCode == 0 && result.Stdout.Contains("\"running\":true"))
                 {
                     _output.WriteLine($"Daemon ready after {(i + 1) * delayMs}ms");
@@ -138,23 +142,6 @@ public sealed class CliDaemonTests : IAsyncLifetime
         }
 
         throw new TimeoutException($"CLI daemon did not become ready within {maxRetries * delayMs}ms");
-    }
-
-    private async Task StopExistingDaemonAsync()
-    {
-        try
-        {
-            var result = await CliProcessHelper.RunAsync("service stop", timeoutMs: 5000);
-            if (result.ExitCode == 0)
-            {
-                _output.WriteLine("Stopped existing daemon");
-                await Task.Delay(1000); // Give it time to fully exit
-            }
-        }
-        catch (Exception)
-        {
-            // No existing daemon — fine
-        }
     }
 
     private void KillDaemon()

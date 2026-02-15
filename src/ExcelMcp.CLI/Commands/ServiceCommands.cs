@@ -19,7 +19,7 @@ internal sealed class ServiceStartCommand : AsyncCommand
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         // Check if daemon is already running
-        var pipeName = ServiceSecurity.GetCliPipeName();
+        var pipeName = Environment.GetEnvironmentVariable("EXCELMCP_CLI_PIPE") ?? ServiceSecurity.GetCliPipeName();
         using var checkClient = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(2));
         if (await checkClient.PingAsync(cancellationToken))
         {
@@ -78,7 +78,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
 {
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
-        var pipeName = ServiceSecurity.GetCliPipeName();
+        var pipeName = Environment.GetEnvironmentVariable("EXCELMCP_CLI_PIPE") ?? ServiceSecurity.GetCliPipeName();
         try
         {
             using var client = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(2));
@@ -110,7 +110,7 @@ internal sealed class ServiceStatusCommand : AsyncCommand
 {
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
-        var pipeName = ServiceSecurity.GetCliPipeName();
+        var pipeName = Environment.GetEnvironmentVariable("EXCELMCP_CLI_PIPE") ?? ServiceSecurity.GetCliPipeName();
         try
         {
             using var client = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(2));
