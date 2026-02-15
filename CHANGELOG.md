@@ -10,9 +10,15 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### Added
+
+- **Service version negotiation**: MCP Server and CLI now validate that the running service version matches the client version. On any version mismatch, the client fails with a clear error message instructing the user to restart the service. This prevents silent failures when different versions share the same service process.
+- **CLI NuGet package re-published**: The CLI is now published as a separate NuGet package (`Sbroenne.ExcelMcp.CLI`) alongside the MCP Server package. Both packages are always released with the same version.
+
 ### Changed
 
 - **Core Commands return OperationResult**: All 82 void-returning Core command methods now return `OperationResult` with `Success=true` and `FilePath`, giving LLMs confirmation metadata instead of bare `{"success": true}` responses. Affects 16 interfaces across all command domains (Range, Sheet, Table, Chart, Connection, DataModel, PowerQuery, VBA, NamedRange, ConditionalFormatting).
+- **Two NuGet packages**: MCP Server (`mcp-excel`) and CLI (`excelcli`) are separate .NET tool packages. Install both for full functionality. They must be the same version.
 
 ### Improved
 

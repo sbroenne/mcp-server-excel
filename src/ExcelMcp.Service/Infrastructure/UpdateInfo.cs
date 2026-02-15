@@ -31,7 +31,9 @@ public sealed class UpdateInfo
     /// </summary>
     public string GetNotificationMessage() =>
         $"Version {LatestVersion} is available (current: {CurrentVersion}).\n" +
-        "Update via: dotnet tool update --global Sbroenne.ExcelMcp.McpServer";
+        "Update both packages:\n" +
+        "dotnet tool update --global Sbroenne.ExcelMcp.McpServer\n" +
+        "dotnet tool update --global Sbroenne.ExcelMcp.CLI";
 }
 
 

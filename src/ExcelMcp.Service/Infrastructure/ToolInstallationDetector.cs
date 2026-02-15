@@ -40,35 +40,45 @@ public static class ToolInstallationDetector
     }
 
     /// <summary>
-    /// Gets the update command for the current installation type.
+    /// Gets the update commands for the current installation type.
+    /// Returns commands for both MCP Server and CLI packages.
     /// </summary>
     public static string GetUpdateCommand()
     {
         var installType = GetInstallationType();
-        return installType switch
-        {
-            InstallationType.Global => "dotnet tool update --global Sbroenne.ExcelMcp.McpServer",
-            InstallationType.Local => "dotnet tool update Sbroenne.ExcelMcp.McpServer",
-            _ => "dotnet tool update --global Sbroenne.ExcelMcp.McpServer"
-        };
+        var flag = installType == InstallationType.Global ? " --global" : "";
+        return $"dotnet tool update{flag} Sbroenne.ExcelMcp.McpServer && dotnet tool update{flag} Sbroenne.ExcelMcp.CLI";
     }
 
     /// <summary>
-    /// Attempts to update the CLI tool.
+    /// Attempts to update both MCP Server and CLI tool packages.
     /// </summary>
-    /// <returns>True if update succeeded, false otherwise.</returns>
+    /// <returns>True if both updates succeeded, false otherwise.</returns>
     public static async Task<(bool Success, string Output)> TryUpdateAsync()
+    {
+        var installType = GetInstallationType();
+        var flag = installType == InstallationType.Global ? " --global" : "";
+        var packages = new[] { "Sbroenne.ExcelMcp.McpServer", "Sbroenne.ExcelMcp.CLI" };
+        var allOutput = new List<string>();
+
+        foreach (var package in packages)
+        {
+            var (success, output) = await RunUpdateCommandAsync($"tool update{flag} {package}");
+            allOutput.Add($"{package}: {(success ? "OK" : "FAILED")} - {output}");
+            if (!success)
+                return (false, string.Join("\n", allOutput));
+        }
+
+        return (true, string.Join("\n", allOutput));
+    }
+
+    private static async Task<(bool Success, string Output)> RunUpdateCommandAsync(string arguments)
     {
         try
         {
-            var command = GetUpdateCommand();
-            var parts = command.Split(' ', 2);
-            var fileName = parts[0];
-            var arguments = parts.Length > 1 ? parts[1] : string.Empty;
-
             var psi = new ProcessStartInfo
             {
-                FileName = fileName,
+                FileName = "dotnet",
                 Arguments = arguments,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -84,10 +94,9 @@ public static class ToolInstallationDetector
             var error = await process.StandardError.ReadToEndAsync();
             await process.WaitForExitAsync();
 
-            if (process.ExitCode == 0)
-                return (true, output);
-
-            return (false, error);
+            return process.ExitCode == 0
+                ? (true, output)
+                : (false, error);
         }
         catch (Exception ex)
         {

@@ -76,11 +76,14 @@ winget install Microsoft.DotNet.Runtime.10
 
 **Manual Download:** [.NET 10 Downloads](https://dotnet.microsoft.com/download/dotnet/10.0)
 
-### Step 2: Install ExcelMcp MCP Server
+### Step 2: Install ExcelMcp
 
 ```powershell
-# Install globally as a .NET tool
+# Install MCP Server (for AI assistants)
 dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+
+# Install CLI (for coding agents and scripting)
+dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 # Verify installation
 dotnet tool list --global | Select-String "ExcelMcp"
@@ -245,17 +248,17 @@ This opens Excel visibly so you can see every change in real-time - great for de
 
 **Best for:** Scripting, RPA, CI/CD pipelines, automation without AI
 
-> **📦 Bundled with MCP Server:** The CLI (`excelcli`) is included in the unified package. Install once, get both tools!
-
-### Install Unified Package
+### Install CLI
 
 ```powershell
-# Install unified package (includes MCP Server + CLI)
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+# Install CLI as a separate .NET tool
+dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 # Verify CLI is available
 excelcli --version
 ```
+
+> **⚠️ Version Sync Required:** MCP Server and CLI share a background service. Both packages must be the same version. Always update them together.
 
 ### Quick Test
 
@@ -313,11 +316,12 @@ excelcli --version
 
 ### Update (MCP Server + CLI)
 
-> **📦 Unified Package:** Updating the MCP Server also updates the CLI - they're bundled together!
+> **⚠️ Always update both packages together** to avoid version mismatch errors.
 
-**Step 1: Update the tool**
+**Step 1: Update both tools**
 ```powershell
 dotnet tool update --global Sbroenne.ExcelMcp.McpServer
+dotnet tool update --global Sbroenne.ExcelMcp.CLI
 ```
 
 **Step 2: Verify update**
