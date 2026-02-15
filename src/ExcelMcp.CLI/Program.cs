@@ -38,6 +38,14 @@ internal sealed class Program
             return await HandleVersionAsync();
         }
 
+        // Handle "service run" — runs the CLI daemon with tray icon (no banner)
+        if (filteredArgs.Length >= 2
+            && string.Equals(filteredArgs[0], "service", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(filteredArgs[1], "run", StringComparison.OrdinalIgnoreCase))
+        {
+            return RunServiceDaemon();
+        }
+
         if (showBanner) RenderHeader();
 
         var app = new CommandApp();
@@ -160,5 +168,53 @@ internal sealed class Program
         return string.Compare(current, latest, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Runs the CLI as a daemon process with system tray icon.
+    /// The service listens on the CLI pipe name (shared across CLI invocations).
+    /// Auto-exits after 10 minutes of inactivity with no active sessions.
+    /// </summary>
+    private static int RunServiceDaemon()
+    {
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
+
+        var pipeName = Service.ServiceSecurity.GetCliPipeName();
+        var service = new Service.ExcelMcpService();
+
+        // Capture the UI synchronization context after Application starts
+        SynchronizationContext? uiContext = null;
+
+        // Start pipe server on background thread with 10-minute idle timeout
+        var serviceTask = Task.Run(() => service.RunAsync(pipeName, idleTimeout: TimeSpan.FromMinutes(10)));
+
+        // When service shuts down (idle timeout or remote shutdown), exit the WinForms loop
+        serviceTask.ContinueWith(_ =>
+        {
+            if (uiContext != null)
+            {
+                uiContext.Post(_ => Application.ExitThread(), null);
+            }
+            else
+            {
+                Application.ExitThread();
+            }
+        }, TaskScheduler.Default);
+
+        // Run WinForms message loop with tray icon on main thread
+        using var tray = new CliServiceTray(service.SessionManager, () =>
+        {
+            service.RequestShutdown();
+            Application.ExitThread();
+        });
+
+        uiContext = SynchronizationContext.Current;
+        Application.Run();
+
+        // Wait for service to finish
+        serviceTask.Wait(TimeSpan.FromSeconds(5));
+        service.Dispose();
+
+        return 0;
+    }
 }
 

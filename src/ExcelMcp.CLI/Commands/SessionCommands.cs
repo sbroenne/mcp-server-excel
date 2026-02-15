@@ -20,14 +20,8 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
             return 1;
         }
 
-        // Ensure service is running
-        if (!await ServiceManager.EnsureServiceRunningAsync(cancellationToken))
-        {
-            AnsiConsole.MarkupLine("[red]Failed to start service.[/]");
-            return 1;
-        }
-
-        using var client = new ServiceClient();
+        var pipeName = ServiceSecurity.GetCliPipeName();
+        using var client = new ServiceClient(pipeName);
         var response = await client.SendAsync(new ServiceRequest
         {
             Command = "session.create",
@@ -68,14 +62,8 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
             return 1;
         }
 
-        // Ensure service is running
-        if (!await ServiceManager.EnsureServiceRunningAsync(cancellationToken))
-        {
-            AnsiConsole.MarkupLine("[red]Failed to start service.[/]");
-            return 1;
-        }
-
-        using var client = new ServiceClient();
+        var pipeName = ServiceSecurity.GetCliPipeName();
+        using var client = new ServiceClient(pipeName);
         var response = await client.SendAsync(new ServiceRequest
         {
             Command = "session.open",
@@ -116,14 +104,8 @@ internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseCommand.Set
             return 1;
         }
 
-        // Ensure service is running (auto-starts if needed)
-        if (!await ServiceManager.EnsureServiceRunningAsync(cancellationToken))
-        {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = "Failed to start ExcelMCP service." }, ServiceProtocol.JsonOptions));
-            return 1;
-        }
-
-        using var client = new ServiceClient();
+        var pipeName = ServiceSecurity.GetCliPipeName();
+        using var client = new ServiceClient(pipeName);
         var response = await client.SendAsync(new ServiceRequest
         {
             Command = "session.close",
@@ -159,24 +141,28 @@ internal sealed class SessionListCommand : AsyncCommand
 {
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
-        if (!await ServiceManager.EnsureServiceRunningAsync(cancellationToken))
+        var pipeName = ServiceSecurity.GetCliPipeName();
+        using var client = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(2));
+
+        try
         {
+            var response = await client.SendAsync(new ServiceRequest { Command = "session.list" }, cancellationToken);
+            if (response.Success)
+            {
+                Console.WriteLine(response.Result);
+                return 0;
+            }
+            else
+            {
+                Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, ServiceProtocol.JsonOptions));
+                return 1;
+            }
+        }
+        catch (Exception)
+        {
+            // Daemon not running — no sessions
             Console.WriteLine(JsonSerializer.Serialize(new { sessions = Array.Empty<object>() }, ServiceProtocol.JsonOptions));
             return 0;
-        }
-
-        using var client = new ServiceClient();
-        var response = await client.SendAsync(new ServiceRequest { Command = "session.list" }, cancellationToken);
-
-        if (response.Success)
-        {
-            Console.WriteLine(response.Result);
-            return 0;
-        }
-        else
-        {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, ServiceProtocol.JsonOptions));
-            return 1;
         }
     }
 }
@@ -191,14 +177,8 @@ internal sealed class SessionSaveCommand : AsyncCommand<SessionSaveCommand.Setti
             return 1;
         }
 
-        // Ensure service is running (auto-starts if needed)
-        if (!await ServiceManager.EnsureServiceRunningAsync(cancellationToken))
-        {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = "Failed to start ExcelMCP service." }, ServiceProtocol.JsonOptions));
-            return 1;
-        }
-
-        using var client = new ServiceClient();
+        var pipeName = ServiceSecurity.GetCliPipeName();
+        using var client = new ServiceClient(pipeName);
         var response = await client.SendAsync(new ServiceRequest
         {
             Command = "session.save",

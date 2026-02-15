@@ -7,6 +7,7 @@ namespace Sbroenne.ExcelMcp.Service;
 /// </summary>
 public sealed class ServiceClient : IDisposable
 {
+    private readonly string _pipeName;
     private readonly TimeSpan _connectTimeout;
     private readonly TimeSpan _requestTimeout;
     private bool _disposed;
@@ -14,8 +15,9 @@ public sealed class ServiceClient : IDisposable
     public static readonly TimeSpan DefaultConnectTimeout = TimeSpan.FromSeconds(5);
     public static readonly TimeSpan DefaultRequestTimeout = TimeSpan.FromSeconds(300); // 5 min for long operations
 
-    public ServiceClient(TimeSpan? connectTimeout = null, TimeSpan? requestTimeout = null)
+    public ServiceClient(string pipeName, TimeSpan? connectTimeout = null, TimeSpan? requestTimeout = null)
     {
+        _pipeName = pipeName;
         _connectTimeout = connectTimeout ?? DefaultConnectTimeout;
         _requestTimeout = requestTimeout ?? DefaultRequestTimeout;
     }
@@ -27,7 +29,7 @@ public sealed class ServiceClient : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        using var pipe = ServiceSecurity.CreateClient();
+        using var pipe = ServiceSecurity.CreateClient(_pipeName);
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(_requestTimeout);
 

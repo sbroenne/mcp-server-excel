@@ -4,7 +4,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
-using ServiceManager = Sbroenne.ExcelMcp.Service.ServiceManager;
 
 #pragma warning disable IL2070 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' requirements
 
@@ -14,29 +13,18 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// Base class for Excel MCP tools providing common patterns and utilities.
 /// All Excel tools inherit from this to ensure consistency for LLM usage.
 ///
-/// The MCP Server forwards ALL requests to the ExcelMCP Service for unified session management.
-/// This enables the CLI and MCP Server to share sessions transparently.
+/// The MCP Server forwards ALL requests to the in-process ExcelMCP Service.
 /// </summary>
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
 public static class ExcelToolsBase
 {
-    private static readonly SemaphoreSlim _serviceLock = new(1, 1);
-
     /// <summary>
     /// Ensures the ExcelMCP Service is running.
     /// The service is required for all MCP Server operations.
     /// </summary>
     public static async Task<bool> EnsureServiceAsync(CancellationToken cancellationToken = default)
     {
-        await _serviceLock.WaitAsync(cancellationToken);
-        try
-        {
-            return await ServiceManager.EnsureServiceRunningAsync(cancellationToken);
-        }
-        finally
-        {
-            _serviceLock.Release();
-        }
+        return await ServiceBridge.ServiceBridge.EnsureServiceAsync(cancellationToken);
     }
 
     /// <summary>
@@ -62,7 +50,8 @@ public static class ExcelToolsBase
             ? TimeSpan.FromSeconds(timeoutSeconds.Value)
             : ExcelServiceClient.DefaultRequestTimeout;
 
-        using var client = new ExcelServiceClient("mcp-server", requestTimeout: timeout);
+        var pipeName = ServiceBridge.ServiceBridge.PipeName;
+        using var client = new ExcelServiceClient(pipeName, "mcp-server", requestTimeout: timeout);
         return await client.SendCommandAsync(command, sessionId, args, cancellationToken);
     }
 

@@ -25,6 +25,9 @@ public sealed class ExcelMcpService : IDisposable
     private readonly SessionManager _sessionManager = new();
     private readonly CancellationTokenSource _shutdownCts = new();
     private readonly DateTime _startTime = DateTime.UtcNow;
+    private string _pipeName = "";
+    private TimeSpan? _idleTimeout;
+    private DateTime _lastActivityTime = DateTime.UtcNow;
     private bool _disposed;
 
     // Core command instances - use concrete types per CA1859
@@ -50,13 +53,18 @@ public sealed class ExcelMcpService : IDisposable
 
     public DateTime StartTime => _startTime;
     public int SessionCount => _sessionManager.GetActiveSessions().Count;
+    public SessionManager SessionManager => _sessionManager;
 
     /// <summary>
     /// Runs the service in-process, listening for commands on the named pipe.
     /// This method blocks until shutdown is requested via <see cref="RequestShutdown"/>.
     /// </summary>
-    public async Task RunAsync()
+    /// <param name="pipeName">The named pipe to listen on.</param>
+    /// <param name="idleTimeout">Optional idle timeout. Service shuts down after this duration with no active sessions. Null = no timeout.</param>
+    public async Task RunAsync(string pipeName, TimeSpan? idleTimeout = null)
     {
+        _pipeName = pipeName;
+        _idleTimeout = idleTimeout;
         await RunPipeServerAsync(_shutdownCts.Token);
     }
 
@@ -67,13 +75,22 @@ public sealed class ExcelMcpService : IDisposable
         // Use a semaphore to limit concurrent connections (prevents resource exhaustion)
         using var connectionLimit = new SemaphoreSlim(10, 10);
 
+        // Start idle timeout monitor if configured
+        if (_idleTimeout.HasValue)
+        {
+            _ = Task.Run(() => MonitorIdleTimeoutAsync(cancellationToken), cancellationToken);
+        }
+
         while (!cancellationToken.IsCancellationRequested)
         {
             NamedPipeServerStream? server = null;
             try
             {
-                server = ServiceSecurity.CreateSecureServer();
+                server = ServiceSecurity.CreateSecureServer(_pipeName);
                 await server.WaitForConnectionAsync(cancellationToken);
+
+                // Record activity on each connection
+                _lastActivityTime = DateTime.UtcNow;
 
                 // Capture server for the task
                 var clientServer = server;
@@ -110,6 +127,28 @@ public sealed class ExcelMcpService : IDisposable
                     try { if (server.IsConnected) server.Disconnect(); } catch (Exception) { /* Cleanup — disconnect may fail if client already disconnected */ }
                     await server.DisposeAsync();
                 }
+            }
+        }
+    }
+
+    private async Task MonitorIdleTimeoutAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+
+            var hasSessions = _sessionManager.GetActiveSessions().Count > 0;
+            if (hasSessions)
+            {
+                _lastActivityTime = DateTime.UtcNow;
+                continue;
+            }
+
+            var idleTime = DateTime.UtcNow - _lastActivityTime;
+            if (idleTime >= _idleTimeout!.Value)
+            {
+                RequestShutdown();
+                break;
             }
         }
     }

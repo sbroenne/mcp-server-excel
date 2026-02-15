@@ -12,7 +12,8 @@ This changelog covers all components:
 
 ### Changed
 
-- **In-process service architecture**: MCP Server and CLI now each host the ExcelMCP Service in-process instead of sharing a separate service process. This eliminates service discovery failures (especially when installed as NuGet tools) and removes cross-process coordination complexity.
+- **In-process service architecture**: MCP Server hosts the ExcelMCP Service fully in-process with PID-scoped pipe names (`excelmcp-mcp-{SID}-{PID}`), ensuring complete isolation between multiple MCP Server instances (e.g., two VS Code windows). CLI uses a daemon model with user-scoped pipe names (`excelmcp-cli-{SID}`) to persist sessions across separate CLI invocations.
+- **CLI daemon with system tray**: CLI daemon process (`excelcli service run`) includes a minimal system tray icon showing active sessions, status, and exit. Auto-exits after 10 minutes of inactivity with no active sessions.
 - **Core Commands return OperationResult**: All 82 void-returning Core command methods now return `OperationResult` with `Success=true` and `FilePath`, giving LLMs confirmation metadata instead of bare `{"success": true}` responses. Affects 16 interfaces across all command domains (Range, Sheet, Table, Chart, Connection, DataModel, PowerQuery, VBA, NamedRange, ConditionalFormatting).
 
 ### Improved
@@ -27,7 +28,7 @@ This changelog covers all components:
 
 ### Removed
 
-- **Standalone Excel Service process**: The ExcelMCP Service no longer runs as a separate shared process. MCP Server and CLI each host the service in-process. Removed system tray icon, idle timeout, cross-process mutex/lock files, `service run` subcommand, auto-update notifications, and version negotiation.
+- **Shared Excel Service process**: The ExcelMCP Service no longer runs as a single shared process for both MCP and CLI. Removed cross-process mutex/lock files, auto-update notifications, and version negotiation. MCP Server is fully in-process; CLI uses a lightweight daemon with system tray.
 - **Glama.ai Support**: Removed Docker-based deployment (`Dockerfile`, `glama.json`, `.dockerignore`, docs)
 - **Tool Name Prefix**: Removed `excel_` prefix from all 23 MCP tool names (e.g., `excel_range` → `range`). Titles also shortened. VS Code extension server name → `excel-mcp`.
 
@@ -45,8 +46,6 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 
 ### Changed
 
-- **Unified NuGet Package** (#432): `dotnet tool install --global Sbroenne.ExcelMcp.McpServer` now installs both `mcp-excel` and `excelcli`. CLI package deprecated.
-- **MCP Server Service-Only Mode** (#432): MCP Server forwards all requests to shared ExcelMCP Service — CLI and MCP share sessions transparently
 - **VS Code Extension** (#434, #435): Self-contained publishing (no .NET runtime needed), CLI removed from extension, skills use `chatSkills` contribution point
 - **MCPB**: Removed agent skills from Claude Desktop bundle
 - **LLM Tests**: Migrated to pytest-aitest with unified MCP/CLI test suite

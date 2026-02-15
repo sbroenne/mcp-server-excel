@@ -1,17 +1,18 @@
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
-using ServiceManager = Sbroenne.ExcelMcp.Service.ServiceManager;
+using ServiceSecurity = Sbroenne.ExcelMcp.Service.ServiceSecurity;
 
 namespace Sbroenne.ExcelMcp.McpServer.ServiceBridge;
 
 /// <summary>
-/// Bridge that forwards MCP Server requests to the ExcelMCP Service.
-/// This enables unified session management across CLI and MCP.
+/// Bridge that forwards MCP Server requests to the in-process ExcelMCP Service.
+/// Each MCP Server instance hosts its own service with a PID-scoped pipe.
 /// </summary>
 public static class ServiceBridge
 {
     private static readonly SemaphoreSlim _initLock = new(1, 1);
-    private static bool _serviceStarted;
+    private static Service.ExcelMcpService? _service;
+    private static string? _pipeName;
 
     /// <summary>
     /// JSON serializer options for deserializing service responses.
@@ -19,12 +20,17 @@ public static class ServiceBridge
     public static readonly JsonSerializerOptions JsonOptions = ServiceProtocol.JsonOptions;
 
     /// <summary>
-    /// Ensures the ExcelMCP Service is running.
+    /// Gets the pipe name for this MCP Server instance.
+    /// </summary>
+    public static string PipeName => _pipeName ?? ServiceSecurity.GetMcpPipeName();
+
+    /// <summary>
+    /// Ensures the in-process ExcelMCP Service is running.
     /// Called automatically on first request.
     /// </summary>
     public static async Task<bool> EnsureServiceAsync(CancellationToken cancellationToken = default)
     {
-        if (_serviceStarted)
+        if (_service != null)
         {
             return true;
         }
@@ -32,13 +38,31 @@ public static class ServiceBridge
         await _initLock.WaitAsync(cancellationToken);
         try
         {
-            if (_serviceStarted)
+            if (_service != null)
             {
                 return true;
             }
 
-            _serviceStarted = await ServiceManager.EnsureServiceRunningAsync(cancellationToken);
-            return _serviceStarted;
+            _pipeName = ServiceSecurity.GetMcpPipeName();
+            _service = new Service.ExcelMcpService();
+            _ = Task.Run(() => _service.RunAsync(_pipeName), cancellationToken);
+
+            // Wait for pipe server to be ready
+            using var client = new Service.ServiceClient(_pipeName, connectTimeout: TimeSpan.FromSeconds(5));
+            for (int i = 0; i < 20; i++)
+            {
+                await Task.Delay(100, cancellationToken);
+                if (await client.PingAsync(cancellationToken))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch (Exception)
+        {
+            return false;
         }
         finally
         {
@@ -76,7 +100,8 @@ public static class ServiceBridge
             ? TimeSpan.FromSeconds(timeoutSeconds.Value)
             : ExcelServiceClient.DefaultRequestTimeout;
 
-        using var client = new ExcelServiceClient("mcp-server", requestTimeout: timeout);
+        var pipeName = ServiceBridge.PipeName;
+        using var client = new ExcelServiceClient(pipeName, "mcp-server", requestTimeout: timeout);
         return await client.SendCommandAsync(command, sessionId, args, cancellationToken);
     }
 

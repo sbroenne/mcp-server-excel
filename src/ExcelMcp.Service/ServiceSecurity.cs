@@ -9,21 +9,17 @@ namespace Sbroenne.ExcelMcp.Service;
 /// Ensures per-user isolation via SID-based pipe names and ACLs.
 /// </summary>
 /// <remarks>
+/// <para><b>Pipe Name Strategy:</b></para>
+/// <list type="bullet">
+///   <item>MCP Server: excelmcp-mcp-{SID}-{PID} (per-process isolation, each instance independent)</item>
+///   <item>CLI daemon: excelmcp-cli-{SID} (per-user, shared across CLI invocations)</item>
+/// </list>
 /// <para><b>Security Model:</b></para>
 /// <list type="bullet">
 ///   <item>User Isolation: Pipe name includes user SID - users cannot access each other's service instances</item>
 ///   <item>Windows ACLs: Named pipe restricts access to current user's SID via PipeSecurity</item>
 ///   <item>Local Only: Named pipes are local IPC - no network access possible</item>
 /// </list>
-/// <para><b>Not Enforced:</b></para>
-/// <list type="bullet">
-///   <item>Process Restriction: Any process running as the same user can connect to the service</item>
-/// </list>
-/// <para>
-/// This is by design for a local automation tool. If malware runs under your user account,
-/// it could already control Excel directly. The service does not elevate privileges.
-/// See SECURITY.md for full documentation.
-/// </para>
 /// </remarks>
 public static class ServiceSecurity
 {
@@ -35,7 +31,6 @@ public static class ServiceSecurity
         }
         catch (Exception)
         {
-            // WindowsIdentity may fail in containerized/restricted environments
             return "default";
         }
     });
@@ -43,26 +38,29 @@ public static class ServiceSecurity
     private static string UserSid => LazyUserSid.Value;
 
     /// <summary>
-    /// Gets the per-user pipe name.
-    /// Format: excelmcp-{USER_SID} to ensure isolation between users.
+    /// Gets the pipe name for the MCP Server (per-process isolation).
     /// </summary>
-    public static string PipeName => $"excelmcp-{UserSid}";
+    public static string GetMcpPipeName() => $"excelmcp-mcp-{UserSid}-{Environment.ProcessId}";
+
+    /// <summary>
+    /// Gets the pipe name for the CLI daemon (shared across CLI invocations for the same user).
+    /// </summary>
+    public static string GetCliPipeName() => $"excelmcp-cli-{UserSid}";
 
     /// <summary>
     /// Creates a secure named pipe server with ACLs restricting access to current user only.
     /// </summary>
-    public static NamedPipeServerStream CreateSecureServer()
+    public static NamedPipeServerStream CreateSecureServer(string pipeName)
     {
         var pipeSecurity = new PipeSecurity();
 
-        // Allow only the current user
         pipeSecurity.AddAccessRule(new PipeAccessRule(
             WindowsIdentity.GetCurrent().User!,
             PipeAccessRights.FullControl,
             AccessControlType.Allow));
 
         return NamedPipeServerStreamAcl.Create(
-            PipeName,
+            pipeName,
             PipeDirection.InOut,
             maxNumberOfServerInstances: NamedPipeServerStream.MaxAllowedServerInstances,
             PipeTransmissionMode.Byte,
@@ -73,13 +71,13 @@ public static class ServiceSecurity
     }
 
     /// <summary>
-    /// Creates a client connection to the service.
+    /// Creates a client connection to a service pipe.
     /// </summary>
-    public static NamedPipeClientStream CreateClient()
+    public static NamedPipeClientStream CreateClient(string pipeName)
     {
         return new NamedPipeClientStream(
             ".",
-            PipeName,
+            pipeName,
             PipeDirection.InOut,
             PipeOptions.Asynchronous);
     }

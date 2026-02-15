@@ -16,7 +16,7 @@
 
 ## Features
 
-The Excel MCP Server provides **23 specialized tools with 214 operations** for comprehensive Excel automation:
+The Excel MCP Server (excel-mcp) provides **23 specialized tools with 214 operations** for comprehensive Excel automation:
 
 - 🔄 **Power Query** (1 tool, 11 ops) - Atomic workflows, M code management, load destinations
 - 📊 **Data Model/DAX** (2 tools, 18 ops) - Measures, relationships, model structure
@@ -36,10 +36,9 @@ The Excel MCP Server provides **23 specialized tools with 214 operations** for c
 
 ### Agent Skills (Bundled)
 
-This extension includes **Agent Skills** following the [agentskills.io](https://agentskills.io) specification - providing domain-specific guidance for AI assistants. Two skills are bundled:
+This extension includes an **Agent Skill** following the [agentskills.io](https://agentskills.io) specification - providing domain-specific guidance for AI assistants:
 
 - **[excel-mcp](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-mcp/SKILL.md)** - MCP Server tool guidance
-- **[excel-cli](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-cli/SKILL.md)** - CLI terminal automation guidance
 
 **VS Code setup:** Enable the preview setting `chat.useAgentSkills` to allow Copilot to load skills. Skills are registered via VS Code's `chatSkills` contribution point and managed automatically.
 
@@ -73,19 +72,6 @@ This extension includes **Agent Skills** following the [agentskills.io](https://
 **That's it!** The extension includes a self-contained MCP server - no .NET runtime or SDK needed.
 
 ➡️ **[Learn more and see examples](https://sbroenne.github.io/mcp-server-excel/)**
-
-## CLI Usage (Terminal Automation)
-
-The CLI (`excelcli`) is **not bundled** with this extension. For PowerShell/terminal automation, install separately:
-
-```powershell
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer
-# Installs both mcp-excel and excelcli commands to PATH
-```
-
-**Why separate?** The extension and global tool share a background service. Separate installation prevents version conflicts and keeps the extension focused on Copilot usage.
-
-**Agent Skills:** This extension includes the `excel-mcp` skill for Copilot MCP tool guidance. The global tool installation includes the `excel-cli` skill for terminal automation guidance.
 
 ## Requirements
 
