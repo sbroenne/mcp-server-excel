@@ -96,7 +96,8 @@
 |----------|-------------|
 | **VS Code** | [Install Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) (one-click, recommended) |
 | **Claude Desktop** | Download `.mcpb` from [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest) |
-| **Other MCP Clients** | 📖 [Installation Guide](docs/INSTALLATION.md) |
+| **Any MCP Client** | `dotnet tool install --global Sbroenne.ExcelMcp.McpServer` then `npx add-mcp "mcp-excel" --name excel-mcp` |
+| **Details** | 📖 [Installation Guide](docs/INSTALLATION.md) |
 
 **⚠️ Important:** Close all Excel files before using. The server requires exclusive access to workbooks during automation.
 
@@ -125,14 +126,19 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 
 **Manual Installation:**
 ```powershell
-# Unified Package - includes both MCP Server and CLI
+# Step 1: Install the unified package (MCP Server + CLI)
 dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
-# CLI skill highly recommended for coding agents
-npx skills add sbroenne/mcp-server-excel --skill excel-cli
+# Step 2: Auto-configure all your coding agents (requires Node.js)
+npx add-mcp "mcp-excel" --name excel-mcp
+```
 
-# MCP skill optional for AI assistants (reduces tokens)
-npx skills add sbroenne/mcp-server-excel --skill excel-mcp 
+> ⚠️ **Step 2 requires [Node.js](https://nodejs.org/)** for `npx`. Install with `winget install OpenJS.NodeJS.LTS` if needed.
+
+```powershell
+# Optional: Install agent skills for better AI guidance
+npx skills add sbroenne/mcp-server-excel --skill excel-cli   # Coding agents
+npx skills add sbroenne/mcp-server-excel --skill excel-mcp   # Conversational AI
 ```
 
 > 💡 **Skills provide AI guidance** - The CLI skill is highly recommended (agents don't work perfectly with CLI without it). The MCP skill is recommended - it adds workflow best practices and reduces token usage.
