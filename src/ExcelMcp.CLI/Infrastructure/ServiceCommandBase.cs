@@ -85,9 +85,8 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
             return 1;
         }
 
-        // Connect to CLI daemon service (env var override for testing)
-        var pipeName = Environment.GetEnvironmentVariable("EXCELMCP_CLI_PIPE") ?? ServiceSecurity.GetCliPipeName();
-        using var client = new ServiceClient(pipeName);
+        // Connect to CLI daemon service (auto-starts if not running)
+        using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
         var response = await client.SendAsync(new ServiceRequest
         {
             Command = command,

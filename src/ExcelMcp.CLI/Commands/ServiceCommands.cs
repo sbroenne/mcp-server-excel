@@ -1,6 +1,6 @@
-using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
+using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.Service;
 using Spectre.Console.Cli;
 
@@ -18,56 +18,17 @@ internal sealed class ServiceStartCommand : AsyncCommand
 {
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
-        // Check if daemon is already running
-        var pipeName = Environment.GetEnvironmentVariable("EXCELMCP_CLI_PIPE") ?? ServiceSecurity.GetCliPipeName();
-        using var checkClient = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(2));
-        if (await checkClient.PingAsync(cancellationToken))
-        {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service already running." }, ServiceProtocol.JsonOptions));
-            return 0;
-        }
-
-        // Launch daemon process
-        var exePath = Environment.ProcessPath;
-        if (string.IsNullOrEmpty(exePath))
-        {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = "Cannot determine executable path." }, ServiceProtocol.JsonOptions));
-            return 1;
-        }
-
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = exePath,
-            Arguments = "service run",
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            WindowStyle = ProcessWindowStyle.Hidden
-        };
-
         try
         {
-            Process.Start(startInfo);
+            using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
+            Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service started." }, ServiceProtocol.JsonOptions));
+            return 0;
         }
         catch (Exception ex)
         {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = $"Failed to start daemon: {ex.Message}" }, ServiceProtocol.JsonOptions));
+            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = ex.Message }, ServiceProtocol.JsonOptions));
             return 1;
         }
-
-        // Wait for daemon to be ready
-        for (int i = 0; i < 20; i++)
-        {
-            await Task.Delay(250, cancellationToken);
-            using var client = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(1));
-            if (await client.PingAsync(cancellationToken))
-            {
-                Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service started." }, ServiceProtocol.JsonOptions));
-                return 0;
-            }
-        }
-
-        Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = "Service started but not responding." }, ServiceProtocol.JsonOptions));
-        return 1;
     }
 }
 
@@ -78,7 +39,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
 {
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
-        var pipeName = Environment.GetEnvironmentVariable("EXCELMCP_CLI_PIPE") ?? ServiceSecurity.GetCliPipeName();
+        var pipeName = DaemonAutoStart.GetPipeName();
         try
         {
             using var client = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(2));
@@ -110,7 +71,7 @@ internal sealed class ServiceStatusCommand : AsyncCommand
 {
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
-        var pipeName = Environment.GetEnvironmentVariable("EXCELMCP_CLI_PIPE") ?? ServiceSecurity.GetCliPipeName();
+        var pipeName = DaemonAutoStart.GetPipeName();
         try
         {
             using var client = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(2));
