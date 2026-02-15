@@ -6,7 +6,7 @@ import pytest
 
 from pytest_aitest import Agent, Provider
 
-from conftest import unique_path
+from conftest import unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
 
 pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
 
@@ -19,6 +19,7 @@ async def test_mcp_file_and_worksheet_workflow(aitest_run, excel_mcp_server, exc
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         max_turns=25,
+        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -39,5 +40,5 @@ On the Expenses sheet, add:
 
 Save the file when done.
 """
-    result = await aitest_run(agent, prompt)
+    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success

@@ -24,7 +24,7 @@ TEST_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 # Skill references are now copied at build time by MSBuild targets in CLI/MCP csproj files.
 # Run 'dotnet build -c Release' to update skill references.
 
-# LiteLLM expects AZURE_API_BASE while Azure SDK uses AZURE_OPENAI_ENDPOINT.
+# Pydantic AI uses AZURE_API_BASE for Azure OpenAI endpoint discovery.
 if os.environ.get("AZURE_OPENAI_ENDPOINT") and not os.environ.get("AZURE_API_BASE"):
     os.environ["AZURE_API_BASE"] = os.environ["AZURE_OPENAI_ENDPOINT"]
 
@@ -32,13 +32,14 @@ DEFAULT_MODEL = "gpt-4.1"
 DEFAULT_RPM = 10
 DEFAULT_TPM = 10000
 DEFAULT_MAX_TURNS = 20
+DEFAULT_RETRIES = 3  # Excel COM operations need more retries than default (1)
+DEFAULT_TIMEOUT_MS = 180000  # 3 min - Excel COM operations are slow
 
 
 def pytest_configure(config: pytest.Config) -> None:
     azure_base = os.environ.get("AZURE_API_BASE") or os.environ.get("AZURE_OPENAI_ENDPOINT")
     if azure_base:
         config.option.llm_model = "azure/gpt-4.1"
-        config.option.llm_api_base = azure_base
 
 
 def unique_path(prefix: str, suffix: str = ".xlsx") -> str:
@@ -166,6 +167,7 @@ def excel_cli_server() -> CLIServer:
         cwd=str(temp_dir),
         discover_help=False,  # Skill Rule 0 requires LLM to run --help first
         description="Excel CLI automation. Run 'excelcli --help' to discover available commands before use.",
+        timeout=120.0,  # Excel COM operations (especially session close) can take >30s
     )
 
 

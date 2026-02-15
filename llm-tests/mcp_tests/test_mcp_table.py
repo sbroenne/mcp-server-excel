@@ -6,7 +6,7 @@ import pytest
 
 from pytest_aitest import Agent, Provider
 
-from conftest import assert_regex, unique_path
+from conftest import assert_regex, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
 
 pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
 
@@ -19,6 +19,7 @@ async def test_mcp_table_create_query(aitest_run, excel_mcp_server, excel_mcp_sk
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         max_turns=20,
+        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -32,7 +33,7 @@ async def test_mcp_table_create_query(aitest_run, excel_mcp_server, excel_mcp_sk
 6. Get the data from the SalesData table
 7. Close the file without saving
 """
-    result = await aitest_run(agent, prompt)
+    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("table")
     assert_regex(result.final_response, r"(?i)(SalesData)")
@@ -46,6 +47,7 @@ async def test_mcp_table_lifecycle(aitest_run, excel_mcp_server, excel_mcp_skill
         mcp_servers=[excel_mcp_server],
         skill=excel_mcp_skill,
         max_turns=20,
+        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -59,7 +61,7 @@ async def test_mcp_table_lifecycle(aitest_run, excel_mcp_server, excel_mcp_skill
 6. Delete the TaskList table
 7. Close the file without saving
 """
-    result = await aitest_run(agent, prompt)
+    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert result.tool_was_called("table")
     assert_regex(result.final_response, r"(?i)(TaskList)")
