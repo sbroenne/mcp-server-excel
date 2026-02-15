@@ -160,7 +160,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write  # Required for NuGet OIDC
 
     steps:
     - uses: actions/checkout@v4
@@ -222,22 +221,6 @@ jobs:
     - name: Pack NuGet
       run: dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-build --output ./nupkg
 
-    - name: NuGet Login (OIDC)
-      uses: NuGet/login@v1
-      id: nuget-login
-      with:
-        user: ${{ secrets.NUGET_USER }}
-
-    - name: Publish to NuGet.org
-      run: |
-        $version = $env:VERSION
-        dotnet nuget push "nupkg/Sbroenne.ExcelMcp.McpServer.$version.nupkg" `
-          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} `
-          --source https://api.nuget.org/v3/index.json `
-          --skip-duplicate
-        Write-Output "Published Sbroenne.ExcelMcp.McpServer.$version to NuGet.org"
-      shell: pwsh
-
     - name: Create Release Package
       run: |
         $version = $env:VERSION
@@ -248,11 +231,17 @@ jobs:
         Compress-Archive -Path "release/ExcelMcp-MCP-Server-$version/*" -DestinationPath "ExcelMcp-MCP-Server-$version-windows.zip"
       shell: pwsh
 
-    - name: Upload Artifact
+    - name: Upload ZIP Artifact
       uses: actions/upload-artifact@v4
       with:
         name: mcp-server-zip
         path: ExcelMcp-MCP-Server-*-windows.zip
+
+    - name: Upload NuGet Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: mcp-server-nupkg
+        path: nupkg/*.nupkg
 
   # =============================================================================
   # Job 3: Build and Publish VS Code Extension
@@ -338,14 +327,6 @@ jobs:
           Rename-Item $vsix.FullName -NewName $targetName
         }
       shell: pwsh
-
-    - name: Publish to VS Code Marketplace
-      uses: HaaLeo/publish-vscode-extension@v2
-      with:
-        pat: ${{ secrets.VSCE_TOKEN }}
-        registryUrl: https://marketplace.visualstudio.com
-        extensionFile: vscode-extension/excelmcp-${{ env.VERSION }}.vsix
-      continue-on-error: true
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
@@ -513,7 +494,7 @@ jobs:
   # =============================================================================
   publish-mcp-registry:
     name: MCP Registry
-    needs: [version, build-mcp-server]
+    needs: [version, create-tag, build-mcp-server]
     runs-on: windows-latest
     permissions:
       id-token: write
@@ -609,11 +590,77 @@ jobs:
           git push origin "$TAG"
 
   # =============================================================================
-  # Job 8: Create Unified GitHub Release
+  # Job 8: Publish to External Registries (after all builds succeed)
+  # =============================================================================
+  publish:
+    name: Publish to Registries
+    needs: [version, create-tag]
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for NuGet OIDC
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Set Version
+      run: |
+        $version = "${{ needs.version.outputs.version }}"
+        echo "VERSION=$version" >> $env:GITHUB_ENV
+      shell: pwsh
+
+    - name: Download NuGet Package
+      uses: actions/download-artifact@v4
+      with:
+        name: mcp-server-nupkg
+        path: nupkg
+
+    - name: Download VS Code VSIX
+      uses: actions/download-artifact@v4
+      with:
+        name: vscode-vsix
+        path: vscode-vsix
+
+    - name: NuGet Login (OIDC)
+      uses: NuGet/login@v1
+      id: nuget-login
+      with:
+        user: ${{ secrets.NUGET_USER }}
+
+    - name: Publish to NuGet.org
+      run: |
+        $version = $env:VERSION
+        dotnet nuget push "nupkg/Sbroenne.ExcelMcp.McpServer.$version.nupkg" `
+          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} `
+          --source https://api.nuget.org/v3/index.json `
+          --skip-duplicate
+        Write-Output "Published Sbroenne.ExcelMcp.McpServer.$version to NuGet.org"
+      shell: pwsh
+
+    - name: Publish to VS Code Marketplace
+      uses: HaaLeo/publish-vscode-extension@v2
+      with:
+        pat: ${{ secrets.VSCE_TOKEN }}
+        registryUrl: https://marketplace.visualstudio.com
+        extensionFile: vscode-vsix/excelmcp-${{ env.VERSION }}.vsix
+      continue-on-error: true
+
+  # =============================================================================
+  # Job 9: Create Unified GitHub Release
   # =============================================================================
   create-release:
     name: Create GitHub Release
-    needs: [version, create-tag]
+    needs: [version, create-tag, publish]
     runs-on: ubuntu-latest
     permissions:
       contents: write
