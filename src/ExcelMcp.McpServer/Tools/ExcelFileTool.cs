@@ -107,7 +107,7 @@ public static partial class ExcelFileTool
         }
 
         var timeoutSeconds = (int)timeout.TotalSeconds;
-        var response = ExcelToolsBase.SendToServiceAsync(
+        var response = ServiceBridge.ServiceBridge.SendAsync(
             "session.open",
             null,
             new { filePath = path, show = show, timeoutSeconds },
@@ -145,7 +145,7 @@ public static partial class ExcelFileTool
             throw new ArgumentException("sessionId is required for 'close' action", nameof(sessionId));
         }
 
-        var response = ExcelToolsBase.SendToServiceAsync(
+        var response = ServiceBridge.ServiceBridge.SendAsync(
             "session.close",
             sessionId,
             new { save }
@@ -198,7 +198,7 @@ public static partial class ExcelFileTool
         }
 
         var timeoutSeconds = (int)timeout.TotalSeconds;
-        var response = ExcelToolsBase.SendToServiceAsync(
+        var response = ServiceBridge.ServiceBridge.SendAsync(
             "session.create",
             null,
             new { filePath = path, macroEnabled, show = show, timeoutSeconds },
@@ -245,7 +245,7 @@ public static partial class ExcelFileTool
     /// </summary>
     private static string ListSessions()
     {
-        var response = ExcelToolsBase.SendToServiceAsync("session.list").GetAwaiter().GetResult();
+        var response = ServiceBridge.ServiceBridge.SendAsync("session.list").GetAwaiter().GetResult();
 
         if (!response.Success)
         {

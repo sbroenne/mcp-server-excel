@@ -1,17 +1,16 @@
 using System.Text.Json;
-using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
-using ServiceManager = Sbroenne.ExcelMcp.Service.ServiceManager;
+using Sbroenne.ExcelMcp.Service;
 
 namespace Sbroenne.ExcelMcp.McpServer.ServiceBridge;
 
 /// <summary>
-/// Bridge that forwards MCP Server requests to the ExcelMCP Service.
-/// This enables unified session management across CLI and MCP.
+/// Bridge that holds the in-process ExcelMCP Service for direct method calls.
+/// No named pipe — MCP tools call the service directly (same process).
 /// </summary>
 public static class ServiceBridge
 {
     private static readonly SemaphoreSlim _initLock = new(1, 1);
-    private static bool _serviceStarted;
+    private static Service.ExcelMcpService? _service;
 
     /// <summary>
     /// JSON serializer options for deserializing service responses.
@@ -19,12 +18,12 @@ public static class ServiceBridge
     public static readonly JsonSerializerOptions JsonOptions = ServiceProtocol.JsonOptions;
 
     /// <summary>
-    /// Ensures the ExcelMCP Service is running.
+    /// Ensures the in-process ExcelMCP Service is created.
     /// Called automatically on first request.
     /// </summary>
     public static async Task<bool> EnsureServiceAsync(CancellationToken cancellationToken = default)
     {
-        if (_serviceStarted && ExcelServiceClient.IsServiceRunning)
+        if (_service != null)
         {
             return true;
         }
@@ -32,13 +31,17 @@ public static class ServiceBridge
         await _initLock.WaitAsync(cancellationToken);
         try
         {
-            if (_serviceStarted && ExcelServiceClient.IsServiceRunning)
+            if (_service != null)
             {
                 return true;
             }
 
-            _serviceStarted = await ServiceManager.EnsureServiceRunningAsync(cancellationToken);
-            return _serviceStarted;
+            _service = new Service.ExcelMcpService();
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
         }
         finally
         {
@@ -47,14 +50,8 @@ public static class ServiceBridge
     }
 
     /// <summary>
-    /// Sends a command to the ExcelMCP Service and returns the response.
+    /// Sends a command to the ExcelMCP Service directly (in-process, no pipe).
     /// </summary>
-    /// <param name="command">Command in format "category.action"</param>
-    /// <param name="sessionId">Optional session ID</param>
-    /// <param name="args">Optional arguments to serialize</param>
-    /// <param name="timeoutSeconds">Optional timeout in seconds</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Service response</returns>
     public static async Task<ServiceResponse> SendAsync(
         string command,
         string? sessionId = null,
@@ -62,22 +59,42 @@ public static class ServiceBridge
         int? timeoutSeconds = null,
         CancellationToken cancellationToken = default)
     {
-        // Ensure service is running
         if (!await EnsureServiceAsync(cancellationToken))
         {
             return new ServiceResponse
             {
                 Success = false,
-                ErrorMessage = "Failed to start ExcelMCP Service. Ensure excelcli.exe is installed and accessible."
+                ErrorMessage = "Failed to start ExcelMCP Service in-process."
             };
         }
 
-        var timeout = timeoutSeconds.HasValue
-            ? TimeSpan.FromSeconds(timeoutSeconds.Value)
-            : ExcelServiceClient.DefaultRequestTimeout;
+        var request = new ServiceRequest
+        {
+            Command = command,
+            SessionId = sessionId,
+            Args = args != null ? JsonSerializer.Serialize(args, JsonOptions) : null
+        };
 
-        using var client = new ExcelServiceClient("mcp-server", requestTimeout: timeout);
-        return await client.SendCommandAsync(command, sessionId, args, cancellationToken);
+        // Apply timeout if specified
+        if (timeoutSeconds.HasValue)
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds.Value));
+            try
+            {
+                return await _service!.ProcessAsync(request);
+            }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            {
+                return new ServiceResponse
+                {
+                    Success = false,
+                    ErrorMessage = $"Operation timed out after {timeoutSeconds} seconds."
+                };
+            }
+        }
+
+        return await _service!.ProcessAsync(request);
     }
 
     /// <summary>
@@ -177,5 +194,3 @@ public static class ServiceBridge
         return await SendAsync("session.test", null, new { filePath = excelPath }, cancellationToken: cancellationToken);
     }
 }
-
-

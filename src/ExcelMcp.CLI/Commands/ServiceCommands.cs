@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.Service;
 using Spectre.Console.Cli;
 
@@ -10,78 +11,101 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 // ============================================================================
 
 /// <summary>
-/// Starts the ExcelMCP Service if not already running.
+/// Starts the ExcelMCP CLI Service daemon if not already running.
+/// Launches a background process running "excelcli service run".
 /// </summary>
 internal sealed class ServiceStartCommand : AsyncCommand
 {
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
-        if (await ServiceManager.IsServiceRunningAsync(cancellationToken))
+        try
         {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service is already running." }, ServiceProtocol.JsonOptions));
-            return 0;
-        }
-
-        var started = await ServiceManager.StartServiceAsync(cancellationToken);
-        if (started)
-        {
+            using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
             Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service started." }, ServiceProtocol.JsonOptions));
             return 0;
         }
-        else
+        catch (Exception ex)
         {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = "Failed to start service." }, ServiceProtocol.JsonOptions));
+            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = ex.Message }, ServiceProtocol.JsonOptions));
             return 1;
         }
     }
 }
 
 /// <summary>
-/// Gracefully stops the ExcelMCP Service.
+/// Gracefully stops the ExcelMCP CLI Service daemon.
 /// </summary>
 internal sealed class ServiceStopCommand : AsyncCommand
 {
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
-        if (!await ServiceManager.IsServiceRunningAsync(cancellationToken))
+        var pipeName = DaemonAutoStart.GetPipeName();
+        try
         {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service is not running." }, ServiceProtocol.JsonOptions));
-            return 0;
+            using var client = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(2));
+            var response = await client.SendAsync(new ServiceRequest { Command = "service.shutdown" }, cancellationToken);
+            if (response.Success)
+            {
+                Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped." }, ServiceProtocol.JsonOptions));
+                return 0;
+            }
+            else
+            {
+                Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage ?? "Failed to stop service." }, ServiceProtocol.JsonOptions));
+                return 1;
+            }
         }
-
-        var stopped = await ServiceManager.StopServiceAsync(cancellationToken);
-        if (stopped)
+        catch (Exception)
         {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped." }, ServiceProtocol.JsonOptions));
+            // Can't connect — daemon not running
+            Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service not running." }, ServiceProtocol.JsonOptions));
             return 0;
-        }
-        else
-        {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = "Failed to stop service." }, ServiceProtocol.JsonOptions));
-            return 1;
         }
     }
 }
 
 /// <summary>
-/// Shows ExcelMCP Service status including PID, session count, and uptime.
+/// Shows ExcelMCP CLI Service status including PID, session count, and uptime.
 /// </summary>
 internal sealed class ServiceStatusCommand : AsyncCommand
 {
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
-        var status = await ServiceManager.GetStatusAsync(cancellationToken);
+        var pipeName = DaemonAutoStart.GetPipeName();
+        try
+        {
+            using var client = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(2));
+            var response = await client.SendAsync(new ServiceRequest { Command = "service.status" }, cancellationToken);
+            if (response.Success && response.Result != null)
+            {
+                var status = ServiceProtocol.Deserialize<ServiceStatus>(response.Result);
+                if (status != null)
+                {
+                    Console.WriteLine(JsonSerializer.Serialize(new
+                    {
+                        success = true,
+                        running = status.Running,
+                        processId = status.ProcessId,
+                        sessionCount = status.SessionCount,
+                        startTime = status.StartTime,
+                        uptime = status.Uptime.ToString(@"d\.hh\:mm\:ss", CultureInfo.InvariantCulture)
+                    }, ServiceProtocol.JsonOptions));
+                    return 0;
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Can't connect — daemon not running
+        }
 
         Console.WriteLine(JsonSerializer.Serialize(new
         {
             success = true,
-            running = status.Running,
-            processId = status.ProcessId,
-            sessionCount = status.SessionCount,
-            startTime = status.Running ? status.StartTime : (DateTime?)null,
-            uptime = status.Running ? status.Uptime.ToString(@"d\.hh\:mm\:ss", CultureInfo.InvariantCulture) : null
+            running = false,
+            processId = 0,
+            sessionCount = 0
         }, ServiceProtocol.JsonOptions));
-
         return 0;
     }
 }

@@ -34,8 +34,9 @@ internal static class CliProcessHelper
     /// </summary>
     /// <param name="args">Arguments to pass to excelcli (e.g., "diag ping")</param>
     /// <param name="timeoutMs">Timeout in milliseconds (default: 30000)</param>
+    /// <param name="environmentVariables">Optional environment variables to set on the process</param>
     /// <returns>Process result with stdout, stderr, and exit code</returns>
-    public static async Task<CliResult> RunAsync(string args, int timeoutMs = 30000)
+    public static async Task<CliResult> RunAsync(string args, int timeoutMs = 30000, Dictionary<string, string>? environmentVariables = null)
     {
         var exePath = GetExePath();
         var startInfo = new ProcessStartInfo
@@ -48,6 +49,14 @@ internal static class CliProcessHelper
             CreateNoWindow = true,
             WorkingDirectory = Path.GetDirectoryName(exePath)!
         };
+
+        if (environmentVariables != null)
+        {
+            foreach (var (key, value) in environmentVariables)
+            {
+                startInfo.Environment[key] = value;
+            }
+        }
 
         using var process = new Process { StartInfo = startInfo };
         var stdout = new System.Text.StringBuilder();
@@ -80,9 +89,10 @@ internal static class CliProcessHelper
     /// <summary>
     /// Runs an excelcli command and parses the JSON output.
     /// </summary>
-    public static async Task<(CliResult Result, JsonDocument Json)> RunJsonAsync(string args, int timeoutMs = 30000)
+    public static async Task<(CliResult Result, JsonDocument Json)> RunJsonAsync(
+        string args, int timeoutMs = 30000, Dictionary<string, string>? environmentVariables = null)
     {
-        var result = await RunAsync(args, timeoutMs);
+        var result = await RunAsync(args, timeoutMs, environmentVariables);
         var json = JsonDocument.Parse(result.Stdout);
         return (result, json);
     }

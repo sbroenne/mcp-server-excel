@@ -85,16 +85,8 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
             return 1;
         }
 
-        // Ensure service is running (auto-starts if needed)
-        if (!await ServiceManager.EnsureServiceRunningAsync(cancellationToken))
-        {
-            Console.WriteLine(JsonSerializer.Serialize(
-                new { success = false, error = "Failed to start ExcelMCP service." },
-                ServiceProtocol.JsonOptions));
-            return 1;
-        }
-
-        using var client = new ServiceClient();
+        // Connect to CLI daemon service (auto-starts if not running)
+        using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
         var response = await client.SendAsync(new ServiceRequest
         {
             Command = command,

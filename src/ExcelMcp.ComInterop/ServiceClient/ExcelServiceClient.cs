@@ -8,6 +8,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 /// </summary>
 public sealed class ExcelServiceClient : IDisposable
 {
+    private readonly string _pipeName;
     private readonly TimeSpan _connectTimeout;
     private readonly TimeSpan _requestTimeout;
     private readonly string _source;
@@ -22,20 +23,17 @@ public sealed class ExcelServiceClient : IDisposable
     /// <summary>
     /// Creates a new service client.
     /// </summary>
+    /// <param name="pipeName">Pipe name to connect to</param>
     /// <param name="source">Identifies the client source (e.g., "cli", "mcp-server")</param>
     /// <param name="connectTimeout">Optional connection timeout</param>
     /// <param name="requestTimeout">Optional request timeout</param>
-    public ExcelServiceClient(string source = "unknown", TimeSpan? connectTimeout = null, TimeSpan? requestTimeout = null)
+    public ExcelServiceClient(string pipeName, string source = "unknown", TimeSpan? connectTimeout = null, TimeSpan? requestTimeout = null)
     {
+        _pipeName = pipeName;
         _source = source;
         _connectTimeout = connectTimeout ?? DefaultConnectTimeout;
         _requestTimeout = requestTimeout ?? DefaultRequestTimeout;
     }
-
-    /// <summary>
-    /// Checks if the service is running (based on lock file).
-    /// </summary>
-    public static bool IsServiceRunning => ServiceSecurity.IsServiceProcessRunning();
 
     /// <summary>
     /// Sends a request to the service and waits for response.
@@ -44,7 +42,7 @@ public sealed class ExcelServiceClient : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        using var pipe = ServiceSecurity.CreateClient();
+        using var pipe = ServiceSecurity.CreateClient(_pipeName);
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(_requestTimeout);
 

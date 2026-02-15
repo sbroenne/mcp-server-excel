@@ -34,7 +34,7 @@
 **Core Layers:**
 1. **ComInterop** (`src/ExcelMcp.ComInterop`) - Reusable COM automation patterns (STA threading, session management, batch operations, OLE message filter)
 2. **Core** (`src/ExcelMcp.Core`) - Excel-specific business logic (Power Query, VBA, worksheets, parameters)
-3. **Service** (`src/ExcelMcp.Service`) - Named pipe service for session sharing between MCP Server and CLI
+3. **Service** (`src/ExcelMcp.Service`) - Excel session management and command routing (in-process for MCP Server, named pipe for CLI daemon)
 4. **CLI** (`src/ExcelMcp.CLI`) - Command-line interface for scripting (EQUAL entry point)
 5. **MCP Server** (`src/ExcelMcp.McpServer`) - Model Context Protocol for AI assistants (EQUAL entry point)
 
@@ -257,14 +257,13 @@ catch (Exception ex) {
 ### Service Architecture (TWO EQUAL ENTRY POINTS)
 
 ```
-MCP Server ──┐
-             ├──► Named Pipe Service ──► Core Commands ──► Excel COM
-CLI ─────────┘
+MCP Server ──► In-process ExcelMcpService ──► Core Commands ──► Excel COM
+CLI ─────────► CLI Daemon (named pipe) ─────► Core Commands ──► Excel COM
 ```
 
-**⚠️ MCP Server and CLI are BOTH first-class entry points.** They share sessions via named pipe service, enabling:
-- Session sharing between tools
-- Consistent state across MCP and CLI workflows
+**⚠️ MCP Server and CLI are BOTH first-class entry points.** Each hosts its own ExcelMcpService instance:
+- **MCP Server**: Fully in-process, direct method calls (no pipe)
+- **CLI**: Daemon process with named pipe (`excelmcp-cli-{SID}`), sessions persist across CLI invocations
 - **Feature parity**: Every action available in MCP must be available in CLI and vice versa
 - **Parameter parity**: Same parameters, same defaults, same validation
 

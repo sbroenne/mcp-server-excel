@@ -77,4 +77,14 @@ public sealed class ServiceResponse
     };
 }
 
-
+/// <summary>
+/// Service status information.
+/// </summary>
+public sealed class ServiceStatus
+{
+    public bool Running { get; init; }
+    public int ProcessId { get; init; }
+    public int SessionCount { get; init; }
+    public DateTime StartTime { get; init; }
+    public TimeSpan Uptime => Running ? DateTime.UtcNow - StartTime : TimeSpan.Zero;
+}

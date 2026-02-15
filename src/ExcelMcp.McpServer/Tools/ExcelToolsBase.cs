@@ -2,9 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
-using ServiceManager = Sbroenne.ExcelMcp.Service.ServiceManager;
 
 #pragma warning disable IL2070 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' requirements
 
@@ -14,56 +12,18 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 /// Base class for Excel MCP tools providing common patterns and utilities.
 /// All Excel tools inherit from this to ensure consistency for LLM usage.
 ///
-/// The MCP Server forwards ALL requests to the ExcelMCP Service for unified session management.
-/// This enables the CLI and MCP Server to share sessions transparently.
+/// The MCP Server forwards ALL requests to the in-process ExcelMCP Service.
 /// </summary>
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
 public static class ExcelToolsBase
 {
-    private static readonly SemaphoreSlim _serviceLock = new(1, 1);
-
     /// <summary>
     /// Ensures the ExcelMCP Service is running.
     /// The service is required for all MCP Server operations.
     /// </summary>
     public static async Task<bool> EnsureServiceAsync(CancellationToken cancellationToken = default)
     {
-        await _serviceLock.WaitAsync(cancellationToken);
-        try
-        {
-            return await ServiceManager.EnsureServiceRunningAsync(cancellationToken);
-        }
-        finally
-        {
-            _serviceLock.Release();
-        }
-    }
-
-    /// <summary>
-    /// Sends a command to the ExcelMCP Service.
-    /// </summary>
-    public static async Task<ServiceResponse> SendToServiceAsync(
-        string command,
-        string? sessionId = null,
-        object? args = null,
-        int? timeoutSeconds = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (!await EnsureServiceAsync(cancellationToken))
-        {
-            return new ServiceResponse
-            {
-                Success = false,
-                ErrorMessage = "Failed to start ExcelMCP Service. The service could not be launched."
-            };
-        }
-
-        var timeout = timeoutSeconds.HasValue
-            ? TimeSpan.FromSeconds(timeoutSeconds.Value)
-            : ExcelServiceClient.DefaultRequestTimeout;
-
-        using var client = new ExcelServiceClient("mcp-server", requestTimeout: timeout);
-        return await client.SendCommandAsync(command, sessionId, args, cancellationToken);
+        return await ServiceBridge.ServiceBridge.EnsureServiceAsync(cancellationToken);
     }
 
     /// <summary>
@@ -120,7 +80,7 @@ public static class ExcelToolsBase
             }, JsonOptions);
         }
 
-        var response = SendToServiceAsync(command, sessionId, args, timeoutSeconds).GetAwaiter().GetResult();
+        var response = ServiceBridge.ServiceBridge.SendAsync(command, sessionId, args, timeoutSeconds).GetAwaiter().GetResult();
 
         if (!response.Success)
         {
@@ -147,7 +107,7 @@ public static class ExcelToolsBase
         object? args = null,
         int? timeoutSeconds = null)
     {
-        var response = SendToServiceAsync(command, null, args, timeoutSeconds).GetAwaiter().GetResult();
+        var response = ServiceBridge.ServiceBridge.SendAsync(command, null, args, timeoutSeconds).GetAwaiter().GetResult();
 
         if (!response.Success)
         {

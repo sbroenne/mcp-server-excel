@@ -50,7 +50,7 @@ private static string ForwardSomeAction(string sessionId, string? param)
     if (string.IsNullOrEmpty(param))
         throw new ModelContextProtocol.McpException("param is required for action");
 
-    // 2. Forward to ExcelMCP Service - service handles Core Commands
+    // 2. Forward to in-process ExcelMcpService (direct call, no pipe)
     return ExcelToolsBase.ForwardToService("category.action", sessionId, new { param });
 }
 ```
@@ -166,7 +166,7 @@ public static async Task<string> ExcelPowerQuery(string action, ...)
     };
 }
 
-// Action methods forward to ExcelMCP Service:
+// Action methods forward to in-process ExcelMcpService:
 private static string ForwardList(string sessionId)
 {
     return ExcelToolsBase.ForwardToService("powerquery.list", sessionId);

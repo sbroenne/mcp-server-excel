@@ -1,5 +1,4 @@
 using System.Reflection;
-using Sbroenne.ExcelMcp.Service.Infrastructure;
 
 namespace Sbroenne.ExcelMcp.McpServer.Infrastructure;
 
@@ -9,40 +8,25 @@ namespace Sbroenne.ExcelMcp.McpServer.Infrastructure;
 public static class McpServerVersionChecker
 {
     /// <summary>
-    /// Checks for updates and returns update information if available.
-    /// This method is non-blocking and fails silently if the check cannot be completed.
+    /// Checks for updates and returns the latest version if an update is available.
     /// </summary>
-    /// <returns>Update info if update is available, null otherwise.</returns>
-    public static async Task<UpdateInfo?> CheckForUpdateAsync(CancellationToken cancellationToken = default)
+    /// <returns>Latest version string if update available, null otherwise.</returns>
+    public static async Task<string?> CheckForUpdateAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             var currentVersion = GetCurrentVersion();
             var latestVersion = await NuGetVersionChecker.GetLatestVersionAsync(cancellationToken);
 
-            if (latestVersion == null)
+            if (latestVersion != null && CompareVersions(currentVersion, latestVersion) < 0)
             {
-                // Could not check (network error, timeout, etc.)
-                return null;
+                return latestVersion;
             }
 
-            if (CompareVersions(currentVersion, latestVersion) < 0)
-            {
-                // Update available
-                return new UpdateInfo
-                {
-                    CurrentVersion = currentVersion,
-                    LatestVersion = latestVersion,
-                    UpdateAvailable = true
-                };
-            }
-
-            // Already up to date
             return null;
         }
         catch (Exception)
         {
-            // Fail silently — version check should never block server operation
             return null;
         }
     }
@@ -65,5 +49,3 @@ public static class McpServerVersionChecker
         return string.Compare(current, latest, StringComparison.Ordinal);
     }
 }
-
-

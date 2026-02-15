@@ -1,8 +1,7 @@
 using System.Reflection;
 using Sbroenne.ExcelMcp.CLI.Commands;
 using Sbroenne.ExcelMcp.CLI.Generated;
-using Sbroenne.ExcelMcp.Service;
-using Sbroenne.ExcelMcp.Service.Infrastructure;
+using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -27,13 +26,6 @@ internal sealed class Program
         // Remove --quiet/-q from args before passing to Spectre.Console.Cli
         var filteredArgs = args.Where(arg => !QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)).ToArray();
 
-        // Handle internal service run command before anything else (not documented in help)
-        // This enables the CLI to self-launch as the ExcelMCP Service process
-        if (args.Length >= 2 && args[0] == "service" && args[1] == "run")
-        {
-            return await RunServiceAsync();
-        }
-
         if (filteredArgs.Length == 0)
         {
             if (showBanner) RenderHeader();
@@ -44,6 +36,24 @@ internal sealed class Program
         if (filteredArgs.Any(arg => VersionFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)))
         {
             return await HandleVersionAsync();
+        }
+
+        // Handle "service run" — runs the CLI daemon with tray icon (no banner)
+        // Optional: --pipe-name <name> to override the default CLI pipe (used by tests)
+        if (filteredArgs.Length >= 2
+            && string.Equals(filteredArgs[0], "service", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(filteredArgs[1], "run", StringComparison.OrdinalIgnoreCase))
+        {
+            string? pipeNameOverride = null;
+            for (int i = 2; i < filteredArgs.Length - 1; i++)
+            {
+                if (string.Equals(filteredArgs[i], "--pipe-name", StringComparison.OrdinalIgnoreCase))
+                {
+                    pipeNameOverride = filteredArgs[i + 1];
+                    break;
+                }
+            }
+            return RunServiceDaemon(pipeNameOverride);
         }
 
         if (showBanner) RenderHeader();
@@ -137,7 +147,7 @@ internal sealed class Program
         if (updateAvailable)
         {
             AnsiConsole.MarkupLine($"[yellow]⚠ Update available:[/] [dim]{currentVersion}[/] → [green]{latestVersion}[/]");
-            AnsiConsole.MarkupLine($"[cyan]Run:[/] [white]dotnet tool update --global Sbroenne.ExcelMcp.McpServer[/]");
+            AnsiConsole.MarkupLine($"[cyan]Run:[/] [white]dotnet tool update --global Sbroenne.ExcelMcp.CLI[/]");
             AnsiConsole.MarkupLine($"[cyan]Release notes:[/] [blue]https://github.com/sbroenne/mcp-server-excel/releases/latest[/]");
         }
         else if (latestVersion != null)
@@ -169,40 +179,52 @@ internal sealed class Program
     }
 
     /// <summary>
-    /// Runs the ExcelMCP Service in the current process.
-    /// Called when the CLI self-launches with 'service run' args.
+    /// Runs the CLI as a daemon process with system tray icon.
+    /// The service listens on the CLI pipe name (shared across CLI invocations).
+    /// Auto-exits after 10 minutes of inactivity with no active sessions.
     /// </summary>
-    private static async Task<int> RunServiceAsync()
+    private static int RunServiceDaemon(string? pipeNameOverride = null)
     {
-        using var service = new ExcelMcpService();
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
 
-        Console.CancelKeyPress += (_, e) =>
+        var pipeName = pipeNameOverride ?? Service.ServiceSecurity.GetCliPipeName();
+        var service = new Service.ExcelMcpService();
+
+        // Capture the UI synchronization context after Application starts
+        SynchronizationContext? uiContext = null;
+
+        // Start pipe server on background thread with 10-minute idle timeout
+        var serviceTask = Task.Run(() => service.RunAsync(pipeName, idleTimeout: TimeSpan.FromMinutes(10)));
+
+        // When service shuts down (idle timeout or remote shutdown), exit the WinForms loop
+        serviceTask.ContinueWith(_ =>
         {
-            e.Cancel = true;
+            if (uiContext != null)
+            {
+                uiContext.Post(_ => Application.ExitThread(), null);
+            }
+            else
+            {
+                Application.ExitThread();
+            }
+        }, TaskScheduler.Default);
+
+        // Run WinForms message loop with tray icon on main thread
+        using var tray = new CliServiceTray(service.SessionManager, () =>
+        {
             service.RequestShutdown();
-        };
+            Application.ExitThread();
+        });
 
-        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
-        {
-            service.RequestShutdown();
-        };
+        uiContext = SynchronizationContext.Current;
+        Application.Run();
 
-        try
-        {
-            await service.RunAsync();
-            return 0;
-        }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("already running"))
-        {
-            Console.Error.WriteLine("Service is already running.");
-            return 1;
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Service error: {ex.Message}");
-            return 1;
-        }
+        // Wait for service to finish
+        serviceTask.Wait(TimeSpan.FromSeconds(5));
+        service.Dispose();
+
+        return 0;
     }
 }
-
 

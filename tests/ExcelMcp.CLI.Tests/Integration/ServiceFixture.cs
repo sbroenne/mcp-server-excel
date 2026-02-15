@@ -4,29 +4,44 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 
 /// <summary>
-/// Fixture that ensures the ExcelMCP service is running before tests execute.
-/// The service auto-starts when excelcli connects, but having it pre-started
-/// avoids startup timeouts in parallel test execution.
+/// Fixture that starts an in-process ExcelMCP service for CLI integration tests.
+/// Uses the CLI pipe name so CLI commands can connect to it.
 /// </summary>
-public sealed class ServiceFixture : IAsyncLifetime
+public sealed class ServiceFixture : IAsyncLifetime, IDisposable
 {
+    private ExcelMcpService? _service;
+
     public async Task InitializeAsync()
     {
-        // Ensure service is running (will start it if needed)
-        var running = await ServiceManager.EnsureServiceRunningAsync();
-        if (!running)
+        var pipeName = ServiceSecurity.GetCliPipeName();
+        _service = new ExcelMcpService();
+        _ = Task.Run(() => _service.RunAsync(pipeName));
+
+        // Wait for pipe server to be ready
+        for (int i = 0; i < 20; i++)
         {
-            throw new InvalidOperationException(
-                "Failed to start ExcelMCP service for integration tests. " +
-                "Ensure excelcli.exe is available in the build output.");
+            await Task.Delay(100);
+            using var client = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(1));
+            if (await client.PingAsync())
+            {
+                return;
+            }
         }
+
+        throw new InvalidOperationException("ExcelMCP service did not start within timeout.");
     }
 
     public Task DisposeAsync()
     {
-        // Don't stop the service — other test classes may still need it,
-        // and it has an idle timeout for auto-shutdown.
+        Dispose();
         return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        _service?.RequestShutdown();
+        _service?.Dispose();
+        _service = null;
     }
 }
 

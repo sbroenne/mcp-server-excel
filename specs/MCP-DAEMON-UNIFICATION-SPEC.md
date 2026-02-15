@@ -2,7 +2,11 @@
 
 ## Implementation Status
 
-> **🔄 IN PROGRESS** - Phase 2: Unified Package (February 2026)
+> **⚠️ SUPERSEDED** - This spec described the shared-daemon architecture. The actual implementation uses a hybrid model:
+> - **MCP Server**: Fully in-process ExcelMcpService with direct method calls (no named pipe)
+> - **CLI**: Daemon process with named pipe (`excelmcp-cli-{SID}`) and system tray
+>
+> See `architecture-patterns.instructions.md` for current architecture.
 
 ### Completed Features (Phase 1)
 
