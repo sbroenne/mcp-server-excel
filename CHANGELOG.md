@@ -12,7 +12,7 @@ This changelog covers all components:
 
 ### Changed
 
-- **In-process service architecture**: MCP Server hosts the ExcelMCP Service fully in-process with PID-scoped pipe names (`excelmcp-mcp-{SID}-{PID}`), ensuring complete isolation between multiple MCP Server instances (e.g., two VS Code windows). CLI uses a daemon model with user-scoped pipe names (`excelmcp-cli-{SID}`) to persist sessions across separate CLI invocations.
+- **In-process service architecture**: MCP Server hosts the ExcelMcpService fully in-process with direct method calls (no named pipe overhead). Each MCP Server instance is completely isolated. CLI uses a daemon model with user-scoped pipe names (`excelmcp-cli-{SID}`) to persist sessions across separate CLI invocations.
 - **CLI daemon with system tray**: CLI daemon process (`excelcli service run`) includes a minimal system tray icon showing active sessions, status, and exit. Auto-exits after 10 minutes of inactivity with no active sessions.
 - **Core Commands return OperationResult**: All 82 void-returning Core command methods now return `OperationResult` with `Success=true` and `FilePath`, giving LLMs confirmation metadata instead of bare `{"success": true}` responses. Affects 16 interfaces across all command domains (Range, Sheet, Table, Chart, Connection, DataModel, PowerQuery, VBA, NamedRange, ConditionalFormatting).
 
@@ -28,7 +28,7 @@ This changelog covers all components:
 
 ### Removed
 
-- **Shared Excel Service process**: The ExcelMCP Service no longer runs as a single shared process for both MCP and CLI. Removed cross-process mutex/lock files, auto-update notifications, and version negotiation. MCP Server is fully in-process; CLI uses a lightweight daemon with system tray.
+- **Shared Excel Service process**: The ExcelMCP Service no longer runs as a single shared process for both MCP and CLI. Removed cross-process mutex/lock files, auto-update notifications, and version negotiation. MCP Server uses direct in-process calls (no pipe); CLI uses a lightweight daemon with system tray.
 - **Glama.ai Support**: Removed Docker-based deployment (`Dockerfile`, `glama.json`, `.dockerignore`, docs)
 - **Tool Name Prefix**: Removed `excel_` prefix from all 23 MCP tool names (e.g., `excel_range` → `range`). Titles also shortened. VS Code extension server name → `excel-mcp`.
 

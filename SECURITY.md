@@ -34,34 +34,32 @@ ExcelMcp includes several security measures:
 
 ### ExcelMCP Service Security
 
-The MCP Server and CLI communicate with a shared background service via Windows named pipes:
+The ExcelMCP Service manages Excel COM automation sessions:
 
-**Security Boundaries:**
+**MCP Server**: The service runs fully **in-process** — no inter-process communication. There is no attack surface beyond the MCP Server process itself.
+
+**CLI**: The CLI daemon uses a **Windows named pipe** (`excelmcp-cli-{USER_SID}`) for communication between CLI commands and the daemon process:
 
 | Protection | Status | Description |
 |------------|--------|-------------|
-| **User Isolation** | ✅ Enforced | Pipe name includes user SID (`excelmcp-{USER_SID}`). Users cannot access each other's service instances. |
+| **User Isolation** | ✅ Enforced | Pipe name includes user SID. Users cannot access each other's daemon. |
 | **Windows ACLs** | ✅ Enforced | Named pipe restricts access to current user's SID via `PipeSecurity` ACLs. |
 | **Local Only** | ✅ Enforced | Named pipes are local IPC only - no network access possible. |
-| **Process Restriction** | ❌ Not Enforced | Any process running as the same user can connect to the service. |
+| **Process Restriction** | ❌ Not Enforced | Any process running as the same user can connect to the CLI daemon. |
 
 **What This Means:**
 
-1. **Same-user access**: Any application running under your Windows user account can connect to the ExcelMCP Service and execute Excel operations. This is by design - the service provides automation capabilities to the current user, similar to how Docker, database servers, and other local services work.
+1. **Same-user access**: Any application running under your Windows user account can connect to the CLI daemon and execute Excel operations. This is by design, similar to how Docker and database servers work.
 
-2. **No cross-user access**: User A cannot connect to User B's ExcelMCP Service instance. Each user has a separate named pipe with their SID.
+2. **No cross-user access**: User A cannot connect to User B's CLI daemon. Each user has a separate named pipe with their SID.
 
 3. **No network access**: The named pipe is strictly local. Remote processes cannot connect.
 
 **Security Implications:**
 
-- If malware runs under your user account, it could theoretically connect to the service and control Excel
+- If malware runs under your user account, it could theoretically connect to the CLI daemon and control Excel
 - However, such malware could already control Excel directly (or do anything else you can do)
 - The service does not elevate privileges or provide capabilities beyond what the user already has
-
-**Protocol Details:**
-
-The service accepts JSON requests over the named pipe. The protocol is documented in the source code but not intended as a public API. While technically any process could connect if it knows the protocol, this is considered acceptable for a local automation tool.
 
 ### Dependency Management
 

@@ -46,9 +46,8 @@ Commands/Range/
 When adding or changing ANY feature, ALWAYS update BOTH entry points. See Rule 24 (Post-Change Sync).
 
 ```
-MCP Server (MCP tools, JSON-RPC) ──┐
-                                    ├──► Named Pipe Service ──► Core Commands ──► Excel COM
-CLI (command-line args, console)  ──┘
+MCP Server (MCP tools, JSON-RPC) ──► In-process ExcelMcpService ──► Core Commands ──► Excel COM
+CLI (command-line args, console)  ──► CLI Daemon (named pipe) ─────► Core Commands ──► Excel COM
 ```
 
 ---
@@ -151,8 +150,8 @@ public async Task<OperationResult> ComplexAsync(IExcelBatch batch, string param)
 
 ## MCP Server Resource-Based Tools
 
-**Service-Only Architecture**: MCP Server forwards ALL requests to the ExcelMCP Service via named pipe.
-No local Core Command execution - the server is a thin JSON-over-named-pipe layer.
+**In-Process Architecture**: MCP Server hosts ExcelMcpService fully in-process with direct method calls (no pipe).
+ServiceBridge holds the service reference and calls ProcessAsync() directly.
 
 **19 Focused Tools:**
 1. `file` - Session lifecycle (open, close, create, list)
