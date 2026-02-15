@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 
 #pragma warning disable IL2070 // 'this' argument does not satisfy 'DynamicallyAccessedMembersAttribute' requirements
@@ -25,34 +24,6 @@ public static class ExcelToolsBase
     public static async Task<bool> EnsureServiceAsync(CancellationToken cancellationToken = default)
     {
         return await ServiceBridge.ServiceBridge.EnsureServiceAsync(cancellationToken);
-    }
-
-    /// <summary>
-    /// Sends a command to the ExcelMCP Service.
-    /// </summary>
-    public static async Task<ServiceResponse> SendToServiceAsync(
-        string command,
-        string? sessionId = null,
-        object? args = null,
-        int? timeoutSeconds = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (!await EnsureServiceAsync(cancellationToken))
-        {
-            return new ServiceResponse
-            {
-                Success = false,
-                ErrorMessage = "Failed to start ExcelMCP Service in-process."
-            };
-        }
-
-        var timeout = timeoutSeconds.HasValue
-            ? TimeSpan.FromSeconds(timeoutSeconds.Value)
-            : ExcelServiceClient.DefaultRequestTimeout;
-
-        var pipeName = ServiceBridge.ServiceBridge.PipeName;
-        using var client = new ExcelServiceClient(pipeName, "mcp-server", requestTimeout: timeout);
-        return await client.SendCommandAsync(command, sessionId, args, cancellationToken);
     }
 
     /// <summary>
@@ -109,7 +80,7 @@ public static class ExcelToolsBase
             }, JsonOptions);
         }
 
-        var response = SendToServiceAsync(command, sessionId, args, timeoutSeconds).GetAwaiter().GetResult();
+        var response = ServiceBridge.ServiceBridge.SendAsync(command, sessionId, args, timeoutSeconds).GetAwaiter().GetResult();
 
         if (!response.Success)
         {
@@ -136,7 +107,7 @@ public static class ExcelToolsBase
         object? args = null,
         int? timeoutSeconds = null)
     {
-        var response = SendToServiceAsync(command, null, args, timeoutSeconds).GetAwaiter().GetResult();
+        var response = ServiceBridge.ServiceBridge.SendAsync(command, null, args, timeoutSeconds).GetAwaiter().GetResult();
 
         if (!response.Success)
         {

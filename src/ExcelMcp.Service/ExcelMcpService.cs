@@ -168,7 +168,7 @@ public sealed class ExcelMcpService : IDisposable
             return;
         }
 
-        var response = await ProcessRequestAsync(request);
+        var response = await ProcessAsync(request);
 
         // Write response without cancellation token - we need to send response even during shutdown
         await writer.WriteLineAsync(ServiceProtocol.Serialize(response));
@@ -185,7 +185,11 @@ public sealed class ExcelMcpService : IDisposable
         }
     }
 
-    private async Task<ServiceResponse> ProcessRequestAsync(ServiceRequest request)
+    /// <summary>
+    /// Processes a service request directly (in-process, no pipe).
+    /// Used by the MCP Server for direct in-process communication.
+    /// </summary>
+    public async Task<ServiceResponse> ProcessAsync(ServiceRequest request)
     {
         try
         {
