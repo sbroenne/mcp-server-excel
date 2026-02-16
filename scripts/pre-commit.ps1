@@ -175,15 +175,27 @@ try {
     # SKILL.md files are generated during Release build from templates + source generators.
     # The Release build already ran (required for CLI smoke test below), so SKILL.md files
     # are up to date on disk. Auto-stage them so developers never have to think about it.
-    $skillFiles = @("skills/excel-mcp/SKILL.md", "skills/excel-cli/SKILL.md")
-    $skillDiff = git diff --name-only -- @skillFiles 2>&1
+    # SKILL.md + references are generated during Release build.
+    # Auto-stage all of them so developers never have to think about it.
+    $skillPaths = @(
+        "skills/excel-mcp/SKILL.md",
+        "skills/excel-cli/SKILL.md",
+        "skills/excel-mcp/references/",
+        "skills/excel-cli/references/"
+    )
+    $skillDiff = git diff --name-only -- @skillPaths 2>&1
+    $untrackedSkills = git ls-files --others --exclude-standard -- @skillPaths 2>&1
 
-    if ($skillDiff) {
-        git add -- @skillFiles
-        Write-Host "✅ SKILL.md files were regenerated and auto-staged" -ForegroundColor Green
-        $skillDiff | ForEach-Object { Write-Host "   + $_" -ForegroundColor DarkGray }
+    $allChanges = @()
+    if ($skillDiff) { $allChanges += $skillDiff }
+    if ($untrackedSkills) { $allChanges += $untrackedSkills }
+
+    if ($allChanges.Count -gt 0) {
+        git add -- @skillPaths
+        Write-Host "✅ Skill files were regenerated and auto-staged ($($allChanges.Count) files)" -ForegroundColor Green
+        $allChanges | ForEach-Object { Write-Host "   + $_" -ForegroundColor DarkGray }
     } else {
-        Write-Host "✅ SKILL.md files are already up to date" -ForegroundColor Green
+        Write-Host "✅ Skill files are already up to date" -ForegroundColor Green
     }
 }
 catch {
