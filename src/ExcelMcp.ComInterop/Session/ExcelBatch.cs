@@ -224,21 +224,35 @@ internal sealed class ExcelBatch : IExcelBatch
 
                 started.SetResult();
 
-                // Message pump - process work queue until completion or cancellation
-                // Use polling to avoid blocking indefinitely
+                // Message pump - process work queue until completion or cancellation.
+                // CRITICAL: Uses WaitToReadAsync() instead of polling with Thread.Sleep(10).
+                //
+                // Why WaitToReadAsync and not polling:
+                // 1. Thread.Sleep(10) on an STA thread with registered OLE message filter is unreliable.
+                //    Pending COM messages (Excel events during calculation) cause Sleep to return
+                //    immediately via MsgWaitForMultipleObjectsEx, turning the loop into a 100% CPU spin.
+                // 2. The previous outer catch(Exception){} silently bypassed Thread.Sleep when any
+                //    exception occurred, causing tight spin loops with zero backoff.
+                // 3. WaitToReadAsync().AsTask().GetAwaiter().GetResult() blocks the thread efficiently
+                //    and wakes instantly when work arrives. No COM message pumping occurs during the
+                //    block, but that's fine — we don't host COM objects or subscribe to Excel events,
+                //    so no inbound COM messages need dispatching while idle. COM calls within work items
+                //    pump messages internally via CoWaitForMultipleHandles.
                 while (true)
                 {
-                    // Check cancellation at start of each iteration
-                    if (_shutdownCts.Token.IsCancellationRequested)
-                    {
-                        _logger.LogDebug("Shutdown requested, exiting message pump for {FileName}", Path.GetFileName(_workbookPath));
-                        break;
-                    }
-
                     try
                     {
-                        // Try to read work items, with short timeout
-                        if (_workQueue.Reader.TryRead(out var work))
+                        // Block until work is available, channel completes, or shutdown is requested.
+                        if (!_workQueue.Reader.WaitToReadAsync(_shutdownCts.Token)
+                                              .AsTask().GetAwaiter().GetResult())
+                        {
+                            // Channel completed (writer called Complete()) — exit gracefully
+                            _logger.LogDebug("Channel completed, exiting message pump for {FileName}", Path.GetFileName(_workbookPath));
+                            break;
+                        }
+
+                        // Drain all available work items before blocking again
+                        while (_workQueue.Reader.TryRead(out var work))
                         {
                             try
                             {
@@ -250,28 +264,28 @@ internal sealed class ExcelBatch : IExcelBatch
                                 // The exception is already captured in the TaskCompletionSource.
                             }
                         }
-                        else
-                        {
-                            // No work available - check if channel is completed
-                            if (_workQueue.Reader.Completion.IsCompleted)
-                            {
-                                _logger.LogDebug("Channel completed, exiting message pump for {FileName}", Path.GetFileName(_workbookPath));
-                                break;
-                            }
-
-                            // Sleep briefly to avoid busy-waiting
-                            Thread.Sleep(10);
-                        }
                     }
                     catch (OperationCanceledException)
                     {
-                        // Shutdown requested, exit gracefully
-                        _logger.LogDebug("OperationCanceledException, exiting message pump for {FileName}", Path.GetFileName(_workbookPath));
+                        // Shutdown requested via _shutdownCts.
+                        // Drain any remaining work items so in-flight Execute() callers get their
+                        // results/exceptions promptly instead of waiting for the 5-minute timeout.
+                        // This is safe: Excel COM objects are still alive (cleaned up in the finally
+                        // block below), and Writer.Complete() prevents new items from arriving.
+                        while (_workQueue.Reader.TryRead(out var remainingWork))
+                        {
+                            try
+                            {
+                                remainingWork().GetAwaiter().GetResult();
+                            }
+                            catch (Exception)
+                            {
+                                // Already captured in TaskCompletionSource
+                            }
+                        }
+
+                        _logger.LogDebug("Shutdown requested, exiting message pump for {FileName}", Path.GetFileName(_workbookPath));
                         break;
-                    }
-                    catch (Exception)
-                    {
-                        // Unexpected error in message loop iteration — continue processing
                     }
                 }
             }
@@ -364,7 +378,7 @@ internal sealed class ExcelBatch : IExcelBatch
 
         try
         {
-            var proc = System.Diagnostics.Process.GetProcessById(_excelProcessId.Value);
+            using var proc = System.Diagnostics.Process.GetProcessById(_excelProcessId.Value);
             return !proc.HasExited;
         }
         catch (ArgumentException)
@@ -439,34 +453,47 @@ internal sealed class ExcelBatch : IExcelBatch
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         // Post operation to STA thread synchronously
-        var writeTask = _workQueue.Writer.WriteAsync(() =>
+        // RACE CONDITION NOTE: Dispose() may call Writer.Complete() between our _disposed check
+        // above and this WriteAsync() call. ChannelClosedException means the session is shutting
+        // down — convert to ObjectDisposedException for a clean caller experience.
+        try
         {
-            try
+            var writeTask = _workQueue.Writer.WriteAsync(() =>
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var result = operation(_context!, cancellationToken);
-                tcs.SetResult(result);
-            }
-            catch (OperationCanceledException oce)
-            {
-                tcs.TrySetCanceled(oce.CancellationToken);
-            }
-            catch (Exception ex)
-            {
-                tcs.TrySetException(ex);
-            }
-            return Task.CompletedTask;
-        }, cancellationToken);
+                try
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var result = operation(_context!, cancellationToken);
+                    tcs.SetResult(result);
+                }
+                catch (OperationCanceledException oce)
+                {
+                    tcs.TrySetCanceled(oce.CancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    tcs.TrySetException(ex);
+                }
+                return Task.CompletedTask;
+            }, cancellationToken);
 
-        // ValueTask is completed synchronously in normal case
-        if (writeTask.IsCompleted)
-        {
-            writeTask.GetAwaiter().GetResult();
+            // ValueTask is completed synchronously in normal case
+            if (writeTask.IsCompleted)
+            {
+                writeTask.GetAwaiter().GetResult();
+            }
+            else
+            {
+                // Fallback: should not normally occur with unbounded channel
+                writeTask.AsTask().GetAwaiter().GetResult();
+            }
         }
-        else
+        catch (ChannelClosedException)
         {
-            // Fallback: should not normally occur with unbounded channel
-            writeTask.AsTask().GetAwaiter().GetResult();
+            // Dispose() completed the channel between our _disposed check and WriteAsync.
+            // The session is shutting down — report as disposed.
+            throw new ObjectDisposedException(nameof(ExcelBatch),
+                $"Session for '{Path.GetFileName(_workbookPath)}' was disposed while submitting an operation.");
         }
 
         // Wait for operation to complete with timeout

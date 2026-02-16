@@ -708,8 +708,18 @@ Parameters that accept lists (e.g., `--selected-items` for slicers) require JSON
 - @references/anti-patterns.md - Common mistakes to avoid
 - @references/workflows.md - Data Model constraints and patterns
 - @references/chart.md - Charts, positioning, and formatting
+- @references/conditionalformat.md - Conditional formatting operations
 - @references/dashboard.md - Dashboard and report best practices
+- @references/datamodel.md - Data Model/DAX specifics
+- @references/dmv-reference.md - DMV query reference for Data Model analysis
+- @references/m-code-syntax.md - Power Query M code syntax reference
+- @references/pivottable.md - PivotTable operations
+- @references/powerquery.md - Power Query specifics
+- @references/range.md - Range operations and number formats
 - @references/screenshot.md - Screenshot and visual verification
+- @references/slicer.md - Slicer operations
+- @references/table.md - Table operations
+- @references/worksheet.md - Worksheet operations
 
 ## Installation
 
