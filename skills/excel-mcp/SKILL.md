@@ -190,6 +190,9 @@ See `references/` for detailed guidance:
 - @references/conditionalformat.md - Conditional formatting operations
 - @references/dashboard.md - Dashboard and report best practices
 - @references/datamodel.md - Data Model/DAX specifics
+- @references/dmv-reference.md - DMV query reference for Data Model analysis
+- @references/m-code-syntax.md - Power Query M code syntax reference
+- @references/pivottable.md - PivotTable operations
 - @references/powerquery.md - Power Query specifics
 - @references/range.md - Range operations and number formats
 - @references/screenshot.md - Screenshot and visual verification

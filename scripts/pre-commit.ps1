@@ -169,6 +169,29 @@ catch {
 # - CLI workflow smoke test below (end-to-end validation)
 
 Write-Host ""
+Write-Host "🔍 Auto-staging generated SKILL.md files..." -ForegroundColor Cyan
+
+try {
+    # SKILL.md files are generated during Release build from templates + source generators.
+    # The Release build already ran (required for CLI smoke test below), so SKILL.md files
+    # are up to date on disk. Auto-stage them so developers never have to think about it.
+    $skillFiles = @("skills/excel-mcp/SKILL.md", "skills/excel-cli/SKILL.md")
+    $skillDiff = git diff --name-only -- @skillFiles 2>&1
+
+    if ($skillDiff) {
+        git add -- @skillFiles
+        Write-Host "✅ SKILL.md files were regenerated and auto-staged" -ForegroundColor Green
+        $skillDiff | ForEach-Object { Write-Host "   + $_" -ForegroundColor DarkGray }
+    } else {
+        Write-Host "✅ SKILL.md files are already up to date" -ForegroundColor Green
+    }
+}
+catch {
+    Write-Host "⚠️  Error auto-staging SKILL.md files: $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host "   Continuing with remaining checks..." -ForegroundColor Gray
+}
+
+Write-Host ""
 Write-Host "🔍 Running CLI workflow smoke test..." -ForegroundColor Cyan
 
 try {
