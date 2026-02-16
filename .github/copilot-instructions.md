@@ -212,8 +212,14 @@ Two cross-platform AI assistant skill packages:
 
 **Build skills from source:**
 ```powershell
-dotnet build -c Release  # Generates SKILL.md and copies references
+dotnet build -c Release  # Generates SKILL.md, copies references, and generates MCP prompts
 ```
+
+**Guidance architecture (single source of truth):**
+- `skills/shared/*.md` → auto-copied to skill references AND auto-generated as MCP prompts
+- Skill-based clients (VS Code, Cursor) read `skills/excel-*/references/`
+- MCP-only clients (Claude Desktop) read auto-generated `[McpServerPrompt]` methods
+- NEVER create separate prompt files for content that belongs in `skills/shared/`
 
 **Install via npx:**
 ```bash

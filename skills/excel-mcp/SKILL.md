@@ -188,6 +188,7 @@ See `references/` for detailed guidance:
 - @references/workflows.md - Data Model constraints and patterns
 - @references/chart.md - Charts and formatting
 - @references/conditionalformat.md - Conditional formatting operations
+- @references/dashboard.md - Dashboard and report best practices
 - @references/datamodel.md - Data Model/DAX specifics
 - @references/powerquery.md - Power Query specifics
 - @references/range.md - Range operations and number formats

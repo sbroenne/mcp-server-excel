@@ -77,8 +77,7 @@
     </PropertyGroup>
   </Target>
 
-  <!-- Generate TelemetryConfig.g.cs with the connection string at build time -->
-  <!-- Note: Uses inline task because WriteLinesToFile treats semicolons as line separators -->
+  <!-- Inline task: Write text to file (semicolons safe, unlike WriteLinesToFile) -->
   <UsingTask TaskName="WriteTextFile" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
       <FilePath ParameterType="System.String" Required="true" />
@@ -90,6 +89,147 @@
       </Code>
     </Task>
   </UsingTask>
+
+  <!-- Inline task: Generate ExcelSkillPrompts.g.cs from skills/shared/*.md files -->
+  <UsingTask TaskName="GenerateSkillPromptsClass" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <SkillFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <OutputFile ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs">
+<![CDATA[
+// Description overrides for better MCP prompt discoverability
+// Keys are skill filenames (without .md), values are LLM-friendly descriptions
+var descriptionOverrides = new System.Collections.Generic.Dictionary<string, string>
+{
+    { "anti-patterns", "Common mistakes to avoid when using Excel MCP tools" },
+    { "behavioral-rules", "Rules and constraints for Excel MCP operations" },
+    { "chart", "Chart creation, types, positioning, and multi-chart layouts" },
+    { "conditionalformat", "Conditional formatting rule types, parameters, and examples" },
+    { "dashboard", "Dashboard and report best practices: Tables, formatting, charts, verification" },
+    { "datamodel", "Data Model (Power Pivot) operations, DAX measures, and prerequisites" },
+    { "dmv-reference", "DMV query reference for Excel's embedded Analysis Services (TMSCHEMA catalog)" },
+    { "m-code-syntax", "Power Query M code syntax: column quoting, named ranges, query chaining" },
+    { "pivottable", "PivotTable creation, fields, calculated items, and required parameters" },
+    { "powerquery", "Power Query M code workflows, refresh patterns, and development tips" },
+    { "range", "Range number formats, locale-aware formatting, and format codes" },
+    { "screenshot", "Screenshot capture for visual verification of charts and dashboards" },
+    { "slicer", "Slicer types, creation patterns, and multi-select filtering" },
+    { "table", "Excel Table operations, Data Model integration, and column management" },
+    { "workflows", "Key constraints, batch operations, and session management patterns" },
+    { "worksheet", "Worksheet operations including cross-file copy and move" },
+};
+
+var sb = new System.Text.StringBuilder();
+sb.AppendLine("// Auto-generated from skills/shared/*.md - do not edit manually");
+sb.AppendLine("// To update: modify files in skills/shared/ and rebuild");
+sb.AppendLine("using System.ComponentModel;");
+sb.AppendLine("using System.Reflection;");
+sb.AppendLine("using Microsoft.Extensions.AI;");
+sb.AppendLine("using ModelContextProtocol.Server;");
+sb.AppendLine();
+sb.AppendLine("namespace Sbroenne.ExcelMcp.McpServer.Prompts;");
+sb.AppendLine();
+sb.AppendLine("/// <summary>");
+sb.AppendLine("/// Auto-generated MCP prompts from skills/shared/*.md files.");
+sb.AppendLine("/// Ensures Claude Desktop and other MCP clients get the same guidance as skill-based clients.");
+sb.AppendLine("/// </summary>");
+sb.AppendLine("[McpServerPromptType]");
+sb.AppendLine("public static class ExcelSkillPrompts");
+sb.AppendLine("{");
+sb.AppendLine("    private static readonly Assembly _assembly = typeof(ExcelSkillPrompts).Assembly;");
+sb.AppendLine();
+sb.AppendLine("    private static string LoadResource(string fileName)");
+sb.AppendLine("    {");
+sb.AppendLine("        var name = $\"Sbroenne.ExcelMcp.McpServer.Prompts.Content.Skills.{fileName}\";");
+sb.AppendLine("        using var stream = _assembly.GetManifestResourceStream(name)");
+sb.AppendLine("            ?? _assembly.GetManifestResourceStream(name.Replace(\"-\", \"_\"));");
+sb.AppendLine("        if (stream == null) throw new FileNotFoundException($\"Embedded resource not found: {name}\");");
+sb.AppendLine("        using var reader = new StreamReader(stream);");
+sb.AppendLine("        return reader.ReadToEnd();");
+sb.AppendLine("    }");
+
+foreach (var item in SkillFiles)
+{
+    var fileName = System.IO.Path.GetFileNameWithoutExtension(item.ItemSpec);
+
+    // Convert file-name to PascalCase method name (e.g., "anti-patterns" -> "AntiPatterns")
+    var parts = fileName.Split('-');
+    var methodName = "";
+    foreach (var part in parts)
+    {
+        if (part.Length > 0)
+            methodName += char.ToUpper(part[0]) + part.Substring(1);
+    }
+
+    // Prompt name uses underscores (e.g., "anti_patterns_guide")
+    var promptName = fileName.Replace("-", "_") + "_guide";
+
+    // Use override description if available, otherwise extract from heading
+    string description;
+    if (descriptionOverrides.ContainsKey(fileName))
+    {
+        description = descriptionOverrides[fileName];
+    }
+    else
+    {
+        // Fallback: extract from first heading
+        description = "";
+        using (var reader = new System.IO.StreamReader(item.ItemSpec))
+        {
+            var line = reader.ReadLine();
+            while (line != null)
+            {
+                if (line.StartsWith("# "))
+                {
+                    description = line.Substring(2).Trim();
+                    break;
+                }
+                line = reader.ReadLine();
+            }
+        }
+        if (string.IsNullOrEmpty(description))
+            description = methodName + " reference guide";
+        description = description.Replace("```markdown", "").Replace("```", "").Trim();
+    }
+
+    sb.AppendLine();
+    sb.AppendLine($"    [McpServerPrompt(Name = \"{promptName}\")]");
+    sb.AppendLine($"    [Description(\"{description.Replace("\"", "\\\"")}\")]");
+    sb.AppendLine($"    public static ChatMessage {methodName}()");
+    sb.AppendLine("    {");
+    sb.AppendLine($"        return new ChatMessage(ChatRole.User, LoadResource(\"{fileName}.md\"));");
+    sb.AppendLine("    }");
+}
+
+sb.AppendLine("}");
+
+var dir = System.IO.Path.GetDirectoryName(OutputFile);
+if (!System.IO.Directory.Exists(dir))
+    System.IO.Directory.CreateDirectory(dir);
+System.IO.File.WriteAllText(OutputFile, sb.ToString());
+]]>
+      </Code>
+    </Task>
+  </UsingTask>
+
+  <!-- Generate MCP prompt class from skills/shared/*.md before compilation -->
+  <Target Name="GenerateSkillPrompts" BeforeTargets="BeforeCompile;CoreCompile">
+    <PropertyGroup>
+      <SkillsSharedDir>$(MSBuildProjectDirectory)\..\..\skills\shared</SkillsSharedDir>
+      <SkillPromptsGenFile>$(IntermediateOutputPath)ExcelSkillPrompts.g.cs</SkillPromptsGenFile>
+    </PropertyGroup>
+    <ItemGroup>
+      <SkillSharedFiles Include="$(SkillsSharedDir)\*.md" />
+    </ItemGroup>
+    <!-- Generate the C# class with [McpServerPrompt] methods -->
+    <GenerateSkillPromptsClass SkillFiles="@(SkillSharedFiles)" OutputFile="$(SkillPromptsGenFile)" />
+    <ItemGroup>
+      <Compile Include="$(SkillPromptsGenFile)" />
+    </ItemGroup>
+    <Message Text="Generated $(SkillPromptsGenFile) from @(SkillSharedFiles->Count()) skill files" Importance="high" />
+  </Target>
 
   <Target Name="GenerateTelemetryConfig" BeforeTargets="BeforeCompile;CoreCompile">
     <PropertyGroup>
@@ -180,10 +320,8 @@ internal static class TelemetryConfig
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Embed Prompt Markdown Files -->
-    <EmbeddedResource Include="Prompts\Content\*.md" />
-    <EmbeddedResource Include="Prompts\Content\Completions\*.md" />
-    <EmbeddedResource Include="Prompts\Content\Elicitations\*.md" />
+    <!-- Embed skills/shared/*.md as MCP prompts (single source of truth) -->
+    <EmbeddedResource Include="..\..\skills\shared\*.md" Link="Prompts\Content\Skills\%(Filename)%(Extension)" />
   </ItemGroup>
 
   <!-- Import the Build.Tasks project to use GenerateSkillFile task -->
@@ -218,20 +356,8 @@ internal static class TelemetryConfig
       <RefsDir>$(MSBuildProjectDirectory)\..\..\skills\excel-mcp\references</RefsDir>
     </PropertyGroup>
     <ItemGroup>
-      <!-- MCP references: behavioral rules, anti-patterns, workflows, and all excel_*.md files -->
-      <McpReferenceFiles Include="$(SharedDir)\behavioral-rules.md" />
-      <McpReferenceFiles Include="$(SharedDir)\anti-patterns.md" />
-      <McpReferenceFiles Include="$(SharedDir)\workflows.md" />
-      <McpReferenceFiles Include="$(SharedDir)\chart.md" />
-      <McpReferenceFiles Include="$(SharedDir)\conditionalformat.md" />
-      <McpReferenceFiles Include="$(SharedDir)\datamodel.md" />
-      <McpReferenceFiles Include="$(SharedDir)\pivottable.md" />
-      <McpReferenceFiles Include="$(SharedDir)\powerquery.md" />
-      <McpReferenceFiles Include="$(SharedDir)\range.md" />
-      <McpReferenceFiles Include="$(SharedDir)\slicer.md" />
-      <McpReferenceFiles Include="$(SharedDir)\screenshot.md" />
-      <McpReferenceFiles Include="$(SharedDir)\table.md" />
-      <McpReferenceFiles Include="$(SharedDir)\worksheet.md" />
+      <!-- Copy ALL skill references from shared directory -->
+      <McpReferenceFiles Include="$(SharedDir)\*.md" />
     </ItemGroup>
     <MakeDir Directories="$(RefsDir)" Condition="!Exists('$(RefsDir)')" />
     <Copy SourceFiles="@(McpReferenceFiles)" DestinationFolder="$(RefsDir)" SkipUnchangedFiles="true" />

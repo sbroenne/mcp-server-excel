@@ -177,9 +177,11 @@ Look at:
 - Parameter ordering and grouping
 - Whether common workflows are clear from help alone
 
-### 3. MCP Tool Descriptions (`/// <summary>` in Tool classes)
+### 3. MCP Tool Descriptions and Skill References
 
 For MCP tests, the tool description IS the API documentation. If the LLM picks wrong tools or wrong parameters, improve the XML docs.
+
+For detailed guidance (workflows, quirks, best practices), update `skills/shared/*.md`. These are **auto-synced** to MCP prompts at build time — Claude Desktop and skill-based clients get identical guidance.
 
 ### 4. Error Messages
 
@@ -287,12 +289,13 @@ agent = Agent(
 
 Prompts, assertions, and test logic should be **identical**.
 
-## SKILL.md Generation Awareness (CRITICAL)
+## SKILL.md and MCP Prompt Generation Awareness (CRITICAL)
 
-**SKILL.md files are auto-generated. Never edit them directly.**
+**SKILL.md files and MCP skill prompts are auto-generated. Never edit them directly.**
 
-### Generation Pipeline
+### Generation Pipelines
 
+**SKILL.md (for skill-based clients like VS Code, Cursor):**
 ```
 C# Interfaces (XML /// docs)
   → Roslyn Source Generator (ServiceRegistryGenerator)
@@ -300,6 +303,15 @@ C# Interfaces (XML /// docs)
       → MSBuild Task (GenerateSkillFile.cs)
         → Scriban Templates (.sbn)
           → Generated SKILL.md
+```
+
+**MCP Skill Prompts (for Claude Desktop and MCP-only clients):**
+```
+skills/shared/*.md (source of truth)
+  → MSBuild EmbeddedResource with Link (embedded in assembly)
+  → MSBuild GenerateSkillPromptsClass inline task
+    → ExcelSkillPrompts.g.cs (14 [McpServerPrompt] methods)
+      → Claude Desktop sees identical guidance as skill clients
 ```
 
 ### Where to Fix What
@@ -310,14 +322,17 @@ C# Interfaces (XML /// docs)
 | Wrong parameter docs | `I*Commands.cs` XML `/// <param>` | `SKILL.md` |
 | Wrong skill prose/rules/workflows | `skills/templates/SKILL.cli.sbn` or `SKILL.mcp.sbn` | `SKILL.md` |
 | Wrong reference doc content | `skills/shared/*.md` | `skills/excel-*/references/*.md` |
+| Wrong MCP prompt content | `skills/shared/*.md` | `Prompts/Content/Skills/` |
 | Wrong Tool Selection table (MCP) | `skills/templates/SKILL.mcp.sbn` | `SKILL.md` |
+| New skill reference needed | Add `.md` to `skills/shared/` + description in `.csproj` | Don't create separate prompt |
 
 ### Key Files
 
 - **Templates:** `skills/templates/SKILL.cli.sbn`, `skills/templates/SKILL.mcp.sbn`
-- **Reference docs (source of truth):** `skills/shared/*.md` → copied to `skills/excel-*/references/`
-- **Generated files (NEVER edit):** `skills/excel-cli/SKILL.md`, `skills/excel-mcp/SKILL.md`
-- **Build command:** `dotnet build -c Release` regenerates SKILL.md and copies references
+- **Reference docs (source of truth):** `skills/shared/*.md` → auto-synced to BOTH skill refs AND MCP prompts
+- **Generated files (NEVER edit):** `skills/excel-cli/SKILL.md`, `skills/excel-mcp/SKILL.md`, `obj/.../ExcelSkillPrompts.g.cs`
+- **Description overrides:** `src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj` → `GenerateSkillPromptsClass` task
+- **Build command:** `dotnet build -c Release` regenerates SKILL.md, copies references, and generates prompt class
 
 ### Testing Impact
 

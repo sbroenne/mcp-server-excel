@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 
@@ -11,6 +12,10 @@ public class ScreenshotCommands : IScreenshotCommands
     // Excel COM constants
     private const int XlScreen = 1;      // xlScreen
     private const int XlBitmap = 2;      // xlBitmap
+
+    // CopyPicture retry configuration
+    private const int CopyPictureMaxRetries = 5;
+    private const int CopyPictureRetryDelayMs = 500;
 
     /// <summary>
     /// Captures a specific range as a PNG image.
@@ -31,7 +36,7 @@ public class ScreenshotCommands : IScreenshotCommands
                 string actualSheet = sheet.Name?.ToString() ?? "Sheet1";
                 string actualRange = range.Address?.ToString() ?? rangeAddress;
 
-                return ExportRangeAsImage(sheet, range, actualSheet, actualRange);
+                return ExportRangeAsImage(ctx.App, sheet, range, actualSheet, actualRange);
             }
             finally
             {
@@ -60,7 +65,7 @@ public class ScreenshotCommands : IScreenshotCommands
                 string actualSheet = sheet.Name?.ToString() ?? "Sheet1";
                 string actualRange = usedRange.Address?.ToString() ?? "A1";
 
-                return ExportRangeAsImage(sheet, usedRange, actualSheet, actualRange);
+                return ExportRangeAsImage(ctx.App, sheet, usedRange, actualSheet, actualRange);
             }
             finally
             {
@@ -72,18 +77,26 @@ public class ScreenshotCommands : IScreenshotCommands
 
     /// <summary>
     /// Exports a range as a PNG image using CopyPicture + ChartObject.Export.
-    /// This approach uses Excel's internal rendering — no clipboard contention issues
-    /// because we're on a single STA thread.
+    /// CopyPicture requires Excel to be visible for rendering. If Excel is hidden,
+    /// we temporarily show it, capture, then restore the previous visibility state.
     /// </summary>
-    private static ScreenshotResult ExportRangeAsImage(dynamic sheet, dynamic range, string sheetName, string rangeAddress)
+    private static ScreenshotResult ExportRangeAsImage(dynamic app, dynamic sheet, dynamic range, string sheetName, string rangeAddress)
     {
         dynamic? chartObjects = null;
         dynamic? chartObject = null;
         dynamic? chart = null;
         string? tempFile = null;
+        bool wasVisible = false;
 
         try
         {
+            // CopyPicture requires Excel to be visible for UI rendering
+            wasVisible = (bool)app.Visible;
+            if (!wasVisible)
+            {
+                app.Visible = true;
+            }
+
             // Get range dimensions for the chart
             double width = Convert.ToDouble(range.Width);
             double height = Convert.ToDouble(range.Height);
@@ -98,8 +111,9 @@ public class ScreenshotCommands : IScreenshotCommands
                 height *= scale;
             }
 
-            // Copy range as picture to clipboard (renders internally on STA thread)
-            range.CopyPicture(XlScreen, XlBitmap);
+            // Copy range as picture (with retry — CopyPicture is clipboard-dependent
+            // and intermittently fails when Excel is still rendering after chart/table operations)
+            CopyPictureWithRetry(range);
 
             // Create a temporary ChartObject to paste into and export
             chartObjects = sheet.ChartObjects();
@@ -144,10 +158,37 @@ public class ScreenshotCommands : IScreenshotCommands
             ComUtilities.Release(ref chartObject);
             ComUtilities.Release(ref chartObjects);
 
+            // Restore Excel visibility if we changed it
+            if (!wasVisible)
+            {
+                try { app.Visible = false; } catch { /* best effort */ }
+            }
+
             // Clean up temp file
             if (tempFile != null && File.Exists(tempFile))
             {
                 try { File.Delete(tempFile); } catch { /* best effort */ }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Calls CopyPicture with retry logic. CopyPicture uses the clipboard and
+    /// intermittently fails with COMException when Excel is busy rendering
+    /// (e.g., after chart/table operations). Retries with increasing delay.
+    /// </summary>
+    private static void CopyPictureWithRetry(dynamic range)
+    {
+        for (int attempt = 0; attempt < CopyPictureMaxRetries; attempt++)
+        {
+            try
+            {
+                range.CopyPicture(XlScreen, XlBitmap);
+                return;
+            }
+            catch (COMException) when (attempt < CopyPictureMaxRetries - 1)
+            {
+                Thread.Sleep(CopyPictureRetryDelayMs * (attempt + 1));
             }
         }
     }

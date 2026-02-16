@@ -10,6 +10,14 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### Added
+
+- **CLI `--output` flag** for all commands: Save command output directly to a file. Screenshot commands automatically save decoded PNG images instead of base64 JSON
+
+### Fixed
+
+- **Screenshot reliability**: Screenshots now work reliably regardless of whether Excel is visible or hidden. Added automatic retry for transient capture failures
+
 ## [1.7.2] - 2026-02-15
 
 ### Added
