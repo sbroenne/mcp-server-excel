@@ -221,6 +221,9 @@ sample_files/
 # Exception: Allow ComInterop static test file (required for batch tests)
 !tests/ExcelMcp.ComInterop.Tests/Integration/Session/TestFiles/batch-test-static.xlsx
 
+# LOCAL-ONLY diagnostic tests (reference external workbooks with confidential data)
+tests/ExcelMcp.Core.Tests/Integration/Commands/PowerQuery/PowerQueryCommandsTests.ExternalWorkbook.cs
+
 codeql-db/*
 infrastructure/azure/appinsights.secrets.local
 
