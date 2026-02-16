@@ -108,7 +108,17 @@ public partial class PowerQueryCommands
                                     wbConn = qTable.WorkbookConnection;
                                     if (wbConn == null) continue;
 
-                                    oledbConn = wbConn.OLEDBConnection;
+                                    // NOTE: Accessing OLEDBConnection on non-OLEDB connection types
+                                    // (e.g., Type=7 ThisWorkbookDataModel, Type=8 workbook connections)
+                                    // throws COMException 0x800A03EC. We must catch and skip.
+                                    try
+                                    {
+                                        oledbConn = wbConn.OLEDBConnection;
+                                    }
+                                    catch (System.Runtime.InteropServices.COMException)
+                                    {
+                                        continue;
+                                    }
                                     if (oledbConn == null) continue;
 
                                     string connString = oledbConn.Connection?.ToString() ?? "";
@@ -172,7 +182,9 @@ public partial class PowerQueryCommands
                                     wbConn = queryTable.WorkbookConnection;
                                     if (wbConn == null) continue;
 
-                                    oledbConn = wbConn.OLEDBConnection;
+                                    // Non-OLEDB connection types (Type=7, Type=8) throw COMException
+                                    try { oledbConn = wbConn.OLEDBConnection; }
+                                    catch (System.Runtime.InteropServices.COMException) { continue; }
                                     if (oledbConn == null) continue;
 
                                     string connString = oledbConn.Connection?.ToString() ?? "";
@@ -239,7 +251,18 @@ public partial class PowerQueryCommands
                                 try
                                 {
                                     conn = connections.Item(i);
-                                    oledbConn = conn.OLEDBConnection;
+
+                                    // NOTE: Accessing OLEDBConnection on non-OLEDB connection types
+                                    // (e.g., Type=7 ThisWorkbookDataModel, Type=8 workbook connections)
+                                    // throws COMException 0x800A03EC. We must catch and skip.
+                                    try
+                                    {
+                                        oledbConn = conn.OLEDBConnection;
+                                    }
+                                    catch (System.Runtime.InteropServices.COMException)
+                                    {
+                                        continue;
+                                    }
                                     if (oledbConn == null) continue;
 
                                     string connString = oledbConn.Connection?.ToString() ?? "";

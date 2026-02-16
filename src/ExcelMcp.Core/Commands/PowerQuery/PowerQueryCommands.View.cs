@@ -107,7 +107,9 @@ public partial class PowerQueryCommands
                                     wbConn = qTable.WorkbookConnection;
                                     if (wbConn == null) continue;
 
-                                    oledbConn = wbConn.OLEDBConnection;
+                                    // Non-OLEDB connection types (Type=7, Type=8) throw COMException
+                                    try { oledbConn = wbConn.OLEDBConnection; }
+                                    catch (System.Runtime.InteropServices.COMException) { continue; }
                                     if (oledbConn == null) continue;
 
                                     string connString = oledbConn.Connection?.ToString() ?? "";
@@ -167,7 +169,9 @@ public partial class PowerQueryCommands
                                     wbConn = queryTable.WorkbookConnection;
                                     if (wbConn == null) continue;
 
-                                    oledbConn = wbConn.OLEDBConnection;
+                                    // Non-OLEDB connection types (Type=7, Type=8) throw COMException
+                                    try { oledbConn = wbConn.OLEDBConnection; }
+                                    catch (System.Runtime.InteropServices.COMException) { continue; }
                                     if (oledbConn == null) continue;
 
                                     string connString = oledbConn.Connection?.ToString() ?? "";
