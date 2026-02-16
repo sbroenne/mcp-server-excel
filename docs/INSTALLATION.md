@@ -24,6 +24,16 @@ Complete installation instructions for the ExcelMcp MCP Server and CLI tool.
 
 ## Quick Start (Recommended)
 
+Use this order to avoid setup confusion:
+
+1. **Choose one primary setup path**:
+   - VS Code Extension (Copilot users)
+   - Claude Desktop MCPB
+   - Manual MCP setup (all other MCP clients)
+2. **Validate MCP setup** (run the quick test prompt in Step 4 of manual setup, or test in your client after extension/MCPB install)
+3. **Optional:** install CLI (`excelcli`) for scripting/RPA
+4. **Optional:** install agent skills for non-extension environments
+
 ### VS Code Extension (Easiest - One-Click Setup)
 
 **Best for:** GitHub Copilot users, beginners, anyone wanting automatic configuration
@@ -56,7 +66,7 @@ That's it! The MCPB bundle includes everything needed - no .NET installation req
 
 ---
 
-## Manual Installation  & Configuration (MCP Server)
+## Manual MCP Setup (All MCP Clients)
 
 **Best for:** Other MCP clients (Cursor, Windsurf, Cline, Claude Code, Codex), advanced users
 
@@ -229,7 +239,7 @@ Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
 
 4. Save and restart Windsurf
 
-### Step 4: Test the Installation
+### Step 4: Validate MCP Setup
 
 Restart your MCP client, then ask:
 ```
@@ -246,7 +256,7 @@ This opens Excel visibly so you can see every change in real-time - great for de
 
 ---
 
-## CLI Installation (No AI Required)
+## Optional: CLI Installation (No AI Required)
 
 **Best for:** Scripting, RPA, CI/CD pipelines, automation without AI
 
