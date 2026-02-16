@@ -25,6 +25,8 @@ documentation: https://excelmcpserver.dev/
 | 3. Write data | See below | If writing values |
 | 4. Save & close | `session close --save` | Always last |
 
+> **10+ commands?** Use `excelcli -q batch --input commands.json` — sends all commands in one process with automatic session management. See Rule 8.
+
 **Writing Data (Step 3):**
 - `--values` takes a JSON 2D array string: `--values '[["Header1","Header2"],[1,2]]'`
 - Write **one row at a time** for reliability: `--range-address A1:B1 --values '[["Name","Age"]]'`
@@ -32,6 +34,8 @@ documentation: https://excelmcpserver.dev/
 - Always wrap the entire JSON value in single quotes to protect special characters
 
 ## CRITICAL RULES (MUST FOLLOW)
+
+> **⚡ Building dashboards or bulk operations?** Skip to **Rule 8: Batch Mode** — it eliminates per-command process overhead and auto-manages session IDs.
 
 ### Rule 1: NEVER Ask Clarifying Questions
 
@@ -119,6 +123,35 @@ excelcli -q calculationmode calculate --session 1 --scope workbook
 # 4. Restore automatic mode
 excelcli -q calculationmode set-mode --session 1 --mode automatic
 ```
+
+### Rule 8: Use Batch Mode for Bulk Operations (10+ commands)
+
+When executing 10+ commands on the same file, use `excelcli batch` to send all commands in a single process launch. This avoids per-process startup overhead and terminal buffer saturation.
+
+```powershell
+# Create a JSON file with all commands
+@'
+[
+  {"command": "session.open", "args": {"filePath": "C:\\path\\file.xlsx"}},
+  {"command": "range.set-values", "args": {"sheetName": "Sheet1", "rangeAddress": "A1", "values": [["Hello"]]}},
+  {"command": "range.set-values", "args": {"sheetName": "Sheet1", "rangeAddress": "A2", "values": [["World"]]}},
+  {"command": "session.close", "args": {"save": true}}
+]
+'@ | Set-Content commands.json
+
+# Execute all commands at once
+excelcli -q batch --input commands.json
+```
+
+**Key features:**
+- **Session auto-capture**: `session.open`/`create` result sessionId auto-injected into subsequent commands — no need to parse and pass session IDs
+- **NDJSON output**: One JSON result per line: `{"index": 0, "command": "...", "success": true, "result": {...}}`
+- **`--stop-on-error`**: Exit on first failure (default: continue all)
+- **`--session <id>`**: Pre-set session ID for all commands (skip session.open)
+
+**Input formats:**
+- JSON array from file: `excelcli -q batch --input commands.json`
+- NDJSON from stdin: `Get-Content commands.ndjson | excelcli -q batch`
 
 ## CLI Command Reference
 
@@ -299,7 +332,7 @@ Data Model relationships - link tables for cross-table DAX calculations. CRITICA
 
 
 
-### unknown
+### diag
 
 Diagnostic commands for testing CLI/MCP infrastructure without Excel. These commands validate parameter parsing, routing, JSON serialization, and error handling — no Excel COM session needed.
 
@@ -520,7 +553,7 @@ Hyperlink and cell protection operations for Excel ranges. Use range for values/
 
 
 
-### unknown
+### screenshot
 
 Capture Excel worksheet content as images for visual verification. Uses Excel's built-in rendering (CopyPicture) to capture ranges as PNG images. Captures formatting, conditional formatting, charts, and all visual elements. ACTIONS: - capture: Capture a specific range as an image - capture-sheet: Capture the entire used area of a worksheet RETURNS: Base64-encoded PNG image data with dimensions metadata. For MCP: returned as inline ImageContent. For CLI: saved to file.
 

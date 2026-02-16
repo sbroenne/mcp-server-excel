@@ -13,10 +13,17 @@ This changelog covers all components:
 ### Added
 
 - **CLI `--output` flag** for all commands: Save command output directly to a file. Screenshot commands automatically save decoded PNG images instead of base64 JSON
+- **CLI Batch Mode** (#463): New `excelcli batch` command executes multiple CLI commands from a JSON file in a single process launch
+  - Session auto-capture from `session.open`/`session.create`, auto-clear on `session.close`
+  - NDJSON output for machine-readable results
+  - `--stop-on-error` flag to halt on first failure (default: continue all)
 
 ### Fixed
 
 - **Screenshot reliability**: Screenshots now work reliably regardless of whether Excel is visible or hidden. Added automatic retry for transient capture failures
+- **CLI `--help` crash** (#463): Fixed Spectre.Console markup crash when parameter descriptions contain `[`/`]` characters (e.g., `[A1 notation]`)
+- **Source generator tool filtering**: Fixed `mcpTool ?? "unknown"` fallback; added `HasMcpToolAttribute` to correctly filter MCP-only tools
+- **Skills docs parameter names**: Fixed wrong CLI parameter names in `conditionalformat.md` and `slicer.md` reference files
 
 ## [1.7.2] - 2026-02-15
 

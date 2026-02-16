@@ -54,7 +54,7 @@ public class McpToolGenerator : IIncrementalGenerator
                     continue;
 
                 var info = ServiceInfoExtractor.ExtractServiceInfo(type);
-                if (info != null && info.McpToolName != "unknown")
+                if (info != null && info.HasMcpToolAttribute)
                     result.Add(info);
             }
         }

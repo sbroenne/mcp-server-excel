@@ -98,7 +98,7 @@ public static class ServiceInfoExtractor
                     method.Name,
                     actionName,
                     TypeNameHelper.GetTypeName(method.ReturnType),
-                    methodMcpTool ?? "unknown",
+                    methodMcpTool ?? category,
                     parameters,
                     xmlDoc?.Summary,
                     hasBatchParameter));
@@ -111,14 +111,15 @@ public static class ServiceInfoExtractor
         return new ServiceInfo(
             category,
             categoryPascal,
-            mcpTool ?? "unknown",
+            mcpTool ?? category,
             noSession,
             methods,
             interfaceSummary,
             mcpToolTitle,
             mcpToolDestructive,
             mcpToolCategory,
-            mcpToolDescription);
+            mcpToolDescription,
+            hasMcpToolAttribute: mcpTool != null);
     }
 
     private static string? ExtractInterfaceSummary(INamedTypeSymbol interfaceSymbol)

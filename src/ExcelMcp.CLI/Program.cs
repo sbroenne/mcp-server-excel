@@ -81,6 +81,10 @@ internal sealed class Program
                     .WithDescription("Show service status (running, PID, sessions, uptime).");
             });
 
+            // Batch command — execute multiple commands in a single process launch
+            config.AddCommand<BatchCommand>("batch")
+                .WithDescription("Execute multiple commands from a JSON file or stdin. Outputs NDJSON (one result per line).");
+
             // Session commands
             config.AddBranch("session", branch =>
             {
