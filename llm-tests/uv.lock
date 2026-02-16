@@ -682,7 +682,7 @@ dependencies = [
 requires-dist = [
     { name = "azure-identity", specifier = ">=1.25" },
     { name = "pytest", specifier = ">=9.0" },
-    { name = "pytest-aitest", specifier = ">=0.3.3" },
+    { name = "pytest-aitest", specifier = ">=0.4.1" },
     { name = "pytest-asyncio", specifier = ">=1.3" },
     { name = "python-dotenv", specifier = ">=1.2" },
 ]
@@ -2595,7 +2595,7 @@ wheels = [
 
 [[package]]
 name = "pytest-aitest"
-version = "0.3.3"
+version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "azure-identity" },
@@ -2608,9 +2608,9 @@ dependencies = [
     { name = "pydantic-evals" },
     { name = "pytest" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c2/b0/2d07b6f9fb4485c5113109ad4969974faa411839ad0e64449fe68ef73509/pytest_aitest-0.3.3.tar.gz", hash = "sha256:0c3f6622057bfb8d4101b17d0e7d9a4edab91346e4b4dc50a9d0944d762659bc", size = 84415, upload-time = "2026-02-15T11:47:24.369Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/84/7b/ca4bf69c7ef64ac59a875c7e53f28108ee2fd129833875ab2bc8fb0e2759/pytest_aitest-0.4.1.tar.gz", hash = "sha256:c84e8c5950e7260ee28b58ccc877bdc48f01eda8a6afe73cc39af9ad315aba5c", size = 87402, upload-time = "2026-02-15T23:28:56.362Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9c/42/414ea54b0828fe593eac47f608ce504b89581814f2fa69fa00bc3b0c3a80/pytest_aitest-0.3.3-py3-none-any.whl", hash = "sha256:042073b8a034d5930451754dd2fe077be9d79f7743cd55891da3bc4779bba87c", size = 107661, upload-time = "2026-02-15T11:47:22.637Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/96/2f2fb5e5adec4cac7483ff80a196477ab16bf8cb2912fc11845478cb0c17/pytest_aitest-0.4.1-py3-none-any.whl", hash = "sha256:44284ff49d11a3252ff750b52d3e004346db3550cc55a756714b830077b89aa7", size = 111617, upload-time = "2026-02-15T23:28:55.127Z" },
 ]
 
 [[package]]

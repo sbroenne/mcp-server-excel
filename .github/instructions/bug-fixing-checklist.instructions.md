@@ -33,7 +33,7 @@ applyTo: "**/*.cs,**/*.md"
 **Required files (minimum 3)**:
 1. Tool/method XML documentation (`/// <summary>`, `/// <param>`)
 2. User-facing docs (README or component docs)
-3. LLM prompts in `src/ExcelMcp.McpServer/Prompts/Content/`
+3. Skill references in `skills/shared/` (auto-synced to MCP prompts)
 
 **Update workflow hints**:
 - `SuggestedNextActions` - reflect new capability

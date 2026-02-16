@@ -520,6 +520,19 @@ Hyperlink and cell protection operations for Excel ranges. Use range for values/
 
 
 
+### unknown
+
+Capture Excel worksheet content as images for visual verification. Uses Excel's built-in rendering (CopyPicture) to capture ranges as PNG images. Captures formatting, conditional formatting, charts, and all visual elements. ACTIONS: - capture: Capture a specific range as an image - capture-sheet: Capture the entire used area of a worksheet RETURNS: Base64-encoded PNG image data with dimensions metadata. For MCP: returned as inline ImageContent. For CLI: saved to file.
+
+**Actions:** `capture`, `capture-sheet`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--sheet-name` | Worksheet name (null for active sheet) |
+| `--range-address` | Range to capture (e.g., "A1:F20") |
+
+
+
 ### worksheet
 
 Worksheet lifecycle management: create, rename, copy, delete, move, list sheets. Use range for data operations. Use sheetstyle for tab colors and visibility. ATOMIC OPERATIONS: 'copy-to-file' and 'move-to-file' don't require a session - they open/close files automatically. POSITIONING: For 'move', 'copy-to-file', 'move-to-file' - use 'before' OR 'after' (not both) to position the sheet relative to another. If neither specified, moves to end.
@@ -694,6 +707,9 @@ Parameters that accept lists (e.g., `--selected-items` for slicers) require JSON
 - @references/behavioral-rules.md - Core execution rules and LLM guidelines
 - @references/anti-patterns.md - Common mistakes to avoid
 - @references/workflows.md - Data Model constraints and patterns
+- @references/chart.md - Charts, positioning, and formatting
+- @references/dashboard.md - Dashboard and report best practices
+- @references/screenshot.md - Screenshot and visual verification
 
 ## Installation
 

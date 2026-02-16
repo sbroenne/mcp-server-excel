@@ -54,7 +54,7 @@ applyTo: "src/ExcelMcp.Core/Commands/**/*.cs,src/ExcelMcp.McpServer/**/*.cs"
    Expected: 0 warnings, 0 errors
 
 8. ✅ Update documentation
-   Files: MCP prompts, tool descriptions, README (if needed)
+   Files: skill references (`skills/shared/`), tool descriptions, README (if needed)
 ```
 
 **Why This Order**: Compiler (CS8524) enforces steps 3-6, preventing you from shipping unexposed Core methods.

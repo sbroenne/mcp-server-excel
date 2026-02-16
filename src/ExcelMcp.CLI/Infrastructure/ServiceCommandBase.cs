@@ -94,20 +94,99 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
             Args = args != null ? JsonSerializer.Serialize(args, ServiceProtocol.JsonOptions) : null
         }, cancellationToken);
 
+        // Check for --output file path (generated on all CliSettings)
+        var outputPath = settings.GetType().GetProperty("OutputPath")?.GetValue(settings) as string;
+
         // Output result
         if (response.Success)
         {
-            Console.WriteLine(!string.IsNullOrEmpty(response.Result)
+            var result = !string.IsNullOrEmpty(response.Result)
                 ? response.Result
-                : JsonSerializer.Serialize(new { success = true }, ServiceProtocol.JsonOptions));
+                : JsonSerializer.Serialize(new { success = true }, ServiceProtocol.JsonOptions);
+
+            if (!string.IsNullOrEmpty(outputPath))
+            {
+                return WriteOutputToFile(result, outputPath);
+            }
+
+            Console.WriteLine(result);
             return 0;
         }
         else
         {
-            Console.WriteLine(JsonSerializer.Serialize(
+            var errorJson = JsonSerializer.Serialize(
                 new { success = false, error = response.ErrorMessage },
+                ServiceProtocol.JsonOptions);
+            Console.WriteLine(errorJson);
+            return 1;
+        }
+    }
+
+    /// <summary>
+    /// Writes the result to a file. For image results containing base64 data,
+    /// decodes and writes the binary image. Otherwise writes the JSON text.
+    /// </summary>
+    private static int WriteOutputToFile(string result, string outputPath)
+    {
+        try
+        {
+            // Try to extract base64 image data from the result
+            var base64Data = TryExtractBase64Image(result);
+            if (base64Data != null)
+            {
+                var imageBytes = Convert.FromBase64String(base64Data);
+                File.WriteAllBytes(outputPath, imageBytes);
+                // Write metadata (without the large base64 payload) to stdout
+                var doc = JsonDocument.Parse(result);
+                var metadata = new Dictionary<string, object?>
+                {
+                    ["success"] = true,
+                    ["outputPath"] = outputPath,
+                    ["sizeBytes"] = imageBytes.Length
+                };
+                if (doc.RootElement.TryGetProperty("width", out var w)) metadata["width"] = w.GetInt32();
+                if (doc.RootElement.TryGetProperty("height", out var h)) metadata["height"] = h.GetInt32();
+                if (doc.RootElement.TryGetProperty("mimeType", out var m)) metadata["mimeType"] = m.GetString();
+                if (doc.RootElement.TryGetProperty("sheetName", out var s)) metadata["sheetName"] = s.GetString();
+                if (doc.RootElement.TryGetProperty("rangeAddress", out var r)) metadata["rangeAddress"] = r.GetString();
+                Console.WriteLine(JsonSerializer.Serialize(metadata, ServiceProtocol.JsonOptions));
+            }
+            else
+            {
+                File.WriteAllText(outputPath, result);
+                Console.WriteLine(JsonSerializer.Serialize(
+                    new { success = true, outputPath },
+                    ServiceProtocol.JsonOptions));
+            }
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(
+                new { success = false, error = $"Failed to write output: {ex.Message}" },
                 ServiceProtocol.JsonOptions));
             return 1;
         }
+    }
+
+    /// <summary>
+    /// Attempts to extract base64 image data from a JSON result.
+    /// Returns the base64 string if found, null otherwise.
+    /// </summary>
+    private static string? TryExtractBase64Image(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("imageBase64", out var imageElement))
+            {
+                return imageElement.GetString();
+            }
+        }
+        catch (JsonException)
+        {
+            // Not valid JSON, can't extract image
+        }
+        return null;
     }
 }

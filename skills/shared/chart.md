@@ -113,7 +113,7 @@ Specialized: `Waterfall`, `Funnel`, `Treemap`, `Sunburst`, `BoxWhisker`, `Histog
 
 ## Chart Positioning (CRITICAL)
 
-**ALWAYS position charts to avoid overlapping data:**
+**ALWAYS position charts to avoid overlapping data and other charts:**
 
 ### Use targetRange (PREFERRED - One Step)
 ```
@@ -142,9 +142,32 @@ chart(fit-to-range, chartName, rangeAddress: 'F2:K15')
 ### Position Estimates
 - Rows: ~15 points per row (varies with row height)
 - Columns: ~60 points per column (varies with column width)
-- Default chart: 400x300 points
+- Default chart: 400×300 points
 
 ### Positioning Workflow
-1. `get-used-range` -> Identify data boundaries
+1. `get-used-range` → Identify data boundaries
 2. **Option A (Preferred)**: Use `targetRange='F2:K15'` in create call
 3. **Option B**: Calculate `(lastRow + 2) * 15` for top, or `(lastCol + 2) * 60` for left
+4. **Verify**: Use `screenshot(capture-sheet)` to visually confirm no overlaps
+
+## Multi-Chart Layout (CRITICAL)
+
+When creating dashboards with multiple charts, **every chart needs explicit positioning**:
+
+### Grid Layout Pattern
+```
+Data at A1:D10. Place 4 charts in a 2×2 grid below data:
+
+chart(create-from-range, ..., targetRange='A12:F25')   # Top-left
+chart(create-from-range, ..., targetRange='G12:L25')   # Top-right
+chart(create-from-range, ..., targetRange='A27:F40')   # Bottom-left
+chart(create-from-range, ..., targetRange='G27:L40')   # Bottom-right
+screenshot(capture-sheet) → Verify no overlaps
+```
+
+### Rules
+- **Never use default positioning** for 2+ charts — they will stack on top of each other
+- Leave at least 1-2 rows/columns gap between charts
+- Use `targetRange` on every chart creation call
+- If overlap detected in screenshot, use `chart(fit-to-range)` to fix
+- Take a final `screenshot(capture-sheet)` to verify the complete layout

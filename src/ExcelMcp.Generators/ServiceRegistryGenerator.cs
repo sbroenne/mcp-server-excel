@@ -499,6 +499,12 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             sb.AppendLine();
         }
 
+        // Output path option (available on all commands)
+        sb.AppendLine("            [Spectre.Console.Cli.CommandOption(\"-o|--output <PATH>\")]");
+        sb.AppendLine("            [System.ComponentModel.Description(\"Write output to file instead of stdout. For image results, decodes and saves as binary file.\")]");
+        sb.AppendLine("            public string? OutputPath { get; init; }");
+        sb.AppendLine();
+
         sb.AppendLine("        }");
     }
 

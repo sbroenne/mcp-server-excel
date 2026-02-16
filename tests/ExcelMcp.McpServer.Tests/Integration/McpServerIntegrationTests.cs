@@ -53,6 +53,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     /// - chart split into 2 tools (chart, chart_config)
     /// - worksheet split into 2 tools (worksheet, worksheet_style)
     /// - Added slicer and calculation_mode
+    /// - Added screenshot
     /// </summary>
     private static readonly HashSet<string> ExpectedToolNames =
     [
@@ -73,6 +74,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         "range_edit",
         "range_format",
         "range_link",
+        "screenshot",
         "slicer",
         "table",
         "table_column",
@@ -201,7 +203,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     /// - Tool schema generation
     /// </summary>
     [Fact]
-    public async Task ListTools_ReturnsAll23ExpectedTools()
+    public async Task ListTools_ReturnsAll24ExpectedTools()
     {
         output.WriteLine("=== TOOL DISCOVERY VIA MCP PROTOCOL ===\n");
 

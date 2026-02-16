@@ -81,10 +81,11 @@ LLMs already know Excel, JSON, and MCP protocol. They need server-specific patte
 
 ## Format Guidelines
 
-**Use markdown files (.md):**
-- Store in `src/ExcelMcp.McpServer/Prompts/Content/`
-- One file per tool
-- Plain markdown (no C# code)
+**All MCP prompts are auto-generated from `skills/shared/*.md`:**
+- Source of truth: `skills/shared/*.md` — edit these files
+- Auto-embedded and auto-generated `ExcelSkillPrompts.g.cs` at build time
+- NEVER create hand-crafted prompt files — add `.md` to `skills/shared/` instead
+- To add a new prompt: add `.md` to `skills/shared/`, add description override in `GenerateSkillPromptsClass` task in `McpServer.csproj`, rebuild
 
 **Writing style:**
 - Bullet points over paragraphs
@@ -103,39 +104,6 @@ LLMs already know Excel, JSON, and MCP protocol. They need server-specific patte
 **Status**: The MCP SDK supports completions but this feature is not currently implemented.
 
 **Alternative**: The MCP SDK auto-generates enum values in the tool schema, so LLMs already see valid action values. For freeform parameters like format codes or color values, document suggestions in tool XML documentation instead.
-
-## Elicitations (Pre-flight Checklists) - IMPLEMENTED
-
-**Purpose**: Guide users to provide ALL needed information before calling tools
-
-**Current State**:
-- ✅ Elicitations stored as `.md` files in `Content/Elicitations/` directory
-- ✅ Loader implemented: `MarkdownLoader.LoadElicitation()`
-- ✅ Used in `ExcelElicitationPrompts.cs`
-
-**File structure**:
-```markdown
-# BEFORE [OPERATION] - GATHER THIS INFO
-
-REQUIRED:
-☐ Parameter 1 (description)
-☐ Parameter 2 (description)
-
-RECOMMENDED (avoid second call):
-☐ Optional param that improves workflow
-
-WORKFLOW OPTIMIZATION:
-☐ Batch mode? (detect keywords: numbers, plurals, lists)
-☐ Prerequisites? (check dependencies first)
-
-ASK USER FOR MISSING INFO before calling [tool_name].
-```
-
-**When to create elicitations**:
-- Complex operations with many optional parameters
-- Operations that commonly require follow-up calls
-- Multi-step workflows
-- Batch-friendly operations
 
 ## Workflow Guidance (SuggestedNextActions & WorkflowHint) - C# IMPLEMENTATION
 
@@ -173,11 +141,12 @@ A good prompt:
 
 ## Architecture Summary
 
-| Guidance Type | Format | Why | Status |
-|---------------|--------|-----|--------|
-| **Prompts** | .md files | Static content, read once | ✅ Implemented |
+| Guidance Type | Format | Source of Truth | Status |
+|---------------|--------|----------------|--------|
+| **Skill Prompts** | Auto-generated from `skills/shared/*.md` | `skills/shared/` | ✅ 16 prompts auto-synced |
 | **Completions** | N/A | SDK auto-generates enum values | ❌ Not implemented |
-| **Elicitations** | .md files | Static checklists | ✅ Implemented |
-| **Workflow Guidance** | C# static methods | Dynamic, runtime context | ✅ Keep as C# |
+| **Workflow Guidance** | C# static methods | Tool classes | ✅ Keep as C# |
+
+**Sync guarantee:** Claude Desktop (MCP prompts only) and VS Code/Cursor (skills) always get identical guidance because both derive from `skills/shared/*.md`.
 
 **Keep it short. Keep it specific. Keep it server-focused.**

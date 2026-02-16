@@ -8,7 +8,7 @@
 
 > **📦 Bundled with MCP Server** - The CLI (`excelcli`) is included in the unified `Sbroenne.ExcelMcp.McpServer` package. Install once, get both tools!
 
-The CLI provides 15 command categories with 214 operations matching the MCP Server. Uses **64% fewer tokens** than MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 23 tool schemas into context.
+The CLI provides 16 command categories with 216 operations matching the MCP Server. Uses **64% fewer tokens** than MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 24 tool schemas into context.
 
 | Interface | Best For | Why |
 |-----------|----------|-----|
@@ -101,7 +101,7 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **214 operations** across 15 command categories:
+ExcelMcp.CLI provides **216 operations** across 16 command categories:
 
 📚 **[Complete Feature Reference →](../../FEATURES.md)** - Full documentation with all operations
 
@@ -124,6 +124,7 @@ ExcelMcp.CLI provides **214 operations** across 15 command categories:
 | **Named Ranges** | 6 | `namedrange create`, `namedrange read`, `namedrange write`, `namedrange update` |
 | **VBA** | 6 | `vba list`, `vba import`, `vba run`, `vba update` |
 | **Calculation Mode** | 3 | `calculation get-mode`, `calculation set-mode`, `calculation calculate` |
+| **Screenshot** | 2 | `screenshot capture`, `screenshot capture-sheet` |
 
 **Note:** CLI uses session commands for multi-operation workflows.
 

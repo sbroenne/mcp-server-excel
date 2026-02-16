@@ -10,7 +10,7 @@ applyTo: "src/ExcelMcp.McpServer/**/*.cs"
 
 **NO EMOJIS in LLM-consumed content** - Never use emoji characters in:
 - Tool XML comments (`/// <summary>`) - MCP SDK extracts these
-- MCP Prompt files (`Prompts/Content/*.md`) - Direct LLM consumption
+- MCP Prompt files (`Prompts/Content/*.md` and `skills/shared/*.md`) - Direct LLM consumption
 - Any code documentation consumed by LLMs
 
 **Use plain text markers:** "IMPORTANT:", "WARNING:", "NOTE:", "CRITICAL:", "TIP:"
@@ -301,7 +301,7 @@ Before committing MCP tool changes:
 
 ## Tool Description vs Prompt Files
 
-**Two types of LLM guidance:**
+**Three channels of LLM guidance:**
 
 1. **Tool Descriptions** (XML documentation `/// <summary>` on tool methods):
    - MCP SDK extracts XML comments and includes in tool schema
@@ -310,15 +310,15 @@ Before committing MCP tool changes:
    - **ALWAYS visible** - shown every time tool is considered
    - Must be kept synchronized with actual tool behavior
 
-2. **Prompt Files** (`.md` files in `Prompts/Content/`):
-   - Exposed as separate MCP Prompts via `[McpServerPrompt]`
-   - LLMs request explicitly when needed
-   - Detailed workflows, checklists, disambiguation
+2. **Skill-synced Prompts** (auto-generated from `skills/shared/*.md`):
+   - 16 prompts auto-generated at build time via `GenerateSkillPromptsClass` MSBuild task
+   - Source of truth: `skills/shared/*.md` — NEVER edit prompt files directly
+   - Same content exposed to skill-based clients (VS Code, Cursor) AND MCP-only clients (Claude Desktop)
    - **On-demand** - loaded only when LLM requests the prompt
 
 **Critical:** When changing tool behavior, update BOTH:
 - The XML documentation (`/// <summary>`) on the tool method
-- The corresponding `.md` prompt file (if exists)
+- The corresponding skill reference in `skills/shared/*.md` (auto-syncs to MCP prompts)
 
 ### Keeping Descriptions Up-to-Date
 

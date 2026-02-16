@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**23 specialized tools with 214 operations for comprehensive Excel automation**
+**24 specialized tools with 216 operations for comprehensive Excel automation**
 
 ---
 
@@ -394,6 +394,16 @@
 
 ---
 
+## 📸 Screenshot (2 operations)
+
+- **Capture Range:** Capture a specific range as a PNG image
+- **Capture Sheet:** Capture the entire used area of a worksheet as a PNG image
+  - Uses Excel's built-in rendering (CopyPicture) — captures formatting, charts, conditional formatting
+  - MCP: Returns image directly as ImageContent (base64 PNG)
+  - CLI: Returns JSON with base64-encoded image data
+
+---
+
 ## 📊 Total Operations Summary
 
 | Category | Operations |
@@ -411,7 +421,9 @@
 | VBA Macros | 6 |
 | Slicers | 8 |
 | Conditional Formatting | 2 |
-| **Total** | **211** |
+| Screenshot | 2 |
+| Calculation Mode | 3 |
+| **Total** | **216** |
 
 ---
 

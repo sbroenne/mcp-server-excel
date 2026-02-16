@@ -10,27 +10,35 @@ This changelog covers all components:
 
 ## [Unreleased]
 
-### Changed
+### Added
 
-- **In-process service architecture**: MCP Server hosts the ExcelMcpService fully in-process with direct method calls (no named pipe overhead). Each MCP Server instance is completely isolated. CLI uses a daemon model with user-scoped pipe names (`excelmcp-cli-{SID}`) to persist sessions across separate CLI invocations.
-- **CLI daemon with system tray**: CLI daemon process (`excelcli service run`) includes a minimal system tray icon showing active sessions, status, and exit. Auto-exits after 10 minutes of inactivity with no active sessions.
-- **Core Commands return OperationResult**: All 82 void-returning Core command methods now return `OperationResult` with `Success=true` and `FilePath`, giving LLMs confirmation metadata instead of bare `{"success": true}` responses. Affects 16 interfaces across all command domains (Range, Sheet, Table, Chart, Connection, DataModel, PowerQuery, VBA, NamedRange, ConditionalFormatting).
-
-### Improved
-
-- **MCP SKILL template**: Added Workflow Checklist table for quick reference (open → create → write → format → save)
-- **CLI SKILL template**: Added "List Parameters Use JSON Arrays" to Common Pitfalls section
-- **Slicer reference doc**: Added CLI JSON Array Quoting section with PowerShell escaping examples
+- **CLI `--output` flag** for all commands: Save command output directly to a file. Screenshot commands automatically save decoded PNG images instead of base64 JSON
 
 ### Fixed
 
-- **MCP Server tests**: Fixed 13 pre-existing test failures caused by tests using camelCase parameter names (`sessionId`, `queryName`) instead of correct snake_case (`session_id`, `query_name`). All 93 MCP Server tests now pass.
+- **Screenshot reliability**: Screenshots now work reliably regardless of whether Excel is visible or hidden. Added automatic retry for transient capture failures
 
-### Removed
+## [1.7.2] - 2026-02-15
 
-- **Shared Excel Service process**: The ExcelMCP Service no longer runs as a single shared process for both MCP and CLI. Removed cross-process mutex/lock files, auto-update notifications, and version negotiation. MCP Server uses direct in-process calls (no pipe); CLI uses a lightweight daemon with system tray.
-- **Glama.ai Support**: Removed Docker-based deployment (`Dockerfile`, `glama.json`, `.dockerignore`, docs)
-- **Tool Name Prefix**: Removed `excel_` prefix from all 23 MCP tool names (e.g., `excel_range` → `range`). Titles also shortened. VS Code extension server name → `excel-mcp`.
+### Added
+
+- **In-Process Service Architecture** (#454): MCP Server and CLI each host ExcelMCP Service in-process instead of sharing a separate service process
+  - Eliminates service discovery failures (especially NuGet tool installs) and cross-process coordination
+
+- **Separate CLI NuGet Package** (#452): CLI published as `Sbroenne.ExcelMcp.CLI` alongside MCP Server
+  - Service version negotiation: client validates exact version match with running service on connect
+
+### Fixed
+
+- **Build Workflow Path** (#455): Fixed target framework path (`net10.0` → `net10.0-windows`) and formatting errors in build workflow
+
+## [1.7.1] - 2026-02-09
+
+### Fixed
+
+- **Release Workflow** (#451): Moved all external publishing steps after builds succeed to prevent partial releases
+
+## [1.6.10] - 2026-02-06
 
 ### ⚠️ BREAKING CHANGES
 
@@ -43,17 +51,29 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 
 - **CLI Code Generation** (#433): CLI commands auto-generated from Core via Roslyn source generators — guarantees 1:1 MCP/CLI parity
 - **Calculation Mode Control** (#430): New `calculation_mode` tool/CLI command (automatic, manual, semi-automatic modes; workbook/sheet/range scopes)
+- **Installation via npx** (#449): Added `npx add-mcp` as primary installation method in docs
 
 ### Changed
 
-- **VS Code Extension** (#434, #435): Self-contained publishing (no .NET runtime needed), CLI removed from extension, skills use `chatSkills` contribution point
-- **MCPB**: Removed agent skills from Claude Desktop bundle
-- **LLM Tests**: Migrated to pytest-aitest with unified MCP/CLI test suite
+- **MCP Prompt Reduction** (#442): Reduced prompts from 7 to 4 with ~76% content reduction; removed `excel_` prefix from prompt names
+- **VS Code Extension**: Self-contained publishing (no .NET runtime needed), CLI removed from extension, skills use `chatSkills` contribution point
+- **LLM Tests** (#446): Migrated to pytest-aitest v0.3.x from PyPI with unified MCP/CLI test suite
+- **Release Workflow** (#443): Switched to workflow_dispatch with version bump UI; added stale issue workflow
 - **Terminology**: "Daemon" → "ExcelMCP Service" throughout docs
+- **MCP SKILL template** (#448): Added Workflow Checklist table for quick reference (open → create → write → format → save)
+- **CLI SKILL template** (#448): Added "List Parameters Use JSON Arrays" to Common Pitfalls section
+- **Slicer reference doc**: Added CLI JSON Array Quoting section with PowerShell escaping examples
+- **MCPB**: Removed agent skills from Claude Desktop bundle
 
 ### Fixed
 
+- **MCP Server Release Path** (#450): Corrected package path to `net10.0-windows`
 - **Broken Emoji Characters**: Fixed corrupted emoji in README files
+
+### Removed
+
+- **Glama.ai Support**: Removed Docker-based deployment (`Dockerfile`, `glama.json`, `.dockerignore`, docs)
+
 ## [1.6.9] - 2026-02-04
 
 ### Added
