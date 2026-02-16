@@ -39,12 +39,12 @@ Two distinct slicer types exist:
 
 The `--selected-items` parameter requires a JSON array. Use proper shell escaping:
 
-```bash
+```powershell
 # PowerShell: use single quotes around the JSON, double quotes inside
 --selected-items '["West","East"]'
 
-# Or escape inner quotes with backslash
---selected-items "[\"West\",\"East\"]"
+# Or escape inner quotes with backtick
+--selected-items "[`"West`",`"East`"]"
 
 # Clear filter (show all items)
 --selected-items '[]'
@@ -72,12 +72,12 @@ The `--selected-items` parameter requires a JSON array. Use proper shell escapin
 
 **CLI Usage**:
 
-```bash
+```powershell
 # Create PivotTable slicer
-excelcli slicer create-slicer --session <id> --pivottable-name "SalesPivot" --field-name "Region" --destination-sheet "Dashboard"
+excelcli slicer create-slicer --session <id> --pivot-table-name "SalesPivot" --field-name "Region" --destination-sheet "Dashboard"
 
 # Set slicer filter
-excelcli slicer set-slicer-selection --session <id> --slicer-name "RegionSlicer" --selected-items "[\"West\",\"East\"]"
+excelcli slicer set-slicer-selection --session <id> --slicer-name "RegionSlicer" --selected-items "[`"West`",`"East`"]"
 
 # Clear slicer filter (show all)
 excelcli slicer set-slicer-selection --session <id> --slicer-name "RegionSlicer" --selected-items "[]"

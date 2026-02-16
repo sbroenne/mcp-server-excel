@@ -24,9 +24,12 @@ public sealed class ServiceInfo
     /// <summary>Tool description for LLMs via [Description], since XML docs aren't available from metadata refs.</summary>
     public string? McpToolDescription { get; }
 
+    /// <summary>Whether the interface has an explicit [McpTool] attribute. Used by MCP generator to skip hand-written tools.</summary>
+    public bool HasMcpToolAttribute { get; }
+
     public ServiceInfo(string category, string categoryPascal, string mcpToolName, bool noSession, List<MethodInfo> methods,
         string? xmlDocSummary = null, string? mcpToolTitle = null, bool mcpToolDestructive = true, string? mcpToolCategory = null,
-        string? mcpToolDescription = null)
+        string? mcpToolDescription = null, bool hasMcpToolAttribute = true)
     {
         Category = category;
         CategoryPascal = categoryPascal;
@@ -38,6 +41,7 @@ public sealed class ServiceInfo
         McpToolDestructive = mcpToolDestructive;
         McpToolCategory = mcpToolCategory;
         McpToolDescription = mcpToolDescription;
+        HasMcpToolAttribute = hasMcpToolAttribute;
     }
 }
 

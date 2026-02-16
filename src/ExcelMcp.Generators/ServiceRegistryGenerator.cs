@@ -482,7 +482,9 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         {
             var optionName = StringHelper.ToKebabCase(p.Name);
             var description = p.DescriptionWithRequired ?? StringHelper.GetParameterDescription(p.Name);
-            var escapedDescription = description.Replace("\"", "\\\"").Replace("\n", " ");
+            var escapedDescription = description
+                .Replace("[", "[[").Replace("]", "]]") // Escape Spectre.Console markup characters
+                .Replace("\"", "\\\"").Replace("\n", " ");
             var valuePlaceholder = p.Name.ToUpperInvariant();
 
             // Collection types (List<T>, List<List<T>>) are emitted as string? so CLI accepts

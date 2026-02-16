@@ -84,17 +84,17 @@
 
 **CLI Usage**:
 
-```bash
+```powershell
 # Add rule: highlight values > 100 in yellow
-excelcli conditionalformat add-rule --session <id> --sheet "Data" --range "B2:B100" \
-  --rule-type "cell-value" --operator "greater" --formula1 "100" --interior-color "#FFFF00"
+excelcli conditionalformat add-rule --session <id> --sheet-name "Data" --range-address "B2:B100" `
+  --rule-type "cell-value" --operator-type "greater" --formula1 "100" --interior-color "#FFFF00"
 
 # Add expression rule: highlight entire row if column A is "Error"
-excelcli conditionalformat add-rule --session <id> --sheet "Data" --range "A2:E100" \
-  --rule-type "expression" --formula "=\$A2=\"Error\"" --interior-color "#FF0000" --font-color "#FFFFFF"
+excelcli conditionalformat add-rule --session <id> --sheet-name "Data" --range-address "A2:E100" `
+  --rule-type "expression" --formula1 "=`$A2=`"Error`"" --interior-color "#FF0000" --font-color "#FFFFFF"
 
 # Clear all rules from range
-excelcli conditionalformat clear-rules --session <id> --sheet "Data" --range "A1:E100"
+excelcli conditionalformat clear-rules --session <id> --sheet-name "Data" --range-address "A1:E100"
 ```
 
 **Common Mistakes**:
