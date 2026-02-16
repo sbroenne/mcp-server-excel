@@ -17,7 +17,7 @@ Unlike third-party libraries that manipulate `.xlsx` files (risking corruption),
 
 **🔗 Unified Service Architecture** - The MCP Server forwards all requests to the shared ExcelMCP Service, enabling CLI and MCP to share sessions transparently.
 
-**📦 Unified Package - Includes CLI:** This package includes both the MCP Server (`mcp-excel`) and CLI (`excelcli`). Install once, get both tools! For advanced users who prefer command-line scripting, the CLI interface supports RPA workflows, CI/CD pipelines, and batch automation. CLI has 16 command categories with 216 operations matching the MCP Server (24 tools with 216 operations).
+**CLI also available:** The MCP Server tool (`mcp-excel`) and CLI tool (`excelcli`) are published as separate .NET tools. Install `Sbroenne.ExcelMcp.McpServer` for MCP clients, and optionally install `Sbroenne.ExcelMcp.CLI` for scripting/RPA workflows.
 
 **Requirements:** Windows OS + Excel 2016+
 
@@ -34,12 +34,11 @@ Unlike third-party libraries that manipulate `.xlsx` files (risking corruption),
 Requires .NET 10 Runtime or SDK
 
 ```powershell
-# Install unified package (includes MCP Server + CLI)
+# Install MCP Server tool
 dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
-# Both tools are now available:
-# - mcp-excel (MCP Server for AI assistants)
-# - excelcli (CLI for coding agents and scripting)
+# Optional: install CLI tool separately
+dotnet tool install --global Sbroenne.ExcelMcp.CLI
 ```
 
 **Supported AI Assistants:**

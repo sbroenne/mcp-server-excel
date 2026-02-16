@@ -1,12 +1,12 @@
 # ExcelMcp.CLI - Command-Line Interface for Excel Automation
 
-[![NuGet](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
-[![Downloads](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
+[![NuGet](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.CLI.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
+[![Downloads](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.CLI.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Command-line interface for Excel automation — preferred by coding agents.**
 
-> **📦 Bundled with MCP Server** - The CLI (`excelcli`) is included in the unified `Sbroenne.ExcelMcp.McpServer` package. Install once, get both tools!
+> **Published as its own .NET tool** - Install `Sbroenne.ExcelMcp.CLI` to get the `excelcli` command. Install `Sbroenne.ExcelMcp.McpServer` separately when you also need the MCP server (`mcp-excel`).
 
 The CLI provides 16 command categories with 216 operations matching the MCP Server. Uses **64% fewer tokens** than MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 24 tool schemas into context.
 
@@ -26,8 +26,8 @@ Also perfect for RPA workflows, CI/CD pipelines, batch processing, and automated
 ### Installation (.NET Global Tool - Recommended)
 
 ```powershell
-# Install unified package (includes both MCP Server and CLI)
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+# Install CLI tool
+dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 # Verify installation
 excelcli --version
@@ -45,13 +45,13 @@ excelcli --help
 excelcli version --check
 
 # Update if available
-dotnet tool update --global Sbroenne.ExcelMcp.McpServer
+dotnet tool update --global Sbroenne.ExcelMcp.CLI
 ```
 
 ### Uninstall
 
 ```powershell
-dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
+dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 ```
 
 ## 🤫 Quiet Mode (Agent-Friendly)

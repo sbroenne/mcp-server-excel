@@ -76,18 +76,20 @@ winget install Microsoft.DotNet.Runtime.10
 
 **Manual Download:** [.NET 10 Downloads](https://dotnet.microsoft.com/download/dotnet/10.0)
 
-### Step 2: Install ExcelMcp
+### Step 2: Install ExcelMcp MCP Server
 
 ```powershell
-# Install MCP Server (for AI assistants)
+# Install MCP Server tool (command: mcp-excel)
 dotnet tool install --global Sbroenne.ExcelMcp.McpServer
-
-# Install CLI (for coding agents and scripting)
-dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 # Verify installation
 dotnet tool list --global | Select-String "ExcelMcp"
 ```
+
+> **Optional:** If you also want the standalone CLI command (`excelcli`) for scripting/RPA, install it separately:
+> ```powershell
+> dotnet tool install --global Sbroenne.ExcelMcp.CLI
+> ```
 
 ### Step 3: Configure Your MCP Client
 
@@ -258,15 +260,15 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 excelcli --version
 ```
 
-> **⚠️ Version Sync Required:** MCP Server and CLI share a background service. Both packages must be the same version. Always update them together.
+> **⚠️ Version Sync:** If you install both MCP Server and CLI, keep both packages on the same version.
 
 ### Quick Test
 
 ```powershell
 # Session-based workflow (keeps Excel open between commands)
-excelcli -q session open test.xlsx        # Returns session ID
-excelcli -q sheet list --session 1        # List worksheets
-excelcli -q session close --session 1 --save
+excelcli -q session open test.xlsx                   # Returns session ID
+excelcli -q sheet list --session <session-id>        # List worksheets
+excelcli -q session close --session <session-id> --save
 ```
 
 > **💡 Tip:** Use `-q` (quiet mode) to suppress banner and get JSON output only - perfect for scripting and automation.
@@ -314,9 +316,9 @@ dotnet tool list --global | Select-String "ExcelMcp"
 excelcli --version
 ```
 
-### Update (MCP Server + CLI)
+### Update Installed Tools
 
-> **⚠️ Always update both packages together** to avoid version mismatch errors.
+> **⚠️ If both are installed:** update MCP Server and CLI together so versions stay in sync.
 
 **Step 1: Update both tools**
 ```powershell
