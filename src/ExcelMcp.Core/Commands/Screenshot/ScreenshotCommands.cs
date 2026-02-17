@@ -14,7 +14,9 @@ public class ScreenshotCommands : IScreenshotCommands
     private const int XlBitmap = 2;      // xlBitmap
 
     // CopyPicture retry configuration
-    private const int CopyPictureMaxRetries = 5;
+    // After Save or large operations, Excel rendering can take several seconds.
+    // Retries with exponential backoff: 500ms, 1000ms, 1500ms, 2000ms, 2500ms, 3000ms, 3500ms
+    private const int CopyPictureMaxRetries = 7;
     private const int CopyPictureRetryDelayMs = 500;
 
     /// <summary>
@@ -101,6 +103,9 @@ public class ScreenshotCommands : IScreenshotCommands
     /// Exports a range as a PNG image using CopyPicture + ChartObject.Export.
     /// CopyPicture requires Excel to be visible for rendering. If Excel is hidden,
     /// we temporarily show it, capture, then restore the previous visibility state.
+    /// 
+    /// CRITICAL: After Save/large operations, Excel needs rendering time even if already visible.
+    /// This method includes delays to ensure Excel is fully rendered before capture.
     /// </summary>
     private static ScreenshotResult ExportRangeAsImage(dynamic app, dynamic sheet, dynamic range, string sheetName, string rangeAddress)
     {
@@ -123,6 +128,23 @@ public class ScreenshotCommands : IScreenshotCommands
                 // "Unable to get the CopyPicture property" or crashes the process
                 // with RPC_S_SERVER_UNAVAILABLE (0x800706BA) under rapid cycling.
                 Thread.Sleep(1000);
+            }
+            else
+            {
+                // Excel is already visible, but may still be rendering from Save or other operations.
+                // Add shorter delay to allow rendering pipeline to catch up.
+                Thread.Sleep(500);
+            }
+
+            // Try to activate the Excel window to ensure it has focus for proper rendering.
+            // This helps ensure content is fully rendered before capture.
+            try
+            {
+                app.Activate();
+            }
+            catch
+            {
+                // Activate may fail in some contexts (minimized, headless, etc.) - ignore
             }
 
             // Get range dimensions for the chart

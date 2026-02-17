@@ -5,6 +5,7 @@ using System.IO.Pipelines;
 using System.Text.Json;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 using Xunit;
 using Xunit.Abstractions;
@@ -603,6 +604,57 @@ in
         Assert.Contains("not found", errorText, StringComparison.OrdinalIgnoreCase);
 
         _output.WriteLine("✓ Error message is clear and helpful via MCP protocol");
+    }
+
+    /// <summary>
+    /// Tests that worksheet copy-to-file (atomic operation) works WITHOUT session_id.
+    /// This verifies the fix for the issue where copy-to-file incorrectly required session_id.
+    /// 
+    /// Atomic operations like copy-to-file and move-to-file should NOT require a session_id
+    /// because they manage their own Excel instances internally.
+    /// </summary>
+    [Fact]
+    public async Task WorksheetCopyToFile_WithoutSessionId_Works()
+    {
+        _output.WriteLine("\n✓ Testing atomic worksheet.copy-to-file (no session required)...");
+
+        // Create source and target Excel files for copying
+        var sourceFile = Path.Join(_tempDir, "CopySource.xlsx");
+        var targetFile = Path.Join(_tempDir, "CopyTarget.xlsx");
+
+        // Step 1: Create source file with a sheet
+        _output.WriteLine("  1. Creating source file...");
+        using (var batch = ExcelSession.BeginBatch(sourceFile))
+        {
+            // Source file is created by default with Sheet1
+            batch.Save();
+        }
+
+        // Step 2: Create target file (empty, will receive the copied sheet)
+        _output.WriteLine("  2. Creating target file...");
+        using (var batch = ExcelSession.BeginBatch(targetFile))
+        {
+            // Target file is created empty
+            batch.Save();
+        }
+
+        // Step 3: Call worksheet copy-to-file WITHOUT session_id (ATOMIC OPERATION)
+        // This is the CRITICAL TEST: the tool should accept this call without a session_id parameter
+        _output.WriteLine("  3. Calling worksheet.copy-to-file without session_id...");
+        var copyResult = await CallToolAsync("worksheet", new Dictionary<string, object?>
+        {
+            ["action"] = "copy-to-file",
+            ["source_file"] = sourceFile,
+            ["source_sheet"] = "Sheet1",
+            ["target_file"] = targetFile,
+            ["target_sheet_name"] = "CopiedSheet"
+            // NOTE: session_id is NOT provided - this is the test point!
+            // Before the fix, this would fail with "sessionId is required"
+        });
+
+        AssertSuccess(copyResult, "worksheet.copy-to-file");
+        _output.WriteLine("  ✓ copy-to-file succeeded WITHOUT session_id!");
+        _output.WriteLine("✓ Atomic operation (copy-to-file) correctly works without session requirement!");
     }
 
     /// <summary>
