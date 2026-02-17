@@ -55,7 +55,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 ## 🛠️ What You Can Do
 
-**24 specialized tools with 216 operations:**
+**25 specialized tools with 225 operations:**
 
 - 🔄 **Power Query** (1 tool, 11 ops) - Atomic workflows, M code management, load destinations
 - 📊 **Data Model/DAX** (2 tools, 18 ops) - Measures, relationships, model structure
@@ -72,8 +72,9 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 - 🎚️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
 - 🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
 - 📸 **Screenshot** (1 tool, 2 ops) - Capture ranges/sheets as PNG for visual verification
+- 🪧 **Window Management** (1 tool, 9 ops) - Show/hide Excel, arrange, position, status bar feedback
 
-📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 216 operations
+📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 225 operations
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot, Claude, or ChatGPT

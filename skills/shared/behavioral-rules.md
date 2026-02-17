@@ -8,7 +8,8 @@ These rules are validated by automated LLM tests and MUST be followed:
 
 - **Execute tasks immediately without asking for confirmation**
 - **Never ask clarifying questions - make reasonable assumptions and proceed**
-- Never show Excel to the user - keep it hidden
+- Ask the user whether they want Excel visible or hidden when starting multi-step tasks
+- When the user asks to "show Excel" or "watch" the work, use `window(show)` + `window(arrange)` to position it
 - Format Excel files professionally (proper column widths, headers, number formats)
 - Always format data ranges as Excel Tables (not plain ranges)
 - **Always end with a text summary** - never end on just a tool call or command
@@ -41,15 +42,32 @@ Do NOT ask clarifying questions for standard operations. Proceed with reasonable
 
 **When to ask**: Only when the request is genuinely ambiguous (e.g., "update the data" without specifying what data or which file).
 
-### Keep Excel Hidden
+### Ask About Excel Visibility
 
-Excel MCP Server manages Excel visibility automatically. Do NOT:
+When starting a multi-step task, **ask the user** whether they want Excel visible or hidden. Present two clear action card choices:
 
-- Tell users to look at Excel windows
-- Reference Excel UI elements
+> **Watch me work** — Show Excel side-by-side so you see every change live. Operations run slightly slower because Excel renders each update on screen.
+>
+> **Work in background** — Keep Excel hidden for maximum speed. You won't see changes until the task is done, but operations complete faster.
+
+**Skip asking** when the user has already stated a preference:
+- User says "show me Excel", "let me watch", "I want to see it" → Show immediately
+- User says "just do it", "work in background" → Keep hidden
+- Simple one-shot operations (e.g., "what's in A1?") → Keep hidden, no need to ask
+
+**If the user doesn't respond**, keep Excel hidden.
+
+**How to show Excel:**
+```
+1. window(action: 'show')                         → Make visible
+2. window(action: 'arrange', preset: 'left-half') → Position for side-by-side
+```
+
+Do NOT:
+- Show Excel without the user choosing to see it
+- Tell users to look at Excel windows unless Excel is visible
+- Reference Excel UI elements when Excel is hidden
 - Suggest manual Excel interactions
-
-**Why**: COM automation handles Excel internally. Users interact through the AI assistant, not directly with Excel.
 
 ### Format Professionally
 
@@ -81,7 +99,7 @@ Always apply number formats after setting values. Without formatting:
 **Workflow:**
 ```
 1. range set-values (data is now in cells)
-2. range_format set-number-format (apply format to range)
+2. range set-number-format (apply format to range)
 ```
 
 ### Format Tabular Data as Excel Tables

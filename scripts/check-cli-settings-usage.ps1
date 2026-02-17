@@ -88,7 +88,7 @@ function Get-UsedProperties {
     return $usedProps | Sort-Object -Unique
 }
 
-Write-Host "🔍 Checking CLI Settings property usage..." -ForegroundColor Cyan
+Write-Host "Checking CLI Settings property usage..." -ForegroundColor Cyan
 Write-Host ""
 
 $commandFiles = Get-ChildItem -Path $cliCommandsDir -Filter "*Command.cs" -File
@@ -147,7 +147,7 @@ foreach ($file in $commandFiles) {
 }
 
 if ($issues.Count -gt 0) {
-    Write-Host "❌ Found CLI commands with unused Settings properties:" -ForegroundColor Red
+    Write-Host "Found CLI commands with unused Settings properties:" -ForegroundColor Red
     Write-Host ""
 
     foreach ($issue in $issues) {
@@ -165,6 +165,6 @@ if ($issues.Count -gt 0) {
     exit 1
 }
 
-Write-Host "✅ CLI Settings usage check passed - $totalPassed/$totalChecked commands" -ForegroundColor Green
+Write-Host "CLI Settings usage check passed - $totalPassed/$totalChecked commands" -ForegroundColor Green
 Write-Host "   All Settings properties are used in args switch statements" -ForegroundColor Gray
 exit 0

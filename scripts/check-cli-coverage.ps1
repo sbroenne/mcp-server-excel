@@ -21,7 +21,7 @@ param(
 $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent $PSScriptRoot
 
-Write-Host "🔍 CLI Command Coverage Check" -ForegroundColor Cyan
+Write-Host "CLI Command Coverage Check" -ForegroundColor Cyan
 Write-Host "==============================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -29,12 +29,12 @@ $toolActionsPath = Join-Path $rootDir "src\ExcelMcp.Core\Models\Actions\ToolActi
 $programPath = Join-Path $rootDir "src\ExcelMcp.CLI\Program.cs"
 
 if (-not (Test-Path $toolActionsPath)) {
-    Write-Host "❌ ToolActions.cs not found: $toolActionsPath" -ForegroundColor Red
+    Write-Host "ToolActions.cs not found: $toolActionsPath" -ForegroundColor Red
     exit 1
 }
 
 if (-not (Test-Path $programPath)) {
-    Write-Host "❌ Program.cs not found: $programPath" -ForegroundColor Red
+    Write-Host "Program.cs not found: $programPath" -ForegroundColor Red
     exit 1
 }
 
@@ -114,7 +114,7 @@ foreach ($enum in $allEnums) {
     # Skip MCP-only enums (no CLI equivalent by design)
     if ($mcpOnlyEnums -contains $enum) {
         if ($Verbose) {
-            Write-Host "⏭️  $enum → (MCP-only, no CLI equivalent)" -ForegroundColor Gray
+            Write-Host "$enum -> (MCP-only, no CLI equivalent)" -ForegroundColor Gray
         }
         continue
     }
@@ -125,7 +125,7 @@ foreach ($enum in $allEnums) {
         if ($registeredCommands -contains $expectedCommand) {
             $coveredEnums += $enum
             if ($Verbose) {
-                Write-Host "✅ $enum → $expectedCommand (sub-tool)" -ForegroundColor Green
+                Write-Host "$enum -> $expectedCommand (sub-tool)" -ForegroundColor Green
             }
         } else {
             $missingCommands += @{ Enum = $enum; Expected = $expectedCommand; Reason = "sub-tool parent missing" }
@@ -143,7 +143,7 @@ foreach ($enum in $allEnums) {
     if ($registeredCommands -contains $expectedCommand) {
         $coveredEnums += $enum
         if ($Verbose) {
-            Write-Host "✅ $enum → $expectedCommand" -ForegroundColor Green
+            Write-Host "$enum -> $expectedCommand" -ForegroundColor Green
         }
     } else {
         $missingCommands += @{ Enum = $enum; Expected = $expectedCommand; Reason = "no CLI command" }
@@ -152,11 +152,11 @@ foreach ($enum in $allEnums) {
 
 # Report results
 if ($missingCommands.Count -gt 0) {
-    Write-Host "❌ MISSING CLI COMMANDS DETECTED!" -ForegroundColor Red
+    Write-Host "MISSING CLI COMMANDS DETECTED!" -ForegroundColor Red
     Write-Host ""
 
     foreach ($missing in $missingCommands) {
-        Write-Host "   $($missing.Enum) → expected CLI command: '$($missing.Expected)'" -ForegroundColor Yellow
+        Write-Host "   $($missing.Enum) -> expected CLI command: '$($missing.Expected)'" -ForegroundColor Yellow
     }
 
     Write-Host ""
@@ -169,6 +169,6 @@ if ($missingCommands.Count -gt 0) {
     exit 1
 }
 
-Write-Host "✅ All $($allEnums.Count) action enums have CLI commands!" -ForegroundColor Green
+Write-Host "All $($allEnums.Count) action enums have CLI commands!" -ForegroundColor Green
 Write-Host "   Covered: $($coveredEnums.Count) (including $($subToolEnums.Count) sub-tool enums)" -ForegroundColor Gray
 exit 0

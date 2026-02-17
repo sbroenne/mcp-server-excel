@@ -25,9 +25,9 @@ function Write-Status($message) {
     }
 }
 
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # 1. Gracefully stop ExcelMCP Service via CLI
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 function Stop-ExcelMcpService {
     # Look for excelcli in build output directories (Debug/Release)
     $scriptDir = Split-Path -Parent $PSScriptRoot  # repo root
@@ -104,9 +104,9 @@ function Stop-ExcelMcpServiceFallback {
     }
 }
 
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # 2. Kill Excel processes
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 function Stop-ExcelProcesses {
     $excelProcs = Get-Process -Name 'EXCEL' -ErrorAction SilentlyContinue
     if ($excelProcs) {
@@ -120,8 +120,8 @@ function Stop-ExcelProcesses {
     }
 }
 
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 # Run cleanup
-# ──────────────────────────────────────────────
+# ----------------------------------------------
 Stop-ExcelMcpService
 Stop-ExcelProcesses

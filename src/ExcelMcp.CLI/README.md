@@ -8,7 +8,7 @@
 
 > **Published as its own .NET tool** - Install `Sbroenne.ExcelMcp.CLI` to get the `excelcli` command. Install `Sbroenne.ExcelMcp.McpServer` separately when you also need the MCP server (`mcp-excel`).
 
-The CLI provides 16 command categories with 216 operations matching the MCP Server. Uses **64% fewer tokens** than MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 24 tool schemas into context.
+The CLI provides 17 command categories with 225 operations matching the MCP Server. Uses **64% fewer tokens** than MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 25 tool schemas into context.
 
 | Interface | Best For | Why |
 |-----------|----------|-----|
@@ -101,7 +101,7 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **216 operations** across 16 command categories:
+ExcelMcp.CLI provides **225 operations** across 17 command categories:
 
 📚 **[Complete Feature Reference →](../../FEATURES.md)** - Full documentation with all operations
 

@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -379,13 +379,16 @@ public partial class ChartCommands
                     throw new InvalidOperationException($"Chart '{chartName}' has no data series.");
                 }
 
+                // Treat 0 as "all series" (MCP clients may send 0 when parameter is omitted)
+                if (seriesIndex == 0) seriesIndex = null;
+
                 // Determine which series to configure
                 int startIndex = seriesIndex ?? 1;
                 int endIndex = seriesIndex ?? seriesCount;
 
                 if (seriesIndex.HasValue && (seriesIndex.Value < 1 || seriesIndex.Value > seriesCount))
                 {
-                    throw new ArgumentException($"Series index {seriesIndex.Value} is out of range. Chart has {seriesCount} series.");
+                    throw new ArgumentException($"Series index {seriesIndex.Value} is out of range. Chart has {seriesCount} series (1-based).");
                 }
 
                 for (int i = startIndex; i <= endIndex; i++)
@@ -721,7 +724,7 @@ public partial class ChartCommands
 
                 if (seriesIndex < 1 || seriesIndex > seriesCount)
                 {
-                    throw new ArgumentException($"Series index {seriesIndex} is out of range. Chart has {seriesCount} series.");
+                    throw new ArgumentException($"Series index {seriesIndex} is out of range. Chart has {seriesCount} series (1-based indexing, use 1 for first series).");
                 }
 
                 series = seriesCollection.Item(seriesIndex);
@@ -835,7 +838,7 @@ public partial class ChartCommands
 
                 if (seriesIndex < 1 || seriesIndex > seriesCount)
                 {
-                    throw new ArgumentException($"Series index {seriesIndex} is out of range. Chart has {seriesCount} series.");
+                    throw new ArgumentException($"Series index {seriesIndex} is out of range. Chart has {seriesCount} series (1-based indexing, use 1 for first series).");
                 }
 
                 series = seriesCollection.Item(seriesIndex);
@@ -949,7 +952,7 @@ public partial class ChartCommands
 
                 if (seriesIndex < 1 || seriesIndex > seriesCount)
                 {
-                    throw new ArgumentException($"Series index {seriesIndex} is out of range. Chart has {seriesCount} series.");
+                    throw new ArgumentException($"Series index {seriesIndex} is out of range. Chart has {seriesCount} series (1-based indexing, use 1 for first series).");
                 }
 
                 series = seriesCollection.Item(seriesIndex);
@@ -1040,7 +1043,7 @@ public partial class ChartCommands
 
                 if (seriesIndex < 1 || seriesIndex > seriesCount)
                 {
-                    throw new ArgumentException($"Series index {seriesIndex} is out of range. Chart has {seriesCount} series.");
+                    throw new ArgumentException($"Series index {seriesIndex} is out of range. Chart has {seriesCount} series (1-based indexing, use 1 for first series).");
                 }
 
                 series = seriesCollection.Item(seriesIndex);
@@ -1102,7 +1105,7 @@ public partial class ChartCommands
 
                 if (seriesIndex < 1 || seriesIndex > seriesCount)
                 {
-                    throw new ArgumentException($"Series index {seriesIndex} is out of range. Chart has {seriesCount} series.");
+                    throw new ArgumentException($"Series index {seriesIndex} is out of range. Chart has {seriesCount} series (1-based indexing, use 1 for first series).");
                 }
 
                 series = seriesCollection.Item(seriesIndex);

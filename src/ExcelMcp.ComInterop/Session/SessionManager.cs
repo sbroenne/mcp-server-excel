@@ -32,6 +32,7 @@ public sealed class SessionManager : IDisposable
     private readonly ConcurrentDictionary<string, bool> _showExcelFlags = new();
     private readonly ConcurrentDictionary<string, SessionOrigin> _sessionOrigins = new();
     private readonly ConcurrentDictionary<string, DateTime> _sessionCreatedAt = new();
+    private readonly Polly.ResiliencePipeline _sessionCreationPipeline = ResiliencePipelines.CreateSessionCreationPipeline();
     private readonly ILogger<SessionManager> _logger;
     private bool _disposed;
 
@@ -83,8 +84,9 @@ public sealed class SessionManager : IDisposable
         IExcelBatch? batch = null;
         try
         {
-            // Create batch session using Core API
-            batch = ExcelSession.BeginBatch(show, operationTimeout, filePath);
+            // Create batch session using Core API with retry for transient COM failures
+            // (e.g., CO_E_SERVER_EXEC_FAILURE when system resources are constrained)
+            batch = _sessionCreationPipeline.Execute(() => ExcelSession.BeginBatch(show, operationTimeout, filePath));
 
             // Store in active sessions
             if (!_activeSessions.TryAdd(sessionId, batch))
@@ -177,8 +179,8 @@ public sealed class SessionManager : IDisposable
         ExcelBatch? batch = null;
         try
         {
-            // Create new workbook and keep session open
-            batch = ExcelBatch.CreateNewWorkbook(normalizedPath, isMacroEnabled, logger: null, show: show, operationTimeout: operationTimeout);
+            // Create new workbook and keep session open with retry for transient COM failures
+            batch = _sessionCreationPipeline.Execute(() => ExcelBatch.CreateNewWorkbook(normalizedPath, isMacroEnabled, logger: null, show: show, operationTimeout: operationTimeout));
 
             // Store in active sessions
             if (!_activeSessions.TryAdd(sessionId, batch))
@@ -334,11 +336,26 @@ public sealed class SessionManager : IDisposable
     /// Gets whether Excel is visible for a session.
     /// </summary>
     /// <param name="sessionId">Session ID</param>
-    /// <returns>True if show was true when session was created</returns>
+    /// <returns>True if Excel is visible for this session</returns>
     public bool IsExcelVisible(string sessionId)
     {
         if (string.IsNullOrWhiteSpace(sessionId)) return false;
         return _showExcelFlags.TryGetValue(sessionId, out var visible) && visible;
+    }
+
+    /// <summary>
+    /// Updates the visibility flag for a session.
+    /// Called by window management commands when Excel visibility changes mid-session.
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <param name="visible">New visibility state</param>
+    /// <returns>True if session was found and flag updated, false if session not found</returns>
+    public bool SetExcelVisible(string sessionId, bool visible)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId)) return false;
+        if (!_activeSessions.ContainsKey(sessionId)) return false;
+        _showExcelFlags[sessionId] = visible;
+        return true;
     }
 
     /// <summary>
@@ -566,9 +583,11 @@ public sealed class SessionManager : IDisposable
     }
 
     /// <summary>
-    /// Disposes all active sessions.
+    /// Disposes all active sessions, auto-saving each one first to prevent data loss.
     /// </summary>
     /// <remarks>
+    /// <para><b>CRITICAL:</b> Sessions are auto-saved before disposal to prevent silent data loss
+    /// when the service shuts down (e.g., MCP client disconnect, process exit).</para>
     /// <para><b>CRITICAL:</b> Sessions are disposed SEQUENTIALLY to avoid COM threading issues.</para>
     /// <para>Excel COM objects must be disposed on their STA threads. Parallel disposal causes deadlocks.</para>
     /// </remarks>
@@ -590,6 +609,23 @@ public sealed class SessionManager : IDisposable
 
         foreach (var session in sessions)
         {
+            // Auto-save before disposal to prevent silent data loss.
+            // This protects against the common scenario where the MCP client disconnects
+            // or the service process exits, which would otherwise discard all unsaved work.
+            if (session.IsExcelProcessAlive())
+            {
+                try
+                {
+                    using var saveTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                    session.Save(saveTimeout.Token);
+                    _logger.LogInformation("Auto-saved session for {Path} before shutdown", session.WorkbookPath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to auto-save session for {Path} before shutdown (changes may be lost)", session.WorkbookPath);
+                }
+            }
+
             try
             {
                 // Dispose sequentially - ExcelBatch.Dispose() handles its own Excel cleanup

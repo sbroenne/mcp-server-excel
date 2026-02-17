@@ -90,7 +90,7 @@ foreach ($enumName in $mappings.Keys) {
     $existingInterfaces = $interfaceFiles | Where-Object { Test-Path $_ }
     if ($existingInterfaces.Count -eq 0) {
         $missing = $interfaceFiles -join ", "
-        Write-Host "  ⚠️  Warning: Core interface(s) not found: $missing" -ForegroundColor Yellow
+        Write-Host "  Warning: Core interface(s) not found: $missing" -ForegroundColor Yellow
         continue
     }
 
@@ -136,12 +136,12 @@ foreach ($enumName in $mappings.Keys) {
         }
 
         if ($missingMethods.Count -gt 0) {
-            $errors += "❌ $enumName has actions without Core implementations:"
+            $errors += "$enumName has actions without Core implementations:"
             foreach ($missing in $missingMethods) {
                 $errors += "   - $missing (expected ${missing}Async in $($mappings[$enumName] -join ', '))"
             }
         } else {
-            Write-Host "  ✅ $enumName - all $($enumValues.Count) actions have Core implementations" -ForegroundColor Green
+            Write-Host "  $enumName - all $($enumValues.Count) actions have Core implementations" -ForegroundColor Green
         }
     }
 }
@@ -160,5 +160,5 @@ if ($errors.Count -gt 0) {
 }
 
 Write-Host ""
-Write-Host "✅ All MCP Tool actions have Core implementations" -ForegroundColor Green
+Write-Host "All MCP Tool actions have Core implementations" -ForegroundColor Green
 exit 0

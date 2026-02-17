@@ -27,15 +27,15 @@ $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent $PSScriptRoot
 
 # CRITICAL: Check branch FIRST - never commit directly to main (Rule 6)
-Write-Host "🔍 Checking current branch..." -ForegroundColor Cyan
+Write-Host "Checking current branch..." -ForegroundColor Cyan
 $currentBranch = git branch --show-current
 
 if ($currentBranch -eq "main") {
     Write-Host ""
-    Write-Host "❌ BLOCKED: Cannot commit directly to 'main' branch!" -ForegroundColor Red
+    Write-Host "BLOCKED: Cannot commit directly to 'main' branch!" -ForegroundColor Red
     Write-Host ""
     Write-Host "   Rule 6: All Changes Via Pull Requests" -ForegroundColor Yellow
-    Write-Host "   'Never commit to main. Create feature branch → PR → CI/CD + review → merge.'" -ForegroundColor Yellow
+    Write-Host "   'Never commit to main. Create feature branch -> PR -> CI/CD + review -> merge.'" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "   To fix:" -ForegroundColor Cyan
     Write-Host "   1. git stash                                    # Save your changes" -ForegroundColor White
@@ -47,11 +47,11 @@ if ($currentBranch -eq "main") {
     exit 1
 }
 
-Write-Host "✅ Branch check passed - on '$currentBranch' (not main)" -ForegroundColor Green
+Write-Host "Branch check passed - on '$currentBranch' (not main)" -ForegroundColor Green
 Write-Host ""
 
 # Kill stale Excel and MCP server processes to avoid file locks on Release binaries
-Write-Host "🧹 Killing stale Excel and server processes..." -ForegroundColor Cyan
+Write-Host "Killing stale Excel and server processes..." -ForegroundColor Cyan
 
 $killedProcesses = @()
 foreach ($procName in @("EXCEL", "excelcli", "Sbroenne.ExcelMcp.McpServer", "Sbroenne.ExcelMcp.Service")) {
@@ -71,10 +71,10 @@ else {
     Write-Host "   No stale processes found" -ForegroundColor Gray
 }
 
-Write-Host "✅ Process cleanup done" -ForegroundColor Green
+Write-Host "Process cleanup done" -ForegroundColor Green
 Write-Host ""
 
-Write-Host "🔍 Checking for COM object leaks..." -ForegroundColor Cyan
+Write-Host "Checking for COM object leaks..." -ForegroundColor Cyan
 
 try {
     $leakCheckScript = Join-Path $rootDir "scripts\check-com-leaks.ps1"
@@ -82,19 +82,19 @@ try {
 
     if ($LASTEXITCODE -ne 0) {
         Write-Host ""
-        Write-Host "❌ COM object leaks detected! Fix them before committing." -ForegroundColor Red
+        Write-Host "COM object leaks detected! Fix them before committing." -ForegroundColor Red
         exit 1
     }
 
-    Write-Host "✅ COM leak check passed" -ForegroundColor Green
+    Write-Host "COM leak check passed" -ForegroundColor Green
 }
 catch {
-    Write-Host "⚠️  Error running COM leak check: $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host "Error running COM leak check: $($_.Exception.Message)" -ForegroundColor Yellow
     Write-Host "   Continuing with coverage audit..." -ForegroundColor Gray
 }
 
 Write-Host ""
-Write-Host "🔍 Checking Core Commands coverage and naming..." -ForegroundColor Cyan
+Write-Host "Checking Core Commands coverage and naming..." -ForegroundColor Cyan
 
 try {
     $auditScript = Join-Path $rootDir "scripts\audit-core-coverage.ps1"
@@ -102,22 +102,22 @@ try {
 
     if ($LASTEXITCODE -ne 0) {
         Write-Host ""
-        Write-Host "❌ Coverage or naming issues detected!" -ForegroundColor Red
+        Write-Host "Coverage or naming issues detected!" -ForegroundColor Red
         Write-Host "   All Core methods must be exposed via MCP Server with matching names." -ForegroundColor Red
         Write-Host "   Fix the issues before committing (add/rename enum values and mappings)." -ForegroundColor Red
         exit 1
     }
 
-    Write-Host "✅ Coverage and naming checks passed - 100% coverage with consistent names" -ForegroundColor Green
+    Write-Host "Coverage and naming checks passed - 100% coverage with consistent names" -ForegroundColor Green
 }
 catch {
     Write-Host ""
-    Write-Host "❌ Error running coverage audit: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Error running coverage audit: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
 
 Write-Host ""
-Write-Host "🔍 Checking MCP actions have Core implementations..." -ForegroundColor Cyan
+Write-Host "Checking MCP actions have Core implementations..." -ForegroundColor Cyan
 
 try {
     $mcpCoreScript = Join-Path $rootDir "scripts\check-mcp-core-implementations.ps1"
@@ -125,22 +125,22 @@ try {
 
     if ($LASTEXITCODE -ne 0) {
         Write-Host ""
-        Write-Host "❌ MCP actions without Core implementations detected!" -ForegroundColor Red
+        Write-Host "MCP actions without Core implementations detected!" -ForegroundColor Red
         Write-Host "   All enum actions must have matching Core Command methods." -ForegroundColor Red
         Write-Host "   Fix the issues before committing (remove enum or implement method)." -ForegroundColor Red
         exit 1
     }
 
-    Write-Host "✅ MCP-Core implementation check passed" -ForegroundColor Green
+    Write-Host "MCP-Core implementation check passed" -ForegroundColor Green
 }
 catch {
     Write-Host ""
-    Write-Host "❌ Error running MCP-Core implementation check: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Error running MCP-Core implementation check: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
 
 Write-Host ""
-Write-Host "🔍 Checking Success flag violations (Rule 0)..." -ForegroundColor Cyan
+Write-Host "Checking Success flag violations (Rule 0)..." -ForegroundColor Cyan
 
 try {
     $successFlagScript = Join-Path $rootDir "scripts\check-success-flag.ps1"
@@ -148,17 +148,17 @@ try {
 
     if ($LASTEXITCODE -ne 0) {
         Write-Host ""
-        Write-Host "❌ Success flag violations detected!" -ForegroundColor Red
+        Write-Host "Success flag violations detected!" -ForegroundColor Red
         Write-Host "   CRITICAL: Success=true with ErrorMessage confuses LLMs and causes data corruption." -ForegroundColor Red
         Write-Host "   Fix the violations before committing (add Success=false in catch blocks)." -ForegroundColor Red
         exit 1
     }
 
-    Write-Host "✅ Success flag check passed - all flags match reality" -ForegroundColor Green
+    Write-Host "Success flag check passed - all flags match reality" -ForegroundColor Green
 }
 catch {
     Write-Host ""
-    Write-Host "❌ Error running success flag check: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Error running success flag check: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
 
@@ -169,7 +169,7 @@ catch {
 # - CLI workflow smoke test below (end-to-end validation)
 
 Write-Host ""
-Write-Host "🔍 Auto-staging generated SKILL.md files..." -ForegroundColor Cyan
+Write-Host "Auto-staging generated SKILL.md files..." -ForegroundColor Cyan
 
 try {
     # SKILL.md files are generated during Release build from templates + source generators.
@@ -192,19 +192,19 @@ try {
 
     if ($allChanges.Count -gt 0) {
         git add -- @skillPaths
-        Write-Host "✅ Skill files were regenerated and auto-staged ($($allChanges.Count) files)" -ForegroundColor Green
+        Write-Host "Skill files were regenerated and auto-staged ($($allChanges.Count) files)" -ForegroundColor Green
         $allChanges | ForEach-Object { Write-Host "   + $_" -ForegroundColor DarkGray }
     } else {
-        Write-Host "✅ Skill files are already up to date" -ForegroundColor Green
+        Write-Host "Skill files are already up to date" -ForegroundColor Green
     }
 }
 catch {
-    Write-Host "⚠️  Error auto-staging SKILL.md files: $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host "Error auto-staging SKILL.md files: $($_.Exception.Message)" -ForegroundColor Yellow
     Write-Host "   Continuing with remaining checks..." -ForegroundColor Gray
 }
 
 Write-Host ""
-Write-Host "🔍 Running CLI workflow smoke test..." -ForegroundColor Cyan
+Write-Host "Running CLI workflow smoke test..." -ForegroundColor Cyan
 
 try {
     $cliWorkflowScript = Join-Path $rootDir "scripts\Test-CliWorkflow.ps1"
@@ -213,7 +213,7 @@ try {
 
     if ($cliWorkflowExitCode -ne 0) {
         Write-Host ""
-        Write-Host "❌ CLI workflow smoke test failed!" -ForegroundColor Red
+        Write-Host "CLI workflow smoke test failed!" -ForegroundColor Red
         Write-Host "   This test validates the end-to-end CLI workflow." -ForegroundColor Red
         Write-Host "   Fix the issues before committing." -ForegroundColor Red
         Write-Host ""
@@ -221,16 +221,16 @@ try {
         exit 1
     }
 
-    Write-Host "✅ CLI workflow smoke test passed" -ForegroundColor Green
+    Write-Host "CLI workflow smoke test passed" -ForegroundColor Green
 }
 catch {
     Write-Host ""
-    Write-Host "❌ Error running CLI workflow smoke test: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Error running CLI workflow smoke test: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
 
 Write-Host ""
-Write-Host "🔍 Running MCP Server smoke test..." -ForegroundColor Cyan
+Write-Host "Running MCP Server smoke test..." -ForegroundColor Cyan
 
 # Stop ExcelMCP Service before smoke test to prevent DLL locking
 & "$PSScriptRoot\Stop-ExcelMcpProcesses.ps1"
@@ -249,7 +249,7 @@ try {
     # Note: "No test matches" appears for projects without the test, so we check for "Passed"
     if (-not ($testOutput -match "Passed!.*Passed:\s*[1-9]")) {
         Write-Host ""
-        Write-Host "❌ CRITICAL: No smoke tests passed! Filter may have matched zero tests." -ForegroundColor Red
+        Write-Host "CRITICAL: No smoke tests passed! Filter may have matched zero tests." -ForegroundColor Red
         Write-Host "   Filter: $smokeTestFilter" -ForegroundColor Yellow
         Write-Host "   This likely means the test was renamed or deleted." -ForegroundColor Yellow
         Write-Host "   Verify the test exists: McpServerSmokeTests.SmokeTest_AllTools_E2EWorkflow" -ForegroundColor Yellow
@@ -260,7 +260,7 @@ try {
 
     if ($testExitCode -ne 0) {
         Write-Host ""
-        Write-Host "❌ MCP Server smoke test failed! Core functionality is broken." -ForegroundColor Red
+        Write-Host "MCP Server smoke test failed! Core functionality is broken." -ForegroundColor Red
         Write-Host "   This test validates all MCP tools work correctly." -ForegroundColor Red
         Write-Host "   Fix the issues before committing." -ForegroundColor Red
         Write-Host ""
@@ -268,15 +268,15 @@ try {
         exit 1
     }
 
-    Write-Host "✅ MCP Server smoke test passed - all tools functional" -ForegroundColor Green
+    Write-Host "MCP Server smoke test passed - all tools functional" -ForegroundColor Green
 }
 catch {
     Write-Host ""
-    Write-Host "❌ Error running smoke test: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Error running smoke test: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host "   Ensure Excel is installed and accessible." -ForegroundColor Yellow
     exit 1
 }
 
 Write-Host ""
-Write-Host "✅ All pre-commit checks passed!" -ForegroundColor Green
+Write-Host "All pre-commit checks passed!" -ForegroundColor Green
 exit 0

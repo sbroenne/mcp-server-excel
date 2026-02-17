@@ -17,7 +17,7 @@
 $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent $PSScriptRoot
 
-Write-Host "🔍 CLI Actions Audit" -ForegroundColor Cyan
+Write-Host "CLI Actions Audit" -ForegroundColor Cyan
 Write-Host "=====================" -ForegroundColor Cyan
 Write-Host ""
 

@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**24 specialized tools with 216 operations for comprehensive Excel automation**
+**25 specialized tools with 225 operations for comprehensive Excel automation**
 
 ---
 
@@ -404,6 +404,31 @@
 
 ---
 
+## 🪧 Window Management (9 operations)
+
+- **Show:** Makes Excel visible and brings it to the foreground
+- **Hide:** Hides the Excel window
+- **Bring to Front:** Brings Excel to the foreground without changing visibility
+- **Get Info:** Gets current window state (visibility, position, size, foreground status)
+- **Set State:** Sets window state to normal, minimized, or maximized
+- **Set Position:** Sets window position and size in points (left, top, width, height)
+- **Arrange:** Arranges Excel window using preset layouts
+- **Set Status Bar:** Displays custom text in Excel's status bar for real-time feedback
+- **Clear Status Bar:** Restores the default status bar text
+
+**Arrange Presets:**
+- `left-half` / `right-half` — Side-by-side with other applications
+- `top-half` / `bottom-half` — Stacked view
+- `center` — Centered window (60% of screen)
+- `full-screen` — Maximized
+
+**Use Cases:**
+- Interactive "agent mode" where users watch Excel respond to AI commands in real-time
+- Side-by-side: Excel on one half, AI assistant on the other
+- Visibility changes are reflected in session metadata (session list shows updated state)
+
+---
+
 ## 📊 Total Operations Summary
 
 | Category | Operations |
@@ -423,7 +448,8 @@
 | Conditional Formatting | 2 |
 | Screenshot | 2 |
 | Calculation Mode | 3 |
-| **Total** | **216** |
+| Window Management | 9 |
+| **Total** | **225** |
 
 ---
 
