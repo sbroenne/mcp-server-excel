@@ -5,16 +5,15 @@ description: >
   or modifying Excel workbooks from scripts, CI/CD, or coding agents.
   Supports Power Query, DAX, PivotTables, Tables, Ranges, Charts, VBA.
   Triggers: Excel, spreadsheet, workbook, xlsx, excelcli, CLI automation.
-compatibility: Windows + Microsoft Excel 2016+ required. Uses COM interop - does NOT work on macOS or Linux.
-allowed-tools: Cmd(excelcli:*),PowerShell(excelcli:*)
-disable-model-invocation: true
-license: MIT
-version: {{ version }}
-repository: {{ repository }}
-documentation: {{ documentation }}
 ---
 
 # Excel Automation with excelcli
+
+## Preconditions
+
+- Windows host with Microsoft Excel installed (2016+)
+- Uses COM interop — does NOT work on macOS or Linux
+- Install: `dotnet tool install --global Sbroenne.ExcelMcp.CLI`
 
 ## Workflow Checklist
 
@@ -218,25 +217,19 @@ Parameters that accept lists (e.g., `--selected-items` for slicers) require JSON
 
 ## Reference Documentation
 
-- @references/behavioral-rules.md - Core execution rules and LLM guidelines
-- @references/anti-patterns.md - Common mistakes to avoid
-- @references/workflows.md - Data Model constraints and patterns
-- @references/chart.md - Charts, positioning, and formatting
-- @references/conditionalformat.md - Conditional formatting operations
-- @references/dashboard.md - Dashboard and report best practices
-- @references/datamodel.md - Data Model/DAX specifics
-- @references/dmv-reference.md - DMV query reference for Data Model analysis
-- @references/m-code-syntax.md - Power Query M code syntax reference
-- @references/pivottable.md - PivotTable operations
-- @references/powerquery.md - Power Query specifics
-- @references/range.md - Range operations and number formats
-- @references/screenshot.md - Screenshot and visual verification
-- @references/slicer.md - Slicer operations
-- @references/table.md - Table operations
-- @references/worksheet.md - Worksheet operations
-
-## Installation
-
-```powershell
-dotnet tool install --global Sbroenne.ExcelMcp.CLI
-```
+- [Core execution rules and LLM guidelines](./references/behavioral-rules.md)
+- [Common mistakes to avoid](./references/anti-patterns.md)
+- [Data Model constraints and patterns](./references/workflows.md)
+- [Charts, positioning, and formatting](./references/chart.md)
+- [Conditional formatting operations](./references/conditionalformat.md)
+- [Dashboard and report best practices](./references/dashboard.md)
+- [Data Model/DAX specifics](./references/datamodel.md)
+- [DMV query reference for Data Model analysis](./references/dmv-reference.md)
+- [Power Query M code syntax reference](./references/m-code-syntax.md)
+- [PivotTable operations](./references/pivottable.md)
+- [Power Query specifics](./references/powerquery.md)
+- [Range operations and number formats](./references/range.md)
+- [Screenshot and visual verification](./references/screenshot.md)
+- [Slicer operations](./references/slicer.md)
+- [Table operations](./references/table.md)
+- [Worksheet operations](./references/worksheet.md)

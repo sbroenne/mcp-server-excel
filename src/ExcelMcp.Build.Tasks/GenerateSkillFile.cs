@@ -20,18 +20,8 @@ public class GenerateSkillFile : Microsoft.Build.Utilities.Task
     [Required]
     public string OutputPath { get; set; } = "";
 
-    /// <summary>Version number to inject into template</summary>
-    [Required]
-    public string Version { get; set; } = "";
-
     /// <summary>Path to the generated _SkillManifest.g.cs file containing JSON metadata</summary>
     public string? ManifestPath { get; set; }
-
-    /// <summary>Repository URL to inject into template</summary>
-    public string? Repository { get; set; }
-
-    /// <summary>Documentation URL to inject into template</summary>
-    public string? Documentation { get; set; }
 
     /// <summary>Executes the task to generate the skill file from the template.</summary>
     /// <returns>true if the task succeeded; otherwise, false.</returns>
@@ -92,12 +82,7 @@ public class GenerateSkillFile : Microsoft.Build.Utilities.Task
 
     private SkillTemplateModel BuildModelFromManifest()
     {
-        var model = new SkillTemplateModel
-        {
-            Version = Version,
-            Repository = Repository ?? "https://github.com/sbroenne/mcp-server-excel",
-            Documentation = Documentation ?? "https://excelmcpserver.dev/"
-        };
+        var model = new SkillTemplateModel();
 
         if (string.IsNullOrEmpty(ManifestPath) || !File.Exists(ManifestPath))
         {
