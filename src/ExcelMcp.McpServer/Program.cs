@@ -184,6 +184,12 @@ public class Program
             return 1;
         }
 #pragma warning restore CA1031
+        finally
+        {
+            // CRITICAL: Auto-save all sessions and clean up Excel processes on shutdown.
+            // Without this, MCP client disconnect or process exit silently discards all unsaved work.
+            ServiceBridge.ServiceBridge.Dispose();
+        }
     }
 
     /// <summary>

@@ -25,7 +25,6 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
 {
     private readonly ITestOutputHelper _output;
     private readonly string _tempDir;
-    private readonly string _testExcelFile;
 
     // MCP transport pipes
     private readonly Pipe _clientToServerPipe = new();
@@ -39,7 +38,6 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         _output = output;
         _tempDir = Path.Join(Path.GetTempPath(), $"ExcelFileToolOpTrackingTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempDir);
-        _testExcelFile = Path.Join(_tempDir, "TestWorkbook.xlsx");
         _output.WriteLine($"Test directory: {_tempDir}");
     }
 
@@ -68,26 +66,6 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
             cancellationToken: _cts.Token);
 
         _output.WriteLine($"✓ Connected to server: {_client.ServerInfo?.Name} v{_client.ServerInfo?.Version}");
-
-        // Create a test Excel file and open session
-        var createResult = await CallToolAsync("file", new Dictionary<string, object?>
-        {
-            ["action"] = "create",
-            ["path"] = _testExcelFile
-        });
-        _output.WriteLine($"Created test file: {_testExcelFile}");
-
-        // Close the session immediately - we only need the file to exist for the tests
-        if (createResult.TryGetProperty("sessionId", out var sessionIdProp))
-        {
-            var sessionId = sessionIdProp.GetString();
-            await CallToolAsync("file", new Dictionary<string, object?>
-            {
-                ["action"] = "close",
-                ["session_id"] = sessionId,
-                ["save"] = false
-            });
-        }
     }
 
     public async Task DisposeAsync()
@@ -177,11 +155,12 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
     [Fact]
     public async Task List_ReturnsSessionsWithOperationStatus()
     {
-        // Open a session
+        // Create a unique file and session for this test
+        var testFile = Path.Join(_tempDir, $"ListTest_{Guid.NewGuid():N}.xlsx");
         var openResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
-            ["action"] = "open",
-            ["path"] = _testExcelFile,
+            ["action"] = "create",
+            ["path"] = testFile,
             ["show"] = false
         });
 
@@ -226,11 +205,12 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
     [Fact]
     public async Task List_SessionWithShowExcelTrue_ReturnsIsExcelVisibleTrue()
     {
-        // Open a session with show=true
+        // Create a unique file with show=true for this test
+        var testFile = Path.Join(_tempDir, $"ShowExcelTest_{Guid.NewGuid():N}.xlsx");
         var openResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
-            ["action"] = "open",
-            ["path"] = _testExcelFile,
+            ["action"] = "create",
+            ["path"] = testFile,
             ["show"] = true
         });
 
@@ -267,11 +247,12 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
     [Fact]
     public async Task Close_NoOperationsRunning_ClosesSuccessfully()
     {
-        // Open a session
+        // Create a unique file and session for this test
+        var testFile = Path.Join(_tempDir, $"CloseTest_{Guid.NewGuid():N}.xlsx");
         var openResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
-            ["action"] = "open",
-            ["path"] = _testExcelFile,
+            ["action"] = "create",
+            ["path"] = testFile,
             ["show"] = false
         });
 

@@ -193,4 +193,14 @@ public static class ServiceBridge
     {
         return await SendAsync("session.test", null, new { filePath = excelPath }, cancellationToken: cancellationToken);
     }
+
+    /// <summary>
+    /// Disposes the in-process ExcelMCP Service, auto-saving all sessions before shutdown.
+    /// Must be called when the MCP server process exits to prevent silent data loss.
+    /// </summary>
+    public static void Dispose()
+    {
+        var service = Interlocked.Exchange(ref _service, null);
+        service?.Dispose();
+    }
 }

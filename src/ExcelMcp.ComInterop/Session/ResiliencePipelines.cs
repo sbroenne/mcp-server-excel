@@ -34,6 +34,12 @@ public static class ResiliencePipelines
     public const int RPC_S_SERVER_UNAVAILABLE = unchecked((int)0x800706BA);     // -2147023174
 
     /// <summary>
+    /// CO_E_SERVER_EXEC_FAILURE - COM class factory failed to start the server (Excel).
+    /// Transient during session creation when system resources are constrained.
+    /// </summary>
+    public const int CO_E_SERVER_EXEC_FAILURE = unchecked((int)0x80080005);     // -2146959355
+
+    /// <summary>
     /// Data Model specific error - intermittent failure during measure/table operations.
     /// See GitHub Issue #315.
     /// </summary>
@@ -59,6 +65,16 @@ public static class ResiliencePipelines
         DelayMs: 1000,
         AdditionalHResults: [DATA_MODEL_BUSY]);
 
+    /// <summary>
+    /// Retry configuration for session creation (starting new Excel instances).
+    /// Handles CO_E_SERVER_EXEC_FAILURE when system can't launch Excel temporarily.
+    /// Also handles RPC_E_CALL_FAILED since a new process hasn't been contacted yet.
+    /// </summary>
+    private static readonly PipelineConfig SessionCreationConfig = new(
+        MaxRetryAttempts: 3,
+        DelayMs: 2000,
+        AdditionalHResults: [CO_E_SERVER_EXEC_FAILURE, RPC_E_CALL_FAILED]);
+
     #endregion
 
     #region Factory Methods
@@ -81,6 +97,19 @@ public static class ResiliencePipelines
     /// </remarks>
     /// <returns>Configured resilience pipeline</returns>
     public static ResiliencePipeline CreateDataModelPipeline() => CreatePipeline(DataModelConfig);
+
+    /// <summary>
+    /// Creates a retry pipeline for session creation operations.
+    /// Handles CO_E_SERVER_EXEC_FAILURE (0x80080005) and RPC_E_CALL_FAILED (0x800706BE)
+    /// which occur when the system cannot start a new Excel process temporarily.
+    /// </summary>
+    /// <remarks>
+    /// Unlike mid-session pipelines where RPC_E_CALL_FAILED is fatal (Excel died),
+    /// during session creation these errors are transient — the system may be temporarily
+    /// unable to launch a new Excel process due to resource constraints.
+    /// </remarks>
+    /// <returns>Configured resilience pipeline</returns>
+    public static ResiliencePipeline CreateSessionCreationPipeline() => CreateSessionPipeline(SessionCreationConfig);
 
     #endregion
 
@@ -106,6 +135,31 @@ public static class ResiliencePipelines
                     (ex.HResult == RPC_E_SERVERCALL_RETRYLATER ||
                      ex.HResult == RPC_E_CALL_REJECTED ||
                      config.AdditionalHResults.Contains(ex.HResult))),
+
+                OnRetry = static _ => ValueTask.CompletedTask
+            })
+            .Build();
+    }
+
+    /// <summary>
+    /// Creates a resilience pipeline for session creation.
+    /// Unlike <see cref="CreatePipeline"/>, this does NOT exclude RPC_E_CALL_FAILED as fatal
+    /// because during session creation there is no existing Excel process to have died.
+    /// </summary>
+    private static ResiliencePipeline CreateSessionPipeline(PipelineConfig config)
+    {
+        return new ResiliencePipelineBuilder()
+            .AddRetry(new RetryStrategyOptions
+            {
+                MaxRetryAttempts = config.MaxRetryAttempts,
+                BackoffType = DelayBackoffType.Exponential,
+                UseJitter = true,
+                Delay = TimeSpan.FromMilliseconds(config.DelayMs),
+
+                ShouldHandle = new PredicateBuilder().Handle<COMException>(ex =>
+                    ex.HResult == RPC_E_SERVERCALL_RETRYLATER ||
+                    ex.HResult == RPC_E_CALL_REJECTED ||
+                    config.AdditionalHResults.Contains(ex.HResult)),
 
                 OnRetry = static _ => ValueTask.CompletedTask
             })

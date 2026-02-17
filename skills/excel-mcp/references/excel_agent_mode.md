@@ -110,15 +110,6 @@ Use `window(set-status-bar)` to show operation progress in Excel's status bar:
 
 **Only set when visible**: Status bar text is only useful when Excel is visible. Skip status bar calls when Excel is hidden.
 
-## Performance: Batch UI Updates
-
-When Excel is visible, screen rendering slows operations down. To reduce the performance cost, **batch related operations** and minimize intermediate screen updates:
-
-- **Group related writes** — set multiple ranges in sequence rather than interleaving reads and writes
-- **Use set-values with full data** — send complete 2D arrays instead of writing cell-by-cell
-- **Status bar between phases** — update the status bar between logical phases (data → PivotTable → chart), not between every single operation
-- **Minimize window calls** — only call arrange/set-state once at session start, not repeatedly
-
 ## Asking About Visibility
 
 When starting a session, present the visibility choice as action cards so the user can pick with one click:
