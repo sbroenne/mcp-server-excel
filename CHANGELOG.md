@@ -12,6 +12,17 @@ This changelog covers all components:
 
 ### Added
 
+- **Window Management Tool** (#470): New `window` tool with 9 operations to control Excel window visibility, position, state, and status bar — enabling "Agent Mode" where users watch AI work in Excel
+  - `show` / `hide` — Toggle Excel visibility (syncs with session metadata)
+  - `bring-to-front` — Bring Excel to foreground
+  - `get-info` — Query window state (visibility, position, size, foreground status)
+  - `set-state` — Set normal / minimized / maximized
+  - `set-position` — Set window left, top, width, height
+  - `arrange` — Preset layouts: left-half, right-half, top-half, bottom-half, center, full-screen
+  - `set-status-bar` — Display live operation status text in Excel's status bar
+  - `clear-status-bar` — Restore default status bar text
+  - MCP Server proactively asks users about showing Excel for visual tasks (charts, dashboards)
+  - Agent Mode, Presentation Mode, and Debug Mode workflow guidance
 - **CLI `--output` flag** for all commands: Save command output directly to a file. Screenshot commands automatically save decoded PNG images instead of base64 JSON
 - **CLI Batch Mode** (#463): New `excelcli batch` command executes multiple CLI commands from a JSON file in a single process launch
   - Session auto-capture from `session.open`/`session.create`, auto-clear on `session.close`

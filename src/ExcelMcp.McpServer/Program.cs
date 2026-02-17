@@ -110,22 +110,31 @@ public class Program
                     - Wait for error message to clear before retrying close
                     - This prevents data loss from closing mid-operation
 
-                    SHOW EXCEL (watch changes live):
-                    - Default is show:false (hidden) - USE THIS DEFAULT unless user explicitly requests visible Excel
-                    - show:true displays Excel window so user can watch operations in real-time
-                    - show:true is SLOWER - only use when user explicitly wants to watch
+                    SHOW EXCEL — "Agent Mode" (hero feature):
+                    - Default is show:false (hidden) — but ASK the user before starting multi-step tasks
+                    - Excel MCP supports "Agent Mode": users watch AI work in Excel in real-time
+                    - When starting a task, present two clear action card choices:
+                      (1) "Watch me work" — Show Excel side-by-side so you see every change live. Slightly slower because Excel renders each update.
+                      (2) "Work in background" — Keep Excel hidden for maximum speed. You won't see changes until done, but operations complete faster.
+                    - Each choice should clearly state its tradeoff so the user can make an informed decision
+                    - Skip asking only when: user already stated a preference, or it's a simple one-shot operation
+                    - If user picks "Watch me work": window(action:'show') + window(action:'arrange', preset:'right-half')
+                    - Use window(action:'set-status-bar', text:'...') to show what you're doing in Excel's status bar
+                    - Use window(action:'clear-status-bar') when done
+                    - Use window(action:'hide') to hide Excel again
 
-                    WHEN TO ASK (not auto-enable) about show:
-                    - Only ASK if user seems confused about what's happening
-                    - Only ASK if debugging or troubleshooting issues
-                    - Example question: "Would you like me to show Excel so you can watch the changes?"
-                    - DO NOT default to show:true - always use show:false unless user says yes
+                    WHEN TO SKIP ASKING:
+                    - User says "show me", "watch", "let me see" — show immediately, no need to ask
+                    - User says "just do it", "work in background" — keep hidden, no need to ask
+                    - Simple one-shot operations (read a value, check a formula) — keep hidden
+                    - If user doesn't respond to the question, keep hidden
 
-                    WHEN show=true - ASK BEFORE CLOSING:
+                    WHEN Excel is visible — ASK BEFORE CLOSING:
                     - If Excel is visible, the user is actively watching
-                    - ALWAYS ask user before closing: "Would you like me to save and close the file, or keep it open?"
-                    - User may want to inspect results, make manual changes, or continue working
+                    - ALWAYS ask before closing: "Would you like me to save and close, or keep it open?"
+                    - User may want to inspect results or make manual changes
                     - Do NOT auto-close visible Excel sessions
+                    - Check visibility with window(action:'get-info') if unsure
                     """;
             })
             .WithToolsFromAssembly()

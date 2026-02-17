@@ -25,7 +25,7 @@ param(
 $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent $PSScriptRoot
 
-Write-Host "🔍 CLI Action Switch Coverage Check" -ForegroundColor Cyan
+Write-Host "CLI Action Switch Coverage Check" -ForegroundColor Cyan
 Write-Host "====================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -33,12 +33,12 @@ $actionExtensionsPath = Join-Path $rootDir "src\ExcelMcp.Core\Models\Actions\Act
 $cliCommandsDir = Join-Path $rootDir "src\ExcelMcp.CLI\Commands"
 
 if (-not (Test-Path $actionExtensionsPath)) {
-    Write-Host "❌ ActionExtensions.cs not found: $actionExtensionsPath" -ForegroundColor Red
+    Write-Host "ActionExtensions.cs not found: $actionExtensionsPath" -ForegroundColor Red
     exit 1
 }
 
 if (-not (Test-Path $cliCommandsDir)) {
-    Write-Host "❌ CLI Commands directory not found: $cliCommandsDir" -ForegroundColor Red
+    Write-Host "CLI Commands directory not found: $cliCommandsDir" -ForegroundColor Red
     exit 1
 }
 
@@ -185,14 +185,14 @@ foreach ($enumName in $enumActionStrings.Keys | Sort-Object) {
     # Skip excluded enums
     if ($excludedEnums -contains $enumName) {
         if ($Verbose) {
-            Write-Host "⏭️  $enumName → (excluded, CLI handles differently)" -ForegroundColor Gray
+            Write-Host "$enumName -> (excluded, CLI handles differently)" -ForegroundColor Gray
         }
         continue
     }
 
     # Get CLI command file
     if (-not $enumToCliCommand.ContainsKey($enumName)) {
-        Write-Host "⚠️  $enumName → No CLI mapping defined (add to `$enumToCliCommand)" -ForegroundColor Yellow
+        Write-Host "$enumName -> No CLI mapping defined (add to `$enumToCliCommand)" -ForegroundColor Yellow
         continue
     }
 
@@ -200,7 +200,7 @@ foreach ($enumName in $enumActionStrings.Keys | Sort-Object) {
     $commandPath = Join-Path $cliCommandsDir $commandFile
 
     if (-not (Test-Path $commandPath)) {
-        Write-Host "⚠️  $enumName → CLI file not found: $commandFile" -ForegroundColor Yellow
+        Write-Host "$enumName -> CLI file not found: $commandFile" -ForegroundColor Yellow
         continue
     }
 
@@ -221,13 +221,13 @@ foreach ($enumName in $enumActionStrings.Keys | Sort-Object) {
 
     if ($missingActions.Count -gt 0) {
         $totalMissing += $missingActions.Count
-        Write-Host "❌ $enumName → $commandFile" -ForegroundColor Red
+        Write-Host "$enumName -> $commandFile" -ForegroundColor Red
         foreach ($missing in $missingActions) {
             Write-Host "     Missing: `"$missing`"" -ForegroundColor Yellow
         }
     } else {
         if ($Verbose) {
-            Write-Host "✅ $enumName → $commandFile ($($expectedActions.Count) actions)" -ForegroundColor Green
+            Write-Host "$enumName -> $commandFile ($($expectedActions.Count) actions)" -ForegroundColor Green
         }
     }
 }
@@ -235,7 +235,7 @@ foreach ($enumName in $enumActionStrings.Keys | Sort-Object) {
 Write-Host ""
 
 if ($totalMissing -gt 0) {
-    Write-Host "❌ MISSING CLI SWITCH CASES DETECTED!" -ForegroundColor Red
+    Write-Host "MISSING CLI SWITCH CASES DETECTED!" -ForegroundColor Red
     Write-Host "   Total missing: $totalMissing cases across $totalChecked enums checked" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "Action Required:" -ForegroundColor Yellow
@@ -246,5 +246,5 @@ if ($totalMissing -gt 0) {
     exit 1
 }
 
-Write-Host "✅ All $totalChecked CLI commands handle their action strings!" -ForegroundColor Green
+Write-Host "All $totalChecked CLI commands handle their action strings!" -ForegroundColor Green
 exit 0

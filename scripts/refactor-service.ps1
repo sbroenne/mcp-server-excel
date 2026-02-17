@@ -2,7 +2,7 @@
 $file = "d:\source\mcp-server-excel\src\ExcelMcp.Service\ExcelMcpService.cs"
 $lines = Get-Content $file -Encoding utf8
 
-# Find the line containing "// === SHEET COMMANDS ===" — start of DELETE section
+# Find the line containing "// === SHEET COMMANDS ===" -- start of DELETE section
 $startPattern = "// === SHEET COMMANDS ==="
 $startIdx = -1
 for ($i = 0; $i -lt $lines.Count; $i++) {
@@ -13,7 +13,7 @@ for ($i = 0; $i -lt $lines.Count; $i++) {
 }
 if ($startIdx -eq -1) { throw "Could not find start marker: $startPattern" }
 
-# Find the line containing "private Task<ServiceResponse> WithSessionAsync" — start of KEEP section
+# Find the line containing "private Task<ServiceResponse> WithSessionAsync" -- start of KEEP section
 $endPattern = "private Task<ServiceResponse> WithSessionAsync"
 $endIdx = -1
 for ($i = $startIdx; $i -lt $lines.Count; $i++) {

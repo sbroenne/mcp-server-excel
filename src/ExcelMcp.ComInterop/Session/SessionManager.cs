@@ -334,11 +334,26 @@ public sealed class SessionManager : IDisposable
     /// Gets whether Excel is visible for a session.
     /// </summary>
     /// <param name="sessionId">Session ID</param>
-    /// <returns>True if show was true when session was created</returns>
+    /// <returns>True if Excel is visible for this session</returns>
     public bool IsExcelVisible(string sessionId)
     {
         if (string.IsNullOrWhiteSpace(sessionId)) return false;
         return _showExcelFlags.TryGetValue(sessionId, out var visible) && visible;
+    }
+
+    /// <summary>
+    /// Updates the visibility flag for a session.
+    /// Called by window management commands when Excel visibility changes mid-session.
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <param name="visible">New visibility state</param>
+    /// <returns>True if session was found and flag updated, false if session not found</returns>
+    public bool SetExcelVisible(string sessionId, bool visible)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId)) return false;
+        if (!_activeSessions.ContainsKey(sessionId)) return false;
+        _showExcelFlags[sessionId] = visible;
+        return true;
     }
 
     /// <summary>

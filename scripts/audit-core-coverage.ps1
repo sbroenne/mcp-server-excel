@@ -25,7 +25,7 @@ param(
 $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent $PSScriptRoot
 
-Write-Host "🔍 Core Commands Coverage Audit" -ForegroundColor Cyan
+Write-Host "Core Commands Coverage Audit" -ForegroundColor Cyan
 Write-Host "=================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -351,15 +351,12 @@ foreach ($key in $groupedInterfaces.Keys) {
     $totalCoreMethods += $coreMethods
     $totalEnumValues += $totalEnumValuesForInterface
 
-    $status = "✅"
     $statusText = "OK"
 
     if ($totalEnumValuesForInterface -lt $coreMethods) {
-        $status = "❌"
         $statusText = "GAP"
         $hasGaps = $true
     } elseif ($totalEnumValuesForInterface -gt $coreMethods) {
-        $status = "⚠️"
         $statusText = "EXTRA"
     }
 
@@ -369,8 +366,7 @@ foreach ($key in $groupedInterfaces.Keys) {
         EnumValues = $totalEnumValuesForInterface
         Enums = ($interfaceGroup.Enums -join ", ")
         Gap = $coreMethods - $totalEnumValuesForInterface
-        Status = $status
-        StatusText = $statusText
+        Status = $statusText
     }
 
     $results += $result
@@ -379,7 +375,7 @@ foreach ($key in $groupedInterfaces.Keys) {
         Write-Host "Checking $($interfaceGroup.Name)..." -ForegroundColor Gray
         Write-Host "  Core Methods: $coreMethods" -ForegroundColor Gray
         Write-Host "  Enum Values: $totalEnumValuesForInterface (from: $($enumNames -join ', '))" -ForegroundColor Gray
-        Write-Host "  Status: $status $statusText" -ForegroundColor $(if ($statusText -eq "OK") { "Green" } elseif ($statusText -eq "GAP") { "Red" } else { "Yellow" })
+        Write-Host "  Status: $statusText" -ForegroundColor $(if ($statusText -eq "OK") { "Green" } elseif ($statusText -eq "GAP") { "Red" } else { "Yellow" })
         Write-Host ""
     }
 }
@@ -400,7 +396,7 @@ Write-Host "Total Enum Values:  $totalEnumValues" -ForegroundColor White
 if ($totalCoreMethods -eq 0) {
     Write-Host "Coverage:           N/A (no core methods detected)" -ForegroundColor Yellow
 } elseif ($totalEnumValues -eq $totalCoreMethods) {
-    Write-Host "Coverage:           100% ✅" -ForegroundColor Green
+    Write-Host "Coverage:           100% " -ForegroundColor Green
 } else {
     $coverage = [math]::Round(($totalEnumValues / $totalCoreMethods) * 100, 1)
     Write-Host "Coverage:           $coverage%" -ForegroundColor $(if ($coverage -ge 95) { "Yellow" } else { "Red" })
@@ -409,7 +405,7 @@ if ($totalCoreMethods -eq 0) {
 # Gaps detection
 if ($hasGaps) {
     Write-Host ""
-    Write-Host "⚠️  GAPS DETECTED!" -ForegroundColor Red
+    Write-Host "GAPS DETECTED!" -ForegroundColor Red
     Write-Host ""
     Write-Host "The following interfaces have fewer enum values than Core methods:" -ForegroundColor Red
     $results | Where-Object { $_.Gap -gt 0 } | ForEach-Object {
@@ -428,14 +424,14 @@ if ($hasGaps) {
     }
 } else {
     Write-Host ""
-    Write-Host "✅ No gaps detected - 100% coverage maintained!" -ForegroundColor Green
+    Write-Host "No gaps detected - 100% coverage maintained!" -ForegroundColor Green
 }
 
 # Extra enum values warning
 $extraEnums = $results | Where-Object { $_.Gap -lt 0 }
 if ($extraEnums.Count -gt 0) {
     Write-Host ""
-    Write-Host "⚠️  Note: Some enums have more values than Core methods" -ForegroundColor Yellow
+    Write-Host "Note: Some enums have more values than Core methods" -ForegroundColor Yellow
     Write-Host "This might be intentional (MCP-specific actions like 'close-workbook')" -ForegroundColor Gray
     $extraEnums | ForEach-Object {
         Write-Host "  - $($_.Interface): $([math]::Abs($_.Gap)) extra enum values" -ForegroundColor Yellow
@@ -453,7 +449,7 @@ if ($FailOnGaps -and $hasGaps) {
 # Naming consistency check (if requested)
 if ($CheckNaming) {
     Write-Host ""
-    Write-Host "🔤 Naming Consistency Check" -ForegroundColor Cyan
+    Write-Host "Naming Consistency Check" -ForegroundColor Cyan
     Write-Host "===========================" -ForegroundColor Cyan
     Write-Host ""
 
@@ -505,7 +501,7 @@ if ($CheckNaming) {
     foreach ($interface in $interfaces) {
         # Skip sub-tool enums - they are intentionally subsets
         if ($subToolEnums -contains $interface.Enum) {
-            Write-Host "⏭️  $($interface.Name) → $($interface.Enum): Skipped (sub-tool enum)" -ForegroundColor Gray
+            Write-Host "$($interface.Name) -> $($interface.Enum): Skipped (sub-tool enum)" -ForegroundColor Gray
             continue
         }
 
@@ -527,13 +523,13 @@ if ($CheckNaming) {
 
         if ($mismatches.Count -gt 0) {
             $hasNamingIssues = $true
-            Write-Host "❌ $($interface.Name) → $($interface.Enum):" -ForegroundColor Red
+            Write-Host "$($interface.Name) -> $($interface.Enum):" -ForegroundColor Red
             foreach ($mismatch in $mismatches) {
                 Write-Host "   $mismatch" -ForegroundColor Yellow
             }
             Write-Host ""
         } else {
-            Write-Host "✅ $($interface.Name) → $($interface.Enum): All names match" -ForegroundColor Green
+            Write-Host "$($interface.Name) -> $($interface.Enum): All names match" -ForegroundColor Green
         }
     }
 
@@ -545,7 +541,7 @@ if ($CheckNaming) {
 
     if ($totalExceptions -gt 0) {
         Write-Host ""
-        Write-Host "📝 Known Intentional Exceptions: $totalExceptions" -ForegroundColor Gray
+        Write-Host "Known Intentional Exceptions: $totalExceptions" -ForegroundColor Gray
         foreach ($enumName in $knownExceptions.Keys) {
             Write-Host "   $enumName`: " -NoNewline -ForegroundColor Gray
             Write-Host ($knownExceptions[$enumName] -join ", ") -ForegroundColor Gray
@@ -555,7 +551,7 @@ if ($CheckNaming) {
 
     if ($hasNamingIssues) {
         Write-Host ""
-        Write-Host "⚠️  NAMING MISMATCHES DETECTED!" -ForegroundColor Red
+        Write-Host "NAMING MISMATCHES DETECTED!" -ForegroundColor Red
         Write-Host ""
         Write-Host "Action Required:" -ForegroundColor Yellow
         Write-Host "  1. Review naming mismatches above" -ForegroundColor Yellow
@@ -570,14 +566,14 @@ if ($CheckNaming) {
         }
     } else {
         Write-Host ""
-        Write-Host "✅ All naming consistent - enum values match Core method names!" -ForegroundColor Green
+        Write-Host "All naming consistent - enum values match Core method names!" -ForegroundColor Green
         Write-Host "   (Excluding $totalExceptions documented intentional exceptions)" -ForegroundColor Gray
     }
 }
 
 # Switch statement completeness check
 Write-Host ""
-Write-Host "🔀 Switch Statement Completeness Check" -ForegroundColor Cyan
+Write-Host "Switch Statement Completeness Check" -ForegroundColor Cyan
 Write-Host "=======================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -643,7 +639,7 @@ foreach ($mapping in $enumMappings) {
     }
 
     if ($toolFiles.Count -eq 0) {
-        Write-Host "⚠️  No tool file found for $($mapping.Enum)" -ForegroundColor Yellow
+        Write-Host "No tool file found for $($mapping.Enum)" -ForegroundColor Yellow
         continue
     }
 
@@ -671,20 +667,20 @@ foreach ($mapping in $enumMappings) {
 
     if ($unhandled.Count -gt 0) {
         $hasSwitchIssues = $true
-        Write-Host "❌ $($toolFile.Name) ($($mapping.Enum)):" -ForegroundColor Red
+        Write-Host "$($toolFile.Name) ($($mapping.Enum)):" -ForegroundColor Red
         foreach ($value in $unhandled) {
             Write-Host "   Missing case: $($mapping.Enum).$value" -ForegroundColor Yellow
             $switchIssues += "Missing case: $($mapping.Enum).$value in $($toolFile.Name)"
         }
         Write-Host ""
     } else {
-        Write-Host "✅ $($toolFile.Name): All $($enumValues.Count) enum values handled" -ForegroundColor Green
+        Write-Host "$($toolFile.Name): All $($enumValues.Count) enum values handled" -ForegroundColor Green
     }
 }
 
 if ($hasSwitchIssues) {
     Write-Host ""
-    Write-Host "⚠️  UNHANDLED ENUM VALUES DETECTED!" -ForegroundColor Red
+    Write-Host "UNHANDLED ENUM VALUES DETECTED!" -ForegroundColor Red
     Write-Host ""
     Write-Host "Action Required:" -ForegroundColor Yellow
     Write-Host "  1. Review missing case statements above" -ForegroundColor Yellow
@@ -702,7 +698,7 @@ if ($hasSwitchIssues) {
     }
 } else {
     Write-Host ""
-    Write-Host "✅ All switch statements complete - every enum value is handled!" -ForegroundColor Green
+    Write-Host "All switch statements complete - every enum value is handled!" -ForegroundColor Green
 }
 
 exit 0

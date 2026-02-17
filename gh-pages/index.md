@@ -97,8 +97,8 @@ It works with any MCP-compatible AI assistant like GitHub Copilot, Claude Deskto
 </div>
 
 <div class="feature-card">
-<h3>📸 Screenshot</h3>
-<p>Capture worksheet content as PNG images for visual verification. LLMs can see formatting, charts, and data to validate their work.</p>
+<h3>🪟 Agent Mode</h3>
+<p>Watch AI work in Excel in real-time. Show Excel side-by-side, live status bar feedback, and smart window arrangement — like having a pair programmer in a spreadsheet.</p>
 </div>
 
 <div class="feature-card">
@@ -107,7 +107,7 @@ It works with any MCP-compatible AI assistant like GitHub Copilot, Claude Deskto
 </div>
 </div>
 
-<p><a href="/features/">See all 24 tools and 216 operations →</a></p>
+<p><a href="/features/">See all 25 tools and 225 operations →</a></p>
 
 ## What Can You Do With It?
 
@@ -135,6 +135,12 @@ Ask your AI assistant to automate Excel tasks using natural language:
 <h4>🎛️ Interactive Filtering</h4>
 <p><strong>You:</strong> "Create a slicer for the Region field so I can filter the PivotTable interactively."</p>
 <p>AI adds a slicer connected to your PivotTable for point-and-click filtering.</p>
+</div>
+
+<div class="example-section">
+<h4>🪟 Agent Mode</h4>
+<p><strong>You:</strong> "Show me Excel side-by-side while you build this dashboard."</p>
+<p>AI makes Excel visible, arranges it next to your assistant, and displays live progress in the status bar as it builds PivotTables, charts, and formatting — you watch every step happen in real-time.</p>
 </div>
 
 <div class="example-section">
@@ -209,7 +215,7 @@ The AI will display the Excel window so you can watch every operation happen liv
 
 ## Documentation
 
-📖 **[Complete Feature Reference](/features/)** — All 24 tools and 216 operations
+📖 **[Complete Feature Reference](/features/)** — All 25 tools and 225 operations
 
 📥 **[Installation Guide](/installation/)** — Setup for VS Code, Claude Desktop, other MCP clients, and CLI
 

@@ -644,6 +644,38 @@ internal sealed class ExcelBatch : IExcelBatch
             _logger.LogDebug("[Thread {CallingThread}] STA thread was null or not alive for {FileName}", callingThread, Path.GetFileName(_workbookPath));
         }
 
+        // Wait for Excel process to fully terminate to prevent CO_E_SERVER_EXEC_FAILURE
+        // on subsequent Activator.CreateInstance calls. excel.Quit() + COM release doesn't
+        // guarantee the EXCEL.EXE process has exited — rapid create/destroy cycles can fail.
+        if (_excelProcessId.HasValue)
+        {
+            try
+            {
+                using var excelProc = System.Diagnostics.Process.GetProcessById(_excelProcessId.Value);
+                if (!excelProc.HasExited)
+                {
+                    _logger.LogDebug(
+                        "[Thread {CallingThread}] Waiting for Excel process {ProcessId} to exit for {FileName}",
+                        callingThread, _excelProcessId.Value, Path.GetFileName(_workbookPath));
+
+                    if (!excelProc.WaitForExit(5000))
+                    {
+                        _logger.LogWarning(
+                            "[Thread {CallingThread}] Excel process {ProcessId} did not exit within 5s for {FileName}",
+                            callingThread, _excelProcessId.Value, Path.GetFileName(_workbookPath));
+                    }
+                }
+            }
+            catch (ArgumentException)
+            {
+                // Process already terminated — this is the expected fast path
+            }
+            catch (InvalidOperationException)
+            {
+                // Process object is not associated with a running process
+            }
+        }
+
         // Dispose cancellation token source
         _logger.LogDebug("[Thread {CallingThread}] Disposing CancellationTokenSource for {FileName}", callingThread, Path.GetFileName(_workbookPath));
         _shutdownCts.Dispose();

@@ -11,6 +11,7 @@ using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 using Sbroenne.ExcelMcp.Core.Commands.Slicer;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
+using Sbroenne.ExcelMcp.Core.Commands.Window;
 using Sbroenne.ExcelMcp.Generated;
 
 namespace Sbroenne.ExcelMcp.Service;
@@ -47,6 +48,7 @@ public sealed class ExcelMcpService : IDisposable
     private readonly CalculationModeCommands _calculationModeCommands = new();
     private readonly ScreenshotCommands _screenshotCommands = new();
     private readonly DiagCommands _diagCommands = new();
+    private readonly WindowCommands _windowCommands = new();
 
     public ExcelMcpService()
     {
@@ -252,6 +254,7 @@ public sealed class ExcelMcpService : IDisposable
                 "screenshot" => await DispatchSimpleAsync<ScreenshotAction>(action, request,
                     ServiceRegistry.Screenshot.TryParseAction,
                     (a, batch) => ServiceRegistry.Screenshot.DispatchToCore(_screenshotCommands, a, batch, request.Args)),
+                "window" => await DispatchWindowAsync(action, request),
                 "diag" => DispatchSessionless(action, request),
                 _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown command category: {category}" }
             };
@@ -621,6 +624,32 @@ public sealed class ExcelMcpService : IDisposable
 
         });
 
+    }
+
+    private async Task<ServiceResponse> DispatchWindowAsync(string actionString, ServiceRequest request)
+    {
+        if (!ServiceRegistry.Window.TryParseAction(actionString, out var windowAction))
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown window action: {actionString}" };
+
+        return await WithSessionAsync(request.SessionId, batch =>
+        {
+            var result = WrapResult(ServiceRegistry.Window.DispatchToCore(_windowCommands, windowAction, batch, request.Args));
+
+            // Update SessionManager visibility flag when show/hide commands succeed
+            if (result.Success && !string.IsNullOrWhiteSpace(request.SessionId))
+            {
+                if (windowAction is WindowAction.Show or WindowAction.Arrange or WindowAction.SetState or WindowAction.SetPosition)
+                {
+                    _sessionManager.SetExcelVisible(request.SessionId, true);
+                }
+                else if (windowAction is WindowAction.Hide)
+                {
+                    _sessionManager.SetExcelVisible(request.SessionId, false);
+                }
+            }
+
+            return result;
+        });
     }
 
 

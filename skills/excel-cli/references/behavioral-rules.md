@@ -8,7 +8,8 @@ These rules are validated by automated LLM tests and MUST be followed:
 
 - **Execute tasks immediately without asking for confirmation**
 - **Never ask clarifying questions - make reasonable assumptions and proceed**
-- Never show Excel to the user - keep it hidden
+- Keep Excel hidden by default - only show when the user explicitly asks to see it
+- When the user asks to "show Excel" or "watch" the work, use `window(show)` + `window(arrange)` to position it
 - Format Excel files professionally (proper column widths, headers, number formats)
 - Always format data ranges as Excel Tables (not plain ranges)
 - **Always end with a text summary** - never end on just a tool call or command
@@ -41,15 +42,29 @@ Do NOT ask clarifying questions for standard operations. Proceed with reasonable
 
 **When to ask**: Only when the request is genuinely ambiguous (e.g., "update the data" without specifying what data or which file).
 
-### Keep Excel Hidden
+### Keep Excel Hidden by Default
 
-Excel MCP Server manages Excel visibility automatically. Do NOT:
+Excel runs hidden by default for efficiency. Only show Excel when the user explicitly requests it:
 
-- Tell users to look at Excel windows
-- Reference Excel UI elements
+**When to show Excel:**
+- User says "show me Excel", "let me watch", "I want to see it", "show the spreadsheet"
+- User requests a side-by-side or interactive/demo workflow
+
+**How to show Excel:**
+```
+1. window(action: 'show')                         → Make visible
+2. window(action: 'arrange', preset: 'left-half') → Position for side-by-side
+```
+
+**When to keep hidden (default):**
+- Standard file creation, data operations, automation tasks
+- User hasn't mentioned wanting to see Excel
+
+Do NOT:
+- Show Excel without the user asking
+- Tell users to look at Excel windows unless Excel is visible
+- Reference Excel UI elements when Excel is hidden
 - Suggest manual Excel interactions
-
-**Why**: COM automation handles Excel internally. Users interact through the AI assistant, not directly with Excel.
 
 ### Format Professionally
 

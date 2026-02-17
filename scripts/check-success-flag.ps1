@@ -21,7 +21,7 @@
 $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent $PSScriptRoot
 
-Write-Host "🔍 Checking for Success = true with ErrorMessage violations (Rule 0)..." -ForegroundColor Cyan
+Write-Host "Checking for Success = true with ErrorMessage violations (Rule 0)..." -ForegroundColor Cyan
 Write-Host ""
 
 $violations = @()
@@ -77,20 +77,20 @@ Get-ChildItem -Path "$rootDir\src\ExcelMcp.Core\Commands" -Filter "*.cs" -Recurs
 
 # Report results
 if ($violations.Count -eq 0) {
-    Write-Host "✅ No violations found - all Success flags match reality!" -ForegroundColor Green
+    Write-Host "No violations found - all Success flags match reality!" -ForegroundColor Green
     exit 0
 }
 
-Write-Host "❌ Found $($violations.Count) Rule 0 violations!" -ForegroundColor Red
+Write-Host "Found $($violations.Count) Rule 0 violations!" -ForegroundColor Red
 Write-Host ""
 Write-Host "Pattern: Success = true followed by ErrorMessage = ... without Success = false" -ForegroundColor Yellow
 Write-Host ""
 
 foreach ($v in $violations) {
-    Write-Host "❌ $($v.File)" -ForegroundColor Red
+    Write-Host "$($v.File)" -ForegroundColor Red
     Write-Host "   Line $($v.SuccessLine): $($v.SuccessCode)" -ForegroundColor Yellow
     Write-Host "   Line $($v.ErrorMessageLine): $($v.ErrorCode)" -ForegroundColor Yellow
-    Write-Host "   → Missing: result.Success = false; before ErrorMessage" -ForegroundColor Magenta
+    Write-Host "   -> Missing: result.Success = false; before ErrorMessage" -ForegroundColor Magenta
     Write-Host ""
 }
 

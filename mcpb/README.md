@@ -11,8 +11,9 @@ Excel MCP Server lets you automate Excel through conversation with Claude:
 - **Transform Data** - Power Query imports and transformations
 - **Format & Style** - Conditional formatting, number formats, table styles
 - **Automate** - VBA macros, batch operations, data refresh
+- **Agent Mode** - Say "show me Excel" and watch AI work in real-time, side-by-side with Claude
 
-**24 tools with 216 operations** for comprehensive Excel automation.
+**25 tools with 225 operations** for comprehensive Excel automation.
 
 ## Requirements
 
@@ -70,6 +71,7 @@ These examples work with any Excel file, including a new empty workbook.
 
 **More things you can ask:**
 
+- *"Show me Excel side-by-side while you build this dashboard"* - Agent Mode: watch every step happen live
 - *"Put this data in A1:C4 - Name, Age, City / Alice, 30, Seattle / Bob, 25, Portland"*
 - *"Create a slicer for the Region field so I can filter the PivotTable interactively"*
 - *"Format the Price column as currency and highlight values over $500 in green"*
