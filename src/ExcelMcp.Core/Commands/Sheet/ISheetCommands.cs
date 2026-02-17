@@ -13,10 +13,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 ///
 /// POSITIONING: For 'move', 'copy-to-file', 'move-to-file' - use 'before' OR 'after'
 /// (not both) to position the sheet relative to another. If neither specified, moves to end.
+/// 
+/// NOTE: MCP tool is manually implemented in ExcelWorksheetTool.cs to properly handle
+/// mixed session requirements (copy-to-file and move-to-file are atomic and don't need sessions).
 /// </summary>
 [ServiceCategory("sheet", "Sheet")]
-[McpTool("worksheet", Title = "Worksheet Operations", Destructive = true, Category = "structure",
-    Description = "Worksheet lifecycle: create, rename, copy, delete, move. ATOMIC OPERATIONS: copy-to-file and move-to-file don't require a session (open/close automatically). POSITIONING: Use before OR after (not both) to place sheet relative to another. Use worksheet_style for tab colors and visibility.")]
 public interface ISheetCommands
 {
     // === LIFECYCLE OPERATIONS ===
