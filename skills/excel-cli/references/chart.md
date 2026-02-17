@@ -111,33 +111,45 @@ Specialized: `Waterfall`, `Funnel`, `Treemap`, `Sunburst`, `BoxWhisker`, `Histog
 4. **Trendlines for insights**: Add R² to show fit quality
 5. **Data labels placement**: `OutsideEnd` for bar charts, `Center` for pie charts
 
-## Chart Positioning (CRITICAL)
+## Chart Positioning
 
-**ALWAYS position charts to avoid overlapping data and other charts:**
+Charts support three positioning modes, listed in order of preference:
 
-### Use targetRange (PREFERRED - One Step)
+### 1. targetRange (PREFERRED - One Step)
 ```
 chart(create-from-range, sourceRange='A1:B10', chartType='Line', targetRange='F2:K15')
 ```
-Creates chart AND positions it to cell range in one call.
+Creates chart AND positions it to the cell range in one call. No point math needed.
 
-### Check Used Range First
+### 2. Auto-Positioning (No Position Specified)
+When you omit both `targetRange` and `left`/`top`, the chart is automatically placed below all existing content (data ranges + other charts) with 10pt padding. This prevents overlap automatically.
 ```
-range(action: 'get-used-range') → e.g., "Sheet1!A1:D20"
+chart(create-from-range, sourceRange='A1:B10', chartType='Line')
+# → Chart auto-positioned below the used range and any existing charts
 ```
 
-### Position with Coordinates
+### 3. Manual Coordinates
 ```
-chart(create-from-range, sourceRange: 'A1:B10', left: 360, top: 20)
+chart(create-from-range, sourceRange='A1:B10', left=360, top=20)
 # left/top in points (72 points = 1 inch)
 ```
 
-### Use FitToRange (After Creation)
+### Collision Detection (Automatic)
+All chart create, move, and fit-to-range operations automatically check for overlaps with data and other charts. If collisions are detected, the result includes an `OVERLAP WARNING` message. **Always check the result message and fix overlaps before proceeding.**
+
 ```
-chart(create-from-range, ...) -> chartName
-chart(fit-to-range, chartName, rangeAddress: 'F2:K15')
-# Reposition existing chart to cell range
+Result example with collision warning:
+{
+  "success": true,
+  "chartName": "Chart 1",
+  "message": "OVERLAP WARNING: Chart overlaps data area $A$1:$D$20. Use chart fit-to-range to reposition, or screenshot capture-sheet to verify layout."
+}
 ```
+
+**If you see an overlap warning:**
+1. Use `chart(fit-to-range, chartName, rangeAddress='F2:K15')` to reposition
+2. Or use `chart(move, chartName, left=..., top=...)` to adjust
+3. Always follow up with `screenshot(capture-sheet)` to verify
 
 ### Position Estimates
 - Rows: ~15 points per row (varies with row height)
@@ -145,10 +157,10 @@ chart(fit-to-range, chartName, rangeAddress: 'F2:K15')
 - Default chart: 400×300 points
 
 ### Positioning Workflow
-1. `get-used-range` → Identify data boundaries
-2. **Option A (Preferred)**: Use `targetRange='F2:K15'` in create call
-3. **Option B**: Calculate `(lastRow + 2) * 15` for top, or `(lastCol + 2) * 60` for left
-4. **Verify**: Use `screenshot(capture-sheet)` to visually confirm no overlaps
+1. **Preferred**: Use `targetRange='F2:K15'` in create call — avoids all overlap issues
+2. **Alternative**: Omit position — auto-positioning places chart below content
+3. **Manual**: `get-used-range` → calculate coordinates → specify left/top
+4. **Always verify**: Use `screenshot(capture-sheet)` to visually confirm layout
 
 ## Multi-Chart Layout (CRITICAL)
 
@@ -166,8 +178,7 @@ screenshot(capture-sheet) → Verify no overlaps
 ```
 
 ### Rules
-- **Never use default positioning** for 2+ charts — they will stack on top of each other
+- **Use targetRange for every chart** in multi-chart layouts — auto-positioning stacks vertically
 - Leave at least 1-2 rows/columns gap between charts
-- Use `targetRange` on every chart creation call
-- If overlap detected in screenshot, use `chart(fit-to-range)` to fix
+- If any chart result includes an overlap warning, fix it before creating the next chart
 - Take a final `screenshot(capture-sheet)` to verify the complete layout
