@@ -161,7 +161,7 @@ public interface IChartConfigCommands
         LegendPosition? legendPosition = null);
 
     /// <summary>
-    /// Applies a chart style.
+    /// Applies a built-in chart style (1-48). Parameter: style_id (integer).
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
@@ -198,7 +198,7 @@ public interface IChartConfigCommands
     /// <param name="showBubbleSize">Show bubble size (bubble charts)</param>
     /// <param name="separator">Separator string between label components</param>
     /// <param name="labelPosition">Position of data labels relative to data points</param>
-    /// <param name="seriesIndex">Optional 1-based series index (null for all series)</param>
+    /// <param name="seriesIndex">Optional 1-based series index. Omit or 0 to apply to all series. Use 1 for first series.</param>
     [ServiceAction("set-data-labels")]
     OperationResult SetDataLabels(
         IExcelBatch batch,
@@ -313,7 +313,7 @@ public interface IChartConfigCommands
         [RequiredParameter] int seriesIndex);
 
     /// <summary>
-    /// Adds a trendline to a chart series.
+    /// Adds a trendline to a chart series. Parameter 'type' specifies the trendline kind (Linear, Exponential, Logarithmic, Polynomial, Power, MovingAverage).
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>

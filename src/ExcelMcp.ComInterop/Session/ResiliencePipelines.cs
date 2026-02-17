@@ -28,6 +28,12 @@ public static class ResiliencePipelines
     public const int RPC_E_CALL_FAILED = unchecked((int)0x800706BE);            // -2147023170
 
     /// <summary>
+    /// RPC_S_SERVER_UNAVAILABLE - The RPC server is unavailable. Excel process has died.
+    /// FATAL ERROR - Do not retry, session must be cleaned up.
+    /// </summary>
+    public const int RPC_S_SERVER_UNAVAILABLE = unchecked((int)0x800706BA);     // -2147023174
+
+    /// <summary>
     /// Data Model specific error - intermittent failure during measure/table operations.
     /// See GitHub Issue #315.
     /// </summary>
@@ -96,6 +102,7 @@ public static class ResiliencePipelines
                 // Only retry transient errors, NOT fatal RPC connection failures
                 ShouldHandle = new PredicateBuilder().Handle<COMException>(ex =>
                     ex.HResult != RPC_E_CALL_FAILED &&
+                    ex.HResult != RPC_S_SERVER_UNAVAILABLE &&
                     (ex.HResult == RPC_E_SERVERCALL_RETRYLATER ||
                      ex.HResult == RPC_E_CALL_REJECTED ||
                      config.AdditionalHResults.Contains(ex.HResult))),

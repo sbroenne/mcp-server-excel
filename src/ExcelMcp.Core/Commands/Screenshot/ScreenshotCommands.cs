@@ -48,6 +48,8 @@ public class ScreenshotCommands : IScreenshotCommands
 
     /// <summary>
     /// Captures the entire used area of a worksheet as a PNG image.
+    /// If UsedRange exceeds 500 rows or 50 columns, it is capped to avoid
+    /// CopyPicture failures on sheets with formatting extending far beyond data.
     /// </summary>
     public ScreenshotResult CaptureSheet(IExcelBatch batch, string? sheetName = null)
     {
@@ -55,6 +57,7 @@ public class ScreenshotCommands : IScreenshotCommands
         {
             dynamic? sheet = null;
             dynamic? usedRange = null;
+            dynamic? captureRange = null;
             try
             {
                 sheet = string.IsNullOrWhiteSpace(sheetName)
@@ -63,12 +66,31 @@ public class ScreenshotCommands : IScreenshotCommands
 
                 usedRange = sheet.UsedRange;
                 string actualSheet = sheet.Name?.ToString() ?? "Sheet1";
-                string actualRange = usedRange.Address?.ToString() ?? "A1";
 
-                return ExportRangeAsImage(ctx.App, sheet, usedRange, actualSheet, actualRange);
+                int rows = (int)usedRange.Rows.Count;
+                int cols = (int)usedRange.Columns.Count;
+
+                const int maxRows = 500;
+                const int maxCols = 50;
+
+                if (rows > maxRows || cols > maxCols)
+                {
+                    // Cap the range to avoid CopyPicture failures on enormous ranges
+                    int startRow = (int)usedRange.Row;
+                    int startCol = (int)usedRange.Column;
+                    int endRow = startRow + Math.Min(rows, maxRows) - 1;
+                    int endCol = startCol + Math.Min(cols, maxCols) - 1;
+                    captureRange = sheet.Range[sheet.Cells[startRow, startCol], sheet.Cells[endRow, endCol]];
+                }
+
+                dynamic rangeToCapture = captureRange ?? usedRange;
+                string actualRange = rangeToCapture.Address?.ToString() ?? "A1";
+
+                return ExportRangeAsImage(ctx.App, sheet, rangeToCapture, actualSheet, actualRange);
             }
             finally
             {
+                ComUtilities.Release(ref captureRange);
                 ComUtilities.Release(ref usedRange);
                 ComUtilities.Release(ref sheet);
             }
@@ -95,6 +117,12 @@ public class ScreenshotCommands : IScreenshotCommands
             if (!wasVisible)
             {
                 app.Visible = true;
+
+                // Excel needs time to initialize its rendering pipeline after
+                // becoming visible. Without this, CopyPicture fails with
+                // "Unable to get the CopyPicture property" or crashes the process
+                // with RPC_S_SERVER_UNAVAILABLE (0x800706BA) under rapid cycling.
+                Thread.Sleep(1000);
             }
 
             // Get range dimensions for the chart

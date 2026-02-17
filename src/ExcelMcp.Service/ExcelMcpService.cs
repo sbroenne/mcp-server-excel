@@ -1,4 +1,5 @@
 using System.IO.Pipes;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -682,6 +683,19 @@ public sealed class ExcelMcpService : IDisposable
         {
             var response = action(batch);
             return Task.FromResult(response);
+        }
+        catch (COMException ex) when (
+            ex.HResult == ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE ||
+            ex.HResult == ResiliencePipelines.RPC_E_CALL_FAILED)
+        {
+            // Excel process died during the operation — clean up the dead session
+            _sessionManager.CloseSession(sessionId, save: false, force: true);
+            return Task.FromResult(new ServiceResponse
+            {
+                Success = false,
+                ErrorMessage = $"Excel process for session '{sessionId}' has died (the application may have been closed or crashed). " +
+                               "Session has been cleaned up. Please reopen the file with a new session."
+            });
         }
         catch (Exception ex)
         {

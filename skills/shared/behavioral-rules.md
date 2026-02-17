@@ -99,7 +99,7 @@ Always apply number formats after setting values. Without formatting:
 **Workflow:**
 ```
 1. range set-values (data is now in cells)
-2. range_format set-number-format (apply format to range)
+2. range set-number-format (apply format to range)
 ```
 
 ### Format Tabular Data as Excel Tables

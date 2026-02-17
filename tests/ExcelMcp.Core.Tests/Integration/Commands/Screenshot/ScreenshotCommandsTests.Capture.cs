@@ -64,7 +64,7 @@ public partial class ScreenshotCommandsTests
     {
         // Arrange
         var testFile = _fixture.CreateTestFile();
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(show: true, operationTimeout: null, testFile);
         PopulateTestData(batch);
 
         // Act — capture the data area (A1:B5)
@@ -93,7 +93,7 @@ public partial class ScreenshotCommandsTests
     {
         // Arrange
         var testFile = _fixture.CreateTestFile();
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(show: true, operationTimeout: null, testFile);
         PopulateTestData(batch, addChart: true);
 
         // Act — capture a wider area that includes the chart region
@@ -115,7 +115,7 @@ public partial class ScreenshotCommandsTests
     {
         // Arrange
         var testFile = _fixture.CreateTestFile();
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(show: true, operationTimeout: null, testFile);
         PopulateTestData(batch);
 
         // Get the actual sheet name
@@ -143,7 +143,7 @@ public partial class ScreenshotCommandsTests
     {
         // Arrange
         var testFile = _fixture.CreateTestFile();
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(show: true, operationTimeout: null, testFile);
         PopulateTestData(batch);
 
         // Act — capture active sheet (no sheetName specified)
@@ -160,7 +160,7 @@ public partial class ScreenshotCommandsTests
     {
         // Arrange
         var testFile = _fixture.CreateTestFile();
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(show: true, operationTimeout: null, testFile);
         PopulateTestData(batch);
 
         // Act — use default range (A1:Z30) with no sheetName
@@ -179,7 +179,7 @@ public partial class ScreenshotCommandsTests
     {
         // Arrange
         var testFile = _fixture.CreateTestFile();
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(show: true, operationTimeout: null, testFile);
         PopulateTestData(batch);
 
         // Act
@@ -195,7 +195,7 @@ public partial class ScreenshotCommandsTests
     {
         // This test validates the retry logic handles rapid successive CopyPicture calls
         var testFile = _fixture.CreateTestFile();
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(show: true, operationTimeout: null, testFile);
         PopulateTestData(batch, addChart: true);
 
         for (int i = 0; i < 3; i++)
