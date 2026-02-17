@@ -291,7 +291,8 @@ public partial class ChartCommands
                 // Validate range (Excel supports styles 1-48)
                 if (styleId < 1 || styleId > 48)
                 {
-                    throw new ArgumentException($"Chart style ID must be between 1 and 48. Provided: {styleId}", nameof(styleId));
+                    var hint = styleId == 0 ? " (was the 'style_id' parameter included?)" : "";
+                    throw new ArgumentException($"Chart style ID must be between 1 and 48. Provided: {styleId}{hint}", nameof(styleId));
                 }
 
                 // Set chart style
@@ -911,7 +912,7 @@ public partial class ChartCommands
         IExcelBatch batch,
         string chartName,
         int seriesIndex,
-        TrendlineType type,
+        TrendlineType trendlineType,
         int? order = null,
         int? period = null,
         double? forward = null,
@@ -922,12 +923,12 @@ public partial class ChartCommands
         string? name = null)
     {
         // Validate type-specific parameters
-        if (type == TrendlineType.Polynomial && (!order.HasValue || order.Value < 2 || order.Value > 6))
+        if (trendlineType == TrendlineType.Polynomial && (!order.HasValue || order.Value < 2 || order.Value > 6))
         {
             throw new ArgumentException("Polynomial trendline requires order parameter (2-6).");
         }
 
-        if (type == TrendlineType.MovingAverage && (!period.HasValue || period.Value < 2))
+        if (trendlineType == TrendlineType.MovingAverage && (!period.HasValue || period.Value < 2))
         {
             throw new ArgumentException("Moving average trendline requires period parameter (2 or greater).");
         }
@@ -959,15 +960,15 @@ public partial class ChartCommands
                 trendlines = series.Trendlines();
 
                 // Add trendline with type
-                newTrendline = trendlines.Add((int)type);
+                newTrendline = trendlines.Add((int)trendlineType);
 
                 // Set optional parameters
-                if (order.HasValue && type == TrendlineType.Polynomial)
+                if (order.HasValue && trendlineType == TrendlineType.Polynomial)
                 {
                     newTrendline.Order = order.Value;
                 }
 
-                if (period.HasValue && type == TrendlineType.MovingAverage)
+                if (period.HasValue && trendlineType == TrendlineType.MovingAverage)
                 {
                     newTrendline.Period = period.Value;
                 }
@@ -1004,7 +1005,7 @@ public partial class ChartCommands
                     ChartName = chartName,
                     SeriesIndex = seriesIndex,
                     TrendlineIndex = trendlineIndex,
-                    Type = type,
+                    Type = trendlineType,
                     Name = name
                 };
             }

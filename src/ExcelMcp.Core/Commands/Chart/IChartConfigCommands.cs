@@ -318,7 +318,7 @@ public interface IChartConfigCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
     /// <param name="seriesIndex">1-based index of the series</param>
-    /// <param name="type">Type of trendline (Linear, Exponential, etc.)</param>
+    /// <param name="trendlineType">Type of trendline (Linear, Exponential, etc.)</param>
     /// <param name="order">Polynomial order (2-6, for Polynomial type)</param>
     /// <param name="period">Moving average period (for MovingAverage type)</param>
     /// <param name="forward">Periods to extend forward</param>
@@ -332,7 +332,7 @@ public interface IChartConfigCommands
         IExcelBatch batch,
         [RequiredParameter] string chartName,
         [RequiredParameter] int seriesIndex,
-        [RequiredParameter] TrendlineType type,
+        [RequiredParameter] TrendlineType trendlineType,
         int? order = null,
         int? period = null,
         double? forward = null,

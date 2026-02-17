@@ -684,6 +684,19 @@ public sealed class ExcelMcpService : IDisposable
             var response = action(batch);
             return Task.FromResult(response);
         }
+        catch (TimeoutException ex)
+        {
+            // Operation timed out — Excel COM call is hung (IDispatch.Invoke stuck).
+            // Force-close the session to trigger the force-kill path in ExcelBatch.Dispose(),
+            // which will kill the hung Excel process and release the STA thread.
+            _sessionManager.CloseSession(sessionId, save: false, force: true);
+            return Task.FromResult(new ServiceResponse
+            {
+                Success = false,
+                ErrorMessage = $"Excel operation timed out and the session has been closed: {ex.Message} " +
+                               "Please reopen the file with a new session."
+            });
+        }
         catch (COMException ex) when (
             ex.HResult == ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE ||
             ex.HResult == ResiliencePipelines.RPC_E_CALL_FAILED)
@@ -694,6 +707,19 @@ public sealed class ExcelMcpService : IDisposable
             {
                 Success = false,
                 ErrorMessage = $"Excel process for session '{sessionId}' has died (the application may have been closed or crashed). " +
+                               "Session has been cleaned up. Please reopen the file with a new session."
+            });
+        }
+        catch (InvalidOperationException ex) when (
+            ex.Message.Contains("no longer running", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("process", StringComparison.OrdinalIgnoreCase))
+        {
+            // Excel process detected as dead before COM call (ExcelBatch pre-check)
+            _sessionManager.CloseSession(sessionId, save: false, force: true);
+            return Task.FromResult(new ServiceResponse
+            {
+                Success = false,
+                ErrorMessage = $"Excel process for session '{sessionId}' is no longer running. " +
                                "Session has been cleaned up. Please reopen the file with a new session."
             });
         }

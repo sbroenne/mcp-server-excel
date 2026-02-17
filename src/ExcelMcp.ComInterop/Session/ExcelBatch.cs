@@ -564,10 +564,39 @@ internal sealed class ExcelBatch : IExcelBatch
 
         _logger.LogDebug("[Thread {CallingThread}] Waiting for STA thread (Id={STAThread}) to exit for {FileName}", callingThread, _staThread?.ManagedThreadId ?? -1, Path.GetFileName(_workbookPath));
 
+        // When operation timed out, the STA thread is stuck in IDispatch.Invoke (unmanaged COM call
+        // that cannot be cancelled). Kill the Excel process FIRST to unblock the STA thread, then wait.
+        if (_operationTimedOut && _excelProcessId.HasValue && _staThread != null && _staThread.IsAlive)
+        {
+            _logger.LogWarning(
+                "[Thread {CallingThread}] Operation timed out — force-killing Excel process {ProcessId} BEFORE waiting for STA thread to unblock IDispatch.Invoke for {FileName}",
+                callingThread, _excelProcessId.Value, Path.GetFileName(_workbookPath));
+            try
+            {
+                using var excelProcess = System.Diagnostics.Process.GetProcessById(_excelProcessId.Value);
+                if (!excelProcess.HasExited)
+                {
+                    excelProcess.Kill();
+                    excelProcess.WaitForExit(5000);
+                    _logger.LogInformation(
+                        "[Thread {CallingThread}] Force-killed Excel process {ProcessId} (pre-emptive, before STA join)",
+                        callingThread, _excelProcessId.Value);
+                }
+            }
+            catch (ArgumentException)
+            {
+                _logger.LogDebug("[Thread {CallingThread}] Excel process {ProcessId} already exited", callingThread, _excelProcessId.Value);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Thread {CallingThread}] Failed to force-kill Excel process {ProcessId}", callingThread, _excelProcessId.Value);
+            }
+        }
+
         // Wait for STA thread to finish cleanup (with timeout)
         if (_staThread != null && _staThread.IsAlive)
         {
-            // Use shorter timeout if operation timed out (Excel is likely hung)
+            // Use shorter timeout if operation timed out (Excel is likely hung / already killed above)
             var joinTimeout = _operationTimedOut
                 ? TimeSpan.FromSeconds(10)  // Aggressive: 10 seconds when operation timed out
                 : ComInteropConstants.StaThreadJoinTimeout;  // Normal: 45 seconds
@@ -594,7 +623,7 @@ internal sealed class ExcelBatch : IExcelBatch
                 {
                     try
                     {
-                        var excelProcess = System.Diagnostics.Process.GetProcessById(_excelProcessId.Value);
+                        using var excelProcess = System.Diagnostics.Process.GetProcessById(_excelProcessId.Value);
                         _logger.LogWarning(
                             "[Thread {CallingThread}] Force-killing Excel process {ProcessId} for {FileName}",
                             callingThread, _excelProcessId.Value, Path.GetFileName(_workbookPath));

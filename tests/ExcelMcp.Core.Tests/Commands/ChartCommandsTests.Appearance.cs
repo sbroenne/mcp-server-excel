@@ -14,22 +14,7 @@ public partial class ChartCommandsTests
     public void SetChartType_ExistingChart_ChangesType()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "Cat", "Val" },
-                { "Q1", 100 },
-                { "Q2", 150 },
-                { "Q3", 200 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
         Assert.Equal(ChartType.ColumnClustered, createResult.ChartType);
@@ -46,21 +31,7 @@ public partial class ChartCommandsTests
     public void SetTitle_ValidTitle_SetsChartTitle()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B3"].Value2 = new object[,] {
-                { "X", "Y" },
-                { 1, 10 },
-                { 2, 20 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B3", ChartType.Pie, 50, 50);
 
@@ -76,17 +47,7 @@ public partial class ChartCommandsTests
     public void SetTitle_EmptyString_HidesTitle()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart with title
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B3"].Value2 = new object[,] { { "X", "Y" }, { 1, 10 }, { 2, 20 } };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B3", ChartType.BarClustered, 50, 50);
         _commands.SetTitle(batch, createResult.ChartName, "Initial Title");
@@ -103,22 +64,7 @@ public partial class ChartCommandsTests
     public void SetAxisTitle_CategoryAxis_SetsTitleSuccessfully()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "Month", "Sales" },
-                { "Jan", 100 },
-                { "Feb", 150 },
-                { "Mar", 200 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
 
@@ -130,22 +76,7 @@ public partial class ChartCommandsTests
     public void SetAxisTitle_ValueAxis_SetsTitleSuccessfully()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "Product", "Revenue" },
-                { "A", 1000 },
-                { "B", 1500 },
-                { "C", 2000 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.BarClustered, 50, 50);
 
@@ -188,17 +119,7 @@ public partial class ChartCommandsTests
     public void ShowLegend_HideLegend_RemovesLegend()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B3"].Value2 = new object[,] { { "X", "Y" }, { 1, 10 }, { 2, 20 } };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B3", ChartType.Area, 50, 50);
         _commands.ShowLegend(batch, createResult.ChartName, true, LegendPosition.Right); // Show first
@@ -215,22 +136,7 @@ public partial class ChartCommandsTests
     public void SetStyle_ValidStyleId_AppliesStyle()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "Cat", "Val" },
-                { "A", 10 },
-                { "B", 20 },
-                { "C", 30 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
 
@@ -242,17 +148,7 @@ public partial class ChartCommandsTests
     public void SetStyle_InvalidStyleId_ReturnsError()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B3"].Value2 = new object[,] { { "X", "Y" }, { 1, 10 }, { 2, 20 } };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B3", ChartType.Pie, 50, 50);
 
@@ -266,23 +162,7 @@ public partial class ChartCommandsTests
     public void SetChartType_MultipleTypes_AllWorkCorrectly()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B5"].Value2 = new object[,] {
-                { "X", "Y" },
-                { 1, 10 },
-                { 2, 20 },
-                { 3, 30 },
-                { 4, 40 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B5", ChartType.ColumnClustered, 50, 50);
 
@@ -301,22 +181,7 @@ public partial class ChartCommandsTests
     public void ShowLegend_DifferentPositions_AllWorkCorrectly()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:C4"].Value2 = new object[,] {
-                { "X", "S1", "S2" },
-                { "A", 10, 20 },
-                { "B", 15, 25 },
-                { "C", 20, 30 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:C4", ChartType.ColumnClustered, 50, 50);
 
@@ -337,22 +202,7 @@ public partial class ChartCommandsTests
     public void GetAxisNumberFormat_ValueAxis_ReturnsCurrentFormat()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "Month", "Revenue" },
-                { "Jan", 1000000 },
-                { "Feb", 1500000 },
-                { "Mar", 2000000 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
 
@@ -367,22 +217,7 @@ public partial class ChartCommandsTests
     public void SetAxisNumberFormat_ValueAxis_SetsFormatSuccessfully()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "Month", "Revenue" },
-                { "Jan", 1000000 },
-                { "Feb", 1500000 },
-                { "Mar", 2000000 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
 
@@ -398,9 +233,7 @@ public partial class ChartCommandsTests
     public void SetAxisNumberFormat_CategoryAxis_SetsFormatSuccessfully()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         // Create test data with dates
         batch.Execute((ctx, ct) =>
@@ -429,9 +262,7 @@ public partial class ChartCommandsTests
     public void SetAxisNumberFormat_PercentageFormat_SetsFormatSuccessfully()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         // Create test data
         batch.Execute((ctx, ct) =>
@@ -460,9 +291,7 @@ public partial class ChartCommandsTests
     public void SetAxisNumberFormat_NonExistentChart_ThrowsException()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         // Act & Assert - Non-existent chart should throw
         var exception = Assert.Throws<InvalidOperationException>(() =>
@@ -474,9 +303,7 @@ public partial class ChartCommandsTests
     public void GetAxisNumberFormat_NonExistentChart_ThrowsException()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         // Act & Assert - Non-existent chart should throw
         var exception = Assert.Throws<InvalidOperationException>(() =>
@@ -488,22 +315,7 @@ public partial class ChartCommandsTests
     public void SetAxisNumberFormat_MultipleFormats_AllWorkCorrectly()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "X", "Y" },
-                { 1, 1000000 },
-                { 2, 2000000 },
-                { 3, 3000000 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
 
@@ -524,22 +336,7 @@ public partial class ChartCommandsTests
     public void SetPlacement_MoveAndSize_SetsPlacementMode()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "X", "Y" },
-                { 1, 100 },
-                { 2, 200 },
-                { 3, 300 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
 
@@ -555,22 +352,7 @@ public partial class ChartCommandsTests
     public void SetPlacement_MoveOnly_SetsPlacementMode()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "X", "Y" },
-                { 1, 100 },
-                { 2, 200 },
-                { 3, 300 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.Line, 50, 50);
 
@@ -586,22 +368,7 @@ public partial class ChartCommandsTests
     public void SetPlacement_FreeFloating_SetsPlacementMode()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "X", "Y" },
-                { 1, 100 },
-                { 2, 200 },
-                { 3, 300 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.Pie, 50, 50);
 
@@ -617,22 +384,7 @@ public partial class ChartCommandsTests
     public void SetPlacement_InvalidValue_ThrowsException()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "X", "Y" },
-                { 1, 100 },
-                { 2, 200 },
-                { 3, 300 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
 
@@ -646,9 +398,7 @@ public partial class ChartCommandsTests
     public void SetPlacement_NonExistentChart_ThrowsException()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         // Act & Assert - Non-existent chart should throw
         var exception = Assert.Throws<InvalidOperationException>(() =>
@@ -662,22 +412,7 @@ public partial class ChartCommandsTests
     public void FitToRange_ValidRange_ResizesChartToMatchRange()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "X", "Y" },
-                { 1, 100 },
-                { 2, 200 },
-                { 3, 300 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50, 400, 300);
 
@@ -696,21 +431,11 @@ public partial class ChartCommandsTests
     public void FitToRange_DifferentSheet_ThrowsOrMovesChart()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         // Create test data, chart, and a second sheet
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "X", "Y" },
-                { 1, 100 },
-                { 2, 200 },
-                { 3, 300 }
-            };
-
             // Create second sheet
             dynamic newSheet = ctx.Book.Worksheets.Add();
             newSheet.Name = "Sheet2";
@@ -731,9 +456,7 @@ public partial class ChartCommandsTests
     public void FitToRange_NonExistentChart_ThrowsException()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         // Act & Assert - Non-existent chart should throw
         var exception = Assert.Throws<InvalidOperationException>(() =>
@@ -745,22 +468,7 @@ public partial class ChartCommandsTests
     public void FitToRange_InvalidRangeAddress_ThrowsException()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "X", "Y" },
-                { 1, 100 },
-                { 2, 200 },
-                { 3, 300 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
 
@@ -775,22 +483,7 @@ public partial class ChartCommandsTests
     public void Read_ChartCreatedAtPosition_ReturnsAnchorCells()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart at specific position
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "X", "Y" },
-                { 1, 100 },
-                { 2, 200 },
-                { 3, 300 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         // Create chart at position left=50, top=50
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50, 400, 300);
@@ -811,22 +504,7 @@ public partial class ChartCommandsTests
     public void Read_ChartAfterFitToRange_ReturnsUpdatedAnchorCells()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "X", "Y" },
-                { 1, 100 },
-                { 2, 200 },
-                { 3, 300 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
 
@@ -850,22 +528,7 @@ public partial class ChartCommandsTests
     public void Read_ChartWithPlacement_ReturnsPlacementValue()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "X", "Y" },
-                { 1, 100 },
-                { 2, 200 },
-                { 3, 300 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50);
 

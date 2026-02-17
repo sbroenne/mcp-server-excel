@@ -308,6 +308,12 @@ public static class ServiceInfoExtractor
                     existing = new ExposedParameter(exposedName, p.TypeName, p.XmlDocDescription);
                     paramMap[exposedName] = existing;
                 }
+                else if (p.TypeName.EndsWith("?") && !existing.TypeName.EndsWith("?"))
+                {
+                    // If any method declares this parameter as nullable, upgrade to nullable.
+                    // MCP parameters are shared across all actions and must be compatible with ALL uses.
+                    existing.TypeName = p.TypeName;
+                }
 
                 // Track if this param is required for this action
                 var isRequired = p.IsRequired || (!p.HasDefault && !p.TypeName.EndsWith("?"));
