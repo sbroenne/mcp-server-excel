@@ -7,7 +7,7 @@ description: >
   Triggers: Excel, spreadsheet, workbook, xlsx, excelcli, CLI automation.
 compatibility: Windows + Microsoft Excel 2016+ required. Uses COM interop - does NOT work on macOS or Linux.
 allowed-tools: Cmd(excelcli:*),PowerShell(excelcli:*)
-disable-model-invocation: true
+disable-model-invocation: false
 license: MIT
 version: 1.0.0
 repository: https://github.com/sbroenne/mcp-server-excel
