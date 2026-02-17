@@ -5,11 +5,6 @@ description: >
   or modifying Excel workbooks. Supports Power Query (M code), Data Model (DAX measures),
   PivotTables, Tables, Ranges, Charts, Slicers, Formatting, VBA macros, connections, and calculation mode control.
   Triggers: Excel, spreadsheet, workbook, xlsx, Power Query, DAX, PivotTable, VBA.
-compatibility: Windows + Microsoft Excel 2016+ required. Uses COM interop - does NOT work on macOS or Linux.
-license: MIT
-version: {{ version }}
-repository: {{ repository }}
-documentation: {{ documentation }}
 ---
 
 # Excel MCP Server Skill
@@ -183,19 +178,19 @@ When writing many values/formulas (10+ cells), use `calculation_mode` to avoid r
 
 See `references/` for detailed guidance:
 
-- @references/behavioral-rules.md - Core execution rules and LLM guidelines
-- @references/anti-patterns.md - Common mistakes to avoid
-- @references/workflows.md - Data Model constraints and patterns
-- @references/chart.md - Charts and formatting
-- @references/conditionalformat.md - Conditional formatting operations
-- @references/dashboard.md - Dashboard and report best practices
-- @references/datamodel.md - Data Model/DAX specifics
-- @references/dmv-reference.md - DMV query reference for Data Model analysis
-- @references/m-code-syntax.md - Power Query M code syntax reference
-- @references/pivottable.md - PivotTable operations
-- @references/powerquery.md - Power Query specifics
-- @references/range.md - Range operations and number formats
-- @references/screenshot.md - Screenshot and visual verification
-- @references/slicer.md - Slicer operations
-- @references/table.md - Table operations
-- @references/worksheet.md - Worksheet operations
+- [Core execution rules and LLM guidelines](./references/behavioral-rules.md)
+- [Common mistakes to avoid](./references/anti-patterns.md)
+- [Data Model constraints and patterns](./references/workflows.md)
+- [Charts and formatting](./references/chart.md)
+- [Conditional formatting operations](./references/conditionalformat.md)
+- [Dashboard and report best practices](./references/dashboard.md)
+- [Data Model/DAX specifics](./references/datamodel.md)
+- [DMV query reference for Data Model analysis](./references/dmv-reference.md)
+- [Power Query M code syntax reference](./references/m-code-syntax.md)
+- [PivotTable operations](./references/pivottable.md)
+- [Power Query specifics](./references/powerquery.md)
+- [Range operations and number formats](./references/range.md)
+- [Screenshot and visual verification](./references/screenshot.md)
+- [Slicer operations](./references/slicer.md)
+- [Table operations](./references/table.md)
+- [Worksheet operations](./references/worksheet.md)

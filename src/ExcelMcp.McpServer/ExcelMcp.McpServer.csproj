@@ -342,10 +342,7 @@ internal static class TelemetryConfig
     <GenerateSkillFile
       TemplatePath="$(SkillTemplatePath)"
       OutputPath="$(SkillOutputPath)"
-      Version="$(Version)"
-      ManifestPath="$(SkillManifestPath)"
-      Repository="https://github.com/sbroenne/mcp-server-excel"
-      Documentation="https://excelmcpserver.dev/" />
+      ManifestPath="$(SkillManifestPath)" />
     <Message Text="Generated MCP Skill: $(SkillOutputPath)" Importance="high" />
   </Target>
 
