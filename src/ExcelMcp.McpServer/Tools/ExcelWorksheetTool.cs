@@ -33,6 +33,7 @@ public static partial class ExcelWorksheetTool
     [McpServerTool(Name = "worksheet", Title = "Worksheet Operations", Destructive = true)]
     [McpMeta("category", "structure")]
     [McpMeta("requiresSession", false)]  // Session is optional - depends on the action
+    [Description("Worksheet lifecycle: create, rename, copy, delete, move. ATOMIC OPERATIONS: copy-to-file and move-to-file don't require a session (open/close automatically). POSITIONING: Use before OR after (not both) to place sheet relative to another. Use worksheet_style for tab colors and visibility.")]
     public static string ExcelWorksheet(
         [Description("The action to perform")] SheetAction action,
         [DefaultValue(null)] string? session_id,
