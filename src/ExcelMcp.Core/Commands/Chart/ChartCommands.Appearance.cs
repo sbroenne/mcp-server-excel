@@ -1194,7 +1194,17 @@ public partial class ChartCommands
                 findResult.Shape.Width = width;
                 findResult.Shape.Height = height;
 
-                return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
+                // Collision detection after repositioning
+                var warnings = ChartPositionHelpers.DetectCollisions(
+                    worksheet, left, top, width, height, chartName);
+                int chartCount = ChartPositionHelpers.CountCharts(worksheet);
+
+                return new OperationResult
+                {
+                    Success = true,
+                    FilePath = batch.WorkbookPath,
+                    Message = ChartPositionHelpers.FormatCollisionWarnings(warnings, chartCount)
+                };
             }
             finally
             {

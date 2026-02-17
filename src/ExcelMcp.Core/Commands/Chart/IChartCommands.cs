@@ -7,13 +7,14 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// <summary>
 /// Chart lifecycle - create, read, move, and delete embedded charts.
 ///
-/// CRITICAL - AVOID OVERLAPPING DATA:
-/// 1. Check used range first with range get-used-range
-/// 2. Position chart BELOW or to the RIGHT of data
-/// 3. NEVER place charts at default position (0,0) - it overlaps data!
+/// POSITIONING (choose one):
+/// - targetRange (PREFERRED): Cell range like 'F2:K15' — positions chart within cells, no point math needed.
+/// - left/top: Manual positioning in points (72 points = 1 inch).
+/// - Neither: Auto-positions chart below all existing content (used range + other charts).
 ///
-/// POSITIONING: left/top in points (72 points = 1 inch).
-/// Use fit-to-range to position chart within a cell range like 'F2:K15'.
+/// COLLISION DETECTION: All create/move/fit-to-range operations automatically check for overlaps
+/// with data and other charts. Warnings are returned in the result message if collisions are detected.
+/// Always verify layout with screenshot(capture-sheet) after creating charts.
 ///
 /// CHART TYPES: 70+ types available including Column, Line, Pie, Bar, Area, XY Scatter.
 ///
@@ -26,7 +27,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// </summary>
 [ServiceCategory("chart", "Chart")]
 [McpTool("chart", Title = "Chart Operations", Destructive = true, Category = "analysis",
-    Description = "Chart lifecycle - create, read, move, and delete embedded charts. CRITICAL - AVOID OVERLAPPING DATA: 1. Check used range first with get-used-range 2. Position chart BELOW or RIGHT of data 3. NEVER place at default (0,0). POSITIONING: targetRange (cell-relative, PREFERRED) or left/top (points, 72pts=1in). CHART TYPES: 70+ types (ColumnClustered, Line, Pie, Bar, Area, XYScatter, etc.). CREATE: create-from-range (cell range), create-from-table (Excel Table), create-from-pivottable (linked PivotChart). Use chart_config for series, titles, legends, and styling.")]
+    Description = "Chart lifecycle - create, read, move, and delete embedded charts. POSITIONING: targetRange='F2:K15' (PREFERRED, cell-relative) or left/top (points, 72pts=1in) or OMIT BOTH for auto-positioning below content. COLLISION DETECTION: Automatically warns if chart overlaps data or other charts. CHART TYPES: 70+ types (ColumnClustered, Line, Pie, Bar, Area, XYScatter, etc.). CREATE: create-from-range (cell range), create-from-table (Excel Table), create-from-pivottable (linked PivotChart). Use chart_config for series, titles, legends, and styling.")]
 public interface IChartCommands
 {
     // === LIFECYCLE OPERATIONS ===
@@ -60,17 +61,19 @@ public interface IChartCommands
     /// <param name="width">Chart width in points</param>
     /// <param name="height">Chart height in points</param>
     /// <param name="chartName">Optional chart name (auto-generated if omitted)</param>
+    /// <param name="targetRange">Cell range to position chart within (e.g., 'F2:K15'). PREFERRED over left/top. When set, left/top are ignored.</param>
     [ServiceAction("create-from-range")]
     ChartCreateResult CreateFromRange(
         IExcelBatch batch,
         [RequiredParameter] string sheetName,
         [RequiredParameter] string sourceRange,
         [RequiredParameter] ChartType chartType,
-        double left,
-        double top,
+        double left = 0,
+        double top = 0,
         double width = 400,
         double height = 300,
-        string? chartName = null);
+        string? chartName = null,
+        string? targetRange = null);
 
     /// <summary>
     /// Creates a Regular Chart from an Excel Table's data range.
@@ -84,17 +87,19 @@ public interface IChartCommands
     /// <param name="width">Chart width in points</param>
     /// <param name="height">Chart height in points</param>
     /// <param name="chartName">Optional chart name (auto-generated if omitted)</param>
+    /// <param name="targetRange">Cell range to position chart within (e.g., 'F2:K15'). PREFERRED over left/top. When set, left/top are ignored.</param>
     [ServiceAction("create-from-table")]
     ChartCreateResult CreateFromTable(
         IExcelBatch batch,
         [RequiredParameter] string tableName,
         [RequiredParameter] string sheetName,
         [RequiredParameter] ChartType chartType,
-        double left,
-        double top,
+        double left = 0,
+        double top = 0,
         double width = 400,
         double height = 300,
-        string? chartName = null);
+        string? chartName = null,
+        string? targetRange = null);
 
     /// <summary>
     /// Creates a PivotChart from an existing PivotTable.
@@ -108,17 +113,19 @@ public interface IChartCommands
     /// <param name="width">Chart width in points</param>
     /// <param name="height">Chart height in points</param>
     /// <param name="chartName">Optional chart name (auto-generated if omitted)</param>
+    /// <param name="targetRange">Cell range to position chart within (e.g., 'F2:K15'). PREFERRED over left/top. When set, left/top are ignored.</param>
     [ServiceAction("create-from-pivottable")]
     ChartCreateResult CreateFromPivotTable(
         IExcelBatch batch,
         [RequiredParameter] string pivotTableName,
         [RequiredParameter] string sheetName,
         [RequiredParameter] ChartType chartType,
-        double left,
-        double top,
+        double left = 0,
+        double top = 0,
         double width = 400,
         double height = 300,
-        string? chartName = null);
+        string? chartName = null,
+        string? targetRange = null);
 
     /// <summary>
     /// Deletes a chart (Regular or PivotChart).

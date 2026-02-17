@@ -32,6 +32,17 @@ When an LLM test fails, the root cause is ALWAYS one of:
 
 ## What NEVER Belongs in a Test
 
+### ❌ xfail or skip Markers
+
+**NEVER use `@pytest.mark.xfail` or `@pytest.mark.skip` to hide failing tests.**
+
+Tests either **pass or fail**. There is no middle ground.
+
+- `xfail` masks real failures and creates a false sense of progress
+- `skip` hides broken code instead of fixing it
+- If a test fails, **fix the product** — the test is exposing a real problem (Golden Rule)
+- If a test is flaky, fix the flakiness — don't paper over it with xfail
+
 ### ❌ CLI Command Guidance in Prompts
 
 A real user doesn't know our CLI syntax. Neither should the test prompt.

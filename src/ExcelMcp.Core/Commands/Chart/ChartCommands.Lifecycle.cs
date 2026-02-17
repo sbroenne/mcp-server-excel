@@ -166,11 +166,12 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
         string sheetName,
         string sourceRange,
         ChartType chartType,
-        double left,
-        double top,
+        double left = 0,
+        double top = 0,
         double width = 400,
         double height = 300,
-        string? chartName = null)
+        string? chartName = null,
+        string? targetRange = null)
     {
         return batch.Execute((ctx, ct) =>
         {
@@ -178,19 +179,44 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
             dynamic? shapes = null;
             dynamic? shape = null;
             dynamic? chart = null;
+            dynamic? targetRangeObj = null;
 
             try
             {
                 worksheet = ctx.Book.Worksheets.Item(sheetName);
                 shapes = worksheet.Shapes;
 
+                // Resolve final position: targetRange > explicit left/top > auto-position
+                double finalLeft = left;
+                double finalTop = top;
+                double finalWidth = width;
+                double finalHeight = height;
+
+                if (!string.IsNullOrWhiteSpace(targetRange))
+                {
+                    // targetRange takes precedence — resolve range geometry
+                    targetRangeObj = worksheet.Range[targetRange];
+                    finalLeft = Convert.ToDouble(targetRangeObj.Left);
+                    finalTop = Convert.ToDouble(targetRangeObj.Top);
+                    finalWidth = Convert.ToDouble(targetRangeObj.Width);
+                    finalHeight = Convert.ToDouble(targetRangeObj.Height);
+                }
+                else if (left == 0 && top == 0)
+                {
+                    // No explicit position — auto-position below content
+                    // Cast explicitly to avoid dynamic dispatch losing named tuple members
+                    (double Left, double Top) autoPos = ChartPositionHelpers.FindAvailablePosition(worksheet, width, height);
+                    finalLeft = autoPos.Left;
+                    finalTop = autoPos.Top;
+                }
+
                 // Create chart using AddChart
                 shape = shapes.AddChart(
                     XlChartType: (int)chartType,
-                    Left: left,
-                    Top: top,
-                    Width: width,
-                    Height: height
+                    Left: finalLeft,
+                    Top: finalTop,
+                    Width: finalWidth,
+                    Height: finalHeight
                 );
 
                 chart = shape.Chart;
@@ -223,6 +249,11 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
 
                 string finalName = shape.Name?.ToString() ?? "Chart";
 
+                // Collision detection — warn about overlaps after positioning
+                var warnings = ChartPositionHelpers.DetectCollisions(
+                    worksheet, finalLeft, finalTop, finalWidth, finalHeight, finalName);
+                int chartCount = ChartPositionHelpers.CountCharts(worksheet);
+
                 var result = new ChartCreateResult
                 {
                     Success = true,
@@ -230,16 +261,18 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                     SheetName = sheetName,
                     ChartType = chartType,
                     IsPivotChart = false,
-                    Left = left,
-                    Top = top,
-                    Width = width,
-                    Height = height
+                    Left = finalLeft,
+                    Top = finalTop,
+                    Width = finalWidth,
+                    Height = finalHeight,
+                    Message = ChartPositionHelpers.FormatCollisionWarnings(warnings, chartCount)
                 };
 
                 return result;
             }
             finally
             {
+                ComUtilities.Release(ref targetRangeObj!);
                 ComUtilities.Release(ref chart!);
                 ComUtilities.Release(ref shape!);
                 ComUtilities.Release(ref shapes!);
@@ -254,11 +287,12 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
         string tableName,
         string sheetName,
         ChartType chartType,
-        double left,
-        double top,
+        double left = 0,
+        double top = 0,
         double width = 400,
         double height = 300,
-        string? chartName = null)
+        string? chartName = null,
+        string? targetRange = null)
     {
         return batch.Execute((ctx, ct) =>
         {
@@ -268,6 +302,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
             dynamic? shapes = null;
             dynamic? shape = null;
             dynamic? chart = null;
+            dynamic? targetRangeObj = null;
 
             try
             {
@@ -281,13 +316,35 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 worksheet = ctx.Book.Worksheets.Item(sheetName);
                 shapes = worksheet.Shapes;
 
+                // Resolve final position: targetRange > explicit left/top > auto-position
+                double finalLeft = left;
+                double finalTop = top;
+                double finalWidth = width;
+                double finalHeight = height;
+
+                if (!string.IsNullOrWhiteSpace(targetRange))
+                {
+                    targetRangeObj = worksheet.Range[targetRange];
+                    finalLeft = Convert.ToDouble(targetRangeObj.Left);
+                    finalTop = Convert.ToDouble(targetRangeObj.Top);
+                    finalWidth = Convert.ToDouble(targetRangeObj.Width);
+                    finalHeight = Convert.ToDouble(targetRangeObj.Height);
+                }
+                else if (left == 0 && top == 0)
+                {
+                    // Cast explicitly to avoid dynamic dispatch losing named tuple members
+                    (double Left, double Top) autoPos = ChartPositionHelpers.FindAvailablePosition(worksheet, width, height);
+                    finalLeft = autoPos.Left;
+                    finalTop = autoPos.Top;
+                }
+
                 // Create chart using AddChart
                 shape = shapes.AddChart(
                     XlChartType: (int)chartType,
-                    Left: left,
-                    Top: top,
-                    Width: width,
-                    Height: height
+                    Left: finalLeft,
+                    Top: finalTop,
+                    Width: finalWidth,
+                    Height: finalHeight
                 );
 
                 chart = shape.Chart;
@@ -303,6 +360,11 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
 
                 string finalName = shape.Name?.ToString() ?? "Chart";
 
+                // Collision detection
+                var warnings = ChartPositionHelpers.DetectCollisions(
+                    worksheet, finalLeft, finalTop, finalWidth, finalHeight, finalName);
+                int chartCount = ChartPositionHelpers.CountCharts(worksheet);
+
                 var result = new ChartCreateResult
                 {
                     Success = true,
@@ -310,16 +372,18 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                     SheetName = sheetName,
                     ChartType = chartType,
                     IsPivotChart = false,
-                    Left = left,
-                    Top = top,
-                    Width = width,
-                    Height = height
+                    Left = finalLeft,
+                    Top = finalTop,
+                    Width = finalWidth,
+                    Height = finalHeight,
+                    Message = ChartPositionHelpers.FormatCollisionWarnings(warnings, chartCount)
                 };
 
                 return result;
             }
             finally
             {
+                ComUtilities.Release(ref targetRangeObj!);
                 ComUtilities.Release(ref chart!);
                 ComUtilities.Release(ref shape!);
                 ComUtilities.Release(ref shapes!);
@@ -336,11 +400,12 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
         string pivotTableName,
         string sheetName,
         ChartType chartType,
-        double left,
-        double top,
+        double left = 0,
+        double top = 0,
         double width = 400,
         double height = 300,
-        string? chartName = null)
+        string? chartName = null,
+        string? targetRange = null)
     {
         return batch.Execute((ctx, ct) =>
         {
@@ -350,6 +415,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
             dynamic? pivotTable = null;
             dynamic? tableRange = null;
             dynamic? shapes = null;
+            dynamic? targetRangeObj = null;
 
             try
             {
@@ -363,6 +429,28 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 // Get target worksheet
                 worksheet = ctx.Book.Worksheets.Item(sheetName);
 
+                // Resolve final position: targetRange > explicit left/top > auto-position
+                double finalLeft = left;
+                double finalTop = top;
+                double finalWidth = width;
+                double finalHeight = height;
+
+                if (!string.IsNullOrWhiteSpace(targetRange))
+                {
+                    targetRangeObj = worksheet.Range[targetRange];
+                    finalLeft = Convert.ToDouble(targetRangeObj.Left);
+                    finalTop = Convert.ToDouble(targetRangeObj.Top);
+                    finalWidth = Convert.ToDouble(targetRangeObj.Width);
+                    finalHeight = Convert.ToDouble(targetRangeObj.Height);
+                }
+                else if (left == 0 && top == 0)
+                {
+                    // Cast explicitly to avoid dynamic dispatch losing named tuple members
+                    (double Left, double Top) autoPos = ChartPositionHelpers.FindAvailablePosition(worksheet, width, height);
+                    finalLeft = autoPos.Left;
+                    finalTop = autoPos.Top;
+                }
+
                 // Create a chart via Shapes.AddChart and set source to PivotTable's range.
                 // This approach works for both OLAP (Data Model) and non-OLAP PivotTables,
                 // unlike PivotCache.CreatePivotChart which has parameter issues in dynamic
@@ -372,10 +460,10 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 // Create chart using AddChart
                 pivotChartShape = shapes.AddChart(
                     XlChartType: (int)chartType,
-                    Left: left,
-                    Top: top,
-                    Width: width,
-                    Height: height
+                    Left: finalLeft,
+                    Top: finalTop,
+                    Width: finalWidth,
+                    Height: finalHeight
                 );
 
                 chart = pivotChartShape.Chart;
@@ -392,6 +480,11 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
 
                 string finalName = pivotChartShape.Name?.ToString() ?? "Chart";
 
+                // Collision detection
+                var warnings = ChartPositionHelpers.DetectCollisions(
+                    worksheet, finalLeft, finalTop, finalWidth, finalHeight, finalName);
+                int chartCount = ChartPositionHelpers.CountCharts(worksheet);
+
                 var result = new ChartCreateResult
                 {
                     Success = true,
@@ -400,16 +493,18 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                     ChartType = chartType,
                     IsPivotChart = true,
                     LinkedPivotTable = pivotTableName,
-                    Left = left,
-                    Top = top,
-                    Width = width,
-                    Height = height
+                    Left = finalLeft,
+                    Top = finalTop,
+                    Width = finalWidth,
+                    Height = finalHeight,
+                    Message = ChartPositionHelpers.FormatCollisionWarnings(warnings, chartCount)
                 };
 
                 return result;
             }
             finally
             {
+                ComUtilities.Release(ref targetRangeObj!);
                 ComUtilities.Release(ref chart!);
                 ComUtilities.Release(ref pivotChartShape!);
                 ComUtilities.Release(ref tableRange!);
@@ -542,12 +637,27 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                             if (width.HasValue) shape.Width = width.Value;
                             if (height.HasValue) shape.Height = height.Value;
 
+                            // Collision detection after repositioning
+                            double finalLeft = Convert.ToDouble(shape.Left);
+                            double finalTop = Convert.ToDouble(shape.Top);
+                            double finalWidth = Convert.ToDouble(shape.Width);
+                            double finalHeight = Convert.ToDouble(shape.Height);
+
+                            var warnings = ChartPositionHelpers.DetectCollisions(
+                                worksheet, finalLeft, finalTop, finalWidth, finalHeight, shapeName);
+                            int chartCount = ChartPositionHelpers.CountCharts(worksheet);
+
                             ComUtilities.Release(ref shape!);
                             ComUtilities.Release(ref shapes!);
                             ComUtilities.Release(ref worksheet!);
                             ComUtilities.Release(ref worksheets!);
 
-                            return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Success
+                            return new OperationResult
+                            {
+                                Success = true,
+                                FilePath = batch.WorkbookPath,
+                                Message = ChartPositionHelpers.FormatCollisionWarnings(warnings, chartCount)
+                            };
                         }
                         finally
                         {

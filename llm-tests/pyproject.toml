@@ -9,6 +9,7 @@ dependencies = [
     "python-dotenv>=1.2",
     "pytest-aitest>=0.4.1",
     "azure-identity>=1.25",
+    "pytest-timeout>=2.4.0",
 ]
 
 [tool.pytest.ini_options]

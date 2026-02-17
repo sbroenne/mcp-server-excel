@@ -45,15 +45,19 @@ table(create, tableName='SalesData', rangeAddress='A1:D20')
 
 ## Step 3: Position Charts with No Overlaps
 
-**CRITICAL: Every chart needs explicit positioning.**
+**Charts have automatic collision detection and three positioning modes:**
 
-### Single Chart
+### Single Chart (Auto-Position or targetRange)
 ```
-range(get-used-range) → "A1:D20"
+# Option A: targetRange (explicit cell placement)
 chart(create-from-range, sourceRange='A1:D20', targetRange='F2:K15')
+
+# Option B: Omit position — auto-places below content
+chart(create-from-range, sourceRange='A1:D20', chartType='Line')
+# → Automatically positioned below the used range
 ```
 
-### Multiple Charts (Dashboard)
+### Multiple Charts (Dashboard) — Always Use targetRange
 ```
 Place in a grid pattern below data:
 
@@ -63,11 +67,17 @@ Chart 3: targetRange='A37:F50'    (bottom-left)
 Chart 4: targetRange='G37:L50'    (bottom-right)
 ```
 
+### Collision Detection
+All chart operations automatically warn about overlaps. If a result includes an `OVERLAP WARNING` message:
+1. Use `chart(fit-to-range)` to reposition
+2. Take `screenshot(capture-sheet)` to verify
+
 **Rules:**
-- **Never skip targetRange** — default positioning stacks charts on top of each other
+- **Use targetRange for multi-chart layouts** — auto-positioning stacks vertically
 - Leave 1-2 rows/columns gap between charts
 - Place charts BELOW the data area, not beside it (more room)
 - Keep chart sizes consistent (same row/column span)
+- **Always check result messages** for overlap warnings
 
 ## Step 4: Verify with Screenshot
 
