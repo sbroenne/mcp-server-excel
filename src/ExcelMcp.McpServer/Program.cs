@@ -1,6 +1,7 @@
 using System.IO.Pipelines;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.WorkerService;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -63,6 +64,20 @@ public class Program
         RegisterGlobalExceptionHandlers();
 
         var builder = Host.CreateApplicationBuilder(args);
+
+        // Disable FileSystemWatcher for config file reload.
+        // Host.CreateApplicationBuilder() enables reloadOnChange:true by default, creating a
+        // FileSystemWatcher for appsettings.json. Under file I/O storms (Excel temp files, lock
+        // files), this watcher fires ParseEventBufferAndNotifyForEach in a tight loop on the
+        // threadpool, consuming ~85% CPU. Since MCP server config never changes at runtime,
+        // disable reload entirely to eliminate the watcher.
+        // Re-add JSON, environment variables, and CLI args — minus the file watchers.
+        builder.Configuration.Sources.Clear();
+        builder.Configuration
+            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+            .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false)
+            .AddEnvironmentVariables()
+            .AddCommandLine(args);
 
         // For stdio transport: Clear console logging to avoid polluting stderr with info messages.
         // The MCP client interprets stderr output as errors/warnings, so we only log Warning+

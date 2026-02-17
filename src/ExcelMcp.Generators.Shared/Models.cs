@@ -122,7 +122,7 @@ public sealed class ParameterInfo
 public sealed class ExposedParameter
 {
     public string Name { get; }
-    public string TypeName { get; }
+    public string TypeName { get; set; }
     public string? Description { get; }
     public string? DefaultValue { get; }
 

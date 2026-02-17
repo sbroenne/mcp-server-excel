@@ -28,11 +28,8 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
     [Fact]
     public void List_EmptyWorkbook_ReturnsEmptyList()
     {
-        // Arrange
-        var testFile = _fixture.CreateTestFile();
-
         // Act
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
         var charts = _commands.List(batch);
 
         // Assert
@@ -43,24 +40,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
     public void CreateFromRange_ValidData_CreatesChart()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1"].Value2 = "Category";
-            sheet.Range["B1"].Value2 = "Values";
-            sheet.Range["A2"].Value2 = "Q1";
-            sheet.Range["B2"].Value2 = 100;
-            sheet.Range["A3"].Value2 = "Q2";
-            sheet.Range["B3"].Value2 = 150;
-            sheet.Range["A4"].Value2 = "Q3";
-            sheet.Range["B4"].Value2 = 200;
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         // Act
         var createResult = _commands.CreateFromRange(
@@ -90,9 +70,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
     public void CreateFromTable_ValidTable_CreatesChart()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         // Create test data and table
         batch.Execute((ctx, ct) =>
@@ -156,11 +134,8 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
     [Fact]
     public void CreateFromTable_NonExistentTable_ThrowsException()
     {
-        // Arrange
-        var testFile = _fixture.CreateTestFile();
-
         // Act & Assert
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
         var exception = Assert.Throws<InvalidOperationException>(() =>
             _commands.CreateFromTable(
                 batch,
@@ -177,9 +152,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
     public void CreateFromPivotTable_RangePivotTable_CreatesPivotChart()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         // Create data and PivotTable
         string pivotTableName = "TestPivot";
@@ -260,11 +233,8 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
     [Fact]
     public void CreateFromPivotTable_NonExistentPivotTable_ThrowsException()
     {
-        // Arrange
-        var testFile = _fixture.CreateTestFile();
-
         // Act & Assert
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
         var exception = Assert.Throws<InvalidOperationException>(() =>
             _commands.CreateFromPivotTable(
                 batch,
@@ -281,9 +251,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
     public void CreateFromPivotTable_DifferentChartTypes_CreatesCorrectType()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         // Create data and PivotTable
         string pivotTableName = "ChartTypePivot";
@@ -357,22 +325,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
     public void Read_ExistingChart_ReturnsDetails()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "Cat", "Val" },
-                { "Q1", 100 },
-                { "Q2", 150 },
-                { "Q3", 200 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.Pie, 50, 50, 300, 300, "PieChart");
 
@@ -390,11 +343,8 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
     [Fact]
     public void Read_NonExistentChart_ReturnsError()
     {
-        // Arrange
-        var testFile = _fixture.CreateTestFile();
-
         // Act & Assert
-        using var batch = ExcelSession.BeginBatch(testFile);
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
         var exception = Assert.Throws<InvalidOperationException>(() => _commands.Read(batch, "NonExistent"));
         Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -403,17 +353,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
     public void Delete_ExistingChart_RemovesChart()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B3"].Value2 = new object[,] { { "X", "Y" }, { 1, 10 }, { 2, 20 } };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         _commands.CreateFromRange(batch, "Sheet1", "A1:B3", ChartType.Line, 50, 50);
 
@@ -433,17 +373,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
     public void Move_ExistingChart_UpdatesPosition()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data and chart
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B3"].Value2 = new object[,] { { "X", "Y" }, { 1, 10 }, { 2, 20 } };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B3", ChartType.ColumnClustered, 100, 100, 300, 200);
 
@@ -462,22 +392,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
     public void List_MultipleCharts_ReturnsAll()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:B4"].Value2 = new object[,] {
-                { "Cat", "Val" },
-                { "A", 10 },
-                { "B", 20 },
-                { "C", 30 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         // Create multiple charts
         _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.ColumnClustered, 50, 50, 300, 200, "Chart1");
@@ -498,23 +413,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
     public void CreateFromRange_DifferentChartTypes_CreatesCorrectly()
     {
         // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        // Create test data
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
-            sheet.Range["A1:C5"].Value2 = new object[,] {
-                { "Month", "Series1", "Series2" },
-                { "Jan", 10, 20 },
-                { "Feb", 15, 25 },
-                { "Mar", 20, 30 },
-                { "Apr", 25, 35 }
-            };
-            return 0;
-        });
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
 
         // Act & Assert - Test various chart types
         var chartTypes = new[]

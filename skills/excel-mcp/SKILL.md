@@ -18,7 +18,7 @@ Provides 223 Excel operations via Model Context Protocol. The MCP Server forward
 | 1. Open file | `file` | `open` or `create` | Always first |
 | 2. Create sheets | `worksheet` | `create`, `rename` | If needed |
 | 3. Write data | `range` | `set-values` | Always (2D arrays) |
-| 4. Format | `range_format` | `set-number-format`, `set-style` | After writing |
+| 4. Format | `range` | `set-number-format` | After writing |
 | 5. Structure | `table` | `create` | Convert data to tables |
 | 6. Save & close | `file` | `close` with `save: true` | Always last |
 
@@ -164,7 +164,7 @@ When writing many values/formulas (10+ cells), use `calculation_mode` to avoid r
 |------|------|------------|
 | Create/open/save workbooks | `file` | open, create, close |
 | Write/read cell data | `range` | set-values, get-values |
-| Format cells | `range_format` | set-number-format |
+| Format cells | `range` | set-number-format |
 | Create tables from data | `table` | create |
 | Add table to Power Pivot | `table` | add-to-data-model |
 | Create DAX formulas | `datamodel` | create-measure |

@@ -10,6 +10,21 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### Fixed
+
+- **COM Timeout Hang** — ExcelBatch now force-kills Excel process on timeout instead of hanging indefinitely on `WaitForSingleObject`; ExcelMcpService catches `TimeoutException` to prevent unhandled exceptions
+- **FileSystemWatcher CPU Spin** — Disabled `IConfiguration` reload-on-change in MCP Server to prevent 85%+ CPU usage from `FileSystemWatcher` polling
+- **Process Handle Leak** — Fixed `Process` object not being disposed in `ExcelBatch.ForceKillExcelProcess()`
+- **Configuration Sources Cleared** — Re-add environment variables and command-line args after clearing config sources (were accidentally removed)
+- **Source Generator Type Aggregation** — Fixed nullable type upgrade logic in `ServiceInfoExtractor` that could lose type information across partial interfaces
+- **Chart Trendline Parameter Name** — Renamed `type` → `trendlineType` in `IChartConfigCommands` to avoid COM parameter ambiguity
+- **Chart Style Error Message** — Improved `SetStyle` error message to show valid range when `styleId` is out of bounds
+- **Chart InvalidOperationException** — Added catch for `InvalidOperationException` in chart appearance commands
+
+### Changed
+
+- **Chart Test Performance** — Refactored 80 chart tests to share a single pre-populated fixture file via `File.Copy()` instead of creating individual files via COM, eliminating ~74 redundant Excel sessions
+
 ### Added
 
 - **Window Management Tool** (#470): New `window` tool with 9 operations to control Excel window visibility, position, state, and status bar — enabling "Agent Mode" where users watch AI work in Excel
