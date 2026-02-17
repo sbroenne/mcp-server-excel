@@ -35,6 +35,8 @@ This changelog covers all components:
 - **CLI `--help` crash** (#463): Fixed Spectre.Console markup crash when parameter descriptions contain `[`/`]` characters (e.g., `[A1 notation]`)
 - **Source generator tool filtering**: Fixed `mcpTool ?? "unknown"` fallback; added `HasMcpToolAttribute` to correctly filter MCP-only tools
 - **Skills docs parameter names**: Fixed wrong CLI parameter names in `conditionalformat.md` and `slicer.md` reference files
+- **Auto-save on shutdown**: Sessions are now auto-saved before closing when MCP server exits or client disconnects, preventing silent data loss from session timeouts
+- **Session creation resilience**: Added retry logic (Polly) for transient COM failures (`CO_E_SERVER_EXEC_FAILURE`, `RPC_E_CALL_FAILED`) during Excel process startup under resource constraints
 
 ## [1.7.2] - 2026-02-15
 
