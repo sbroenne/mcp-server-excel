@@ -295,6 +295,57 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
     }
 
     /// <summary>
+    /// REGRESSION TEST: After timeout, subsequent Execute calls must throw TimeoutException
+    /// immediately instead of queueing work on the stuck STA thread.
+    /// Before this fix, the second caller would queue work and block until its own timeout
+    /// expired — causing the entire server to appear hung for up to timeoutSeconds.
+    /// </summary>
+    [Fact]
+    public void Execute_AfterPreviousTimeout_FailsFastWithTimeoutException()
+    {
+        // Arrange — short timeout to trigger the first timeout quickly
+        var batch = ExcelSession.BeginBatch(
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(3),
+            _testFileCopy!);
+
+        // Warm up
+        batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets.Item(1); return 0; });
+
+        // Trigger timeout on first operation
+        Assert.Throws<TimeoutException>(() =>
+        {
+            batch.Execute((ctx, ct) =>
+            {
+                Thread.Sleep(TimeSpan.FromSeconds(30));
+                return 0;
+            });
+        });
+
+        _output.WriteLine("First timeout triggered, now calling Execute again...");
+
+        // Act — second Execute should fail FAST (not wait for its own timeout)
+        var sw = Stopwatch.StartNew();
+        var ex = Assert.Throws<TimeoutException>(() =>
+        {
+            batch.Execute((ctx, ct) => { return 42; });
+        });
+        sw.Stop();
+
+        _output.WriteLine($"Second Execute threw in {sw.Elapsed.TotalMilliseconds:F0}ms: {ex.Message}");
+
+        // Assert — must be near-instant, not another 3+ second timeout wait
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(1),
+            $"REGRESSION: Second Execute took {sw.Elapsed.TotalSeconds:F1}s — expected < 1s. " +
+            "The fail-fast pre-check for _operationTimedOut may not be working.");
+        Assert.Contains("previous operation", ex.Message, StringComparison.OrdinalIgnoreCase);
+
+        // Cleanup
+        batch.Dispose();
+        _output.WriteLine("✓ Subsequent Execute after timeout fails fast");
+    }
+
+    /// <summary>
     /// Verify that ExcelProcessId is captured during session creation.
     /// This is a prerequisite for the pre-emptive kill to work.
     /// </summary>

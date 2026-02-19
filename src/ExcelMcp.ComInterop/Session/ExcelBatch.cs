@@ -439,6 +439,17 @@ internal sealed class ExcelBatch : IExcelBatch
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
 
+        // Fail fast if a previous operation timed out or was cancelled while the STA thread
+        // was stuck in IDispatch.Invoke. The STA thread cannot process new work items until
+        // the hung COM call returns (which may be never). Without this check, new callers
+        // would queue work and block until their own timeout expires.
+        if (_operationTimedOut)
+        {
+            throw new TimeoutException(
+                $"A previous operation timed out or was cancelled for '{Path.GetFileName(_workbookPath)}'. " +
+                "The Excel COM thread may be unresponsive. Please close this session and create a new one.");
+        }
+
         // Check if Excel process is still alive before attempting operation
         if (!IsExcelProcessAlive())
         {
