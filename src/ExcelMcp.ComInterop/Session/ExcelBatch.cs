@@ -137,17 +137,16 @@ internal sealed class ExcelBatch : IExcelBatch
                         }
                     }
 
-                    // Fallback: If Hwnd method failed, try finding newest EXCEL.EXE process
+                    // NOTE: No fallback PID capture.
+                    // Previously this fell back to "newest EXCEL.EXE process" when Hwnd returned 0.
+                    // That approach was unsafe: if the user has their own Excel open, we would
+                    // incorrectly identify and later force-kill their instance (GitHub #482, Bug 2).
+                    // Disabling force-kill is safer than killing the wrong process.
                     if (!_excelProcessId.HasValue)
                     {
-                        var excelProcesses = System.Diagnostics.Process.GetProcessesByName("EXCEL")
-                            .OrderByDescending(p => p.StartTime)
-                            .ToList();
-                        if (excelProcesses.Count > 0)
-                        {
-                            _excelProcessId = excelProcesses[0].Id;
-                            _logger.LogDebug("Captured Excel process ID via fallback (newest): {ProcessId}", _excelProcessId);
-                        }
+                        _logger.LogWarning(
+                            "Could not determine Excel process ID via Hwnd. " +
+                            "Force-kill will be disabled for this session to avoid killing unrelated Excel instances.");
                     }
                 }
                 catch (Exception ex)
@@ -557,10 +556,6 @@ internal sealed class ExcelBatch : IExcelBatch
         // Then complete the work queue
         _logger.LogDebug("[Thread {CallingThread}] Completing work queue for {FileName}", callingThread, Path.GetFileName(_workbookPath));
         _workQueue.Writer.Complete();
-
-        // Give the thread a moment to notice the cancellation
-        _logger.LogDebug("[Thread {CallingThread}] Sleeping {DelayMs}ms for {FileName}", callingThread, ComInteropConstants.FileLockRetryDelayMs, Path.GetFileName(_workbookPath));
-        Thread.Sleep(ComInteropConstants.FileLockRetryDelayMs);
 
         _logger.LogDebug("[Thread {CallingThread}] Waiting for STA thread (Id={STAThread}) to exit for {FileName}", callingThread, _staThread?.ManagedThreadId ?? -1, Path.GetFileName(_workbookPath));
 

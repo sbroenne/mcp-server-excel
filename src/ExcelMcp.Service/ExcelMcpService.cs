@@ -262,7 +262,8 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (Exception ex)
         {
-            return new ServiceResponse { Success = false, ErrorMessage = ex.Message };
+            // Include type name so callers can distinguish exception kinds (GitHub #482, Bug 5)
+            return new ServiceResponse { Success = false, ErrorMessage = $"{ex.GetType().Name}: {ex.Message}" };
         }
     }
 
@@ -358,7 +359,7 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (Exception ex)
         {
-            return new ServiceResponse { Success = false, ErrorMessage = ex.Message };
+            return new ServiceResponse { Success = false, ErrorMessage = $"{ex.GetType().Name}: {ex.Message}" };
         }
     }
 
@@ -384,7 +385,7 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (Exception ex)
         {
-            return new ServiceResponse { Success = false, ErrorMessage = ex.Message };
+            return new ServiceResponse { Success = false, ErrorMessage = $"{ex.GetType().Name}: {ex.Message}" };
         }
     }
 
@@ -539,7 +540,7 @@ public sealed class ExcelMcpService : IDisposable
 
                 {
 
-                    return new ServiceResponse { Success = false, ErrorMessage = ex.Message };
+                    return new ServiceResponse { Success = false, ErrorMessage = $"{ex.GetType().Name}: {ex.Message}" };
 
                 }
 
@@ -725,7 +726,7 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (Exception ex)
         {
-            return Task.FromResult(new ServiceResponse { Success = false, ErrorMessage = ex.Message });
+            return Task.FromResult(new ServiceResponse { Success = false, ErrorMessage = $"{ex.GetType().Name}: {ex.Message}" });
         }
     }
 

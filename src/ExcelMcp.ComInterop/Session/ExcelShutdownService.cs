@@ -15,14 +15,16 @@ public static class ExcelShutdownService
     private static readonly ResiliencePipeline _quitPipeline = ResiliencePipelines.CreateExcelQuitPipeline();
 
     /// <summary>
-    /// Saves an Excel workbook with 5-minute timeout protection.
-    /// Wraps the blocking Save() COM call to prevent indefinite blocking on large files.
+    /// Saves an Excel workbook on the calling STA thread.
+    /// Must be called from within <c>ExcelBatch.Execute()</c> so the Save() COM call
+    /// runs on the correct STA thread. Timeout protection is provided by the surrounding
+    /// <c>ExcelBatch.Execute()</c> operation timeout and the Dispose() force-kill chain.
     /// </summary>
     /// <param name="workbook">Excel workbook COM object to save</param>
     /// <param name="fileName">File name for diagnostic messages (optional)</param>
     /// <param name="logger">Logger for diagnostic output (optional)</param>
-    /// <param name="cancellationToken">Cancellation token (combined with 5-minute timeout)</param>
-    /// <exception cref="TimeoutException">Save exceeded 5 minutes</exception>
+    /// <param name="cancellationToken">Cancellation token checked before Save() is invoked</param>
+    /// <exception cref="OperationCanceledException">Cancellation was requested before save started</exception>
     /// <exception cref="COMException">Save failed due to COM error</exception>
     /// <exception cref="InvalidOperationException">Save failed due to unexpected error</exception>
     public static void SaveWorkbookWithTimeout(
@@ -34,31 +36,22 @@ public static class ExcelShutdownService
         logger ??= NullLogger.Instance;
         fileName ??= "unknown";
 
-        logger.LogDebug("Saving workbook {FileName} ({Timeout} timeout)", fileName, ComInteropConstants.SaveOperationTimeout);
+        // Honour any cancellation request before we start the potentially slow COM call
+        cancellationToken.ThrowIfCancellationRequested();
+
+        logger.LogDebug("Saving workbook {FileName}", fileName);
 
         try
         {
-            // Wrap Save() with timeout to prevent indefinite blocking
-            var saveTask = Task.Run(() => workbook.Save());
-
-            // Create combined timeout: user's cancellation token OR configured timeout
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts.CancelAfter(ComInteropConstants.SaveOperationTimeout);
-
-            if (!saveTask.Wait(ComInteropConstants.SaveOperationTimeout, timeoutCts.Token))
-            {
-                logger.LogError("Save operation for {FileName} timed out after {Timeout}", fileName, ComInteropConstants.SaveOperationTimeout);
-                throw new TimeoutException(
-                    $"Save operation for '{fileName}' exceeded {ComInteropConstants.SaveOperationTimeout.TotalMinutes} minutes. " +
-                    "This may indicate a very large file, slow disk I/O, or antivirus interference. " +
-                    "Check file size and disk performance, then retry.");
-            }
+            // Call Save() directly on the STA thread.
+            // Previously this used Task.Run(() => workbook.Save()) which marshalled the COM call
+            // from the STA thread to an MTA thread-pool thread — crossing COM apartment boundaries
+            // and risking RPC_E_WRONG_THREAD or deadlocks (GitHub #482, Bug 1).
+            // This method is always called from inside ExcelBatch.Execute() which already runs
+            // on the dedicated STA thread, so a direct call is correct and safe.
+            workbook.Save();
 
             logger.LogDebug("Workbook {FileName} saved successfully", fileName);
-        }
-        catch (TimeoutException)
-        {
-            throw; // Re-throw timeout exceptions as-is
         }
         catch (COMException ex)
         {
