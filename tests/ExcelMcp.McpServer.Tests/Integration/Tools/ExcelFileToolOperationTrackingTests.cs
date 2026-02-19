@@ -165,7 +165,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         });
 
         Assert.True(openResult.GetProperty("success").GetBoolean());
-        var sessionId = openResult.GetProperty("sessionId").GetString();
+        var sessionId = openResult.GetProperty("session_id").GetString();
         Assert.NotNull(sessionId);
 
         try
@@ -215,7 +215,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
         });
 
         Assert.True(openResult.GetProperty("success").GetBoolean());
-        var sessionId = openResult.GetProperty("sessionId").GetString();
+        var sessionId = openResult.GetProperty("session_id").GetString();
 
         try
         {
@@ -256,7 +256,7 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
             ["show"] = false
         });
 
-        var sessionId = openResult.GetProperty("sessionId").GetString();
+        var sessionId = openResult.GetProperty("session_id").GetString();
 
         // Close should succeed (no operations running)
         var closeResult = await CallToolAsync("file", new Dictionary<string, object?>

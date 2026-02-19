@@ -105,7 +105,7 @@ Write-Host "  Session ID: $sessionId" -ForegroundColor Gray
 
 # 2. Create worksheet (simpler than set-values with JSON)
 Test-Step "Create worksheet 'Data'" {
-    & $cli -q worksheet create --session $sessionId --sheet-name Data | ConvertFrom-Json
+    & $cli -q sheet create --session $sessionId --sheet-name Data | ConvertFrom-Json
 } -Verify {
     param($r)
     $r.success -eq $true
@@ -113,7 +113,7 @@ Test-Step "Create worksheet 'Data'" {
 
 # 3. List worksheets
 $sheets = Test-Step "List worksheets" {
-    & $cli -q worksheet list --session $sessionId | ConvertFrom-Json
+    & $cli -q sheet list --session $sessionId | ConvertFrom-Json
 } -Verify {
     param($r)
     $r.success -eq $true -or $r.worksheets -ne $null
@@ -123,7 +123,7 @@ Write-Host "  Sheets: $(($sheets.worksheets | Measure-Object).Count)" -Foregroun
 
 # 4. Delete worksheet
 Test-Step "Delete worksheet 'Data'" {
-    & $cli -q worksheet delete --session $sessionId --sheet-name Data | ConvertFrom-Json
+    & $cli -q sheet delete --session $sessionId --sheet-name Data | ConvertFrom-Json
 } -Verify {
     param($r)
     $r.success -eq $true

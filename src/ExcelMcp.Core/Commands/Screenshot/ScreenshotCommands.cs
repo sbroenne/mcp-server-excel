@@ -10,14 +10,14 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 public class ScreenshotCommands : IScreenshotCommands
 {
     // Excel COM constants
-    private const int XlScreen = 1;      // xlScreen
+    private const int XlScreen = 1;      // xlScreen - required for CopyPicture to render correctly
     private const int XlBitmap = 2;      // xlBitmap
 
     // CopyPicture retry configuration
     // After Save or large operations, Excel rendering can take several seconds.
     // Retries with exponential backoff: 500ms, 1000ms, 1500ms, 2000ms, 2500ms, 3000ms, 3500ms
-    private const int CopyPictureMaxRetries = 7;
-    private const int CopyPictureRetryDelayMs = 500;
+    private const int CopyPictureMaxRetries = 10;
+    private const int CopyPictureRetryDelayMs = 700;
 
     /// <summary>
     /// Captures a specific range as a PNG image.
@@ -103,7 +103,7 @@ public class ScreenshotCommands : IScreenshotCommands
     /// Exports a range as a PNG image using CopyPicture + ChartObject.Export.
     /// CopyPicture requires Excel to be visible for rendering. If Excel is hidden,
     /// we temporarily show it, capture, then restore the previous visibility state.
-    /// 
+    ///
     /// CRITICAL: After Save/large operations, Excel needs rendering time even if already visible.
     /// This method includes delays to ensure Excel is fully rendered before capture.
     /// </summary>
@@ -127,13 +127,13 @@ public class ScreenshotCommands : IScreenshotCommands
                 // becoming visible. Without this, CopyPicture fails with
                 // "Unable to get the CopyPicture property" or crashes the process
                 // with RPC_S_SERVER_UNAVAILABLE (0x800706BA) under rapid cycling.
-                Thread.Sleep(1000);
+                Thread.Sleep(2000);
             }
             else
             {
-                // Excel is already visible, but may still be rendering from Save or other operations.
-                // Add shorter delay to allow rendering pipeline to catch up.
-                Thread.Sleep(500);
+                // Excel is already visible, but may still be rendering from previous operations.
+                // Slightly longer delay to allow rendering pipeline to fully settle.
+                Thread.Sleep(1000);
             }
 
             // Try to activate the Excel window to ensure it has focus for proper rendering.
@@ -141,6 +141,8 @@ public class ScreenshotCommands : IScreenshotCommands
             try
             {
                 app.Activate();
+                // Allow activation and message pump to settle
+                Thread.Sleep(500);
             }
             catch
             {
@@ -172,6 +174,10 @@ public class ScreenshotCommands : IScreenshotCommands
 
             // Paste the copied picture into the chart
             chart.Paste();
+
+            // Clear clipboard immediately after paste — releases clipboard for subsequent screenshot calls
+            // (otherwise marching ants remain and next CopyPicture may fail with clipboard contention)
+            try { app.CutCopyMode = false; } catch { /* best effort */ }
 
             // Export to temp PNG file
             tempFile = Path.Combine(Path.GetTempPath(), $"excelmcp-screenshot-{Guid.NewGuid():N}.png");

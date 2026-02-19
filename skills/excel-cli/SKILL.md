@@ -174,7 +174,7 @@ Control Excel recalculation (automatic vs manual). Set manual mode before bulk w
 
 ### chart
 
-Chart lifecycle - create, read, move, and delete embedded charts. CRITICAL - AVOID OVERLAPPING DATA: 1. Check used range first with range get-used-range 2. Position chart BELOW or to the RIGHT of data 3. NEVER place charts at default position (0,0) - it overlaps data! POSITIONING: left/top in points (72 points = 1 inch). Use fit-to-range to position chart within a cell range like 'F2:K15'. CHART TYPES: 70+ types available including Column, Line, Pie, Bar, Area, XY Scatter. CREATE OPTIONS: - create-from-range: Create from cell range (e.g., 'A1:D10') - create-from-table: Create from Excel Table (uses table's data range) - create-from-pivottable: Create linked PivotChart Use chartconfig for series, titles, legends, styles, placement mode.
+Chart lifecycle - create, read, move, and delete embedded charts. POSITIONING (choose one): - targetRange (PREFERRED): Cell range like 'F2:K15' — positions chart within cells, no point math needed. - left/top: Manual positioning in points (72 points = 1 inch). - Neither: Auto-positions chart below all existing content (used range + other charts). COLLISION DETECTION: All create/move/fit-to-range operations automatically check for overlaps with data and other charts. Warnings are returned in the result message if collisions are detected. Always verify layout with screenshot(capture-sheet) after creating charts. CHART TYPES: 70+ types available including Column, Line, Pie, Bar, Area, XY Scatter. CREATE OPTIONS: - create-from-range: Create from cell range (e.g., 'A1:D10') - create-from-table: Create from Excel Table (uses table's data range) - create-from-pivottable: Create linked PivotChart Use chartconfig for series, titles, legends, styles, placement mode.
 
 **Actions:** `list`, `read`, `create-from-range`, `create-from-table`, `create-from-pivottable`, `delete`, `move`, `fit-to-range`
 
@@ -182,12 +182,13 @@ Chart lifecycle - create, read, move, and delete embedded charts. CRITICAL - AVO
 |-----------|-------------|
 | `--chart-name` | Name of the chart (or shape name) (required for: read, delete, move, fit-to-range) |
 | `--sheet-name` | Target worksheet name (required for: create-from-range, create-from-table, create-from-pivottable, fit-to-range) |
-| `--source-range` | Data range for the chart (e.g., A1:D10) (required for: create-from-range) |
+| `--source-range-address` | Data range for the chart (e.g., A1:D10) (required for: create-from-range) |
 | `--chart-type` | Type of chart to create (required for: create-from-range, create-from-table, create-from-pivottable) |
-| `--left` | Left position in points from worksheet edge (required for: create-from-range, create-from-table, create-from-pivottable) |
-| `--top` | Top position in points from worksheet edge (required for: create-from-range, create-from-table, create-from-pivottable) |
+| `--left` | Left position in points from worksheet edge |
+| `--top` | Top position in points from worksheet edge |
 | `--width` | Chart width in points |
 | `--height` | Chart height in points |
+| `--target-range` | Cell range to position chart within (e.g., 'F2:K15'). PREFERRED over left/top. When set, left/top are ignored. |
 | `--table-name` | Name of the Excel Table (required for: create-from-table) |
 | `--pivot-table-name` | Name of the source PivotTable (required for: create-from-pivottable) |
 | `--range-address` | Range to fit the chart to (e.g., A1:D10) (required for: fit-to-range) |
@@ -217,7 +218,7 @@ Chart configuration - data source, series, type, title, axis labels, legend, and
 | `--style-id` | Excel chart style ID (1-48 for most chart types) (required for: set-style) |
 | `--placement` | Placement mode: 1=MoveAndSize, 2=Move, 3=FreeFloating (required for: set-placement) |
 | `--show-value` | Show data values on labels |
-| `--show-percentage` | Show percentage values (pie/doughnut charts) |
+| `--show-percentage` | Show percentage values. Only meaningful for pie and doughnut chart types; setting to true on other chart types has no visual effect. |
 | `--show-series-name` | Show series name on labels |
 | `--show-category-name` | Show category name on labels |
 | `--show-bubble-size` | Show bubble size (bubble charts) |
@@ -234,7 +235,7 @@ Chart configuration - data source, series, type, title, axis labels, legend, and
 | `--marker-background-color` | Marker fill color (#RRGGBB) |
 | `--marker-foreground-color` | Marker border color (#RRGGBB) |
 | `--invert-if-negative` | Invert colors for negative values |
-| `--type` | Type of trendline (Linear, Exponential, etc.) (required for: add-trendline) |
+| `--trendline-type` | Type of trendline (Linear, Exponential, etc.) (required for: add-trendline) |
 | `--order` | Polynomial order (2-6, for Polynomial type) |
 | `--period` | Moving average period (for MovingAverage type) |
 | `--forward` | Periods to extend forward |
@@ -249,7 +250,7 @@ Chart configuration - data source, series, type, title, axis labels, legend, and
 
 ### conditionalformat
 
-Conditional formatting - visual rules based on cell values. TYPES: cellValue (requires operatorType+formula1), expression (formula only). FORMAT: interiorColor/fontColor as #RRGGBB, fontBold/Italic, borderStyle/Color. OPERATORS: equal, notEqual, greater, less, greaterEqual, lessEqual, between, notBetween. For 'between' and 'notBetween', both formula1 and formula2 are required.
+Conditional formatting - visual rules based on cell values. TYPES: cellValue (requires operatorType+formula1), expression (formula only). Both camelCase and kebab-case accepted. FORMAT: interiorColor/fontColor as #RRGGBB, fontBold/Italic, borderStyle/Color. OPERATORS: equal, notEqual, greater, less, greaterEqual, lessEqual, between, notBetween. For 'between' and 'notBetween', both formula1 and formula2 are required.
 
 **Actions:** `add-rule`, `clear-rules`
 
@@ -257,7 +258,7 @@ Conditional formatting - visual rules based on cell values. TYPES: cellValue (re
 |-----------|-------------|
 | `--sheet-name` | Sheet name (empty for active sheet) |
 | `--range-address` | Range address (A1 notation or named range) |
-| `--rule-type` | Rule type: cellValue, expression |
+| `--rule-type` | Rule type: cellValue (or cell-value), expression, colorScale, dataBar, top10, iconSet, uniqueValues, blanksCondition, timePeriod, aboveAverage. Both camelCase and kebab-case accepted. |
 | `--operator-type` | XlFormatConditionOperator: equal, notEqual, greater, less, greaterEqual, lessEqual, between, notBetween |
 | `--formula1` | First formula/value for condition |
 | `--formula2` | Second formula/value (for between/notBetween) |
@@ -497,7 +498,7 @@ Range editing operations: insert/delete cells, rows, and columns; find/replace t
 
 Range formatting operations: apply styles, set fonts/colors/borders, add data validation, merge cells, auto-fit dimensions. Use range for values/formulas/copy/clear operations. STYLES: Use built-in style names like 'Heading 1', 'Good', 'Bad', 'Currency', 'Percent', etc. For consistent, professional formatting, prefer set-style with built-in styles over format-range. FONT/COLOR FORMATTING: Specify individual formatting properties: - Colors as hex '#RRGGBB' (e.g., '#FF0000' for red, '#00FF00' for green) - Font sizes as points (e.g., 12, 14, 16) - Alignment: 'left', 'center', 'right' (horizontal), 'top', 'middle', 'bottom' (vertical) DATA VALIDATION: Restrict cell input with validation rules: - Types: 'list', 'whole', 'decimal', 'date', 'time', 'textLength', 'custom' - For list validation, formula1 is the list source (e.g., '=$A$1:$A$10' or '"Option1,Option2,Option3"') - Operators: 'between', 'notBetween', 'equal', 'notEqual', 'greaterThan', 'lessThan', 'greaterThanOrEqual', 'lessThanOrEqual' MERGE: Combines cells into one. Only top-left cell value is preserved.
 
-**Actions:** `set-style`, `get-style`, `format-range`, `validate-range`, `get-validation`, `remove-validation`, `auto-fit-columns`, `auto-fit-rows`, `merge-cells`, `unmerge-cells`, `get-merge-info`
+**Actions:** `set-style`, `get-style`, `format-range`, `validate-range`, `get-validation`, `remove-validation`, `auto-fit-columns`, `auto-fit-rows`, `merge-cells`, `unmerge-cells`, `get-merge-info`, `set-column-width`, `set-row-height`
 
 | Parameter | Description |
 |-----------|-------------|
@@ -531,6 +532,8 @@ Range formatting operations: apply styles, set fonts/colors/borders, add data va
 | `--error-message` | Text for the error alert popup |
 | `--ignore-blank` | Whether to allow blank cells in validation (default: true) |
 | `--show-dropdown` | Whether to show dropdown arrow for list validation (default: true) |
+| `--column-width` | Width in points (1 point = 1/72 inch, approx 0.35mm). Standard width ~8.43 points. Range: 0.25-409 points. (required for: set-column-width) |
+| `--row-height` | Height in points (1 point = 1/72 inch, approx 0.35mm). Default row height ~15 points. Range: 0-409 points. (required for: set-row-height) |
 
 
 
@@ -565,9 +568,9 @@ Capture Excel worksheet content as images for visual verification. Uses Excel's 
 
 
 
-### worksheet
+### sheet
 
-Worksheet lifecycle management: create, rename, copy, delete, move, list sheets. Use range for data operations. Use sheetstyle for tab colors and visibility. ATOMIC OPERATIONS: 'copy-to-file' and 'move-to-file' don't require a session - they open/close files automatically. POSITIONING: For 'move', 'copy-to-file', 'move-to-file' - use 'before' OR 'after' (not both) to position the sheet relative to another. If neither specified, moves to end.
+Worksheet lifecycle management: create, rename, copy, delete, move, list sheets. Use range for data operations. Use sheetstyle for tab colors and visibility. ATOMIC OPERATIONS: 'copy-to-file' and 'move-to-file' don't require a session - they open/close files automatically. POSITIONING: For 'move', 'copy-to-file', 'move-to-file' - use 'before' OR 'after' (not both) to position the sheet relative to another. If neither specified, moves to end. NOTE: MCP tool is manually implemented in ExcelWorksheetTool.cs to properly handle mixed session requirements (copy-to-file and move-to-file are atomic and don't need sessions).
 
 **Actions:** `list`, `create`, `rename`, `copy`, `delete`, `move`, `copy-to-file`, `move-to-file`
 
@@ -634,7 +637,7 @@ Excel Tables (ListObjects) - lifecycle and data operations. Tables provide struc
 |-----------|-------------|
 | `--sheet-name` | Name of the worksheet to create the table on (required for: create, create-from-dax) |
 | `--table-name` | Name for the new table (must be unique in workbook) (required for: create, rename, delete, read, resize, toggle-totals, set-column-total, append, get-data, set-style, add-to-data-model, create-from-dax, update-dax, get-dax) |
-| `--range` | Cell range address for the table (e.g., 'A1:D10') (required for: create) |
+| `--range-address` | Cell range address for the table (e.g., 'A1:D10') (required for: create) |
 | `--has-headers` | True if first row contains column headers (default: true) |
 | `--table-style` | Table style name (e.g., 'TableStyleMedium2', 'TableStyleLight1'). Optional. (required for: set-style) |
 | `--new-name` | New name for the table (must be unique in workbook) (required for: rename) |
@@ -685,6 +688,24 @@ VBA scripts (requires .xlsm and VBA trust enabled). PREREQUISITES: - Workbook mu
 | `--procedure-name` | Name of the procedure to run (e.g., "Module1.MySub") (required for: run) |
 | `--timeout` | Optional timeout for execution |
 | `--parameters` | Optional parameters to pass to the procedure (required for: run) |
+
+
+
+### window
+
+Control Excel window visibility, position, state, and status bar. Use to show/hide Excel, bring it to front, reposition, or maximize/minimize. Set status bar text to give users real-time feedback during operations. VISIBILITY: 'show' makes Excel visible AND brings to front. 'hide' hides Excel. Visibility changes are reflected in session metadata (session list shows updated state). WINDOW STATE values: 'normal', 'minimized', 'maximized'. ARRANGE presets: 'left-half', 'right-half', 'top-half', 'bottom-half', 'center', 'full-screen'. STATUS BAR: 'set-status-bar' displays text in Excel's status bar. 'clear-status-bar' restores default.
+
+**Actions:** `show`, `hide`, `bring-to-front`, `get-info`, `set-state`, `set-position`, `arrange`, `set-status-bar`, `clear-status-bar`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--window-state` | Window state: 'normal', 'minimized', or 'maximized' (required for: set-state) |
+| `--left` | Window left position in points |
+| `--top` | Window top position in points |
+| `--width` | Window width in points |
+| `--height` | Window height in points |
+| `--preset` | Preset name: 'left-half', 'right-half', 'top-half', 'bottom-half', 'center', 'full-screen' (required for: arrange) |
+| `--text` | Status bar text to display (e.g. "Building PivotTable from Sales data...") (required for: set-status-bar) |
 
 
 

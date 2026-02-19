@@ -127,7 +127,7 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
-    public OperationResult Create(IExcelBatch batch, string sheetName, string tableName, string range, bool hasHeaders = true, string? tableStyle = null)
+    public OperationResult Create(IExcelBatch batch, string sheetName, string tableName, string rangeAddress, bool hasHeaders = true, string? tableStyle = null)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
@@ -153,7 +153,7 @@ public partial class TableCommands
                 }
 
                 // Get the range to convert to table
-                rangeObj = sheet.Range[range];
+                rangeObj = sheet.Range[rangeAddress];
 
                 // Auto-expand single cell to current region (common UX pattern)
                 // This allows users to specify just "A1" instead of the full range
@@ -161,7 +161,7 @@ public partial class TableCommands
                 try
                 {
                     // Check if single cell (no colon in address = single cell)
-                    if (!range.Contains(':'))
+                    if (!rangeAddress.Contains(':'))
                     {
                         currentRegion = rangeObj.CurrentRegion;
                         if (currentRegion != null && currentRegion.Cells.Count > 1)

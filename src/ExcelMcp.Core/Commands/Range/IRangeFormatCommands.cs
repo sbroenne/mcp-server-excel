@@ -200,4 +200,26 @@ public interface IRangeFormatCommands
     /// <param name="rangeAddress">Cell range to check for merged cells (e.g., 'A1:D10')</param>
     [ServiceAction("get-merge-info")]
     RangeMergeInfoResult GetMergeInfo(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
+
+    // === SIZING OPERATIONS ===
+
+    /// <summary>
+    /// Sets the width of columns in a range.
+    /// Excel COM: Range.ColumnWidth property
+    /// </summary>
+    /// <param name="sheetName">Name of the worksheet</param>
+    /// <param name="rangeAddress">Column range to set width (e.g., 'A:A' or 'A1:D100')</param>
+    /// <param name="columnWidth">Width in points (1 point = 1/72 inch, approx 0.35mm). Standard width ~8.43 points. Range: 0.25-409 points.</param>
+    [ServiceAction("set-column-width")]
+    OperationResult SetColumnWidth(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] double columnWidth);
+
+    /// <summary>
+    /// Sets the height of rows in a range.
+    /// Excel COM: Range.RowHeight property
+    /// </summary>
+    /// <param name="sheetName">Name of the worksheet</param>
+    /// <param name="rangeAddress">Row range to set height (e.g., '1:10' or 'A1:D100')</param>
+    /// <param name="rowHeight">Height in points (1 point = 1/72 inch, approx 0.35mm). Default row height ~15 points. Range: 0-409 points.</param>
+    [ServiceAction("set-row-height")]
+    OperationResult SetRowHeight(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] double rowHeight);
 }

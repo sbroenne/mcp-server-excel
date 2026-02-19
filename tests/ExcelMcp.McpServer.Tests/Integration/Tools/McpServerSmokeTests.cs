@@ -177,7 +177,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
     public async Task SmokeTest_AllTools_E2EWorkflow()
     {
         _output.WriteLine("=== MCP SERVER E2E SMOKE TEST (SDK CLIENT) ===");
-        _output.WriteLine("Testing all 22 tools via MCP protocol with real Excel...\n");
+        _output.WriteLine("Testing all 25 tools via MCP protocol with real Excel...\n");
 
         // =====================================================================
         // STEP 1: CREATE AND OPEN SESSION
@@ -191,7 +191,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         });
         AssertSuccess(createResult, "File creation and session open");
         Assert.True(File.Exists(_testExcelFile), "Excel file should exist");
-        var sessionId = GetJsonProperty(createResult, "sessionId");
+        var sessionId = GetJsonProperty(createResult, "session_id");
         Assert.NotNull(sessionId);
         _output.WriteLine($"  ✓ file: Create passed (session: {sessionId})");
 
@@ -262,7 +262,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["session_id"] = sessionId,
             ["table_name"] = "DataTable",
             ["sheet_name"] = "Data",
-            ["range"] = "A1:C3",
+            ["range_address"] = "A1:C3",
             ["has_headers"] = true
         });
         AssertSuccess(createTableResult, "Create table");
@@ -404,7 +404,7 @@ in
             ["action"] = "create-from-range",
             ["session_id"] = sessionId,
             ["sheet_name"] = "Data",
-            ["source_range"] = "A1:C3",
+            ["source_range_address"] = "A1:C3",
             ["chart_type"] = "ColumnClustered",
             ["left"] = 50,
             ["top"] = 50,
@@ -539,7 +539,7 @@ in
             ["path"] = _testExcelFile
         });
         AssertSuccess(verifyOpenResult, "Re-open for verification");
-        var verifySessionId = GetJsonProperty(verifyOpenResult, "sessionId");
+        var verifySessionId = GetJsonProperty(verifyOpenResult, "session_id");
 
         try
         {

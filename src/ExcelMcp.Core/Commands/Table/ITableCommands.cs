@@ -41,12 +41,12 @@ public interface ITableCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet to create the table on</param>
     /// <param name="tableName">Name for the new table (must be unique in workbook)</param>
-    /// <param name="range">Cell range address for the table (e.g., 'A1:D10')</param>
+    /// <param name="rangeAddress">Cell range address for the table (e.g., 'A1:D10')</param>
     /// <param name="hasHeaders">True if first row contains column headers (default: true)</param>
     /// <param name="tableStyle">Table style name (e.g., 'TableStyleMedium2', 'TableStyleLight1'). Optional.</param>
     /// <exception cref="InvalidOperationException">Sheet not found, table name already exists, or range invalid</exception>
     [ServiceAction("create")]
-    OperationResult Create(IExcelBatch batch, string sheetName, string tableName, string range, bool hasHeaders = true, string? tableStyle = null);
+    OperationResult Create(IExcelBatch batch, string sheetName, string tableName, string rangeAddress, bool hasHeaders = true, string? tableStyle = null);
 
     /// <summary>
     /// Renames an Excel Table
