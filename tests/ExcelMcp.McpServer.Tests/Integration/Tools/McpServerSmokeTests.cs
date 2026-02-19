@@ -609,7 +609,7 @@ in
     /// <summary>
     /// Tests that worksheet copy-to-file (atomic operation) works WITHOUT session_id.
     /// This verifies the fix for the issue where copy-to-file incorrectly required session_id.
-    /// 
+    ///
     /// Atomic operations like copy-to-file and move-to-file should NOT require a session_id
     /// because they manage their own Excel instances internally.
     /// </summary>

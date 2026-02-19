@@ -11,7 +11,7 @@
     4. Delete worksheet
     5. Close session (with save)
     6. Verify file exists
-    
+
     Note: Complex operations (set-values with JSON, rename with --old-name bug)
     are skipped due to known CLI generation limitations.
 
