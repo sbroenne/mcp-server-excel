@@ -698,6 +698,22 @@ public sealed class ExcelMcpService : IDisposable
                                "Please reopen the file with a new session."
             });
         }
+        catch (OperationCanceledException)
+        {
+            // Caller cancelled (e.g., VS Code cancelled the tool call) while a COM operation
+            // may still be running on the STA thread. ExcelBatch.Execute sets _operationTimedOut
+            // on cancellation, but nobody calls Dispose() — the session stays alive with a
+            // stuck STA thread, and all subsequent requests queue up and hang.
+            // Force-close the session to kill the hung Excel process and release the STA thread.
+            _sessionManager.CloseSession(sessionId, save: false, force: true);
+            return Task.FromResult(new ServiceResponse
+            {
+                Success = false,
+                ErrorMessage = $"Operation was cancelled and the session has been closed. " +
+                               "The Excel COM thread may have been unresponsive. " +
+                               "Please reopen the file with a new session."
+            });
+        }
         catch (COMException ex) when (
             ex.HResult == ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE ||
             ex.HResult == ResiliencePipelines.RPC_E_CALL_FAILED)

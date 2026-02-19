@@ -139,8 +139,24 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
     /// </summary>
     int IOleMessageFilter.MessagePending(nint htaskCallee, int dwTickCount, int dwPendingType)
     {
-        // PENDINGMSG_WAITDEFPROCESS (2) - Continue waiting for the call to complete
-        return 2;
+        // PENDINGMSG_WAITDEFPROCESS (1) - Allow COM to pump pending messages while waiting.
+        //
+        // CRITICAL: Do NOT return PENDINGMSG_WAITNOPROCESS (2) here. That value blocks ALL
+        // incoming COM message processing, which causes a classic STA deadlock:
+        //   1. STA thread calls FormatConditions.Add() → Excel starts processing
+        //   2. Excel fires a callback (Calculate/SheetChange event) back to this STA thread
+        //   3. The callback waits in the STA message queue
+        //   4. WAITNOPROCESS tells COM: "don't process that message"
+        //   5. Excel waits for the callback → STA thread waits for Excel → DEADLOCK
+        //
+        // PENDINGMSG_WAITDEFPROCESS (1) lets COM deliver inbound calls, which allows
+        // Excel's callbacks to be processed during the outgoing call, breaking the deadlock.
+        //
+        // Note on re-entrancy: allowing callbacks means our code MAY be called re-entrantly.
+        // This is safe here because each Execute() call is self-contained and COM objects
+        // are COM reference-counted. The worst case is an unexpected callback fires a
+        // benign Excel event that does nothing in our call stack.
+        return 1; // PENDINGMSG_WAITDEFPROCESS
     }
 
     /// <summary>
