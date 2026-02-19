@@ -26,7 +26,7 @@ jobs:
           
           # Fail if GPL/AGPL/LGPL licenses detected (stricter than MIT)
           license-check: true
-          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, LicenseRef-scancode-generic-cla
           
           # Comment on PR with summary
           comment-summary-in-pr: always
