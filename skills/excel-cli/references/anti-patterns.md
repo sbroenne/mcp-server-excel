@@ -40,6 +40,42 @@ range(action: 'set-values', rangeAddress: 'B5', values: [[newValue]])
 - Converting between table types
 - User explicitly requests replacement
 
+## Discovery Loop Anti-Pattern
+
+### The Problem
+
+Repeating `file(list)`, `worksheet(list)`, or `table(list)` multiple times without taking action:
+
+```
+WRONG: Looping on discovery after an error
+
+worksheet(action: 'list')           → gets sheet list
+worksheet(action: 'list')           → gets same sheet list again
+file(action: 'list')                → gets session list
+worksheet(action: 'list')           → gets same sheet list again
+... (dozens of repetitions)
+```
+
+This burns tokens, costs money, and never completes the task.
+
+### The Solution
+
+If you already have a sessionId, use it. Do not rediscover:
+
+```
+CORRECT: Use the sessionId you already have
+
+Error: "session expired"
+→ file(action: 'open', path: original_path)  ← Re-open once, get new sessionId
+→ Continue with the new sessionId immediately
+```
+
+### The Rule
+
+- **Max 2 retries** for any session or file operation
+- After 2 failures: stop retrying, report the error, end your response
+- **Never call `list`, `worksheet(list)`, or `table(list)` more than twice in a row** without doing something with the result
+
 ## Confirmation Loop Anti-Pattern
 
 ### The Problem

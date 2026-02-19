@@ -164,16 +164,26 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         return type.ToLowerInvariant() switch
         {
             "cellvalue" => 1, // xlCellValue
+            "cell-value" => 1, // xlCellValue (kebab-case alias)
             "expression" => 2, // xlExpression
             "colorscale" => 3, // xlColorScale
+            "color-scale" => 3, // xlColorScale (kebab-case alias)
             "databar" => 4, // xlDatabar
+            "data-bar" => 4, // xlDatabar (kebab-case alias)
             "top10" => 5, // xlTop10
             "iconset" => 6, // xlIconSet
+            "icon-set" => 6, // xlIconSet (kebab-case alias)
             "uniquevalues" => 8, // xlUniqueValues
+            "unique-values" => 8, // xlUniqueValues (kebab-case alias)
             "blankscondition" => 10, // xlBlanksCondition
+            "blanks-condition" => 10, // xlBlanksCondition (kebab-case alias)
             "timeperiod" => 11, // xlTimePeriod
+            "time-period" => 11, // xlTimePeriod (kebab-case alias)
             "aboveaverage" => 12, // xlAboveAverageCondition
-            _ => throw new ArgumentException($"Invalid conditional formatting type: {type}")
+            "above-average" => 12, // xlAboveAverageCondition (kebab-case alias)
+            _ => throw new ArgumentException(
+                $"Invalid conditional formatting type: '{type}'. " +
+                "Valid values: cellValue, expression, colorScale, dataBar, top10, iconSet, uniqueValues, blanksCondition, timePeriod, aboveAverage")
         };
     }
 
@@ -186,13 +196,27 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         {
             "between" => 1, // xlBetween
             "notbetween" => 2, // xlNotBetween
+            "not-between" => 2, // xlNotBetween (kebab-case alias)
             "equal" => 3, // xlEqual
             "notequal" => 4, // xlNotEqual
+            "not-equal" => 4, // xlNotEqual (kebab-case alias)
             "greater" => 5, // xlGreater
+            "greaterthan" => 5, // xlGreater (alias)
             "less" => 6, // xlLess
+            "lessthan" => 6, // xlLess (alias)
             "greaterequal" => 7, // xlGreaterEqual
+            "greater-equal" => 7, // xlGreaterEqual (kebab-case alias)
+            "greaterthanorequal" => 7, // xlGreaterEqual (alias)
+            ">=" => 7, // xlGreaterEqual (symbol alias)
             "lessequal" => 8, // xlLessEqual
-            _ => throw new ArgumentException($"Unknown operator type: {operatorType}. Valid values: between, notBetween, equal, notEqual, greater, less, greaterEqual, lessEqual")
+            "less-equal" => 8, // xlLessEqual (kebab-case alias)
+            "lessthanorequal" => 8, // xlLessEqual (alias)
+            "<=" => 8, // xlLessEqual (symbol alias)
+            "=" => 3, // xlEqual (symbol alias)
+            "<>" => 4, // xlNotEqual (symbol alias)
+            ">" => 5, // xlGreater (symbol alias)
+            "<" => 6, // xlLess (symbol alias)
+            _ => throw new ArgumentException($"Unknown operator type: '{operatorType}'. Valid values: between, notBetween, equal, notEqual, greater, less, greaterEqual, lessEqual")
         };
     }
 

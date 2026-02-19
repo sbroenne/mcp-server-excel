@@ -12,6 +12,10 @@ This changelog covers all components:
 
 ### Fixed
 
+- **COM Apartment Boundary in SaveWorkbook** (#482): Removed `Task.Run(() => workbook.Save())` in `ExcelShutdownService` — this marshalled the COM call from the STA thread to an MTA thread-pool thread, which is incorrect and fragile in .NET 8+. Save is now called directly on the STA thread, which is always the case inside `ExcelBatch.Execute()`.
+- **Wrong-Process Force-Kill from Fallback PID** (#482): Removed the "newest EXCEL.EXE process" fallback PID detection in `ExcelBatch`. When the `Hwnd` path fails, force-kill is now disabled with a warning rather than risking killing an unrelated Excel workbook the user has open.
+- **Redundant `Thread.Sleep` in Dispose** (#482): Removed 100 ms `Thread.Sleep` from `ExcelBatch.Dispose()`. The preceding `_shutdownCts.Cancel()` call immediately wakes the STA thread from `WaitToReadAsync`, making the sleep redundant and adding unnecessary latency.
+- **Exception Type Lost in Service Error Responses** (#482): `ExcelMcpService` top-level `catch` blocks now return `"{ExType}: {ex.Message}"` instead of just `ex.Message`, making unexpected failures distinguishable without a full stack trace.
 - **COM Timeout Hang** — ExcelBatch now force-kills Excel process on timeout instead of hanging indefinitely on `WaitForSingleObject`; ExcelMcpService catches `TimeoutException` to prevent unhandled exceptions
 - **FileSystemWatcher CPU Spin** — Disabled `IConfiguration` reload-on-change in MCP Server to prevent 85%+ CPU usage from `FileSystemWatcher` polling
 - **Process Handle Leak** — Fixed `Process` object not being disposed in `ExcelBatch.ForceKillExcelProcess()`

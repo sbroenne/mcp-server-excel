@@ -6,7 +6,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
 /// Conditional formatting - visual rules based on cell values.
-/// TYPES: cellValue (requires operatorType+formula1), expression (formula only).
+/// TYPES: cellValue (requires operatorType+formula1), expression (formula only). Both camelCase and kebab-case accepted.
 /// FORMAT: interiorColor/fontColor as #RRGGBB, fontBold/Italic, borderStyle/Color.
 ///
 /// OPERATORS: equal, notEqual, greater, less, greaterEqual, lessEqual, between, notBetween.
@@ -14,7 +14,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 [ServiceCategory("conditionalformat", "ConditionalFormat")]
 [McpTool("conditionalformat", Title = "Conditional Formatting", Destructive = true, Category = "structure",
-    Description = "Conditional formatting - visual rules based on cell values. TYPES: cell-value (requires operatorType + formula1), expression (formula only). FORMAT: interiorColor/fontColor as #RRGGBB hex, fontBold/fontItalic booleans, borderStyle/borderColor.")]
+    Description = "Conditional formatting - visual rules based on cell values. TYPES: cellValue (accepts both camelCase and kebab-case, e.g. cell-value), expression. For cellValue: requires operatorType + formula1. FORMAT: interiorColor/fontColor as #RRGGBB hex, fontBold/fontItalic booleans, borderStyle/borderColor.")]
 public interface IConditionalFormattingCommands
 {
     /// <summary>
@@ -24,7 +24,7 @@ public interface IConditionalFormattingCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Sheet name (empty for active sheet)</param>
     /// <param name="rangeAddress">Range address (A1 notation or named range)</param>
-    /// <param name="ruleType">Rule type: cellValue, expression</param>
+    /// <param name="ruleType">Rule type: cellValue (or cell-value), expression, colorScale, dataBar, top10, iconSet, uniqueValues, blanksCondition, timePeriod, aboveAverage. Both camelCase and kebab-case accepted.</param>
     /// <param name="operatorType">XlFormatConditionOperator: equal, notEqual, greater, less, greaterEqual, lessEqual, between, notBetween</param>
     /// <param name="formula1">First formula/value for condition</param>
     /// <param name="formula2">Second formula/value (for between/notBetween)</param>

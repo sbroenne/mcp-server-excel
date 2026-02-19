@@ -54,6 +54,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     /// - worksheet split into 2 tools (worksheet, worksheet_style)
     /// - Added slicer and calculation_mode
     /// - Added screenshot
+    /// - Added window
     /// </summary>
     private static readonly HashSet<string> ExpectedToolNames =
     [
@@ -79,6 +80,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         "table",
         "table_column",
         "vba",
+        "window",
         "worksheet",
         "worksheet_style"
     ];
@@ -203,7 +205,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     /// - Tool schema generation
     /// </summary>
     [Fact]
-    public async Task ListTools_ReturnsAll24ExpectedTools()
+    public async Task ListTools_ReturnsAll25ExpectedTools()
     {
         output.WriteLine("=== TOOL DISCOVERY VIA MCP PROTOCOL ===\n");
 

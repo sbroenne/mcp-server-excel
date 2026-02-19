@@ -54,7 +54,7 @@ public interface IChartCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Target worksheet name</param>
-    /// <param name="sourceRange">Data range for the chart (e.g., A1:D10)</param>
+    /// <param name="sourceRangeAddress">Data range for the chart (e.g., A1:D10)</param>
     /// <param name="chartType">Type of chart to create</param>
     /// <param name="left">Left position in points from worksheet edge</param>
     /// <param name="top">Top position in points from worksheet edge</param>
@@ -66,7 +66,7 @@ public interface IChartCommands
     ChartCreateResult CreateFromRange(
         IExcelBatch batch,
         [RequiredParameter] string sheetName,
-        [RequiredParameter] string sourceRange,
+        [RequiredParameter] string sourceRangeAddress,
         [RequiredParameter] ChartType chartType,
         double left = 0,
         double top = 0,

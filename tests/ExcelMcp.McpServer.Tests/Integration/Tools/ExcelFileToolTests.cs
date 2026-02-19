@@ -126,7 +126,7 @@ public class ExcelFileToolTests(ITestOutputHelper output)
             var json = JsonDocument.Parse(result).RootElement;
             Assert.True(json.GetProperty("success").GetBoolean());
             Assert.True(File.Exists(tempPath), "File should have been created");
-            Assert.True(json.TryGetProperty("sessionId", out var sessionIdElement));
+            Assert.True(json.TryGetProperty("session_id", out var sessionIdElement));
             sessionId = sessionIdElement.GetString();
             Assert.NotNull(sessionId);
         }

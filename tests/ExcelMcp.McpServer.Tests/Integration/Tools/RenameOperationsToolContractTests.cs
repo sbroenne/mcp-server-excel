@@ -82,7 +82,7 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         Assert.True(createDoc.RootElement.GetProperty("success").GetBoolean(),
             $"Failed to create test file: {createJson}");
 
-        _sessionId = createDoc.RootElement.GetProperty("sessionId").GetString();
+        _sessionId = createDoc.RootElement.GetProperty("session_id").GetString();
         Assert.NotNull(_sessionId);
 
         _output.WriteLine($"✓ Created test file and opened session: {_sessionId}");

@@ -33,7 +33,7 @@ DEFAULT_RPM = 10
 DEFAULT_TPM = 10000
 DEFAULT_MAX_TURNS = 20
 DEFAULT_RETRIES = 3  # Excel COM operations need more retries than default (1)
-DEFAULT_TIMEOUT_MS = 180000  # 3 min - Excel COM operations are slow
+DEFAULT_TIMEOUT_MS = 600000  # 10 min - Azure GlobalStandard can be slow under load
 
 
 def pytest_configure(config: pytest.Config) -> None:

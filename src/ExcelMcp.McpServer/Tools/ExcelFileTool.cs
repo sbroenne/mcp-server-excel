@@ -125,7 +125,34 @@ public static partial class ExcelFileTool
             }, ExcelToolsBase.JsonOptions);
         }
 
-        return response.Result ?? JsonSerializer.Serialize(new
+        // Parse service response and transform sessionId → session_id for MCP snake_case compatibility
+        if (!string.IsNullOrEmpty(response.Result))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(response.Result);
+                if (doc.RootElement.TryGetProperty("sessionId", out var sessionIdProp))
+                {
+                    var sessionId = sessionIdProp.GetString();
+                    string? filePath = doc.RootElement.TryGetProperty("filePath", out var fp) ? fp.GetString() : path;
+                    return JsonSerializer.Serialize(new
+                    {
+                        success = true,
+                        session_id = sessionId,
+                        filePath
+                    }, ExcelToolsBase.JsonOptions);
+                }
+            }
+            catch (JsonException)
+            {
+                // Fall through to return raw result
+            }
+
+            return response.Result;
+        }
+
+        // Fallback: response should have contained sessionId
+        return JsonSerializer.Serialize(new
         {
             success = true,
             filePath = path,
@@ -156,7 +183,7 @@ public static partial class ExcelFileTool
             return JsonSerializer.Serialize(new
             {
                 success = false,
-                sessionId,
+                session_id = sessionId,
                 errorMessage = response.ErrorMessage ?? "Failed to close session",
                 isError = true
             }, ExcelToolsBase.JsonOptions);
@@ -165,7 +192,7 @@ public static partial class ExcelFileTool
         return response.Result ?? JsonSerializer.Serialize(new
         {
             success = true,
-            sessionId,
+            session_id = sessionId,
             saved = save
         }, ExcelToolsBase.JsonOptions);
     }
@@ -216,7 +243,34 @@ public static partial class ExcelFileTool
             }, ExcelToolsBase.JsonOptions);
         }
 
-        return response.Result ?? JsonSerializer.Serialize(new
+        // Parse service response and transform sessionId → session_id for MCP snake_case compatibility
+        if (!string.IsNullOrEmpty(response.Result))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(response.Result);
+                if (doc.RootElement.TryGetProperty("sessionId", out var sessionIdProp))
+                {
+                    var sessionId = sessionIdProp.GetString();
+                    string? filePath = doc.RootElement.TryGetProperty("filePath", out var fp) ? fp.GetString() : path;
+                    return JsonSerializer.Serialize(new
+                    {
+                        success = true,
+                        session_id = sessionId,
+                        filePath
+                    }, ExcelToolsBase.JsonOptions);
+                }
+            }
+            catch (JsonException)
+            {
+                // Fall through to return raw result
+            }
+
+            return response.Result;
+        }
+
+        // Fallback: response should have contained session_id
+        return JsonSerializer.Serialize(new
         {
             success = true,
             filePath = path,

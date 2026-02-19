@@ -1,5 +1,20 @@
 # Screenshot & Visual Verification Reference
 
+## REQUIRED: Screenshot After Chart Creation
+
+**You MUST call `screenshot` after creating any chart when visual output is requested or implied.** Do not close the file or end your response without capturing a screenshot.
+
+```
+1. chart(create-from-range, ...)  → Chart created
+2. screenshot(capture, rangeAddress='A1:M20')  ← REQUIRED — never skip this step
+3. file(close, save=true)
+```
+
+This rule applies even if:
+- The chart was created on the first try
+- No errors occurred
+- The task description doesn't explicitly say "take a screenshot"
+
 ## Tools
 
 - **`screenshot`**: Capture worksheet content as PNG images

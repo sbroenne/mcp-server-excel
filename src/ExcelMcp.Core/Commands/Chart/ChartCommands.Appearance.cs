@@ -410,7 +410,19 @@ public partial class ChartCommands
                         dataLabels.ShowValue = showValue.Value;
 
                     if (showPercentage.HasValue)
-                        dataLabels.ShowPercentage = showPercentage.Value;
+                    {
+                        try
+                        {
+                            dataLabels.ShowPercentage = showPercentage.Value;
+                        }
+                        catch (System.Runtime.InteropServices.COMException ex)
+                            when (ex.HResult == unchecked((int)0x800A03EC))
+                        {
+                            throw new InvalidOperationException(
+                                $"ShowPercentage is not supported for this chart type. " +
+                                "Use show_percentage only with pie or doughnut chart types.", ex);
+                        }
+                    }
 
                     if (showSeriesName.HasValue)
                         dataLabels.ShowSeriesName = showSeriesName.Value;

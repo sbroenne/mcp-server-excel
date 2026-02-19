@@ -164,7 +164,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
     public ChartCreateResult CreateFromRange(
         IExcelBatch batch,
         string sheetName,
-        string sourceRange,
+        string sourceRangeAddress,
         ChartType chartType,
         double left = 0,
         double top = 0,
@@ -226,12 +226,24 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 try
                 {
                     // Get the range object from the address string
-                    // If sourceRange doesn't include sheet name, prefix it
-                    string fullRangeAddress = sourceRange.Contains('!')
-                        ? sourceRange
-                        : $"{sheetName}!{sourceRange}";
+                    // If sourceRangeAddress doesn't include sheet name, prefix it
+                    string fullRangeAddress = sourceRangeAddress.Contains('!')
+                        ? sourceRangeAddress
+                        : $"{sheetName}!{sourceRangeAddress}";
                     sourceRangeObj = ctx.Book.Application.Range(fullRangeAddress);
-                    chart.SetSourceData(sourceRangeObj);
+                    try
+                    {
+                        chart.SetSourceData(sourceRangeObj);
+                    }
+                    catch (System.Runtime.InteropServices.COMException ex)
+                        when (ex.HResult == unchecked((int)0x800A03EC))
+                    {
+                        throw new InvalidOperationException(
+                            $"Cannot set chart data source to '{sourceRangeAddress}'. " +
+                            "The range must be contiguous, non-empty, and accessible. " +
+                            "If the data is not in a table, consider creating a table first with " +
+                            "table(action='create'), then use chart(action='create-from-table').", ex);
+                    }
                 }
                 finally
                 {
