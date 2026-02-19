@@ -24,7 +24,7 @@ public sealed class ActionValidatorTests
     private static readonly string[] ExpectedCommands =
     [
         "session",
-        "worksheet",
+        "sheet",
         "worksheetstyle",
         "range",
         "rangeedit",

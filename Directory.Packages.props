@@ -34,11 +34,11 @@
     <PackageVersion Include="coverlet.collector" Version="6.1.0" />
     <PackageVersion Include="MartinCostello.Logging.XUnit" Version="0.7.0" />
     <!-- Code Analysis and Security -->
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="4.14.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.103" />
     <!-- Template Engine for Skill Generation -->
-    <PackageVersion Include="Scriban" Version="5.11.0" />
+    <PackageVersion Include="Scriban" Version="6.5.3" />
     <!-- MSBuild Task Development -->
     <PackageVersion Include="Microsoft.Build.Framework" Version="18.3.3" />
     <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="18.3.3" />
