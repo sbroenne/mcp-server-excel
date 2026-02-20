@@ -66,20 +66,10 @@ public static class ExcelToolsBase
     /// <returns>JSON response from service</returns>
     public static string ForwardToService(
         string command,
-        string sessionId,
+        string? sessionId,
         object? args = null,
         int? timeoutSeconds = null)
     {
-        if (string.IsNullOrWhiteSpace(sessionId))
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = "sessionId is required. Use file 'open' action to start a session.",
-                isError = true
-            }, JsonOptions);
-        }
-
         var response = ServiceBridge.ServiceBridge.SendAsync(command, sessionId, args, timeoutSeconds).GetAwaiter().GetResult();
 
         if (!response.Success)
