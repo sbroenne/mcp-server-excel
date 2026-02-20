@@ -6,7 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Excel COM Interop PIA -->
-    <PackageVersion Include="Microsoft.Office.Interop.Excel" Version="15.0.4795.1000" />
+    <PackageVersion Include="Microsoft.Office.Interop.Excel" Version="16.0.18925.20022" />
     <!-- UI Framework -->
     <PackageVersion Include="Dax.Formatter" Version="1.2.0" />
     <PackageVersion Include="Spectre.Console" Version="0.54.0" />
