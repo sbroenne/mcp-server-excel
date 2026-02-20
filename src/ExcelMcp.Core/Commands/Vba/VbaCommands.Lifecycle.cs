@@ -36,6 +36,8 @@ public partial class VbaCommands
             dynamic? vbComponents = null;
             try
             {
+                // PIA gap: VBProject is in Microsoft.Vbe.Interop, not the Excel PIA.
+                // No .NET 5+ compatible NuGet package exists for VBE types (ThammimTech.Microsoft.Vbe.Interop targets .NET Framework only).
                 vbaProject = ((dynamic)ctx.Book).VBProject;
                 vbComponents = vbaProject.VBComponents;
 
@@ -137,6 +139,8 @@ public partial class VbaCommands
             dynamic? codeModule = null;
             try
             {
+                // PIA gap: VBProject is in Microsoft.Vbe.Interop, not the Excel PIA.
+                // No .NET 5+ compatible NuGet package exists for VBE types.
                 vbaProject = ((dynamic)ctx.Book).VBProject;
                 vbComponents = vbaProject.VBComponents;
 
@@ -235,6 +239,8 @@ public partial class VbaCommands
             dynamic? codeModule = null;
             try
             {
+                // PIA gap: VBProject is in Microsoft.Vbe.Interop, not the Excel PIA.
+                // No .NET 5+ compatible NuGet package exists for VBE types.
                 vbaProject = ((dynamic)ctx.Book).VBProject;
                 vbComponents = vbaProject.VBComponents;
 
@@ -303,6 +309,8 @@ public partial class VbaCommands
             dynamic? codeModule = null;
             try
             {
+                // PIA gap: VBProject is in Microsoft.Vbe.Interop, not the Excel PIA.
+                // No .NET 5+ compatible NuGet package exists for VBE types.
                 vbaProject = ((dynamic)ctx.Book).VBProject;
                 vbComponents = vbaProject.VBComponents;
 

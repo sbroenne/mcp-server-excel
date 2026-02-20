@@ -278,5 +278,27 @@ catch {
 }
 
 Write-Host ""
+Write-Host "Checking for undocumented ((dynamic)) casts..." -ForegroundColor Cyan
+
+try {
+    $dynamicCastScript = Join-Path $rootDir "scripts\check-dynamic-casts.ps1"
+    & $dynamicCastScript
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "Undocumented ((dynamic)) casts detected!" -ForegroundColor Red
+        Write-Host "   Add a justification comment (// PIA gap:, // TODO:, or // Reason:) before each cast." -ForegroundColor Red
+        Write-Host "   See docs/PIA-COVERAGE.md for guidance." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "Dynamic cast check passed - all casts are documented" -ForegroundColor Green
+}
+catch {
+    Write-Host "Error running dynamic cast check: $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host "   Continuing..." -ForegroundColor Gray
+}
+
+Write-Host ""
 Write-Host "All pre-commit checks passed!" -ForegroundColor Green
 exit 0
