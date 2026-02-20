@@ -88,7 +88,7 @@ public class SessionManagerTimeoutTests : IDisposable
         Assert.NotNull(batch);
 
         // Warm up
-        batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets.Item(1); return 0; });
+        batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets[1]; return 0; });
 
         // Trigger timeout
         var ex = Assert.Throws<TimeoutException>(() =>
@@ -130,7 +130,7 @@ public class SessionManagerTimeoutTests : IDisposable
         _output.WriteLine($"Session {sessionId}, Excel PID: {excelPid}");
 
         // Warm up
-        batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets.Item(1); return 0; });
+        batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets[1]; return 0; });
 
         // Trigger timeout
         Assert.Throws<TimeoutException>(() =>
@@ -189,7 +189,7 @@ public class SessionManagerTimeoutTests : IDisposable
         // Act — quick operation should succeed
         var result = batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             return sheet.Name?.ToString() ?? "unknown";
         });
 

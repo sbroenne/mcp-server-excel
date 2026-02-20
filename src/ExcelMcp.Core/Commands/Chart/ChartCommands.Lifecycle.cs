@@ -183,7 +183,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
 
             try
             {
-                worksheet = ctx.Book.Worksheets.Item(sheetName);
+                worksheet = ctx.Book.Worksheets[sheetName];
                 shapes = worksheet.Shapes;
 
                 // Resolve final position: targetRange > explicit left/top > auto-position
@@ -230,7 +230,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                     string fullRangeAddress = sourceRangeAddress.Contains('!')
                         ? sourceRangeAddress
                         : $"{sheetName}!{sourceRangeAddress}";
-                    sourceRangeObj = ctx.Book.Application.Range(fullRangeAddress);
+                    sourceRangeObj = ctx.Book.Application.Range[fullRangeAddress];
                     try
                     {
                         chart.SetSourceData(sourceRangeObj);
@@ -325,7 +325,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 tableRange = table.Range;
 
                 // Get target worksheet
-                worksheet = ctx.Book.Worksheets.Item(sheetName);
+                worksheet = ctx.Book.Worksheets[sheetName];
                 shapes = worksheet.Shapes;
 
                 // Resolve final position: targetRange > explicit left/top > auto-position
@@ -439,7 +439,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 }
 
                 // Get target worksheet
-                worksheet = ctx.Book.Worksheets.Item(sheetName);
+                worksheet = ctx.Book.Worksheets[sheetName];
 
                 // Resolve final position: targetRange > explicit left/top > auto-position
                 double finalLeft = left;

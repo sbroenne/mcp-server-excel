@@ -74,7 +74,7 @@ public class TableTestsFixture : IAsyncLifetime
             // Create sample sales data
             batch.Execute((ctx, ct) =>
             {
-                dynamic sheet = ctx.Book.Worksheets.Item(1);
+                dynamic sheet = ctx.Book.Worksheets[1];
                 sheet.Name = "Sales";
 
                 // Add headers
@@ -174,7 +174,7 @@ public class TableTestsFixture : IAsyncLifetime
         // Create worksheet with sample data
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             sheet.Name = "Sales";
 
             // Headers

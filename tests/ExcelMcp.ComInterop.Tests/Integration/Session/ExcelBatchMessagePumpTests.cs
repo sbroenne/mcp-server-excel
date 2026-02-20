@@ -98,7 +98,7 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
         // Perform one operation to ensure everything is fully initialized
         batch.Execute((ctx, ct) =>
         {
-            _ = ctx.Book.Worksheets.Item(1);
+            _ = ctx.Book.Worksheets[1];
             return 0;
         });
 
@@ -176,7 +176,7 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
         // Warmup — ensure first-call JIT overhead is gone
         batch.Execute((ctx, ct) =>
         {
-            _ = ctx.Book.Worksheets.Item(1);
+            _ = ctx.Book.Worksheets[1];
             return 0;
         });
 
@@ -244,7 +244,7 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
         // Initialize
         batch.Execute((ctx, ct) =>
         {
-            _ = ctx.Book.Worksheets.Item(1);
+            _ = ctx.Book.Worksheets[1];
             return 0;
         });
 
@@ -340,7 +340,7 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
 
         batch.Execute((ctx, ct) =>
         {
-            _ = ctx.Book.Worksheets.Item(1);
+            _ = ctx.Book.Worksheets[1];
             return 0;
         });
 
@@ -378,7 +378,7 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
         // Initialize
         batch.Execute((ctx, ct) =>
         {
-            _ = ctx.Book.Worksheets.Item(1);
+            _ = ctx.Book.Worksheets[1];
             return 0;
         });
 

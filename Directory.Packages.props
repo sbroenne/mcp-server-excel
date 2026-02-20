@@ -5,6 +5,8 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Excel COM Interop PIA -->
+    <PackageVersion Include="Microsoft.Office.Interop.Excel" Version="15.0.4795.1000" />
     <!-- UI Framework -->
     <PackageVersion Include="Dax.Formatter" Version="1.2.0" />
     <PackageVersion Include="Spectre.Console" Version="0.54.0" />

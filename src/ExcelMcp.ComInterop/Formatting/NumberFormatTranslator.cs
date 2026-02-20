@@ -1,4 +1,5 @@
 using System.Text;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Formatting;
 
@@ -81,8 +82,8 @@ public sealed class NumberFormatTranslator
     /// <summary>
     /// Creates a new NumberFormatTranslator by reading locale codes from the Excel Application.
     /// </summary>
-    /// <param name="excelApp">The Excel.Application COM object (dynamic)</param>
-    public NumberFormatTranslator(dynamic excelApp)
+    /// <param name="excelApp">The Excel.Application COM object</param>
+    public NumberFormatTranslator(Excel.Application excelApp)
     {
         // Read locale-specific codes from Excel's International property
         DayCode = GetInternationalValue(excelApp, XlDayCode) ?? "d";
@@ -379,16 +380,16 @@ public sealed class NumberFormatTranslator
     /// <summary>
     /// Gets a value from Excel's International property.
     /// </summary>
-    private static string? GetInternationalValue(dynamic excelApp, int index)
+    private static string? GetInternationalValue(Excel.Application excelApp, int index)
     {
         try
         {
             // Access the International property with the index
             // Excel COM: excelApp.International(index) returns the locale-specific value
-            object? value = excelApp.International[index];
+            object? value = excelApp.International[(Excel.XlApplicationInternational)index];
             return value?.ToString();
         }
-        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException)
         {
             // International property access failed for this index
             return null;

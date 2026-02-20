@@ -65,7 +65,7 @@ public class PivotTableTestsFixture : IAsyncLifetime
             using var batch = ExcelSession.BeginBatch(TestFilePath);
             batch.Execute((ctx, ct) =>
             {
-                dynamic sheet = ctx.Book.Worksheets.Item(1);
+                dynamic sheet = ctx.Book.Worksheets[1];
                 sheet.Name = "SalesData";
 
                 // Headers

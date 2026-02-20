@@ -64,7 +64,7 @@ public class ChartTestsFixture : IAsyncLifetime
         using var batch = ExcelSession.BeginBatch(SharedTestFile);
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             // 4 columns × 5 data rows — covers A1:B3, A1:B4, A1:B5, A1:C4, A1:D4 patterns
             sheet.Range["A1:D6"].Value2 = new object[,]
             {

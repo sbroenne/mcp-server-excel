@@ -83,7 +83,7 @@ public partial class PowerQueryCommands
 
             try
             {
-                queries = ctx.Book.Queries;
+                queries = ((dynamic)ctx.Book).Queries;
                 int totalQueries = queries.Count;
                 var errors = new List<string>();
 

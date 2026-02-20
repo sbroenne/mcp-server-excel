@@ -557,7 +557,7 @@ Hyperlink and cell protection operations for Excel ranges. Use range for values/
 
 ### screenshot
 
-Capture Excel worksheet content as images for visual verification. Uses Excel's built-in rendering (CopyPicture) to capture ranges as PNG images. Captures formatting, conditional formatting, charts, and all visual elements. ACTIONS: - capture: Capture a specific range as an image - capture-sheet: Capture the entire used area of a worksheet RETURNS: Base64-encoded PNG image data with dimensions metadata. For MCP: returned as inline ImageContent. For CLI: saved to file.
+Capture Excel worksheet content as images for visual verification. Uses Excel's built-in rendering (CopyPicture) to capture ranges as PNG images. Captures formatting, conditional formatting, charts, and all visual elements. ACTIONS: - capture: Capture a specific range as an image - capture-sheet: Capture the entire used area of a worksheet RETURNS: Base64-encoded image data with dimensions metadata. For MCP: returned as inline ImageContent. For CLI: saved to file. Quality defaults to Medium (JPEG 75% scale) which is 4-8x smaller than High (PNG). Use High only when fine detail inspection is needed.
 
 **Actions:** `capture`, `capture-sheet`
 
@@ -565,6 +565,7 @@ Capture Excel worksheet content as images for visual verification. Uses Excel's 
 |-----------|-------------|
 | `--sheet-name` | Worksheet name (null for active sheet) |
 | `--range-address` | Range to capture (e.g., "A1:F20") |
+| `--quality` | Image quality: Medium (default, JPEG 75% scale), High (PNG full scale), Low (JPEG 50% scale) |
 
 
 

@@ -31,7 +31,7 @@ public partial class PivotTableCommands
             dynamic? pivotTable = null;
 
             // STEP 1: Validate source range has headers and data
-            sourceWorksheet = ctx.Book.Worksheets.Item(sourceSheet);
+            sourceWorksheet = ctx.Book.Worksheets[sourceSheet];
             sourceRangeObj = sourceWorksheet.Range[sourceRange];
 
             if (sourceRangeObj.Rows.Count < 2)
@@ -53,7 +53,7 @@ public partial class PivotTableCommands
 
             // STEP 3: Create PivotTable from cache
             // VBA: Set pivot_table = pivot_cache.CreatePivotTable(TableDestination:=pivot_table_upper_left)
-            destWorksheet = ctx.Book.Worksheets.Item(destinationSheet);
+            destWorksheet = ctx.Book.Worksheets[destinationSheet];
             destRangeObj = destWorksheet.Range[destinationCell];
 
             pivotTable = pivotCache.CreatePivotTable(
@@ -244,7 +244,7 @@ public partial class PivotTableCommands
                 );
 
                 // Create PivotTable
-                destWorksheet = ctx.Book.Worksheets.Item(destinationSheet);
+                destWorksheet = ctx.Book.Worksheets[destinationSheet];
                 destRangeObj = destWorksheet.Range[destinationCell];
 
                 pivotTable = pivotCache.CreatePivotTable(
@@ -412,7 +412,7 @@ public partial class PivotTableCommands
             );
 
             // STEP 3: Create PivotTable from cache
-            destWorksheet = ctx.Book.Worksheets.Item(destinationSheet);
+            destWorksheet = ctx.Book.Worksheets[destinationSheet];
             destRangeObj = destWorksheet.Range[destinationCell];
 
             pivotTable = pivotCache.CreatePivotTable(

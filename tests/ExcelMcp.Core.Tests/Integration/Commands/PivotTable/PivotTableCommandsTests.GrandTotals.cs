@@ -1,3 +1,4 @@
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
@@ -21,7 +22,7 @@ public partial class PivotTableCommandsTests
         batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item[1];
-            dynamic pivotCache = ctx.Book.PivotCaches().Create(1, sheet.Range["A1:D10"]);
+            dynamic pivotCache = ctx.Book.PivotCaches().Create(Excel.XlPivotTableSourceType.xlDatabase, sheet.Range["A1:D10"]);
             dynamic newSheet = ctx.Book.Worksheets.Add();
             newSheet.Name = "PivotSheet";
             dynamic pivot = pivotCache.CreatePivotTable(newSheet.Range["A1"], "TestPivot");
@@ -70,7 +71,7 @@ public partial class PivotTableCommandsTests
         batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item[1];
-            dynamic pivotCache = ctx.Book.PivotCaches().Create(1, sheet.Range["A1:D10"]);
+            dynamic pivotCache = ctx.Book.PivotCaches().Create(Excel.XlPivotTableSourceType.xlDatabase, sheet.Range["A1:D10"]);
             dynamic newSheet = ctx.Book.Worksheets.Add();
             newSheet.Name = "PivotSheet";
             dynamic pivot = pivotCache.CreatePivotTable(newSheet.Range["A1"], "TestPivot");
@@ -118,7 +119,7 @@ public partial class PivotTableCommandsTests
         batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item[1];
-            dynamic pivotCache = ctx.Book.PivotCaches().Create(1, sheet.Range["A1:D10"]);
+            dynamic pivotCache = ctx.Book.PivotCaches().Create(Excel.XlPivotTableSourceType.xlDatabase, sheet.Range["A1:D10"]);
             dynamic newSheet = ctx.Book.Worksheets.Add();
             newSheet.Name = "PivotSheet";
             dynamic pivot = pivotCache.CreatePivotTable(newSheet.Range["A1"], "TestPivot");
@@ -166,7 +167,7 @@ public partial class PivotTableCommandsTests
         batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item[1];
-            dynamic pivotCache = ctx.Book.PivotCaches().Create(1, sheet.Range["A1:D10"]);
+            dynamic pivotCache = ctx.Book.PivotCaches().Create(Excel.XlPivotTableSourceType.xlDatabase, sheet.Range["A1:D10"]);
             dynamic newSheet = ctx.Book.Worksheets.Add();
             newSheet.Name = "PivotSheet";
             dynamic pivot = pivotCache.CreatePivotTable(newSheet.Range["A1"], "TestPivot");
@@ -214,7 +215,7 @@ public partial class PivotTableCommandsTests
         batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets.Item[1];
-            dynamic pivotCache = ctx.Book.PivotCaches().Create(1, sheet.Range["A1:D10"]);
+            dynamic pivotCache = ctx.Book.PivotCaches().Create(Excel.XlPivotTableSourceType.xlDatabase, sheet.Range["A1:D10"]);
             dynamic newSheet = ctx.Book.Worksheets.Add();
             newSheet.Name = "PivotSheet";
             dynamic pivot = pivotCache.CreatePivotTable(newSheet.Range["A1"], "TestPivot");
@@ -269,7 +270,7 @@ public partial class PivotTableCommandsTests
             batch1.Execute((ctx, ct) =>
             {
                 dynamic sheet = ctx.Book.Worksheets.Item[1];
-                dynamic pivotCache = ctx.Book.PivotCaches().Create(1, sheet.Range["A1:D10"]);
+                dynamic pivotCache = ctx.Book.PivotCaches().Create(Excel.XlPivotTableSourceType.xlDatabase, sheet.Range["A1:D10"]);
                 dynamic newSheet = ctx.Book.Worksheets.Add();
                 newSheet.Name = "PivotSheet";
                 dynamic pivot = pivotCache.CreatePivotTable(newSheet.Range["A1"], "TestPivot");

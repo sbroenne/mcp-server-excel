@@ -95,7 +95,7 @@ public partial class ChartCommandsTests
         // Create test data and chart
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             sheet.Range["A1:C4"].Value2 = new object[,] {
                 { "X", "Series1", "Series2" },
                 { "A", 10, 20 },
@@ -238,7 +238,7 @@ public partial class ChartCommandsTests
         // Create test data with dates
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             sheet.Range["A1:B4"].Value2 = new object[,] {
                 { "Date", "Sales" },
                 { 45658, 100 }, // Jan 1, 2025
@@ -267,7 +267,7 @@ public partial class ChartCommandsTests
         // Create test data
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             sheet.Range["A1:B4"].Value2 = new object[,] {
                 { "Item", "Rate" },
                 { "A", 0.25 },

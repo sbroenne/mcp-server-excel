@@ -1,4 +1,5 @@
 using System.IO.Pipelines;
+using System.Reflection;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.WorkerService;
 using Microsoft.Extensions.Configuration;
@@ -44,6 +45,11 @@ public class Program
 
     public static async Task<int> Main(string[] args)
     {
+        // Register assembly resolver for office.dll (Microsoft.Office.Core), which is a
+        // .NET Framework GAC assembly that .NET Core cannot find via standard probing.
+        // office.dll is copied to our output directory by Directory.Build.targets.
+        RegisterOfficeAssemblyResolver();
+
         // Handle --help and --version flags for easy verification
         if (args.Length > 0)
         {
@@ -267,6 +273,19 @@ public class Program
     /// <summary>
     /// Registers global exception handlers to capture unhandled exceptions.
     /// </summary>
+    private static void RegisterOfficeAssemblyResolver()
+    {
+        AppDomain.CurrentDomain.AssemblyResolve += (_, args) =>
+        {
+            var name = new AssemblyName(args.Name);
+            if (!string.Equals(name.Name, "office", StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            var path = Path.Combine(AppContext.BaseDirectory, "office.dll");
+            return File.Exists(path) ? Assembly.LoadFrom(path) : null;
+        };
+    }
+
     private static void RegisterGlobalExceptionHandlers()
     {
         // Handle exceptions that escape all catch blocks

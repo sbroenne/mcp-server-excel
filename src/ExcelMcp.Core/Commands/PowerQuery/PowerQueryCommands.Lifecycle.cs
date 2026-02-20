@@ -20,7 +20,7 @@ public partial class PowerQueryCommands
             dynamic? queriesCollection = null;
             try
             {
-                queriesCollection = ctx.Book.Queries;
+                queriesCollection = ((dynamic)ctx.Book).Queries;
                 int count = queriesCollection.Count;
 
                 for (int i = 1; i <= count; i++)
@@ -571,7 +571,7 @@ public partial class PowerQueryCommands
                 }
 
                 // STEP 3: Delete the query itself
-                queriesCollection = ctx.Book.Queries;
+                queriesCollection = ((dynamic)ctx.Book).Queries;
                 queriesCollection.Item(queryName).Delete();
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };

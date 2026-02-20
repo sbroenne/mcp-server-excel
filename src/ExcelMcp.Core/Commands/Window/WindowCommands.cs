@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 
@@ -155,7 +156,7 @@ public class WindowCommands : IWindowCommands
                 ctx.App.Visible = true;
             }
 
-            ctx.App.WindowState = xlState;
+            ctx.App.WindowState = (Excel.XlWindowState)xlState;
 
             return new OperationResult
             {
@@ -182,7 +183,7 @@ public class WindowCommands : IWindowCommands
             // Set to normal state so position/size can be changed
             if ((int)ctx.App.WindowState != XlNormal)
             {
-                ctx.App.WindowState = XlNormal;
+                ctx.App.WindowState = (Excel.XlWindowState)XlNormal;
             }
 
             if (left.HasValue) ctx.App.Left = left.Value;
@@ -222,7 +223,7 @@ public class WindowCommands : IWindowCommands
             {
                 if ((int)ctx.App.WindowState != XlNormal)
                 {
-                    ctx.App.WindowState = XlNormal;
+                    ctx.App.WindowState = (Excel.XlWindowState)XlNormal;
                 }
             }
 
@@ -266,7 +267,7 @@ public class WindowCommands : IWindowCommands
                     break;
 
                 case "full-screen":
-                    ctx.App.WindowState = XlMaximized;
+                    ctx.App.WindowState = (Excel.XlWindowState)XlMaximized;
                     break;
 
                 default:

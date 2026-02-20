@@ -19,10 +19,14 @@ public class ScreenshotCommands : IScreenshotCommands
     private const int CopyPictureMaxRetries = 10;
     private const int CopyPictureRetryDelayMs = 700;
 
+    // Export format constants
+    private const string FormatPng = "PNG";
+    private const string FormatJpeg = "JPEG";
+
     /// <summary>
-    /// Captures a specific range as a PNG image.
+    /// Captures a specific range as an image.
     /// </summary>
-    public ScreenshotResult CaptureRange(IExcelBatch batch, string? sheetName = null, string rangeAddress = "A1:Z30")
+    public ScreenshotResult CaptureRange(IExcelBatch batch, string? sheetName = null, string rangeAddress = "A1:Z30", ScreenshotQuality quality = ScreenshotQuality.Medium)
     {
         return batch.Execute((ctx, ct) =>
         {
@@ -38,7 +42,7 @@ public class ScreenshotCommands : IScreenshotCommands
                 string actualSheet = sheet.Name?.ToString() ?? "Sheet1";
                 string actualRange = range.Address?.ToString() ?? rangeAddress;
 
-                return ExportRangeAsImage(ctx.App, sheet, range, actualSheet, actualRange);
+                return ExportRangeAsImage(ctx.App, sheet, range, actualSheet, actualRange, quality);
             }
             finally
             {
@@ -49,11 +53,11 @@ public class ScreenshotCommands : IScreenshotCommands
     }
 
     /// <summary>
-    /// Captures the entire used area of a worksheet as a PNG image.
+    /// Captures the entire used area of a worksheet as an image.
     /// If UsedRange exceeds 500 rows or 50 columns, it is capped to avoid
     /// CopyPicture failures on sheets with formatting extending far beyond data.
     /// </summary>
-    public ScreenshotResult CaptureSheet(IExcelBatch batch, string? sheetName = null)
+    public ScreenshotResult CaptureSheet(IExcelBatch batch, string? sheetName = null, ScreenshotQuality quality = ScreenshotQuality.Medium)
     {
         return batch.Execute((ctx, ct) =>
         {
@@ -88,7 +92,7 @@ public class ScreenshotCommands : IScreenshotCommands
                 dynamic rangeToCapture = captureRange ?? usedRange;
                 string actualRange = rangeToCapture.Address?.ToString() ?? "A1";
 
-                return ExportRangeAsImage(ctx.App, sheet, rangeToCapture, actualSheet, actualRange);
+                return ExportRangeAsImage(ctx.App, sheet, rangeToCapture, actualSheet, actualRange, quality);
             }
             finally
             {
@@ -107,7 +111,7 @@ public class ScreenshotCommands : IScreenshotCommands
     /// CRITICAL: After Save/large operations, Excel needs rendering time even if already visible.
     /// This method includes delays to ensure Excel is fully rendered before capture.
     /// </summary>
-    private static ScreenshotResult ExportRangeAsImage(dynamic app, dynamic sheet, dynamic range, string sheetName, string rangeAddress)
+    private static ScreenshotResult ExportRangeAsImage(dynamic app, dynamic sheet, dynamic range, string sheetName, string rangeAddress, ScreenshotQuality quality)
     {
         dynamic? chartObjects = null;
         dynamic? chartObject = null;
@@ -163,6 +167,27 @@ public class ScreenshotCommands : IScreenshotCommands
                 height *= scale;
             }
 
+            // Apply quality-based scale reduction before export.
+            // Lower quality = smaller chart dimensions = fewer pixels = smaller image.
+            // JPEG format (Medium/Low) is also ~4-8x smaller than PNG for the same content.
+            double qualityScale = quality switch
+            {
+                ScreenshotQuality.Low => 0.5,
+                ScreenshotQuality.Medium => 0.75,
+                _ => 1.0  // High: full scale
+            };
+            width *= qualityScale;
+            height *= qualityScale;
+
+            // Minimum useful size
+            width = Math.Max(width, 50);
+            height = Math.Max(height, 30);
+
+            // Export format: JPEG for Medium/Low (much smaller), PNG for High (lossless)
+            string exportFormat = quality == ScreenshotQuality.High ? FormatPng : FormatJpeg;
+            string mimeType = quality == ScreenshotQuality.High ? "image/png" : "image/jpeg";
+            string fileExt = quality == ScreenshotQuality.High ? "png" : "jpg";
+
             // Copy range as picture (with retry — CopyPicture is clipboard-dependent
             // and intermittently fails when Excel is still rendering after chart/table operations)
             CopyPictureWithRetry(range);
@@ -179,22 +204,24 @@ public class ScreenshotCommands : IScreenshotCommands
             // (otherwise marching ants remain and next CopyPicture may fail with clipboard contention)
             try { app.CutCopyMode = false; } catch { /* best effort */ }
 
-            // Export to temp PNG file
-            tempFile = Path.Combine(Path.GetTempPath(), $"excelmcp-screenshot-{Guid.NewGuid():N}.png");
-            chart.Export(tempFile, "PNG");
+            // Export to temp file in the appropriate format
+            tempFile = Path.Combine(Path.GetTempPath(), $"excelmcp-screenshot-{Guid.NewGuid():N}.{fileExt}");
+            chart.Export(tempFile, exportFormat);
 
             // Read and convert to base64
             byte[] imageBytes = File.ReadAllBytes(tempFile);
             string base64 = Convert.ToBase64String(imageBytes);
 
-            // Get actual pixel dimensions from the PNG header
-            (int pixelWidth, int pixelHeight) = GetPngDimensions(imageBytes);
+            // Read pixel dimensions from file header
+            (int pixelWidth, int pixelHeight) = quality == ScreenshotQuality.High
+                ? GetPngDimensions(imageBytes)
+                : GetJpegDimensions(imageBytes);
 
             return new ScreenshotResult
             {
                 Success = true,
                 ImageBase64 = base64,
-                MimeType = "image/png",
+                MimeType = mimeType,
                 Width = pixelWidth,
                 Height = pixelHeight,
                 SheetName = sheetName,
@@ -263,5 +290,41 @@ public class ScreenshotCommands : IScreenshotCommands
         int height = (data[20] << 24) | (data[21] << 16) | (data[22] << 8) | data[23];
 
         return (width, height);
+    }
+
+    /// <summary>
+    /// Reads width and height from JPEG file by scanning for SOF (Start Of Frame) markers.
+    /// SOF markers (0xFF 0xC0..0xC3, 0xC5..0xC7, 0xC9..0xCB, 0xCD..0xCF) contain dimensions.
+    /// </summary>
+    private static (int width, int height) GetJpegDimensions(byte[] data)
+    {
+        if (data.Length < 4 || data[0] != 0xFF || data[1] != 0xD8)
+            return (0, 0);
+
+        int i = 2;
+        while (i < data.Length - 8)
+        {
+            if (data[i] != 0xFF) break;
+            byte marker = data[i + 1];
+
+            // SOF markers that contain frame dimensions
+            bool isSof = marker is >= 0xC0 and <= 0xC3
+                or >= 0xC5 and <= 0xC7
+                or >= 0xC9 and <= 0xCB
+                or >= 0xCD and <= 0xCF;
+
+            int segmentLength = (data[i + 2] << 8) | data[i + 3];
+
+            if (isSof && i + 8 < data.Length)
+            {
+                int height = (data[i + 5] << 8) | data[i + 6];
+                int width = (data[i + 7] << 8) | data[i + 8];
+                return (width, height);
+            }
+
+            i += 2 + segmentLength;
+        }
+
+        return (0, 0);
     }
 }

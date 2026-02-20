@@ -78,6 +78,10 @@ When creating or modifying Excel files:
 - Use proper number formats (currency, dates, percentages)
 - Format data as Excel Tables (not plain ranges)
 
+**Use `range_format(action: 'format-range')` for header styling in a single call** — pass `bold`, `fillColor`, `fontColor`, and `horizontalAlignment` together instead of multiple separate calls. Example: bold white text on a blue background header row requires ONE `format-range` call, not four separate operations.
+
+**Apply each formatting operation once** — do not reapply the same bold/fill/color to the same range in a later step unless the goal is to change it.
+
 ### Format Cells by Data Type (CRITICAL)
 
 Always apply number formats after setting values. Without formatting:

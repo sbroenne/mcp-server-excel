@@ -1,5 +1,7 @@
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
+using Excel = Microsoft.Office.Interop.Excel;
+
 /// <summary>
 /// Represents a batch of Excel operations that share a single Excel instance.
 /// Implements IDisposable to ensure proper COM cleanup.
@@ -60,7 +62,7 @@ public interface IExcelBatch : IDisposable
     /// For single-workbook batches, contains one entry.
     /// For multi-workbook batches (cross-workbook operations), contains all open workbooks.
     /// </summary>
-    IReadOnlyDictionary<string, dynamic> Workbooks { get; }
+    IReadOnlyDictionary<string, Excel.Workbook> Workbooks { get; }
 
     /// <summary>
     /// Gets the COM Workbook object for a specific file path.
@@ -68,7 +70,7 @@ public interface IExcelBatch : IDisposable
     /// <param name="filePath">Path to the workbook (will be normalized)</param>
     /// <returns>Excel.Workbook COM object</returns>
     /// <exception cref="KeyNotFoundException">Workbook not found in this batch</exception>
-    dynamic GetWorkbook(string filePath);
+    Excel.Workbook GetWorkbook(string filePath);
 
     /// <summary>
     /// Executes a void COM operation within this batch.

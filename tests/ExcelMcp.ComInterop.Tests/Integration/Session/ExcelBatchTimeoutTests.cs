@@ -85,7 +85,7 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
         // Warm up — ensure Excel is ready
         batch.Execute((ctx, ct) =>
         {
-            _ = ctx.Book.Worksheets.Item(1);
+            _ = ctx.Book.Worksheets[1];
             return 0;
         });
 
@@ -143,7 +143,7 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
         _output.WriteLine($"Excel PID for this session: {excelPid}");
 
         // Warm up
-        batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets.Item(1); return 0; });
+        batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets[1]; return 0; });
 
         // Act — trigger timeout
         Assert.Throws<TimeoutException>(() =>
@@ -203,7 +203,7 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
             operationTimeout: TimeSpan.FromSeconds(3),
             _testFileCopy!);
 
-        batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets.Item(1); return 0; });
+        batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets[1]; return 0; });
 
         // Trigger timeout
         Assert.Throws<TimeoutException>(() =>
@@ -245,7 +245,7 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
             operationTimeout: TimeSpan.FromMinutes(5), // Normal timeout — not the trigger
             _testFileCopy!);
 
-        batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets.Item(1); return 0; });
+        batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets[1]; return 0; });
 
         var cts = new CancellationTokenSource();
 
@@ -310,7 +310,7 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
             _testFileCopy!);
 
         // Warm up
-        batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets.Item(1); return 0; });
+        batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets[1]; return 0; });
 
         // Trigger timeout on first operation
         Assert.Throws<TimeoutException>(() =>

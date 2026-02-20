@@ -45,7 +45,7 @@ public partial class PowerQueryCommands
             try
             {
                 // STEP 1: Create temporary query with the M code
-                queriesCollection = ctx.Book.Queries;
+                queriesCollection = ((dynamic)ctx.Book).Queries;
                 query = queriesCollection.Add(tempQueryName, mCode);
 
                 // STEP 2: Create temporary worksheet and load data to it

@@ -52,7 +52,7 @@ public partial class PowerQueryCommands
             try
             {
                 // STEP 1: Find the Power Query
-                queries = ctx.Book.Queries;
+                queries = ((dynamic)ctx.Book).Queries;
                 query = null;
                 for (int i = 1; i <= queries.Count; i++)
                 {

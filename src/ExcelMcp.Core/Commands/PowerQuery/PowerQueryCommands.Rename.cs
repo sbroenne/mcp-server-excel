@@ -39,7 +39,7 @@ public partial class PowerQueryCommands
             dynamic? targetQuery = null;
             try
             {
-                queries = ctx.Book.Queries;
+                queries = ((dynamic)ctx.Book).Queries;
 
                 // Find target query (case-sensitive exact match first)
                 targetQuery = ComUtilities.FindQuery(ctx.Book, result.NormalizedOldName);

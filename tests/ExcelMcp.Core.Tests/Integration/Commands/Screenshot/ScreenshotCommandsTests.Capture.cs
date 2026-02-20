@@ -4,6 +4,7 @@
 
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Commands.Screenshot;
@@ -27,7 +28,7 @@ public partial class ScreenshotCommandsTests
             dynamic? chart = null;
             try
             {
-                sheet = ctx.Book.Worksheets.Item(1);
+                sheet = ctx.Book.Worksheets[1];
 
                 sheet.Range["A1"].Value2 = "Region";
                 sheet.Range["B1"].Value2 = "Sales";
@@ -67,8 +68,8 @@ public partial class ScreenshotCommandsTests
         using var batch = ExcelSession.BeginBatch(show: true, operationTimeout: null, testFile);
         PopulateTestData(batch);
 
-        // Act — capture the data area (A1:B5)
-        var result = _commands.CaptureRange(batch, rangeAddress: "A1:B5");
+        // Act — High quality produces PNG
+        var result = _commands.CaptureRange(batch, rangeAddress: "A1:B5", quality: ScreenshotQuality.High);
 
         // Assert
         Assert.True(result.Success, $"CaptureRange failed: {result.ErrorMessage}");
@@ -89,6 +90,32 @@ public partial class ScreenshotCommandsTests
     }
 
     [Fact]
+    public void CaptureRange_MediumQuality_ReturnsJpeg()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+        using var batch = ExcelSession.BeginBatch(show: true, operationTimeout: null, testFile);
+        PopulateTestData(batch);
+
+        // Act — Medium quality (default) produces JPEG
+        var result = _commands.CaptureRange(batch, rangeAddress: "A1:B5");
+
+        // Assert
+        Assert.True(result.Success, $"CaptureRange failed: {result.ErrorMessage}");
+        Assert.NotNull(result.ImageBase64);
+        Assert.NotEmpty(result.ImageBase64);
+        Assert.Equal("image/jpeg", result.MimeType);
+        Assert.True(result.Width > 0, "Width should be positive");
+        Assert.True(result.Height > 0, "Height should be positive");
+
+        // Verify it's valid JPEG (SOI marker: FF D8)
+        byte[] imageBytes = Convert.FromBase64String(result.ImageBase64);
+        Assert.True(imageBytes.Length > 100, "Image should be more than 100 bytes");
+        Assert.Equal(0xFF, imageBytes[0]);
+        Assert.Equal(0xD8, imageBytes[1]);
+    }
+
+    [Fact]
     public void CaptureRange_AreaWithChart_ReturnsLargerImage()
     {
         // Arrange
@@ -96,8 +123,8 @@ public partial class ScreenshotCommandsTests
         using var batch = ExcelSession.BeginBatch(show: true, operationTimeout: null, testFile);
         PopulateTestData(batch, addChart: true);
 
-        // Act — capture a wider area that includes the chart region
-        var result = _commands.CaptureRange(batch, rangeAddress: "A1:M20");
+        // Act — capture a wider area that includes the chart region (High = PNG for size comparison)
+        var result = _commands.CaptureRange(batch, rangeAddress: "A1:M20", quality: ScreenshotQuality.High);
 
         // Assert
         Assert.True(result.Success, $"CaptureRange failed: {result.ErrorMessage}");
@@ -121,12 +148,12 @@ public partial class ScreenshotCommandsTests
         // Get the actual sheet name
         string sheetName = batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             return sheet.Name?.ToString() ?? "Sheet1";
         });
 
-        // Act — capture entire used area by sheet name
-        var result = _commands.CaptureSheet(batch, sheetName);
+        // Act — capture entire used area by sheet name (High = PNG for magic-byte assertion)
+        var result = _commands.CaptureSheet(batch, sheetName, quality: ScreenshotQuality.High);
 
         // Assert
         Assert.True(result.Success, $"CaptureSheet failed: {result.ErrorMessage}");
@@ -146,8 +173,8 @@ public partial class ScreenshotCommandsTests
         using var batch = ExcelSession.BeginBatch(show: true, operationTimeout: null, testFile);
         PopulateTestData(batch);
 
-        // Act — capture active sheet (no sheetName specified)
-        var result = _commands.CaptureSheet(batch);
+        // Act — capture active sheet (no sheetName specified), High quality for PNG assertion
+        var result = _commands.CaptureSheet(batch, quality: ScreenshotQuality.High);
 
         // Assert
         Assert.True(result.Success, $"CaptureSheet failed: {result.ErrorMessage}");
@@ -163,8 +190,8 @@ public partial class ScreenshotCommandsTests
         using var batch = ExcelSession.BeginBatch(show: true, operationTimeout: null, testFile);
         PopulateTestData(batch);
 
-        // Act — use default range (A1:Z30) with no sheetName
-        var result = _commands.CaptureRange(batch);
+        // Act — use default range (A1:Z30) with no sheetName, High quality for PNG assertion
+        var result = _commands.CaptureRange(batch, quality: ScreenshotQuality.High);
 
         // Assert
         Assert.True(result.Success, $"CaptureRange failed: {result.ErrorMessage}");

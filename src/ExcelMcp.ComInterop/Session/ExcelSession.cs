@@ -1,4 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
@@ -163,8 +165,8 @@ public static class ExcelSession
 
         var thread = new Thread(() =>
         {
-            dynamic? excel = null;
-            dynamic? workbook = null;
+            Excel.Application? excel = null;
+            Excel.Workbook? workbook = null;
 
             try
             {
@@ -177,13 +179,13 @@ public static class ExcelSession
                 }
 
 #pragma warning disable IL2072
-                excel = Activator.CreateInstance(excelType);
+                excel = (Excel.Application)Activator.CreateInstance(excelType)!;
 #pragma warning restore IL2072
 
                 excel.Visible = false;
                 excel.DisplayAlerts = false;
 
-                workbook = excel.Workbooks.Add();
+                workbook = (Excel.Workbook)excel.Workbooks.Add();
 
                 // SaveAs directly on STA thread
                 if (isMacroEnabled)
@@ -212,8 +214,8 @@ public static class ExcelSession
 
                 ComUtilities.TryQuitExcel(excel);
 
-                ComUtilities.Release(ref workbook!);
-                ComUtilities.Release(ref excel!);
+                if (workbook != null) { Marshal.ReleaseComObject(workbook); workbook = null; }
+                if (excel != null) { Marshal.ReleaseComObject(excel); excel = null; }
 
                 OleMessageFilter.Revoke();
             }

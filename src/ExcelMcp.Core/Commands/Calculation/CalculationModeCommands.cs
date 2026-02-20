@@ -1,3 +1,4 @@
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Attributes;
@@ -115,7 +116,7 @@ public class CalculationModeCommands : ICalculationModeCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            int modeValue = Convert.ToInt32(ctx.App.Calculation);
+            int modeValue = (int)ctx.App.Calculation;
             string mode = modeValue switch
             {
                 -4105 => "automatic",    // xlCalculationAutomatic
@@ -128,7 +129,7 @@ public class CalculationModeCommands : ICalculationModeCommands
             string calcState = "unknown";
             try
             {
-                var calcStateValue = Convert.ToInt32(ctx.App.CalculationState);
+                var calcStateValue = (int)ctx.App.CalculationState;
                 calcState = calcStateValue switch
                 {
                     1 => "pending",  // xlCalculating
@@ -172,7 +173,7 @@ public class CalculationModeCommands : ICalculationModeCommands
 
             try
             {
-                ctx.App.Calculation = newValue;
+                ctx.App.Calculation = (Excel.XlCalculation)newValue;
             }
             catch (Exception ex)
             {

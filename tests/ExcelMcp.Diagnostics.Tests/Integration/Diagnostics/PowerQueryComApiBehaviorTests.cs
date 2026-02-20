@@ -125,7 +125,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             // Check: Does adding a query automatically create a table? NO
             sheets = _workbook.Worksheets;
-            sheet = sheets.Item(1);
+            sheet = sheets[1];
             listObjects = sheet.ListObjects;
             _output.WriteLine($"ListObjects count after query add: {listObjects.Count}");
 
@@ -161,7 +161,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 // Document behavior
                 if (listObjectCount > 0)
                 {
-                    dynamic? lo = listObjects.Item(1);
+                    dynamic? lo = listObjects[1];
                     _output.WriteLine($"ListObject name: {lo?.Name}");
                     ComUtilities.Release(ref lo);
                 }
@@ -302,7 +302,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             query = queries.Add("DeleteTest", SimpleQuery);
             LoadQueryToTable("DeleteTest", "A1");
 
-            sheet = _workbook.Worksheets.Item(1);
+            sheet = _workbook.Worksheets[1];
             listObjects = sheet.ListObjects;
 
             int tableCountBefore = listObjects.Count;
@@ -312,7 +312,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             string? tableName = null;
             if (tableCountBefore > 0)
             {
-                dynamic? lo = listObjects.Item(1);
+                dynamic? lo = listObjects[1];
                 tableName = lo.Name;
                 _output.WriteLine($"Table name: {tableName}");
                 ComUtilities.Release(ref lo);
@@ -335,7 +335,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             if (tableCountAfter > 0)
             {
                 _output.WriteLine("TABLE SURVIVES! Query deletion does NOT delete the table.");
-                dynamic? lo = listObjects.Item(1);
+                dynamic? lo = listObjects[1];
                 _output.WriteLine($"Orphaned table name: {lo.Name}");
 
                 // Can we still access the data?
@@ -435,7 +435,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             // First load to table
             LoadQueryToTable("ConnOnlyTest", "A1");
 
-            sheet = _workbook.Worksheets.Item(1);
+            sheet = _workbook.Worksheets[1];
             listObjects = sheet.ListObjects;
             _output.WriteLine($"Tables after initial load: {listObjects.Count}");
 
@@ -446,7 +446,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             // Option 1: Delete the ListObject but keep the query
             if (listObjects.Count > 0)
             {
-                dynamic? lo = listObjects.Item(1);
+                dynamic? lo = listObjects[1];
                 string loName = lo.Name;
                 _output.WriteLine($"Deleting ListObject: {loName}");
 
@@ -469,7 +469,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections.Item(i);
+                dynamic? conn = connections[i];
                 _output.WriteLine($"Connection {i}: {conn.Name}, Type: {conn.Type}");
                 ComUtilities.Release(ref conn);
             }
@@ -565,7 +565,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             dynamic? pqConnection = null;
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections.Item(i);
+                dynamic? conn = connections[i];
                 string connName = conn.Name;
                 if (connName.Contains("RefreshTest"))
                 {
@@ -867,7 +867,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             ComUtilities.Release(ref modelTables);
 
             // Verify no ListObjects (worksheet tables)
-            dynamic? sheet = _workbook.Worksheets.Item(1);
+            dynamic? sheet = _workbook.Worksheets[1];
             dynamic? listObjects = sheet.ListObjects;
             _output.WriteLine($"Worksheet tables (ListObjects): {listObjects.Count}");
             ComUtilities.Release(ref listObjects);
@@ -875,7 +875,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             // Now simulate what our Unload method does: iterate ListObjects and delete them
             _output.WriteLine("\n--- Simulating Unload (only checks ListObjects) ---");
-            sheet = _workbook.Worksheets.Item(1);
+            sheet = _workbook.Worksheets[1];
             listObjects = sheet.ListObjects;
             int tablesToDelete = 0;
 
@@ -899,7 +899,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             bool modelConnectionExists = false;
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections.Item(i);
+                dynamic? conn = connections[i];
                 string connName = conn.Name;
                 if (connName.Contains("DataModelUnloadTest"))
                 {
@@ -960,7 +960,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             _output.WriteLine("\n--- Step 1: Load to worksheet ---");
             LoadQueryToTable("BothDestTest", "A1");
 
-            sheet = _workbook.Worksheets.Item(1);
+            sheet = _workbook.Worksheets[1];
             listObjects = sheet.ListObjects;
             _output.WriteLine($"Worksheet tables after load: {listObjects.Count}");
             ComUtilities.Release(ref listObjects);
@@ -998,12 +998,12 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             // Step 3: Simulate Unload - remove worksheet table
             _output.WriteLine("\n--- Step 3: Simulating Unload (removing worksheet table) ---");
-            sheet = _workbook.Worksheets.Item(1);
+            sheet = _workbook.Worksheets[1];
             listObjects = sheet.ListObjects;
 
             if (listObjects.Count > 0)
             {
-                dynamic? lo = listObjects.Item(1);
+                dynamic? lo = listObjects[1];
                 string tableName = lo.Name;
                 _output.WriteLine($"Unlisting table: {tableName}");
                 lo.Unlist();
@@ -1024,7 +1024,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             int modelConnectionCount = 0;
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections.Item(i);
+                dynamic? conn = connections[i];
                 string connName = conn.Name;
                 if (connName.Contains("BothDestTest"))
                 {
@@ -1115,7 +1115,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 _output.WriteLine($"Model connection creation failed: {ex.Message}");
             }
 
-            sheet = _workbook.Worksheets.Item(1);
+            sheet = _workbook.Worksheets[1];
             listObjects = sheet.ListObjects;
             model = _workbook.Model;
             dynamic? modelTables = model.ModelTables;
@@ -1130,11 +1130,11 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             // Step 1: Remove worksheet tables (ListObjects)
             _output.WriteLine("Step 1: Remove worksheet tables");
-            sheet = _workbook.Worksheets.Item(1);
+            sheet = _workbook.Worksheets[1];
             listObjects = sheet.ListObjects;
             for (int i = listObjects.Count; i >= 1; i--)
             {
-                dynamic? lo = listObjects.Item(i);
+                dynamic? lo = listObjects[i];
                 dynamic? qt = lo.QueryTable;
                 if (qt != null)
                 {
@@ -1161,7 +1161,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             var connectionsToDelete = new List<string>();
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections.Item(i);
+                dynamic? conn = connections[i];
                 string connName = conn.Name;
                 if (connName.Contains("FullUnloadTest"))
                 {
@@ -1174,7 +1174,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             {
                 try
                 {
-                    dynamic? conn = connections.Item(connName);
+                    dynamic? conn = connections[connName];
                     _output.WriteLine($"  Deleting connection: {connName}");
                     conn.Delete();
                     ComUtilities.Release(ref conn);
@@ -1187,7 +1187,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             // Verify final state
             _output.WriteLine("\n--- Final State (should be connection-only) ---");
-            sheet = _workbook.Worksheets.Item(1);
+            sheet = _workbook.Worksheets[1];
             listObjects = sheet.ListObjects;
             _output.WriteLine($"Worksheet tables: {listObjects.Count}");
 
@@ -1196,7 +1196,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             int remainingPQConnections = 0;
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections.Item(i);
+                dynamic? conn = connections[i];
                 if (((string)conn.Name).Contains("FullUnloadTest"))
                 {
                     remainingPQConnections++;
@@ -1292,7 +1292,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             ComUtilities.Release(ref modelTables);
 
             // Verify NO worksheet tables
-            dynamic? sheet = _workbook.Worksheets.Item(1);
+            dynamic? sheet = _workbook.Worksheets[1];
             dynamic? listObjects = sheet.ListObjects;
             _output.WriteLine($"Worksheet tables (should be 0): {listObjects.Count}");
             Assert.Equal(0, (int)listObjects.Count);
@@ -1326,7 +1326,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             connections = _workbook.Connections;
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections.Item(i);
+                dynamic? conn = connections[i];
                 if (((string)conn.Name).Contains("DataModelUpdateTest"))
                 {
                     connectionExists = true;
@@ -1346,7 +1346,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 bool refreshed = false;
                 for (int i = 1; i <= connections.Count; i++)
                 {
-                    dynamic? conn = connections.Item(i);
+                    dynamic? conn = connections[i];
                     string connName = conn.Name;
                     if (connName.Contains("DataModelUpdateTest"))
                     {
@@ -1384,7 +1384,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 dynamic? cols = null;
                 try
                 {
-                    mt = modelTables.Item(i);
+                    mt = modelTables[i];
                     string tableName = mt.Name;
                     _output.WriteLine($"Model table {i}: '{tableName}'");
 
@@ -1394,7 +1394,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                     // List ALL column names
                     for (int c = 1; c <= cols.Count; c++)
                     {
-                        dynamic? col = cols.Item(c);
+                        dynamic? col = cols[c];
                         string colName = col.Name?.ToString() ?? "(null)";
                         _output.WriteLine($"    Column {c}: {colName}");
                         if (colName == "Extra")
@@ -1459,13 +1459,13 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             query = queries.Add("OriginalName", SimpleQuery);
             LoadQueryToTable("OriginalName", "A1");
 
-            sheet = _workbook.Worksheets.Item(1);
+            sheet = _workbook.Worksheets[1];
             listObjects = sheet.ListObjects;
 
             string? tableNameBefore = null;
             if (listObjects.Count > 0)
             {
-                dynamic? lo = listObjects.Item(1);
+                dynamic? lo = listObjects[1];
                 tableNameBefore = lo.Name;
                 _output.WriteLine($"Table name before rename: {tableNameBefore}");
                 ComUtilities.Release(ref lo);
@@ -1481,7 +1481,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             listObjects = sheet.ListObjects;
             if (listObjects.Count > 0)
             {
-                dynamic? lo = listObjects.Item(1);
+                dynamic? lo = listObjects[1];
                 string tableNameAfter = lo.Name;
                 _output.WriteLine($"Table name after rename: {tableNameAfter}");
 
@@ -1533,7 +1533,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
         try
         {
-            sheet = _workbook.Worksheets.Item(1);
+            sheet = _workbook.Worksheets[1];
             range = sheet.Range[startCell];
             listObjects = sheet.ListObjects;
 
@@ -1577,7 +1577,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
         try
         {
-            sheet = _workbook.Worksheets.Item(1);
+            sheet = _workbook.Worksheets[1];
             listObjects = sheet.ListObjects;
 
             if (listObjects.Count == 0)
@@ -1585,7 +1585,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 throw new InvalidOperationException("No tables found to refresh");
             }
 
-            listObject = listObjects.Item(1);
+            listObject = listObjects[1];
             queryTable = listObject.QueryTable;
             queryTable.Refresh(false); // Synchronous refresh
 
@@ -1646,7 +1646,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             // Step 3: Try to create ListObject using this connection
             _output.WriteLine("\n--- Step 3: Create ListObject using the named connection ---");
-            sheet = _workbook.Worksheets.Item(1);
+            sheet = _workbook.Worksheets[1];
             range = sheet.Range["A1"];
             listObjects = sheet.ListObjects;
 
@@ -1706,7 +1706,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 _output.WriteLine($"\nConnections after ListObjects.Add:");
                 for (int i = 1; i <= connections.Count; i++)
                 {
-                    dynamic? conn = connections.Item(i);
+                    dynamic? conn = connections[i];
                     _output.WriteLine($"  Connection {i}: '{conn.Name}' (Type: {conn.Type})");
                     ComUtilities.Release(ref conn);
                 }
@@ -1795,9 +1795,9 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 {
                     _output.WriteLine($"Query {i}:");
 
-                    // Test accessing queries.Item(i) - like List does
+                    // Test accessing queries[i] - like List does
                     _output.WriteLine($"  Calling queries.Item({i})...");
-                    q = queries.Item(i);
+                    q = queries[i];
                     _output.WriteLine($"  SUCCESS: queries.Item({i}) worked");
 
                     // Test accessing Name property
@@ -1844,7 +1844,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                     dynamic? q = null;
                     try
                     {
-                        q = queries.Item(i);
+                        q = queries[i];
                         string qName = q.Name?.ToString() ?? "";
                         if (qName.Equals("ComplexConnectionOnly", StringComparison.OrdinalIgnoreCase))
                         {
@@ -1892,7 +1892,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                         try
                         {
                             _output.WriteLine($"\n  Worksheet {ws}:");
-                            worksheet = worksheets.Item(ws);
+                            worksheet = worksheets[ws];
                             _output.WriteLine($"    Name: {worksheet.Name}");
 
                             // Check QueryTables
@@ -1910,7 +1910,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                                     try
                                     {
                                         _output.WriteLine($"      QueryTable {qt}:");
-                                        qTable = queryTables.Item(qt);
+                                        qTable = queryTables[qt];
 
                                         _output.WriteLine($"        Accessing WorkbookConnection...");
                                         wbConn = qTable.WorkbookConnection;
@@ -1966,7 +1966,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                                     try
                                     {
                                         _output.WriteLine($"      ListObject {lo}:");
-                                        listObj = listObjects.Item(lo);
+                                        listObj = listObjects[lo];
 
                                         _output.WriteLine($"        Accessing QueryTable property...");
                                         try
@@ -2089,7 +2089,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 dynamic? q = null;
                 try
                 {
-                    q = queries.Item(i);
+                    q = queries[i];
                     string name = q.Name?.ToString() ?? "";
                     _output.WriteLine($"\nQuery: {name}");
 
@@ -2235,7 +2235,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
         try
         {
-            sheet = _workbook.Worksheets.Item(1);
+            sheet = _workbook.Worksheets[1];
             listObjects = sheet.ListObjects;
 
             if (listObjects.Count == 0)
@@ -2243,7 +2243,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 return 0;
             }
 
-            listObject = listObjects.Item(1);
+            listObject = listObjects[1];
             columns = listObject.ListColumns;
             return columns.Count;
         }

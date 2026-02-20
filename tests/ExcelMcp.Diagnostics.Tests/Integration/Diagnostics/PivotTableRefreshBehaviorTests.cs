@@ -59,7 +59,7 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
 
     private void SetupTestData()
     {
-        dynamic sheet = _workbook.Worksheets.Item(1);
+        dynamic sheet = _workbook.Worksheets[1];
         sheet.Name = "Data";
 
         // Create simple sales data
@@ -91,7 +91,7 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
 
     private dynamic CreatePivotTable(string name)
     {
-        dynamic dataSheet = _workbook.Worksheets.Item("Data");
+        dynamic dataSheet = _workbook.Worksheets["Data"];
         dynamic sourceRange = dataSheet.Range["A1:D5"];
 
         // Add a new sheet for the PivotTable
@@ -326,7 +326,7 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
 
         // Reopen
         _workbook = _excel.Workbooks.Open(_testFile);
-        dynamic reopenedPivot = _workbook.Worksheets.Item("Pivot_TestPivot8").PivotTables("TestPivot8");
+        dynamic reopenedPivot = _workbook.Worksheets["Pivot_TestPivot8"].PivotTables("TestPivot8");
 
         // Assert - Check if settings persisted
         dynamic reopenedRegion = reopenedPivot.PivotFields("Region");
@@ -371,7 +371,7 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
 
         // Reopen
         _workbook = _excel.Workbooks.Open(_testFile);
-        dynamic reopenedPivot = _workbook.Worksheets.Item("Pivot_TestPivot9").PivotTables("TestPivot9");
+        dynamic reopenedPivot = _workbook.Worksheets["Pivot_TestPivot9"].PivotTables("TestPivot9");
 
         // Assert - Check if settings persisted
         dynamic reopenedRegion = reopenedPivot.PivotFields("Region");
@@ -401,7 +401,7 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
         pivot.RefreshTable(); // Initial setup - structure must be refreshed
 
         // Act - Change function WITHOUT RefreshTable()
-        dynamic dataField = pivot.DataFields.Item(1);  // Get from DataFields collection
+        dynamic dataField = pivot.DataFields[1];  // Get from DataFields collection
         dataField.Function = xlAverage;
         // NO pivot.RefreshTable();
 
@@ -413,8 +413,8 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
 
         // Reopen
         _workbook = _excel.Workbooks.Open(_testFile);
-        dynamic reopenedPivot = _workbook.Worksheets.Item("Pivot_TestPivot10").PivotTables("TestPivot10");
-        dynamic reopenedDataField = reopenedPivot.DataFields.Item(1);
+        dynamic reopenedPivot = _workbook.Worksheets["Pivot_TestPivot10"].PivotTables("TestPivot10");
+        dynamic reopenedDataField = reopenedPivot.DataFields[1];
         int reopenedFunction = Convert.ToInt32(reopenedDataField.Function);
 
         _output.WriteLine($"Function Change WITHOUT RefreshTable - Persistence Test:");
@@ -441,7 +441,7 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
         dynamic items = rowField.PivotItems();
         for (int i = 1; i <= items.Count; i++)
         {
-            dynamic item = items.Item(i);
+            dynamic item = items[i];
             string itemName = item.Name?.ToString() ?? "";
             item.Visible = (itemName == "North");
         }
@@ -455,7 +455,7 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
 
         // Reopen
         _workbook = _excel.Workbooks.Open(_testFile);
-        dynamic reopenedPivot = _workbook.Worksheets.Item("Pivot_TestPivot11").PivotTables("TestPivot11");
+        dynamic reopenedPivot = _workbook.Worksheets["Pivot_TestPivot11"].PivotTables("TestPivot11");
         dynamic reopenedField = reopenedPivot.PivotFields("Region");
         dynamic reopenedItems = reopenedField.PivotItems();
 
@@ -463,7 +463,7 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
         string visibleItemName = "";
         for (int i = 1; i <= reopenedItems.Count; i++)
         {
-            dynamic item = reopenedItems.Item(i);
+            dynamic item = reopenedItems[i];
             if (item.Visible)
             {
                 visibleCount++;

@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -1195,7 +1195,7 @@ public partial class ChartCommands
             try
             {
                 // Get the target range
-                worksheet = ctx.Book.Worksheets.Item(sheetName);
+                worksheet = ctx.Book.Worksheets[sheetName];
                 range = worksheet.Range[rangeAddress];
 
                 // Get range geometry

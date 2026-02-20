@@ -16,6 +16,11 @@ internal sealed class Program
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
+        // Register assembly resolver for office.dll (Microsoft.Office.Core), which is a
+        // .NET Framework GAC assembly that .NET Core cannot find via standard probing.
+        // office.dll is copied to our output directory by Directory.Build.targets.
+        RegisterOfficeAssemblyResolver();
+
         // Determine if we should show the banner:
         // - Not when --quiet/-q flag is passed
         // - Not when output is redirected (piped to another process or file)
@@ -127,6 +132,19 @@ internal sealed class Program
             }
             return -1;
         }
+    }
+
+    private static void RegisterOfficeAssemblyResolver()
+    {
+        AppDomain.CurrentDomain.AssemblyResolve += (_, args) =>
+        {
+            var name = new AssemblyName(args.Name);
+            if (!string.Equals(name.Name, "office", StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            var path = Path.Combine(AppContext.BaseDirectory, "office.dll");
+            return File.Exists(path) ? Assembly.LoadFrom(path) : null;
+        };
     }
 
     private static void RenderHeader()

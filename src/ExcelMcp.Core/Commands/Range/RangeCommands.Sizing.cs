@@ -33,7 +33,7 @@ public partial class RangeCommands
                 // Get sheet
                 sheet = string.IsNullOrEmpty(sheetName)
                     ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets.Item(sheetName);
+                    : ctx.Book.Worksheets[sheetName];
 
                 // Get range and its columns
                 range = sheet.Range[rangeAddress];
@@ -76,7 +76,7 @@ public partial class RangeCommands
                 // Get sheet
                 sheet = string.IsNullOrEmpty(sheetName)
                     ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets.Item(sheetName);
+                    : ctx.Book.Worksheets[sheetName];
 
                 // Get range and its rows
                 range = sheet.Range[rangeAddress];

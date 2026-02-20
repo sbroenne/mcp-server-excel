@@ -57,7 +57,7 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
 
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             sheet.Name = "SalesData";
 
             sheet.Range["A1"].Value2 = "Region";
@@ -139,7 +139,7 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
         // Verify data persisted by reading range
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item("SalesData");
+            dynamic sheet = ctx.Book.Worksheets["SalesData"];
 
             // Verify headers
             Assert.Equal("Region", sheet.Range["A1"].Value2?.ToString());

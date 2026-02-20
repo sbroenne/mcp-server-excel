@@ -14,27 +14,30 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 public static class ExcelScreenshotTool
 {
     /// <summary>
-    /// Capture Excel worksheet content as PNG images for visual verification.
+    /// Capture Excel worksheet content as images for visual verification.
     /// Uses Excel's built-in rendering to capture all visual elements (formatting, charts, conditional formatting).
     /// capture: specific range (requires rangeAddress).
     /// capture-sheet: entire used area of worksheet.
     /// Returns the image directly as MCP ImageContent.
     /// Use after operations to visually verify results.
+    /// quality: Medium (default, JPEG 75% scale, ~4-8x smaller), High (PNG full scale), Low (JPEG 50% scale).
     /// </summary>
     [McpServerTool(Name = "screenshot", Title = "Screenshot", Destructive = false)]
     [McpMeta("category", "visualization")]
     [McpMeta("requiresSession", true)]
-    [Description("Capture Excel worksheet content as PNG images for visual verification. " +
+    [Description("Capture Excel worksheet content as images for visual verification. " +
         "Uses Excel's built-in rendering to capture all visual elements (formatting, charts, conditional formatting). " +
         "capture: specific range (requires rangeAddress). " +
         "capture-sheet: entire used area of worksheet. " +
         "Returns the image directly as MCP ImageContent. " +
-        "Use after operations to visually verify results.")]
+        "Use after operations to visually verify results. " +
+        "quality: Medium (default, JPEG 75% scale, ~4-8x smaller than High), High (PNG full scale), Low (JPEG 50% scale).")]
     public static CallToolResult ExcelScreenshot(
         [Description("The action to perform")] ScreenshotAction action,
         [Description("Session ID from file 'open' action")] string session_id,
         [DefaultValue(null)] string? sheet_name,
-        [DefaultValue("A1:Z30")] string range_address)
+        [DefaultValue("A1:Z30")] string range_address,
+        [DefaultValue(ScreenshotQuality.Medium)] ScreenshotQuality quality)
     {
         // Forward to service and get JSON response
         var jsonResponse = ExcelToolsBase.ExecuteToolAction(
@@ -45,7 +48,8 @@ public static class ExcelScreenshotTool
                 session_id,
                 ExcelToolsBase.ForwardToServiceFunc,
                 sheetName: sheet_name,
-                rangeAddress: range_address
+                rangeAddress: range_address,
+                quality: quality
             ));
 
         // Parse the JSON response to extract image data

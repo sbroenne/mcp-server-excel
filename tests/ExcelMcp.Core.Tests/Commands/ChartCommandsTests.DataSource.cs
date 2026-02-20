@@ -19,7 +19,7 @@ public partial class ChartCommandsTests
         // Write additional data range for source change test
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             sheet.Range["E1:F5"].Value2 = new object[,] {
                 { "New", "Data" },
                 { "X", 100 },

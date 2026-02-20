@@ -347,7 +347,7 @@ public partial class PivotTableCommandsTests
 
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             sheet.Name = "SalesData";
 
             sheet.Range["A1"].Value2 = "Region";

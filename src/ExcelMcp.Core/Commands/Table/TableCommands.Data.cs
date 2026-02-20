@@ -1,3 +1,4 @@
+using Excel = Microsoft.Office.Interop.Excel;
 using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -68,10 +69,10 @@ public partial class TableCommands
                 // CRITICAL: Temporarily disable automatic calculation to prevent Excel from
                 // hanging when appended data triggers dependent formulas that reference Data Model/DAX.
                 // Without this, setting values can block the COM interface during recalculation.
-                originalCalculation = ctx.App.Calculation;
+                originalCalculation = (int)ctx.App.Calculation;
                 if (originalCalculation != -4135) // xlCalculationManual
                 {
-                    ctx.App.Calculation = -4135; // xlCalculationManual
+                    ctx.App.Calculation = (Excel.XlCalculation)(-4135); // xlCalculationManual
                     calculationChanged = true;
                 }
 
@@ -99,7 +100,7 @@ public partial class TableCommands
                 {
                     try
                     {
-                        ctx.App.Calculation = originalCalculation;
+                        ctx.App.Calculation = (Excel.XlCalculation)originalCalculation;
                         calculationChanged = false; // Mark as restored
                     }
                     catch (System.Runtime.InteropServices.COMException)
@@ -133,7 +134,7 @@ public partial class TableCommands
                 {
                     try
                     {
-                        ctx.App.Calculation = originalCalculation;
+                        ctx.App.Calculation = (Excel.XlCalculation)originalCalculation;
                     }
                     catch (System.Runtime.InteropServices.COMException)
                     {
