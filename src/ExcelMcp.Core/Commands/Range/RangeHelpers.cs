@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
@@ -37,7 +38,7 @@ public static class RangeHelpers
 
         // Regular range (sheet + address)
         // First check if sheet exists
-        dynamic? sheet = null;
+        Excel.Worksheet? sheet = null;
         try
         {
             sheet = ComUtilities.FindSheet(book, sheetName);

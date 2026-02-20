@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -81,7 +82,7 @@ public partial class SheetCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
+            Excel.Worksheet? sheet = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, oldName);
@@ -104,7 +105,7 @@ public partial class SheetCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sourceSheet = null;
+            Excel.Worksheet? sourceSheet = null;
             dynamic? sheets = null;
             dynamic? lastSheet = null;
             dynamic? copiedSheet = null;
@@ -137,7 +138,7 @@ public partial class SheetCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
+            Excel.Worksheet? sheet = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
@@ -166,8 +167,8 @@ public partial class SheetCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? targetSheet = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Worksheet? targetSheet = null;
             dynamic? sheets = null;
             dynamic? lastSheet = null;
             try
@@ -253,9 +254,9 @@ public partial class SheetCommands
         {
             dynamic? sourceWb = null;
             dynamic? targetWb = null;
-            dynamic? sourceSheetObj = null;
+            Excel.Worksheet? sourceSheetObj = null;
             dynamic? targetSheets = null;
-            dynamic? targetPositionSheet = null;
+            Excel.Worksheet? targetPositionSheet = null;
             dynamic? copiedSheet = null;
 
             try
@@ -369,9 +370,9 @@ public partial class SheetCommands
         {
             dynamic? sourceWb = null;
             dynamic? targetWb = null;
-            dynamic? sourceSheetObj = null;
+            Excel.Worksheet? sourceSheetObj = null;
             dynamic? targetSheets = null;
-            dynamic? targetPositionSheet = null;
+            Excel.Worksheet? targetPositionSheet = null;
 
             try
             {
