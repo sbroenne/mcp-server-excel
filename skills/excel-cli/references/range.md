@@ -1,6 +1,52 @@
-# range - Number Formats
+# range - Number Formats and Cell Formatting
 
 **IMPORTANT: Always use US format codes.** The server automatically translates to the user's locale.
+
+## Two Tools for Range Formatting
+
+| Use | Tool | Action | When |
+|-----|------|--------|------|
+| Visual formatting (bold, color, alignment) | `range_format` | `format-range` | Header rows, highlights, custom styling |
+| Built-in style presets | `range_format` | `set-style` | Consistent themed formatting |
+| Number display format | `range` | `set-number-format` | Dates, currency, percentages |
+
+## Quick Pattern: Professional Header Row
+
+```
+range_format(action: 'format-range', rangeAddress: 'A1:D1',
+    bold: true,
+    fillColor: '#4472C4',
+    fontColor: '#FFFFFF',
+    horizontalAlignment: 'center')
+```
+
+All properties in **one call** — do not split into multiple calls.
+
+## format-range Properties
+
+| Property | Type | Example |
+|----------|------|---------|
+| `bold` | bool | `true` |
+| `italic` | bool | `true` |
+| `underline` | bool | `true` |
+| `fontSize` | number | `14` |
+| `fontName` | string | `"Calibri"` |
+| `fontColor` | hex color | `"#FFFFFF"` |
+| `fillColor` | hex color | `"#4472C4"` |
+| `horizontalAlignment` | string | `"center"`, `"left"`, `"right"` |
+| `verticalAlignment` | string | `"middle"`, `"top"`, `"bottom"` |
+| `wrapText` | bool | `true` |
+| `borderStyle` | string | `"thin"`, `"medium"`, `"thick"` |
+| `borderColor` | hex color | `"#000000"` |
+| `orientation` | int | `-90` to `90` (degrees) |
+
+## set-style Presets
+
+Built-in style names: `Normal`, `Heading 1`, `Heading 2`, `Heading 3`, `Heading 4`, `Title`, `Good`, `Bad`, `Neutral`, `Currency`, `Percent`, `Comma`
+
+```
+range_format(action: 'set-style', rangeAddress: 'A1:D1', styleName: 'Heading 1')
+```
 
 ## Format Codes
 

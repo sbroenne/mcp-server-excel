@@ -2,7 +2,52 @@
 
 These patterns cause data loss, poor performance, or user frustration. Avoid them.
 
-## Delete-and-Rebuild Anti-Pattern
+## Redundant Formatting Anti-Pattern
+
+### The Problem
+
+Applying the same formatting to the same range more than once in a workflow:
+
+```
+WRONG: Applying bold repeatedly
+
+range_format(action: 'format-range', rangeAddress: 'A1:D1', bold: true)
+// ... other operations ...
+range_format(action: 'format-range', rangeAddress: 'A1:D1', bold: true, fillColor: '#4472C4')
+// Bold was already applied - the second call re-applies it unnecessarily
+```
+
+Also wrong: calling `format-range` separately for each property instead of combining:
+
+```
+WRONG: Separate calls for each property
+
+range_format(action: 'format-range', rangeAddress: 'A1:D1', bold: true)
+range_format(action: 'format-range', rangeAddress: 'A1:D1', fillColor: '#4472C4')
+range_format(action: 'format-range', rangeAddress: 'A1:D1', fontColor: '#FFFFFF')
+range_format(action: 'format-range', rangeAddress: 'A1:D1', horizontalAlignment: 'center')
+```
+
+### The Solution
+
+Apply all formatting properties for a range in **one** `format-range` call:
+
+```
+CORRECT: One call per range
+
+range_format(action: 'format-range', rangeAddress: 'A1:D1',
+    bold: true, fillColor: '#4472C4', fontColor: '#FFFFFF', horizontalAlignment: 'center')
+```
+
+Apply each formatting operation **once**. If a subsequent step explicitly changes a property (e.g., "now make the title red"), apply it again — otherwise don't.
+
+### When Multiple Calls ARE Appropriate
+
+- Applying different formatting to different ranges
+- A later step explicitly overrides a previously set property
+- Applying a style (`set-style`) on top of individual properties (different actions)
+
+
 
 ### The Problem
 
