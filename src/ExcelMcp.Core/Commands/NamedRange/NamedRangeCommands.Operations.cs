@@ -93,9 +93,9 @@ public partial class NamedRangeCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? nameObj = null;
+            Excel.Name? nameObj = null;
             dynamic? refersToRange = null;
-            int originalCalculation = -1; // xlCalculationAutomatic = -4105, xlCalculationManual = -4135
+            int originalCalculation = -1;// xlCalculationAutomatic = -4105, xlCalculationManual = -4135
             bool calculationChanged = false;
 
             try
@@ -159,7 +159,7 @@ public partial class NamedRangeCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? nameObj = null;
+            Excel.Name? nameObj = null;
             dynamic? refersToRange = null;
             try
             {
@@ -169,7 +169,7 @@ public partial class NamedRangeCommands
                     throw new InvalidOperationException($"Named range '{name}' not found.");
                 }
 
-                string refersTo = nameObj.RefersTo ?? "";
+                string refersTo = nameObj.RefersTo?.ToString() ?? "";
                 refersToRange = nameObj.RefersToRange;
                 object? value = refersToRange?.Value2;
                 string valueType = value?.GetType().Name ?? "null";
@@ -206,7 +206,7 @@ public partial class NamedRangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? existing = null;
+            Excel.Name? existing = null;
             dynamic? namesCollection = null;
             try
             {
@@ -251,7 +251,7 @@ public partial class NamedRangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? nameObj = null;
+            Excel.Name? nameObj = null;
             try
             {
                 nameObj = ComUtilities.FindName(ctx.Book, name);
@@ -282,7 +282,7 @@ public partial class NamedRangeCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? nameObj = null;
+            Excel.Name? nameObj = null;
             try
             {
                 nameObj = ComUtilities.FindName(ctx.Book, name);

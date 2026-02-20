@@ -83,16 +83,16 @@ public static class ComUtilities
     /// CRITICAL: Caller is responsible for releasing the returned COM object.
     /// Use ComUtilities.Release(ref query) when done with the object.
     /// </remarks>
-    public static dynamic? FindQuery(dynamic workbook, string queryName)
+    public static Excel.WorkbookQuery? FindQuery(Excel.Workbook workbook, string queryName)
     {
-        dynamic? queriesCollection = null;
+        Excel.Queries? queriesCollection = null;
         try
         {
             queriesCollection = workbook.Queries;
             int count = queriesCollection.Count;
             for (int i = 1; i <= count; i++)
             {
-                dynamic? query = null;
+                Excel.WorkbookQuery? query = null;
                 try
                 {
                     query = queriesCollection.Item(i);
@@ -139,19 +139,19 @@ public static class ComUtilities
     /// CRITICAL: Caller is responsible for releasing the returned COM object.
     /// Use ComUtilities.Release(ref nameObj) when done with the object.
     /// </remarks>
-    public static dynamic? FindName(dynamic workbook, string name)
+    public static Excel.Name? FindName(Excel.Workbook workbook, string name)
     {
-        dynamic? namesCollection = null;
+        Excel.Names? namesCollection = null;
         try
         {
             namesCollection = workbook.Names;
             int count = namesCollection.Count;
             for (int i = 1; i <= count; i++)
             {
-                dynamic? nameObj = null;
+                Excel.Name? nameObj = null;
                 try
                 {
-                    nameObj = namesCollection.Item(i);
+                    nameObj = (Excel.Name)namesCollection.Item(i);
                     string currentName = nameObj.Name;
 
                     if (currentName == name)
@@ -194,19 +194,19 @@ public static class ComUtilities
     /// CRITICAL: Caller is responsible for releasing the returned COM object.
     /// Use ComUtilities.Release(ref sheet) when done with the object.
     /// </remarks>
-    public static dynamic? FindSheet(dynamic workbook, string sheetName)
+    public static Excel.Worksheet? FindSheet(Excel.Workbook workbook, string sheetName)
     {
-        dynamic? sheetsCollection = null;
+        Excel.Sheets? sheetsCollection = null;
         try
         {
             sheetsCollection = workbook.Worksheets;
             int count = sheetsCollection.Count;
             for (int i = 1; i <= count; i++)
             {
-                dynamic? sheet = null;
+                Excel.Worksheet? sheet = null;
                 try
                 {
-                    sheet = sheetsCollection.Item(i);
+                    sheet = (Excel.Worksheet)sheetsCollection[i];
                     string currentName = sheet.Name;
 
                     if (currentName == sheetName)
@@ -249,10 +249,10 @@ public static class ComUtilities
     /// CRITICAL: Caller is responsible for releasing the returned COM object.
     /// Use ComUtilities.Release(ref connection) when done with the object.
     /// </remarks>
-    public static dynamic? FindConnection(dynamic workbook, string connectionName)
+    public static Excel.WorkbookConnection? FindConnection(Excel.Workbook workbook, string connectionName)
     {
-        dynamic? connections = null;
-        dynamic? conn = null;
+        Excel.Connections? connections = null;
+        Excel.WorkbookConnection? conn = null;
 
         try
         {
@@ -261,7 +261,7 @@ public static class ComUtilities
             for (int i = 1; i <= connections.Count; i++)
             {
                 conn = connections.Item(i);
-                string name = conn.Name?.ToString() ?? "";
+                string name = conn.Name ?? "";
 
                 // Match exact name or "Query - Name" pattern (Power Query connections)
                 if (name.Equals(connectionName, StringComparison.OrdinalIgnoreCase) ||
