@@ -10,13 +10,13 @@ This document tracks the status of `Microsoft.Office.Interop.Excel` (v16) type c
 |------|--------|
 | Core Excel types (`Workbook`, `Worksheet`, `Range`, etc.) | ✅ Fully typed |
 | Collections (`Sheets`, `Names`, `ListObjects`, etc.) | ✅ Fully typed |
-| Power Query (`Workbook.Queries`, `WorkbookQuery`) | ⚠️ TODO — types ARE in PIA, migration pending |
+| Power Query (`Workbook.Queries`, `WorkbookQuery`) | ✅ Fully typed |
 | DataModel (`Model`, `ModelMeasures`, `ModelTables`, etc.) | ✅ Migrated — all model types use PIA |
 | Connection sub-types (`OLEDBConnection`, `ODBCConnection`, `TextConnection`) | ✅ Migrated — callers use typed WorkbookConnection |
 | `ModelTableColumn.IsCalculatedColumn` | ❌ True PIA gap — property missing from v16 PIA |
 | `ModelMeasure.FormatInformation` | ⚠️ Returns `object` in PIA; cast to `dynamic` for property probing |
 | VBA (`VBProject`, `VBComponents`) | ❌ True PIA gap — in `Microsoft.Vbe.Interop` only |
-| AutomationSecurity | ❌ True PIA gap — in `Microsoft.Office.Core` (office.dll) |
+| `AutomationSecurity` | ❌ True PIA gap — in `Microsoft.Office.Core` (office.dll); use `((dynamic)(object))` cast |
 | WebConnection | ❌ True PIA gap — not in Excel PIA |
 | ADO types (ADODB.Connection, Recordset, Fields) | ❌ True PIA gap — in ADODB, not Excel PIA |
 
@@ -37,7 +37,9 @@ These APIs are **not** in `Microsoft.Office.Interop.Excel` and will remain `dyna
 
 - **Location in COM**: `Microsoft.Office.Core` (office.dll / `Microsoft.Office.Interop.Word` / `Microsoft.Office.Interop.PowerPoint` host DLLs)
 - **Why not available**: The `office.dll` shared types are injected via `[assembly: PrimaryInteropAssembly]` into host Office PIAs. They are not directly available as a standalone typed constant in the Excel PIA.
-- **Workaround**: Use the literal integer value `3` (= `msoAutomationSecurityForceDisable`)
+- **Workaround**: Use the literal integer value `3` (= `msoAutomationSecurityForceDisable`) via `((dynamic)(object)tempExcel).AutomationSecurity = 3;`
+- **CRITICAL — cast to `(object)` first**: Casting a typed `Excel.Application` directly to `dynamic` retains COM type metadata; the DLR then tries to load `office.dll` to resolve `MsoAutomationSecurity`, causing a `FileNotFoundException` crash (`office, Version=16.0.0.0`). Casting to `(object)` first erases the static type and forces pure IDispatch binding, which never loads `office.dll`.
+- **Do NOT add a `<Reference>` to office.dll**: A GAC hint path is version-specific and machine-specific (15.0 vs 16.0 mismatch causes the same crash). `EmbedInteropTypes=true` + `(object)` cast is sufficient.
 - **Affected files**: `ExcelBatch.cs`
 
 ### WebConnection
