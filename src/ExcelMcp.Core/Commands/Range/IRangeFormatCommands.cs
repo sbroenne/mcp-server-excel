@@ -6,26 +6,31 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
 /// <summary>
 /// Range formatting operations: apply styles, set fonts/colors/borders, add data validation, merge cells, auto-fit dimensions.
-/// Use range for values/formulas/copy/clear operations.
+/// Use range tool for values/formulas/copy/clear operations.
 ///
-/// STYLES: Use built-in style names like 'Heading 1', 'Good', 'Bad', 'Currency', 'Percent', etc.
-/// For consistent, professional formatting, prefer set-style with built-in styles over format-range.
+/// format-range: Apply bold, fillColor, fontColor, alignment — ALL in ONE call. Use for header rows and highlights.
+/// Do NOT call format-range multiple times for the same range — pass all properties together in a single call.
 ///
-/// FONT/COLOR FORMATTING: Specify individual formatting properties:
-/// - Colors as hex '#RRGGBB' (e.g., '#FF0000' for red, '#00FF00' for green)
-/// - Font sizes as points (e.g., 12, 14, 16)
-/// - Alignment: 'left', 'center', 'right' (horizontal), 'top', 'middle', 'bottom' (vertical)
+/// set-style: Apply a named preset (Heading 1, Good, Bad, Currency, Percent). Fastest for consistent themed formatting.
 ///
-/// DATA VALIDATION: Restrict cell input with validation rules:
-/// - Types: 'list', 'whole', 'decimal', 'date', 'time', 'textLength', 'custom'
-/// - For list validation, formula1 is the list source (e.g., '=$A$1:$A$10' or '"Option1,Option2,Option3"')
-/// - Operators: 'between', 'notBetween', 'equal', 'notEqual', 'greaterThan', 'lessThan', 'greaterThanOrEqual', 'lessThanOrEqual'
+/// COLORS: Hex '#RRGGBB' (e.g., '#4472C4' blue, '#FF0000' red, '#FFFFFF' white)
+/// FONT: size in points (e.g., 11, 12, 14), alignment: 'left', 'center', 'right' / 'top', 'middle', 'bottom'
+///
+/// DATA VALIDATION: Restrict cell input.
+/// Types: 'list', 'whole', 'decimal', 'date', 'time', 'textLength', 'custom'
+/// For list validation, formula1 is the list source (e.g., '=$A$1:$A$10' or '"Option1,Option2,Option3"')
+/// Operators: 'between', 'notBetween', 'equal', 'notEqual', 'greaterThan', 'lessThan', 'greaterThanOrEqual', 'lessThanOrEqual'
 ///
 /// MERGE: Combines cells into one. Only top-left cell value is preserved.
 /// </summary>
 [ServiceCategory("rangeformat", "RangeFormat")]
 [McpTool("range_format", Title = "Range Format Operations", Destructive = true, Category = "data",
-    Description = "Range formatting: styles, fonts/colors/borders, data validation, merge cells, auto-fit. STYLES: Built-in names (Heading 1, Good, Bad, Currency, Percent). COLORS: Hex #RRGGBB (e.g., #FF0000 red, #00FF00 green). FONT: size in points, alignment horizontal (left/center/right) and vertical (top/middle/bottom). DATA VALIDATION: Types list, whole, decimal, date, time, textLength, custom. For list: validationFormula1 is source (=$A$1:$A$10 or Option1,Option2). Operators: between, equal, greaterThan, etc. MERGE: Only top-left cell value preserved.")]
+    Description = "Range formatting: styles, custom visual formatting, data validation, merge, auto-fit. " +
+        "format-range: Apply bold/fillColor/fontColor/alignment ALL IN ONE CALL for header rows and highlights — do not call multiple times for same range. " +
+        "set-style: Named presets (Heading 1, Good, Bad, Currency, Percent). " +
+        "COLORS: Hex #RRGGBB (#4472C4 blue, #FF0000 red, #FFFFFF white). FONT: size in points, alignment left/center/right, top/middle/bottom. " +
+        "DATA VALIDATION: Types list/whole/decimal/date/time/textLength/custom. For list: formula1 is source (=$A$1:$A$10 or \"A,B,C\"). " +
+        "MERGE: Only top-left cell value preserved.")]
 public interface IRangeFormatCommands
 {
     // === STYLE OPERATIONS ===
@@ -51,8 +56,10 @@ public interface IRangeFormatCommands
     RangeStyleResult GetStyle(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
-    /// Applies visual formatting to range (font, fill, border, alignment).
+    /// Applies visual formatting to a range in ONE call: font, fill color, border, alignment.
     /// Excel COM: Range.Font, Range.Interior, Range.Borders, Range.HorizontalAlignment, etc.
+    /// Pass all desired properties together — do not call format-range multiple times for the same range.
+    /// Example header row: bold=true, fillColor='#4472C4', fontColor='#FFFFFF', horizontalAlignment='center'
     /// </summary>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address to format (e.g., 'A1:D10')</param>
