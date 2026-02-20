@@ -6,11 +6,14 @@
 
 | Use | Tool | Action | When |
 |-----|------|--------|------|
-| Visual formatting (bold, color, alignment) | `range_format` | `format-range` | Header rows, highlights, custom styling |
-| Built-in style presets | `range_format` | `set-style` | Consistent themed formatting |
+| Semantic status / document hierarchy | `range_format` | `set-style` | `Good`/`Bad`/`Neutral` (have fills, theme-aware); `Heading 1/2/3`; `Normal` to reset |
+| Coloured header rows / custom branding | `range_format` | `format-range` | Any fill colour, custom font colour, alignment — Heading styles have NO fill |
 | Number display format | `range` | `set-number-format` | Dates, currency, percentages |
 
-## Quick Pattern: Professional Header Row
+## Quick Pattern: Header Row With Fill Colour
+
+`set-style('Heading 1')` does **not** apply a fill — use `format-range` for coloured headers.
+Pass ALL properties in **one call**:
 
 ```
 range_format(action: 'format-range', rangeAddress: 'A1:D1',
@@ -20,7 +23,14 @@ range_format(action: 'format-range', rangeAddress: 'A1:D1',
     horizontalAlignment: 'center')
 ```
 
-All properties in **one call** — do not split into multiple calls.
+## Quick Pattern: Semantic Status Cells
+
+Use `set-style` when the meaning (Good/Bad/Neutral) matters and theme-awareness is useful:
+
+```
+range_format(action: 'set-style', rangeAddress: 'B2:B10', styleName: 'Good')
+range_format(action: 'set-style', rangeAddress: 'C2:C10', styleName: 'Bad')
+```
 
 ## format-range Properties
 

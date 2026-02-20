@@ -47,7 +47,47 @@ Apply each formatting operation **once**. If a subsequent step explicitly change
 - A later step explicitly overrides a previously set property
 - Applying a style (`set-style`) on top of individual properties (different actions)
 
+## Wrong Style System Anti-Pattern
 
+### The Problem
+
+Applying `range_format` to cells that belong to an object with its own style system:
+
+```
+WRONG: Formatting a table header row with range_format
+
+table(action: 'create', tableName: 'Sales', rangeAddress: 'A1:D10')
+range_format(action: 'format-range', rangeAddress: 'A1:D1', bold: true, fillColor: '#4472C4')
+// The table style already controls header appearance — this creates an inconsistent override
+```
+
+```
+WRONG: Formatting PivotTable cells
+
+pivottable(action: 'create-from-table', ...)
+range_format(action: 'format-range', rangeAddress: 'B3:B20', fillColor: '#E2EFDA')
+// Formatting is wiped on the next pivottable(refresh)
+```
+
+### The Solution
+
+Use the style system that belongs to each object type:
+
+```
+CORRECT: Table visual styling — one call at creation or via set-style
+
+table(action: 'create', tableName: 'Sales', rangeAddress: 'A1:D10',
+    tableStyle: 'TableStyleMedium2')
+```
+
+| Object | Correct style approach | Do NOT use |
+|--------|----------------------|------------|
+| Excel Tables | `table(action:'set-style')` or `tableStyle` on create | `range_format` on header/data rows |
+| PivotTables | Not supported — leave default | `range_format` (wiped on refresh) |
+| Charts | `chart_config(action:'set-style', styleNumber: 1-48)` | `range_format` |
+| Plain cells/ranges | `range_format` | — |
+
+## Delete-and-Rebuild Anti-Pattern
 
 ### The Problem
 

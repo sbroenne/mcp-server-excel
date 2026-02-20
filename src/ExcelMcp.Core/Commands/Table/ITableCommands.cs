@@ -27,7 +27,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 /// </summary>
 [ServiceCategory("table", "Table")]
 [McpTool("table", Title = "Table Operations", Destructive = true, Category = "data",
-    Description = "Excel Tables (ListObjects) - lifecycle and data operations. BEST PRACTICE: List before creating, prefer append/resize/rename over delete+recreate. WARNING: Deleting tables used as PivotTable sources or in Data Model breaks those objects. DATA MODEL: add-to-datamodel to load into Power Pivot, then datamodel for DAX measures. DAX-BACKED TABLES: create-from-dax, update-dax, get-dax. APPEND: csvData in CSV format (comma-separated, newline-separated rows). Use table_column for filtering/sorting/columns.")]
+    Description = "Excel Tables (ListObjects) - lifecycle and data operations. BEST PRACTICE: List before creating, prefer append/resize/rename over delete+recreate. WARNING: Deleting tables used as PivotTable sources or in Data Model breaks those objects. STYLING: Use set-style action to apply table styles (TableStyleLight1-21, TableStyleMedium1-28, TableStyleDark1-11) — pass tableStyle param on create to style at creation time. Never apply range_format to table header or data rows — table style owns all header/row/column formatting. DATA MODEL: add-to-datamodel to load into Power Pivot, then datamodel for DAX measures. DAX-BACKED TABLES: create-from-dax, update-dax, get-dax. APPEND: rows (inline JSON 2D array) or rowsFile (.json/.csv). Use table_column for filtering/sorting/columns.")]
 public interface ITableCommands
 {
     /// <summary>
