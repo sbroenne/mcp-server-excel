@@ -61,14 +61,17 @@ See `tests/ExcelMcp.LLM.Tests/README.md` for complete documentation.
 
 ### Core.Tests (Business Logic)
 ```bash
-# Development (fast - excludes VBA)
-dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
+# Development (fast - excludes VBA and Screenshot)
+dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust&Feature!=Screenshot"
 
 # Diagnostic tests (validate patterns, slow ~20s each)
 dotnet test tests/ExcelMcp.Diagnostics.Tests/ExcelMcp.Diagnostics.Tests.csproj --filter "RunType=OnDemand&Layer=Diagnostics"
 
 # VBA tests (manual only - requires VBA trust)
 dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand"
+
+# Screenshot tests (isolated run only - clipboard contention when parallel)
+dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Feature=Screenshot"
 
 # Specific feature
 dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Feature=PowerQuery"

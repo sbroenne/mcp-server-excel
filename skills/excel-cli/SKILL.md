@@ -496,7 +496,7 @@ Range editing operations: insert/delete cells, rows, and columns; find/replace t
 
 ### rangeformat
 
-Range formatting operations: apply styles, set fonts/colors/borders, add data validation, merge cells, auto-fit dimensions. Use range for values/formulas/copy/clear operations. STYLES: Use built-in style names like 'Heading 1', 'Good', 'Bad', 'Currency', 'Percent', etc. For consistent, professional formatting, prefer set-style with built-in styles over format-range. FONT/COLOR FORMATTING: Specify individual formatting properties: - Colors as hex '#RRGGBB' (e.g., '#FF0000' for red, '#00FF00' for green) - Font sizes as points (e.g., 12, 14, 16) - Alignment: 'left', 'center', 'right' (horizontal), 'top', 'middle', 'bottom' (vertical) DATA VALIDATION: Restrict cell input with validation rules: - Types: 'list', 'whole', 'decimal', 'date', 'time', 'textLength', 'custom' - For list validation, formula1 is the list source (e.g., '=$A$1:$A$10' or '"Option1,Option2,Option3"') - Operators: 'between', 'notBetween', 'equal', 'notEqual', 'greaterThan', 'lessThan', 'greaterThanOrEqual', 'lessThanOrEqual' MERGE: Combines cells into one. Only top-left cell value is preserved.
+Range formatting operations: apply styles, set fonts/colors/borders, add data validation, merge cells, auto-fit dimensions. Use range tool for values/formulas/copy/clear operations. set-style: Apply a named Excel style (Heading 1, Good, Bad, Neutral, Normal). Best for semantic status labels (Good/Bad/Neutral have fill colours and are theme-aware) and document hierarchy (Heading 1/2/3). NOTE: Heading styles do NOT apply a fill colour — use format-range when you need a coloured header row. format-range: Apply any combination of bold, fillColor, fontColor, alignment, borders. Required whenever you need a fill colour or custom branding. Pass ALL desired properties in a SINGLE call — do not call format-range multiple times for the same range. COLORS: Hex '#RRGGBB' (e.g., '#FF0000' for red, '#00FF00' for green) FONT: size in points (e.g., 12, 14, 16), alignment: 'left', 'center', 'right' / 'top', 'middle', 'bottom' DATA VALIDATION: Restrict cell input with validation rules: - Types: 'list', 'whole', 'decimal', 'date', 'time', 'textLength', 'custom' - For list validation, formula1 is the list source (e.g., '=$A$1:$A$10' or '"Option1,Option2,Option3"') - Operators: 'between', 'notBetween', 'equal', 'notEqual', 'greaterThan', 'lessThan', 'greaterThanOrEqual', 'lessThanOrEqual' MERGE: Combines cells into one. Only top-left cell value is preserved.
 
 **Actions:** `set-style`, `get-style`, `format-range`, `validate-range`, `get-validation`, `remove-validation`, `auto-fit-columns`, `auto-fit-rows`, `merge-cells`, `unmerge-cells`, `get-merge-info`, `set-column-width`, `set-row-height`
 
@@ -557,7 +557,7 @@ Hyperlink and cell protection operations for Excel ranges. Use range for values/
 
 ### screenshot
 
-Capture Excel worksheet content as images for visual verification. Uses Excel's built-in rendering (CopyPicture) to capture ranges as PNG images. Captures formatting, conditional formatting, charts, and all visual elements. ACTIONS: - capture: Capture a specific range as an image - capture-sheet: Capture the entire used area of a worksheet RETURNS: Base64-encoded PNG image data with dimensions metadata. For MCP: returned as inline ImageContent. For CLI: saved to file.
+Capture Excel worksheet content as images for visual verification. Uses Excel's built-in rendering (CopyPicture) to capture ranges as PNG images. Captures formatting, conditional formatting, charts, and all visual elements. ACTIONS: - capture: Capture a specific range as an image - capture-sheet: Capture the entire used area of a worksheet RETURNS: Base64-encoded image data with dimensions metadata. For MCP: returned as inline ImageContent. For CLI: saved to file. Quality defaults to Medium (JPEG 75% scale) which is 4-8x smaller than High (PNG). Use High only when fine detail inspection is needed.
 
 **Actions:** `capture`, `capture-sheet`
 
@@ -565,6 +565,7 @@ Capture Excel worksheet content as images for visual verification. Uses Excel's 
 |-----------|-------------|
 | `--sheet-name` | Worksheet name (null for active sheet) |
 | `--range-address` | Range to capture (e.g., "A1:F20") |
+| `--quality` | Image quality: Medium (default, JPEG 75% scale), High (PNG full scale), Low (JPEG 50% scale) |
 
 
 

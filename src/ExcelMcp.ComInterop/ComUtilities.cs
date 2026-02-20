@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.ComInterop;
 
@@ -58,13 +59,12 @@ public static class ComUtilities
     /// logic, use ExcelShutdownService.CloseAndQuit instead.
     /// </remarks>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "CS8602", Justification = "Dynamic COM interop - Quit exists on Excel.Application")]
-    public static void TryQuitExcel(dynamic? excel)
+    public static void TryQuitExcel(Excel.Application? excel)
     {
         if (excel == null) return;
 
         try
         {
-            // Excel.Application.Quit() - dynamic invocation on COM object
             excel.Quit();
         }
         catch (Exception)

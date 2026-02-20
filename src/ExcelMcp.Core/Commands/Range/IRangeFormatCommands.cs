@@ -6,15 +6,18 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
 /// <summary>
 /// Range formatting operations: apply styles, set fonts/colors/borders, add data validation, merge cells, auto-fit dimensions.
-/// Use range for values/formulas/copy/clear operations.
+/// Use range tool for values/formulas/copy/clear operations.
 ///
-/// STYLES: Use built-in style names like 'Heading 1', 'Good', 'Bad', 'Currency', 'Percent', etc.
-/// For consistent, professional formatting, prefer set-style with built-in styles over format-range.
+/// set-style: Apply a named Excel style (Heading 1, Good, Bad, Neutral, Normal).
+/// Best for semantic status labels (Good/Bad/Neutral have fill colours and are theme-aware) and document hierarchy (Heading 1/2/3).
+/// NOTE: Heading styles do NOT apply a fill colour — use format-range when you need a coloured header row.
 ///
-/// FONT/COLOR FORMATTING: Specify individual formatting properties:
-/// - Colors as hex '#RRGGBB' (e.g., '#FF0000' for red, '#00FF00' for green)
-/// - Font sizes as points (e.g., 12, 14, 16)
-/// - Alignment: 'left', 'center', 'right' (horizontal), 'top', 'middle', 'bottom' (vertical)
+/// format-range: Apply any combination of bold, fillColor, fontColor, alignment, borders.
+/// Required whenever you need a fill colour or custom branding.
+/// Pass ALL desired properties in a SINGLE call — do not call format-range multiple times for the same range.
+///
+/// COLORS: Hex '#RRGGBB' (e.g., '#FF0000' for red, '#00FF00' for green)
+/// FONT: size in points (e.g., 12, 14, 16), alignment: 'left', 'center', 'right' / 'top', 'middle', 'bottom'
 ///
 /// DATA VALIDATION: Restrict cell input with validation rules:
 /// - Types: 'list', 'whole', 'decimal', 'date', 'time', 'textLength', 'custom'
@@ -25,7 +28,15 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 [ServiceCategory("rangeformat", "RangeFormat")]
 [McpTool("range_format", Title = "Range Format Operations", Destructive = true, Category = "data",
-    Description = "Range formatting: styles, fonts/colors/borders, data validation, merge cells, auto-fit. STYLES: Built-in names (Heading 1, Good, Bad, Currency, Percent). COLORS: Hex #RRGGBB (e.g., #FF0000 red, #00FF00 green). FONT: size in points, alignment horizontal (left/center/right) and vertical (top/middle/bottom). DATA VALIDATION: Types list, whole, decimal, date, time, textLength, custom. For list: validationFormula1 is source (=$A$1:$A$10 or Option1,Option2). Operators: between, equal, greaterThan, etc. MERGE: Only top-left cell value preserved.")]
+    Description = "Range formatting: styles, custom visual formatting, data validation, merge, auto-fit. " +
+        "set-style: Named styles (Good/Bad/Neutral have fills and are theme-aware; Heading 1/2/3 for document hierarchy; Normal to reset). " +
+        "NOTE: Heading styles do NOT include a fill colour — use format-range for coloured header rows. " +
+        "format-range: Custom formatting (bold, fillColor, fontColor, alignment, borders) — pass ALL properties IN ONE CALL, do not call multiple times for same range. " +
+        "COLORS: Hex #RRGGBB. FONT: size in points, alignment left/center/right, top/middle/bottom. " +
+        "DATA VALIDATION: Types list/whole/decimal/date/time/textLength/custom. For list: formula1 is source (=$A$1:$A$10 or \"A,B,C\"). " +
+        "MERGE: Only top-left cell value preserved. " +
+        "TABLES: For Excel Table visual styling use table(action:'set-style') — do not apply range_format to table header or data rows, table style manages all table formatting. " +
+        "PIVOTTABLES: Do not apply range_format to PivotTable cells — formatting is overwritten on the next refresh.")]
 public interface IRangeFormatCommands
 {
     // === STYLE OPERATIONS ===
@@ -51,8 +62,10 @@ public interface IRangeFormatCommands
     RangeStyleResult GetStyle(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
-    /// Applies visual formatting to range (font, fill, border, alignment).
+    /// Applies custom visual formatting to a range (font, fill, border, alignment).
+    /// Use when built-in styles (set-style) don't meet your needs.
     /// Excel COM: Range.Font, Range.Interior, Range.Borders, Range.HorizontalAlignment, etc.
+    /// Pass ALL desired properties in a SINGLE call — do not call format-range multiple times for the same range.
     /// </summary>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address to format (e.g., 'A1:D10')</param>

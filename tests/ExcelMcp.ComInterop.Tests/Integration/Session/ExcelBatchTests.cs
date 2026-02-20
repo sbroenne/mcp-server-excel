@@ -122,7 +122,7 @@ public class ExcelBatchTests : IAsyncLifetime
 
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             _ = sheet.Range["A1"].Value2;
             return 0;
         });
@@ -161,7 +161,7 @@ public class ExcelBatchTests : IAsyncLifetime
         {
             batch.Execute((ctx, ct) =>
             {
-                dynamic sheet = ctx.Book.Worksheets.Item(1);
+                dynamic sheet = ctx.Book.Worksheets[1];
                 sheet.Range["A1"].Value2 = testValue;
                 return 0;
             });
@@ -178,7 +178,7 @@ public class ExcelBatchTests : IAsyncLifetime
         {
             readValue = batch.Execute((ctx, ct) =>
             {
-                dynamic sheet = ctx.Book.Worksheets.Item(1);
+                dynamic sheet = ctx.Book.Worksheets[1];
                 var value = sheet.Range["A1"].Value2;
                 string result = value?.ToString() ?? "";
                 return result;
@@ -225,7 +225,7 @@ public class ExcelBatchTests : IAsyncLifetime
             // Step 2: Write data to cells
             batch.Execute((ctx, ct) =>
             {
-                dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
+                dynamic sheet = ctx.Book.Worksheets[sheetName];
                 sheet.Range["A1"].Value2 = testValue1;
                 sheet.Range["A2"].Value2 = testValue2;
                 sheet.Range["B1"].Value2 = "Header2";
@@ -237,7 +237,7 @@ public class ExcelBatchTests : IAsyncLifetime
             // Step 3: Create named range
             batch.Execute((ctx, ct) =>
             {
-                dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
+                dynamic sheet = ctx.Book.Worksheets[sheetName];
                 ctx.Book.Names.Add(namedRangeName, $"={sheetName}!$A$1:$B$2");
                 _output.WriteLine($"✓ Created named range: {namedRangeName}");
                 return 0;
@@ -246,7 +246,7 @@ public class ExcelBatchTests : IAsyncLifetime
             // Step 4: Read data back to verify
             var readData = batch.Execute((ctx, ct) =>
             {
-                dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
+                dynamic sheet = ctx.Book.Worksheets[sheetName];
                 string a1 = sheet.Range["A1"].Value2?.ToString() ?? "";
                 string a2 = sheet.Range["A2"].Value2?.ToString() ?? "";
                 string b1 = sheet.Range["B1"].Value2?.ToString() ?? "";
@@ -264,7 +264,7 @@ public class ExcelBatchTests : IAsyncLifetime
             // Step 5: Modify existing data
             batch.Execute((ctx, ct) =>
             {
-                dynamic sheet = ctx.Book.Worksheets.Item(sheetName);
+                dynamic sheet = ctx.Book.Worksheets[sheetName];
                 sheet.Range["A2"].Value2 = "Modified";
                 _output.WriteLine("✓ Modified A2 cell");
                 return 0;
@@ -288,7 +288,7 @@ public class ExcelBatchTests : IAsyncLifetime
                 dynamic sheets = ctx.Book.Worksheets;
                 for (int i = 1; i <= sheets.Count; i++)
                 {
-                    dynamic sheet = sheets.Item(i);
+                    dynamic sheet = sheets[i];
                     if (sheet.Name == sheetName)
                     {
                         sheetExists = true;
@@ -297,7 +297,7 @@ public class ExcelBatchTests : IAsyncLifetime
                 }
 
                 // Read cell values
-                dynamic dataSheet = ctx.Book.Worksheets.Item(sheetName);
+                dynamic dataSheet = ctx.Book.Worksheets[sheetName];
                 string a1 = dataSheet.Range["A1"].Value2?.ToString() ?? "";
                 string a2 = dataSheet.Range["A2"].Value2?.ToString() ?? "";
                 double b2 = Convert.ToDouble(dataSheet.Range["B2"].Value2);
@@ -307,7 +307,7 @@ public class ExcelBatchTests : IAsyncLifetime
                 dynamic names = ctx.Book.Names;
                 for (int i = 1; i <= names.Count; i++)
                 {
-                    dynamic name = names.Item(i);
+                    dynamic name = names[i];
                     if (name.Name == namedRangeName)
                     {
                         namedRangeExists = true;
@@ -361,7 +361,7 @@ public class ExcelBatchTests : IAsyncLifetime
                     {
                         batch.Execute((ctx, ct) =>
                         {
-                            dynamic sheet = ctx.Book.Worksheets.Item(1);
+                            dynamic sheet = ctx.Book.Worksheets[1];
                             sheet.Range[$"A{op + 1}"].Value2 = $"Batch{index}-Op{op}";
                             return 0;
                         });

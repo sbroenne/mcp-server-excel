@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Formatting;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
@@ -14,7 +15,7 @@ public sealed class ExcelContext
     /// <param name="workbookPath">Full path to the workbook</param>
     /// <param name="excel">Excel.Application COM object</param>
     /// <param name="workbook">Excel.Workbook COM object</param>
-    public ExcelContext(string workbookPath, dynamic excel, dynamic workbook)
+    public ExcelContext(string workbookPath, Excel.Application excel, Excel.Workbook workbook)
     {
         WorkbookPath = workbookPath ?? throw new ArgumentNullException(nameof(workbookPath));
         App = excel ?? throw new ArgumentNullException(nameof(excel));
@@ -32,12 +33,12 @@ public sealed class ExcelContext
     /// <summary>
     /// Gets the Excel.Application COM object.
     /// </summary>
-    public dynamic App { get; }
+    public Excel.Application App { get; }
 
     /// <summary>
     /// Gets the Excel.Workbook COM object.
     /// </summary>
-    public dynamic Book { get; }
+    public Excel.Workbook Book { get; }
 
     /// <summary>
     /// Gets the number format translator for converting US format codes to locale-specific codes.

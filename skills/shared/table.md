@@ -11,16 +11,36 @@ To analyze worksheet data with DAX measures:
 
 **Action disambiguation**:
 
-- create: Create NEW table from a range (requires sheetName, tableName, rangeAddress)
+- create: Create NEW table from a range (requires sheetName, tableName, rangeAddress). Pass `tableStyle` here to style at creation time.
 - read: Get table metadata (range, columns, style, row counts)
 - get-data: Get actual table DATA as 2D array (use visibleOnly=true for filtered data)
-- add-to-data-model: Add an existing worksheet table to Power Pivot for DAX analysis
-- append: Add rows to existing table (requires csvData parameter)
-- resize: Change table range (expand/contract)
+- rename: Rename an existing table
 - delete: Remove table (keeps data, removes table formatting)
+- resize: Change table range (expand/contract)
+- set-style: Change table visual style (TableStyleLight1-21, TableStyleMedium1-28, TableStyleDark1-11). Default is TableStyleMedium2.
+- toggle-totals: Show or hide the totals row (showTotals: true/false)
+- set-column-total: Set the aggregate function on a totals-row column (Sum, Count, Average, Min, Max, None)
+- add-to-data-model: Add an existing worksheet table to Power Pivot for DAX analysis
+- append: Add rows to existing table (requires rows or rowsFile parameter)
 - **create-from-dax**: Create table populated by a DAX EVALUATE query from Data Model
 - **update-dax**: Update an existing DAX-backed table's query
 - **get-dax**: Get the DAX query behind a DAX-backed table
+
+**Table styling — always use table styles, not range_format**:
+
+Excel Tables manage their own header/row/totals formatting through table styles. Never use `range_format(action: 'format-range')` on table header rows — it conflicts with the table style and produces inconsistent formatting.
+
+| Goal | Correct approach |
+|------|-----------------|
+| Style a table | `table(action: 'set-style', tableStyle: 'TableStyleMedium2')` |
+| Style at creation | `table(action: 'create', tableStyle: 'TableStyleMedium2', ...)` |
+| Custom branding on table | Use a Medium/Dark table style that matches your palette — avoid overriding individual cells |
+
+Common table style choices:
+- `TableStyleMedium2` — standard blue, most widely used
+- `TableStyleMedium9` — orange accent
+- `TableStyleLight1` — minimal borders, no header fill
+- `TableStyleDark1` — dark header with white text
 
 **DAX-backed tables** (NEW):
 

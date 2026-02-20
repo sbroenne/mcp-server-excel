@@ -1,3 +1,4 @@
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
@@ -81,7 +82,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
 
             try
             {
-                sheet = ctx.Book.Worksheets.Item(1);
+                sheet = ctx.Book.Worksheets[1];
 
                 // Set up data
                 sheet.Range["A1:B4"].Value2 = new object[,] {
@@ -181,7 +182,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
 
                 // Create PivotTable
                 dataRange = sheet.Range["A1:C5"];
-                pivotCache = ctx.Book.PivotCaches().Create(1, dataRange);
+                pivotCache = ctx.Book.PivotCaches().Create(Excel.XlPivotTableSourceType.xlDatabase, dataRange);
                 newSheet = ctx.Book.Worksheets.Add();
                 newSheet.Name = "PivotSheet";
                 pivot = pivotCache.CreatePivotTable(newSheet.Range["A1"], pivotTableName);
@@ -279,7 +280,7 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
 
                 // Create PivotTable
                 dataRange = sheet.Range["A1:B4"];
-                pivotCache = ctx.Book.PivotCaches().Create(1, dataRange);
+                pivotCache = ctx.Book.PivotCaches().Create(Excel.XlPivotTableSourceType.xlDatabase, dataRange);
                 newSheet = ctx.Book.Worksheets.Add();
                 newSheet.Name = "PivotSheet2";
                 pivot = pivotCache.CreatePivotTable(newSheet.Range["A1"], pivotTableName);

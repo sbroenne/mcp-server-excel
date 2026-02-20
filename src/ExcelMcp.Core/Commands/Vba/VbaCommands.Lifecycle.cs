@@ -36,7 +36,7 @@ public partial class VbaCommands
             dynamic? vbComponents = null;
             try
             {
-                vbaProject = ctx.Book.VBProject;
+                vbaProject = ((dynamic)ctx.Book).VBProject;
                 vbComponents = vbaProject.VBComponents;
 
                 for (int i = 1; i <= vbComponents.Count; i++)
@@ -137,7 +137,7 @@ public partial class VbaCommands
             dynamic? codeModule = null;
             try
             {
-                vbaProject = ctx.Book.VBProject;
+                vbaProject = ((dynamic)ctx.Book).VBProject;
                 vbComponents = vbaProject.VBComponents;
 
                 // Find the specified module
@@ -235,7 +235,7 @@ public partial class VbaCommands
             dynamic? codeModule = null;
             try
             {
-                vbaProject = ctx.Book.VBProject;
+                vbaProject = ((dynamic)ctx.Book).VBProject;
                 vbComponents = vbaProject.VBComponents;
 
                 // Check if module already exists
@@ -303,7 +303,7 @@ public partial class VbaCommands
             dynamic? codeModule = null;
             try
             {
-                vbaProject = ctx.Book.VBProject;
+                vbaProject = ((dynamic)ctx.Book).VBProject;
                 vbComponents = vbaProject.VBComponents;
 
                 for (int i = 1; i <= vbComponents.Count; i++)

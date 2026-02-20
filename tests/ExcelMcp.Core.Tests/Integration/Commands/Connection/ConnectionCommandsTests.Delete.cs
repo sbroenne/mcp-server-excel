@@ -338,7 +338,7 @@ public partial class ConnectionCommandsTests
             try
             {
                 // "Connection" is a generic-named Power Query connection
-                conn = ctx.Book.Connections.Item("Connection");
+                conn = ctx.Book.Connections["Connection"];
                 return PowerQueryHelpers.IsOrphanedPowerQueryConnection(ctx.Book, conn);
             }
             finally
@@ -381,7 +381,7 @@ public partial class ConnectionCommandsTests
             try
             {
                 // "Query - Milestones" has a matching "Milestones" query
-                conn = ctx.Book.Connections.Item("Query - Milestones");
+                conn = ctx.Book.Connections["Query - Milestones"];
                 return PowerQueryHelpers.IsOrphanedPowerQueryConnection(ctx.Book, conn);
             }
             finally

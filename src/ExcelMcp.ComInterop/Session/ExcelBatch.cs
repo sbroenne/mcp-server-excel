@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
@@ -41,9 +42,9 @@ internal sealed class ExcelBatch : IExcelBatch
     private bool _operationTimedOut; // Track if an operation timed out for aggressive cleanup
 
     // COM state (STA thread only)
-    private dynamic? _excel;
-    private dynamic? _workbook; // Primary workbook
-    private Dictionary<string, dynamic>? _workbooks; // All workbooks keyed by normalized path
+    private Excel.Application? _excel;
+    private Excel.Workbook? _workbook; // Primary workbook
+    private Dictionary<string, Excel.Workbook>? _workbooks; // All workbooks keyed by normalized path
     private ExcelContext? _context;
 
     /// <summary>
@@ -115,7 +116,7 @@ internal sealed class ExcelBatch : IExcelBatch
                     throw new InvalidOperationException("Microsoft Excel is not installed on this system.");
                 }
 
-                dynamic tempExcel = Activator.CreateInstance(excelType)!;
+                Excel.Application tempExcel = (Excel.Application)Activator.CreateInstance(excelType)!;
                 tempExcel.Visible = _showExcel;
                 tempExcel.DisplayAlerts = false;
 
@@ -157,15 +158,17 @@ internal sealed class ExcelBatch : IExcelBatch
                 // Disable macro security warnings for unattended automation
                 // msoAutomationSecurityForceDisable = 3 (disable all macros, no prompts)
                 // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
-                tempExcel.AutomationSecurity = 3; // msoAutomationSecurityForceDisable
+                // Cast to dynamic for this property: MsoAutomationSecurity is in office.dll (Microsoft.Office.Core)
+                // which requires a separate assembly reference not included in the Excel PIA NuGet package.
+                ((dynamic)tempExcel).AutomationSecurity = 3;
 
                 // Open or create workbooks in the same Excel instance
-                var tempWorkbooks = new Dictionary<string, dynamic>(StringComparer.OrdinalIgnoreCase);
-                dynamic? primaryWorkbook = null;
+                var tempWorkbooks = new Dictionary<string, Excel.Workbook>(StringComparer.OrdinalIgnoreCase);
+                Excel.Workbook? primaryWorkbook = null;
 
                 foreach (var path in _allWorkbookPaths)
                 {
-                    dynamic wb;
+                    Excel.Workbook wb;
                     string normalizedPath = Path.GetFullPath(path);
 
                     if (_createNewFile)
@@ -178,7 +181,7 @@ internal sealed class ExcelBatch : IExcelBatch
                             throw new DirectoryNotFoundException($"Directory does not exist: '{directory}'. Create the directory first before creating Excel files.");
                         }
 
-                        wb = tempExcel.Workbooks.Add();
+                        wb = (Excel.Workbook)tempExcel.Workbooks.Add();
 
                         // SaveAs with appropriate format
                         if (_isMacroEnabled)
@@ -199,7 +202,7 @@ internal sealed class ExcelBatch : IExcelBatch
                         // Open workbook with Excel COM
                         try
                         {
-                            wb = tempExcel.Workbooks.Open(path);
+                            wb = (Excel.Workbook)tempExcel.Workbooks.Open(path);
                         }
                         catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
                         {
@@ -305,9 +308,10 @@ internal sealed class ExcelBatch : IExcelBatch
                     {
                         try
                         {
-                            dynamic? wb = kvp.Value;
+                            Excel.Workbook? wb = kvp.Value;
                             wb.Close(false); // Don't save - explicit save must be called
-                            ComUtilities.Release(ref wb!);
+                            Marshal.ReleaseComObject(wb);
+                            wb = null;
                         }
                         catch (Exception ex)
                         {
@@ -330,7 +334,8 @@ internal sealed class ExcelBatch : IExcelBatch
                         }
                         finally
                         {
-                            ComUtilities.Release(ref _excel!);
+                            Marshal.ReleaseComObject(_excel);
+                            _excel = null;
                         }
                     }
                 }
@@ -387,7 +392,7 @@ internal sealed class ExcelBatch : IExcelBatch
         }
     }
 
-    public IReadOnlyDictionary<string, dynamic> Workbooks
+    public IReadOnlyDictionary<string, Excel.Workbook> Workbooks
     {
         get
         {
@@ -396,7 +401,7 @@ internal sealed class ExcelBatch : IExcelBatch
         }
     }
 
-    public dynamic GetWorkbook(string filePath)
+    public Excel.Workbook GetWorkbook(string filePath)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
 
@@ -696,8 +701,25 @@ internal sealed class ExcelBatch : IExcelBatch
                     if (!excelProc.WaitForExit(5000))
                     {
                         _logger.LogWarning(
-                            "[Thread {CallingThread}] Excel process {ProcessId} did not exit within 5s for {FileName}",
+                            "[Thread {CallingThread}] Excel process {ProcessId} did not exit within 5s for {FileName}. Force-killing to prevent zombie accumulation.",
                             callingThread, _excelProcessId.Value, Path.GetFileName(_workbookPath));
+
+                        // Force-kill: Excel was already told to Quit() and COM refs were released.
+                        // A process still running after 5s is hung and will leak desktop resources.
+                        try
+                        {
+                            excelProc.Kill();
+                            excelProc.WaitForExit(3000);
+                            _logger.LogInformation(
+                                "[Thread {CallingThread}] Force-killed lingering Excel process {ProcessId} for {FileName}",
+                                callingThread, _excelProcessId.Value, Path.GetFileName(_workbookPath));
+                        }
+                        catch (Exception killEx)
+                        {
+                            _logger.LogWarning(killEx,
+                                "[Thread {CallingThread}] Failed to force-kill Excel process {ProcessId}",
+                                callingThread, _excelProcessId.Value);
+                        }
                     }
                 }
             }

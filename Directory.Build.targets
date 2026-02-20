@@ -1,0 +1,14 @@
+<Project>
+
+  <!-- Copy office.dll (Microsoft.Office.Core) from the .NET Framework GAC to every project's
+       output directory. Microsoft.Office.Interop.Excel.dll references office.dll, which .NET Core
+       cannot find automatically in the .NET Framework GAC. office.dll is present when Office is
+       installed (required for this Windows-only COM automation project). -->
+  <Target Name="CopyOfficeDllToOutput" AfterTargets="Build"
+          Condition="Exists('C:\Windows\assembly\GAC_MSIL\office\15.0.0.0__71e9bce111e9429c\OFFICE.DLL')">
+    <Copy SourceFiles="C:\Windows\assembly\GAC_MSIL\office\15.0.0.0__71e9bce111e9429c\OFFICE.DLL"
+          DestinationFiles="$(OutputPath)office.dll"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

@@ -78,6 +78,17 @@ When creating or modifying Excel files:
 - Use proper number formats (currency, dates, percentages)
 - Format data as Excel Tables (not plain ranges)
 
+**Use `set-style` for semantic status labels and document structure:**
+- `Good` / `Bad` / `Neutral` — colour-coded status cells (green/red/yellow fills, theme-aware)
+- `Heading 1` / `Heading 2` / `Title` — document hierarchy
+- `Normal` — reset all formatting
+
+**Use `format-range` for visual layout (header rows, custom colours) — ALL properties in ONE call:**
+- `set-style('Heading 1')` does NOT apply a fill colour; if you want a coloured header row use `format-range`
+- Pass bold, fillColor, fontColor, and alignment together in a single call — do not call `format-range` multiple times for the same range
+
+**Apply each formatting operation once** — do not reapply the same properties to the same range unless a later step explicitly changes them.
+
 ### Format Cells by Data Type (CRITICAL)
 
 Always apply number formats after setting values. Without formatting:

@@ -74,6 +74,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Excel COM Interop PIA - EmbedInteropTypes=true embeds only used types at compile time,
+         eliminating the runtime dependency on office.dll (Microsoft.Office.Core) which is not
+         available to .NET Core's runtime loader even though it exists in the .NET Framework GAC.
+         COM type equivalence (GUID-based) ensures type identity works across assembly boundaries. -->
+    <PackageReference Include="Microsoft.Office.Interop.Excel">
+      <EmbedInteropTypes>true</EmbedInteropTypes>
+      <NoWarn>NU1701</NoWarn>
+    </PackageReference>
     <PackageReference Include="Microsoft.Extensions.ObjectPool" />
     <!-- Required for generated CliSettings class (Spectre.Console.Cli.CommandSettings) -->
     <PackageReference Include="Spectre.Console.Cli" />

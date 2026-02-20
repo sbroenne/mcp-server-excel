@@ -2,6 +2,91 @@
 
 These patterns cause data loss, poor performance, or user frustration. Avoid them.
 
+## Redundant Formatting Anti-Pattern
+
+### The Problem
+
+Applying the same formatting to the same range more than once in a workflow:
+
+```
+WRONG: Applying bold repeatedly
+
+range_format(action: 'format-range', rangeAddress: 'A1:D1', bold: true)
+// ... other operations ...
+range_format(action: 'format-range', rangeAddress: 'A1:D1', bold: true, fillColor: '#4472C4')
+// Bold was already applied - the second call re-applies it unnecessarily
+```
+
+Also wrong: calling `format-range` separately for each property instead of combining:
+
+```
+WRONG: Separate calls for each property
+
+range_format(action: 'format-range', rangeAddress: 'A1:D1', bold: true)
+range_format(action: 'format-range', rangeAddress: 'A1:D1', fillColor: '#4472C4')
+range_format(action: 'format-range', rangeAddress: 'A1:D1', fontColor: '#FFFFFF')
+range_format(action: 'format-range', rangeAddress: 'A1:D1', horizontalAlignment: 'center')
+```
+
+### The Solution
+
+Apply all formatting properties for a range in **one** `format-range` call:
+
+```
+CORRECT: One call per range
+
+range_format(action: 'format-range', rangeAddress: 'A1:D1',
+    bold: true, fillColor: '#4472C4', fontColor: '#FFFFFF', horizontalAlignment: 'center')
+```
+
+Apply each formatting operation **once**. If a subsequent step explicitly changes a property (e.g., "now make the title red"), apply it again — otherwise don't.
+
+### When Multiple Calls ARE Appropriate
+
+- Applying different formatting to different ranges
+- A later step explicitly overrides a previously set property
+- Applying a style (`set-style`) on top of individual properties (different actions)
+
+## Wrong Style System Anti-Pattern
+
+### The Problem
+
+Applying `range_format` to cells that belong to an object with its own style system:
+
+```
+WRONG: Formatting a table header row with range_format
+
+table(action: 'create', tableName: 'Sales', rangeAddress: 'A1:D10')
+range_format(action: 'format-range', rangeAddress: 'A1:D1', bold: true, fillColor: '#4472C4')
+// The table style already controls header appearance — this creates an inconsistent override
+```
+
+```
+WRONG: Formatting PivotTable cells
+
+pivottable(action: 'create-from-table', ...)
+range_format(action: 'format-range', rangeAddress: 'B3:B20', fillColor: '#E2EFDA')
+// Formatting is wiped on the next pivottable(refresh)
+```
+
+### The Solution
+
+Use the style system that belongs to each object type:
+
+```
+CORRECT: Table visual styling — one call at creation or via set-style
+
+table(action: 'create', tableName: 'Sales', rangeAddress: 'A1:D10',
+    tableStyle: 'TableStyleMedium2')
+```
+
+| Object | Correct style approach | Do NOT use |
+|--------|----------------------|------------|
+| Excel Tables | `table(action:'set-style')` or `tableStyle` on create | `range_format` on header/data rows |
+| PivotTables | Not supported — leave default | `range_format` (wiped on refresh) |
+| Charts | `chart_config(action:'set-style', styleNumber: 1-48)` | `range_format` |
+| Plain cells/ranges | `range_format` | — |
+
 ## Delete-and-Rebuild Anti-Pattern
 
 ### The Problem

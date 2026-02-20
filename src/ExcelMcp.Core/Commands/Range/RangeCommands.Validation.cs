@@ -39,7 +39,7 @@ public partial class RangeCommands
                 // Get sheet
                 sheet = string.IsNullOrEmpty(sheetName)
                     ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets.Item(sheetName);
+                    : ctx.Book.Worksheets[sheetName];
 
                 // Get range
                 range = sheet.Range[rangeAddress];
@@ -161,7 +161,7 @@ public partial class RangeCommands
                 // Get sheet
                 sheet = string.IsNullOrEmpty(sheetName)
                     ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets.Item(sheetName);
+                    : ctx.Book.Worksheets[sheetName];
 
                 // Get range
                 range = sheet.Range[rangeAddress];
@@ -254,7 +254,7 @@ public partial class RangeCommands
                 // Get sheet
                 sheet = string.IsNullOrEmpty(sheetName)
                     ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets.Item(sheetName);
+                    : ctx.Book.Worksheets[sheetName];
 
                 // Get range
                 range = sheet.Range[rangeAddress];

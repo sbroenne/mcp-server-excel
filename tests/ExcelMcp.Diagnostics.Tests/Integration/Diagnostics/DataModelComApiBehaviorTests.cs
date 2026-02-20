@@ -206,7 +206,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             for (int i = 1; i <= modelTables.Count; i++)
             {
-                dynamic? table = modelTables.Item(i);
+                dynamic? table = modelTables[i];
                 _output.WriteLine($"  Table {i}: {table.Name}");
 
                 // List columns
@@ -214,7 +214,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 _output.WriteLine($"    Columns: {columns.Count}");
                 for (int j = 1; j <= columns.Count; j++)
                 {
-                    dynamic? col = columns.Item(j);
+                    dynamic? col = columns[j];
                     _output.WriteLine($"      - {col.Name} ({col.DataType})");
                     ComUtilities.Release(ref col);
                 }
@@ -261,7 +261,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 return;
             }
 
-            dynamic? table = modelTables.Item(1);
+            dynamic? table = modelTables[1];
             string tableName = table.Name;
             _output.WriteLine($"Adding measure to table: {tableName}");
 
@@ -349,7 +349,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             dynamic? measure = null;
             for (int i = 1; i <= measures.Count; i++)
             {
-                dynamic? m = measures.Item(i);
+                dynamic? m = measures[i];
                 if (m.Name == "TotalAmount")
                 {
                     measure = m;
@@ -427,7 +427,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             // Find and delete the measure
             for (int i = 1; i <= measures.Count; i++)
             {
-                dynamic? m = measures.Item(i);
+                dynamic? m = measures[i];
                 if (m.Name == "ToDelete")
                 {
                     _output.WriteLine("\n--- Deleting measure 'ToDelete' ---");
@@ -495,7 +495,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             for (int i = 1; i <= modelTables.Count; i++)
             {
-                dynamic? t = modelTables.Item(i);
+                dynamic? t = modelTables[i];
                 string name = t.Name;
                 if (name == "Sales")
                     salesTable = t;
@@ -511,7 +511,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 dynamic? salesCols = salesTable.ModelTableColumns;
                 for (int i = 1; i <= salesCols.Count; i++)
                 {
-                    dynamic? col = salesCols.Item(i);
+                    dynamic? col = salesCols[i];
                     if (col.Name == "Product")
                     {
                         salesProductCol = col;
@@ -524,7 +524,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 dynamic? prodCols = productsTable.ModelTableColumns;
                 for (int i = 1; i <= prodCols.Count; i++)
                 {
-                    dynamic? col = prodCols.Item(i);
+                    dynamic? col = prodCols[i];
                     if (col.Name == "ProductName")
                     {
                         productsNameCol = col;
@@ -616,7 +616,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             }
 
             // Delete first relationship
-            dynamic? rel = relationships.Item(1);
+            dynamic? rel = relationships[1];
             _output.WriteLine($"\n--- Deleting relationship ---");
             rel.Delete();
             _output.WriteLine("Relationship deleted");
@@ -668,7 +668,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             dynamic? query = null;
             for (int i = 1; i <= queries.Count; i++)
             {
-                dynamic? q = queries.Item(i);
+                dynamic? q = queries[i];
                 if (q.Name == "OrphanTest")
                 {
                     query = q;
@@ -699,7 +699,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 // List remaining tables
                 for (int i = 1; i <= modelTables.Count; i++)
                 {
-                    dynamic? t = modelTables.Item(i);
+                    dynamic? t = modelTables[i];
                     _output.WriteLine($"  Orphaned table: {t.Name}");
                     ComUtilities.Release(ref t);
                 }
@@ -748,7 +748,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             _output.WriteLine("\n--- Deleting source query ---");
             for (int i = 1; i <= queries.Count; i++)
             {
-                dynamic? q = queries.Item(i);
+                dynamic? q = queries[i];
                 if (q.Name == "ToDelete")
                 {
                     q.Delete();
@@ -767,7 +767,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             // Try to access the measure
             for (int i = 1; i <= measures.Count; i++)
             {
-                dynamic? m = measures.Item(i);
+                dynamic? m = measures[i];
                 try
                 {
                     _output.WriteLine($"Measure: {m.Name}");
@@ -819,7 +819,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             for (int i = 1; i <= measures.Count; i++)
             {
-                dynamic? m = measures.Item(i);
+                dynamic? m = measures[i];
                 _output.WriteLine($"  {m.Name}: {m.Formula}");
                 ComUtilities.Release(ref m);
             }
@@ -867,7 +867,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             dynamic? connections = _workbook.Connections;
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections.Item(i);
+                dynamic? conn = connections[i];
                 try
                 {
                     conn.Refresh();
@@ -921,7 +921,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             // Step 4: Add CUBEVALUE formula to worksheet
             _output.WriteLine("\n--- Step 4: Add CUBEVALUE formula ---");
-            sheet = _workbook.Worksheets.Item(1);
+            sheet = _workbook.Worksheets[1];
 
             // First, let's check what cube connections exist
             _output.WriteLine("Checking available cube connections...");
@@ -930,7 +930,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 dynamic? connections = _workbook.Connections;
                 for (int i = 1; i <= connections.Count; i++)
                 {
-                    dynamic? conn = connections.Item(i);
+                    dynamic? conn = connections[i];
                     _output.WriteLine($"  Connection {i}: '{conn.Name}' Type={conn.Type}");
                     ComUtilities.Release(ref conn);
                 }
@@ -1250,7 +1250,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             connections = _workbook.Connections;
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections.Item(i);
+                dynamic? conn = connections[i];
                 try
                 {
                     conn.Refresh();
@@ -1290,7 +1290,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             // Check if query already exists
             for (int i = 1; i <= queries.Count; i++)
             {
-                dynamic? q = queries.Item(i);
+                dynamic? q = queries[i];
                 if (q.Name == queryName)
                 {
                     ComUtilities.Release(ref q);
@@ -1349,7 +1349,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 return;
             }
 
-            table = modelTables.Item(1);
+            table = modelTables[1];
             measures = model.ModelMeasures;
 
             // ModelMeasures.Add signature: (MeasureName, AssociatedTable, Formula, FormatInformation, [Description])
@@ -1390,7 +1390,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             for (int i = 1; i <= modelTables.Count; i++)
             {
-                dynamic? t = modelTables.Item(i);
+                dynamic? t = modelTables[i];
                 string name = t.Name;
                 if (name == "Sales")
                     salesTable = t;
@@ -1415,7 +1415,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             dynamic? salesCols = salesTable.ModelTableColumns;
             for (int i = 1; i <= salesCols.Count; i++)
             {
-                dynamic? col = salesCols.Item(i);
+                dynamic? col = salesCols[i];
                 if (col.Name == "Product")
                 {
                     salesProductCol = col;
@@ -1428,7 +1428,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             dynamic? prodCols = productsTable.ModelTableColumns;
             for (int i = 1; i <= prodCols.Count; i++)
             {
-                dynamic? col = prodCols.Item(i);
+                dynamic? col = prodCols[i];
                 if (col.Name == "ProductName")
                 {
                     productsNameCol = col;
@@ -1561,7 +1561,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             for (int i = 1; i <= modelTables.Count; i++)
             {
-                dynamic? t = modelTables.Item(i);
+                dynamic? t = modelTables[i];
                 string tName = t.Name?.ToString() ?? "(null)";
                 _output.WriteLine($"  Table[{i}]: {tName}");
                 if (targetTable == null)
@@ -1635,7 +1635,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             dynamic? conns = workbook.Connections;
             for (int i = 1; i <= conns.Count; i++)
             {
-                dynamic? c = conns.Item(i);
+                dynamic? c = conns[i];
                 string cName = c?.Name?.ToString() ?? "(null)";
                 int cType = Convert.ToInt32(c?.Type ?? 0);
                 bool inModel = false;
@@ -1652,7 +1652,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             {
                 // Get the first table from the model to use as parameter
                 dynamic? modelTables2 = model.ModelTables;
-                dynamic? firstTable = modelTables2.Item(1);
+                dynamic? firstTable = modelTables2[1];
                 modelWorkbookConn = model.CreateModelWorkbookConnection(firstTable);
                 string connName = modelWorkbookConn?.Name?.ToString() ?? "(null)";
                 _output.WriteLine($"Created Model Workbook Connection: '{connName}'");
@@ -1673,7 +1673,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             conns = workbook.Connections;
             for (int i = 1; i <= conns.Count; i++)
             {
-                dynamic? c = conns.Item(i);
+                dynamic? c = conns[i];
                 string cName = c?.Name?.ToString() ?? "(null)";
                 int cType = Convert.ToInt32(c?.Type ?? 0);
                 _output.WriteLine($"  [{i}] Name: '{cName}', Type: {cType}");
@@ -1683,7 +1683,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             // Step 6: Add CUBEVALUE formula
             _output.WriteLine("\n--- Step 6: Add CUBEVALUE formulas (testing different syntax) ---");
-            sheet = workbook.Worksheets.Item(1);
+            sheet = workbook.Worksheets[1];
 
             // Build formulas with discovered names
             // Important: DAX measures are referenced as [Measures].[MeasureName]

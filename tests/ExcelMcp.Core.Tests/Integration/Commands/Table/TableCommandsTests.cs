@@ -100,7 +100,7 @@ public partial class TableCommandsTests : IClassFixture<TableTestsFixture>
         // Add data to a new location (different from the SalesTable created by fixture method)
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             sheet.Range["F1"].Value2 = "Name";
             sheet.Range["G1"].Value2 = "Value";
             sheet.Range["F2"].Value2 = "Test1";

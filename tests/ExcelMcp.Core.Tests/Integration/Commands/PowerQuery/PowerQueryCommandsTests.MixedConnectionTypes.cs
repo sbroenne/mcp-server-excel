@@ -254,7 +254,7 @@ public class PowerQueryMixedConnectionTypeTests : IClassFixture<TempDirectoryFix
                     dynamic? conn = null;
                     try
                     {
-                        conn = connections.Item(i);
+                        conn = connections[i];
                         string name = conn.Name?.ToString() ?? "(unknown)";
                         int connType = -1;
                         try { connType = (int)conn.Type; } catch { /* ignore */ }

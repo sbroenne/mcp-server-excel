@@ -62,7 +62,7 @@ public partial class PowerQueryCommands
 
             try
             {
-                queries = ctx.Book.Queries;
+                queries = ((dynamic)ctx.Book).Queries;
 
                 // Check if query already exists
                 dynamic? existingQuery = FindQueryByName(queries, queryName);

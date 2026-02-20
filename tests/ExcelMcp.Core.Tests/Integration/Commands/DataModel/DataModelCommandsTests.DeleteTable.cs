@@ -51,7 +51,7 @@ public class DataModelDeleteTableTests : IClassFixture<DataModelTestsFixture>
             try
             {
                 dynamic sheets = ctx.Book.Worksheets;
-                sheet = sheets.Item(1);
+                sheet = sheets[1];
 
                 // Headers and data
                 sheet.Range["A1"].Value2 = "ID";

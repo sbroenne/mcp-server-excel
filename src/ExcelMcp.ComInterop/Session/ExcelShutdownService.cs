@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Polly;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
@@ -28,7 +29,7 @@ public static class ExcelShutdownService
     /// <exception cref="COMException">Save failed due to COM error</exception>
     /// <exception cref="InvalidOperationException">Save failed due to unexpected error</exception>
     public static void SaveWorkbookWithTimeout(
-        dynamic workbook,
+        Excel.Workbook workbook,
         string? fileName = null,
         ILogger? logger = null,
         CancellationToken cancellationToken = default)
@@ -95,8 +96,8 @@ public static class ExcelShutdownService
     /// <para><b>Timeout:</b> No overall timeout - relies on retry exhaustion. Non-retriable errors bubble immediately.</para>
     /// </remarks>
     public static void CloseAndQuit(
-        dynamic? workbook,
-        dynamic? excel,
+        Excel.Workbook? workbook,
+        Excel.Application? excel,
         bool save,
         string? filePath = null,
         ILogger? logger = null)
@@ -139,7 +140,8 @@ public static class ExcelShutdownService
                 finally
                 {
                     // Step 3: Release workbook COM reference
-                    ComUtilities.Release(ref workbook!);
+                    Marshal.ReleaseComObject(workbook);
+                    workbook = null;
                 }
             }
 
@@ -218,7 +220,8 @@ public static class ExcelShutdownService
                 finally
                 {
                     // Step 5: Release Excel COM reference (even if Quit failed/timed out)
-                    ComUtilities.Release(ref excel!);
+                    Marshal.ReleaseComObject(excel);
+                    excel = null;
                 }
 
                 // Additional diagnostic if quit failed

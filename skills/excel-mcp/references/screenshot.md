@@ -1,5 +1,20 @@
 # Screenshot & Visual Verification Reference
 
+## REQUIRED: Screenshot After Chart Creation
+
+**You MUST call `screenshot` after creating any chart when visual output is requested or implied.** Do not close the file or end your response without capturing a screenshot.
+
+```
+1. chart(create-from-range, ...)  → Chart created
+2. screenshot(capture, rangeAddress='A1:M20')  ← REQUIRED — never skip this step
+3. file(close, save=true)
+```
+
+This rule applies even if:
+- The chart was created on the first try
+- No errors occurred
+- The task description doesn't explicitly say "take a screenshot"
+
 ## Tools
 
 - **`screenshot`**: Capture worksheet content as PNG images
@@ -8,8 +23,18 @@
 
 | Action | Purpose | Parameters |
 |--------|---------|------------|
-| `capture` | Capture a specific range | `rangeAddress` (default: A1:Z30), `sheetName` |
-| `capture-sheet` | Capture entire used area | `sheetName` |
+| `capture` | Capture a specific range | `rangeAddress` (default: A1:Z30), `sheetName`, `quality` |
+| `capture-sheet` | Capture entire used area | `sheetName`, `quality` |
+
+## Quality Parameter
+
+Default is `Medium` — use this for most cases. Only use `High` when fine text or formulas need careful inspection.
+
+| Quality | Format | Scale | Size |
+|---------|--------|-------|------|
+| `Medium` | JPEG | 75% | ~4-8x smaller than High (default) |
+| `Low` | JPEG | 50% | Smallest, good for layout overview |
+| `High` | PNG | 100% | Full fidelity, largest file |
 
 ## When to Use Screenshots
 
@@ -40,6 +65,7 @@
 3. **Use after multi-step operations**: Screenshots are most valuable after a sequence of formatting, layout, or chart operations
 4. **MCP returns image directly**: The image is returned as native ImageContent — no file handling needed
 5. **CLI with `--output`**: Use `--output screenshot.png` to save the captured image directly as a PNG file
+6. **Apply formatting once**: Apply each formatting operation (bold, fill color, number format) to a given range only once. Do not reapply unless a subsequent step explicitly changes or clears it — redundant calls waste turns and cost.
 
 ## Common Patterns
 

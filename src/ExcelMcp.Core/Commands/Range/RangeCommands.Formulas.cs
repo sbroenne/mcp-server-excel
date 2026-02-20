@@ -1,3 +1,4 @@
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -113,10 +114,10 @@ public partial class RangeCommands
                 // CRITICAL: Temporarily disable automatic calculation to prevent Excel from
                 // hanging when formulas reference Data Model/DAX query tables or complex calculations.
                 // Without this, setting formulas that trigger recalculation can block the COM interface.
-                originalCalculation = ctx.App.Calculation;
+                originalCalculation = (int)ctx.App.Calculation;
                 if (originalCalculation != -4135) // xlCalculationManual
                 {
-                    ctx.App.Calculation = -4135; // xlCalculationManual
+                    ctx.App.Calculation = (Excel.XlCalculation)(-4135); // xlCalculationManual
                     calculationChanged = true;
                 }
 
@@ -158,7 +159,7 @@ public partial class RangeCommands
                 {
                     try
                     {
-                        ctx.App.Calculation = originalCalculation;
+                        ctx.App.Calculation = (Excel.XlCalculation)originalCalculation;
                     }
                     catch (System.Runtime.InteropServices.COMException)
                     {

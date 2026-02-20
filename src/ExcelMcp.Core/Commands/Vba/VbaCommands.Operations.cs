@@ -71,7 +71,7 @@ public partial class VbaCommands
             dynamic? targetComponent = null;
             try
             {
-                vbaProject = ctx.Book.VBProject;
+                vbaProject = ((dynamic)ctx.Book).VBProject;
                 vbComponents = vbaProject.VBComponents;
 
                 for (int i = 1; i <= vbComponents.Count; i++)

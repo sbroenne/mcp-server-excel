@@ -54,7 +54,7 @@ in
             dynamic? listObjects = null;
             try
             {
-                sheet = ctx.Book.Worksheets.Item(1);
+                sheet = ctx.Book.Worksheets[1];
                 sheet.Name = "TestSheet";
 
                 // Add some data
@@ -150,7 +150,7 @@ in
             dynamic? listObjects = null;
             try
             {
-                sheet = ctx.Book.Worksheets.Item(1);
+                sheet = ctx.Book.Worksheets[1];
                 sheet.Name = "TestSheet";
 
                 // Add some data
@@ -247,7 +247,7 @@ in
             dynamic? listObjects = null;
             try
             {
-                sheet = ctx.Book.Worksheets.Item(1);
+                sheet = ctx.Book.Worksheets[1];
                 sheet.Name = "TestSheet";
 
                 // Add some data

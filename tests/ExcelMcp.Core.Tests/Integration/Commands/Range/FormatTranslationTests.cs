@@ -45,7 +45,7 @@ public class FormatTranslationTests : IClassFixture<RangeTestsFixture>
         // Set a date value (45000 = March 15, 2023)
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             dynamic cell = sheet.Range["A1"];
             cell.Value2 = 45000; // March 15, 2023
         });
@@ -59,7 +59,7 @@ public class FormatTranslationTests : IClassFixture<RangeTestsFixture>
         // Verify the display is correct (not "0/d/yyyy" or other broken formats)
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             dynamic cell = sheet.Range["A1"];
 
             string displayedText = cell.Text?.ToString() ?? "null";
@@ -92,7 +92,7 @@ public class FormatTranslationTests : IClassFixture<RangeTestsFixture>
         // Set a date value (45000 = March 15, 2023)
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             dynamic cell = sheet.Range["A1"];
             cell.Value2 = 45000; // March 15, 2023
         });
@@ -105,7 +105,7 @@ public class FormatTranslationTests : IClassFixture<RangeTestsFixture>
 
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             dynamic cell = sheet.Range["A1"];
 
             string displayedText = cell.Text?.ToString() ?? "null";
@@ -129,7 +129,7 @@ public class FormatTranslationTests : IClassFixture<RangeTestsFixture>
         // Set date values in A1:A3
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             sheet.Range["A1"].Value2 = 45000; // March 15, 2023
             sheet.Range["A2"].Value2 = 45001; // March 16, 2023
             sheet.Range["A3"].Value2 = 45002; // March 17, 2023
@@ -150,7 +150,7 @@ public class FormatTranslationTests : IClassFixture<RangeTestsFixture>
 
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
 
             var texts = new[]
             {
@@ -184,7 +184,7 @@ public class FormatTranslationTests : IClassFixture<RangeTestsFixture>
         // Set a currency value
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             sheet.Range["A1"].Value2 = 1234.56;
         });
 
@@ -196,7 +196,7 @@ public class FormatTranslationTests : IClassFixture<RangeTestsFixture>
 
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             string displayedText = sheet.Range["A1"].Text?.ToString() ?? "null";
 
             _output.WriteLine($"Currency format '$#,##0.00': '{displayedText}'");
@@ -218,7 +218,7 @@ public class FormatTranslationTests : IClassFixture<RangeTestsFixture>
         // Set a time value (0.75 = 6:00 PM / 18:00)
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             sheet.Range["A1"].Value2 = 0.75; // 18:00
         });
 
@@ -230,7 +230,7 @@ public class FormatTranslationTests : IClassFixture<RangeTestsFixture>
 
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             string displayedText = sheet.Range["A1"].Text?.ToString() ?? "null";
 
             _output.WriteLine($"Time format 'h:mm': '{displayedText}'");
@@ -253,7 +253,7 @@ public class FormatTranslationTests : IClassFixture<RangeTestsFixture>
         // Set a date+time value (45000.75 = March 15, 2023 at 18:00)
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             sheet.Range["A1"].Value2 = 45000.75;
         });
 
@@ -265,7 +265,7 @@ public class FormatTranslationTests : IClassFixture<RangeTestsFixture>
 
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Item(1);
+            dynamic sheet = ctx.Book.Worksheets[1];
             string displayedText = sheet.Range["A1"].Text?.ToString() ?? "null";
 
             _output.WriteLine($"DateTime format 'm/d/yyyy h:mm': '{displayedText}'");

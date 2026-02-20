@@ -148,7 +148,7 @@ public class PivotTableOlapDisambiguationTests
                 dynamic? cf = null;
                 try
                 {
-                    cf = cubeFields.Item(i);
+                    cf = cubeFields[i];
                     string name = cf.Name?.ToString() ?? "";
                     int cubeFieldType = Convert.ToInt32(cf.CubeFieldType);
 

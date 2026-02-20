@@ -57,7 +57,7 @@ public partial class TableCommands
                 }
 
                 // Get destination sheet and calculate position from cell reference
-                destSheet = ctx.Book.Worksheets.Item(destinationSheet);
+                destSheet = ctx.Book.Worksheets[destinationSheet];
                 destRange = destSheet.Range[position];
 
                 // Get position in points from the cell reference

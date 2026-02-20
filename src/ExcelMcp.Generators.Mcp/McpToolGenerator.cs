@@ -169,8 +169,8 @@ public class McpToolGenerator : IIncrementalGenerator
         sb.Append($"    public static string {methodName}(");
         sb.AppendLine();
 
-        // Action parameter (always first, required)
-        sb.AppendLine($"        [Description(\"The action to perform\")] {enumTypeName} action,");
+        // Action parameter (nullable to prevent SDK-level exception on missing param)
+        sb.AppendLine($"        [Description(\"The action to perform\"), DefaultValue(null)] {enumTypeName}? action,");
 
         // Session parameter (if required)
         if (!info.NoSession)
@@ -214,7 +214,11 @@ public class McpToolGenerator : IIncrementalGenerator
         var registryName = info.CategoryPascal;
         var toolName = info.McpToolName;
 
-        // Pre-processing: type conversions
+        // Null check: action is nullable to prevent SDK-level exception when param is missing.
+        // Return a helpful error so the LLM can retry with the correct action.
+        sb.AppendLine($"        if (action == null)");
+        sb.AppendLine($"            return ExcelToolsBase.MissingActionError(\"{toolName}\");");
+        sb.AppendLine();
         var hasPreProcessing = false;
         foreach (var p in mcpParams)
         {
@@ -232,9 +236,9 @@ public class McpToolGenerator : IIncrementalGenerator
 
         sb.AppendLine($"        return ExcelToolsBase.ExecuteToolAction(");
         sb.AppendLine($"            \"{toolName}\",");
-        sb.AppendLine($"            ServiceRegistry.{registryName}.ToActionString(action),");
+        sb.AppendLine($"            ServiceRegistry.{registryName}.ToActionString(action.Value),");
         sb.AppendLine($"            () => ServiceRegistry.{registryName}.RouteAction(");
-        sb.AppendLine($"                action,");
+        sb.AppendLine($"                action.Value,");
 
         if (!info.NoSession)
         {

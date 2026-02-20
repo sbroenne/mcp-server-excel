@@ -66,20 +66,10 @@ public static class ExcelToolsBase
     /// <returns>JSON response from service</returns>
     public static string ForwardToService(
         string command,
-        string sessionId,
+        string? sessionId,
         object? args = null,
         int? timeoutSeconds = null)
     {
-        if (string.IsNullOrWhiteSpace(sessionId))
-        {
-            return JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorMessage = "sessionId is required. Use file 'open' action to start a session.",
-                isError = true
-            }, JsonOptions);
-        }
-
         var response = ServiceBridge.ServiceBridge.SendAsync(command, sessionId, args, timeoutSeconds).GetAwaiter().GetResult();
 
         if (!response.Success)
@@ -293,6 +283,23 @@ public static class ExcelToolsBase
         };
 
         return JsonSerializer.Serialize(payload, JsonOptions);
+    }
+
+    /// <summary>
+    /// Returns a JSON error response when the required 'action' parameter is missing.
+    /// Used by generated tool methods to handle null action gracefully instead of
+    /// throwing an unhandled exception at the framework level.
+    /// </summary>
+    /// <param name="toolName">Tool name for error context.</param>
+    /// <returns>JSON error payload with isError=true.</returns>
+    public static string MissingActionError(string toolName)
+    {
+        return JsonSerializer.Serialize(new
+        {
+            success = false,
+            errorMessage = $"The 'action' parameter is required for the '{toolName}' tool. Provide a valid action value.",
+            isError = true
+        }, JsonOptions);
     }
 }
 

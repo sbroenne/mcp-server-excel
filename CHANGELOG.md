@@ -10,6 +10,10 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### Changed
+
+- **Migrated Excel COM interop to strongly-typed Microsoft Office PIA**: Replaced dynamic late-binding throughout the codebase with strongly-typed `Microsoft.Office.Interop.Excel` types for improved reliability and compile-time error detection. Power Query APIs (`Workbook.Queries`) and VBA project access remain as dynamic calls where PIA coverage is unavailable.
+
 ### Fixed
 
 - **STA Deadlock on Conditional Formatting and Other Re-entrant COM Operations**: `OleMessageFilter.MessagePending` was returning `2` (`PENDINGMSG_WAITNOPROCESS`) instead of `1` (`PENDINGMSG_WAITDEFPROCESS`). When Excel fires a re-entrant callback (e.g. `Calculate`/`SheetChange` event) during a `FormatConditions.Add()` call, `WAITNOPROCESS` blocked COM from delivering the callback — Excel waited for the callback while the STA thread waited for Excel, causing a permanent deadlock. Any operation that triggers Excel's internal event loop (conditional formatting on formula cells, PivotTable refresh, Power Query refresh) was affected. Fixed by returning `1` so COM delivers pending inbound calls during the outgoing `IDispatch.Invoke`.
@@ -35,6 +39,7 @@ This changelog covers all components:
 
 ### Added
 
+- **Screenshot quality parameter**: New `quality` parameter on screenshot tool (`High`/`Medium`/`Low`). Default is `Medium` (JPEG at 75% scale, ~4–8x smaller than original PNG). Use `High` (PNG, full scale) when fine text needs careful inspection, `Low` (JPEG at 50% scale) for layout overviews.
 - **Window Management Tool** (#470): New `window` tool with 9 operations to control Excel window visibility, position, state, and status bar — enabling "Agent Mode" where users watch AI work in Excel
   - `show` / `hide` — Toggle Excel visibility (syncs with session metadata)
   - `bring-to-front` — Bring Excel to foreground

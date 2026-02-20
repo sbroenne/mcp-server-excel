@@ -65,6 +65,22 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Excel COM Interop PIA - EmbedInteropTypes=true embeds only used types at compile time,
+         eliminating the runtime dependency on office.dll (Microsoft.Office.Core) which is not
+         available to .NET Core's runtime loader even though it exists in the .NET Framework GAC.
+         COM type equivalence (GUID-based) ensures type identity works across assembly boundaries. -->
+    <PackageReference Include="Microsoft.Office.Interop.Excel">
+      <EmbedInteropTypes>true</EmbedInteropTypes>
+      <NoWarn>NU1701</NoWarn>
+    </PackageReference>
+    <!-- office.dll (Microsoft.Office.Core) is a dependency of Microsoft.Office.Interop.Excel.dll.
+         It lives in the .NET Framework GAC which .NET Core cannot probe automatically.
+         Referencing it here (without EmbedInteropTypes) causes MSBuild CopyLocal to copy it
+         to the output directory and all dependent project output directories. -->
+    <Reference Include="office">
+      <HintPath>C:\Windows\assembly\GAC_MSIL\office\15.0.0.0__71e9bce111e9429c\OFFICE.DLL</HintPath>
+      <Private>true</Private>
+    </Reference>
     <PackageReference Include="Dax.Formatter" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Resilience" />
@@ -73,5 +89,6 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+
 
 </Project>

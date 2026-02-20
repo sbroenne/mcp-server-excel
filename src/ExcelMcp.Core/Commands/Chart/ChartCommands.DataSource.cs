@@ -9,9 +9,9 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// </summary>
 internal sealed class ChartFindResult
 {
-    public dynamic? Chart { get; set; }
-    public dynamic? Shape { get; set; }
-    public string SheetName { get; set; } = string.Empty;
+    public dynamic? Chart;
+    public dynamic? Shape;
+    public string SheetName = string.Empty;
 }
 
 /// <summary>
