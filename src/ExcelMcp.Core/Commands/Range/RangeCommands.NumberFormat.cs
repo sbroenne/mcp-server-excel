@@ -97,12 +97,12 @@ public partial class RangeCommands
                 }
                 else
                 {
-                    // Should be a 2D array (rare case)
+                    // Should be a 2D array (rare case). COM arrays are 1-based.
                     object[,] formats = (object[,])numberFormats;
-                    for (int row = 0; row < rowCount; row++)
+                    for (int row = 1; row <= rowCount; row++)
                     {
                         var rowList = new List<string>();
-                        for (int col = 0; col < columnCount; col++)
+                        for (int col = 1; col <= columnCount; col++)
                         {
                             var format = formats[row, col]?.ToString() ?? "General";
                             rowList.Add(format);

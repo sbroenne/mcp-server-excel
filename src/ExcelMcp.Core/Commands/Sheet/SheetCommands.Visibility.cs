@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -14,7 +15,7 @@ public partial class SheetCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
+            Excel.Worksheet? sheet = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
@@ -24,7 +25,7 @@ public partial class SheetCommands
                 }
 
                 // Set visibility using the enum value (maps to XlSheetVisibility)
-                sheet.Visible = (int)visibility;
+                sheet.Visible = (Excel.XlSheetVisibility)(int)visibility;
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
@@ -42,7 +43,7 @@ public partial class SheetCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
+            Excel.Worksheet? sheet = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
@@ -51,7 +52,7 @@ public partial class SheetCommands
                     throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 }
 
-                int visibilityValue = Convert.ToInt32(sheet.Visible);
+                int visibilityValue = (int)sheet.Visible;
                 result.Visibility = (SheetVisibility)visibilityValue;
                 result.VisibilityName = result.Visibility.ToString();
                 result.Success = true;

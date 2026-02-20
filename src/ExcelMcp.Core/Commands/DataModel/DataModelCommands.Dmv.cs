@@ -4,6 +4,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.DataModel;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -31,9 +32,9 @@ public partial class DataModelCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? model = null;
-            dynamic? dataModelConn = null;
-            dynamic? modelConn = null;
+            Excel.Model? model = null;
+            Excel.WorkbookConnection? dataModelConn = null;
+            Excel.ModelConnection? modelConn = null;
             dynamic? adoConnection = null;
             dynamic? recordset = null;
             dynamic? fields = null;
@@ -49,7 +50,7 @@ public partial class DataModelCommands
                 model = ctx.Book.Model;
 
                 // Get the DataModelConnection (Type 7 connection to embedded Analysis Services)
-                dataModelConn = model.DataModelConnection;
+                dataModelConn = model!.DataModelConnection;
                 if (dataModelConn == null)
                 {
                     throw new InvalidOperationException("No DataModelConnection available - workbook may not have a Data Model");

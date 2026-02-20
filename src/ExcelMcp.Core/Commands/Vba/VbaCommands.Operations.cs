@@ -71,6 +71,8 @@ public partial class VbaCommands
             dynamic? targetComponent = null;
             try
             {
+                // PIA gap: VBProject is in Microsoft.Vbe.Interop, not the Excel PIA.
+                // No .NET 5+ compatible NuGet package exists for VBE types.
                 vbaProject = ((dynamic)ctx.Book).VBProject;
                 vbComponents = vbaProject.VBComponents;
 

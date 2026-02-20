@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
@@ -17,7 +18,7 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
+            Excel.Worksheet? sheet = null;
             dynamic? range = null;
             dynamic? hyperlinks = null;
             dynamic? hyperlink = null;
@@ -118,7 +119,7 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
+            Excel.Worksheet? sheet = null;
             dynamic? hyperlinks = null;
             try
             {
@@ -178,7 +179,7 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
+            Excel.Worksheet? sheet = null;
             dynamic? range = null;
             dynamic? hyperlinks = null;
             try

@@ -158,9 +158,11 @@ internal sealed class ExcelBatch : IExcelBatch
                 // Disable macro security warnings for unattended automation
                 // msoAutomationSecurityForceDisable = 3 (disable all macros, no prompts)
                 // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
-                // Cast to dynamic for this property: MsoAutomationSecurity is in office.dll (Microsoft.Office.Core)
-                // which requires a separate assembly reference not included in the Excel PIA NuGet package.
-                ((dynamic)tempExcel).AutomationSecurity = 3;
+                // PIA gap: MsoAutomationSecurity is in office.dll (Microsoft.Office.Core) which is NOT bundled
+                // with the Excel PIA NuGet package. Casting tempExcel to (object) first forces pure IDispatch
+                // binding so the DLR never tries to load office.dll to resolve the MsoAutomationSecurity type.
+                // Without (object) cast: ((dynamic)Excel.Application) retains COM type metadata → office.dll load → crash.
+                ((dynamic)(object)tempExcel).AutomationSecurity = 3;
 
                 // Open or create workbooks in the same Excel instance
                 var tempWorkbooks = new Dictionary<string, Excel.Workbook>(StringComparer.OrdinalIgnoreCase);

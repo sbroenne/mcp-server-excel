@@ -4,6 +4,7 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Connections;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -83,14 +84,14 @@ public partial class ConnectionCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
+            Excel.WorkbookConnection? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
             if (conn == null)
             {
                 throw new InvalidOperationException($"Connection '{connectionName}' not found.");
             }
 
-            result.Type = ConnectionHelpers.GetConnectionTypeName(conn.Type);
+            result.Type = ConnectionHelpers.GetConnectionTypeName((int)conn.Type);
             result.IsPowerQuery = PowerQueryHelpers.IsPowerQueryConnection(conn);
 
             // Get connection string (raw for LLM usage - sanitization removed)
@@ -164,7 +165,7 @@ public partial class ConnectionCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
+            Excel.WorkbookConnection? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
             if (conn == null)
             {
@@ -195,7 +196,7 @@ public partial class ConnectionCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
+            Excel.WorkbookConnection? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
             if (conn == null)
             {

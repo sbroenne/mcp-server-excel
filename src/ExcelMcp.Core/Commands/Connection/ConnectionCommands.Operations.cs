@@ -2,6 +2,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -19,7 +20,7 @@ public partial class ConnectionCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? conn = null;
+            Excel.WorkbookConnection? conn = null;
             dynamic? sheets = null;
             dynamic? targetSheet = null;
 
@@ -96,7 +97,7 @@ public partial class ConnectionCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
+            Excel.WorkbookConnection? conn = ComUtilities.FindConnection(ctx.Book, connectionName);
 
             if (conn == null)
             {
@@ -104,7 +105,7 @@ public partial class ConnectionCommands
             }
 
             // Get connection type
-            int connType = conn.Type;
+            int connType = (int)conn.Type;
 
             // For Text (4) and Web (5) connections, connection string might not be accessible
             // until a QueryTable is created. Just verify the connection object exists.

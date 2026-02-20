@@ -4,6 +4,7 @@ using Sbroenne.ExcelMcp.ComInterop.Formatting;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.DataModel;
+using Excel = Microsoft.Office.Interop.Excel;
 
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -25,8 +26,8 @@ public partial class DataModelCommands
         {
             return batch.Execute((ctx, ct) =>
             {
-                dynamic? model = null;
-                dynamic? measure = null;
+                Excel.Model? model = null;
+                Excel.ModelMeasure? measure = null;
                 try
                 {
                     // Check if workbook has Data Model
@@ -38,7 +39,7 @@ public partial class DataModelCommands
                     model = ctx.Book.Model;
 
                     // Find the measure
-                    measure = FindModelMeasure(model, measureName);
+                    measure = FindModelMeasure(model!, measureName);
                     if (measure == null)
                     {
                         throw new InvalidOperationException(DataModelErrorMessages.MeasureNotFound(measureName));
@@ -65,9 +66,9 @@ public partial class DataModelCommands
         {
             return batch.Execute((ctx, ct) =>
             {
-                dynamic? model = null;
-                dynamic? table = null;
-                dynamic? sourceConnection = null;
+                Excel.Model? model = null;
+                Excel.ModelTable? table = null;
+                Excel.WorkbookConnection? sourceConnection = null;
                 try
                 {
                     // Check if workbook has Data Model
@@ -79,7 +80,7 @@ public partial class DataModelCommands
                     model = ctx.Book.Model;
 
                     // Find the table
-                    table = FindModelTable(model, tableName);
+                    table = FindModelTable(model!, tableName);
                     if (table == null)
                     {
                         throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(tableName));
@@ -121,8 +122,8 @@ public partial class DataModelCommands
         {
             return batch.Execute((ctx, ct) =>
             {
-                dynamic? model = null;
-                dynamic? modelRelationships = null;
+                Excel.Model? model = null;
+                Excel.ModelRelationships? modelRelationships = null;
                 try
                 {
                     // Check if workbook has Data Model
@@ -132,25 +133,25 @@ public partial class DataModelCommands
                     }
 
                     model = ctx.Book.Model;
-                    modelRelationships = model.ModelRelationships;
+                    modelRelationships = model!.ModelRelationships;
 
                     // Find and delete the relationship
                     bool found = false;
                     int count = modelRelationships.Count;
                     for (int i = 1; i <= count; i++)
                     {
-                        dynamic? currentRelationship = null;
+                        Excel.ModelRelationship? currentRelationship = null;
                         try
                         {
                             currentRelationship = modelRelationships.Item(i);
 
-                            dynamic? fkColumn = currentRelationship.ForeignKeyColumn;
-                            dynamic? pkColumn = currentRelationship.PrimaryKeyColumn;
+                            Excel.ModelTableColumn? fkColumn = currentRelationship.ForeignKeyColumn;
+                            Excel.ModelTableColumn? pkColumn = currentRelationship.PrimaryKeyColumn;
 
                             try
                             {
-                                dynamic? fkTable = fkColumn.Parent;
-                                dynamic? pkTable = pkColumn.Parent;
+                                Excel.ModelTable? fkTable = fkColumn?.Parent as Excel.ModelTable;
+                                Excel.ModelTable? pkTable = pkColumn?.Parent as Excel.ModelTable;
 
                                 string currentFromTable = ComUtilities.SafeGetString(fkTable, "Name");
                                 string currentFromColumn = ComUtilities.SafeGetString(fkColumn, "Name");
@@ -213,11 +214,11 @@ public partial class DataModelCommands
         {
             return batch.Execute((ctx, ct) =>
             {
-                dynamic? model = null;
-                dynamic? table = null;
-                dynamic? measures = null;
-                dynamic? newMeasure = null;
-                dynamic? formatObject = null;
+                Excel.Model? model = null;
+                Excel.ModelTable? table = null;
+                Excel.ModelMeasures? measures = null;
+                Excel.ModelMeasure? newMeasure = null;
+                object? formatObject = null;
                 try
                 {
                     // Check if workbook has Data Model
@@ -229,14 +230,14 @@ public partial class DataModelCommands
                     model = ctx.Book.Model;
 
                     // Find the table
-                    table = FindModelTable(model, tableName);
+                    table = FindModelTable(model!, tableName);
                     if (table == null)
                     {
                         throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(tableName));
                     }
 
                     // Check if measure already exists
-                    dynamic? existingMeasure = FindModelMeasure(model, measureName);
+                    Excel.ModelMeasure? existingMeasure = FindModelMeasure(model!, measureName);
                     if (existingMeasure != null)
                     {
                         ComUtilities.Release(ref existingMeasure);
@@ -252,11 +253,11 @@ public partial class DataModelCommands
 
                     // Get ModelMeasures collection from MODEL (not from table!)
                     // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
-                    measures = model.ModelMeasures;
+                    measures = model!.ModelMeasures;
 
                     // Get format object - ALWAYS returns a valid format object (never null)
                     // Fixed: Always provide format object to avoid failures on reopened Data Model files
-                    formatObject = GetFormatObject(model, formatType);
+                    formatObject = GetFormatObject(model!, formatType);
 
                     // Create the measure using Excel COM API (Office 2016+)
                     // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.modelmeasures.add
@@ -264,9 +265,9 @@ public partial class DataModelCommands
                     // See: docs/KNOWN-ISSUES.md for details
                     newMeasure = measures.Add(
                         measureName,                                        // MeasureName (required)
-                        table,                                              // AssociatedTable (required)
+                        table!,                                             // AssociatedTable (required)
                         localizedFormula,                                   // Formula (required) - must be valid DAX, formatted and translated for locale
-                        formatObject,                                       // FormatInformation (required) - NEVER null/Type.Missing
+                        formatObject!,                                      // FormatInformation (required) - NEVER null/Type.Missing
                         string.IsNullOrEmpty(description) ? Type.Missing : description  // Description (optional)
                     );
                 }
@@ -304,9 +305,9 @@ public partial class DataModelCommands
         {
             return batch.Execute((ctx, ct) =>
             {
-                dynamic? model = null;
-                dynamic? measure = null;
-                dynamic? formatObject = null;
+                Excel.Model? model = null;
+                Excel.ModelMeasure? measure = null;
+                object? formatObject = null;
                 try
                 {
                     // Check if workbook has Data Model
@@ -318,7 +319,7 @@ public partial class DataModelCommands
                     model = ctx.Book.Model;
 
                     // Find the measure
-                    measure = FindModelMeasure(model, measureName);
+                    measure = FindModelMeasure(model!, measureName);
                     if (measure == null)
                     {
                         throw new InvalidOperationException(DataModelErrorMessages.MeasureNotFound(measureName));
@@ -342,7 +343,7 @@ public partial class DataModelCommands
                     // Update format if provided
                     if (!string.IsNullOrEmpty(formatType))
                     {
-                        formatObject = GetFormatObject(model, formatType);
+                        formatObject = GetFormatObject(model!, formatType);
                         if (formatObject != null)
                         {
                             measure.FormatInformation = formatObject;
@@ -385,13 +386,13 @@ public partial class DataModelCommands
         {
             return batch.Execute((ctx, ct) =>
             {
-                dynamic? model = null;
-                dynamic? relationships = null;
-                dynamic? fromTableObj = null;
-                dynamic? toTableObj = null;
-                dynamic? fromColumnObj = null;
-                dynamic? toColumnObj = null;
-                dynamic? newRelationship = null;
+                Excel.Model? model = null;
+                Excel.ModelRelationships? relationships = null;
+                Excel.ModelTable? fromTableObj = null;
+                Excel.ModelTable? toTableObj = null;
+                Excel.ModelTableColumn? fromColumnObj = null;
+                Excel.ModelTableColumn? toColumnObj = null;
+                Excel.ModelRelationship? newRelationship = null;
                 try
                 {
                     // Check if workbook has Data Model
@@ -403,7 +404,7 @@ public partial class DataModelCommands
                     model = ctx.Book.Model;
 
                     // Find source table and column
-                    fromTableObj = FindModelTable(model, fromTable);
+                    fromTableObj = FindModelTable(model!, fromTable);
                     if (fromTableObj == null)
                     {
                         throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(fromTable));
@@ -416,7 +417,7 @@ public partial class DataModelCommands
                     }
 
                     // Find target table and column
-                    toTableObj = FindModelTable(model, toTable);
+                    toTableObj = FindModelTable(model!, toTable);
                     if (toTableObj == null)
                     {
                         throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(toTable));
@@ -429,7 +430,7 @@ public partial class DataModelCommands
                     }
 
                     // Check if relationship already exists
-                    dynamic? existingRel = FindRelationship(model, fromTable, fromColumn, toTable, toColumn);
+                    Excel.ModelRelationship? existingRel = FindRelationship(model!, fromTable, fromColumn, toTable, toColumn);
                     if (existingRel != null)
                     {
                         ComUtilities.Release(ref existingRel);
@@ -438,15 +439,15 @@ public partial class DataModelCommands
 
                     // Create the relationship using Excel COM API (Office 2016+)
                     // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.modelrelationships.add
-                    relationships = model.ModelRelationships;
+                    relationships = model!.ModelRelationships;
                     newRelationship = relationships.Add(
-                        ForeignKeyColumn: fromColumnObj,
-                        PrimaryKeyColumn: toColumnObj
+                        ForeignKeyColumn: fromColumnObj!,
+                        PrimaryKeyColumn: toColumnObj!
                     );
 
                     // Set active state
                     // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.modelrelationship (Active property is Read/Write)
-                    newRelationship.Active = active;
+                    newRelationship!.Active = active;
                 }
                 finally
                 {
@@ -473,8 +474,8 @@ public partial class DataModelCommands
         {
             return batch.Execute((ctx, ct) =>
             {
-                dynamic? model = null;
-                dynamic? relationship = null;
+                Excel.Model? model = null;
+                Excel.ModelRelationship? relationship = null;
                 try
                 {
                     // Check if workbook has Data Model
@@ -486,7 +487,7 @@ public partial class DataModelCommands
                     model = ctx.Book.Model;
 
                     // Find the relationship
-                    relationship = FindRelationship(model, fromTable, fromColumn, toTable, toColumn);
+                    relationship = FindRelationship(model!, fromTable, fromColumn, toTable, toColumn);
                     if (relationship == null)
                     {
                         throw new InvalidOperationException(DataModelErrorMessages.RelationshipNotFound(fromTable, fromColumn, toTable, toColumn));

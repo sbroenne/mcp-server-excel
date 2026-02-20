@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -20,7 +21,7 @@ public partial class SheetCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
+            Excel.Worksheet? sheet = null;
             dynamic? tab = null;
             try
             {
@@ -54,7 +55,7 @@ public partial class SheetCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
+            Excel.Worksheet? sheet = null;
             dynamic? tab = null;
             try
             {
@@ -117,7 +118,7 @@ public partial class SheetCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
+            Excel.Worksheet? sheet = null;
             dynamic? tab = null;
             try
             {

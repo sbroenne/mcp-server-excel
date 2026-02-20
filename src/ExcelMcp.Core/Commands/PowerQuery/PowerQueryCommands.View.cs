@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -40,14 +41,14 @@ public partial class PowerQueryCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? queries = null;
-            dynamic? query = null;
+            Excel.Queries? queries = null;
+            Excel.WorkbookQuery? query = null;
             dynamic? worksheets = null;
 
             try
             {
                 // STEP 1: Find the Power Query
-                queries = ((dynamic)ctx.Book).Queries;
+                queries = ctx.Book.Queries;
                 query = null;
                 for (int i = 1; i <= queries.Count; i++)
                 {

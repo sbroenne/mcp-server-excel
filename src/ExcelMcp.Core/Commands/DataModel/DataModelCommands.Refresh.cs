@@ -2,6 +2,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.DataModel;
+using Excel = Microsoft.Office.Interop.Excel;
 
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -19,7 +20,7 @@ public partial class DataModelCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? model = null;
+            Excel.Model? model = null;
             try
             {
                 // Check if workbook has Data Model
@@ -33,7 +34,7 @@ public partial class DataModelCommands
                 if (tableName != null)
                 {
                     // Refresh specific table
-                    dynamic? table = FindModelTable(model, tableName);
+                    Excel.ModelTable? table = FindModelTable(model!, tableName);
                     if (table == null)
                     {
                         throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(tableName));

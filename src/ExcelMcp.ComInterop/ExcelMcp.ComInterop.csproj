@@ -73,14 +73,13 @@
       <EmbedInteropTypes>true</EmbedInteropTypes>
       <NoWarn>NU1701</NoWarn>
     </PackageReference>
-    <!-- office.dll (Microsoft.Office.Core) is a dependency of Microsoft.Office.Interop.Excel.dll.
-         It lives in the .NET Framework GAC which .NET Core cannot probe automatically.
-         Referencing it here (without EmbedInteropTypes) causes MSBuild CopyLocal to copy it
-         to the output directory and all dependent project output directories. -->
-    <Reference Include="office">
-      <HintPath>C:\Windows\assembly\GAC_MSIL\office\15.0.0.0__71e9bce111e9429c\OFFICE.DLL</HintPath>
-      <Private>true</Private>
-    </Reference>
+    <!-- office.dll (Microsoft.Office.Core): NOT referenced here.
+         EmbedInteropTypes=true on Microsoft.Office.Interop.Excel embeds all statically-used
+         Office Core types at compile time, so no runtime copy is needed.
+         The only dynamic access (AutomationSecurity) uses ((dynamic)(object)) cast to force
+         IDispatch binding, preventing any runtime load of office.dll.
+         Copying office.dll (GAC path is version-specific and machine-specific) previously caused
+         version mismatch crashes: hint path 15.0.0.0 vs runtime expectation 16.0.0.0. -->
     <PackageReference Include="Dax.Formatter" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Resilience" />

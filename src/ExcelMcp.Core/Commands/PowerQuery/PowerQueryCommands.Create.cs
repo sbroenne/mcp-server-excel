@@ -2,6 +2,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Formatting;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -57,15 +58,15 @@ public partial class PowerQueryCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? queries = null;
-            dynamic? query = null;
+            Excel.Queries? queries = null;
+            Excel.WorkbookQuery? query = null;
 
             try
             {
-                queries = ((dynamic)ctx.Book).Queries;
+                queries = ctx.Book.Queries;
 
                 // Check if query already exists
-                dynamic? existingQuery = FindQueryByName(queries, queryName);
+                Excel.WorkbookQuery? existingQuery = FindQueryByName(queries, queryName);
                 if (existingQuery != null)
                 {
                     ComUtilities.Release(ref existingQuery);
@@ -128,14 +129,14 @@ public partial class PowerQueryCommands
     /// Finds a query by name in the queries collection.
     /// Returns null if not found.
     /// </summary>
-    private static dynamic? FindQueryByName(dynamic queriesCollection, string queryName)
+    private static Excel.WorkbookQuery? FindQueryByName(Excel.Queries queriesCollection, string queryName)
     {
         try
         {
             int count = queriesCollection.Count;
             for (int i = 1; i <= count; i++)
             {
-                dynamic? query = null;
+                Excel.WorkbookQuery? query = null;
                 try
                 {
                     query = queriesCollection.Item(i);

@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -32,8 +33,8 @@ public partial class PowerQueryCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? queriesCollection = null;
-            dynamic? query = null;
+            Excel.Queries? queriesCollection = null;
+            Excel.WorkbookQuery? query = null;
             dynamic? worksheets = null;
             dynamic? tempSheet = null;
             dynamic? listObjects = null;
@@ -45,7 +46,7 @@ public partial class PowerQueryCommands
             try
             {
                 // STEP 1: Create temporary query with the M code
-                queriesCollection = ((dynamic)ctx.Book).Queries;
+                queriesCollection = ctx.Book.Queries;
                 query = queriesCollection.Add(tempQueryName, mCode);
 
                 // STEP 2: Create temporary worksheet and load data to it

@@ -10,10 +10,10 @@
     3. List worksheets
     4. Delete worksheet
     5. Close session (with save)
-    6. Verify file exists
-
-    Note: Complex operations (set-values with JSON, rename with --old-name bug)
-    are skipped due to known CLI generation limitations.
+    6. Reopen saved file (session open - exercises Workbooks.Open path)
+    7. List worksheets in reopened session
+    8. Close reopened session
+    9. Verify file exists
 
 .EXAMPLE
     .\scripts\Test-CliWorkflow.ps1
@@ -137,7 +137,36 @@ Test-Step "Close session (with save)" {
     $r.success -eq $true
 }
 
-# 6. Verify file exists
+# 6. Reopen saved file (session open - exercises Workbooks.Open path distinct from Add+SaveAs)
+#    This step would catch deployment issues like missing office.dll (issue #487) because
+#    ExcelBatch.ctor runs AutomationSecurity setup before opening any workbook.
+$reopenSession = Test-Step "Reopen saved file (session open)" {
+    & $cli -q session open $testFile | ConvertFrom-Json
+} -Verify {
+    param($r)
+    $r.sessionId -and $r.success -ne $false
+}
+
+# 6b. List worksheets in reopened session (proves the file loaded correctly)
+if ($reopenSession -and $reopenSession.sessionId) {
+    $reopenSessionId = $reopenSession.sessionId
+    Test-Step "List worksheets in reopened session" {
+        & $cli -q sheet list --session $reopenSessionId | ConvertFrom-Json
+    } -Verify {
+        param($r)
+        $r.success -eq $true -or $r.worksheets -ne $null
+    }
+
+    # 6c. Close reopened session
+    Test-Step "Close reopened session" {
+        & $cli -q session close --session $reopenSessionId | ConvertFrom-Json
+    } -Verify {
+        param($r)
+        $r.success -eq $true
+    }
+}
+
+# 7. Verify file exists
 Test-Step "Verify file exists" {
     if (Test-Path $testFile) {
         $size = (Get-Item $testFile).Length

@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
@@ -89,7 +90,7 @@ public partial class TableCommands
             dynamic? model = null;
             dynamic? modelWbConn = null;
             dynamic? modelConnection = null;
-            dynamic? sheet = null;
+            Excel.Worksheet? sheet = null;
             dynamic? destRange = null;
             dynamic? listObjects = null;
             dynamic? listObject = null;

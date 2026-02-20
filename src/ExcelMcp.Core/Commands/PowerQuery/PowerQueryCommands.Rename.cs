@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -35,11 +36,11 @@ public partial class PowerQueryCommands
                 return result;
             }
 
-            dynamic? queries = null;
-            dynamic? targetQuery = null;
+            Excel.Queries? queries = null;
+            Excel.WorkbookQuery? targetQuery = null;
             try
             {
-                queries = ((dynamic)ctx.Book).Queries;
+                queries = ctx.Book.Queries;
 
                 // Find target query (case-sensitive exact match first)
                 targetQuery = ComUtilities.FindQuery(ctx.Book, result.NormalizedOldName);
