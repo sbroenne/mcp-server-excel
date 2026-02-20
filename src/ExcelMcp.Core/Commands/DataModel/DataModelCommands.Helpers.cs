@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Microsoft.CSharp.RuntimeBinder;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -15,10 +16,10 @@ public partial class DataModelCommands
     /// </summary>
     /// <param name="model">Model COM object</param>
     /// <returns>List of measure names</returns>
-    private static List<string> GetModelMeasureNames(dynamic model)
+    private static List<string> GetModelMeasureNames(Excel.Model model)
     {
         var names = new List<string>();
-        dynamic? measures = null;
+        Excel.ModelMeasures? measures = null;
         try
         {
             // Get measures collection from MODEL (not from tables!)
@@ -27,7 +28,7 @@ public partial class DataModelCommands
 
             for (int m = 1; m <= measures.Count; m++)
             {
-                dynamic? measure = null;
+                Excel.ModelMeasure? measure = null;
                 try
                 {
                     measure = measures.Item(m);
@@ -52,9 +53,9 @@ public partial class DataModelCommands
     /// <param name="model">Model COM object</param>
     /// <param name="measureName">Measure name to find</param>
     /// <returns>Table name if found, null otherwise</returns>
-    private static string? GetMeasureTableName(dynamic model, string measureName)
+    private static string? GetMeasureTableName(Excel.Model model, string measureName)
     {
-        dynamic? measures = null;
+        Excel.ModelMeasures? measures = null;
         try
         {
             // Get measures collection from MODEL (not from table!)
@@ -64,7 +65,7 @@ public partial class DataModelCommands
 
             for (int m = 1; m <= measures.Count; m++)
             {
-                dynamic? measure = null;
+                Excel.ModelMeasure? measure = null;
                 try
                 {
                     measure = measures.Item(m);
@@ -72,7 +73,7 @@ public partial class DataModelCommands
                     if (name.Equals(measureName, StringComparison.OrdinalIgnoreCase))
                     {
                         // Get the associated table name
-                        dynamic? associatedTable = null;
+                        Excel.ModelTable? associatedTable = null;
                         try
                         {
                             associatedTable = measure.AssociatedTable;
@@ -103,9 +104,9 @@ public partial class DataModelCommands
     /// <param name="table">Table COM object</param>
     /// <param name="columnName">Column name to find</param>
     /// <returns>Column COM object or null if not found</returns>
-    private static dynamic? FindModelTableColumn(dynamic table, string columnName)
+    private static Excel.ModelTableColumn? FindModelTableColumn(Excel.ModelTable table, string columnName)
     {
-        dynamic? columns = null;
+        Excel.ModelTableColumns? columns = null;
         try
         {
             columns = table.ModelTableColumns;
@@ -113,7 +114,7 @@ public partial class DataModelCommands
 
             for (int i = 1; i <= count; i++)
             {
-                dynamic? column = null;
+                Excel.ModelTableColumn? column = null;
                 try
                 {
                     column = columns.Item(i);
@@ -151,7 +152,7 @@ public partial class DataModelCommands
     /// <param name="model">Model COM object</param>
     /// <param name="formatType">Format type (Currency, Decimal, Percentage, General)</param>
     /// <returns>FormatInformation COM object (never null - always returns at least ModelFormatGeneral)</returns>
-    private static dynamic GetFormatObject(dynamic model, string? formatType)
+    private static object GetFormatObject(Excel.Model model, string? formatType)
     {
         // CRITICAL FIX: FormatInformation parameter is REQUIRED by Excel COM API
         // Microsoft docs state it's required, but behavior is inconsistent:
@@ -169,11 +170,11 @@ public partial class DataModelCommands
         {
             return formatType.ToLowerInvariant() switch
             {
-                "currency" => model.ModelFormatCurrency,
-                "decimal" => model.ModelFormatDecimalNumber,
-                "percentage" => model.ModelFormatPercentageNumber,
-                "wholenumber" => model.ModelFormatWholeNumber,
-                _ => model.ModelFormatGeneral  // Fallback to General for unknown types
+                "currency" => (object)model.ModelFormatCurrency,
+                "decimal" => (object)model.ModelFormatDecimalNumber,
+                "percentage" => (object)model.ModelFormatPercentageNumber,
+                "wholenumber" => (object)model.ModelFormatWholeNumber,
+                _ => (object)model.ModelFormatGeneral  // Fallback to General for unknown types
             };
         }
         catch (Exception ex) when (ex is COMException or RuntimeBinderException)
@@ -259,9 +260,9 @@ public partial class DataModelCommands
     /// <param name="toTable">To table name</param>
     /// <param name="toColumn">To column name</param>
     /// <returns>Relationship COM object or null if not found</returns>
-    private static dynamic? FindRelationship(dynamic model, string fromTable, string fromColumn, string toTable, string toColumn)
+    private static Excel.ModelRelationship? FindRelationship(Excel.Model model, string fromTable, string fromColumn, string toTable, string toColumn)
     {
-        dynamic? relationships = null;
+        Excel.ModelRelationships? relationships = null;
         try
         {
             relationships = model.ModelRelationships;
@@ -269,15 +270,15 @@ public partial class DataModelCommands
 
             for (int i = 1; i <= count; i++)
             {
-                dynamic? relationship = null;
+                Excel.ModelRelationship? relationship = null;
                 try
                 {
                     relationship = relationships.Item(i);
 
                     // Get relationship details
-                    string currentFromTable = relationship.ForeignKeyColumn?.Parent?.Name?.ToString() ?? "";
+                    string currentFromTable = (relationship.ForeignKeyColumn?.Parent as Excel.ModelTable)?.Name?.ToString() ?? "";
                     string currentFromColumn = relationship.ForeignKeyColumn?.Name?.ToString() ?? "";
-                    string currentToTable = relationship.PrimaryKeyColumn?.Parent?.Name?.ToString() ?? "";
+                    string currentToTable = (relationship.PrimaryKeyColumn?.Parent as Excel.ModelTable)?.Name?.ToString() ?? "";
                     string currentToColumn = relationship.PrimaryKeyColumn?.Name?.ToString() ?? "";
 
                     // Match all four components (case-insensitive)
@@ -310,17 +311,14 @@ public partial class DataModelCommands
         }
     }
 
-    // ==================== DATA MODEL COM OPERATIONS ====================
-
-
     /// <summary>
     /// Checks if the Data Model has any tables
     /// NOTE: Every workbook has a Model object, but it may be empty
     /// </summary>
-    private static bool HasDataModelTables(dynamic workbook)
+    private static bool HasDataModelTables(Excel.Workbook workbook)
     {
-        dynamic? model = null;
-        dynamic? modelTables = null;
+        Excel.Model? model = null;
+        Excel.ModelTables? modelTables = null;
         try
         {
             model = workbook.Model;
@@ -339,15 +337,15 @@ public partial class DataModelCommands
     /// <summary>
     /// Finds a table in the Data Model by name
     /// </summary>
-    private static dynamic? FindModelTable(dynamic model, string tableName)
+    private static Excel.ModelTable? FindModelTable(Excel.Model model, string tableName)
     {
-        dynamic? modelTables = null;
+        Excel.ModelTables? modelTables = null;
         try
         {
             modelTables = model.ModelTables;
             for (int i = 1; i <= modelTables.Count; i++)
             {
-                dynamic? table = null;
+                Excel.ModelTable? table = null;
                 try
                 {
                     table = modelTables.Item(i);
@@ -375,9 +373,9 @@ public partial class DataModelCommands
     /// <summary>
     /// Finds a DAX measure by name in the Data Model
     /// </summary>
-    private static dynamic? FindModelMeasure(dynamic model, string measureName)
+    private static Excel.ModelMeasure? FindModelMeasure(Excel.Model model, string measureName)
     {
-        dynamic? measures = null;
+        Excel.ModelMeasures? measures = null;
         try
         {
             // Get measures collection from MODEL (not from table!)
@@ -388,7 +386,7 @@ public partial class DataModelCommands
 
             for (int i = 1; i <= count; i++)
             {
-                dynamic? measure = null;
+                Excel.ModelMeasure? measure = null;
                 try
                 {
                     measure = measures.Item(i);
@@ -422,9 +420,9 @@ public partial class DataModelCommands
     /// <summary>
     /// Safely iterates through all tables in the Data Model
     /// </summary>
-    private static void ForEachTable(dynamic model, Action<dynamic, int> action)
+    private static void ForEachTable(Excel.Model model, Action<Excel.ModelTable, int> action)
     {
-        dynamic? modelTables = null;
+        Excel.ModelTables? modelTables = null;
         try
         {
             modelTables = model.ModelTables;
@@ -432,7 +430,7 @@ public partial class DataModelCommands
 
             for (int i = 1; i <= count; i++)
             {
-                dynamic? table = null;
+                Excel.ModelTable? table = null;
                 try
                 {
                     table = modelTables.Item(i);
@@ -453,9 +451,9 @@ public partial class DataModelCommands
     /// <summary>
     /// Safely iterates through all measures in the Data Model
     /// </summary>
-    private static void ForEachMeasure(dynamic model, Action<dynamic, int> action)
+    private static void ForEachMeasure(Excel.Model model, Action<Excel.ModelMeasure, int> action)
     {
-        dynamic? measures = null;
+        Excel.ModelMeasures? measures = null;
         try
         {
             // Get measures collection from MODEL (not from table!)
@@ -464,7 +462,7 @@ public partial class DataModelCommands
 
             for (int i = 1; i <= count; i++)
             {
-                dynamic? measure = null;
+                Excel.ModelMeasure? measure = null;
                 try
                 {
                     measure = measures.Item(i);
@@ -485,9 +483,9 @@ public partial class DataModelCommands
     /// <summary>
     /// Safely iterates through all relationships in the Data Model
     /// </summary>
-    private static void ForEachRelationship(dynamic model, Action<dynamic, int> action)
+    private static void ForEachRelationship(Excel.Model model, Action<Excel.ModelRelationship, int> action)
     {
-        dynamic? relationships = null;
+        Excel.ModelRelationships? relationships = null;
         try
         {
             relationships = model.ModelRelationships;
@@ -495,7 +493,7 @@ public partial class DataModelCommands
 
             for (int i = 1; i <= count; i++)
             {
-                dynamic? relationship = null;
+                Excel.ModelRelationship? relationship = null;
                 try
                 {
                     relationship = relationships.Item(i);

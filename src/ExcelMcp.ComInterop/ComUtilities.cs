@@ -299,9 +299,9 @@ public static class ComUtilities
     /// </summary>
     /// <param name="table">Model table COM object</param>
     /// <param name="action">Action to perform on each column (receives column and 1-based index)</param>
-    public static void ForEachColumn(dynamic table, Action<dynamic, int> action)
+    public static void ForEachColumn(Excel.ModelTable table, Action<Excel.ModelTableColumn, int> action)
     {
-        dynamic? columns = null;
+        Excel.ModelTableColumns? columns = null;
         try
         {
             columns = table.ModelTableColumns;
@@ -309,7 +309,7 @@ public static class ComUtilities
 
             for (int i = 1; i <= count; i++)
             {
-                dynamic? column = null;
+                Excel.ModelTableColumn? column = null;
                 try
                 {
                     column = columns.Item(i);
@@ -333,7 +333,7 @@ public static class ComUtilities
     /// <param name="obj">COM object</param>
     /// <param name="propertyName">Property name</param>
     /// <returns>Property value or empty string</returns>
-    public static string SafeGetString(dynamic obj, string propertyName)
+    public static string SafeGetString(dynamic? obj, string propertyName)
     {
         try
         {
@@ -359,7 +359,7 @@ public static class ComUtilities
     /// <param name="obj">COM object</param>
     /// <param name="propertyName">Property name</param>
     /// <returns>Property value or 0</returns>
-    public static int SafeGetInt(dynamic obj, string propertyName)
+    public static int SafeGetInt(dynamic? obj, string propertyName)
     {
         try
         {

@@ -57,15 +57,15 @@ public partial class DataModelCommands
                 return result;
             }
 
-            dynamic? model = null;
-            dynamic? table = null;
-            dynamic? sourceConnection = null;
+            Excel.Model? model = null;
+            Excel.ModelTable? table = null;
+            Excel.WorkbookConnection? sourceConnection = null;
             try
             {
                 model = ctx.Book.Model;
 
                 // Find target table (case-insensitive lookup per FindModelTable)
-                table = FindModelTable(model, result.NormalizedOldName);
+                table = FindModelTable(model!, result.NormalizedOldName);
                 if (table == null)
                 {
                     result.Success = false;
@@ -75,10 +75,10 @@ public partial class DataModelCommands
 
                 // Collect existing table names for conflict detection
                 var existingNames = new List<string>();
-                ForEachTable(model, (Action<dynamic, int>)((t, _) =>
+                ForEachTable(model!, (t, _) =>
                 {
                     existingNames.Add(ComUtilities.SafeGetString(t, "Name"));
-                }));
+                });
 
                 // Check for conflicts (case-insensitive, excluding target)
                 if (RenameNameRules.HasConflict(existingNames, result.NormalizedNewName, result.NormalizedOldName))
@@ -176,7 +176,7 @@ public partial class DataModelCommands
                     // Refreshing the model DOES NOT update the table name - this is a known Excel limitation.
                     try
                     {
-                        model.Refresh();
+                        model!.Refresh();
                     }
 #pragma warning disable CA1031 // Catch more specific exception - Model.Refresh() can throw many COM exception types
                     catch (Exception)
@@ -194,7 +194,7 @@ public partial class DataModelCommands
                     // Note: FindModelTable uses case-insensitive lookup, so we must re-check the
                     // actual table name returned to confirm the rename truly succeeded.
                     ComUtilities.Release(ref table!);
-                    table = FindModelTable(model, result.NormalizedNewName);
+                    table = FindModelTable(model!, result.NormalizedNewName);
 
                     if (table != null)
                     {

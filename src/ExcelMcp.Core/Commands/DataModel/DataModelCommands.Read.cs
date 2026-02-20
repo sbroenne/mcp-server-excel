@@ -2,6 +2,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.DataModel;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -29,12 +30,12 @@ public partial class DataModelCommands
                 return result;
             }
 
-            dynamic? model = null;
+            Excel.Model? model = null;
             try
             {
                 model = ctx.Book.Model;
 
-                ForEachTable(model, (Action<dynamic, int>)((table, index) =>
+                ForEachTable(model!, (table, index) =>
                 {
                     var tableInfo = new DataModelTableInfo
                     {
@@ -44,7 +45,7 @@ public partial class DataModelCommands
                     };
 
                     result.Tables.Add(tableInfo);
-                }));
+                });
 
                 result.Success = true;
             }
@@ -66,7 +67,7 @@ public partial class DataModelCommands
 
         result = batch.Execute((ctx, ct) =>
         {
-            dynamic? model = null;
+            Excel.Model? model = null;
             try
             {
                 // Check if workbook has Data Model
@@ -78,11 +79,11 @@ public partial class DataModelCommands
                 model = ctx.Book.Model;
 
                 // Iterate through all measures (they're at model level)
-                ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
+                ForEachMeasure(model!, (measure, index) =>
                 {
                     // Get the table name for this measure
                     string measureTableName = string.Empty;
-                    dynamic? associatedTable = null;
+                    Excel.ModelTable? associatedTable = null;
                     try
                     {
                         associatedTable = measure.AssociatedTable;
@@ -110,7 +111,7 @@ public partial class DataModelCommands
                     };
 
                     result.Measures.Add(measureInfo);
-                }));
+                });
 
                 // Check if table filter was specified but not found
                 if (tableName != null && result.Measures.Count == 0)
@@ -144,8 +145,8 @@ public partial class DataModelCommands
 
         result = batch.Execute((ctx, ct) =>
         {
-            dynamic? model = null;
-            dynamic? measure = null;
+            Excel.Model? model = null;
+            Excel.ModelMeasure? measure = null;
             try
             {
                 // Check if workbook has Data Model
@@ -157,7 +158,7 @@ public partial class DataModelCommands
                 model = ctx.Book.Model;
 
                 // Find the measure
-                measure = FindModelMeasure(model, measureName);
+                measure = FindModelMeasure(model!, measureName);
                 if (measure == null)
                 {
                     throw new InvalidOperationException(DataModelErrorMessages.MeasureNotFound(measureName));
@@ -167,18 +168,19 @@ public partial class DataModelCommands
                 result.DaxFormula = ComUtilities.SafeGetString(measure, "Formula");
                 result.Description = ComUtilities.SafeGetString(measure, "Description");
                 result.CharacterCount = result.DaxFormula.Length;
-                result.TableName = GetMeasureTableName(model, measureName) ?? "";
+                result.TableName = GetMeasureTableName(model!, measureName) ?? "";
 
                 // Try to get format information - FormatInformation returns ModelFormat* objects
                 // (ModelFormatGeneral, ModelFormatCurrency, ModelFormatDecimalNumber, etc.)
                 // These don't have a FormatString property - they have type-specific properties
-                dynamic? formatInfo = null;
+                object? formatInfo = null;
                 try
                 {
                     formatInfo = measure.FormatInformation;
                     if (formatInfo != null)
                     {
-                        result.FormatInfo = GetFormatInfo(formatInfo);
+                        // PIA gap: ModelMeasure.FormatInformation returns object in PIA; cast to dynamic for runtime property probing in GetFormatInfo
+                        result.FormatInfo = GetFormatInfo((dynamic)formatInfo);
                     }
                 }
                 finally
@@ -207,7 +209,7 @@ public partial class DataModelCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? model = null;
+            Excel.Model? model = null;
             try
             {
                 // Check if workbook has Data Model
@@ -218,19 +220,19 @@ public partial class DataModelCommands
 
                 model = ctx.Book.Model;
 
-                ForEachRelationship(model, (Action<dynamic, int>)((relationship, index) =>
+                ForEachRelationship(model!, (relationship, index) =>
                 {
                     var relInfo = new DataModelRelationshipInfo
                     {
-                        FromTable = ComUtilities.SafeGetString(relationship.ForeignKeyColumn?.Parent, "Name"),
+                        FromTable = ComUtilities.SafeGetString(relationship.ForeignKeyColumn.Parent, "Name"),
                         FromColumn = ComUtilities.SafeGetString(relationship.ForeignKeyColumn, "Name"),
-                        ToTable = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn?.Parent, "Name"),
+                        ToTable = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn.Parent, "Name"),
                         ToColumn = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn, "Name"),
-                        IsActive = relationship.Active ?? false
+                        IsActive = relationship.Active
                     };
 
                     result.Relationships.Add(relInfo);
-                }));
+                });
 
                 result.Success = true;
             }
@@ -250,7 +252,7 @@ public partial class DataModelCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? model = null;
+            Excel.Model? model = null;
             try
             {
                 // Check if workbook has Data Model
@@ -263,11 +265,11 @@ public partial class DataModelCommands
 
                 // Find the matching relationship
                 DataModelRelationshipInfo? foundRelationship = null;
-                ForEachRelationship(model, (Action<dynamic, int>)((relationship, index) =>
+                ForEachRelationship(model!, (relationship, index) =>
                 {
-                    var relFromTable = ComUtilities.SafeGetString(relationship.ForeignKeyColumn?.Parent, "Name");
+                    var relFromTable = ComUtilities.SafeGetString(relationship.ForeignKeyColumn.Parent, "Name");
                     var relFromColumn = ComUtilities.SafeGetString(relationship.ForeignKeyColumn, "Name");
-                    var relToTable = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn?.Parent, "Name");
+                    var relToTable = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn.Parent, "Name");
                     var relToColumn = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn, "Name");
 
                     if (string.Equals(relFromTable, fromTable, StringComparison.OrdinalIgnoreCase) &&
@@ -281,10 +283,10 @@ public partial class DataModelCommands
                             FromColumn = relFromColumn,
                             ToTable = relToTable,
                             ToColumn = relToColumn,
-                            IsActive = relationship.Active ?? false
+                            IsActive = relationship.Active
                         };
                     }
-                }));
+                });
 
                 if (foundRelationship == null)
                 {
@@ -315,8 +317,8 @@ public partial class DataModelCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? model = null;
-            dynamic? table = null;
+            Excel.Model? model = null;
+            Excel.ModelTable? table = null;
             try
             {
                 // Check if workbook has Data Model
@@ -328,20 +330,20 @@ public partial class DataModelCommands
                 model = ctx.Book.Model;
 
                 // Find the table
-                table = FindModelTable(model, tableName);
+                table = FindModelTable(model!, tableName);
                 if (table == null)
                 {
                     throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(tableName));
                 }
 
                 // Iterate through columns
-                ComUtilities.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
+                ComUtilities.ForEachColumn(table, (column, index) =>
                 {
                     bool isCalculated = false;
                     try
                     {
-                        // IsCalculatedColumn property may not exist in older Excel versions
-                        isCalculated = column.IsCalculatedColumn ?? false;
+                        // PIA gap: ModelTableColumn.IsCalculatedColumn not in Excel PIA v16; access via dynamic
+                        isCalculated = ((dynamic)column).IsCalculatedColumn ?? false;
                     }
                     catch (Exception ex) when (ex is Microsoft.CSharp.RuntimeBinder.RuntimeBinderException
                                             or System.Runtime.InteropServices.COMException)
@@ -358,7 +360,7 @@ public partial class DataModelCommands
                     };
 
                     result.Columns.Add(columnInfo);
-                }));
+                });
 
                 result.Success = true;
             }
@@ -383,8 +385,8 @@ public partial class DataModelCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? model = null;
-            dynamic? table = null;
+            Excel.Model? model = null;
+            Excel.ModelTable? table = null;
             try
             {
                 // Check if workbook has Data Model
@@ -396,7 +398,7 @@ public partial class DataModelCommands
                 model = ctx.Book.Model;
 
                 // Find the table
-                table = FindModelTable(model, tableName);
+                table = FindModelTable(model!, tableName);
                 if (table == null)
                 {
                     throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(tableName));
@@ -407,13 +409,13 @@ public partial class DataModelCommands
                 result.RecordCount = ComUtilities.SafeGetInt(table, "RecordCount");
 
                 // Get columns
-                ComUtilities.ForEachColumn(table, (Action<dynamic, int>)((column, index) =>
+                ComUtilities.ForEachColumn(table, (column, index) =>
                 {
                     bool isCalculated = false;
                     try
                     {
-                        // IsCalculatedColumn property may not exist in older Excel versions
-                        isCalculated = column.IsCalculatedColumn ?? false;
+                        // PIA gap: ModelTableColumn.IsCalculatedColumn not in Excel PIA v16; access via dynamic
+                        isCalculated = ((dynamic)column).IsCalculatedColumn ?? false;
                     }
                     catch (Exception ex) when (ex is Microsoft.CSharp.RuntimeBinder.RuntimeBinderException
                                             or System.Runtime.InteropServices.COMException)
@@ -430,18 +432,18 @@ public partial class DataModelCommands
                     };
 
                     result.Columns.Add(columnInfo);
-                }));
+                });
 
                 // Count measures in this table
                 result.MeasureCount = 0;
-                ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
+                ForEachMeasure(model!, (measure, index) =>
                 {
                     string measureTableName = ComUtilities.SafeGetString(measure.AssociatedTable, "Name");
                     if (string.Equals(measureTableName, tableName, StringComparison.OrdinalIgnoreCase))
                     {
                         result.MeasureCount++;
                     }
-                }));
+                });
 
                 result.Success = true;
             }
@@ -464,7 +466,7 @@ public partial class DataModelCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? model = null;
+            Excel.Model? model = null;
             try
             {
                 // Check if workbook has Data Model
@@ -477,25 +479,25 @@ public partial class DataModelCommands
 
                 // Count tables and sum rows
                 int totalRows = 0;
-                ForEachTable(model, (Action<dynamic, int>)((table, index) =>
+                ForEachTable(model!, (table, index) =>
                 {
                     result.TableCount++;
                     totalRows += ComUtilities.SafeGetInt(table, "RecordCount");
                     result.TableNames.Add(ComUtilities.SafeGetString(table, "Name"));
-                }));
+                });
                 result.TotalRows = totalRows;
 
                 // Count measures
-                ForEachMeasure(model, (Action<dynamic, int>)((measure, index) =>
+                ForEachMeasure(model!, (measure, index) =>
                 {
                     result.MeasureCount++;
-                }));
+                });
 
                 // Count relationships
-                ForEachRelationship(model, (Action<dynamic, int>)((relationship, index) =>
+                ForEachRelationship(model!, (relationship, index) =>
                 {
                     result.RelationshipCount++;
-                }));
+                });
 
                 result.Success = true;
             }

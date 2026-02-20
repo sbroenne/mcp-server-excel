@@ -11,11 +11,14 @@ This document tracks the status of `Microsoft.Office.Interop.Excel` (v16) type c
 | Core Excel types (`Workbook`, `Worksheet`, `Range`, etc.) | ✅ Fully typed |
 | Collections (`Sheets`, `Names`, `ListObjects`, etc.) | ✅ Fully typed |
 | Power Query (`Workbook.Queries`, `WorkbookQuery`) | ⚠️ TODO — types ARE in PIA, migration pending |
-| DataModel (`Model`, `ModelMeasures`, `ModelTables`, etc.) | ⚠️ TODO — types ARE in PIA, migration pending |
-| Connection sub-types (`OLEDBConnection`, `ODBCConnection`, `TextConnection`) | ⚠️ TODO — types ARE in PIA, migration pending |
+| DataModel (`Model`, `ModelMeasures`, `ModelTables`, etc.) | ✅ Migrated — all model types use PIA |
+| Connection sub-types (`OLEDBConnection`, `ODBCConnection`, `TextConnection`) | ✅ Migrated — callers use typed WorkbookConnection |
+| `ModelTableColumn.IsCalculatedColumn` | ❌ True PIA gap — property missing from v16 PIA |
+| `ModelMeasure.FormatInformation` | ⚠️ Returns `object` in PIA; cast to `dynamic` for property probing |
 | VBA (`VBProject`, `VBComponents`) | ❌ True PIA gap — in `Microsoft.Vbe.Interop` only |
 | AutomationSecurity | ❌ True PIA gap — in `Microsoft.Office.Core` (office.dll) |
 | WebConnection | ❌ True PIA gap — not in Excel PIA |
+| ADO types (ADODB.Connection, Recordset, Fields) | ❌ True PIA gap — in ADODB, not Excel PIA |
 
 ---
 
