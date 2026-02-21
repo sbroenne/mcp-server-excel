@@ -437,7 +437,19 @@ public partial class ChartCommands
                         dataLabels.Separator = separator;
 
                     if (labelPosition.HasValue)
-                        dataLabels.Position = (int)labelPosition.Value;
+                    {
+                        try
+                        {
+                            dataLabels.Position = (int)labelPosition.Value;
+                        }
+                        catch (System.Runtime.InteropServices.COMException ex)
+                        {
+                            throw new InvalidOperationException(
+                                $"Label position '{labelPosition.Value}' is not supported for this chart type. " +
+                                "Bar, column, and area charts support InsideEnd, InsideBase, and OutsideEnd. " +
+                                "Line, scatter, and other chart types support Above, Below, Left, Right, and Center.", ex);
+                        }
+                    }
 
                     // Disable data labels entirely if all show properties are false
                     if (showValue == false && showPercentage == false && showSeriesName == false &&

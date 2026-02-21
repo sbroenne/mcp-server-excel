@@ -55,7 +55,8 @@ public class ScreenshotResult : OperationResult
 /// - capture-sheet: Capture the entire used area of a worksheet
 ///
 /// RETURNS: Base64-encoded image data with dimensions metadata.
-/// For MCP: returned as inline ImageContent. For CLI: saved to file.
+/// For MCP: returned as native ImageContent (no file handling needed).
+/// For CLI: use --output &lt;path&gt; to save the image directly to a PNG/JPEG file instead of returning base64 inline.
 /// Quality defaults to Medium (JPEG 75% scale) which is 4-8x smaller than High (PNG).
 /// Use High only when fine detail inspection is needed.
 /// </summary>
@@ -64,6 +65,7 @@ public interface IScreenshotCommands
 {
     /// <summary>
     /// Captures a specific range as an image.
+    /// For CLI: use --output &lt;path&gt; to save the image directly to a PNG/JPEG file.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Worksheet name (null for active sheet)</param>
@@ -75,6 +77,7 @@ public interface IScreenshotCommands
 
     /// <summary>
     /// Captures the entire used area of a worksheet as an image.
+    /// For CLI: use --output &lt;path&gt; to save the image directly to a PNG/JPEG file.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Worksheet name (null for active sheet)</param>

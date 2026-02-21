@@ -12,6 +12,20 @@ This changelog covers all components:
 
 ### Fixed
 
+- **Table `add-to-data-model` bracket column names block DAX formulas**: Excel table columns with literal bracket characters in their names (e.g., from OLEDB import sources) cannot be referenced in DAX formulas after being added to the Data Model. Added new `stripBracketColumnNames` parameter (default: `false`). When `false`, bracket column names are reported in `bracketColumnsFound` so users are aware of the issue. When `true`, the source table column headers are renamed (brackets removed) before adding to the Data Model, enabling full DAX access. The `add-to-data-model` result now includes `bracketColumnsFound` and `bracketColumnsRenamed` fields.
+
+- **PowerQuery `load-to data-model` silently succeeded without loading data**: `powerquery load-to` with `data-model` destination returned `success: true` but the table never appeared in the Power Pivot Data Model. The connection was registered via `Connections.Add2()` but `connection.Refresh()` was never called, so data was not actually loaded. Fixed by calling `connection.Refresh()` after creating the connection, consistent with how `load-to worksheet` works.
+
+- **`chartconfig set-data-labels` threw raw COMException on Line charts with bar-only position**: Setting `labelPosition` to `InsideEnd`, `InsideBase`, or `OutsideEnd` on a Line chart threw a raw COM exception with no user-friendly explanation. These positions are only valid for bar, column, and area chart types. Fixed by catching the COMException and throwing an `InvalidOperationException` with a descriptive message explaining which chart types support each position, consistent with how `ShowPercentage` handles unsupported chart types.
+
+- **`rangeformat format-range` parameter documentation listed wrong valid values for `borderStyle`**: The `borderStyle` parameter help incorrectly listed `thin`, `medium`, `thick`, `dashed`, and `dotted` as valid values — those are `borderWeight` values. The valid `borderStyle` values are `continuous`, `dash`, `dot`, `dashdot`, `dashdotdot`, `double`, `slantdashdot`, and `none`. Documentation corrected.
+
+- **`rangeformat format-range` rejected `middle` as a vertical alignment value**: The `verticalAlignment` parameter only accepted `center` but not the common alias `middle`. Both now accepted and produce identical center-vertical alignment.
+
+### Changed
+
+- **`screenshot` CLI `--output` flag documentation clarified**: The `--output <path>` flag saves the screenshot directly to a PNG or JPEG file instead of printing base64 JSON to stdout. This was already functional but was documented as "For CLI: saved to file" without explaining that `--output` is required to save to a file.
+
 - **office.dll not found when opening workbooks with connections/data model** (#487 follow-up): The `AssemblyResolve` handler only searched `AppContext.BaseDirectory` for `office.dll`. In NuGet-installed tool deployments, `office.dll` is never copied there (it is only present in local dev builds via `Directory.Build.targets`). Opening workbooks with external connections, Power Query, or a Data Model triggered code paths that caused the CLR to load `Microsoft.Office.Interop.Excel.dll`, which in turn requested `office.dll v16`. The handler returned `null` → `FileNotFoundException`. Fixed by adding fallback search order: (1) `AppContext.BaseDirectory`, (2) .NET Framework GAC v16, (3) GAC v15 (accepted by CLR as substitute), (4) Office 365 click-to-run installation directories. `Directory.Build.targets` also updated to prefer v16 GAC when available.
 
 ### Changed

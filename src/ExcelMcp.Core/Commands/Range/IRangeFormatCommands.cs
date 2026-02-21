@@ -76,11 +76,11 @@ public interface IRangeFormatCommands
     /// <param name="underline">Whether to apply underline formatting</param>
     /// <param name="fontColor">Font (foreground) color as hex '#RRGGBB' (e.g., '#FF0000' for red)</param>
     /// <param name="fillColor">Cell fill (background) color as hex '#RRGGBB' (e.g., '#FFFF00' for yellow)</param>
-    /// <param name="borderStyle">Border line style (e.g., 'thin', 'medium', 'thick', 'dashed', 'dotted')</param>
+    /// <param name="borderStyle">Border line style: 'continuous', 'dash', 'dot', 'dashdot', 'dashdotdot', 'double', 'slantdashdot', 'none'</param>
     /// <param name="borderColor">Border color as hex '#RRGGBB'</param>
-    /// <param name="borderWeight">Border weight (e.g., 'hairline', 'thin', 'medium', 'thick')</param>
+    /// <param name="borderWeight">Border weight: 'hairline', 'thin', 'medium', 'thick'</param>
     /// <param name="horizontalAlignment">Horizontal text alignment: 'left', 'center', 'right', 'justify', 'fill'</param>
-    /// <param name="verticalAlignment">Vertical text alignment: 'top', 'middle', 'bottom', 'justify'</param>
+    /// <param name="verticalAlignment">Vertical text alignment: 'top', 'center' (or 'middle'), 'bottom', 'justify'</param>
     /// <param name="wrapText">Whether to wrap text within cells</param>
     /// <param name="orientation">Text rotation in degrees (-90 to 90, or 255 for vertical)</param>
     /// <remarks>

@@ -73,6 +73,41 @@ public partial class ChartCommandsTests
         // Assert - Operation succeeded
     }
 
+    /// <summary>
+    /// Regression test: SetDataLabels with InsideEnd/InsideBase/OutsideEnd on Line charts
+    /// must throw a friendly InvalidOperationException, not a raw COMException.
+    /// These positions are only valid for bar/column/area chart types.
+    /// </summary>
+    [Fact]
+    [Trait("Feature", "Charts")]
+    public void SetDataLabels_InsideEndOnLineChart_ThrowsFriendlyException()
+    {
+        // Arrange
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.Line, 50, 50);
+
+        // Act & Assert - must throw InvalidOperationException (not COMException)
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            _commands.SetDataLabels(batch, createResult.ChartName, showValue: true, labelPosition: DataLabelPosition.InsideEnd));
+
+        Assert.Contains("InsideEnd", ex.Message);
+        Assert.Contains("not supported", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    [Trait("Feature", "Charts")]
+    public void SetDataLabels_AboveOnLineChart_Succeeds()
+    {
+        // Arrange
+        using var batch = ExcelSession.BeginBatch(_fixture.SharedTestFile);
+        var createResult = _commands.CreateFromRange(batch, "Sheet1", "A1:B4", ChartType.Line, 50, 50);
+
+        // Act - Above is valid for line charts
+        _commands.SetDataLabels(batch, createResult.ChartName, showValue: true, labelPosition: DataLabelPosition.Above);
+
+        // Assert - Operation succeeded without exception
+    }
+
     // === AXIS SCALE ===
 
     [Fact]

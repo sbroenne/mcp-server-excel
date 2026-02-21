@@ -91,6 +91,29 @@ public partial class RangeCommandsTests
         _commands.SetStyle(batch, sheetName, "A1", "Normal");
         // void methods throw on failure, succeed silently
     }
+
+    /// <summary>
+    /// Regression test: FormatRange with verticalAlignment='middle' must succeed
+    /// (treated as alias for 'center').
+    /// </summary>
+    [Fact]
+    public void FormatRange_VerticalAlignmentMiddle_AcceptedAsAlias()
+    {
+        // Arrange
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        // Act - 'middle' is a common alias for 'center'
+        var result = _commands.FormatRange(
+            batch, sheetName, "A1:C3",
+            fontName: null, fontSize: null, bold: null, italic: null, underline: null,
+            fontColor: null, fillColor: null, borderStyle: null, borderColor: null, borderWeight: null,
+            horizontalAlignment: null, verticalAlignment: "middle",
+            wrapText: null, orientation: null);
+
+        // Assert
+        Assert.True(result.Success, $"FormatRange with verticalAlignment=middle failed: {result.ErrorMessage}");
+    }
 }
 
 
