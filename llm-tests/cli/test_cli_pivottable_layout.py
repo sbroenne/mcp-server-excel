@@ -51,7 +51,6 @@ Save and close the file.
     assert_regex(result.final_response, r"(?i)(pivot|tabular|created|success)")
 
 
-@pytest.mark.xfail(reason="Multi-step PivotTable+slicer workflow; LLM intermittently fails", strict=False)
 @pytest.mark.asyncio
 async def test_cli_pivottable_compact_layout(aitest_run, excel_cli_server, excel_cli_skill):
     agent = Agent(
@@ -90,7 +89,6 @@ Save and close the file.
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="LLM intermittently omits required action parameter on complex workflows", strict=False)
 async def test_cli_pivottable_outline_layout(aitest_run, excel_cli_server, excel_cli_skill):
     agent = Agent(
         name="cli-pivot-outline",

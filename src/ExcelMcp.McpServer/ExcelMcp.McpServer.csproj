@@ -109,6 +109,7 @@ var descriptionOverrides = new System.Collections.Generic.Dictionary<string, str
     { "conditionalformat", "Conditional formatting rule types, parameters, and examples" },
     { "dashboard", "Dashboard and report best practices: Tables, formatting, charts, verification" },
     { "datamodel", "Data Model (Power Pivot) operations, DAX measures, and prerequisites" },
+    { "datamodel_relationship", "Data Model relationship operations: link tables for cross-table DAX calculations (star schema)" },
     { "dmv-reference", "DMV query reference for Excel's embedded Analysis Services (TMSCHEMA catalog)" },
     { "m-code-syntax", "Power Query M code syntax: column quoting, named ranges, query chaining" },
     { "pivottable", "PivotTable creation, fields, calculated items, and required parameters" },
@@ -119,6 +120,8 @@ var descriptionOverrides = new System.Collections.Generic.Dictionary<string, str
     { "table", "Excel Table operations, Data Model integration, and column management" },
     { "workflows", "Key constraints, batch operations, and session management patterns" },
     { "worksheet", "Worksheet operations including cross-file copy and move" },
+    { "window", "Window management: control Excel visibility, position, and state" },
+    { "excel_agent_mode", "Agent Mode: real-time visible Excel automation for user observation" },
 };
 
 var sb = new System.Text.StringBuilder();

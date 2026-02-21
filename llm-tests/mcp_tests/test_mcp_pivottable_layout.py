@@ -62,7 +62,6 @@ After creating the PivotTable, summarize what you created and confirm it uses a 
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Multi-step PivotTable+slicer workflow; LLM intermittently fails", strict=False)
 async def test_mcp_pivottable_compact_layout(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-pivot-compact",
@@ -103,7 +102,6 @@ Add Department and Team as row fields, and Hours as a value field.
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="LLM intermittently omits required action parameter on complex workflows", strict=False)
 async def test_mcp_pivottable_outline_layout(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-pivot-outline",

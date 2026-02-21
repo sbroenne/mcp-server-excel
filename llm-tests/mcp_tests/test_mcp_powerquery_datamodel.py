@@ -111,7 +111,6 @@ Which category had more orders - Electronics or Furniture?
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Azure API sometimes times out on complex PQ workflows", strict=False)
 async def test_mcp_powerquery_amazon_workflow(aitest_run, excel_mcp_server, excel_mcp_skill, fixtures_dir):
     agent = Agent(
         name="mcp-amazon-pq",

@@ -11,7 +11,6 @@ from conftest import assert_cli_exit_codes, assert_regex, unique_path, DEFAULT_R
 pytestmark = [pytest.mark.aitest, pytest.mark.cli]
 
 
-@pytest.mark.xfail(reason="LLM may not autonomously use calculation_mode for small batches", strict=False)
 @pytest.mark.asyncio
 async def test_cli_calculation_mode_batch_flow(aitest_run, excel_cli_server, excel_cli_skill):
     agent = Agent(

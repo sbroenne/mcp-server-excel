@@ -12,7 +12,6 @@ pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Complex multi-turn workflow; LLM intermittently omits action parameter", strict=False)
 async def test_mcp_financial_report_automation(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-financial-report",

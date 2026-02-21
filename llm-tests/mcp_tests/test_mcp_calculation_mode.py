@@ -27,7 +27,6 @@ pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="LLM may not autonomously use calculation_mode for small batches", strict=False)
 async def test_mcp_calculation_mode_batch_with_skill(aitest_run, excel_mcp_server, excel_mcp_skill):
     """Test that LLM uses manual calculation mode for batch writes (with skill).
 
@@ -79,7 +78,6 @@ Report the calculated grand total in D6.
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="LLM may not autonomously use calculation_mode for small batches", strict=False)
 async def test_mcp_calculation_mode_batch_no_skill(aitest_run, excel_mcp_server):
     """Test that LLM uses manual calculation mode for batch writes (no skill).
 

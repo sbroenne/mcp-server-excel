@@ -10,6 +10,10 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### Added
+
+- **`datamodel_relationship` skill prompt**: LLM agents can now discover and use the `datamodel_relationship` tool for star schema workflows. Includes guidance on the many/one side semantics, prerequisites, and common mistakes. Also added a cross-reference in the `datamodel` skill prompt's Star Schema section. Added missing `window` and `excel_agent_mode` prompt descriptions.
+
 ### Changed
 
 - **Migrated Excel COM interop to strongly-typed Microsoft Office PIA**: Replaced dynamic late-binding throughout the codebase with strongly-typed `Microsoft.Office.Interop.Excel` types for improved reliability and compile-time error detection. Power Query APIs (`Workbook.Queries`) and VBA project access remain as dynamic calls where PIA coverage is unavailable.

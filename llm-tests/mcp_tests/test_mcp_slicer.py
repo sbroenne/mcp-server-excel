@@ -12,7 +12,6 @@ pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Multi-step slicer workflow; LLM intermittently fails with action parameter", strict=False)
 async def test_mcp_pivottable_slicer_workflow(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-pivot-slicer",
@@ -113,7 +112,6 @@ Confirm both slicers were removed.
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Multi-step slicer workflow; LLM intermittently fails with action parameter", strict=False)
 async def test_mcp_table_slicer_workflow(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-table-slicer",
@@ -207,7 +205,6 @@ Summarize: what's the difference between Table slicers and PivotTable slicers?
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Multi-step slicer workflow; LLM intermittently fails with action parameter", strict=False)
 async def test_mcp_combined_slicer_workflow(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-combined-slicer",

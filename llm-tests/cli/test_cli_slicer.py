@@ -11,7 +11,6 @@ from conftest import assert_cli_exit_codes, assert_regex, unique_path, DEFAULT_R
 pytestmark = [pytest.mark.aitest, pytest.mark.cli]
 
 
-@pytest.mark.xfail(reason="Multi-step slicer workflow; LLM intermittently fails with action parameter", strict=False)
 @pytest.mark.asyncio
 async def test_cli_pivottable_slicer_workflow(aitest_run, excel_cli_server, excel_cli_skill):
     agent = Agent(
@@ -88,7 +87,6 @@ Save and close the file.
     assert_regex(result.final_response, r"(?i)(delete|removed|closed|saved|success)")
 
 
-@pytest.mark.xfail(reason="Multi-step slicer workflow; LLM intermittently fails with action parameter", strict=False)
 @pytest.mark.asyncio
 async def test_cli_table_slicer_workflow(aitest_run, excel_cli_server, excel_cli_skill):
     agent = Agent(

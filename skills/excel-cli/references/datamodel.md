@@ -211,6 +211,17 @@ A PivotChart is a single object connected to the Data Model. Creating a PivotTab
 
 ## Star Schema Architecture
 
+**To link tables together, use the `datamodel_relationship` tool.**
+
+After adding tables to the Data Model, create relationships between them:
+```
+datamodel_relationship(action:'create-relationship',
+    fromTable:'Orders', fromColumn:'ProductID',   # many-side (fact table, foreign key)
+    toTable:'Products', toColumn:'ProductID')      # one-side (lookup table, primary key)
+```
+
+See the `datamodel_relationship` prompt for complete guidance.
+
 **Why use DAX over Power Query for calculations?**
 
 - DAX recalculates on refresh without re-running Power Query

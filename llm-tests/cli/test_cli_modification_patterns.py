@@ -12,7 +12,6 @@ pytestmark = [pytest.mark.aitest, pytest.mark.cli]
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="LLM intermittently omits required action parameter on complex workflows", strict=False)
 async def test_cli_range_updates(aitest_run, excel_cli_server, excel_cli_skill):
     agent = Agent(
         name="cli-range-updates",
@@ -105,7 +104,6 @@ async def test_cli_chart_updates(aitest_run, excel_cli_server, excel_cli_skill):
     assert_regex(result.final_response, r"(?i)(q1 sales report|chart)")
 
 
-@pytest.mark.xfail(reason="LLM intermittently omits required action parameter on complex workflows", strict=False)
 @pytest.mark.asyncio
 async def test_cli_sheet_structural_changes(aitest_run, excel_cli_server, excel_cli_skill):
     agent = Agent(

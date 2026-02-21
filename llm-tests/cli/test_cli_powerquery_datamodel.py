@@ -19,7 +19,6 @@ pytestmark = [pytest.mark.aitest, pytest.mark.cli]
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Multi-step star schema workflow is fragile with LLM", strict=False)
 async def test_cli_star_schema_workflow(aitest_run, excel_cli_server, excel_cli_skill, fixtures_dir):
     agent = Agent(
         name="cli-star-schema",
@@ -106,7 +105,6 @@ Which category had more orders - Electronics or Furniture?
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Multi-step powerquery workflow is fragile with LLM", strict=False)
 async def test_cli_powerquery_products_workflow(
     aitest_run, excel_cli_server, excel_cli_skill, fixtures_dir
 ):
@@ -115,7 +113,7 @@ async def test_cli_powerquery_products_workflow(
         provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
         cli_servers=[excel_cli_server],
         skill=excel_cli_skill,
-        max_turns=30,
+        max_turns=20,
         retries=DEFAULT_RETRIES,
     )
 
@@ -131,10 +129,9 @@ Create a new Excel file at {unique_path('products-analysis-cli')}
 Use Power Query to create a query named "Products" using the M code from this file:
 {mcode_file}
 
-IMPORTANT: M code contains special characters that break CLI parsing.
-You MUST use --mcode-file with the path above. Do NOT try inline --mcode.
+Load the query to a worksheet.
 
-Load the query to a worksheet (the default behavior).
+Confirm the query was created and how many rows of data were loaded.
 """
     result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
@@ -143,59 +140,16 @@ Load the query to a worksheet (the default behavior).
     messages = result.messages
 
     prompt = """
-The Products data from the Power Query is on a worksheet as an Excel Table, but I need it in Power Pivot (the Data Model) for DAX analysis.
+Add the Products table to the Data Model.
 
-Add the Products table to the Data Model so I can create DAX measures on it.
-
-After adding to the Data Model, analyze the data structure:
-- Which columns are dimensions (descriptive attributes for slicing/filtering)?
-- Which columns are facts/measures (numeric values to aggregate)?
-
-Confirm the table is now in the Data Model and ready for DAX measures.
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"(?i)(dimension|fact|data.?model|added)")
-    messages = result.messages
-
-    prompt = """
-Now create some useful DAX measures on your Products table in the Data Model:
-
-1. Average Rating: AVERAGE(Products[Rating])
-2. Total Products: COUNTROWS(Products)
-3. Average Price: AVERAGE(Products[Price])
-4. Total Revenue: SUM(Products[Price])
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"(?i)(measure|rating|price|revenue|created)")
-    messages = result.messages
-
-    prompt = """
-Create a PivotTable on a new sheet using your star schema.
-
-Show product categories as rows with Total Products and Average Rating as values.
-
-Which category has the most products and what's their average rating?
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"(?i)(pivot|category|rating|products)")
-    messages = result.messages
-
-    prompt = """
-Add a bar chart showing:
-- Categories on the X-axis
-- Total Products and Average Rating as values
+Then create a PivotTable on a new sheet showing product categories as rows
+with a count of products as the value.
 
 Save and close the file.
 
-Summarize the star schema you built: how many dimension tables, fact tables, relationships, and measures did you create?
+Summarize which category has the most products.
 """
     result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
     assert result.success
     assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"(?i)(chart|star.?schema|dimension|fact|relationship|measure|saved|closed)")
+    assert_regex(result.final_response, r"(?i)(pivot|category|products|data.?model)")

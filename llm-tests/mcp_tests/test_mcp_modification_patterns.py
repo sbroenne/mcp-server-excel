@@ -12,7 +12,6 @@ pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="LLM intermittently omits required action parameter on complex workflows", strict=False)
 async def test_mcp_range_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-range-updates",
@@ -113,7 +112,6 @@ async def test_mcp_chart_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="LLM intermittently omits required action parameter on complex workflows", strict=False)
 async def test_mcp_sheet_structural_changes(aitest_run, excel_mcp_server, excel_mcp_skill):
     agent = Agent(
         name="mcp-sheet-struct",

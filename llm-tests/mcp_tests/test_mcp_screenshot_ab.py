@@ -52,7 +52,6 @@ AGENTS = [
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Complex dashboard workflow - LLM may hit turn/retry limits", strict=False)
 @pytest.mark.parametrize("agent", AGENTS, ids=lambda a: a.name)
 async def test_mcp_dashboard_layout(
     aitest_run, excel_mcp_server, excel_mcp_skill, agent, llm_assert_image

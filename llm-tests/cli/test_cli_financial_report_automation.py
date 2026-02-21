@@ -11,7 +11,6 @@ from conftest import assert_cli_exit_codes, assert_regex, unique_path, DEFAULT_R
 pytestmark = [pytest.mark.aitest, pytest.mark.cli]
 
 
-@pytest.mark.xfail(reason="Complex multi-turn workflow; LLM intermittently omits action parameter", strict=False)
 @pytest.mark.asyncio
 async def test_cli_financial_report_automation(aitest_run, excel_cli_server, excel_cli_skill):
     agent = Agent(
