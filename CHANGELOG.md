@@ -10,6 +10,10 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### Fixed
+
+- **office.dll not found when opening workbooks with connections/data model** (#487 follow-up): The `AssemblyResolve` handler only searched `AppContext.BaseDirectory` for `office.dll`. In NuGet-installed tool deployments, `office.dll` is never copied there (it is only present in local dev builds via `Directory.Build.targets`). Opening workbooks with external connections, Power Query, or a Data Model triggered code paths that caused the CLR to load `Microsoft.Office.Interop.Excel.dll`, which in turn requested `office.dll v16`. The handler returned `null` → `FileNotFoundException`. Fixed by adding fallback search order: (1) `AppContext.BaseDirectory`, (2) .NET Framework GAC v16, (3) GAC v15 (accepted by CLR as substitute), (4) Office 365 click-to-run installation directories. `Directory.Build.targets` also updated to prefer v16 GAC when available.
+
 ### Changed
 
 - **Migrated Excel COM interop to strongly-typed Microsoft Office PIA**: Replaced dynamic late-binding throughout the codebase with strongly-typed `Microsoft.Office.Interop.Excel` types for improved reliability and compile-time error detection. Power Query APIs (`Workbook.Queries`) and VBA project access remain as dynamic calls where PIA coverage is unavailable.
