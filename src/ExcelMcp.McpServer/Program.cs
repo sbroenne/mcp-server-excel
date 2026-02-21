@@ -281,9 +281,56 @@ public class Program
             if (!string.Equals(name.Name, "office", StringComparison.OrdinalIgnoreCase))
                 return null;
 
-            var path = Path.Combine(AppContext.BaseDirectory, "office.dll");
-            return File.Exists(path) ? Assembly.LoadFrom(path) : null;
+            return ResolveOfficeDll();
         };
+    }
+
+    /// <summary>
+    /// Resolves office.dll (Microsoft.Office.Core) from multiple locations.
+    /// office.dll is a .NET Framework GAC assembly that .NET Core cannot find automatically.
+    /// It is present when Microsoft Office is installed, but not in the .NET Core probing paths.
+    /// Search order:
+    ///   1. AppContext.BaseDirectory (copied by Directory.Build.targets in local dev builds)
+    ///   2. .NET Framework GAC - v16 then v15 (v15 is accepted by the CLR for v16 requests)
+    ///   3. Office installation directory (click-to-run Office 365 doesn't register in GAC)
+    /// </summary>
+    private static Assembly? ResolveOfficeDll()
+    {
+        // 1. Local build output (Directory.Build.targets copies office.dll here in dev builds)
+        var localPath = Path.Combine(AppContext.BaseDirectory, "office.dll");
+        if (File.Exists(localPath))
+            return Assembly.LoadFrom(localPath);
+
+        // 2. .NET Framework GAC — v16 preferred, v15 accepted (CLR honours AssemblyResolve return regardless of version)
+        string[] gacPaths =
+        [
+            @"C:\Windows\assembly\GAC_MSIL\office\16.0.0.0__71e9bce111e9429c\OFFICE.DLL",
+            @"C:\Windows\assembly\GAC_MSIL\office\15.0.0.0__71e9bce111e9429c\OFFICE.DLL",
+        ];
+        foreach (var gacPath in gacPaths)
+        {
+            if (File.Exists(gacPath))
+                return Assembly.LoadFrom(gacPath);
+        }
+
+        // 3. Office 365 click-to-run installation directories (Office registers its own copy)
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+        string[] officeDirs =
+        [
+            Path.Combine(programFiles, @"Microsoft Office\root\Office16\ADDINS\PowerPivot Excel Add-inv16"),
+            Path.Combine(programFiles, @"Microsoft Office\root\Office16\ADDINS\PowerPivot Excel Add-in"),
+            Path.Combine(programFilesX86, @"Microsoft Office\root\Office16\ADDINS\PowerPivot Excel Add-inv16"),
+            Path.Combine(programFilesX86, @"Microsoft Office\root\Office16\ADDINS\PowerPivot Excel Add-in"),
+        ];
+        foreach (var dir in officeDirs)
+        {
+            var officePath = Path.Combine(dir, "OFFICE.dll");
+            if (File.Exists(officePath))
+                return Assembly.LoadFrom(officePath);
+        }
+
+        return null;
     }
 
     private static void RegisterGlobalExceptionHandlers()
