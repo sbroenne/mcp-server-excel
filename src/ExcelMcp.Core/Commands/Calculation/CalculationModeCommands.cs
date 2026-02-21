@@ -171,18 +171,7 @@ public class CalculationModeCommands : ICalculationModeCommands
                 _ => "unknown"
             };
 
-            try
-            {
-                ctx.App.Calculation = (Excel.XlCalculation)newValue;
-            }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Failed to set calculation mode to {newMode}: {ex.Message}"
-                };
-            }
+            ctx.App.Calculation = (Excel.XlCalculation)newValue;
 
             return new OperationResult
             {
@@ -218,70 +207,59 @@ public class CalculationModeCommands : ICalculationModeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            try
+            switch (scope)
             {
-                switch (scope)
-                {
-                    case CalculationScope.Workbook:
-                        ctx.App.Calculate();
+                case CalculationScope.Workbook:
+                    ctx.App.Calculate();
+                    return new OperationResult
+                    {
+                        Success = true,
+                        Message = "Calculation complete for all workbooks"
+                    };
+
+                case CalculationScope.Sheet:
+                    dynamic? worksheet = null;
+                    try
+                    {
+                        worksheet = ctx.Book.Worksheets[sheetName];
+                        worksheet.Calculate();
                         return new OperationResult
                         {
                             Success = true,
-                            Message = "Calculation complete for all workbooks"
+                            Message = $"Calculation complete for sheet '{sheetName}'"
                         };
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref worksheet);
+                    }
 
-                    case CalculationScope.Sheet:
-                        dynamic? worksheet = null;
-                        try
-                        {
-                            worksheet = ctx.Book.Worksheets[sheetName];
-                            worksheet.Calculate();
-                            return new OperationResult
-                            {
-                                Success = true,
-                                Message = $"Calculation complete for sheet '{sheetName}'"
-                            };
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref worksheet);
-                        }
-
-                    case CalculationScope.Range:
-                        dynamic? ws = null;
-                        dynamic? rng = null;
-                        try
-                        {
-                            ws = ctx.Book.Worksheets[sheetName];
-                            rng = ws.Range[rangeAddress];
-                            rng.Calculate();
-                            return new OperationResult
-                            {
-                                Success = true,
-                                Message = $"Calculation complete for range '{rangeAddress}' on sheet '{sheetName}'"
-                            };
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref rng);
-                            ComUtilities.Release(ref ws);
-                        }
-
-                    default:
+                case CalculationScope.Range:
+                    dynamic? ws = null;
+                    dynamic? rng = null;
+                    try
+                    {
+                        ws = ctx.Book.Worksheets[sheetName];
+                        rng = ws.Range[rangeAddress];
+                        rng.Calculate();
                         return new OperationResult
                         {
-                            Success = false,
-                            ErrorMessage = $"Unknown calculation scope: {scope}"
+                            Success = true,
+                            Message = $"Calculation complete for range '{rangeAddress}' on sheet '{sheetName}'"
                         };
-                }
-            }
-            catch (Exception ex)
-            {
-                return new OperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Calculation failed: {ex.Message}"
-                };
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref rng);
+                        ComUtilities.Release(ref ws);
+                    }
+
+                default:
+                    return new OperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Unknown calculation scope: {scope}"
+                    };
             }
         });
     }

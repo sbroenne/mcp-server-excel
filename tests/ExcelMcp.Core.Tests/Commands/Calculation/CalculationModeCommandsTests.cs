@@ -169,7 +169,7 @@ public class CalculationModeCommandsTests : IClassFixture<TempDirectoryFixture>
     }
 
     /// <summary>
-    /// Verify calculate-range scope succeeds with both parameters.
+    /// Verify calculate-range scope succeeds with both parameters and that formulas in the range compute.
     /// </summary>
     [Fact]
     public void Calculate_RangeScope_WithValidParameters_Succeeds()
@@ -177,17 +177,41 @@ public class CalculationModeCommandsTests : IClassFixture<TempDirectoryFixture>
         // Arrange
         var testFile = _fixture.CreateTestFile();
 
-        // Act
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        // Switch to manual mode
+        // Write a formula to B1, and a dependent formula to A1
+        batch.Execute((ctx, _) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets[1];
+            sheet.Range["B1"].Value2 = 5.0;
+            sheet.Range["A1"].Formula = "=B1*2";
+            return 0;
+        });
+
+        // Switch to manual mode so formula stays stale
         _commands.SetMode(batch, CalculationMode.Manual);
 
-        // Calculate specific range
+        // Change B1 while in manual mode — A1 result is now stale
+        batch.Execute((ctx, _) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets[1];
+            sheet.Range["B1"].Value2 = 10.0;
+            return 0;
+        });
+
+        // Act
         var result = _commands.Calculate(batch, CalculationScope.Range, "Sheet1", "A1:C10");
 
         // Assert
         Assert.True(result.Success);
+
+        // Verify actual Excel state: A1 formula should now reflect B1=10, so A1=20
+        var a1Value = batch.Execute((ctx, _) =>
+        {
+            dynamic sheet = ctx.Book.Worksheets[1];
+            return Convert.ToDouble(sheet.Range["A1"].Value2);
+        });
+        Assert.Equal(20.0, a1Value);
     }
 }
 

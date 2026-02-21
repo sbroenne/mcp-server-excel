@@ -310,6 +310,17 @@ public partial class PivotTableCommandsTests
 
         // Assert
         Assert.True(result.Success, $"SortField failed: {result.ErrorMessage}");
+
+        // Verify actual Excel state: row labels appear in ascending alphabetical order
+        var dataResult = _pivotCommands.GetData(batch, "TestPivot");
+        Assert.True(dataResult.Success);
+        // First column of data rows contains region labels; row 0 is the header row
+        var rowLabels = dataResult.Values
+            .Skip(1) // skip header row
+            .Select(row => row[0]?.ToString() ?? "")
+            .Where(label => label != "Grand Total" && !string.IsNullOrEmpty(label))
+            .ToList();
+        Assert.Equal(rowLabels, rowLabels.OrderBy(x => x).ToList());
     }
 }
 

@@ -57,6 +57,29 @@ public partial class PivotTableCommandsTests
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
+
+        // Verify actual Excel state
+        var grandTotalState = batch.Execute((ctx, ct) =>
+        {
+            dynamic? verifySheet = null;
+            dynamic? verifyPivotTables = null;
+            dynamic? verifyPivot = null;
+            try
+            {
+                verifySheet = ctx.Book.Worksheets["PivotSheet"];
+                verifyPivotTables = verifySheet.PivotTables();
+                verifyPivot = verifyPivotTables("TestPivot");
+                return new { RowGrand = (bool)verifyPivot.RowGrand, ColumnGrand = (bool)verifyPivot.ColumnGrand };
+            }
+            finally
+            {
+                ComUtilities.Release(ref verifyPivot);
+                ComUtilities.Release(ref verifyPivotTables);
+                ComUtilities.Release(ref verifySheet);
+            }
+        });
+        Assert.True(grandTotalState.RowGrand, "Expected RowGrand to be true");
+        Assert.True(grandTotalState.ColumnGrand, "Expected ColumnGrand to be true");
     }
 
     [Fact]
@@ -105,6 +128,29 @@ public partial class PivotTableCommandsTests
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
+
+        // Verify actual Excel state
+        var grandTotalState = batch.Execute((ctx, ct) =>
+        {
+            dynamic? verifySheet = null;
+            dynamic? verifyPivotTables = null;
+            dynamic? verifyPivot = null;
+            try
+            {
+                verifySheet = ctx.Book.Worksheets["PivotSheet"];
+                verifyPivotTables = verifySheet.PivotTables();
+                verifyPivot = verifyPivotTables("TestPivot");
+                return new { RowGrand = (bool)verifyPivot.RowGrand, ColumnGrand = (bool)verifyPivot.ColumnGrand };
+            }
+            finally
+            {
+                ComUtilities.Release(ref verifyPivot);
+                ComUtilities.Release(ref verifyPivotTables);
+                ComUtilities.Release(ref verifySheet);
+            }
+        });
+        Assert.False(grandTotalState.RowGrand, "Expected RowGrand to be false");
+        Assert.False(grandTotalState.ColumnGrand, "Expected ColumnGrand to be false");
     }
 
     [Fact]
@@ -153,6 +199,29 @@ public partial class PivotTableCommandsTests
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
+
+        // Verify actual Excel state
+        var grandTotalState = batch.Execute((ctx, ct) =>
+        {
+            dynamic? verifySheet = null;
+            dynamic? verifyPivotTables = null;
+            dynamic? verifyPivot = null;
+            try
+            {
+                verifySheet = ctx.Book.Worksheets["PivotSheet"];
+                verifyPivotTables = verifySheet.PivotTables();
+                verifyPivot = verifyPivotTables("TestPivot");
+                return new { RowGrand = (bool)verifyPivot.RowGrand, ColumnGrand = (bool)verifyPivot.ColumnGrand };
+            }
+            finally
+            {
+                ComUtilities.Release(ref verifyPivot);
+                ComUtilities.Release(ref verifyPivotTables);
+                ComUtilities.Release(ref verifySheet);
+            }
+        });
+        Assert.True(grandTotalState.RowGrand, "Expected RowGrand to be true");
+        Assert.False(grandTotalState.ColumnGrand, "Expected ColumnGrand to be false");
     }
 
     [Fact]
@@ -201,6 +270,29 @@ public partial class PivotTableCommandsTests
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
+
+        // Verify actual Excel state
+        var grandTotalState = batch.Execute((ctx, ct) =>
+        {
+            dynamic? verifySheet = null;
+            dynamic? verifyPivotTables = null;
+            dynamic? verifyPivot = null;
+            try
+            {
+                verifySheet = ctx.Book.Worksheets["PivotSheet"];
+                verifyPivotTables = verifySheet.PivotTables();
+                verifyPivot = verifyPivotTables("TestPivot");
+                return new { RowGrand = (bool)verifyPivot.RowGrand, ColumnGrand = (bool)verifyPivot.ColumnGrand };
+            }
+            finally
+            {
+                ComUtilities.Release(ref verifyPivot);
+                ComUtilities.Release(ref verifyPivotTables);
+                ComUtilities.Release(ref verifySheet);
+            }
+        });
+        Assert.False(grandTotalState.RowGrand, "Expected RowGrand to be false");
+        Assert.True(grandTotalState.ColumnGrand, "Expected ColumnGrand to be true");
     }
 
     [Fact]
@@ -256,6 +348,29 @@ public partial class PivotTableCommandsTests
 
         var result4 = _pivotCommands.SetGrandTotals(batch, "TestPivot", false, true);
         Assert.True(result4.Success, $"Change 4 failed: {result4.ErrorMessage}");
+
+        // Verify final Excel state matches last configuration (false, true)
+        var grandTotalState = batch.Execute((ctx, ct) =>
+        {
+            dynamic? verifySheet = null;
+            dynamic? verifyPivotTables = null;
+            dynamic? verifyPivot = null;
+            try
+            {
+                verifySheet = ctx.Book.Worksheets["PivotSheet"];
+                verifyPivotTables = verifySheet.PivotTables();
+                verifyPivot = verifyPivotTables("TestPivot");
+                return new { RowGrand = (bool)verifyPivot.RowGrand, ColumnGrand = (bool)verifyPivot.ColumnGrand };
+            }
+            finally
+            {
+                ComUtilities.Release(ref verifyPivot);
+                ComUtilities.Release(ref verifyPivotTables);
+                ComUtilities.Release(ref verifySheet);
+            }
+        });
+        Assert.False(grandTotalState.RowGrand, "Expected RowGrand to be false after final change");
+        Assert.True(grandTotalState.ColumnGrand, "Expected ColumnGrand to be true after final change");
     }
 
     [Fact]
@@ -310,7 +425,29 @@ public partial class PivotTableCommandsTests
         {
             var readResult = _pivotCommands.Read(batch2, "TestPivot");
             Assert.True(readResult.Success, $"Read failed: {readResult.ErrorMessage}");
-            // Configuration persisted successfully (verified by successful read)
+
+            // Verify grand total state was persisted (showRowGrandTotals=true, showColumnGrandTotals=false)
+            var grandTotalState = batch2.Execute((ctx, ct) =>
+            {
+                dynamic? verifySheet = null;
+                dynamic? verifyPivotTables = null;
+                dynamic? verifyPivot = null;
+                try
+                {
+                    verifySheet = ctx.Book.Worksheets["PivotSheet"];
+                    verifyPivotTables = verifySheet.PivotTables();
+                    verifyPivot = verifyPivotTables("TestPivot");
+                    return new { RowGrand = (bool)verifyPivot.RowGrand, ColumnGrand = (bool)verifyPivot.ColumnGrand };
+                }
+                finally
+                {
+                    ComUtilities.Release(ref verifyPivot);
+                    ComUtilities.Release(ref verifyPivotTables);
+                    ComUtilities.Release(ref verifySheet);
+                }
+            });
+            Assert.True(grandTotalState.RowGrand, "Expected RowGrand=true to be persisted");
+            Assert.False(grandTotalState.ColumnGrand, "Expected ColumnGrand=false to be persisted");
         }
     }
 }

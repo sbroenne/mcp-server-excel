@@ -719,19 +719,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 WorkflowHint = $"Field '{fieldName}' grouped by {interval}. Excel created automatic date hierarchy."
             };
         }
-        catch (Exception ex)
-        {
-            if (logger is not null && logger.IsEnabled(LogLevel.Error))
-            {
-                logger.LogError(ex, "GroupByDate failed for field '{FieldName}'", fieldName);
-            }
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to group field by date: {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref singleCell);
@@ -791,19 +778,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 WorkflowHint = $"Field '{fieldName}' grouped by intervals of {intervalSize}. Excel created numeric range groups."
             };
         }
-        catch (Exception ex)
-        {
-            if (logger is not null && logger.IsEnabled(LogLevel.Error))
-            {
-                logger.LogError(ex, "GroupByNumeric failed for field '{FieldName}'", fieldName);
-            }
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to group field numerically: {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref singleCell);
@@ -846,21 +820,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FilePath = workbookPath,
                 WorkflowHint = $"Calculated field '{fieldName}' created with formula: {formula}. " +
                               "Add to Values area with AddValueField to see results in PivotTable."
-            };
-        }
-        catch (Exception ex)
-        {
-            if (logger is not null && logger.IsEnabled(LogLevel.Error))
-            {
-                logger.LogError(ex, "CreateCalculatedField failed for field '{FieldName}' with formula '{Formula}'", fieldName, formula);
-            }
-            return new PivotFieldResult
-            {
-                Success = false,
-                FieldName = fieldName,
-                Formula = formula,
-                ErrorMessage = $"Failed to create calculated field: {ex.Message}",
-                FilePath = workbookPath
             };
         }
         finally

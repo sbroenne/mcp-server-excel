@@ -179,15 +179,6 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FilePath = workbookPath
             };
         }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to add OLAP row field: {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref cubeField);
@@ -232,15 +223,6 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 Position = Convert.ToInt32(cubeField.Position),
                 DataType = "Cube",
                 AvailableValues = [],
-                FilePath = workbookPath
-            };
-        }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to add OLAP column field: {ex.Message}",
                 FilePath = workbookPath
             };
         }
@@ -484,15 +466,6 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FilePath = workbookPath
             };
         }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message,
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             // Don't release formatObject - it's owned by the model
@@ -543,15 +516,6 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FilePath = workbookPath
             };
         }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to add OLAP filter field: {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref cubeField);
@@ -586,15 +550,6 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FilePath = workbookPath
             };
         }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to remove OLAP field: {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref cubeField);
@@ -605,29 +560,16 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// <inheritdoc/>
     public PivotFieldResult SetFieldName(dynamic pivot, string fieldName, string customName, string workbookPath)
     {
-        dynamic? cubeField = null;
-        try
+        // OLAP limitation: Cannot set Caption on CubeFields via COM
+        return new PivotFieldResult
         {
-            // OLAP limitation: Cannot set Caption on CubeFields via COM
-            throw new InvalidOperationException(
-                $"Cannot rename OLAP field '{fieldName}' to '{customName}'. " +
+            Success = false,
+            ErrorMessage = $"Cannot rename OLAP field '{fieldName}' to '{customName}'. " +
                 "Field names in OLAP PivotTables are derived from the Data Model definition. " +
                 "To change field names: (1) Open Data Model in Excel, (2) Rename the dimension/hierarchy, (3) Refresh the PivotTable. " +
-                "Reference: https://learn.microsoft.com/en-us/excel/vba/api/excel.cubefield.caption");
-        }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message,
-                FilePath = workbookPath
-            };
-        }
-        finally
-        {
-            ComUtilities.Release(ref cubeField);
-        }
+                "Reference: https://learn.microsoft.com/en-us/excel/vba/api/excel.cubefield.caption",
+            FilePath = workbookPath
+        };
     }
     /// <inheritdoc/>
 
@@ -707,15 +649,6 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FieldName = fieldName,
                 Function = aggregationFunction,
                 DataType = "Cube",
-                FilePath = workbookPath
-            };
-        }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message,
                 FilePath = workbookPath
             };
         }
@@ -802,35 +735,16 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// <inheritdoc/>
     public PivotFieldFilterResult SetFieldFilter(dynamic pivot, string fieldName, List<string> filterValues, string workbookPath)
     {
-        dynamic? cubeField = null;
-        dynamic? pivotFields = null;
-        dynamic? pivotField = null;
-        dynamic? pivotItems = null;
-        try
+        // OLAP limitation: Cannot set Visible property on OLAP PivotItems
+        return new PivotFieldFilterResult
         {
-            // OLAP limitation: Cannot set Visible property on OLAP PivotItems
-            throw new InvalidOperationException(
-                $"Cannot filter OLAP field '{fieldName}' via PivotItem.Visible property. " +
+            Success = false,
+            ErrorMessage = $"Cannot filter OLAP field '{fieldName}' via PivotItem.Visible property. " +
                 "OLAP PivotItems do not support the Visible property. " +
                 "To filter OLAP data: (1) Use PivotTable's built-in filter buttons in Excel, (2) Use OLAP Slicers for interactive filtering, or (3) Modify the source Data Model. " +
-                "Reference: https://learn.microsoft.com/en-us/excel/vba/api/excel.pivotitem.visible");
-        }
-        catch (Exception ex)
-        {
-            return new PivotFieldFilterResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message,
-                FilePath = workbookPath
-            };
-        }
-        finally
-        {
-            ComUtilities.Release(ref pivotItems);
-            ComUtilities.Release(ref pivotField);
-            ComUtilities.Release(ref pivotFields);
-            ComUtilities.Release(ref cubeField);
-        }
+                "Reference: https://learn.microsoft.com/en-us/excel/vba/api/excel.pivotitem.visible",
+            FilePath = workbookPath
+        };
     }
     /// <inheritdoc/>
 
@@ -870,15 +784,6 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FilePath = workbookPath
             };
         }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to sort OLAP field: {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref pivotField);
@@ -913,15 +818,6 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                                "3) Use RemoveField/AddField to place hierarchy levels in PivotTable areas."
             };
         }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to access OLAP field '{fieldName}': {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref cubeField);
@@ -948,15 +844,6 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 FilePath = workbookPath,
                 WorkflowHint = "For OLAP PivotTables: 1) Open Power Pivot, 2) Create calculated column with range logic " +
                                "(e.g., IF([Sales]<100, \"0-100\", IF([Sales]<200, \"100-200\", ...))), 3) Use that calculated column in PivotTable."
-            };
-        }
-        catch (Exception ex)
-        {
-            return new PivotFieldResult
-            {
-                Success = false,
-                ErrorMessage = $"Failed to access OLAP field '{fieldName}': {ex.Message}",
-                FilePath = workbookPath
             };
         }
         finally
@@ -1018,11 +905,12 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         string workbookPath,
         ILogger? logger = null)
     {
+        dynamic? pivotFields = null;
         dynamic? field = null;
         try
         {
             // Get the field - for OLAP, use PivotFields (not CubeFields)
-            dynamic pivotFields = pivot.PivotFields;
+            pivotFields = pivot.PivotFields;
             field = pivotFields.Item(fieldName);
 
             // OLAP PivotTables only support Automatic subtotals (index 1)
@@ -1046,23 +934,10 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                     : "Subtotals disabled for OLAP field."
             };
         }
-        catch (Exception ex)
-        {
-            if (logger?.IsEnabled(LogLevel.Error) is true)
-            {
-                logger.LogError(ex, "SetSubtotals failed for OLAP field {FieldName}", fieldName);
-            }
-            return new PivotFieldResult
-            {
-                Success = false,
-                FieldName = fieldName,
-                ErrorMessage = $"Failed to set OLAP subtotals: {ex.Message}",
-                FilePath = workbookPath
-            };
-        }
         finally
         {
             ComUtilities.Release(ref field);
+            ComUtilities.Release(ref pivotFields);
         }
     }
     /// <inheritdoc/>
