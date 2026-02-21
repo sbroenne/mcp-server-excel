@@ -372,6 +372,11 @@ public partial class PowerQueryCommands
                 ImportRelationships: false
             );
 
+            // Refresh the connection to actually load data into the Data Model.
+            // Without this call, the connection is registered but no data is materialized —
+            // the table never appears in the Data Model even though success is returned.
+            connection.Refresh();
+
             result.RowsLoaded = -1; // Data Model doesn't expose row count
             result.TargetCellAddress = null;
             result.Success = true;

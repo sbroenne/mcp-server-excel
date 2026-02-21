@@ -131,12 +131,17 @@ public interface ITableCommands
     OperationResult SetStyle(IExcelBatch batch, string tableName, string tableStyle);
 
     /// <summary>
-    /// Adds an Excel Table to the Power Pivot Data Model
+    /// Adds an Excel Table to the Power Pivot Data Model.
+    /// When column names contain literal bracket characters (e.g., [ACR_CM1]), those columns cannot
+    /// be referenced in DAX formulas. Use stripBracketColumnNames=true to automatically rename such
+    /// columns in the source table (removing brackets) before adding to the Data Model.
+    /// When stripBracketColumnNames=false (default), bracket column names are reported in BracketColumnsFound.
     /// </summary>
     /// <param name="tableName">Name of the table to add</param>
+    /// <param name="stripBracketColumnNames">When true, renames source table columns that contain literal bracket characters (removes brackets) before adding to the Data Model. This modifies the Excel table column headers in the worksheet.</param>
     /// <exception cref="InvalidOperationException">Table not found or model not available</exception>
     [ServiceAction("add-to-data-model")]
-    OperationResult AddToDataModel(IExcelBatch batch, string tableName);
+    AddToDataModelResult AddToDataModel(IExcelBatch batch, string tableName, bool stripBracketColumnNames = false);
 
     // === DAX-BACKED TABLE OPERATIONS ===
 

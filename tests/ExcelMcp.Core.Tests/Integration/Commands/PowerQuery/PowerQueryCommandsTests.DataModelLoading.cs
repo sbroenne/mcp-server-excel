@@ -36,6 +36,42 @@ public class PowerQueryDataModelLoadingTests : IClassFixture<TempDirectoryFixtur
     #region LoadToDataModel Preservation Tests
 
     /// <summary>
+    /// Regression test: PowerQuery create with LoadToDataModel must register the table
+    /// in the Data Model (via connection.Refresh()). Before the fix, Connections.Add2()
+    /// was called without Refresh(), so the table appeared to succeed but was never
+    /// actually loaded into the Data Model.
+    /// </summary>
+    [Fact]
+    public async Task Create_LoadToDataModel_TableAppearsInDataModel()
+    {
+        // Arrange
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "PQ_LoadDM_" + Guid.NewGuid().ToString("N")[..8];
+
+        var mCode = @"let
+    Source = #table(
+        {""ID"", ""Name""},
+        {
+            {1, ""Alpha""},
+            {2, ""Beta""}
+        }
+    )
+in
+    Source";
+
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+
+        // Act
+        _ = _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToDataModel);
+
+        // Assert - The table must appear in the Data Model after load
+        var tables = await _dataModelCommands.ListTables(batch);
+        Assert.True(tables.Success, $"ListTables failed: {tables.ErrorMessage}");
+        var matchingTables = tables.Tables.Where(t => t.Name == queryName).ToList();
+        Assert.Single(matchingTables); // Table must be registered in Data Model
+    }
+
+    /// <summary>
     /// CRITICAL TEST: Validates that Update preserves LoadToDataModel settings
     /// and doesn't create duplicate tables in the Data Model.
     ///

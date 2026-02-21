@@ -512,11 +512,11 @@ Range formatting operations: apply styles, set fonts/colors/borders, add data va
 | `--underline` | Whether to apply underline formatting |
 | `--font-color` | Font (foreground) color as hex '#RRGGBB' (e.g., '#FF0000' for red) |
 | `--fill-color` | Cell fill (background) color as hex '#RRGGBB' (e.g., '#FFFF00' for yellow) |
-| `--border-style` | Border line style (e.g., 'thin', 'medium', 'thick', 'dashed', 'dotted') |
+| `--border-style` | Border line style: 'continuous', 'dash', 'dot', 'dashdot', 'dashdotdot', 'double', 'slantdashdot', 'none' |
 | `--border-color` | Border color as hex '#RRGGBB' |
-| `--border-weight` | Border weight (e.g., 'hairline', 'thin', 'medium', 'thick') |
+| `--border-weight` | Border weight: 'hairline', 'thin', 'medium', 'thick' |
 | `--horizontal-alignment` | Horizontal text alignment: 'left', 'center', 'right', 'justify', 'fill' |
-| `--vertical-alignment` | Vertical text alignment: 'top', 'middle', 'bottom', 'justify' |
+| `--vertical-alignment` | Vertical text alignment: 'top', 'center' (or 'middle'), 'bottom', 'justify' |
 | `--wrap-text` | Whether to wrap text within cells |
 | `--orientation` | Text rotation in degrees (-90 to 90, or 255 for vertical) |
 | `--validation-type` | Data validation type: 'list', 'whole', 'decimal', 'date', 'time', 'textLength', 'custom' (required for: validate-range) |
@@ -557,7 +557,7 @@ Hyperlink and cell protection operations for Excel ranges. Use range for values/
 
 ### screenshot
 
-Capture Excel worksheet content as images for visual verification. Uses Excel's built-in rendering (CopyPicture) to capture ranges as PNG images. Captures formatting, conditional formatting, charts, and all visual elements. ACTIONS: - capture: Capture a specific range as an image - capture-sheet: Capture the entire used area of a worksheet RETURNS: Base64-encoded image data with dimensions metadata. For MCP: returned as inline ImageContent. For CLI: saved to file. Quality defaults to Medium (JPEG 75% scale) which is 4-8x smaller than High (PNG). Use High only when fine detail inspection is needed.
+Capture Excel worksheet content as images for visual verification. Uses Excel's built-in rendering (CopyPicture) to capture ranges as PNG images. Captures formatting, conditional formatting, charts, and all visual elements. ACTIONS: - capture: Capture a specific range as an image - capture-sheet: Capture the entire used area of a worksheet RETURNS: Base64-encoded image data with dimensions metadata. For MCP: returned as native ImageContent (no file handling needed). For CLI: use --output <path> to save the image directly to a PNG/JPEG file instead of returning base64 inline. Quality defaults to Medium (JPEG 75% scale) which is 4-8x smaller than High (PNG). Use High only when fine detail inspection is needed.
 
 **Actions:** `capture`, `capture-sheet`
 
@@ -649,6 +649,7 @@ Excel Tables (ListObjects) - lifecycle and data operations. Tables provide struc
 | `--rows` | 2D array of row data to append - column order must match table columns. Optional if rowsFile is provided. |
 | `--rows-file` | Path to a JSON or CSV file containing the rows to append. JSON: 2D array. CSV: rows/columns. Alternative to inline rows parameter. |
 | `--visible-only` | True to return only visible (non-filtered) rows; false for all rows (default: false) |
+| `--strip-bracket-column-names` | When true, renames source table columns that contain literal bracket characters (removes brackets) before adding to the Data Model. This modifies the Excel table column headers in the worksheet. |
 | `--dax-query` | DAX EVALUATE query (e.g., 'EVALUATE Sales' or 'EVALUATE SUMMARIZE(...)') (required for: create-from-dax, update-dax) |
 | `--target-cell` | Target cell address for table placement (default: 'A1') |
 

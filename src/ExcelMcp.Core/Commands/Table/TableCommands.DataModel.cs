@@ -10,7 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public OperationResult AddToDataModel(IExcelBatch batch, string tableName)
+    public AddToDataModelResult AddToDataModel(IExcelBatch batch, string tableName, bool stripBracketColumnNames = false)
     {
         // Security: Validate table name
         ValidateTableName(tableName);
@@ -44,6 +44,26 @@ public partial class TableCommands
                     finally
                     {
                         ComUtilities.Release(ref modelTable);
+                    }
+                }
+
+                // Detect and optionally strip bracket-escaped column names
+                // Columns with literal brackets (e.g., [ACR_CM1]) cannot be referenced in DAX
+                var bracketColumnNames = FindBracketColumnNames(table);
+                string[]? bracketColumnsFound = null;
+                string[]? bracketColumnsRenamed = null;
+
+                if (bracketColumnNames.Count > 0)
+                {
+                    if (stripBracketColumnNames)
+                    {
+                        // Rename columns in source table to remove brackets before adding to Data Model
+                        StripBracketColumnNames(table, bracketColumnNames);
+                        bracketColumnsRenamed = bracketColumnNames.ToArray();
+                    }
+                    else
+                    {
+                        bracketColumnsFound = bracketColumnNames.ToArray();
                     }
                 }
 
@@ -99,7 +119,12 @@ public partial class TableCommands
                 // Table is immediately available in Data Model - no refresh needed
                 // Connections.Add2() makes the table accessible for relationships/measures instantly
 
-                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+                var result = new AddToDataModelResult { Success = true, FilePath = batch.WorkbookPath };
+                if (bracketColumnsFound?.Length > 0)
+                    result.BracketColumnsFound = bracketColumnsFound;
+                if (bracketColumnsRenamed?.Length > 0)
+                    result.BracketColumnsRenamed = bracketColumnsRenamed;
+                return result;
             }
             finally
             {
@@ -109,6 +134,82 @@ public partial class TableCommands
                 ComUtilities.Release(ref table);
             }
         });
+    }
+
+    /// <summary>
+    /// Finds column names in the Excel Table that contain literal bracket characters.
+    /// Such columns cannot be referenced in DAX formulas after being added to the Data Model.
+    /// </summary>
+    private static List<string> FindBracketColumnNames(dynamic table)
+    {
+        var bracketColumns = new List<string>();
+        dynamic? listColumns = null;
+        try
+        {
+            listColumns = table.ListColumns;
+            int count = listColumns.Count;
+            for (int i = 1; i <= count; i++)
+            {
+                dynamic? col = null;
+                try
+                {
+                    col = listColumns.Item(i);
+                    string name = col.Name?.ToString() ?? string.Empty;
+                    if (name.Contains('[') || name.Contains(']'))
+                    {
+                        bracketColumns.Add(name);
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref col);
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref listColumns);
+        }
+        return bracketColumns;
+    }
+
+    /// <summary>
+    /// Strips literal bracket characters from the names of columns in the source Excel Table.
+    /// Modifies the worksheet table column headers in place.
+    /// </summary>
+    private static void StripBracketColumnNames(dynamic table, List<string> bracketColumnNames)
+    {
+        dynamic? listColumns = null;
+        try
+        {
+            listColumns = table.ListColumns;
+            int count = listColumns.Count;
+            for (int i = 1; i <= count; i++)
+            {
+                dynamic? col = null;
+                try
+                {
+                    col = listColumns.Item(i);
+                    string name = col.Name?.ToString() ?? string.Empty;
+                    if (bracketColumnNames.Contains(name))
+                    {
+                        string stripped = name.Replace("[", string.Empty).Replace("]", string.Empty);
+                        if (!string.IsNullOrWhiteSpace(stripped))
+                        {
+                            col.Name = stripped;
+                        }
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref col);
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref listColumns);
+        }
     }
 }
 

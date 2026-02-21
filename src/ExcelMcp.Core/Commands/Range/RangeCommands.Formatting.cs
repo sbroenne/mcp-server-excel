@@ -276,6 +276,7 @@ public partial class RangeCommands
         {
             "top" => -4160, // xlTop
             "center" => -4108, // xlCenter
+            "middle" => -4108, // xlCenter (common alias)
             "bottom" => -4107, // xlBottom
             "justify" => -4130, // xlJustify
             "distributed" => -4117, // xlDistributed
