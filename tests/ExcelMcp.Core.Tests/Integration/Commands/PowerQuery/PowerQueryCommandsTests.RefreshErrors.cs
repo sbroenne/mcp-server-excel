@@ -325,6 +325,166 @@ in
         // Should indicate no refresh mechanism found
         Assert.Contains("Could not find connection or table", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Timeout clamping regression tests (both Refresh and RefreshAll)
+    //
+    // BUG: CLI --timeout 1800 is parsed by TimeSpan.Parse as 1800 DAYS (not
+    // seconds), exceeding CancellationTokenSource's max delay (~49.7 days =
+    // uint.MaxValue-1 ms).  Both Refresh() and RefreshAll() now clamp values
+    // above the CTS limit instead of throwing ArgumentOutOfRangeException.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Refresh_OversizedTimeout_ClampsAndSucceeds()
+    {
+        // Arrange
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "OversizedTimeoutQuery";
+        var mCode = @"let Source = #table({""Name""}, {{""Test""}}) in Source";
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToTable);
+        batch.Save();
+
+        // Act - TimeSpan.Parse("1800") = 1800 days >> CTS max (~49.7 days)
+        var result = _powerQueryCommands.Refresh(batch, queryName, TimeSpan.FromDays(1800));
+
+        // Assert
+        Assert.True(result.Success, $"Refresh failed: {result.ErrorMessage}");
+        Assert.False(result.HasErrors);
+    }
+
+    [Fact]
+    public void Refresh_AtCtsMaxBoundary_Succeeds()
+    {
+        // Arrange - exactly uint.MaxValue-1 ms should NOT be clamped (it's the limit itself)
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "MaxBoundaryQuery";
+        var mCode = @"let Source = #table({""Name""}, {{""Test""}}) in Source";
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToTable);
+        batch.Save();
+
+        // Act - exactly at the CTS limit (should pass through without clamping)
+        var atLimit = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
+        var result = _powerQueryCommands.Refresh(batch, queryName, atLimit);
+
+        // Assert
+        Assert.True(result.Success, $"Refresh failed: {result.ErrorMessage}");
+        Assert.False(result.HasErrors);
+    }
+
+    [Fact]
+    public void Refresh_OneMsOverCtsMax_ClampsAndSucceeds()
+    {
+        // Arrange - uint.MaxValue ms is one ms over the CTS limit, should be clamped
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "OverBoundaryQuery";
+        var mCode = @"let Source = #table({""Name""}, {{""Test""}}) in Source";
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToTable);
+        batch.Save();
+
+        // Act - one ms over the limit
+        var overLimit = TimeSpan.FromMilliseconds((double)uint.MaxValue);
+        var result = _powerQueryCommands.Refresh(batch, queryName, overLimit);
+
+        // Assert
+        Assert.True(result.Success, $"Refresh failed: {result.ErrorMessage}");
+        Assert.False(result.HasErrors);
+    }
+
+    [Fact]
+    public void RefreshAll_ZeroTimeout_UsesDefaultAndSucceeds()
+    {
+        // Arrange
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "RefreshAllZeroTimeoutQuery";
+        var mCode = @"let Source = #table({""Name""}, {{""Test""}}) in Source";
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToTable);
+        batch.Save();
+
+        // Act - TimeSpan.Zero should fall back to 5-minute default
+        var result = _powerQueryCommands.RefreshAll(batch, TimeSpan.Zero);
+
+        // Assert
+        Assert.True(result.Success, $"RefreshAll failed: {result.ErrorMessage}");
+    }
+
+    [Fact]
+    public void RefreshAll_NegativeTimeout_UsesDefaultAndSucceeds()
+    {
+        // Arrange
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "RefreshAllNegTimeoutQuery";
+        var mCode = @"let Source = #table({""Name""}, {{""Test""}}) in Source";
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToTable);
+        batch.Save();
+
+        // Act - negative timeout should fall back to 5-minute default
+        var result = _powerQueryCommands.RefreshAll(batch, TimeSpan.FromSeconds(-1));
+
+        // Assert
+        Assert.True(result.Success, $"RefreshAll failed: {result.ErrorMessage}");
+    }
+
+    [Fact]
+    public void RefreshAll_OversizedTimeout_ClampsAndSucceeds()
+    {
+        // Arrange
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "OversizedTimeoutAllQuery";
+        var mCode = @"let Source = #table({""Name""}, {{""Test""}}) in Source";
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToTable);
+        batch.Save();
+
+        // Act - 1800 days >> CTS max
+        var result = _powerQueryCommands.RefreshAll(batch, TimeSpan.FromDays(1800));
+
+        // Assert
+        Assert.True(result.Success, $"RefreshAll failed: {result.ErrorMessage}");
+    }
+
+    [Fact]
+    public void RefreshAll_AtCtsMaxBoundary_Succeeds()
+    {
+        // Arrange - exactly uint.MaxValue-1 ms should NOT be clamped
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "RefreshAllMaxBoundaryQuery";
+        var mCode = @"let Source = #table({""Name""}, {{""Test""}}) in Source";
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToTable);
+        batch.Save();
+
+        // Act
+        var atLimit = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
+        var result = _powerQueryCommands.RefreshAll(batch, atLimit);
+
+        // Assert
+        Assert.True(result.Success, $"RefreshAll failed: {result.ErrorMessage}");
+    }
+
+    [Fact]
+    public void RefreshAll_OneMsOverCtsMax_ClampsAndSucceeds()
+    {
+        // Arrange
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "RefreshAllOverBoundaryQuery";
+        var mCode = @"let Source = #table({""Name""}, {{""Test""}}) in Source";
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToTable);
+        batch.Save();
+
+        // Act
+        var overLimit = TimeSpan.FromMilliseconds((double)uint.MaxValue);
+        var result = _powerQueryCommands.RefreshAll(batch, overLimit);
+
+        // Assert
+        Assert.True(result.Success, $"RefreshAll failed: {result.ErrorMessage}");
+    }
 }
 
 

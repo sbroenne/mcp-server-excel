@@ -12,6 +12,8 @@ This changelog covers all components:
 
 ### Fixed
 
+- **PowerQuery `refresh` and `refresh-all` threw `ArgumentOutOfRangeException` when timeout exceeded ~49.7 days** (#505): `TimeSpan.Parse("1800")` produces 1800 days (not seconds), which exceeds `CancellationTokenSource`'s maximum delay of `uint.MaxValue - 1` milliseconds (~49.7 days). Both `Refresh()` and `RefreshAll()` now clamp any timeout above that limit to the maximum, making large values work as effectively-infinite timeouts.
+
 - **CLI daemon spawned duplicate instances during heavy refresh** (#502): When the daemon was busy processing a long-running COM operation (e.g. `powerquery refresh-all` on a large workbook), its 2-second ping timeout caused `DaemonAutoStart` to conclude the daemon was not running and spawn a second process, producing duplicate tray icons. The second daemon had no sessions, making the open workbook inaccessible. Fixed by acquiring a named OS Mutex in `RunServiceDaemon` so a second invocation exits immediately, and checking the mutex in `EnsureAndConnectAsync` to wait up to 10 seconds for a busy daemon before spawning a new one.
 
 - **CLI banner written to stdout polluted JSON output** (#497): The startup banner (version + separator line) was printed to stdout alongside JSON output, making piped output unparseable (e.g. `excelcli powerquery list ... | ConvertFrom-Json` would fail). `Console.IsOutputRedirected` returns `false` in the VS Code integrated terminal, so the existing redirect guard did not trigger. Fixed by routing the banner to a dedicated stderr-targeted `AnsiConsole` instance.
