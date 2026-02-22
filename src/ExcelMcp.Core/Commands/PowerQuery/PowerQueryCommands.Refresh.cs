@@ -29,7 +29,7 @@ public partial class PowerQueryCommands
 
         if (timeout <= TimeSpan.Zero)
         {
-            throw new ArgumentOutOfRangeException(nameof(timeout), "Timeout must be greater than zero.");
+            timeout = TimeSpan.FromMinutes(5); // Default timeout when not specified
         }
 
         using var timeoutCts = new CancellationTokenSource(timeout);

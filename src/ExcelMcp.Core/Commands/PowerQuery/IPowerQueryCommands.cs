@@ -23,11 +23,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 ///
 /// TARGET CELL: targetCellAddress places tables without clearing sheet.
 /// TIMEOUT: 5 min auto-timeout for refresh/load. For network queries, use timeout=120 or higher.
-/// timeout=0 is INVALID - must be greater than zero.
+/// timeout=0 or omitted uses the 5 min default.
 /// </summary>
 [ServiceCategory("powerquery", "PowerQuery")]
 [McpTool("powerquery", Title = "Power Query Operations", Destructive = true, Category = "query",
-    Description = "Power Query M code and data loading. TEST-FIRST WORKFLOW: 1. evaluate (test M code without persisting) 2. create/update (store validated query) 3. refresh/load-to (load data to destination). IF CREATE FAILS: Use evaluate for detailed M engine error. DATETIME: Always include Table.TransformColumnTypes() for explicit column types. DESTINATIONS: worksheet (default), data-model (for DAX), both, connection-only. M-CODE: Auto-formatted via powerqueryformatter.com. TARGET CELL: targetCellAddress places tables without clearing sheet. TIMEOUT: 5 min auto-timeout. For network queries, use timeout=120 or higher. timeout=0 is INVALID.")]
+    Description = "Power Query M code and data loading. TEST-FIRST WORKFLOW: 1. evaluate (test M code without persisting) 2. create/update (store validated query) 3. refresh/load-to (load data to destination). IF CREATE FAILS: Use evaluate for detailed M engine error. DATETIME: Always include Table.TransformColumnTypes() for explicit column types. DESTINATIONS: worksheet (default), data-model (for DAX), both, connection-only. M-CODE: Auto-formatted via powerqueryformatter.com. TARGET CELL: targetCellAddress places tables without clearing sheet. TIMEOUT: 5 min auto-timeout. For network queries, use timeout=120 or higher. timeout=0 or omitted uses the 5 min default.")]
 public interface IPowerQueryCommands
 {
     /// <summary>
