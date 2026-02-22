@@ -196,11 +196,16 @@ internal sealed class Program
 
     private static void RenderHeader()
     {
-        AnsiConsole.Write(new FigletText("Excel CLI").Color(Spectre.Console.Color.Blue));
-        AnsiConsole.MarkupLine("[dim]Excel automation powered by ExcelMcp Core[/]");
-        AnsiConsole.MarkupLine("[yellow]Workflow:[/] [green]session open <file>[/] → run commands with [green]--session <id>[/] → [green]session close --save[/].");
-        AnsiConsole.MarkupLine("[dim]A background service manages sessions for performance.[/]");
-        AnsiConsole.WriteLine();
+        // Write banner to stderr so it never pollutes JSON output on stdout,
+        // regardless of whether stdout is piped, redirected, or captured
+        // (Console.IsOutputRedirected is false in VS Code integrated terminal
+        // even when capturing with $result = excelcli ...).
+        var err = AnsiConsole.Create(new AnsiConsoleSettings { Out = new AnsiConsoleOutput(Console.Error) });
+        err.Write(new FigletText("Excel CLI").Color(Spectre.Console.Color.Blue));
+        err.MarkupLine("[dim]Excel automation powered by ExcelMcp Core[/]");
+        err.MarkupLine("[yellow]Workflow:[/] [green]session open <file>[/] → run commands with [green]--session <id>[/] → [green]session close --save[/].");
+        err.MarkupLine("[dim]A background service manages sessions for performance.[/]");
+        err.WriteLine();
     }
 
     private static async Task<int> HandleVersionAsync()

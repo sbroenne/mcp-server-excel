@@ -612,6 +612,196 @@ in
     }
 
     #endregion
+
+    #region State Transition Tests - Loaded → Other
+
+    /// <summary>
+    /// Regression test for Bug #2: LoadTo(ConnectionOnly) on an already-loaded query was a no-op.
+    /// Scenario: Create as LoadToTable → LoadTo(ConnectionOnly)
+    /// Expected: ListObject removed, connection removed, GetLoadConfig returns ConnectionOnly.
+    /// </summary>
+    [Fact]
+    public void LoadTo_LoadedToTable_ThenConnectionOnly_RemovesTableAndConnection()
+    {
+        // Arrange
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "PQ_WsToConn_" + Guid.NewGuid().ToString("N")[..8];
+        var mCode = @"let Source = #table({""Val""}, {{1}, {2}}) in Source";
+
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+
+        // Create as LoadToTable first
+        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToTable);
+
+        // Verify baseline: has worksheet table and connection
+        var connsBefore = _connectionCommands.List(batch);
+        Assert.Contains(connsBefore.Connections, c => c.Name == $"Query - {queryName}");
+        var tablesBefore = _tableCommands.List(batch);
+        Assert.True(tablesBefore.Tables.Count > 0, "Expected a table after LoadToTable");
+        var configBefore = _powerQueryCommands.GetLoadConfig(batch, queryName);
+        Assert.Equal(PowerQueryLoadMode.LoadToTable, configBefore.LoadMode);
+
+        // Act - transition to ConnectionOnly
+        var result = _powerQueryCommands.LoadTo(batch, queryName, PowerQueryLoadMode.ConnectionOnly);
+        Assert.True(result.Success, $"LoadTo failed: {result.ErrorMessage}");
+
+        // Assert: table removed
+        var tablesAfter = _tableCommands.List(batch);
+        Assert.Empty(tablesAfter.Tables);
+
+        // Assert: connection removed
+        var connsAfter = _connectionCommands.List(batch);
+        Assert.DoesNotContain(connsAfter.Connections, c => c.Name == $"Query - {queryName}");
+        Assert.DoesNotContain(connsAfter.Connections, c => c.IsPowerQuery);
+
+        // Assert: load mode is now ConnectionOnly
+        var configAfter = _powerQueryCommands.GetLoadConfig(batch, queryName);
+        Assert.True(configAfter.Success, $"GetLoadConfig failed: {configAfter.ErrorMessage}");
+        Assert.Equal(PowerQueryLoadMode.ConnectionOnly, configAfter.LoadMode);
+
+        // Assert: query still exists
+        var queries = _powerQueryCommands.List(batch);
+        Assert.Contains(queries.Queries, q => q.Name == queryName);
+    }
+
+    /// <summary>
+    /// State transition: LoadToTable → LoadToDataModel.
+    /// Expected: old ListObject + worksheet connection removed; Data Model connection added.
+    /// </summary>
+    [Fact]
+    public async Task LoadTo_LoadedToTable_ThenLoadToDataModel_RemovesTableAddsDataModel()
+    {
+        // Arrange
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "PQ_WsToDm_" + Guid.NewGuid().ToString("N")[..8];
+        var mCode = @"let Source = #table({""Val""}, {{1}, {2}}) in Source";
+
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+
+        // Create as LoadToTable
+        _ = _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToTable);
+
+        var tablesBefore = _tableCommands.List(batch);
+        Assert.True(tablesBefore.Tables.Count > 0, "Expected a table after LoadToTable");
+
+        // Act - transition to DataModel
+        var result = _powerQueryCommands.LoadTo(batch, queryName, PowerQueryLoadMode.LoadToDataModel);
+        Assert.True(result.Success, $"LoadTo(DataModel) failed: {result.ErrorMessage}");
+
+        // Assert: worksheet table removed (no orphaned ListObject)
+        var tablesAfter = _tableCommands.List(batch);
+        Assert.Empty(tablesAfter.Tables);
+
+        // Assert: exactly 1 PQ connection (old worksheet connection replaced by DM connection, same name)
+        // Note: both worksheet and Data Model connections are named "Query - {queryName}";
+        // the proof of correct mode is: no ListObject + DM table present + exactly 1 PQ connection (not 2)
+        var connsAfter = _connectionCommands.List(batch);
+        var pqConns = connsAfter.Connections.Where(c => c.IsPowerQuery).ToList();
+        Assert.Single(pqConns);
+        Assert.Equal($"Query - {queryName}", pqConns[0].Name);
+
+        // Assert: Data Model table present
+        var dmTablesAfter = await _dataModelCommands.ListTables(batch);
+        Assert.Contains(dmTablesAfter.Tables, t => t.Name == queryName);
+    }
+
+    /// <summary>
+    /// State transition: LoadToDataModel → LoadToTable.
+    /// Expected: old Data Model connection removed; worksheet ListObject + connection added.
+    /// </summary>
+    [Fact]
+    public async Task LoadTo_LoadedToDataModel_ThenLoadToTable_RemovesDataModelAddsTable()
+    {
+        // Arrange
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "PQ_DmToWs_" + Guid.NewGuid().ToString("N")[..8];
+        var mCode = @"let Source = #table({""Val""}, {{1}, {2}}) in Source";
+
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+
+        // Create as LoadToDataModel
+        _ = _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToDataModel);
+
+        // Verify: Data Model table exists, no worksheet table
+        var dmTablesBefore = await _dataModelCommands.ListTables(batch);
+        Assert.Contains(dmTablesBefore.Tables, t => t.Name == queryName);
+        var tablesBefore = _tableCommands.List(batch);
+        Assert.Empty(tablesBefore.Tables);
+
+        // Act - transition to LoadToTable
+        var result = _powerQueryCommands.LoadTo(batch, queryName, PowerQueryLoadMode.LoadToTable, queryName);
+        Assert.True(result.Success, $"LoadTo(Table) failed: {result.ErrorMessage}");
+
+        // Assert: worksheet table now exists
+        var tablesAfter = _tableCommands.List(batch);
+        Assert.True(tablesAfter.Tables.Count > 0, "Expected a worksheet table after LoadToTable");
+
+        // Assert: worksheet connection present and properly named
+        var connsAfter = _connectionCommands.List(batch);
+        Assert.Contains(connsAfter.Connections, c => c.Name == $"Query - {queryName}");
+
+        // Assert: Data Model connection removed (no orphaned DM connection)
+        var pqConns = connsAfter.Connections.Where(c => c.IsPowerQuery).ToList();
+        Assert.Single(pqConns); // exactly 1 (worksheet only, not DM)
+        Assert.Equal($"Query - {queryName}", pqConns[0].Name);
+
+        // Assert: Data Model table removed
+        var dmTablesAfter = await _dataModelCommands.ListTables(batch);
+        Assert.DoesNotContain(dmTablesAfter.Tables, t => t.Name == queryName);
+    }
+
+    /// <summary>
+    /// State transition: LoadToBoth → ConnectionOnly.
+    /// Expected: both ListObject and Data Model connection removed; clean slate.
+    /// </summary>
+    [Fact]
+    public async Task LoadTo_LoadedToBoth_ThenConnectionOnly_RemovesBothDestinations()
+    {
+        // Arrange
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "PQ_BothToConn_" + Guid.NewGuid().ToString("N")[..8];
+        var mCode = @"let Source = #table({""Val""}, {{1}, {2}}) in Source";
+
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+
+        // Create as LoadToBoth
+        _ = _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToBoth, queryName);
+
+        // Verify baseline: worksheet table + 2 PQ connections + DM table
+        var tablesBefore = _tableCommands.List(batch);
+        Assert.True(tablesBefore.Tables.Count > 0, "Expected worksheet table after LoadToBoth");
+        var connsBefore = _connectionCommands.List(batch);
+        Assert.Equal(2, connsBefore.Connections.Count(c => c.IsPowerQuery));
+        var dmTablesBefore = await _dataModelCommands.ListTables(batch);
+        Assert.Contains(dmTablesBefore.Tables, t => t.Name == queryName);
+
+        // Act - transition to ConnectionOnly
+        var result = _powerQueryCommands.LoadTo(batch, queryName, PowerQueryLoadMode.ConnectionOnly);
+        Assert.True(result.Success, $"LoadTo(ConnectionOnly) failed: {result.ErrorMessage}");
+
+        // Assert: worksheet table removed
+        var tablesAfter = _tableCommands.List(batch);
+        Assert.Empty(tablesAfter.Tables);
+
+        // Assert: all PQ connections removed
+        var connsAfter = _connectionCommands.List(batch);
+        Assert.DoesNotContain(connsAfter.Connections, c => c.IsPowerQuery);
+
+        // Assert: Data Model table removed
+        var dmTablesAfter = await _dataModelCommands.ListTables(batch);
+        Assert.DoesNotContain(dmTablesAfter.Tables, t => t.Name == queryName);
+
+        // Assert: load mode is ConnectionOnly
+        var configAfter = _powerQueryCommands.GetLoadConfig(batch, queryName);
+        Assert.True(configAfter.Success, $"GetLoadConfig failed: {configAfter.ErrorMessage}");
+        Assert.Equal(PowerQueryLoadMode.ConnectionOnly, configAfter.LoadMode);
+
+        // Assert: query still exists
+        var queries = _powerQueryCommands.List(batch);
+        Assert.Contains(queries.Queries, q => q.Name == queryName);
+    }
+
+    #endregion
 }
 
 

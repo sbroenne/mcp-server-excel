@@ -92,7 +92,15 @@ public partial class PowerQueryCommands
                     throw new InvalidOperationException($"Query '{queryName}' not found.");
                 }
 
-                // STEP 2: Apply load destination based on mode
+                // STEP 2: Always clean up current destinations before applying the new load mode.
+                // This ensures clean state transitions in all directions:
+                // LoadToTable → DataModel (removes old ListObject + worksheet connection)
+                // DataModel → LoadToTable (removes old Data Model connection)
+                // LoadToBoth → ConnectionOnly (removes both destinations)
+                // etc.
+                UnloadFromDestinations(ctx.Book, queryName);
+
+                // STEP 3: Apply load destination based on mode
                 switch (loadMode)
                 {
                     case PowerQueryLoadMode.LoadToTable:
@@ -112,8 +120,7 @@ public partial class PowerQueryCommands
                         break;
 
                     case PowerQueryLoadMode.ConnectionOnly:
-                        // No loading needed - query already exists as connection-only
-                        result.ConfigurationApplied = true;
+                        // UnloadFromDestinations already called above; just set result properties.
                         result.DataRefreshed = false;
                         result.RowsLoaded = 0;
                         result.TargetCellAddress = null;
