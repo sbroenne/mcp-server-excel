@@ -10,6 +10,8 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.8.9] - 2026-02-22
+
 ### Fixed
 
 - **CLI banner written to stdout polluted JSON output** (#497): The startup banner (version + separator line) was printed to stdout alongside JSON output, making piped output unparseable (e.g. `excelcli powerquery list ... | ConvertFrom-Json` would fail). `Console.IsOutputRedirected` returns `false` in the VS Code integrated terminal, so the existing redirect guard did not trigger. Fixed by routing the banner to a dedicated stderr-targeted `AnsiConsole` instance.
