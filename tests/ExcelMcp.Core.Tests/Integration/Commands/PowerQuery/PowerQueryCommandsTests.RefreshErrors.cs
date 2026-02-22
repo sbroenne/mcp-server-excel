@@ -234,6 +234,68 @@ in
     }
 
     /// <summary>
+    /// Regression test: Refresh with TimeSpan.Zero timeout should use the default 5-minute timeout
+    /// instead of throwing ArgumentOutOfRangeException.
+    ///
+    /// BUG: The source generator produces `args.Timeout ?? default(TimeSpan)` = TimeSpan.Zero
+    /// when no timeout is supplied (CLI without --timeout, MCP without timeout parameter).
+    /// The Core method used to throw ArgumentOutOfRangeException("Timeout must be greater than zero.").
+    /// FIX: TimeSpan.Zero now falls back to 5-minute default.
+    /// </summary>
+    [Fact]
+    public void Refresh_ZeroTimeout_UsesDefaultAndSucceeds()
+    {
+        // Arrange - Create a valid worksheet query
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "ZeroTimeoutQuery";
+
+        var validMCode = @"let
+    Source = #table({""Name""}, {{""Test""}})
+in
+    Source";
+
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+
+        _powerQueryCommands.Create(batch, queryName, validMCode, PowerQueryLoadMode.LoadToTable);
+        batch.Save();
+
+        // Act - Refresh with TimeSpan.Zero (the exact value generated when timeout is omitted)
+        var result = _powerQueryCommands.Refresh(batch, queryName, TimeSpan.Zero);
+
+        // Assert - Should succeed, not throw ArgumentOutOfRangeException
+        Assert.True(result.Success, $"Refresh failed: {result.ErrorMessage}");
+        Assert.False(result.HasErrors);
+    }
+
+    /// <summary>
+    /// Regression test: Refresh with negative timeout should use the default 5-minute timeout.
+    /// </summary>
+    [Fact]
+    public void Refresh_NegativeTimeout_UsesDefaultAndSucceeds()
+    {
+        // Arrange - Create a valid worksheet query
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "NegativeTimeoutQuery";
+
+        var validMCode = @"let
+    Source = #table({""Name""}, {{""Test""}})
+in
+    Source";
+
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+
+        _powerQueryCommands.Create(batch, queryName, validMCode, PowerQueryLoadMode.LoadToTable);
+        batch.Save();
+
+        // Act - Refresh with negative timeout
+        var result = _powerQueryCommands.Refresh(batch, queryName, TimeSpan.FromSeconds(-1));
+
+        // Assert - Should succeed, not throw ArgumentOutOfRangeException
+        Assert.True(result.Success, $"Refresh failed: {result.ErrorMessage}");
+        Assert.False(result.HasErrors);
+    }
+
+    /// <summary>
     /// Verifies that refresh throws when query is connection-only (no QueryTable or DataModel connection).
     /// Connection-only queries have no mechanism to refresh - they're only query definitions.
     /// </summary>
