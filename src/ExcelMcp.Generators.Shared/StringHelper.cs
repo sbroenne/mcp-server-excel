@@ -152,7 +152,18 @@ public static class TypeNameHelper
         var value = param.ExplicitDefaultValue;
 
         if (value is null)
+        {
+            // Non-nullable value types (e.g. TimeSpan) with `= default` have ExplicitDefaultValue == null
+            // in Roslyn (it cannot represent default(TimeSpan) as a constant). Emit `default` so the
+            // generated C# compiles for structs. Nullable<T> structs (bool?, int?, TimeSpan?) can hold
+            // null, so they keep `null` to avoid ambiguous DefaultValueAttribute constructor calls.
+            var isNonNullableValueType = param.Type.IsValueType
+                && !(param.Type is INamedTypeSymbol nts
+                     && nts.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T);
+            if (isNonNullableValueType)
+                return "default";
             return "null";
+        }
         if (value is bool b)
             return b ? "true" : "false";
         if (value is string s)

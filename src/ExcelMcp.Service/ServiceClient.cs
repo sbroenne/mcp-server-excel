@@ -13,7 +13,7 @@ public sealed class ServiceClient : IDisposable
     private bool _disposed;
 
     public static readonly TimeSpan DefaultConnectTimeout = TimeSpan.FromSeconds(5);
-    public static readonly TimeSpan DefaultRequestTimeout = TimeSpan.FromSeconds(300); // 5 min for long operations
+    public static readonly TimeSpan DefaultRequestTimeout = TimeSpan.FromHours(2); // Long enough that any --timeout value wins before the pipe does
 
     public ServiceClient(string pipeName, TimeSpan? connectTimeout = null, TimeSpan? requestTimeout = null)
     {
