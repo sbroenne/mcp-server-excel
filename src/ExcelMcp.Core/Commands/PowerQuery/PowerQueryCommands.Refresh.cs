@@ -75,9 +75,17 @@ public partial class PowerQueryCommands
     /// Refreshes all Power Query queries in the workbook
     /// </summary>
     /// <param name="batch">Excel batch session</param>
+    /// <param name="timeout">Maximum time to wait for all refreshes to complete</param>
     /// <exception cref="InvalidOperationException">Thrown when refresh fails</exception>
-    public OperationResult RefreshAll(IExcelBatch batch)
+    public OperationResult RefreshAll(IExcelBatch batch, TimeSpan timeout = default)
     {
+        if (timeout <= TimeSpan.Zero)
+        {
+            timeout = TimeSpan.FromMinutes(5); // Default timeout when not specified
+        }
+
+        using var timeoutCts = new CancellationTokenSource(timeout);
+
         return batch.Execute((ctx, ct) =>
         {
             Excel.Queries? queries = null;
@@ -128,7 +136,7 @@ public partial class PowerQueryCommands
             {
                 ComUtilities.Release(ref queries!);
             }
-        }, cancellationToken: default);
+        }, timeoutCts.Token);
     }
 
     /// <summary>

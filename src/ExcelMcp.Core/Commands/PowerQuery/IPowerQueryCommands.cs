@@ -120,12 +120,13 @@ public interface IPowerQueryCommands
     // Validation only happens during refresh, making syntax-only validation unreliable.
 
     /// <summary>
-    /// Refreshes all Power Queries in the workbook
-    /// Batch refresh with error tracking
+    /// Refreshes all Power Queries in the workbook.
+    /// Batch refresh with error tracking.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
+    /// <param name="timeout">Maximum time to wait for all queries to refresh. Default: 5 minutes. Use a higher value (e.g., 1800 seconds) for large workbooks with many or slow queries.</param>
     /// <exception cref="InvalidOperationException">Thrown when any Power Query fails to refresh</exception>
-    OperationResult RefreshAll(IExcelBatch batch);
+    OperationResult RefreshAll(IExcelBatch batch, TimeSpan timeout = default);
 
     /// <summary>
     /// Renames a Power Query using trim + case-insensitive uniqueness semantics.
