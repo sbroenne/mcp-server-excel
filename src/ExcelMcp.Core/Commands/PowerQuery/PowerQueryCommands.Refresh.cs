@@ -31,6 +31,11 @@ public partial class PowerQueryCommands
         {
             timeout = TimeSpan.FromMinutes(5); // Default timeout when not specified
         }
+        else if (timeout.TotalMilliseconds > uint.MaxValue - 1)
+        {
+            // TimeSpan.Parse("1800") = 1800 days — too large for CancellationTokenSource (~49.7 day max)
+            timeout = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
+        }
 
         using var timeoutCts = new CancellationTokenSource(timeout);
 
@@ -82,6 +87,11 @@ public partial class PowerQueryCommands
         if (timeout <= TimeSpan.Zero)
         {
             timeout = TimeSpan.FromMinutes(5); // Default timeout when not specified
+        }
+        else if (timeout.TotalMilliseconds > uint.MaxValue - 1)
+        {
+            // TimeSpan.Parse("1800") = 1800 days — too large for CancellationTokenSource (~49.7 day max)
+            timeout = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
         }
 
         using var timeoutCts = new CancellationTokenSource(timeout);
