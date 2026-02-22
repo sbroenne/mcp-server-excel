@@ -12,6 +12,8 @@ This changelog covers all components:
 
 ### Fixed
 
+- **PowerQuery refresh throws ArgumentOutOfRangeException when timeout not specified** (#492): The generated service dispatch code uses `args.Timeout ?? default(TimeSpan)` which evaluates to `TimeSpan.Zero` when timeout is omitted. Core validation then threw `ArgumentOutOfRangeException`. Fixed by using a 5-minute default timeout instead of throwing when `timeout <= TimeSpan.Zero`. Updated interface descriptions to document the default behavior.
+
 - **Table `add-to-data-model` bracket column names block DAX formulas**: Excel table columns with literal bracket characters in their names (e.g., from OLEDB import sources) cannot be referenced in DAX formulas after being added to the Data Model. Added new `stripBracketColumnNames` parameter (default: `false`). When `false`, bracket column names are reported in `bracketColumnsFound` so users are aware of the issue. When `true`, the source table column headers are renamed (brackets removed) before adding to the Data Model, enabling full DAX access. The `add-to-data-model` result now includes `bracketColumnsFound` and `bracketColumnsRenamed` fields.
 
 - **PowerQuery `load-to data-model` silently succeeded without loading data**: `powerquery load-to` with `data-model` destination returned `success: true` but the table never appeared in the Power Pivot Data Model. The connection was registered via `Connections.Add2()` but `connection.Refresh()` was never called, so data was not actually loaded. Fixed by calling `connection.Refresh()` after creating the connection, consistent with how `load-to worksheet` works.
