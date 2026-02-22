@@ -262,7 +262,19 @@ public partial class PowerQueryCommands
                             try
                             {
                                 listObject = listObjects.Item(lo);
-                                queryTable = listObject.QueryTable;
+
+                                // QueryTable property throws 0x800A03EC for regular tables
+                                // (i.e., tables not backed by an external data query). Skip them.
+                                try
+                                {
+                                    queryTable = listObject.QueryTable;
+                                }
+                                catch (System.Runtime.InteropServices.COMException ex)
+                                    when (ex.HResult == unchecked((int)0x800A03EC))
+                                {
+                                    continue;
+                                }
+
                                 if (queryTable == null) continue;
 
                                 wbConn = queryTable.WorkbookConnection;
@@ -610,7 +622,6 @@ public partial class PowerQueryCommands
         return batch.Execute((ctx, ct) =>
         {
             Excel.WorkbookQuery? query = null;
-            dynamic? worksheets = null;
 
             try
             {
@@ -620,140 +631,157 @@ public partial class PowerQueryCommands
                     throw new InvalidOperationException($"Query '{queryName}' not found.");
                 }
 
-                // Remove ListObjects (tables) that reference this query
-                // Same pattern as Delete cleanup
-                worksheets = ctx.Book.Worksheets;
-                int worksheetCount = worksheets.Count;
-
-                for (int i = 1; i <= worksheetCount; i++)
-                {
-                    dynamic? sheet = null;
-                    dynamic? listObjects = null;
-
-                    try
-                    {
-                        sheet = worksheets.Item(i);
-                        listObjects = sheet.ListObjects;
-                        int tableCount = listObjects.Count;
-
-                        // Iterate backwards to safely delete while iterating
-                        for (int j = tableCount; j >= 1; j--)
-                        {
-                            dynamic? table = null;
-                            dynamic? queryTable = null;
-                            dynamic? oleDbConnection = null;
-
-                            try
-                            {
-                                table = listObjects.Item(j);
-
-                                // Check if this table has a QueryTable with our query
-                                try
-                                {
-                                    queryTable = table.QueryTable;
-                                    if (queryTable != null)
-                                    {
-                                        oleDbConnection = queryTable.WorkbookConnection?.OLEDBConnection;
-                                        if (oleDbConnection != null)
-                                        {
-                                            string? connString = oleDbConnection.Connection?.ToString() ?? "";
-                                            // Check if connection string references our query
-                                            if (connString.Contains("Microsoft.Mashup.OleDb") &&
-                                                connString.Contains($"Location={queryName}"))
-                                            {
-                                                // This table is associated with our query - delete it
-                                                table.Delete();
-                                            }
-                                        }
-                                    }
-                                }
-                                catch (Exception ex) when (ex is COMException or System.Reflection.TargetInvocationException)
-                                {
-                                    // Table doesn't have QueryTable property - skip
-                                }
-                            }
-                            finally
-                            {
-                                ComUtilities.Release(ref oleDbConnection);
-                                ComUtilities.Release(ref queryTable);
-                                ComUtilities.Release(ref table);
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref listObjects);
-                        ComUtilities.Release(ref sheet);
-                    }
-                }
-
-                // STEP 2: Remove Data Model connections
-                // Data Model connections follow pattern: "Query - {queryName}" or "Query - {queryName} - suffix"
-                dynamic? connections = null;
-                try
-                {
-                    connections = ctx.Book.Connections;
-                    var connectionsToDelete = new List<string>();
-
-                    for (int i = 1; i <= connections.Count; i++)
-                    {
-                        dynamic? conn = null;
-                        try
-                        {
-                            conn = connections.Item(i);
-                            string connName = conn.Name?.ToString() ?? "";
-
-                            // Check if this is a connection for our query
-                            // Patterns:
-                            // - "Query - {queryName}" (worksheet connection)
-                            // - "Query - {queryName} (Data Model)" (Data Model connection)
-                            // - "Query - {queryName} - suffix" (legacy pattern)
-                            if (connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase) ||
-                                connName.StartsWith($"Query - {queryName} -", StringComparison.OrdinalIgnoreCase) ||
-                                connName.StartsWith($"Query - {queryName} (", StringComparison.OrdinalIgnoreCase))
-                            {
-                                connectionsToDelete.Add(connName);
-                            }
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref conn);
-                        }
-                    }
-
-                    // Delete connections (must iterate separately to avoid modifying collection while enumerating)
-                    foreach (var connName in connectionsToDelete)
-                    {
-                        dynamic? connToDelete = null;
-                        try
-                        {
-                            connToDelete = connections.Item(connName);
-                            connToDelete.Delete();
-                        }
-                        catch (COMException)
-                        {
-                            // Connection may have already been deleted or is in use - safe to ignore
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref connToDelete);
-                        }
-                    }
-                }
-                finally
-                {
-                    ComUtilities.Release(ref connections);
-                }
+                UnloadFromDestinations(ctx.Book, queryName);
 
                 result.Success = true;
                 return result;
             }
             finally
             {
-                ComUtilities.Release(ref worksheets);
                 ComUtilities.Release(ref query);
             }
         }, cancellationToken: default);
+    }
+
+    /// <summary>
+    /// Removes all load destinations for a query (ListObjects and Data Model connections).
+    /// Shared logic used by both <see cref="Unload"/> and <see cref="LoadTo"/> ConnectionOnly mode.
+    /// The query definition itself is preserved.
+    /// </summary>
+    private static void UnloadFromDestinations(dynamic workbook, string queryName)
+    {
+        dynamic? worksheets = null;
+
+        try
+        {
+            // STEP 1: Remove ListObjects (tables) that reference this query
+            worksheets = workbook.Worksheets;
+            int worksheetCount = worksheets.Count;
+
+            for (int i = 1; i <= worksheetCount; i++)
+            {
+                dynamic? sheet = null;
+                dynamic? listObjects = null;
+
+                try
+                {
+                    sheet = worksheets.Item(i);
+                    listObjects = sheet.ListObjects;
+                    int tableCount = listObjects.Count;
+
+                    // Iterate backwards to safely delete while iterating
+                    for (int j = tableCount; j >= 1; j--)
+                    {
+                        dynamic? table = null;
+                        dynamic? queryTable = null;
+                        dynamic? oleDbConnection = null;
+
+                        try
+                        {
+                            table = listObjects.Item(j);
+
+                            // Check if this table has a QueryTable with our query
+                            try
+                            {
+                                queryTable = table.QueryTable;
+                                if (queryTable != null)
+                                {
+                                    oleDbConnection = queryTable.WorkbookConnection?.OLEDBConnection;
+                                    if (oleDbConnection != null)
+                                    {
+                                        string? connString = oleDbConnection.Connection?.ToString() ?? "";
+                                        // Check if connection string references our query
+                                        if (connString.Contains("Microsoft.Mashup.OleDb") &&
+                                            connString.Contains($"Location={queryName}"))
+                                        {
+                                            // This table is associated with our query - delete it
+                                            table.Delete();
+                                        }
+                                    }
+                                }
+                            }
+                            catch (Exception ex) when (ex is COMException or System.Reflection.TargetInvocationException)
+                            {
+                                // Table doesn't have QueryTable property - skip
+                            }
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref oleDbConnection);
+                            ComUtilities.Release(ref queryTable);
+                            ComUtilities.Release(ref table);
+                        }
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref listObjects);
+                    ComUtilities.Release(ref sheet);
+                }
+            }
+
+            // STEP 2: Remove Data Model connections
+            // Data Model connections follow pattern: "Query - {queryName}" or "Query - {queryName} - suffix"
+            dynamic? connections = null;
+            try
+            {
+                connections = workbook.Connections;
+                var connectionsToDelete = new List<string>();
+
+                for (int i = 1; i <= connections.Count; i++)
+                {
+                    dynamic? conn = null;
+                    try
+                    {
+                        conn = connections.Item(i);
+                        string connName = conn.Name?.ToString() ?? "";
+
+                        // Check if this is a connection for our query
+                        // Patterns:
+                        // - "Query - {queryName}" (worksheet connection)
+                        // - "Query - {queryName} (Data Model)" (Data Model connection)
+                        // - "Query - {queryName} - suffix" (legacy pattern)
+                        if (connName.Equals($"Query - {queryName}", StringComparison.OrdinalIgnoreCase) ||
+                            connName.StartsWith($"Query - {queryName} -", StringComparison.OrdinalIgnoreCase) ||
+                            connName.StartsWith($"Query - {queryName} (", StringComparison.OrdinalIgnoreCase))
+                        {
+                            connectionsToDelete.Add(connName);
+                        }
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref conn);
+                    }
+                }
+
+                // Delete connections (must iterate separately to avoid modifying collection while enumerating)
+                foreach (var connName in connectionsToDelete)
+                {
+                    dynamic? connToDelete = null;
+                    try
+                    {
+                        connToDelete = connections.Item(connName);
+                        connToDelete.Delete();
+                    }
+                    catch (COMException)
+                    {
+                        // Connection may have already been deleted or is in use - safe to ignore
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref connToDelete);
+                    }
+                }
+            }
+            finally
+            {
+                ComUtilities.Release(ref connections);
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref worksheets);
+        }
     }
 }
 
