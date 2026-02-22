@@ -101,6 +101,71 @@ public sealed class CliDaemonTests : IAsyncLifetime
         Assert.True(exited, "Daemon process should exit after stop command");
     }
 
+    [Fact]
+    public async Task ServiceRun_SecondInstance_ExitsImmediatelyWithoutDuplicate()
+    {
+        // Start first daemon and wait until it is ready
+        _daemonProcess = StartDaemon();
+        await WaitForDaemonReadyAsync();
+        _output.WriteLine($"First daemon running (PID {_daemonProcess.Id})");
+
+        // Start a second daemon with the same pipe name — it should detect the mutex
+        // held by the first daemon and exit immediately (exit code 0)
+        var secondDaemon = StartDaemon();
+        _output.WriteLine($"Second daemon started (PID {secondDaemon.Id})");
+
+        var secondExited = secondDaemon.WaitForExit(TimeSpan.FromSeconds(5));
+        _output.WriteLine(secondExited
+            ? $"Second daemon exited with code {secondDaemon.ExitCode}"
+            : "Second daemon did NOT exit within timeout — duplicate running!");
+
+        try
+        {
+            Assert.True(secondExited, "Second daemon should exit immediately when a daemon is already running");
+            Assert.Equal(0, secondDaemon.ExitCode);
+        }
+        finally
+        {
+            if (!secondDaemon.HasExited)
+                secondDaemon.Kill(entireProcessTree: true);
+            secondDaemon.Dispose();
+        }
+
+        // First daemon should still be alive and responsive
+        var (statusResult, statusJson) = await CliProcessHelper.RunJsonAsync("service status", environmentVariables: TestEnv);
+        Assert.Equal(0, statusResult.ExitCode);
+        Assert.True(statusJson.RootElement.GetProperty("running").GetBoolean(),
+            "First daemon should still be running after second-instance exit");
+    }
+
+    [Fact]
+    public async Task ServiceRun_MutexReleasedAfterShutdown_NewDaemonCanStart()
+    {
+        // Start a daemon and shut it down
+        var firstDaemon = StartDaemon();
+        await WaitForDaemonReadyAsync();
+        _output.WriteLine($"First daemon running (PID {firstDaemon.Id})");
+
+        var stopResult = await CliProcessHelper.RunAsync("service stop", environmentVariables: TestEnv);
+        Assert.Equal(0, stopResult.ExitCode);
+
+        var firstExited = firstDaemon.WaitForExit(TimeSpan.FromSeconds(10));
+        Assert.True(firstExited, "First daemon should exit after stop");
+        firstDaemon.Dispose();
+        _output.WriteLine("First daemon stopped");
+
+        // A new daemon should now be able to start (mutex was released)
+        _daemonProcess = StartDaemon();
+        await WaitForDaemonReadyAsync();
+
+        var (statusResult, statusJson) = await CliProcessHelper.RunJsonAsync("service status", environmentVariables: TestEnv);
+        _output.WriteLine($"Second daemon status: {statusResult.Stdout}");
+
+        Assert.Equal(0, statusResult.ExitCode);
+        Assert.True(statusJson.RootElement.GetProperty("running").GetBoolean(),
+            "A new daemon should start successfully after the previous one released the mutex");
+    }
+
     private Process StartDaemon()
     {
         var exePath = CliProcessHelper.GetExePath();
