@@ -263,6 +263,18 @@ internal sealed class Program
         Application.SetCompatibleTextRenderingDefault(false);
 
         var pipeName = pipeNameOverride ?? Service.ServiceSecurity.GetCliPipeName();
+
+        // Acquire a named OS mutex for the lifetime of this daemon process.
+        // If another daemon is already running for this pipe/user, exit immediately
+        // instead of creating a duplicate process with a duplicate tray icon.
+        var mutexName = DaemonAutoStart.GetDaemonMutexName(pipeName);
+        var daemonMutex = new Mutex(initiallyOwned: true, mutexName, out bool createdNew);
+        if (!createdNew)
+        {
+            // Another daemon is already running — exit silently.
+            daemonMutex.Dispose();
+            return 0;
+        }
         var service = new Service.ExcelMcpService();
 
         // Capture the UI synchronization context after Application starts
@@ -297,6 +309,10 @@ internal sealed class Program
         // Wait for service to finish
         serviceTask.Wait(TimeSpan.FromSeconds(5));
         service.Dispose();
+
+        // Release the daemon mutex so a new daemon can start if needed
+        daemonMutex.ReleaseMutex();
+        daemonMutex.Dispose();
 
         return 0;
     }
