@@ -22,7 +22,7 @@ public static partial class ExcelWorksheetTool
     /// <param name="session_id">Session ID from file 'open' action (required for: list, create, rename, delete, move, copy. Not required for: copy-to-file, move-to-file)</param>
     /// <param name="sheet_name">Name of the worksheet (required for: create, rename, delete, move, copy)</param>
     /// <param name="source_name">Name of the source worksheet (required for: copy)</param>
-    /// <param name="target_name">Name for the target/copied worksheet</param>
+    /// <param name="target_name">New name for the worksheet (required for: rename, copy)</param>
     /// <param name="file_path">Optional file path when batch contains multiple workbooks</param>
     /// <param name="source_file">Full path to the source workbook (required for: copy-to-file, move-to-file)</param>
     /// <param name="source_sheet">Name of the sheet to copy (required for: copy-to-file, move-to-file)</param>

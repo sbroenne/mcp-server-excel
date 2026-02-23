@@ -9,6 +9,9 @@ All notable changes to ExcelMcp will be documented in this file.
 - Enhanced daemon security with SID validation and `CurrentUserOnly` pipe access
 
 ### Fixed
+- **Chart `create-from-range`** (#512): sheet names with spaces or special characters now quoted in source data reference — fixes COM error when source sheet name contains spaces
+- **PivotTable `create-from-range`** (#512): same quoting fix for pivot cache source data reference
+- **Worksheet `rename`** (#513): `target_name` parameter description now mentions rename action, improving LLM discoverability
 - Standardized all data operation timeouts to 30 minutes via `ComInteropConstants.DataOperationTimeout`
   - Power Query `load-to` increased from 5 min to 30 min
   - Connection `refresh` and `load-to` increased from 5 min to 30 min
