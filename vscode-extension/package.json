@@ -15,7 +15,7 @@
   "homepage": "https://excelmcpserver.dev/",
   "license": "MIT",
   "engines": {
-    "vscode": "^1.106.0"
+    "vscode": "^1.109.0"
   },
   "os": [
     "win32"
