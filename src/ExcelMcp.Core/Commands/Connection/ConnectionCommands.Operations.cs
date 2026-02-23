@@ -16,7 +16,7 @@ public partial class ConnectionCommands
     /// </summary>
     public OperationResult LoadTo(IExcelBatch batch, string connectionName, string sheetName)
     {
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        using var timeoutCts = new CancellationTokenSource(ComInteropConstants.DataOperationTimeout);
 
         return batch.Execute((ctx, ct) =>
         {

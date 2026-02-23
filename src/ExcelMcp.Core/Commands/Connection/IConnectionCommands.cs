@@ -8,11 +8,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// Data connections (OLEDB, ODBC, ODC import).
 /// TEXT/WEB/CSV: Use powerquery instead.
 /// Power Query connections auto-redirect to powerquery.
-/// TIMEOUT: 5 min auto-timeout for refresh/load-to.
+/// TIMEOUT: 30 min auto-timeout for refresh/load-to.
 /// </summary>
 [ServiceCategory("connection", "Connection")]
 [McpTool("connection", Title = "Data Connection Operations", Destructive = true, Category = "query",
-    Description = "Data connections (OLEDB, ODBC, ODC import). TEXT/WEB/CSV: Use powerquery instead. Power Query connections auto-redirect to powerquery. TIMEOUT: 5 min auto-timeout for refresh/loadto.")]
+    Description = "Data connections (OLEDB, ODBC, ODC import). TEXT/WEB/CSV: Use powerquery instead. Power Query connections auto-redirect to powerquery. TIMEOUT: 30 min auto-timeout for refresh/loadto.")]
 public interface IConnectionCommands
 {
     /// <summary>

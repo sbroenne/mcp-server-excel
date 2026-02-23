@@ -22,12 +22,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// Use 'data-model' to load to Power Pivot, then use datamodel to create DAX measures.
 ///
 /// TARGET CELL: targetCellAddress places tables without clearing sheet.
-/// TIMEOUT: 5 min auto-timeout for refresh/load. For network queries, use timeout=120 or higher.
-/// timeout=0 or omitted uses the 5 min default.
+/// TIMEOUT: 30 min auto-timeout for refresh and load-to. For quick queries, use timeout=60 or similar.
+/// timeout=0 or omitted uses the 30 min default.
 /// </summary>
 [ServiceCategory("powerquery", "PowerQuery")]
 [McpTool("powerquery", Title = "Power Query Operations", Destructive = true, Category = "query",
-    Description = "Power Query M code and data loading. TEST-FIRST WORKFLOW: 1. evaluate (test M code without persisting) 2. create/update (store validated query) 3. refresh/load-to (load data to destination). IF CREATE FAILS: Use evaluate for detailed M engine error. DATETIME: Always include Table.TransformColumnTypes() for explicit column types. DESTINATIONS: worksheet (default), data-model (for DAX), both, connection-only. M-CODE: Auto-formatted via powerqueryformatter.com. TARGET CELL: targetCellAddress places tables without clearing sheet. TIMEOUT: 5 min auto-timeout. For network queries, use timeout=120 or higher. timeout=0 or omitted uses the 5 min default.")]
+    Description = "Power Query M code and data loading. TEST-FIRST WORKFLOW: 1. evaluate (test M code without persisting) 2. create/update (store validated query) 3. refresh/load-to (load data to destination). IF CREATE FAILS: Use evaluate for detailed M engine error. DATETIME: Always include Table.TransformColumnTypes() for explicit column types. DESTINATIONS: worksheet (default), data-model (for DAX), both, connection-only. M-CODE: Auto-formatted via powerqueryformatter.com. TARGET CELL: targetCellAddress places tables without clearing sheet. TIMEOUT: 30 min auto-timeout for refresh and load-to. For quick queries, use timeout=60. timeout=0 or omitted uses the 30 min default.")]
 public interface IPowerQueryCommands
 {
     /// <summary>
@@ -124,7 +124,7 @@ public interface IPowerQueryCommands
     /// Batch refresh with error tracking.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="timeout">Maximum time to wait for all queries to refresh. Default: 5 minutes. Use a higher value (e.g., 1800 seconds) for large workbooks with many or slow queries.</param>
+    /// <param name="timeout">Maximum time to wait for all queries to refresh. Default: 30 minutes. Use a lower value for quick workbooks or higher for very large ones.</param>
     /// <exception cref="InvalidOperationException">Thrown when any Power Query fails to refresh</exception>
     OperationResult RefreshAll(IExcelBatch batch, TimeSpan timeout = default);
 

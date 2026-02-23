@@ -8,6 +8,14 @@ All notable changes to ExcelMcp will be documented in this file.
 - CLI daemon IPC migrated from custom protocol to StreamJsonRpc — improved reliability and error handling
 - Enhanced daemon security with SID validation and `CurrentUserOnly` pipe access
 
+### Fixed
+- Standardized all data operation timeouts to 30 minutes via `ComInteropConstants.DataOperationTimeout`
+  - Power Query `load-to` increased from 5 min to 30 min
+  - Connection `refresh` and `load-to` increased from 5 min to 30 min
+  - Power Query `refresh`/`refresh-all` now use the same constant (was inline 30 min)
+  - `ExcelBatch.Execute()` no longer double-caps timeout when caller provides a cancellation token
+- Corrected stale documentation claiming 60-600 second range restriction on refresh timeout (no such validation exists)
+
 ## [1.8.12] - 2026-02-22
 
 ### Fixed

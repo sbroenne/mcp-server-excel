@@ -34,6 +34,13 @@ public static class ComInteropConstants
     public static readonly TimeSpan DefaultOperationTimeout = TimeSpan.FromMinutes(5);
 
     /// <summary>
+    /// Default timeout for data loading operations (30 minutes).
+    /// Used by Power Query refresh/load-to and connection refresh/load-to.
+    /// Heavy workloads (Folder.Files, multi-query, large OLEDB) can take 10+ minutes.
+    /// </summary>
+    public static readonly TimeSpan DataOperationTimeout = TimeSpan.FromMinutes(30);
+
+    /// <summary>
     /// Maximum wait time for session creation file lock acquisition (5 seconds).
     /// </summary>
     public static readonly TimeSpan SessionFileLockTimeout = TimeSpan.FromSeconds(5);

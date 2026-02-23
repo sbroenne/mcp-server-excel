@@ -47,7 +47,7 @@ public partial class PowerQueryCommands
 
         targetCellAddress ??= "A1"; // Default cell address
 
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        using var timeoutCts = new CancellationTokenSource(ComInteropConstants.DataOperationTimeout);
 
         return batch.Execute((ctx, ct) =>
         {
