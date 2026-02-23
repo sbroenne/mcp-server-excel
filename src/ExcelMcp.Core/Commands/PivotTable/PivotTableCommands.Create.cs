@@ -42,7 +42,8 @@ public partial class PivotTableCommands
             // STEP 2: Create PivotCache from source range
             // VBA: Set pivot_cache = activeWorkbook.PivotCaches.Create(SourceType:=xlDatabase, SourceData:="csv_data", Version:=xlPivotTableVersion14)
             pivotCaches = ctx.Book.PivotCaches();
-            string sourceDataRef = $"{sourceSheet}!{sourceRange}";
+            // Sheet names with spaces or special characters must be quoted: 'Sheet Name'!A1:D6
+            string sourceDataRef = $"'{sourceSheet}'!{sourceRange}";
 
             // xlDatabase = 1, xlPivotTableVersion14 = 4
             pivotCache = pivotCaches.Create(

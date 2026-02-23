@@ -227,9 +227,10 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 {
                     // Get the range object from the address string
                     // If sourceRangeAddress doesn't include sheet name, prefix it
+                    // Sheet names with spaces or special characters must be quoted: 'Sheet Name'!A1:D6
                     string fullRangeAddress = sourceRangeAddress.Contains('!')
                         ? sourceRangeAddress
-                        : $"{sheetName}!{sourceRangeAddress}";
+                        : $"'{sheetName}'!{sourceRangeAddress}";
                     sourceRangeObj = ctx.Book.Application.Range[fullRangeAddress];
                     try
                     {
