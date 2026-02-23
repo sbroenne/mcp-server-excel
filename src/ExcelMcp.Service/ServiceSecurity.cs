@@ -25,14 +25,13 @@ public static class ServiceSecurity
 {
     private static readonly Lazy<string> LazyUserSid = new(() =>
     {
-        try
+        var sid = WindowsIdentity.GetCurrent().User?.Value;
+        if (string.IsNullOrEmpty(sid))
         {
-            return WindowsIdentity.GetCurrent().User?.Value ?? "default";
+            throw new InvalidOperationException(
+                "Cannot determine current user SID. Named pipe security requires a valid SID for user isolation.");
         }
-        catch (Exception)
-        {
-            return "default";
-        }
+        return sid;
     });
 
     private static string UserSid => LazyUserSid.Value;
@@ -79,6 +78,6 @@ public static class ServiceSecurity
             ".",
             pipeName,
             PipeDirection.InOut,
-            PipeOptions.Asynchronous);
+            PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
     }
 }

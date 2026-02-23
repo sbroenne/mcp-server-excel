@@ -26,7 +26,7 @@ jobs:
           
           # Fail if GPL/AGPL/LGPL licenses detected (stricter than MIT)
           license-check: true
-          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, LicenseRef-scancode-generic-cla
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, LicenseRef-scancode-generic-cla, BlueOak-1.0.0, CC0-1.0
           
           # Comment on PR with summary
           comment-summary-in-pr: always
@@ -40,6 +40,10 @@ jobs:
           # Additional configuration
           base-ref: ${{ github.event.pull_request.base.sha }}
           head-ref: ${{ github.event.pull_request.head.sha }}
+
+          # Known unfixable transitive vulnerabilities in dev-only build tools
+          # minimatch@3.x ReDoS in @vscode/vsce (no fix available upstream)
+          allow-ghsas: GHSA-3ppc-4f35-3m26
           
       - name: Dependency Review Summary
         if: always()

@@ -1,9 +1,11 @@
-using System.Text;
+using Sbroenne.ExcelMcp.Service.Rpc;
+using StreamJsonRpc;
 
 namespace Sbroenne.ExcelMcp.Service;
 
 /// <summary>
-/// Client for communicating with the ExcelMCP Service via named pipe.
+/// Client for communicating with the ExcelMCP CLI daemon via named pipe + StreamJsonRpc.
+/// Each call creates a new pipe connection, makes one RPC call, and disconnects.
 /// </summary>
 public sealed class ServiceClient : IDisposable
 {
@@ -23,7 +25,7 @@ public sealed class ServiceClient : IDisposable
     }
 
     /// <summary>
-    /// Sends a request to the service and waits for response.
+    /// Sends a request to the service and waits for response via StreamJsonRpc.
     /// </summary>
     public async Task<ServiceResponse> SendAsync(ServiceRequest request, CancellationToken cancellationToken = default)
     {
@@ -35,29 +37,31 @@ public sealed class ServiceClient : IDisposable
 
         try
         {
-            // Connect to service
             await pipe.ConnectAsync((int)_connectTimeout.TotalMilliseconds, timeoutCts.Token);
 
-            using var reader = new StreamReader(pipe, Encoding.UTF8, leaveOpen: true);
-            using var writer = new StreamWriter(pipe, Encoding.UTF8, leaveOpen: true) { AutoFlush = true };
-
-            // Send request
-            var requestJson = ServiceProtocol.Serialize(request);
-            await writer.WriteLineAsync(requestJson.AsMemory(), timeoutCts.Token);
-
-            // Read response
-            var responseJson = await reader.ReadLineAsync(timeoutCts.Token);
-            if (string.IsNullOrEmpty(responseJson))
+            // Use StreamJsonRpc typed proxy for the RPC call
+            var proxy = JsonRpc.Attach<IExcelDaemonRpc>(pipe);
+            try
             {
-                return new ServiceResponse { Success = false, ErrorMessage = "Empty response from service" };
+                return await proxy.ProcessCommandAsync(request);
             }
-
-            return ServiceProtocol.Deserialize<ServiceResponse>(responseJson)
-                   ?? new ServiceResponse { Success = false, ErrorMessage = "Invalid response format" };
+            finally
+            {
+                // Dispose the underlying JsonRpc to clean up the connection
+                ((IDisposable)proxy).Dispose();
+            }
         }
         catch (TimeoutException)
         {
             return new ServiceResponse { Success = false, ErrorMessage = "Service connection timed out" };
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "Service request timed out" };
+        }
+        catch (ConnectionLostException)
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "Connection to service lost. Is it running?" };
         }
         catch (IOException ex) when (ex.Message.Contains("pipe"))
         {
@@ -87,5 +91,4 @@ public sealed class ServiceClient : IDisposable
         _disposed = true;
     }
 }
-
 
