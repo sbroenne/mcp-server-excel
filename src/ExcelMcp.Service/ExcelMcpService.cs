@@ -1,6 +1,5 @@
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
@@ -9,6 +8,8 @@ using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.Core.Commands.Diag;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
+using Sbroenne.ExcelMcp.Service.Rpc;
+using StreamJsonRpc;
 using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 using Sbroenne.ExcelMcp.Core.Commands.Slicer;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
@@ -75,6 +76,16 @@ public sealed class ExcelMcpService : IDisposable
 
     public void RequestShutdown() => _shutdownCts.Cancel();
 
+    // Exposed for testing — backoff parameters for pipe server accept loop error recovery
+    internal static readonly TimeSpan InitialBackoff = TimeSpan.FromMilliseconds(100);
+    internal static readonly TimeSpan MaxBackoff = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Records client activity to keep the idle timeout monitor alive.
+    /// Called by <see cref="Rpc.DaemonRpcTarget"/> on each incoming RPC call.
+    /// </summary>
+    internal void RecordActivity() => _lastActivityTime = DateTime.UtcNow;
+
     private async Task RunPipeServerAsync(CancellationToken cancellationToken)
     {
         // Use a semaphore to limit concurrent connections (prevents resource exhaustion)
@@ -86,6 +97,8 @@ public sealed class ExcelMcpService : IDisposable
             _ = Task.Run(() => MonitorIdleTimeoutAsync(cancellationToken), cancellationToken);
         }
 
+        var currentBackoff = InitialBackoff;
+
         while (!cancellationToken.IsCancellationRequested)
         {
             NamedPipeServerStream? server = null;
@@ -94,6 +107,9 @@ public sealed class ExcelMcpService : IDisposable
                 server = ServiceSecurity.CreateSecureServer(_pipeName);
                 await server.WaitForConnectionAsync(cancellationToken);
 
+                // Success — reset backoff
+                currentBackoff = InitialBackoff;
+
                 // Record activity on each connection
                 _lastActivityTime = DateTime.UtcNow;
 
@@ -101,13 +117,16 @@ public sealed class ExcelMcpService : IDisposable
                 var clientServer = server;
                 server = null; // Prevent disposal in finally - task owns it now
 
-                // Handle client asynchronously - allows accepting next connection immediately
+                // Handle client via StreamJsonRpc — replaces hand-rolled JSON protocol
+                // with standard JSON-RPC 2.0 over Content-Length-delimited framing.
                 _ = Task.Run(async () =>
                 {
                     await connectionLimit.WaitAsync(cancellationToken);
                     try
                     {
-                        await HandleClientAsync(clientServer, cancellationToken);
+                        var rpcTarget = new DaemonRpcTarget(this);
+                        using var rpc = JsonRpc.Attach(clientServer, rpcTarget);
+                        await rpc.Completion; // Waits until client disconnects
                     }
                     finally
                     {
@@ -123,7 +142,11 @@ public sealed class ExcelMcpService : IDisposable
             }
             catch (Exception)
             {
-                // Log errors but continue serving — individual client failures should not stop the service
+                // Backoff to prevent CPU spin when errors repeat (e.g. pipe creation failure).
+                // Doubles each iteration: 100ms → 200ms → 400ms → … → 5s cap.
+                // Resets to 100ms on next successful connection.
+                try { await Task.Delay(currentBackoff, cancellationToken); } catch (OperationCanceledException) { break; }
+                currentBackoff = TimeSpan.FromMilliseconds(Math.Min(currentBackoff.TotalMilliseconds * 2, MaxBackoff.TotalMilliseconds));
             }
             finally
             {
@@ -155,38 +178,6 @@ public sealed class ExcelMcpService : IDisposable
                 RequestShutdown();
                 break;
             }
-        }
-    }
-
-    private async Task HandleClientAsync(NamedPipeServerStream server, CancellationToken cancellationToken)
-    {
-        using var reader = new StreamReader(server, Encoding.UTF8, leaveOpen: true);
-        using var writer = new StreamWriter(server, Encoding.UTF8, leaveOpen: true) { AutoFlush = true };
-
-        var requestJson = await reader.ReadLineAsync(cancellationToken);
-        if (string.IsNullOrEmpty(requestJson)) return;
-
-        var request = ServiceProtocol.Deserialize<ServiceRequest>(requestJson);
-        if (request == null)
-        {
-            await writer.WriteLineAsync(ServiceProtocol.Serialize(new ServiceResponse { Success = false, ErrorMessage = "Invalid request" }));
-            return;
-        }
-
-        var response = await ProcessAsync(request);
-
-        // Write response without cancellation token - we need to send response even during shutdown
-        await writer.WriteLineAsync(ServiceProtocol.Serialize(response));
-
-        // Ensure response is transmitted before closing pipe
-        try
-        {
-            await server.FlushAsync(CancellationToken.None);
-            server.WaitForPipeDrain();
-        }
-        catch (IOException)
-        {
-            // Client may have disconnected - that's ok
         }
     }
 

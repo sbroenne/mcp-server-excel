@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -16,6 +17,7 @@ internal sealed class CliServiceTray : IDisposable
     private readonly SessionManager _sessionManager;
     private readonly Action _requestShutdown;
     private readonly System.Windows.Forms.Timer _refreshTimer;
+    private readonly TaskbarNotificationWindow _taskbarWindow;
     private bool _disposed;
     private DateTime _lastBalloonShown = DateTime.MinValue;
 
@@ -65,6 +67,9 @@ internal sealed class CliServiceTray : IDisposable
         _refreshTimer = new System.Windows.Forms.Timer { Interval = 2000 };
         _refreshTimer.Tick += (_, _) => RefreshSessionsMenu();
         _refreshTimer.Start();
+
+        // Listen for explorer.exe restarts so we can re-register the tray icon
+        _taskbarWindow = new TaskbarNotificationWindow(_notifyIcon);
 
         RefreshSessionsMenu();
 
@@ -485,6 +490,40 @@ internal sealed class CliServiceTray : IDisposable
         _requestShutdown();
     }
 
+    /// <summary>
+    /// Hidden window that listens for the TaskbarCreated message broadcast by explorer.exe
+    /// after it restarts, so the tray icon can be re-registered.
+    /// </summary>
+    private sealed class TaskbarNotificationWindow : NativeWindow
+    {
+        private readonly NotifyIcon _notifyIcon;
+        private readonly uint _wmTaskbarCreated;
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern uint RegisterWindowMessage(string lpString);
+
+        public TaskbarNotificationWindow(NotifyIcon notifyIcon)
+        {
+            _notifyIcon = notifyIcon;
+            _wmTaskbarCreated = RegisterWindowMessage("TaskbarCreated");
+
+            // Create a message-only window to receive broadcast messages
+            CreateHandle(new CreateParams());
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            if (_wmTaskbarCreated != 0 && m.Msg == (int)_wmTaskbarCreated)
+            {
+                // Explorer restarted — re-register the tray icon
+                _notifyIcon.Visible = false;
+                _notifyIcon.Visible = true;
+            }
+
+            base.WndProc(ref m);
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
@@ -492,6 +531,7 @@ internal sealed class CliServiceTray : IDisposable
 
         _refreshTimer.Stop();
         _refreshTimer.Dispose();
+        _taskbarWindow.DestroyHandle();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
         _contextMenu.Dispose();

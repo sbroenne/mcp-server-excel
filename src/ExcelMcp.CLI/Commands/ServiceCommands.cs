@@ -66,6 +66,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
 
 /// <summary>
 /// Shows ExcelMCP CLI Service status including PID, session count, and uptime.
+/// Surfaces actual error details instead of silently masking connection failures.
 /// </summary>
 internal sealed class ServiceStatusCommand : AsyncCommand
 {
@@ -93,19 +94,27 @@ internal sealed class ServiceStatusCommand : AsyncCommand
                     return 0;
                 }
             }
-        }
-        catch (Exception)
-        {
-            // Can't connect — daemon not running
-        }
 
-        Console.WriteLine(JsonSerializer.Serialize(new
+            // ServiceClient returned an error response — surface the actual error
+            // instead of silently assuming "not running" (fixes #507)
+            Console.WriteLine(JsonSerializer.Serialize(new
+            {
+                success = false,
+                running = false,
+                error = response.ErrorMessage ?? "Service returned invalid response"
+            }, ServiceProtocol.JsonOptions));
+            return 1;
+        }
+        catch (Exception ex)
         {
-            success = true,
-            running = false,
-            processId = 0,
-            sessionCount = 0
-        }, ServiceProtocol.JsonOptions));
-        return 0;
+            // Unexpected error that escaped ServiceClient — report with details
+            Console.WriteLine(JsonSerializer.Serialize(new
+            {
+                success = false,
+                running = false,
+                error = $"{ex.GetType().Name}: {ex.Message}"
+            }, ServiceProtocol.JsonOptions));
+            return 1;
+        }
     }
 }

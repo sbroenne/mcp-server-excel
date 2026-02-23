@@ -9,7 +9,9 @@ namespace Sbroenne.ExcelMcp.ComInterop.ServiceClient;
 /// </summary>
 public static class ServiceSecurity
 {
-    private static readonly string UserSid = WindowsIdentity.GetCurrent().User?.Value ?? "default";
+    private static readonly string UserSid = WindowsIdentity.GetCurrent().User?.Value
+        ?? throw new InvalidOperationException(
+            "Cannot determine current user SID. Named pipe security requires a valid SID for user isolation.");
 
     /// <summary>
     /// Gets the pipe name for the MCP Server (per-process isolation).
@@ -30,6 +32,6 @@ public static class ServiceSecurity
             ".",
             pipeName,
             PipeDirection.InOut,
-            PipeOptions.Asynchronous);
+            PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
     }
 }

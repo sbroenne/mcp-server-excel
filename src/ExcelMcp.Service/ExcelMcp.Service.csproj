@@ -41,5 +41,8 @@
     <InternalsVisibleTo Include="Sbroenne.ExcelMcp.CLI.Tests" />
     <InternalsVisibleTo Include="Sbroenne.ExcelMcp.McpServer.Tests" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="StreamJsonRpc" />
+  </ItemGroup>
 
 </Project>
