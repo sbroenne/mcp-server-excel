@@ -274,7 +274,7 @@ Conditional formatting - visual rules based on cell values. TYPES: cellValue (re
 
 ### connection
 
-Data connections (OLEDB, ODBC, ODC import). TEXT/WEB/CSV: Use powerquery instead. Power Query connections auto-redirect to powerquery. TIMEOUT: 5 min auto-timeout for refresh/load-to.
+Data connections (OLEDB, ODBC, ODC import). TEXT/WEB/CSV: Use powerquery instead. Power Query connections auto-redirect to powerquery. TIMEOUT: 30 min auto-timeout for refresh/load-to.
 
 **Actions:** `list`, `view`, `create`, `refresh`, `delete`, `load-to`, `get-properties`, `set-properties`, `test`
 
@@ -429,7 +429,7 @@ PivotTable field management: add/remove/configure fields, filtering, sorting, an
 
 ### powerquery
 
-Power Query M code and data loading. TEST-FIRST DEVELOPMENT WORKFLOW (BEST PRACTICE): 1. evaluate - Test M code WITHOUT persisting (catches syntax errors, validates sources, shows data preview) 2. create/update - Store VALIDATED query in workbook 3. refresh/load-to - Load data to destination Skip evaluate only for trivial literal tables. IF CREATE/UPDATE FAILS: Use evaluate to get the actual M engine error message, fix code, retry. DATETIME COLUMNS: Always include Table.TransformColumnTypes() in M code to set column types explicitly. Without explicit types, dates may be stored as numbers and Data Model relationships may fail. DESTINATIONS: 'worksheet' (default), 'data-model' (for DAX), 'both', 'connection-only'. Use 'data-model' to load to Power Pivot, then use datamodel to create DAX measures. TARGET CELL: targetCellAddress places tables without clearing sheet. TIMEOUT: 5 min auto-timeout for refresh/load. For network queries, use timeout=120 or higher. timeout=0 or omitted uses the 5 min default.
+Power Query M code and data loading. TEST-FIRST DEVELOPMENT WORKFLOW (BEST PRACTICE): 1. evaluate - Test M code WITHOUT persisting (catches syntax errors, validates sources, shows data preview) 2. create/update - Store VALIDATED query in workbook 3. refresh/load-to - Load data to destination Skip evaluate only for trivial literal tables. IF CREATE/UPDATE FAILS: Use evaluate to get the actual M engine error message, fix code, retry. DATETIME COLUMNS: Always include Table.TransformColumnTypes() in M code to set column types explicitly. Without explicit types, dates may be stored as numbers and Data Model relationships may fail. DESTINATIONS: 'worksheet' (default), 'data-model' (for DAX), 'both', 'connection-only'. Use 'data-model' to load to Power Pivot, then use datamodel to create DAX measures. TARGET CELL: targetCellAddress places tables without clearing sheet. TIMEOUT: 30 min auto-timeout for refresh and load-to. For quick queries, use timeout=60. timeout=0 or omitted uses the 30 min default.
 
 **Actions:** `list`, `view`, `refresh`, `get-load-config`, `delete`, `create`, `update`, `load-to`, `refresh-all`, `rename`, `unload`, `evaluate`
 
@@ -720,11 +720,11 @@ Control Excel window visibility, position, state, and status bar. Use to show/hi
 
 ### --timeout Must Be Greater Than Zero
 
-When using `--timeout`, the value must be a positive integer (seconds). `--timeout 0` is invalid and will error. Omit `--timeout` entirely to use the default (300 seconds for most operations).
+When using `--timeout`, the value must be a positive integer (seconds). `--timeout 0` is invalid and will error. Omit `--timeout` entirely to use the default (1800 seconds / 30 min for all data operations).
 
 ### Power Query Operations Are Slow
 
-`powerquery create`, `powerquery refresh`, and `powerquery evaluate` may take 30+ seconds depending on data volume. Either omit `--timeout` (uses 5-minute default) or set a generous value like `--timeout 120`.
+`powerquery create`, `powerquery refresh`, and `powerquery evaluate` may take 30+ seconds depending on data volume. Either omit `--timeout` (uses 30-minute default) or set a shorter value like `--timeout 120` for quick queries.
 
 ### JSON Values Format
 

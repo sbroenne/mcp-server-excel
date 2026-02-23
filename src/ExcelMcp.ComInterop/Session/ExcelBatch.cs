@@ -513,18 +513,28 @@ internal sealed class ExcelBatch : IExcelBatch
                 $"Session for '{Path.GetFileName(_workbookPath)}' was disposed while submitting an operation.");
         }
 
-        // Wait for operation to complete with timeout
-        // Combine caller's cancellation token with operation timeout
+        // Wait for operation to complete with timeout.
+        // When the caller provides a cancellation token (e.g., PowerQuery refresh with its own timeout),
+        // respect it exclusively and don't layer the session _operationTimeout on top.
+        // This prevents a double-cap where min(callerTimeout, sessionTimeout) is always the shorter one —
+        // which caused heavy Power Query refreshes (~8+ min) to always fail against the 5-min default.
         try
         {
-            using var timeoutCts = new CancellationTokenSource(_operationTimeout);
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
-
-            return tcs.Task.WaitAsync(linkedCts.Token).GetAwaiter().GetResult();
+            if (cancellationToken.CanBeCanceled)
+            {
+                // Caller controls the timeout — use their token exclusively
+                return tcs.Task.WaitAsync(cancellationToken).GetAwaiter().GetResult();
+            }
+            else
+            {
+                // No caller timeout — apply session-level operation timeout as safety net
+                using var timeoutCts = new CancellationTokenSource(_operationTimeout);
+                return tcs.Task.WaitAsync(timeoutCts.Token).GetAwaiter().GetResult();
+            }
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            // Timeout occurred (not caller cancellation)
+            // Session timeout occurred (not caller cancellation) — only happens in the else branch
             _logger.LogError("Operation timed out after {Timeout} for {FileName}", _operationTimeout, Path.GetFileName(_workbookPath));
             _operationTimedOut = true; // Mark timeout for aggressive cleanup during disposal
             throw new TimeoutException(
@@ -534,8 +544,8 @@ internal sealed class ExcelBatch : IExcelBatch
         }
         catch (OperationCanceledException)
         {
-            _logger.LogDebug("Operation cancelled for {FileName}", Path.GetFileName(_workbookPath));
-            _operationTimedOut = true; // Mark timeout for aggressive cleanup during disposal
+            _logger.LogDebug("Operation cancelled or timed out for {FileName}", Path.GetFileName(_workbookPath));
+            _operationTimedOut = true; // STA thread may still be blocked — session is unusable
             throw;
         }
     }

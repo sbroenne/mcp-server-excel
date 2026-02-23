@@ -160,7 +160,7 @@ public partial class ConnectionCommands
     /// </summary>
     public OperationResult Refresh(IExcelBatch batch, string connectionName, TimeSpan? timeout)
     {
-        var effectiveTimeout = timeout ?? TimeSpan.FromMinutes(5);
+        var effectiveTimeout = timeout ?? ComInteropConstants.DataOperationTimeout;
         using var timeoutCts = new CancellationTokenSource(effectiveTimeout);
 
         return batch.Execute((ctx, ct) =>

@@ -29,7 +29,7 @@ public partial class PowerQueryCommands
 
         if (timeout <= TimeSpan.Zero)
         {
-            timeout = TimeSpan.FromMinutes(5); // Default timeout when not specified
+            timeout = ComInteropConstants.DataOperationTimeout;
         }
         else if (timeout.TotalMilliseconds > uint.MaxValue - 1)
         {
@@ -86,7 +86,7 @@ public partial class PowerQueryCommands
     {
         if (timeout <= TimeSpan.Zero)
         {
-            timeout = TimeSpan.FromMinutes(5); // Default timeout when not specified
+            timeout = ComInteropConstants.DataOperationTimeout;
         }
         else if (timeout.TotalMilliseconds > uint.MaxValue - 1)
         {
