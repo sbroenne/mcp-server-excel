@@ -1,3 +1,4 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -38,6 +39,7 @@ public class FileCommands : IFileCommands
             Extension = extension,
             LastModified = lastModified,
             IsValid = exists && isValidExtension,
+            IsIrmProtected = exists && FileAccessValidator.IsIrmProtected(filePath),
             Message = message
         };
     }

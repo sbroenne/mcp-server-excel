@@ -74,11 +74,7 @@ public static class ExcelScreenshotTool
             {
                 Content =
                 [
-                    new ImageContentBlock
-                    {
-                        Data = result.ImageBase64,
-                        MimeType = result.MimeType
-                    },
+                    ImageContentBlock.FromBytes(Convert.FromBase64String(result.ImageBase64), result.MimeType),
                     new TextContentBlock
                     {
                         Text = metadata

@@ -27,7 +27,7 @@
     <PackageVersion Include="StreamJsonRpc" Version="2.24.84" />
     <PackageVersion Include="System.Text.Json" Version="10.0.3" />
     <!-- MCP SDK - Latest stable preview -->
-    <PackageVersion Include="ModelContextProtocol" Version="0.8.0-preview.1" />
+    <PackageVersion Include="ModelContextProtocol" Version="0.9.0-preview.2" />
     <!-- Testing Framework -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
     <PackageVersion Include="System.Net.Http" Version="4.3.5" />
