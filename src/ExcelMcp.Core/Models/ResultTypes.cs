@@ -778,6 +778,14 @@ public class FileValidationInfo
     public bool IsValid { get; set; }
 
     /// <summary>
+    /// Whether the file is IRM/AIP-protected (OLE2 compound document format).
+    /// IRM-protected files are opened as read-only with Excel made visible so the user
+    /// can authenticate through the Information Rights Management credential prompt.
+    /// Use <c>show=true</c> when opening—this is set automatically by ExcelBatch when IRM is detected.
+    /// </summary>
+    public bool IsIrmProtected { get; set; }
+
+    /// <summary>
     /// Optional message describing validation outcome (missing file, invalid extension, etc.)
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

@@ -2,10 +2,46 @@ namespace Sbroenne.ExcelMcp.ComInterop;
 
 /// <summary>
 /// Utility class for validating file access and locking status.
-/// Provides OS-level file lock detection before Excel COM operations.
+/// Provides OS-level file lock detection and IRM/AIP-encryption detection before Excel COM operations.
 /// </summary>
 public static class FileAccessValidator
 {
+    // OLE2 Compound Document Format signature.
+    // IRM/AIP-protected Excel files are stored as OLE2 containers with an EncryptedPackage
+    // stream instead of the standard ZIP-based Office Open XML format.
+    private static ReadOnlySpan<byte> Ole2Signature => [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+
+    /// <summary>
+    /// Detects if the file is IRM/AIP-protected by checking for the OLE2 compound document
+    /// signature. IRM-protected files must be opened as read-only with Excel visible so the
+    /// user can authenticate through the Information Rights Management credential prompt.
+    /// </summary>
+    /// <param name="filePath">The file path to inspect.</param>
+    /// <returns>
+    /// <c>true</c> if the file has the OLE2 Compound Document header, indicating IRM/AIP
+    /// encryption; <c>false</c> for standard ZIP-based .xlsx/.xlsm files or if the file
+    /// cannot be read.
+    /// </returns>
+    public static bool IsIrmProtected(string filePath)
+    {
+        if (!File.Exists(filePath))
+            return false;
+        try
+        {
+            Span<byte> header = stackalloc byte[8];
+            using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            int read = fs.Read(header);
+            if (read < 8)
+                return false;
+            return header.SequenceEqual(Ole2Signature);
+        }
+        catch
+        {
+            // Cannot read → treat as not IRM so normal error handling takes over
+            return false;
+        }
+    }
+
     /// <summary>
     /// Validates that a file is not locked by attempting to open it with exclusive access.
     /// Throws InvalidOperationException if file is locked or inaccessible.

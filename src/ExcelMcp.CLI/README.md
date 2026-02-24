@@ -109,7 +109,7 @@ ExcelMcp.CLI provides **225 operations** across 17 command categories:
 
 | Category | Operations | Examples |
 |----------|-----------|----------|
-| **File & Session** | 6 | `session create`, `session open`, `session close`, `session list` |
+| **File & Session** | 6 | `session create`, `session open` (IRM/AIP auto-detected), `session close`, `session list` |
 | **Worksheets** | 16 | `sheet list`, `sheet create`, `sheet rename`, `sheet copy`, `sheet move`, `sheet copy-to-file` |
 | **Power Query** | 10 | `powerquery list`, `powerquery create`, `powerquery refresh`, `powerquery update` |
 | **Ranges** | 42 | `range get-values`, `range set-values`, `range copy`, `range find`, `range merge-cells` |

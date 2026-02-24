@@ -4,7 +4,13 @@ All notable changes to ExcelMcp will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **IRM/AIP-protected file support** in `file(action='open')`: Files protected with Azure Information Protection (AIP/IRM) are automatically detected via OLE2 Compound Document header signature (`D0 CF 11 E0 A1 B1 1A E1`). They are opened read-only with Excel forced visible so the Windows IRM credential prompt can appear — no extra parameters needed.
+- **`isIrmProtected` field in `file(action='test')` response**: Reports whether a file uses the OLE2/IRM format before attempting to open it, enabling agents to pre-flight check and set expectations (IRM files are always read-only).
+
 ### Changed
+- **MCP SDK upgraded** from `ModelContextProtocol` 0.8.0-preview.1 to 0.9.0-preview.2
+  - Updated `ImageContentBlock.Data` from `string` to `ReadOnlyMemory<byte>` (binary data API change)
 - CLI daemon IPC migrated from custom protocol to StreamJsonRpc — improved reliability and error handling
 - Enhanced daemon security with SID validation and `CurrentUserOnly` pipe access
 

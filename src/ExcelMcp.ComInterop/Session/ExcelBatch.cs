@@ -198,13 +198,31 @@ internal sealed class ExcelBatch : IExcelBatch
                     else
                     {
                         // OPEN EXISTING FILE: Validate and open
-                        // CRITICAL: Check if file is locked at OS level BEFORE attempting Excel COM open
-                        FileAccessValidator.ValidateFileNotLocked(path);
+                        bool isIrm = FileAccessValidator.IsIrmProtected(normalizedPath);
+
+                        if (isIrm)
+                        {
+                            // IRM/AIP-protected files are OLE2 containers that cannot be opened
+                            // exclusively. Excel must be visible so the user can authenticate
+                            // through the IRM credential prompt.
+                            tempExcel.Visible = true;
+                            _logger.LogDebug(
+                                "IRM-protected file detected: {FileName}. Forcing Excel visible and opening read-only.",
+                                Path.GetFileName(normalizedPath));
+                        }
+                        else
+                        {
+                            // CRITICAL: Check if file is locked at OS level BEFORE attempting Excel COM open
+                            FileAccessValidator.ValidateFileNotLocked(path);
+                        }
 
                         // Open workbook with Excel COM
                         try
                         {
-                            wb = (Excel.Workbook)tempExcel.Workbooks.Open(path);
+                            wb = isIrm
+                                // ReadOnly=true prevents "exclusive access required" errors on IRM-encrypted files
+                                ? (Excel.Workbook)tempExcel.Workbooks.Open(normalizedPath, ReadOnly: true)
+                                : (Excel.Workbook)tempExcel.Workbooks.Open(path);
                         }
                         catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
                         {

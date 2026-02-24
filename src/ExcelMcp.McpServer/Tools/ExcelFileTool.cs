@@ -26,6 +26,10 @@ public static partial class ExcelFileTool
     /// TIMEOUT: Each operation has a 5-min default timeout. Use timeoutSeconds to customize
     /// for long-running operations (data refresh, large queries). Operations timing out
     /// trigger aggressive cleanup and may leave Excel in inconsistent state.
+    ///
+    /// IRM/AIP FILES: Files protected with Azure Information Protection are detected automatically.
+    /// They are opened as read-only with Excel forced visible for credential authentication.
+    /// Use 'test' action first to check isIrmProtected before attempting to open.
     /// </summary>
     /// <param name="action">The file operation to perform</param>
     /// <param name="path">Full Windows path to Excel file (.xlsx or .xlsm). ASK USER for the path - do not guess or use placeholder usernames. Required for: open, create, test</param>
@@ -349,6 +353,7 @@ public static partial class ExcelFileTool
             extension = info.Extension,
             size = info.Size,
             lastModified = info.LastModified,
+            isIrmProtected = info.IsIrmProtected,
             message = info.Message,
             isError = info.IsValid ? (bool?)null : true
         }, ExcelToolsBase.JsonOptions);

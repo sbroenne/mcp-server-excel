@@ -7,11 +7,11 @@
 ## 📁 File Operations (6 operations)
 
 - **List Sessions:** View all active Excel sessions
-- **Open:** Open workbook and create session (returns session ID for all subsequent operations)
+- **Open:** Open workbook and create session (returns session ID for all subsequent operations). IRM/AIP-protected files are automatically detected and opened read-only with Excel visible for credential authentication — no extra parameters needed.
 - **Close:** Close session with optional save
 - **Close Workbook:** Close workbook without closing Excel
 - **Create Empty:** Create new .xlsx or .xlsm workbook
-- **Test:** Verify workbook can be opened and is accessible
+- **Test:** Verify workbook can be opened and is accessible. Returns `isIrmProtected` flag for IRM/AIP-protected files.
 
 ---
 
