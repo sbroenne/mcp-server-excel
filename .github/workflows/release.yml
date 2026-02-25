@@ -15,8 +15,10 @@ name: Release All Components
 # Required GitHub Secrets:
 # - NUGET_USER: Your NuGet.org username (profile name, NOT email)
 # - VSCE_TOKEN: VS Code Marketplace PAT
-# - NPM_TOKEN: npmjs.org automation token (for skill packages)
 # - APPINSIGHTS_CONNECTION_STRING: Application Insights connection string
+#
+# npm publishing uses Trusted Publishing (OIDC) — no token needed.
+# Configure at npmjs.com → Package Settings → Trusted Publisher.
 
 on:
   workflow_dispatch:
@@ -716,22 +718,21 @@ jobs:
       continue-on-error: true
 
     - name: Setup npm registry
-      run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        registry-url: https://registry.npmjs.org
 
     - name: Publish excel-mcp-skill to npm
       run: |
         cd npm-packages/excel-mcp-skill
         npm publish --provenance --access public
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       continue-on-error: true
 
     - name: Publish excel-cli-skill to npm
       run: |
         cd npm-packages/excel-cli-skill
         npm publish --provenance --access public
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       continue-on-error: true
 
   # =============================================================================
