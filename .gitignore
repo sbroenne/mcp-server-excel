@@ -87,6 +87,8 @@ _ReSharper*/
 *.snupkg
 **/[Pp]ackages/*
 !**/[Pp]ackages/build/
+!/packages/
+!/packages/**
 *.nuget.props
 *.nuget.targets
 
@@ -240,3 +242,7 @@ Directory.Build.props.user
 # All tracked because `npx skills add` pulls from the repo tree.
 vscode-extension/skills/*
 llm-tests/aitest-reports/
+
+# npm skill packages - build output (populated by Build-AgentSkills.ps1)
+packages/*/skills/*/SKILL.md
+packages/*/skills/*/references/

@@ -1,0 +1,32 @@
+{
+  "name": "excel-cli-skill",
+  "version": "1.7.0",
+  "description": "Agent Skill for automating Microsoft Excel via CLI — Power Query, DAX, PivotTables, Charts, VBA, and more from scripts and coding agents",
+  "keywords": [
+    "agent-skill",
+    "excel",
+    "cli",
+    "spreadsheet",
+    "power-query",
+    "dax",
+    "pivottable",
+    "automation"
+  ],
+  "homepage": "https://excelmcpserver.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sbroenne/mcp-server-excel.git",
+    "directory": "packages/excel-cli-skill"
+  },
+  "bugs": {
+    "url": "https://github.com/sbroenne/mcp-server-excel/issues"
+  },
+  "author": "sbroenne",
+  "license": "MIT",
+  "files": [
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {}
+}
