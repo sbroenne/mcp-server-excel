@@ -1,0 +1,37 @@
+{
+  "name": "excel-mcp-skill",
+  "version": "1.7.0",
+  "description": "Agent Skill for automating Microsoft Excel via MCP Server — 225 operations including Power Query, DAX, PivotTables, Charts, and more",
+  "keywords": [
+    "agent-skill",
+    "excel",
+    "mcp",
+    "mcp-server",
+    "spreadsheet",
+    "power-query",
+    "dax",
+    "pivottable"
+  ],
+  "homepage": "https://excelmcpserver.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sbroenne/mcp-server-excel.git",
+    "directory": "packages/excel-mcp-skill"
+  },
+  "bugs": {
+    "url": "https://github.com/sbroenne/mcp-server-excel/issues"
+  },
+  "author": "sbroenne",
+  "license": "MIT",
+  "files": [
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {},
+  "skillpm": {
+    "mcpServers": [
+      "sbroenne/mcp-server-excel"
+    ]
+  }
+}
