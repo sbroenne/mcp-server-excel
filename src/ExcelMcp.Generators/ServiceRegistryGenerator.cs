@@ -1066,9 +1066,17 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("    /// Deserializes a nested collection (e.g., List&lt;List&lt;object?&gt;&gt;) from JSON.");
         sb.AppendLine("    /// Auto-wraps a flat 1D array into a 2D array when needed.");
         sb.AppendLine("    /// For example, [\"a\",\"b\"] is treated as [[\"a\",\"b\"]] (single row).");
+        sb.AppendLine("    /// Supports stdin sentinel: if json is \"-\", reads JSON from Console.In.");
         sb.AppendLine("    /// </summary>");
         sb.AppendLine("    internal static T DeserializeNestedCollection<T>(string json) where T : class");
         sb.AppendLine("    {");
+        sb.AppendLine("        // Stdin sentinel: if json == \"-\", read from Console.In.");
+        sb.AppendLine("        // This allows piping JSON to avoid PowerShell argument quoting issues:");
+        sb.AppendLine("        //   echo '[[\"value\",1]]' | excelcli range set-values --values -");
+        sb.AppendLine("        if (json.Trim() == \"-\")");
+        sb.AppendLine("        {");
+        sb.AppendLine("            json = Console.In.ReadToEnd().Trim();");
+        sb.AppendLine("        }");
         sb.AppendLine("        try");
         sb.AppendLine("        {");
         sb.AppendLine("            return System.Text.Json.JsonSerializer.Deserialize<T>(json)");
@@ -1089,7 +1097,8 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("                catch { /* fall through to error */ }");
         sb.AppendLine("            }");
         sb.AppendLine("            throw new System.ArgumentException(");
-        sb.AppendLine("                $\"Invalid JSON for nested collection. Expected 2D array (e.g., [[\\\"a\\\",\\\"b\\\"],[\\\"c\\\",\\\"d\\\"]]) or 1D array (auto-wrapped to single row). Got: {json}\");");
+        sb.AppendLine("                $\"Invalid JSON for nested collection. Expected 2D array (e.g., [[\\\"a\\\",\\\"b\\\"],[\\\"c\\\",\\\"d\\\"]]) or 1D array (auto-wrapped to single row). Got: {json}\" +");
+        sb.AppendLine("                \" Tip: PowerShell strips double-quotes from native executable arguments. Use --values-file <path> to pass JSON from a file, or pipe JSON and use --values - (e.g., echo '[[...]]' | excelcli ... --values -).\");");
         sb.AppendLine("        }");
         sb.AppendLine("    }");
         sb.AppendLine();

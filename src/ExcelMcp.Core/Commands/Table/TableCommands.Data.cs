@@ -2,6 +2,7 @@ using Excel = Microsoft.Office.Interop.Excel;
 using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
 
@@ -86,7 +87,7 @@ public partial class TableCommands
                         try
                         {
                             cell = sheet.Cells[currentRow + i, table.Range.Column + j];
-                            cell.Value2 = rowValues[j] ?? string.Empty;
+                            cell.Value2 = RangeHelpers.ConvertToCellValue(rowValues[j]);
                         }
                         finally
                         {
