@@ -130,25 +130,14 @@ jobs:
         echo "VERSION=$version" >> $env:GITHUB_ENV
       shell: pwsh
 
-    - name: Update CLI Version
-      run: |
-        $version = $env:VERSION
-        $csprojPath = "src/ExcelMcp.CLI/ExcelMcp.CLI.csproj"
-        $content = Get-Content $csprojPath -Raw
-        $content = $content -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
-        $content = $content -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
-        $content = $content -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
-        Set-Content $csprojPath $content
-      shell: pwsh
-
     - name: Restore
       run: dotnet restore src/ExcelMcp.CLI/ExcelMcp.CLI.csproj
 
     - name: Build CLI
-      run: dotnet build src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-restore
+      run: dotnet build src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-restore -p:Version=${{ env.VERSION }} -p:AssemblyVersion=${{ env.VERSION }}.0 -p:FileVersion=${{ env.VERSION }}.0
 
     - name: Pack CLI NuGet
-      run: dotnet pack src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-build --output ./cli-nupkg
+      run: dotnet pack src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-build --output ./cli-nupkg -p:Version=${{ env.VERSION }}
 
     - name: Upload CLI Build Output
       uses: actions/upload-artifact@v4
@@ -198,22 +187,6 @@ jobs:
       run: |
         $version = $env:VERSION
 
-        # Update CLI version (for bundling)
-        $cliPath = "src/ExcelMcp.CLI/ExcelMcp.CLI.csproj"
-        $content = Get-Content $cliPath -Raw
-        $content = $content -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
-        $content = $content -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
-        $content = $content -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
-        Set-Content $cliPath $content
-
-        # Update MCP Server version
-        $csprojPath = "src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj"
-        $content = Get-Content $csprojPath -Raw
-        $content = $content -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
-        $content = $content -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
-        $content = $content -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
-        Set-Content $csprojPath $content
-
         # Update MCP Registry server.json
         $serverJsonPath = "src/ExcelMcp.McpServer/.mcp/server.json"
         $serverContent = Get-Content $serverJsonPath -Raw
@@ -226,12 +199,12 @@ jobs:
       run: dotnet restore src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj
 
     - name: Build
-      run: dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-restore
+      run: dotnet build src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-restore -p:Version=${{ env.VERSION }} -p:AssemblyVersion=${{ env.VERSION }}.0 -p:FileVersion=${{ env.VERSION }}.0
       env:
         APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
 
     - name: Pack NuGet
-      run: dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-build --output ./nupkg
+      run: dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-build --output ./nupkg -p:Version=${{ env.VERSION }}
 
     - name: Create Release Package
       run: |
@@ -288,21 +261,13 @@ jobs:
       run: |
         $version = $env:VERSION
 
-        # Update MCP Server version
-        $csprojPath = "src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj"
-        $content = Get-Content $csprojPath -Raw
+        # Update Directory.Build.props (single source of truth for all project versions)
+        $propsPath = "Directory.Build.props"
+        $content = Get-Content $propsPath -Raw
         $content = $content -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
         $content = $content -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
         $content = $content -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
-        Set-Content $csprojPath $content
-
-        # Update CLI version (bundled in VS Code extension)
-        $cliPath = "src/ExcelMcp.CLI/ExcelMcp.CLI.csproj"
-        $content = Get-Content $cliPath -Raw
-        $content = $content -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
-        $content = $content -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
-        $content = $content -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
-        Set-Content $cliPath $content
+        Set-Content $propsPath $content
       shell: pwsh
 
     - name: Update Extension Version

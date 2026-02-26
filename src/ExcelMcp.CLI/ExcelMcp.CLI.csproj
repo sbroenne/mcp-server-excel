@@ -19,10 +19,7 @@
     <!-- CLI doesn't need XML documentation warnings - command usage is shown in console output -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
 
-    <!-- Version Information -->
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
+    <!-- Version inherited from Directory.Build.props; overridden by CI via -p:Version -->
 
     <!-- Package-specific properties -->
     <PackageId>Sbroenne.ExcelMcp.CLI</PackageId>
