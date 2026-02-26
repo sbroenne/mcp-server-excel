@@ -12,6 +12,8 @@ This changelog covers all components:
 
 ### Fixed
 
+- **CLI and MCP Server version always reported as 1.0.0** (#523): The update check and About dialog always showed version 1.0.0 instead of the actual installed version. Fixed by removing hardcoded version properties from project files so they inherit from the central version configuration.
+
 - **`table append` JsonElement COM marshalling** (#519): Row values containing booleans or strings were passed as raw `System.Text.Json.JsonElement` to `cell.Value2`, which COM interop cannot marshal to a Variant. Fixed by calling `RangeHelpers.ConvertToCellValue()` (the same fix already present in `range set-values`) to unwrap `JsonElement` to native types before assignment.
 
 - **`--values`/`--rows` inline JSON: PowerShell quote-stripping + stdin sentinel** (#521): Windows `CreateProcess` strips inner double-quotes when PowerShell passes arguments to native executables, so `--values '[["ACD Full Term",0.26]]'` arrives as `[[ACD Full Term,0.26]]` (invalid JSON). The generated `DeserializeNestedCollection<T>` now: (1) emits a clear error message that mentions `--values-file` and `--values -` as workarounds, and (2) supports a stdin sentinel — passing `--values -` (or `--rows -`) reads the JSON from `Console.In`, avoiding shell quoting entirely.
