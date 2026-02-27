@@ -53,7 +53,7 @@ public partial class PowerQueryCommands
                 // Refresh the query - exceptions propagate from both:
                 // - QueryTable.Refresh() for worksheet queries
                 // - Connection.Refresh() for Data Model queries
-                bool refreshed = RefreshConnectionByQueryName(ctx.Book, queryName);
+                bool refreshed = RefreshConnectionByQueryName(ctx.Book, queryName, timeoutCts.Token);
 
                 if (!refreshed)
                 {
@@ -114,18 +114,23 @@ public partial class PowerQueryCommands
                         query = queries.Item(i);
                         string queryName = query.Name;
 
-                        // Refresh via connection
-                        var connection = FindConnectionForQuery(ctx.Book, queryName);
-                        if (connection != null)
+                        // Use the same robust strategy as single-query Refresh:
+                        // 1) QueryTable.Refresh(false) for worksheet-loaded queries
+                        // 2) Connection.Refresh() for Data Model queries
+                        bool refreshed;
+                        try
                         {
-                            try
-                            {
-                                connection.Refresh();
-                            }
-                            catch (COMException ex)
-                            {
-                                errors.Add($"{queryName}: {ex.Message}");
-                            }
+                            refreshed = RefreshConnectionByQueryName(ctx.Book, queryName, timeoutCts.Token);
+                        }
+                        catch (COMException ex)
+                        {
+                            errors.Add($"{queryName}: {ex.Message}");
+                            continue;
+                        }
+
+                        if (!refreshed)
+                        {
+                            errors.Add($"{queryName}: Could not find connection or table for query.");
                         }
                     }
                     finally

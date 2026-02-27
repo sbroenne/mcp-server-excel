@@ -1,4 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
+using Microsoft.CSharp.RuntimeBinder;
+using System.Runtime.InteropServices;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -20,7 +22,7 @@ public partial class PowerQueryCommands
     /// </summary>
     /// <returns>True if refresh was executed, false if no connection or table found</returns>
     /// <exception cref="Exception">Thrown if Power Query has formula errors</exception>
-    private static bool RefreshConnectionByQueryName(dynamic workbook, string queryName)
+    private static bool RefreshConnectionByQueryName(dynamic workbook, string queryName, CancellationToken cancellationToken)
     {
         // Strategy 1: Find and refresh QueryTable directly on worksheet
         // For worksheet queries (InModel=false), errors are thrown by QueryTable.Refresh()
@@ -66,8 +68,7 @@ public partial class PowerQueryCommands
         {
             try
             {
-                // For Data Model connections, this throws on Power Query errors
-                targetConnection.Refresh();
+                RefreshWorkbookConnection(targetConnection, cancellationToken);
                 return true;
             }
             finally
@@ -131,8 +132,10 @@ public partial class PowerQueryCommands
                             if (connection != null &&
                                 connection.Contains($"Location={queryName}", StringComparison.OrdinalIgnoreCase))
                             {
-                                // Found it! Refresh and let any Power Query errors propagate
-                                queryTable.Refresh(false); // Synchronous refresh - THROWS on error
+                                // Keep synchronous refresh semantics for worksheet queries.
+                                // QueryTable.Refresh(false) is the only reliable path that propagates
+                                // Power Query formula errors for worksheet-loaded queries.
+                                queryTable.Refresh(false);
                                 return true;
                             }
                         }
@@ -156,6 +159,120 @@ public partial class PowerQueryCommands
         }
 
         return false;
+    }
+
+    private static void RefreshWorkbookConnection(dynamic connection, CancellationToken cancellationToken)
+    {
+        dynamic? oleDbConnection = null;
+        bool originalBackgroundQuery = false;
+        bool canRestoreBackgroundQuery = false;
+        bool supportsRefreshing = false;
+
+        try
+        {
+            try
+            {
+                oleDbConnection = connection.OLEDBConnection;
+                if (oleDbConnection != null)
+                {
+                    originalBackgroundQuery = oleDbConnection.BackgroundQuery;
+                    canRestoreBackgroundQuery = true;
+                    oleDbConnection.BackgroundQuery = true;
+                }
+            }
+            catch (COMException)
+            {
+                // Not an OLEDB connection or provider doesn't support BackgroundQuery.
+            }
+
+            connection.Refresh();
+
+            try
+            {
+                _ = connection.Refreshing;
+                supportsRefreshing = true;
+            }
+            catch (RuntimeBinderException)
+            {
+                supportsRefreshing = false;
+            }
+            catch (COMException)
+            {
+                supportsRefreshing = false;
+            }
+
+            if (supportsRefreshing)
+            {
+                WaitForRefreshCompletion(
+                    () =>
+                    {
+                        try
+                        {
+                            return connection.Refreshing;
+                        }
+                        catch (RuntimeBinderException)
+                        {
+                            return false;
+                        }
+                        catch (COMException)
+                        {
+                            return false;
+                        }
+                    },
+                    () =>
+                    {
+                        try
+                        {
+                            connection.CancelRefresh();
+                        }
+                        catch (RuntimeBinderException)
+                        {
+                            // Ignore inability to cancel for unsupported providers.
+                        }
+                        catch (COMException)
+                        {
+                            // Ignore inability to cancel for unsupported providers.
+                        }
+                    },
+                    cancellationToken);
+            }
+        }
+        finally
+        {
+            if (canRestoreBackgroundQuery && oleDbConnection != null)
+            {
+                try
+                {
+                    oleDbConnection.BackgroundQuery = originalBackgroundQuery;
+                }
+                catch (COMException)
+                {
+                    // Ignore inability to restore provider-specific setting.
+                }
+            }
+
+            ComUtilities.Release(ref oleDbConnection);
+        }
+    }
+
+    private static void WaitForRefreshCompletion(
+        Func<bool> isRefreshing,
+        Action cancelRefresh,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (isRefreshing())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Thread.Sleep(200);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            cancelRefresh();
+            throw;
+        }
     }
 }
 
