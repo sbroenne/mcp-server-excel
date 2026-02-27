@@ -10,6 +10,8 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.8.20] - 2026-02-27
+
 ### Fixed
 
 - **Connection `refresh` and PowerQuery `refresh` / `refresh-all` could hang or miss cancellation on async data sources**: `WorkbookConnection.Refresh()` returns immediately when the provider runs asynchronously, leaving the STA thread without a way to detect completion or honour the operation timeout. Both Connection and PowerQuery refresh now set the sub-connection's `BackgroundQuery = true`, call `Refresh()`, then poll `.Refreshing` in a loop that responds to cancellation and calls `.CancelRefresh()` when the timeout fires. `powerquery refresh-all` was also updated to use the same robust `RefreshConnectionByQueryName` path (which includes `QueryTable.Refresh(false)` for worksheet queries) instead of a bare `connection.Refresh()`.
