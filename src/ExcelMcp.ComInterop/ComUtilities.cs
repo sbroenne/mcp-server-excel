@@ -376,6 +376,21 @@ public static class ComUtilities
             return 0;
         }
     }
+
+    [DllImport("kernel32.dll")]
+    private static extern void Sleep(uint dwMilliseconds);
+
+    /// <summary>
+    /// Kernel-level sleep that does NOT pump the STA COM message queue.
+    /// Unlike Thread.Sleep (which uses CoWaitForMultipleHandles internally and wakes early on
+    /// every incoming COM event), this calls Win32 Sleep() directly via NtDelayExecution —
+    /// the thread genuinely sleeps for the full interval regardless of COM callbacks.
+    /// Safe to use in WaitForRefreshCompletion: Power Query refresh completion is driven by
+    /// Excel's own internals (MashupHost.exe → Excel's STA). Our polling thread does not need
+    /// to service any callbacks for connection.Refreshing to become false.
+    /// </summary>
+    public static void KernelSleep(int milliseconds) =>
+        Sleep((uint)Math.Max(0, milliseconds));
 }
 
 

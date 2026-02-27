@@ -139,24 +139,36 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
     /// </summary>
     int IOleMessageFilter.MessagePending(nint htaskCallee, int dwTickCount, int dwPendingType)
     {
-        // PENDINGMSG_WAITDEFPROCESS (1) - Allow COM to pump pending messages while waiting.
+        // PENDINGMSG enum values (tagPENDINGMSG):
+        //   PENDINGMSG_CANCELCALL    = 0  — cancel the outgoing call (dangerous, avoid)
+        //   PENDINGMSG_WAITNOPROCESS = 1  — wait for return, do NOT dispatch the inbound message
+        //   PENDINGMSG_WAITDEFPROCESS = 2 — wait and dispatch WM_PAINT / activation messages
         //
-        // CRITICAL: Do NOT return PENDINGMSG_WAITNOPROCESS (2) here. That value blocks ALL
-        // incoming COM message processing, which causes a classic STA deadlock:
-        //   1. STA thread calls FormatConditions.Add() → Excel starts processing
-        //   2. Excel fires a callback (Calculate/SheetChange event) back to this STA thread
-        //   3. The callback waits in the STA message queue
-        //   4. WAITNOPROCESS tells COM: "don't process that message"
-        //   5. Excel waits for the callback → STA thread waits for Excel → DEADLOCK
+        // Return PENDINGMSG_WAITNOPROCESS (1) to block inbound COM dispatch.
         //
-        // PENDINGMSG_WAITDEFPROCESS (1) lets COM deliver inbound calls, which allows
-        // Excel's callbacks to be processed during the outgoing call, breaking the deadlock.
+        // CRITICAL: Do NOT return PENDINGMSG_WAITDEFPROCESS (2) here.
+        // That value dispatches inbound COM calls, causing two distinct failure modes:
         //
-        // Note on re-entrancy: allowing callbacks means our code MAY be called re-entrantly.
-        // This is safe here because each Execute() call is self-contained and COM objects
-        // are COM reference-counted. The worst case is an unexpected callback fires a
-        // benign Excel event that does nothing in our call stack.
-        return 1; // PENDINGMSG_WAITDEFPROCESS
+        // 1. STA deadlock (FormatConditions.Add scenario):
+        //    a. STA thread calls FormatConditions.Add() → Excel starts processing
+        //    b. Excel fires a callback (Calculate/SheetChange) back to this STA thread
+        //    c. WAITDEFPROCESS dispatches it → callback tries to re-enter COM
+        //    d. Excel waits for FormatConditions to finish → DEADLOCK
+        //
+        // 2. EnsureScanDefinedEvents CPU spin (PQ Data Model refresh scenario):
+        //    a. STA thread calls dynamic connection.Refresh() → Excel processes Data Model
+        //    b. MashupHost.exe fires hundreds of row-write callbacks per second to our STA
+        //    c. WAITDEFPROCESS dispatches each one → .NET dynamic binder runs IDispatchMetaObject
+        //       .BindGetMember for each callback, calling EnsureScanDefinedEvents
+        //       → IDispatch.TryGetTypeInfoCount blocks on Excel (already busy) → tight spin
+        //    d. Result: >97% CPU for the full duration of the Data Model write phase
+        //
+        // PENDINGMSG_WAITNOPROCESS (1) queues inbound messages without dispatching them.
+        // They are delivered after the outgoing call returns. This is safe because:
+        // - connection.Refresh(BackgroundQuery=false) is fully synchronous
+        // - Excel does not need *our* STA to dispatch callbacks to make progress
+        // - All pending callbacks are processed normally once Refresh() returns
+        return 1; // PENDINGMSG_WAITNOPROCESS — queue inbound messages, do not dispatch
     }
 
     /// <summary>

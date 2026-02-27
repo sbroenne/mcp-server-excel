@@ -1,6 +1,6 @@
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using Microsoft.CSharp.RuntimeBinder;
-using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Connections;
@@ -192,33 +192,48 @@ public partial class ConnectionCommands
 
     private static void RefreshWorkbookConnection(Excel.WorkbookConnection connection, CancellationToken cancellationToken)
     {
-        dynamic? typedSubConnection = null;
+        dynamic? subConnection = null;
         bool originalBackgroundQuery = false;
         bool canRestoreBackgroundQuery = false;
         bool supportsRefreshing = false;
 
         try
         {
-            typedSubConnection = GetTypedSubConnection(connection);
-
-            if (typedSubConnection != null)
+            try
             {
-                try
+                subConnection = GetTypedSubConnection(connection);
+                if (subConnection != null)
                 {
-                    originalBackgroundQuery = typedSubConnection.BackgroundQuery;
+                    originalBackgroundQuery = subConnection.BackgroundQuery;
                     canRestoreBackgroundQuery = true;
-                    typedSubConnection.BackgroundQuery = true;
-                }
-                catch (COMException)
-                {
-                    // Provider does not support BackgroundQuery.
-                }
-                catch (RuntimeBinderException)
-                {
-                    // Provider does not expose BackgroundQuery.
+
+                    // CRITICAL: Force BackgroundQuery = false to ensure synchronous refresh.
+                    //
+                    // With BackgroundQuery = true (async), connection.Refresh() returns immediately
+                    // while Excel processes the query in a background thread. We then poll
+                    // connection.Refreshing with Thread.Sleep(200). On STA threads with the
+                    // OleMessageFilter registered, COM events from Excel during the background refresh
+                    // cause Thread.Sleep to return via MsgWaitForMultipleObjectsEx — turning the
+                    // polling loop into a 100% CPU spin for the entire duration of the refresh.
+                    //
+                    // With BackgroundQuery = false (synchronous), connection.Refresh() blocks the
+                    // STA thread until done. connection.Refreshing is false when it returns, so
+                    // WaitForConnectionRefreshCompletion exits immediately with zero CPU overhead.
+                    subConnection.BackgroundQuery = false;
                 }
             }
+            catch (COMException)
+            {
+                // Provider doesn't support BackgroundQuery — proceed with default behavior.
+            }
+            catch (RuntimeBinderException)
+            {
+                // Sub-connection doesn't expose BackgroundQuery — proceed with default behavior.
+            }
 
+            // OleMessageFilter.MessagePending returns PENDINGMSG_WAITNOPROCESS (1) unconditionally,
+            // which queues inbound COM callbacks without dispatching them during this blocking call.
+            // This prevents the EnsureScanDefinedEvents CPU spin from Data Model write callbacks.
             connection.Refresh();
 
             try
@@ -276,23 +291,19 @@ public partial class ConnectionCommands
         }
         finally
         {
-            if (canRestoreBackgroundQuery && typedSubConnection != null)
+            if (canRestoreBackgroundQuery && subConnection != null)
             {
                 try
                 {
-                    typedSubConnection.BackgroundQuery = originalBackgroundQuery;
+                    subConnection.BackgroundQuery = originalBackgroundQuery;
                 }
                 catch (COMException)
                 {
                     // Ignore inability to restore provider-specific setting.
                 }
-                catch (RuntimeBinderException)
-                {
-                    // Ignore inability to restore provider-specific setting.
-                }
             }
 
-            ComUtilities.Release(ref typedSubConnection);
+            ComUtilities.Release(ref subConnection);
         }
     }
 
@@ -301,12 +312,25 @@ public partial class ConnectionCommands
         Action cancelRefresh,
         CancellationToken cancellationToken)
     {
+        // CRITICAL: Rate-limit the isRefreshing() COM call to every 200ms of *real* elapsed time.
+        // See WaitForRefreshCompletion in PowerQueryCommands.Helpers.cs for full explanation.
+        const int CheckIntervalMs = 200;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
-            while (isRefreshing())
+            if (!isRefreshing())
+                return;
+
+            while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                Thread.Sleep(200);
+                // Sleep without pumping the STA COM queue. See WaitForRefreshCompletion for details.
+                ComUtilities.KernelSleep(CheckIntervalMs);
+                if (sw.Elapsed.TotalMilliseconds < CheckIntervalMs)
+                    continue;
+                sw.Restart();
+                if (!isRefreshing())
+                    break;
             }
         }
         catch (OperationCanceledException)
