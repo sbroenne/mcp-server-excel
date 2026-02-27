@@ -1,6 +1,6 @@
-using Sbroenne.ExcelMcp.ComInterop;
-using Microsoft.CSharp.RuntimeBinder;
 using System.Runtime.InteropServices;
+using Microsoft.CSharp.RuntimeBinder;
+using Sbroenne.ExcelMcp.ComInterop;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -177,14 +177,35 @@ public partial class PowerQueryCommands
                 {
                     originalBackgroundQuery = oleDbConnection.BackgroundQuery;
                     canRestoreBackgroundQuery = true;
-                    oleDbConnection.BackgroundQuery = true;
+
+                    // CRITICAL: Force BackgroundQuery = false to ensure synchronous refresh.
+                    //
+                    // With BackgroundQuery = true (async), connection.Refresh() returns immediately
+                    // while Excel processes the query in a background thread. We then poll
+                    // connection.Refreshing with Thread.Sleep(200). On STA threads with the
+                    // OleMessageFilter registered, COM events from Excel during background refresh
+                    // (SheetChange, Calculate, Data Model callbacks) cause Thread.Sleep to return
+                    // via MsgWaitForMultipleObjectsEx — turning the polling loop into a 100% CPU
+                    // spin lasting the full duration of the refresh (seconds to minutes).
+                    //
+                    // With BackgroundQuery = false (synchronous), connection.Refresh() blocks the
+                    // STA thread until the refresh completes. When it returns, connection.Refreshing
+                    // is already false, so WaitForRefreshCompletion exits in 0 iterations. Zero spin.
+                    oleDbConnection.BackgroundQuery = false;
                 }
             }
             catch (COMException)
             {
                 // Not an OLEDB connection or provider doesn't support BackgroundQuery.
             }
+            catch (RuntimeBinderException)
+            {
+                // Sub-connection doesn't expose BackgroundQuery via dynamic binding.
+            }
 
+            // OleMessageFilter.MessagePending returns PENDINGMSG_WAITNOPROCESS (1) unconditionally,
+            // which queues inbound COM callbacks without dispatching them during this blocking call.
+            // This prevents the EnsureScanDefinedEvents CPU spin from Data Model write callbacks.
             connection.Refresh();
 
             try
@@ -260,12 +281,43 @@ public partial class PowerQueryCommands
         Action cancelRefresh,
         CancellationToken cancellationToken)
     {
+        // CRITICAL: Rate-limit the isRefreshing() COM call to every 200ms of *real* elapsed time.
+        //
+        // On STA threads with OleMessageFilter registered, COM events from Excel during refresh
+        // (SheetChange, Calculate, Data Model callbacks) wake Thread.Sleep immediately via
+        // MsgWaitForMultipleObjectsEx (CoWaitForMultipleHandles). Without rate-limiting,
+        // isRefreshing() (a cross-process COM property access, ~200-500μs) runs thousands of
+        // times/second → 100% CPU spin.
+        //
+        // Use KernelSleep (Win32 Sleep via P/Invoke) instead of Thread.Sleep:
+        // Thread.Sleep on STA threads uses CoWaitForMultipleHandles which pumps the COM message
+        // queue and wakes early on every incoming COM event (Data Model row-write callbacks from
+        // MashupHost.exe, SheetChange, etc.). During large PQ refreshes this causes CPU spin
+        // even with the Stopwatch guard. Win32 Sleep() is a bare NtDelayExecution call with no
+        // COM pumping — the thread genuinely sleeps the full 200ms per interval.
+        // Safety: refresh completion is driven by Excel's own internals (MashupHost → Excel STA).
+        // connection.Refreshing flips to false in Excel's process without requiring our STA to
+        // service any callbacks. The Stopwatch guard is kept as defensive belt-and-suspenders.
+        const int CheckIntervalMs = 200;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
-            while (isRefreshing())
+            // Initial check: if already done, skip the wait entirely.
+            if (!isRefreshing())
+                return;
+
+            while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                Thread.Sleep(200);
+                // Sleep without pumping the STA COM queue. Win32 Sleep() does not wake early
+                // on COM events, so the Stopwatch guard below is belt-and-suspenders only.
+                ComUtilities.KernelSleep(CheckIntervalMs);
+                // Guard: loop back without calling isRefreshing() if sleep returned early.
+                if (sw.Elapsed.TotalMilliseconds < CheckIntervalMs)
+                    continue;
+                sw.Restart();
+                if (!isRefreshing())
+                    break;
             }
         }
         catch (OperationCanceledException)

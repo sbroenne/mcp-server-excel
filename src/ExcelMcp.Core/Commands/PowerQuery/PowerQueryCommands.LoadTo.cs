@@ -382,6 +382,8 @@ public partial class PowerQueryCommands
             // Refresh the connection to actually load data into the Data Model.
             // Without this call, the connection is registered but no data is materialized —
             // the table never appears in the Data Model even though success is returned.
+            // OleMessageFilter.MessagePending returns PENDINGMSG_WAITNOPROCESS (1), which queues
+            // inbound callbacks without dispatching them, preventing EnsureScanDefinedEvents spin.
             connection.Refresh();
 
             result.RowsLoaded = -1; // Data Model doesn't expose row count

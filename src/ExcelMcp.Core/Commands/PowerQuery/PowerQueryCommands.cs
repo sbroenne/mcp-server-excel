@@ -85,7 +85,9 @@ public partial class PowerQueryCommands : IPowerQueryCommands
     }
 
     /// <summary>
-    /// Determine which worksheet a query is loaded to (if any)
+    /// Determine which worksheet a query is loaded to (if any).
+    /// Uses the same ListObjects + connection string matching as RefreshQueryTableByName
+    /// for reliable detection of modern Excel table (ListObject) queries.
     /// </summary>
     private static string? DetermineLoadedSheet(dynamic workbook, string queryName)
     {
@@ -96,40 +98,59 @@ public partial class PowerQueryCommands : IPowerQueryCommands
             for (int ws = 1; ws <= worksheets.Count; ws++)
             {
                 dynamic? worksheet = null;
-                dynamic? queryTables = null;
+                dynamic? listObjects = null;
                 try
                 {
                     worksheet = worksheets.Item(ws);
-                    queryTables = worksheet.QueryTables;
+                    listObjects = worksheet.ListObjects;
 
-                    for (int qt = 1; qt <= queryTables.Count; qt++)
+                    for (int lo = 1; lo <= listObjects.Count; lo++)
                     {
+                        dynamic? listObject = null;
                         dynamic? queryTable = null;
                         try
                         {
-                            queryTable = queryTables.Item(qt);
-                            string qtName = queryTable.Name?.ToString() ?? "";
+                            listObject = listObjects.Item(lo);
 
-                            if (qtName.Equals(queryName.Replace(" ", "_"), StringComparison.OrdinalIgnoreCase) ||
-                                qtName.Contains(queryName.Replace(" ", "_")))
+                            try
                             {
-                                string sheetName = worksheet.Name;
-                                return sheetName;
+                                queryTable = listObject.QueryTable;
+                            }
+                            catch (COMException)
+                            {
+                                // ListObject has no QueryTable — skip
+                                continue;
+                            }
+
+                            if (queryTable == null)
+                            {
+                                continue;
+                            }
+
+                            // Match by connection string: "OLEDB;...;Location=QueryName;..."
+                            // This is the same strategy as RefreshQueryTableByName and is
+                            // reliable regardless of what Excel assigns as the QueryTable.Name.
+                            string? connection = queryTable.Connection?.ToString();
+                            if (connection != null &&
+                                connection.Contains($"Location={queryName}", StringComparison.OrdinalIgnoreCase))
+                            {
+                                return worksheet.Name?.ToString();
                             }
                         }
-                        catch (System.Runtime.InteropServices.COMException)
+                        catch (COMException)
                         {
                             continue;
                         }
                         finally
                         {
                             ComUtilities.Release(ref queryTable);
+                            ComUtilities.Release(ref listObject);
                         }
                     }
                 }
                 finally
                 {
-                    ComUtilities.Release(ref queryTables);
+                    ComUtilities.Release(ref listObjects);
                     ComUtilities.Release(ref worksheet);
                 }
             }
