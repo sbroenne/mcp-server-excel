@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Microsoft.CSharp.RuntimeBinder;
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Connections;
@@ -183,10 +185,135 @@ public partial class ConnectionCommands
                 throw new InvalidOperationException($"Connection '{connectionName}' is a Power Query connection. Use powerquery 'refresh' instead.");
             }
 
-            // Pure COM passthrough - just refresh the connection
-            conn.Refresh();
+            RefreshWorkbookConnection(conn, ct);
             return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
         }, timeoutCts.Token);  // Extended timeout (default 5 minutes) for slow data sources
+    }
+
+    private static void RefreshWorkbookConnection(Excel.WorkbookConnection connection, CancellationToken cancellationToken)
+    {
+        dynamic? typedSubConnection = null;
+        bool originalBackgroundQuery = false;
+        bool canRestoreBackgroundQuery = false;
+        bool supportsRefreshing = false;
+
+        try
+        {
+            typedSubConnection = GetTypedSubConnection(connection);
+
+            if (typedSubConnection != null)
+            {
+                try
+                {
+                    originalBackgroundQuery = typedSubConnection.BackgroundQuery;
+                    canRestoreBackgroundQuery = true;
+                    typedSubConnection.BackgroundQuery = true;
+                }
+                catch (COMException)
+                {
+                    // Provider does not support BackgroundQuery.
+                }
+                catch (RuntimeBinderException)
+                {
+                    // Provider does not expose BackgroundQuery.
+                }
+            }
+
+            connection.Refresh();
+
+            try
+            {
+                // PIA gap: WorkbookConnection.Refreshing not in Microsoft.Office.Interop.Excel v16 PIA
+                _ = ((dynamic)connection).Refreshing;
+                supportsRefreshing = true;
+            }
+            catch (COMException)
+            {
+                supportsRefreshing = false;
+            }
+            catch (RuntimeBinderException)
+            {
+                supportsRefreshing = false;
+            }
+
+            if (supportsRefreshing)
+            {
+                WaitForConnectionRefreshCompletion(
+                    () =>
+                    {
+                        try
+                        {
+                            // PIA gap: WorkbookConnection.Refreshing not in Microsoft.Office.Interop.Excel v16 PIA
+                            return ((dynamic)connection).Refreshing;
+                        }
+                        catch (COMException)
+                        {
+                            return false;
+                        }
+                        catch (RuntimeBinderException)
+                        {
+                            return false;
+                        }
+                    },
+                    () =>
+                    {
+                        try
+                        {
+                            // PIA gap: WorkbookConnection.CancelRefresh not in Microsoft.Office.Interop.Excel v16 PIA
+                            ((dynamic)connection).CancelRefresh();
+                        }
+                        catch (COMException)
+                        {
+                            // Provider does not support cancellation.
+                        }
+                        catch (RuntimeBinderException)
+                        {
+                            // Provider does not expose cancellation.
+                        }
+                    },
+                    cancellationToken);
+            }
+        }
+        finally
+        {
+            if (canRestoreBackgroundQuery && typedSubConnection != null)
+            {
+                try
+                {
+                    typedSubConnection.BackgroundQuery = originalBackgroundQuery;
+                }
+                catch (COMException)
+                {
+                    // Ignore inability to restore provider-specific setting.
+                }
+                catch (RuntimeBinderException)
+                {
+                    // Ignore inability to restore provider-specific setting.
+                }
+            }
+
+            ComUtilities.Release(ref typedSubConnection);
+        }
+    }
+
+    private static void WaitForConnectionRefreshCompletion(
+        Func<bool> isRefreshing,
+        Action cancelRefresh,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (isRefreshing())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Thread.Sleep(200);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            cancelRefresh();
+            throw;
+        }
     }
 
     /// <summary>

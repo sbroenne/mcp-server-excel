@@ -12,6 +12,8 @@ This changelog covers all components:
 
 ### Fixed
 
+- **Connection `refresh` and PowerQuery `refresh` / `refresh-all` could hang or miss cancellation on async data sources**: `WorkbookConnection.Refresh()` returns immediately when the provider runs asynchronously, leaving the STA thread without a way to detect completion or honour the operation timeout. Both Connection and PowerQuery refresh now set the sub-connection's `BackgroundQuery = true`, call `Refresh()`, then poll `.Refreshing` in a loop that responds to cancellation and calls `.CancelRefresh()` when the timeout fires. `powerquery refresh-all` was also updated to use the same robust `RefreshConnectionByQueryName` path (which includes `QueryTable.Refresh(false)` for worksheet queries) instead of a bare `connection.Refresh()`.
+
 - **CLI and MCP Server version always reported as 1.0.0** (#523): The update check and About dialog always showed version 1.0.0 instead of the actual installed version. Fixed by removing hardcoded version properties from project files so they inherit from the central version configuration.
 
 - **`table append` JsonElement COM marshalling** (#519): Row values containing booleans or strings were passed as raw `System.Text.Json.JsonElement` to `cell.Value2`, which COM interop cannot marshal to a Variant. Fixed by calling `RangeHelpers.ConvertToCellValue()` (the same fix already present in `range set-values`) to unwrap `JsonElement` to native types before assignment.
