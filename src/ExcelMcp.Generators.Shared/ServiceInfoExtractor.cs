@@ -89,8 +89,9 @@ public static class ServiceInfoExtractor
                 var xmlDoc = ExtractXmlDocumentation(method);
 
                 var hasBatchParameter = method.Parameters.Any(p => p.Type.Name == "IExcelBatch");
+                var hasProgressParameter = method.Parameters.Any(p => p.Type.Name == "IProgress");
                 var parameters = method.Parameters
-                    .Where(p => p.Type.Name != "IExcelBatch") // Skip batch parameter
+                    .Where(p => p.Type.Name != "IExcelBatch" && p.Type.Name != "IProgress") // Skip batch and progress parameters
                     .Select(p => ExtractParameterInfo(p, xmlDoc))
                     .ToList();
 
@@ -101,7 +102,8 @@ public static class ServiceInfoExtractor
                     methodMcpTool ?? category,
                     parameters,
                     xmlDoc?.Summary,
-                    hasBatchParameter));
+                    hasBatchParameter,
+                    hasProgressParameter));
             }
         }
 

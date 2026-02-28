@@ -18,6 +18,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "PowerQuery")]
 [Trait("Speed", "Medium")]
+[Collection("Sequential")]
 public partial class PowerQueryCommandsTests : IClassFixture<PowerQueryTestsFixture>
 {
     private readonly PowerQueryCommands _powerQueryCommands;

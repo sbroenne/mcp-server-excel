@@ -20,6 +20,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
 [Trait("Feature", "DataModel")]
 [Trait("RequiresExcel", "true")]
 [Trait("Speed", "Medium")]
+[Collection("Sequential")]
 public class PowerQueryDataModelLoadingTests : IClassFixture<TempDirectoryFixture>
 {
     private readonly PowerQueryCommands _powerQueryCommands;

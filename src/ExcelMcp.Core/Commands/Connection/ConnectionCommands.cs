@@ -482,7 +482,15 @@ public partial class ConnectionCommands : IConnectionCommands
 
             if (options.RefreshImmediately)
             {
-                queryTable.Refresh(false);
+                OleMessageFilter.EnterLongOperation();
+                try
+                {
+                    queryTable.Refresh(false);
+                }
+                finally
+                {
+                    OleMessageFilter.ExitLongOperation();
+                }
             }
         }
         finally

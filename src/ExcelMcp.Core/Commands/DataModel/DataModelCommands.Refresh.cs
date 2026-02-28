@@ -15,67 +15,90 @@ public partial class DataModelCommands
     /// <inheritdoc />
     public OperationResult Refresh(IExcelBatch batch, string? tableName = null, TimeSpan? timeout = null)
     {
-        // timeout parameter reserved for future use (e.g., cancellation token support)
-        _ = timeout;
+        var effectiveTimeout = timeout.HasValue && timeout.Value > TimeSpan.Zero
+            ? timeout.Value
+            : TimeSpan.FromMinutes(2);
+        using var timeoutCts = new CancellationTokenSource(effectiveTimeout);
 
-        return batch.Execute((ctx, ct) =>
+        try
         {
-            Excel.Model? model = null;
-            try
+            return batch.Execute((ctx, ct) =>
             {
-                // Check if workbook has Data Model
-                if (!HasDataModelTables(ctx.Book))
+                Excel.Model? model = null;
+                try
                 {
-                    throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
+                    // Check if workbook has Data Model
+                    if (!HasDataModelTables(ctx.Book))
+                    {
+                        throw new InvalidOperationException(DataModelErrorMessages.NoDataModelTables());
+                    }
+
+                    model = ctx.Book.Model;
+
+                    if (tableName != null)
+                    {
+                        // Refresh specific table
+                        Excel.ModelTable? table = FindModelTable(model!, tableName);
+                        if (table == null)
+                        {
+                            throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(tableName));
+                        }
+
+                        try
+                        {
+                            OleMessageFilter.EnterLongOperation();
+                            try
+                            {
+                                table.Refresh();
+                            }
+                            finally
+                            {
+                                OleMessageFilter.ExitLongOperation();
+                            }
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref table);
+                        }
+                    }
+                    else
+                    {
+                        // Refresh entire model
+                        OleMessageFilter.EnterLongOperation();
+                        try
+                        {
+                            model.Refresh();
+                        }
+                        catch (Exception refreshEx)
+                        {
+                            // Model.Refresh() may not be supported in all Excel versions
+                            // Fall back to refreshing tables individually
+                            throw new InvalidOperationException($"Model-level refresh not supported. Try refreshing tables individually. Error: {refreshEx.Message}", refreshEx);
+                        }
+                        finally
+                        {
+                            OleMessageFilter.ExitLongOperation();
+                        }
+                    }
+
+                    // NOTE: CUBEVALUE formulas may still show #N/A after refresh.
+                    // Application.Calculate() and CalculateFull() can throw COM errors (0x800AC472).
+                    // This is a known Excel COM limitation - CUBE functions require interactive Excel.
+                    // See: https://github.com/sbroenne/mcp-server-excel/issues/313
+                }
+                finally
+                {
+                    ComUtilities.Release(ref model);
                 }
 
-                model = ctx.Book.Model;
-
-                if (tableName != null)
-                {
-                    // Refresh specific table
-                    Excel.ModelTable? table = FindModelTable(model!, tableName);
-                    if (table == null)
-                    {
-                        throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(tableName));
-                    }
-
-                    try
-                    {
-                        table.Refresh();
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref table);
-                    }
-                }
-                else
-                {
-                    // Refresh entire model
-                    try
-                    {
-                        model.Refresh();
-                    }
-                    catch (Exception refreshEx)
-                    {
-                        // Model.Refresh() may not be supported in all Excel versions
-                        // Fall back to refreshing tables individually
-                        throw new InvalidOperationException($"Model-level refresh not supported. Try refreshing tables individually. Error: {refreshEx.Message}", refreshEx);
-                    }
-                }
-
-                // NOTE: CUBEVALUE formulas may still show #N/A after refresh.
-                // Application.Calculate() and CalculateFull() can throw COM errors (0x800AC472).
-                // This is a known Excel COM limitation - CUBE functions require interactive Excel.
-                // See: https://github.com/sbroenne/mcp-server-excel/issues/313
-            }
-            finally
-            {
-                ComUtilities.Release(ref model);
-            }
-
-            return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
-        });
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+            }, timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                $"Data Model refresh timed out after {effectiveTimeout.TotalSeconds:F0} seconds for '{Path.GetFileName(batch.WorkbookPath)}'.");
+        }
     }
 }
 

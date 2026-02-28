@@ -26,6 +26,33 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
     private static bool _isRegistered;
 
     /// <summary>
+    /// When true, the filter is in a long-running COM operation (e.g., Power Query refresh).
+    /// MessagePending returns WAITDEFPROCESS to dispatch to HandleInComingCall, which rejects
+    /// with SERVERCALL_RETRYLATER to trigger the caller's RetryRejectedCall backoff.
+    /// </summary>
+    [ThreadStatic]
+    private static volatile bool _isInLongOperation;
+
+    /// <summary>
+    /// Diagnostic counter: total MessagePending calls during the current long operation.
+    /// Reset on EnterLongOperation, read on ExitLongOperation.
+    /// </summary>
+    [ThreadStatic]
+    private static long _messagePendingCount;
+
+    /// <summary>
+    /// Diagnostic counter: total HandleInComingCall rejections during the current long operation.
+    /// </summary>
+    [ThreadStatic]
+    private static long _handleInComingCallRejections;
+
+    /// <summary>
+    /// Timestamp when the current long operation started (for diagnostics).
+    /// </summary>
+    [ThreadStatic]
+    private static long _longOperationStartTimestamp;
+
+    /// <summary>
     /// Registers the OLE message filter for the current STA thread.
     /// Should be called once per STA thread before making COM calls.
     /// </summary>
@@ -81,11 +108,55 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
     public static bool IsRegistered => _isRegistered;
 
     /// <summary>
-    /// Handles incoming COM calls. Not used for Excel automation scenarios.
+    /// Gets whether the filter is currently in a long operation on this thread.
+    /// </summary>
+    public static bool IsInLongOperation => _isInLongOperation;
+
+    /// <summary>
+    /// Marks the beginning of a long-running COM operation (e.g., connection.Refresh()).
+    /// While in a long operation, inbound COM callbacks are rejected with SERVERCALL_RETRYLATER
+    /// instead of being dispatched, preventing CPU spin from re-entrant COM calls.
+    /// </summary>
+    public static void EnterLongOperation()
+    {
+        _messagePendingCount = 0;
+        _handleInComingCallRejections = 0;
+        _longOperationStartTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
+        _isInLongOperation = true;
+    }
+
+    /// <summary>
+    /// Marks the end of a long-running COM operation and returns diagnostic counters.
+    /// </summary>
+    /// <returns>A tuple of (messagePendingCalls, incomingCallRejections, elapsedMs).</returns>
+    public static (long MessagePendingCalls, long IncomingCallRejections, double ElapsedMs) ExitLongOperation()
+    {
+        _isInLongOperation = false;
+        var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(_longOperationStartTimestamp);
+        return (_messagePendingCount, _handleInComingCallRejections, elapsed.TotalMilliseconds);
+    }
+
+    /// <summary>
+    /// Handles incoming COM calls.
+    /// During long operations, rejects with SERVERCALL_RETRYLATER to trigger the caller's
+    /// RetryRejectedCall backoff mechanism, preventing CPU spin from re-entrant dispatch.
     /// </summary>
     int IOleMessageFilter.HandleInComingCall(int dwCallType, nint htaskCaller, int dwTickCount, nint lpInterfaceInfo)
     {
-        // SERVERCALL_ISHANDLED (0) - Accept the call
+        if (_isInLongOperation)
+        {
+            // SERVERCALL_RETRYLATER (2) — reject but with proper COM retry protocol.
+            // The COM runtime invokes the CALLER's IMessageFilter.RetryRejectedCall,
+            // which implements backoff. This is fundamentally different from WAITNOPROCESS
+            // rejection (which bypasses RetryRejectedCall and gives raw RPC_E_CALL_REJECTED).
+            //
+            // The callback is rejected BEFORE being dispatched to .NET, so no
+            // EnsureScanDefinedEvents or IDispatch.TryGetTypeInfoCount runs.
+            Interlocked.Increment(ref _handleInComingCallRejections);
+            return 2; // SERVERCALL_RETRYLATER
+        }
+
+        // SERVERCALL_ISHANDLED (0) — accept the call (normal short operations)
         return 0;
     }
 
@@ -136,38 +207,37 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
 
     /// <summary>
     /// Handles pending message during a COM call.
+    /// Context-dependent: during long operations, dispatches to HandleInComingCall (which rejects).
+    /// During normal operations, queues messages without dispatching.
     /// </summary>
     int IOleMessageFilter.MessagePending(nint htaskCallee, int dwTickCount, int dwPendingType)
     {
-        // PENDINGMSG enum values (tagPENDINGMSG):
-        //   PENDINGMSG_CANCELCALL    = 0  — cancel the outgoing call (dangerous, avoid)
-        //   PENDINGMSG_WAITNOPROCESS = 1  — wait for return, do NOT dispatch the inbound message
-        //   PENDINGMSG_WAITDEFPROCESS = 2 — wait and dispatch WM_PAINT / activation messages
+        Interlocked.Increment(ref _messagePendingCount);
+
+        if (_isInLongOperation)
+        {
+            // PENDINGMSG_WAITDEFPROCESS (2) — dispatch to HandleInComingCall.
+            //
+            // During long operations (e.g., connection.Refresh()), we WANT inbound COM
+            // callbacks to reach HandleInComingCall so we can reject them with
+            // SERVERCALL_RETRYLATER. This triggers the caller's RetryRejectedCall
+            // backoff mechanism (proper COM retry protocol).
+            //
+            // This is safe because HandleInComingCall returns SERVERCALL_RETRYLATER,
+            // which rejects the callback BEFORE any .NET dispatch occurs.
+            // No EnsureScanDefinedEvents, no IDispatch.TryGetTypeInfoCount, no re-entrant
+            // COM calls — the callback is rejected at the COM filter layer.
+            //
+            // The FormatConditions deadlock (failure mode 1 of WAITDEFPROCESS) is NOT
+            // reintroduced because HandleInComingCall rejects before dispatch.
+            return 2; // PENDINGMSG_WAITDEFPROCESS — dispatch to HandleInComingCall
+        }
+
+        // PENDINGMSG_WAITNOPROCESS (1) — queue inbound messages without dispatching.
         //
-        // Return PENDINGMSG_WAITNOPROCESS (1) to block inbound COM dispatch.
-        //
-        // CRITICAL: Do NOT return PENDINGMSG_WAITDEFPROCESS (2) here.
-        // That value dispatches inbound COM calls, causing two distinct failure modes:
-        //
-        // 1. STA deadlock (FormatConditions.Add scenario):
-        //    a. STA thread calls FormatConditions.Add() → Excel starts processing
-        //    b. Excel fires a callback (Calculate/SheetChange) back to this STA thread
-        //    c. WAITDEFPROCESS dispatches it → callback tries to re-enter COM
-        //    d. Excel waits for FormatConditions to finish → DEADLOCK
-        //
-        // 2. EnsureScanDefinedEvents CPU spin (PQ Data Model refresh scenario):
-        //    a. STA thread calls dynamic connection.Refresh() → Excel processes Data Model
-        //    b. MashupHost.exe fires hundreds of row-write callbacks per second to our STA
-        //    c. WAITDEFPROCESS dispatches each one → .NET dynamic binder runs IDispatchMetaObject
-        //       .BindGetMember for each callback, calling EnsureScanDefinedEvents
-        //       → IDispatch.TryGetTypeInfoCount blocks on Excel (already busy) → tight spin
-        //    d. Result: >97% CPU for the full duration of the Data Model write phase
-        //
-        // PENDINGMSG_WAITNOPROCESS (1) queues inbound messages without dispatching them.
-        // They are delivered after the outgoing call returns. This is safe because:
-        // - connection.Refresh(BackgroundQuery=false) is fully synchronous
-        // - Excel does not need *our* STA to dispatch callbacks to make progress
-        // - All pending callbacks are processed normally once Refresh() returns
+        // For normal short COM operations (property reads, sheet operations), keep the
+        // safe default: don't dispatch inbound messages. They are delivered after the
+        // outgoing call returns.
         return 1; // PENDINGMSG_WAITNOPROCESS — queue inbound messages, do not dispatch
     }
 

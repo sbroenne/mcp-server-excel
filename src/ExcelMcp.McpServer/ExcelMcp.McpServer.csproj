@@ -17,9 +17,6 @@
     <!-- Emit source generator output to disk for debugging -->
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
 
-    <!-- Allow test project to access internal members (e.g., SetTelemetryClient) -->
-    <InternalsVisibleTo>Sbroenne.ExcelMcp.McpServer.Tests</InternalsVisibleTo>
-
     <!-- Version inherited from Directory.Build.props; overridden by CI via -p:Version -->
 
     <!-- NuGet MCP Server Configuration -->
@@ -288,6 +285,11 @@ internal static class TelemetryConfig
     <ProjectReference Include="..\ExcelMcp.Build.Tasks\ExcelMcp.Build.Tasks.csproj"
                       ReferenceOutputAssembly="false"
                       PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- Allow test project to access internal members (e.g., McpProgressAdapter) -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sbroenne.ExcelMcp.McpServer.Tests" />
   </ItemGroup>
 
   <ItemGroup>
