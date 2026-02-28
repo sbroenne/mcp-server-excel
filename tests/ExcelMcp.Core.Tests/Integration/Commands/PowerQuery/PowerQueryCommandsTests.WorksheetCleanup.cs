@@ -118,6 +118,80 @@ public class PowerQueryWorksheetCleanupTests : IClassFixture<TempDirectoryFixtur
 
     #endregion
 
+    #region Worksheet Table Naming Tests
+
+    /// <summary>
+    /// REGRESSION TEST: LoadToTable must name the worksheet ListObject/table after the query.
+    ///
+    /// Without the fix, Excel auto-assigns a generic name like "Table1" or
+    /// "Table_ExternalData_1", which breaks M-code lookups such as:
+    ///     Excel.CurrentWorkbook(){[Name = queryName]}[Content]
+    ///
+    /// With the fix, <c>listObject.Name = queryName</c> is called after the QueryTable
+    /// refresh, ensuring the table name always matches the query name.
+    ///
+    /// Discovered while migrating CP Toolkit workbooks where
+    /// <c>Excel.CurrentWorkbook(){[Name="Milestones"]}[Content]</c> failed because
+    /// the table was still named "Table_ExternalData_1".
+    /// </summary>
+    [Fact]
+    public void Create_LoadToTable_WorksheetTableNamedAfterQuery()
+    {
+        // Arrange
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "PQ_TableName_" + Guid.NewGuid().ToString("N")[..8];
+        var mCode = @"let Source = #table({""Value""}, {{1}, {2}, {3}}) in Source";
+
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+
+        // Act - Create query with LoadToTable
+        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.LoadToTable);
+
+        // Assert - The worksheet ListObject must be named after the query
+        var tables = _tableCommands.List(batch);
+        Assert.True(tables.Success, $"List tables failed: {tables.ErrorMessage}");
+        Assert.True(tables.Tables.Count > 0, "Expected at least one worksheet table after LoadToTable");
+
+        // Primary assertion: table is named after the query (not "Table1", "Table_ExternalData_1", etc.)
+        Assert.True(
+            tables.Tables.Any(t => t.Name == queryName),
+            $"Expected worksheet table named '{queryName}' but found: [{string.Join(", ", tables.Tables.Select(t => t.Name))}]");
+
+        // Tables with generic names should NOT exist
+        Assert.DoesNotContain(tables.Tables, t => t.Name.StartsWith("Table1", StringComparison.Ordinal));
+        Assert.DoesNotContain(tables.Tables, t => t.Name.StartsWith("Table_ExternalData", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// Verifies that LoadTo (change destination) also names the table after the query.
+    /// </summary>
+    [Fact]
+    public void LoadTo_ConnectionOnlyToTable_WorksheetTableNamedAfterQuery()
+    {
+        // Arrange
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "PQ_LoadToName_" + Guid.NewGuid().ToString("N")[..8];
+        var mCode = @"let Source = #table({""Val""}, {{42}}) in Source";
+
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+
+        // Create initially as connection-only
+        _powerQueryCommands.Create(batch, queryName, mCode, PowerQueryLoadMode.ConnectionOnly);
+
+        // Act - change destination to worksheet table
+        _powerQueryCommands.LoadTo(batch, queryName, PowerQueryLoadMode.LoadToTable);
+        _powerQueryCommands.Refresh(batch, queryName, TimeSpan.FromMinutes(5));
+
+        // Assert - worksheet table is named after the query
+        var tables = _tableCommands.List(batch);
+        Assert.True(tables.Success, $"List tables failed: {tables.ErrorMessage}");
+        Assert.True(
+            tables.Tables.Any(t => t.Name == queryName),
+            $"Expected table '{queryName}' but found: [{string.Join(", ", tables.Tables.Select(t => t.Name))}]");
+    }
+
+    #endregion
+
     #region Delete Clean Slate Tests - Query + Connection + Table
 
     /// <summary>
