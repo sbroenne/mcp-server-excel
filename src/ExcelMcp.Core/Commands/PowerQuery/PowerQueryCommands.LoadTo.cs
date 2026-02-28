@@ -325,6 +325,12 @@ public partial class PowerQueryCommands
                 OleMessageFilter.ExitLongOperation();
             }
 
+            // Name the table after the query for predictable M-code referencing.
+            // Without this, Excel auto-assigns a generic name ("Table1", "Table2", etc.)
+            // which makes Excel.CurrentWorkbook(){[Name=queryName]}[Content] lookups unreliable.
+            try { listObject.Name = queryName; }
+            catch { /* Non-critical — if rename fails (e.g. name conflict), load still succeeded. */ }
+
             // Capture results - use ListObject Range for total rows, subtract header
             dynamic? listObjectRange = listObject.Range;
             int totalRows = listObjectRange != null ? Convert.ToInt32(listObjectRange.Rows.Count) : 0;
