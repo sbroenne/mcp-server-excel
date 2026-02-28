@@ -135,7 +135,16 @@ public partial class PowerQueryCommands
                                 // Keep synchronous refresh semantics for worksheet queries.
                                 // QueryTable.Refresh(false) is the only reliable path that propagates
                                 // Power Query formula errors for worksheet-loaded queries.
-                                queryTable.Refresh(false);
+                                OleMessageFilter.EnterLongOperation();
+                                try
+                                {
+                                    queryTable.Refresh(false);
+                                }
+                                finally
+                                {
+                                    OleMessageFilter.ExitLongOperation();
+                                }
+
                                 return true;
                             }
                         }
@@ -203,10 +212,20 @@ public partial class PowerQueryCommands
                 // Sub-connection doesn't expose BackgroundQuery via dynamic binding.
             }
 
-            // OleMessageFilter.MessagePending returns PENDINGMSG_WAITNOPROCESS (1) unconditionally,
-            // which queues inbound COM callbacks without dispatching them during this blocking call.
-            // This prevents the EnsureScanDefinedEvents CPU spin from Data Model write callbacks.
-            connection.Refresh();
+            // Enter long operation mode: MessagePending returns WAITDEFPROCESS to dispatch
+            // to HandleInComingCall, which rejects with SERVERCALL_RETRYLATER.
+            // This triggers the caller's RetryRejectedCall backoff instead of either:
+            // - WAITNOPROCESS rejection storm (88% CPU) or
+            // - WAITDEFPROCESS + EnsureScanDefinedEvents spin (97% CPU)
+            OleMessageFilter.EnterLongOperation();
+            try
+            {
+                connection.Refresh();
+            }
+            finally
+            {
+                OleMessageFilter.ExitLongOperation();
+            }
 
             try
             {

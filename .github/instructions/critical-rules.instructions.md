@@ -87,6 +87,8 @@ Discovered while debugging a Power Query that referenced a column with a hyphen
 **When Writing Code:**
 | Rule | Action | Why Critical |
 |------|--------|--------------|
+| 29. TDD | Write test FIRST → RED → implement → GREEN | Proves tests catch real bugs |
+| 30. Integration tests | NEVER write unit tests — integration tests only | Unit tests prove nothing for COM interop |
 | 22. COM cleanup | ALWAYS use try-finally, NEVER swallow exceptions | Prevents leaks and silent failures |
 | 7. COM API | Use Excel COM first, validate docs | Prevents wrong dependencies |
 | 9. GitHub search | Search OTHER repos for VBA/COM examples FIRST | Learn from working code |
@@ -98,6 +100,7 @@ Discovered while debugging a Power Query that referenced a column with a hyphen
 | Rule | Action | Why Critical |
 |------|--------|--------------|
 | 2. Tests | Fail loudly, never silent | Silent failures waste hours |
+| 30. Integration tests | NEVER write unit tests — integration tests only | Unit tests prove nothing for COM interop |
 | 15. No Save | Remove unless testing persistence | Makes tests 50% faster |
 | 11. Test debugging | Run tests one by one | Isolates actual failure |
 | 13. Test compliance | Pass checklist before PR submission | Prevents test pollution |
@@ -472,6 +475,8 @@ Delete commented-out code (use git history). Exception: Documentation files only
 | 19. PR review comments | Check and fix all automated review comments after creating PR | 5-10 min |
 | 24. Post-change sync | Verify ALL sync points (CLI, SKILLs, READMEs, counts) before commit | 5-10 min |
 | 28. COM API naming | Match COM param names when clear in flat schema | Always |
+| 29. TDD | Write test FIRST → RED → implement → GREEN | Always |
+| 30. Integration tests | NEVER write unit tests — integration tests only | Always |
 
 
 
@@ -991,4 +996,131 @@ void AddField(IExcelBatch batch, string pivotTableName, string fieldName, string
 2. Ask: "Would an LLM understand `{com_param_name}` without seeing the method/class name?"
 3. If YES → use COM name (e.g., `name`, `rowLayout`, `reference`)
 4. If NO → use descriptive name (e.g., `fieldName` not `Name`, `subtotalFunction` not `Function`)
+
+---
+
+## Rule 29: Test-Driven Development (TDD) (CRITICAL)
+
+**Write the test FIRST. Watch it FAIL. Then implement. Then watch it PASS.**
+
+This is non-negotiable for all new features and bug fixes. The workflow is:
+
+1. **Write a failing test** that describes the expected behavior
+2. **Run the test** — it MUST fail (red)
+3. **Implement the minimum code** to make the test pass
+4. **Run the test again** — it MUST pass (green)
+5. **Refactor** if needed, ensuring tests still pass
+
+```csharp
+// Step 1: Write the test FIRST (before any implementation)
+[Fact]
+[Trait("Feature", "Progress")]
+public void ProgressAdapter_Maps_Current_To_Progress()
+{
+    // This test describes what the code SHOULD do
+    // It will FAIL because the class doesn't exist yet
+    var reported = new List<ProgressNotificationValue>();
+    IProgress<ProgressNotificationValue> inner = new Progress<ProgressNotificationValue>(v => reported.Add(v));
+    var adapter = new McpProgressAdapter(inner);
+
+    adapter.Report(new ProgressInfo { Current = 0.5f, Total = 1.0f, Message = "Half done" });
+
+    Assert.Single(reported);
+    Assert.Equal(0.5f, reported[0].Progress);
+}
+
+// Step 2: Run → RED (McpProgressAdapter doesn't exist)
+// Step 3: Implement McpProgressAdapter
+// Step 4: Run → GREEN
+// Step 5: Refactor if needed
+```
+
+**Why Critical:**
+- **Proves the test actually tests something** — a test that never fails never caught a bug
+- **Defines behavior before implementation** — forces clear thinking about requirements
+- **Prevents "tests that always pass"** — if your test passes before implementation, it's testing nothing
+- **Catches regressions immediately** — the test existed before the code, so it's a true regression guard
+- **Reduces debugging time** — small red→green cycles isolate problems instantly
+
+**Common Violations:**
+```
+# ❌ WRONG: Write code first, then write tests that pass
+1. Implement feature     ← No test to guide you
+2. Write tests           ← Tests shaped to match implementation, not requirements
+3. Tests pass            ← Of course they do — you wrote them to match existing code
+
+# ✅ CORRECT: TDD cycle
+1. Write failing test    ← Defines what "correct" means
+2. Run test → RED        ← Proves the test catches the missing behavior
+3. Implement feature     ← Guided by the test
+4. Run test → GREEN      ← Proves the implementation is correct
+```
+
+**Enforcement:**
+- When adding a new feature: write tests FIRST, commit them separately if needed
+- When fixing a bug: write a test that reproduces the bug FIRST, then fix
+- In PR reviews: verify that tests were written before or alongside implementation
+- If a test passes on the first run without any implementation changes, investigate — it may be testing nothing
+
+**Applies To:**
+- All new Core Commands methods
+- All new MCP Server tool actions
+- All bug fixes (regression test first)
+- All CLI command additions
+
+**Exception:** Pure refactoring where existing tests already cover the behavior — no new tests needed, but existing tests must still pass.
+
+---
+
+## Rule 30: Integration Tests Over Unit Tests (CRITICAL)
+
+**NEVER write unit tests. Unit tests that mock COM objects, fake contexts, or test adapter mappings in isolation prove NOTHING. Write integration tests that exercise real Excel COM automation.**
+
+**Why Critical:** ExcelMcp is a COM interop project. The bugs that matter — STA threading deadlocks, COM object leaks, OleMessageFilter re-entrancy, type conversion failures (`double` vs `int`), QueryTable persistence — **only manifest when real Excel is running**. A unit test that verifies an adapter maps field A to field B catches zero real bugs. An integration test that opens a workbook, refreshes a Power Query, and verifies the result catches ALL of them.
+
+```csharp
+// ❌ WRONG: Unit test that proves nothing
+[Fact]
+[Trait("Category", "Unit")]
+public void Adapter_Maps_Field_A_To_Field_B()
+{
+    var adapter = new SomeAdapter(mockProgress);
+    adapter.Report(new Info { Current = 0.5f });
+    Assert.Equal(0.5f, captured.Progress);  // So what? This never fails in production.
+}
+
+// ✅ CORRECT: Integration test that catches real bugs
+[Fact]
+[Trait("Category", "Integration")]
+[Trait("Feature", "PowerQuery")]
+public void Refresh_ReportsProgress_DuringExecution()
+{
+    using var batch = ExcelSession.BeginBatch(_testFile);
+    var progress = new List<ProgressInfo>();
+    var result = _commands.Refresh(batch, "TestQuery",
+        new Progress<ProgressInfo>(p => progress.Add(p)));
+    Assert.True(result.Success);
+    Assert.NotEmpty(progress);  // Real Excel, real refresh, real progress
+}
+```
+
+**What Counts as Integration:**
+- ✅ Opens a real Excel workbook via COM
+- ✅ Exercises real batch.Execute() on STA thread
+- ✅ Verifies real data flows through the full pipeline
+- ✅ Catches COM threading, type conversion, and persistence bugs
+
+**What Does NOT Count:**
+- ❌ Mocking IProgress, IExcelBatch, or any COM interface
+- ❌ Testing adapter/mapper classes in isolation
+- ❌ Verifying AsyncLocal behavior without COM context
+- ❌ Any test that passes without Excel.exe running
+
+**Enforcement:**
+- Code review MUST reject unit tests for COM-dependent features
+- All new tests MUST have `[Trait("Category", "Integration")]`
+- If a test doesn't require Excel, question whether it tests anything meaningful
+- The only acceptable non-integration tests are for pure algorithmic utilities with zero COM dependency (e.g., string parsing, enum mapping validation)
+
+**Historical Lesson:** 10 unit tests were written for the MCP progress feature (McpProgressAdapter mapping, ProgressContext AsyncLocal). All 10 passed. Zero of them would have caught the real bugs: STA thread affinity issues, COM callback re-entrancy during refresh, or progress notifications not flowing through the generated code pipeline. The unit tests tested the unit tests.
 

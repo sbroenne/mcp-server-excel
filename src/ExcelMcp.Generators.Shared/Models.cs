@@ -59,8 +59,12 @@ public sealed class MethodInfo
     /// <summary>Whether the original interface method has an IExcelBatch parameter.</summary>
     public bool HasBatchParameter { get; }
 
+    /// <summary>Whether the original interface method has an IProgress&lt;T&gt; parameter.</summary>
+    public bool HasProgressParameter { get; }
+
     public MethodInfo(string methodName, string actionName, string returnType, string mcpTool,
-        List<ParameterInfo> parameters, string? xmlDocSummary = null, bool hasBatchParameter = true)
+        List<ParameterInfo> parameters, string? xmlDocSummary = null, bool hasBatchParameter = true,
+        bool hasProgressParameter = false)
     {
         MethodName = methodName;
         ActionName = actionName;
@@ -69,6 +73,7 @@ public sealed class MethodInfo
         Parameters = parameters;
         XmlDocSummary = xmlDocSummary;
         HasBatchParameter = hasBatchParameter;
+        HasProgressParameter = hasProgressParameter;
     }
 }
 

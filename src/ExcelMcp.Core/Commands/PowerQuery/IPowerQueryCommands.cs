@@ -1,3 +1,4 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Attributes;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -50,8 +51,9 @@ public interface IPowerQueryCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name of the query to refresh</param>
     /// <param name="timeout">Maximum time to wait for refresh</param>
+    /// <param name="progress">Optional progress reporter</param>
     [ServiceAction("refresh")]
-    PowerQueryRefreshResult Refresh(IExcelBatch batch, [RequiredParameter] string queryName, TimeSpan timeout);
+    PowerQueryRefreshResult Refresh(IExcelBatch batch, [RequiredParameter] string queryName, TimeSpan timeout, IProgress<ProgressInfo>? progress = null);
 
     /// <summary>
     /// Gets the current load configuration of a Power Query
@@ -125,8 +127,9 @@ public interface IPowerQueryCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="timeout">Maximum time to wait for all queries to refresh. Default: 30 minutes. Use a lower value for quick workbooks or higher for very large ones.</param>
+    /// <param name="progress">Optional progress reporter</param>
     /// <exception cref="InvalidOperationException">Thrown when any Power Query fails to refresh</exception>
-    OperationResult RefreshAll(IExcelBatch batch, TimeSpan timeout = default);
+    OperationResult RefreshAll(IExcelBatch batch, TimeSpan timeout = default, IProgress<ProgressInfo>? progress = null);
 
     /// <summary>
     /// Renames a Power Query using trim + case-insensitive uniqueness semantics.

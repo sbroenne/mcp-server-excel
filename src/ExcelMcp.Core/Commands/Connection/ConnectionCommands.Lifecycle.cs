@@ -211,7 +211,7 @@ public partial class ConnectionCommands
                     //
                     // With BackgroundQuery = true (async), connection.Refresh() returns immediately
                     // while Excel processes the query in a background thread. We then poll
-                    // connection.Refreshing with Thread.Sleep(200). On STA threads with the
+                    // connection.Refreshing with Thread.Sleep(5000). On STA threads with the
                     // OleMessageFilter registered, COM events from Excel during the background refresh
                     // cause Thread.Sleep to return via MsgWaitForMultipleObjectsEx — turning the
                     // polling loop into a 100% CPU spin for the entire duration of the refresh.
@@ -231,10 +231,20 @@ public partial class ConnectionCommands
                 // Sub-connection doesn't expose BackgroundQuery — proceed with default behavior.
             }
 
-            // OleMessageFilter.MessagePending returns PENDINGMSG_WAITNOPROCESS (1) unconditionally,
-            // which queues inbound COM callbacks without dispatching them during this blocking call.
-            // This prevents the EnsureScanDefinedEvents CPU spin from Data Model write callbacks.
-            connection.Refresh();
+            // Enter long operation mode: MessagePending returns WAITDEFPROCESS to dispatch
+            // to HandleInComingCall, which rejects with SERVERCALL_RETRYLATER.
+            // This triggers the caller's RetryRejectedCall backoff instead of either:
+            // - WAITNOPROCESS rejection storm (88% CPU) or
+            // - WAITDEFPROCESS + EnsureScanDefinedEvents spin (97% CPU)
+            OleMessageFilter.EnterLongOperation();
+            try
+            {
+                connection.Refresh();
+            }
+            finally
+            {
+                OleMessageFilter.ExitLongOperation();
+            }
 
             try
             {
@@ -312,9 +322,9 @@ public partial class ConnectionCommands
         Action cancelRefresh,
         CancellationToken cancellationToken)
     {
-        // CRITICAL: Rate-limit the isRefreshing() COM call to every 200ms of *real* elapsed time.
+        // CRITICAL: Rate-limit the isRefreshing() COM call to every 5000ms of *real* elapsed time.
         // See WaitForRefreshCompletion in PowerQueryCommands.Helpers.cs for full explanation.
-        const int CheckIntervalMs = 200;
+        const int CheckIntervalMs = 5000;
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {

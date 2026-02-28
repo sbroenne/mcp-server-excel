@@ -12,7 +12,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class PowerQueryCommands
 {
     /// <inheritdoc />
-    public PowerQueryRefreshResult Refresh(IExcelBatch batch, string queryName, TimeSpan timeout)
+    public PowerQueryRefreshResult Refresh(IExcelBatch batch, string queryName, TimeSpan timeout, IProgress<ProgressInfo>? progress = null)
     {
         var result = new PowerQueryRefreshResult
         {
@@ -53,6 +53,7 @@ public partial class PowerQueryCommands
                 // Refresh the query - exceptions propagate from both:
                 // - QueryTable.Refresh() for worksheet queries
                 // - Connection.Refresh() for Data Model queries
+                progress?.Report(new ProgressInfo { Current = 0, Total = 1, Message = $"Refreshing '{queryName}'" });
                 bool refreshed = RefreshConnectionByQueryName(ctx.Book, queryName, timeoutCts.Token);
 
                 if (!refreshed)
@@ -67,6 +68,7 @@ public partial class PowerQueryCommands
                 bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
                 result.IsConnectionOnly = string.IsNullOrEmpty(result.LoadedToSheet) && !isLoadedToDataModel;
 
+                progress?.Report(new ProgressInfo { Current = 1, Total = 1, Message = $"Refreshed '{queryName}'" });
                 return result;
             }
             finally
@@ -82,7 +84,7 @@ public partial class PowerQueryCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="timeout">Maximum time to wait for all refreshes to complete</param>
     /// <exception cref="InvalidOperationException">Thrown when refresh fails</exception>
-    public OperationResult RefreshAll(IExcelBatch batch, TimeSpan timeout = default)
+    public OperationResult RefreshAll(IExcelBatch batch, TimeSpan timeout = default, IProgress<ProgressInfo>? progress = null)
     {
         if (timeout <= TimeSpan.Zero)
         {
@@ -113,6 +115,8 @@ public partial class PowerQueryCommands
                     {
                         query = queries.Item(i);
                         string queryName = query.Name;
+
+                        progress?.Report(new ProgressInfo { Current = i - 1, Total = totalQueries, Message = $"Refreshing '{queryName}' ({i}/{totalQueries})" });
 
                         // Use the same robust strategy as single-query Refresh:
                         // 1) QueryTable.Refresh(false) for worksheet-loaded queries
@@ -145,6 +149,7 @@ public partial class PowerQueryCommands
                     throw new InvalidOperationException($"Some queries failed to refresh: {string.Join(", ", errors)}");
                 }
 
+                progress?.Report(new ProgressInfo { Current = totalQueries, Total = totalQueries, Message = "All queries refreshed" });
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally

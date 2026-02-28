@@ -1243,6 +1243,10 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             }
         }
 
+        // Inject ambient progress context LAST (matches Core method signature where IProgress is the last parameter)
+        if (method.HasProgressParameter)
+            callArgs.Add("Sbroenne.ExcelMcp.ComInterop.ProgressContext.Current");
+
         var isVoid = method.ReturnType == "void";
         if (isVoid)
         {
