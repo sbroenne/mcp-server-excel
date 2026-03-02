@@ -84,7 +84,27 @@ public partial class RangeCommands
         // Resolve values from inline parameter or file
         var resolvedValues = ParameterTransforms.ResolveValuesOrFile(values, valuesFile);
 
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-values" };
+        // SMART FORMULA DETECTION: Check if any value starts with "=" and auto-route to SetFormulas
+        bool hasFormulas = DetectFormulas(resolvedValues, out var detectedFormulas);
+        if (hasFormulas)
+        {
+            // Detected formulas - convert to proper formula format and use SetFormulas
+            var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-values" };
+
+            // Call SetFormulas internally to apply detected formulas
+            var formulaResult = SetFormulas(batch, sheetName, rangeAddress, detectedFormulas);
+
+            // Copy result data and add detection message
+            result.Success = formulaResult.Success;
+            result.ErrorMessage = formulaResult.ErrorMessage;
+            if (result.Success && string.IsNullOrEmpty(result.Message))
+            {
+                result.Message = $"Formula detected: {detectedFormulas.Sum(row => row.Count(f => !string.IsNullOrEmpty(f)))} formula(s) applied via set-formulas";
+            }
+            return result;
+        }
+
+        var setResult = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-values" };
 
         return batch.Execute((ctx, ct) =>
         {
@@ -133,8 +153,8 @@ public partial class RangeCommands
                     range.Value2 = arrayValues;
                 }
 
-                result.Success = true;
-                return result;
+                setResult.Success = true;
+                return setResult;
             }
             catch (System.Runtime.InteropServices.COMException comEx) when (comEx.HResult == unchecked((int)0x8007000E))
             {
@@ -158,6 +178,40 @@ public partial class RangeCommands
                 ComUtilities.Release(ref range);
             }
         });
+    }
+
+    /// <summary>
+    /// Detects formulas in value array (strings starting with =)
+    /// Returns true if any formulas detected, outputs formula array
+    /// </summary>
+    private static bool DetectFormulas(List<List<object?>> values, out List<List<string>> detectedFormulas)
+    {
+        detectedFormulas = new List<List<string>>();
+        bool hasFormulas = false;
+
+        foreach (var row in values)
+        {
+            var formulaRow = new List<string>();
+            foreach (var value in row)
+            {
+                string str = value?.ToString() ?? string.Empty;
+
+                // Detect formula (starts with = but not escaped with ')
+                if (str.StartsWith('=') && !str.StartsWith("'=", StringComparison.Ordinal))
+                {
+                    formulaRow.Add(str);
+                    hasFormulas = true;
+                }
+                else
+                {
+                    // Not a formula - empty string in formula array
+                    formulaRow.Add(string.Empty);
+                }
+            }
+            detectedFormulas.Add(formulaRow);
+        }
+
+        return hasFormulas;
     }
 }
 

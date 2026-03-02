@@ -285,31 +285,31 @@ public class PowerQueryViewResult : ResultBase
 /// <summary>
 /// Power Query load configuration modes
 /// </summary>
-[System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<PowerQueryLoadMode>))]
+[JsonConverter(typeof(JsonStringEnumConverter<PowerQueryLoadMode>))]
 public enum PowerQueryLoadMode
 {
     /// <summary>
     /// Connection only - no data loaded to worksheet or data model
     /// </summary>
-    [System.Text.Json.Serialization.JsonStringEnumMemberName("connection-only")]
+    [JsonStringEnumMemberName("connection-only")]
     ConnectionOnly,
 
     /// <summary>
     /// Load to table in worksheet
     /// </summary>
-    [System.Text.Json.Serialization.JsonStringEnumMemberName("load-to-table")]
+    [JsonStringEnumMemberName("load-to-table")]
     LoadToTable,
 
     /// <summary>
     /// Load to Data Model (PowerPivot)
     /// </summary>
-    [System.Text.Json.Serialization.JsonStringEnumMemberName("load-to-data-model")]
+    [JsonStringEnumMemberName("load-to-data-model")]
     LoadToDataModel,
 
     /// <summary>
     /// Load to both table and data model
     /// </summary>
-    [System.Text.Json.Serialization.JsonStringEnumMemberName("load-to-both")]
+    [JsonStringEnumMemberName("load-to-both")]
     LoadToBoth
 }
 
@@ -885,6 +885,178 @@ public class RangeFormulaResult : ResultBase
     /// Number of columns in the range
     /// </summary>
     public int ColumnCount { get; set; }
+
+    /// <summary>
+    /// Cell-level errors (e.g., #NAME?, #REF?, etc.)
+    /// Maps cell address to error details
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<RangeCellError>? CellErrors { get; set; }
+}
+
+/// <summary>
+/// Represents an error in a single cell
+/// </summary>
+public class RangeCellError
+{
+    /// <summary>
+    /// Cell address (e.g., "D2")
+    /// </summary>
+    public string CellAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Row number (1-based)
+    /// </summary>
+    public int Row { get; set; }
+
+    /// <summary>
+    /// Column number (1-based)
+    /// </summary>
+    public int Column { get; set; }
+
+    /// <summary>
+    /// Current cell value displayed (often the error code like #NAME?)
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public object? CurrentValue { get; set; }
+
+    /// <summary>
+    /// Excel error code (negative integer like -2146826259)
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? ErrorCode { get; set; }
+
+    /// <summary>
+    /// Human-readable error message
+    /// </summary>
+    public string ErrorMessage { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Suggested fix if available
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Suggestion { get; set; }
+}
+
+/// <summary>
+/// Result for formula validation operations
+/// </summary>
+public class RangeFormulaValidationResult : ResultBase
+{
+    /// <summary>
+    /// Sheet name
+    /// </summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Range address that was validated
+    /// </summary>
+    public string RangeAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether all formulas in range are valid
+    /// </summary>
+    public bool IsValid { get; set; } = true;
+
+    /// <summary>
+    /// Number of formulas validated
+    /// </summary>
+    public int FormulaCount { get; set; }
+
+    /// <summary>
+    /// Number of valid formulas
+    /// </summary>
+    public int ValidCount { get; set; }
+
+    /// <summary>
+    /// Number of invalid/problematic formulas
+    /// </summary>
+    public int ErrorCount { get; set; }
+
+    /// <summary>
+    /// 2D array of formulas that were validated
+    /// </summary>
+    public List<List<string>> Formulas { get; set; } = [];
+
+    /// <summary>
+    /// Detailed validation errors by cell
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<FormulaValidationError>? Errors { get; set; }
+
+    /// <summary>
+    /// Warnings for formulas that are technically valid but potentially problematic
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<FormulaValidationWarning>? Warnings { get; set; }
+}
+
+/// <summary>
+/// Represents a validation error in a formula
+/// </summary>
+public class FormulaValidationError
+{
+    /// <summary>
+    /// Cell address (e.g., "D2")
+    /// </summary>
+    public string CellAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Row number (1-based)
+    /// </summary>
+    public int Row { get; set; }
+
+    /// <summary>
+    /// Column number (1-based)
+    /// </summary>
+    public int Column { get; set; }
+
+    /// <summary>
+    /// The formula that has the error
+    /// </summary>
+    public string Formula { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Error message
+    /// </summary>
+    public string Message { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Suggested fix
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Suggestion { get; set; }
+
+    /// <summary>
+    /// Error category (e.g., "undefined-function", "missing-namespace", "syntax-error", "invalid-reference")
+    /// </summary>
+    public string Category { get; set; } = "unknown";
+}
+
+/// <summary>
+/// Represents a warning for a formula
+/// </summary>
+public class FormulaValidationWarning
+{
+    /// <summary>
+    /// Cell address (e.g., "D2")
+    /// </summary>
+    public string CellAddress { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The formula with the warning
+    /// </summary>
+    public string Formula { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Warning message
+    /// </summary>
+    public string Message { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Warning category (e.g., "circular-reference", "array-formula", "deprecated-function")
+    /// </summary>
+    public string Category { get; set; } = "unknown";
 }
 
 /// <summary>
