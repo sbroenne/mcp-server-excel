@@ -19,7 +19,8 @@ public partial class RangeCommands
         {
             FilePath = batch.WorkbookPath,
             SheetName = sheetName,
-            RangeAddress = rangeAddress
+            RangeAddress = rangeAddress,
+            CellErrors = []
         };
 
         return batch.Execute((ctx, ct) =>
@@ -54,9 +55,23 @@ public partial class RangeCommands
                         for (int c = 1; c <= result.ColumnCount; c++)
                         {
                             string formula = formulas[r, c]?.ToString() ?? string.Empty;
+                            object? cellValue = values[r, c];
+
                             // Only return actual formulas (starting with =), not values
                             formulaRow.Add(formula.StartsWith('=') ? formula : string.Empty);
-                            valueRow.Add(values[r, c]);
+                            valueRow.Add(cellValue);
+
+                            // ERROR CODE DETECTION: Map Excel error codes to human-readable messages
+                            if (cellValue is int errorCode && errorCode < 0)
+                            {
+                                var cellAddr = $"{GetColumnLetter(c)}{r}";
+                                result.CellErrors.Add(new RangeCellError
+                                {
+                                    CellAddress = cellAddr,
+                                    ErrorCode = errorCode,
+                                    ErrorMessage = MapErrorCodeToMessage(errorCode)
+                                });
+                            }
                         }
 
                         result.Formulas.Add(formulaRow);
@@ -69,9 +84,22 @@ public partial class RangeCommands
                     result.RowCount = 1;
                     result.ColumnCount = 1;
                     string formula = formulaOrArray?.ToString() ?? string.Empty;
+                    object? cellValue = valueOrArray;
+
                     // Only return actual formulas (starting with =), not values
                     result.Formulas.Add([formula.StartsWith('=') ? formula : string.Empty]);
-                    result.Values.Add([valueOrArray]);
+                    result.Values.Add([cellValue]);
+
+                    // ERROR CODE DETECTION: Single cell error
+                    if (cellValue is int errorCode && errorCode < 0)
+                    {
+                        result.CellErrors.Add(new RangeCellError
+                        {
+                            CellAddress = range.Address,
+                            ErrorCode = errorCode,
+                            ErrorMessage = MapErrorCodeToMessage(errorCode)
+                        });
+                    }
                 }
 
                 result.Success = true;
@@ -87,6 +115,36 @@ public partial class RangeCommands
                 ComUtilities.Release(ref range);
             }
         });
+    }
+
+    /// <summary>
+    /// Maps Excel error codes to human-readable error messages
+    /// </summary>
+    private static string MapErrorCodeToMessage(int errorCode) =>
+        errorCode switch
+        {
+            -2146826288 => "#NULL! - Invalid intersection of ranges",
+            -2147483648 => "#DIV/0! - Division by zero",
+            -2146826259 => "#VALUE! - Wrong type of argument",
+            -2146826246 => "#REF! - Invalid cell reference",
+            -2146826252 => "#NUM! - Invalid numeric value",
+            -2142019887 => "#N/A - Value not available",
+            _ => $"#ERROR! - Unknown error code {errorCode}"
+        };
+
+    /// <summary>
+    /// Converts 1-based column index to Excel column letter (1=A, 26=Z, 27=AA)
+    /// </summary>
+    private static string GetColumnLetter(int columnIndex)
+    {
+        string columnName = string.Empty;
+        while (columnIndex > 0)
+        {
+            columnIndex--;
+            columnName = Convert.ToChar('A' + (columnIndex % 26)) + columnName;
+            columnIndex /= 26;
+        }
+        return columnName;
     }
 
     /// <inheritdoc />

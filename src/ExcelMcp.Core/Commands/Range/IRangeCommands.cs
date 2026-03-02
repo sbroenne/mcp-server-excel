@@ -82,6 +82,19 @@ public interface IRangeCommands
     [ServiceAction("set-formulas")]
     OperationResult SetFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<string>>? formulas = null, string? formulasFile = null);
 
+    /// <summary>
+    /// Validates formulas for syntax errors, undefined functions, and other issues without applying them.
+    /// Detects common problems like undefined functions (e.g., GETVM3 without XA2. namespace),
+    /// invalid references, syntax errors, and circular references.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Name of the worksheet containing the range</param>
+    /// <param name="rangeAddress">Cell range address to validate</param>
+    /// <param name="formulas">2D array of formulas to validate - include '=' prefix</param>
+    /// <param name="formulasFile">Path to a JSON file containing the formulas to validate. Alternative to inline formulas parameter.</param>
+    [ServiceAction("validate-formulas")]
+    RangeFormulaValidationResult ValidateFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<string>>? formulas = null, string? formulasFile = null);
+
     // === CLEAR OPERATIONS ===
 
     /// <summary>
