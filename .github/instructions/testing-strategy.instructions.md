@@ -4,57 +4,6 @@ applyTo: "tests/**/*.cs"
 
 # Testing Strategy - Quick Reference
 
-## LLM Integration Tests
-
-**Location**: `tests/ExcelMcp.LLM.Tests/`
-
-**Purpose**: Validate that LLMs correctly use Excel MCP Server and CLI tools using [pytest-aitest](https://github.com/sbroenne/pytest-aitest).
-
-### When to Run
-
-- **Manual/on-demand only** - Not part of CI/CD
-- After changing tool descriptions or adding new tools
-- To validate LLM behavior patterns (e.g., incremental updates vs rebuild)
-
-### Running LLM Tests
-
-```powershell
-# Navigate to the LLM tests directory first
-cd d:\source\mcp-server-excel\tests\ExcelMcp.LLM.Tests
-
-# Install deps (local pytest-aitest path is configured via tool.uv.sources)
-uv sync
-
-# Run MCP tests only
-uv run pytest -m mcp -v
-
-# Run CLI tests only
-uv run pytest -m cli -v
-
-# Run all LLM tests
-uv run pytest -m aitest -v
-```
-
-### Prerequisites
-
-- `AZURE_OPENAI_ENDPOINT` environment variable
-- Windows desktop with Excel installed
-- MCP Server built (Release) and CLI available on PATH
-
-### Configuration Overrides
-
-- `EXCEL_MCP_SERVER_COMMAND` to override MCP server command
-- `EXCEL_CLI_COMMAND` to override CLI command
-
-### Test Results
-
-Reports are generated in `tests/ExcelMcp.LLM.Tests/TestResults/`:
-- `report.html` - Visual HTML report
-- `report.json` - Machine-readable JSON
-
-See `tests/ExcelMcp.LLM.Tests/README.md` for complete documentation.
-- **VBATrust** - VBA trust detection/configuration
-
 ## Test Execution
 
 **⚠️ CRITICAL: Always specify the test project explicitly to avoid running all test projects!**
