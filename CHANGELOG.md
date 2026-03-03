@@ -12,6 +12,8 @@ This changelog covers all components:
 
 ### Fixed
 
+- **`range set-formulas` and `range get-formulas` injected `@` implicit intersection operator inside Excel Tables**: The legacy `Range.Formula` COM property automatically prepends `@` to formulas inside structured tables, causing `#FIELD!` errors with custom functions that return entity cards (e.g., Office Add-in rich data types). Switched to `Range.Formula2` (Excel 365+) which respects dynamic array semantics and does not inject `@`.
+
 - **Connection `refresh` and PowerQuery `refresh` / `refresh-all` could hang or miss cancellation on async data sources**: `WorkbookConnection.Refresh()` returns immediately when the provider runs asynchronously, leaving the STA thread without a way to detect completion or honour the operation timeout. Both Connection and PowerQuery refresh now set the sub-connection's `BackgroundQuery = true`, call `Refresh()`, then poll `.Refreshing` in a loop that responds to cancellation and calls `.CancelRefresh()` when the timeout fires. `powerquery refresh-all` was also updated to use the same robust `RefreshConnectionByQueryName` path (which includes `QueryTable.Refresh(false)` for worksheet queries) instead of a bare `connection.Refresh()`.
 
 - **CLI and MCP Server version always reported as 1.0.0** (#523): The update check and About dialog always showed version 1.0.0 instead of the actual installed version. Fixed by removing hardcoded version properties from project files so they inherit from the central version configuration.

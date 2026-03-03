@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
@@ -533,6 +534,121 @@ public partial class RangeCommandsTests
         Assert.Equal(2.0, Convert.ToDouble(readResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
         Assert.Equal(16.0, Convert.ToDouble(readResult.Values[0][7], System.Globalization.CultureInfo.InvariantCulture));
         Assert.Equal(32.0, Convert.ToDouble(readResult.Values[0][15], System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    // === FORMULA2 REGRESSION TESTS (implicit intersection @ operator) ===
+
+    [Fact]
+    public void SetFormulas_InExcelTable_DoesNotInjectImplicitIntersectionOperator()
+    {
+        // Regression test: Range.Formula (legacy) injects @ implicit intersection operator
+        // inside Excel Tables, causing #FIELD! errors with custom functions that return
+        // entity cards. Range.Formula2 (modern) respects dynamic array semantics.
+        // See: https://github.com/sbroenne/mcp-server-excel/issues/XXX
+
+        // Arrange - create a sheet with data and an Excel Table
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        // Set up data first
+        _commands.SetValues(batch, sheetName, "A1:B4",
+        [
+            ["Name", "Value"],
+            ["Alpha", 10],
+            ["Beta", 20],
+            ["Gamma", 30]
+        ]);
+
+        // Create an Excel Table over the data
+        var tableCommands = new TableCommands();
+        var tableResult = tableCommands.Create(batch, sheetName, "Formula2TestTable", "A1:B4");
+        Assert.True(tableResult.Success);
+
+        // Act - set formulas INSIDE the table (column C, within table range)
+        // First expand the data range to include column C
+        _commands.SetValues(batch, sheetName, "C1", [["Doubled"]]);
+        var setResult = _commands.SetFormulas(batch, sheetName, "C2:C4",
+        [
+            ["=B2*2"],
+            ["=B3*2"],
+            ["=B4*2"]
+        ]);
+
+        // Assert - formulas should be set successfully
+        Assert.True(setResult.Success);
+
+        // Read back formulas and verify NO @ operator was injected
+        var readResult = _commands.GetFormulas(batch, sheetName, "C2:C4");
+        Assert.True(readResult.Success);
+
+        for (int i = 0; i < readResult.Formulas.Count; i++)
+        {
+            var formula = readResult.Formulas[i][0];
+            _output.WriteLine($"C{i + 2} formula: {formula}");
+
+            // CRITICAL: Formula must NOT start with =@ (implicit intersection)
+            Assert.DoesNotContain("@", formula);
+
+            // Verify it's the expected formula
+            Assert.StartsWith("=B", formula);
+        }
+
+        // Verify calculated values are correct
+        Assert.Equal(20.0, Convert.ToDouble(readResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(40.0, Convert.ToDouble(readResult.Values[1][0], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(60.0, Convert.ToDouble(readResult.Values[2][0], System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
+    public void GetFormulas_InExcelTable_DoesNotReturnImplicitIntersectionOperator()
+    {
+        // Regression test: Range.Formula (legacy) returns formulas with @ prefix
+        // inside Excel Tables. Range.Formula2 returns them without @.
+
+        // Arrange - create a sheet with data, table, and formulas
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _commands.SetValues(batch, sheetName, "A1:C4",
+        [
+            ["X", "Y", "Sum"],
+            [1, 2, null],
+            [3, 4, null],
+            [5, 6, null]
+        ]);
+
+        // Set formulas BEFORE creating table (to ensure clean formulas without @)
+        _commands.SetFormulas(batch, sheetName, "C2:C4",
+        [
+            ["=A2+B2"],
+            ["=A3+B3"],
+            ["=A4+B4"]
+        ]);
+
+        // Create Excel Table around the data including formula column
+        var tableCommands = new TableCommands();
+        var tableResult = tableCommands.Create(batch, sheetName, "GetFormula2TestTable", "A1:C4");
+        Assert.True(tableResult.Success);
+
+        // Act - read formulas back from inside the table
+        var readResult = _commands.GetFormulas(batch, sheetName, "C2:C4");
+
+        // Assert - formulas should NOT contain @ operator
+        Assert.True(readResult.Success);
+
+        for (int i = 0; i < readResult.Formulas.Count; i++)
+        {
+            var formula = readResult.Formulas[i][0];
+            _output.WriteLine($"C{i + 2} formula: {formula}");
+
+            // CRITICAL: GetFormulas must NOT return formulas with @ prefix
+            Assert.DoesNotContain("@", formula);
+        }
+
+        // Verify calculated values
+        Assert.Equal(3.0, Convert.ToDouble(readResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(7.0, Convert.ToDouble(readResult.Values[1][0], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(11.0, Convert.ToDouble(readResult.Values[2][0], System.Globalization.CultureInfo.InvariantCulture));
     }
 }
 

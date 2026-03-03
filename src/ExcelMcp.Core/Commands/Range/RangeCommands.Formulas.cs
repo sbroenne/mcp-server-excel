@@ -38,7 +38,9 @@ public partial class RangeCommands
                 result.RangeAddress = range.Address;
 
                 // Get formulas and values - handle single cell case
-                object formulaOrArray = range.Formula;
+                // Use Formula2 (modern) instead of Formula (legacy) to avoid implicit intersection (@)
+                // operator being injected in Excel Table cells. Formula2 respects dynamic array semantics.
+                object formulaOrArray = range.Formula2;
                 object valueOrArray = range.Value2;
 
                 if (formulaOrArray is object[,] formulas && valueOrArray is object[,] values)
@@ -199,7 +201,10 @@ public partial class RangeCommands
                         }
                     }
 
-                    range.Formula = arrayFormulas;
+                    // Use Formula2 (modern) instead of Formula (legacy) to prevent Excel from
+                    // injecting the @ implicit intersection operator in table cells, which causes
+                    // #FIELD! errors with custom functions that return entity cards.
+                    range.Formula2 = arrayFormulas;
                 }
 
                 result.Success = true;

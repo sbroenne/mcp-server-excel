@@ -24,8 +24,11 @@ Enforced: PR reviews, CI/CD checks, create a branch first, up-to-date branches, 
 
 **After creating a PR, ALWAYS check for automated review comments:**
 
-```bash
+```powershell
 # Retrieve inline code review comments using GitHub CLI
+# ⚠️ IMPORTANT: gh CLI requires authentication with a PERSONAL GitHub account.
+# Enterprise Managed User (EMU) accounts cannot access public repos via gh CLI.
+# Use: gh auth login --with-token (with a personal access token)
 gh api repos/sbroenne/mcp-server-excel/pulls/PULL_NUMBER/comments --paginate
 
 # Or use the mcp_github tool if available
