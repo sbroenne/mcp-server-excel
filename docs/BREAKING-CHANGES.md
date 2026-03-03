@@ -6,7 +6,7 @@
 
 **📌 Note for AI Assistants:** LLMs will automatically discover these changes via `tools/list` (MCP) and `--help` (CLI). This document is informational for human developers.
 
-**Full technical details:** [API-COMPARISON-REPORT.md](API-COMPARISON-REPORT.md)
+**Full technical details:** [API-COMPARISON-REPORT.md](archive/API-COMPARISON-REPORT.md)
 
 ---
 

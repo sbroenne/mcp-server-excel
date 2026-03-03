@@ -6,8 +6,9 @@ We actively support the following versions of ExcelMcp with security updates:
 
 | Version | Supported          | Status |
 | ------- | ------------------ | ------ |
-| 1.0.x   | :white_check_mark: | Active |
-| < 1.0   | :x:                | Unsupported |
+| 1.7.x   | :white_check_mark: | Active |
+| 1.6.x   | :white_check_mark: | Active |
+| < 1.6   | :x:                | Unsupported |
 
 ## Security Features
 
@@ -85,8 +86,9 @@ Report security vulnerabilities using one of these methods:
 2. Click "Report a vulnerability"
 3. Fill out the advisory form with detailed information
 
-**Alternative: Email**
-Send an email to: [maintainer email - to be added]
+**Alternative: GitHub Direct Message**
+
+Contact the maintainer via GitHub: [@sbroenne](https://github.com/sbroenne)
 
 Subject: `[SECURITY] ExcelMcp Vulnerability Report`
 
@@ -218,10 +220,11 @@ Subscribe to repository notifications to receive security alerts.
 
 | Version | Date | Security Changes |
 |---------|------|------------------|
+| 1.7.0   | 2026 | Named pipe security with Windows ACL user isolation |
 | 1.0.0   | 2024 | Initial security implementation with input validation |
 
 ---
 
-**Last Updated**: 2024-10-19
+**Last Updated**: 2026-03-03
 
 Thank you for helping keep ExcelMcp and its users safe!

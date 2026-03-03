@@ -1,5 +1,5 @@
 ---
-applyTo: "**/*.md,README.md,**/README.md, **/index.md"
+applyTo: "**/*.md,README.md,**/README.md,**/index.md"
 ---
 
 # README Management - Quick Reference
