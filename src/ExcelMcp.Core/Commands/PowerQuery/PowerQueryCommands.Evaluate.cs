@@ -78,7 +78,15 @@ public partial class PowerQueryCommands
 
                 // STEP 4: Refresh to execute the M code (errors will throw via QueryTable.Refresh)
                 // This is the key step - if M code has errors, this will throw!
-                queryTable.Refresh(false); // false = synchronous
+                OleMessageFilter.EnterLongOperation();
+                try
+                {
+                    queryTable.Refresh(false); // false = synchronous
+                }
+                finally
+                {
+                    OleMessageFilter.ExitLongOperation();
+                }
 
                 // STEP 5: Read the results from the worksheet
                 // Get the data range from the ListObject

@@ -99,7 +99,7 @@ public partial class PivotTableCommandsTests
     public void CreateFromRange_SourceSheetWithHyphen_CreatesPivotTable()
     {
         // Arrange — sheet name with hyphen (also requires quoting)
-        var testFile = _fixture.CreateTestFile(
+        var testFile = _olapFixture.CreateTestFile(
             nameof(CreateFromRange_SourceSheetWithHyphen_CreatesPivotTable));
 
         using (var setupBatch = ExcelSession.BeginBatch(testFile))
@@ -147,7 +147,7 @@ public partial class PivotTableCommandsTests
     /// </summary>
     private string CreateTestFileWithData_SheetWithSpaces(string testName)
     {
-        var testFile = _fixture.CreateTestFile(testName);
+        var testFile = _olapFixture.CreateTestFile(testName);
 
         using var batch = ExcelSession.BeginBatch(testFile);
         batch.Execute((ctx, ct) =>

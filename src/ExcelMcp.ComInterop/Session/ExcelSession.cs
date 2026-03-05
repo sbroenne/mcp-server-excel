@@ -217,7 +217,14 @@ public static class ExcelSession
                 if (workbook != null) { Marshal.ReleaseComObject(workbook); workbook = null; }
                 if (excel != null) { Marshal.ReleaseComObject(excel); excel = null; }
 
-                OleMessageFilter.Revoke();
+                try
+                {
+                    OleMessageFilter.Revoke();
+                }
+                catch (Exception)
+                {
+                    // Guard: P/Invoke failure in finally must not suppress original exception
+                }
             }
         })
         {

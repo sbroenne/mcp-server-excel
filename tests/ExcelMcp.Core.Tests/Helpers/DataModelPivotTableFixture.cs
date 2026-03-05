@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
@@ -29,6 +30,11 @@ public class DataModelPivotTableFixture : IAsyncLifetime
     private readonly string _tempDir;
 
     /// <summary>
+    /// Temp directory for test files (auto-cleaned on disposal)
+    /// </summary>
+    public string TempDir => _tempDir;
+
+    /// <summary>
     /// Path to the test file
     /// </summary>
     public string TestFilePath { get; private set; } = null!;
@@ -48,7 +54,16 @@ public class DataModelPivotTableFixture : IAsyncLifetime
     /// Called ONCE before any tests in the class run.
     /// Creates comprehensive Data Model with relationships, measures, and PivotTables.
     /// </summary>
-    public Task InitializeAsync()
+    public async Task InitializeAsync()
+    {
+        // Run heavy COM initialization on a background thread to prevent
+        // blocking xUnit's synchronization context during fixture setup.
+        // Without Task.Run, the synchronous COM work blocks the calling thread,
+        // which can deadlock when multiple fixtures initialize concurrently.
+        await Task.Run(() => InitializeCore());
+    }
+
+    private void InitializeCore()
     {
         var sw = Stopwatch.StartNew();
 
@@ -278,8 +293,6 @@ public class DataModelPivotTableFixture : IAsyncLifetime
             Console.WriteLine($"❌ DataModelPivotTable fixture creation FAILED after {sw.ElapsedMilliseconds}ms: {ex.Message}");
             throw;
         }
-
-        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -418,6 +431,19 @@ public class DataModelPivotTableFixture : IAsyncLifetime
 
         rangeCommands.SetValues(batch, "DisambiguationData", "A1:E6", allData);
         tableCommands.Create(batch, "DisambiguationData", "DisambiguationTable", "A1:E6", true);
+    }
+
+    /// <summary>
+    /// Creates a unique test file for tests that need their own isolated file.
+    /// </summary>
+    public string CreateTestFile([CallerMemberName] string testName = "", string extension = ".xlsx")
+    {
+        var fileName = $"{testName}_{Guid.NewGuid():N}{extension}";
+        var filePath = Path.Join(_tempDir, fileName);
+        using var manager = new SessionManager();
+        var sessionId = manager.CreateSessionForNewFile(filePath, show: false);
+        manager.CloseSession(sessionId, save: true);
+        return filePath;
     }
 
     public Task DisposeAsync()

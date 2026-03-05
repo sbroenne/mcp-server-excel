@@ -25,6 +25,7 @@ public partial class PivotTableCommands
                 sheets = ctx.Book.Worksheets;
                 for (int i = 1; i <= sheets.Count; i++)
                 {
+                    ct.ThrowIfCancellationRequested();
                     dynamic? sheet = null;
                     dynamic? pivotTablesCol = null;
                     try
@@ -35,6 +36,7 @@ public partial class PivotTableCommands
 
                         for (int j = 1; j <= pivotTablesCol.Count; j++)
                         {
+                            ct.ThrowIfCancellationRequested();
                             dynamic? pivot = null;
                             dynamic? pivotCache = null;
                             try

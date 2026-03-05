@@ -9,8 +9,7 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 
 /// <summary>
 /// Integration tests for PivotTable commands.
-/// Uses PivotTableTestsFixture which creates ONE data file per test class (~5-10s setup).
-/// Uses DataModelPivotTableFixture for OLAP tests (shared across ALL test classes via collection fixture).
+/// Uses DataModelPivotTableFixture for all tests (shared across ALL test classes via collection fixture).
 /// Fixture initialization IS the test for data preparation.
 /// Each test gets its own batch for isolation.
 /// </summary>
@@ -19,26 +18,24 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PivotTable;
 [Trait("Category", "Integration")]
 [Trait("RequiresExcel", "true")]
 [Trait("Feature", "PivotTables")]
-public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixture>
+public partial class PivotTableCommandsTests
 {
     private readonly PivotTableCommands _pivotCommands;
-    private readonly PivotTableTestsFixture _fixture;
     private readonly DataModelPivotTableFixture _olapFixture;
     private readonly string _pivotFile;
-    private readonly PivotTableCreationResult _creationResult;
+    private readonly DataModelPivotTableCreationResult _creationResult;
     private readonly ITestOutputHelper _output;
     private readonly ILoggerFactory _loggerFactory;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PivotTableCommandsTests"/> class.
     /// </summary>
-    public PivotTableCommandsTests(PivotTableTestsFixture fixture, DataModelPivotTableFixture olapFixture, ITestOutputHelper output)
+    public PivotTableCommandsTests(DataModelPivotTableFixture olapFixture, ITestOutputHelper output)
     {
         _pivotCommands = new PivotTableCommands();
-        _fixture = fixture;
         _olapFixture = olapFixture;
-        _pivotFile = fixture.TestFilePath;
-        _creationResult = fixture.CreationResult;
+        _pivotFile = olapFixture.TestFilePath;
+        _creationResult = olapFixture.CreationResult;
         _output = output;
         _loggerFactory = LoggerFactory.Create(builder => builder
             .AddXUnit(output)
@@ -51,7 +48,7 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     /// </summary>
     private string CreateTestFileWithData(string testName)
     {
-        var testFile = _fixture.CreateTestFile(testName);
+        var testFile = _olapFixture.CreateTestFile(testName);
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
@@ -106,7 +103,7 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
     /// Explicit test that validates the fixture creation results.
     /// This makes the data preparation test visible in test results and validates:
     /// - SessionManager.CreateSessionForNewFile()
-    /// - Sales data creation
+    /// - Data Model tables, relationships, measures, and PivotTable creation
     /// - Batch.Save() persistence
     /// </summary>
     [Fact]
@@ -118,11 +115,11 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
             $"Data preparation failed during fixture initialization: {_creationResult.ErrorMessage}");
 
         Assert.True(_creationResult.FileCreated, "File creation failed");
-        Assert.Equal(5, _creationResult.DataRowsCreated);
-        Assert.True(_creationResult.CreationTimeSeconds > 0);
+        Assert.True(_creationResult.TablesCreated > 0, "No tables were created");
+        Assert.True(_creationResult.CreationTimeMs > 0);
 
         // This test appears in test results as proof that creation was tested
-        Console.WriteLine($"? Data prepared successfully in {_creationResult.CreationTimeSeconds:F1}s");
+        Console.WriteLine($"? Data prepared successfully in {_creationResult.CreationTimeMs}ms");
     }
 
     /// <summary>
@@ -136,21 +133,21 @@ public partial class PivotTableCommandsTests : IClassFixture<PivotTableTestsFixt
         // Close and reopen to verify persistence (new batch = new session)
         using var batch = ExcelSession.BeginBatch(_pivotFile);
 
-        // Verify data persisted by reading range
+        // Verify data persisted by reading range (SalesData sheet from DataModel fixture)
         batch.Execute((ctx, ct) =>
         {
             dynamic sheet = ctx.Book.Worksheets["SalesData"];
 
-            // Verify headers
-            Assert.Equal("Region", sheet.Range["A1"].Value2?.ToString());
-            Assert.Equal("Product", sheet.Range["B1"].Value2?.ToString());
-            Assert.Equal("Sales", sheet.Range["C1"].Value2?.ToString());
-            Assert.Equal("Date", sheet.Range["D1"].Value2?.ToString());
+            // Verify headers match DataModel fixture's SalesTable columns
+            Assert.Equal("SalesID", sheet.Range["A1"].Value2?.ToString());
+            Assert.Equal("Date", sheet.Range["B1"].Value2?.ToString());
+            Assert.Equal("CustomerID", sheet.Range["C1"].Value2?.ToString());
+            Assert.Equal("ProductID", sheet.Range["D1"].Value2?.ToString());
 
             // Verify first data row
-            Assert.Equal("North", sheet.Range["A2"].Value2?.ToString());
-            Assert.Equal("Widget", sheet.Range["B2"].Value2?.ToString());
-            Assert.Equal(100.0, Convert.ToDouble(sheet.Range["C2"].Value2));
+            Assert.Equal(1.0, Convert.ToDouble(sheet.Range["A2"].Value2));
+            Assert.Equal(101.0, Convert.ToDouble(sheet.Range["C2"].Value2));
+            Assert.Equal(1001.0, Convert.ToDouble(sheet.Range["D2"].Value2));
 
             return 0;
         });
