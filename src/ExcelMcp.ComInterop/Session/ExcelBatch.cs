@@ -121,33 +121,43 @@ internal sealed class ExcelBatch : IExcelBatch
                 tempExcel.DisplayAlerts = false;
 
                 // Capture Excel process ID for force-kill scenarios (hung Excel, dead RPC connection)
+                // Retry with delay: Excel's HWND may not be immediately available under system load.
                 try
                 {
-                    // Excel.Application.Hwnd returns the window handle
-                    // Use GetWindowThreadProcessId to get process ID directly from Hwnd
-                    // This works even for hidden Excel windows (Visible=false)
-                    int hwnd = tempExcel.Hwnd;
-                    if (hwnd != 0)
+                    const int maxRetries = 3;
+                    const int retryDelayMs = 500;
+
+                    for (int attempt = 1; attempt <= maxRetries; attempt++)
                     {
-                        uint processId = 0;
-                        _ = GetWindowThreadProcessId(new IntPtr(hwnd), out processId);
-                        if (processId != 0)
+                        int hwnd = tempExcel.Hwnd;
+                        if (hwnd != 0)
                         {
-                            _excelProcessId = (int)processId;
-                            _logger.LogDebug("Captured Excel process ID via Hwnd: {ProcessId}", _excelProcessId);
+                            uint processId = 0;
+                            _ = GetWindowThreadProcessId(new IntPtr(hwnd), out processId);
+                            if (processId != 0)
+                            {
+                                _excelProcessId = (int)processId;
+                                SessionManager.TrackExcelProcess(_excelProcessId.Value);
+                                _logger.LogDebug("Captured Excel process ID via Hwnd: {ProcessId} (attempt {Attempt})",
+                                    _excelProcessId, attempt);
+                                break;
+                            }
+                        }
+
+                        if (attempt < maxRetries)
+                        {
+                            _logger.LogDebug("Hwnd not available yet (attempt {Attempt}/{Max}), retrying in {Delay}ms",
+                                attempt, maxRetries, retryDelayMs);
+                            Thread.Sleep(retryDelayMs);
                         }
                     }
 
-                    // NOTE: No fallback PID capture.
-                    // Previously this fell back to "newest EXCEL.EXE process" when Hwnd returned 0.
-                    // That approach was unsafe: if the user has their own Excel open, we would
-                    // incorrectly identify and later force-kill their instance (GitHub #482, Bug 2).
-                    // Disabling force-kill is safer than killing the wrong process.
                     if (!_excelProcessId.HasValue)
                     {
                         _logger.LogWarning(
-                            "Could not determine Excel process ID via Hwnd. " +
-                            "Force-kill will be disabled for this session to avoid killing unrelated Excel instances.");
+                            "Could not determine Excel process ID via Hwnd after {MaxRetries} attempts. " +
+                            "Force-kill will be disabled for this session to avoid killing unrelated Excel instances.",
+                            maxRetries);
                     }
                 }
                 catch (Exception ex)
@@ -320,48 +330,33 @@ internal sealed class ExcelBatch : IExcelBatch
                 // Cleanup COM objects on STA thread exit
                 _logger.LogDebug("STA thread cleanup starting for {FileName}", Path.GetFileName(_workbookPath));
 
-                // For multi-workbook batches, close all workbooks individually before quitting Excel
+                // Unified shutdown: use ExcelShutdownService for ALL workbook close/quit operations.
+                // Previously multi-workbook batches used bare COM calls without resilience,
+                // while single-workbook batches used ExcelShutdownService. Now both paths
+                // get the same exponential backoff retry for COM busy conditions.
                 if (_workbooks != null && _workbooks.Count > 1)
                 {
-                    _logger.LogDebug("Closing {Count} workbooks", _workbooks.Count);
+                    _logger.LogDebug("Closing {Count} workbooks via ExcelShutdownService", _workbooks.Count);
+
+                    // Close all non-primary workbooks first (without quitting Excel)
                     foreach (var kvp in _workbooks.ToList())
                     {
-                        try
+                        if (kvp.Value == _workbook)
                         {
-                            Excel.Workbook? wb = kvp.Value;
-                            wb.Close(false); // Don't save - explicit save must be called
-                            Marshal.ReleaseComObject(wb);
-                            wb = null;
+                            continue; // Primary workbook closed last (with Quit)
                         }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Failed to close workbook {Path}", kvp.Key);
-                        }
+
+                        // CloseAndQuit with excel=null closes workbook only, doesn't quit
+                        ExcelShutdownService.CloseAndQuit(kvp.Value, null, false, kvp.Key, _logger);
                     }
                     _workbooks.Clear();
 
-                    // Quit Excel after all workbooks closed
-                    if (_excel != null)
-                    {
-                        try
-                        {
-                            _logger.LogDebug("Quitting Excel application");
-                            _excel.Quit();
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Failed to quit Excel");
-                        }
-                        finally
-                        {
-                            Marshal.ReleaseComObject(_excel);
-                            _excel = null;
-                        }
-                    }
+                    // Close primary workbook AND quit Excel (with resilient retry)
+                    ExcelShutdownService.CloseAndQuit(_workbook, _excel, false, _workbookPath, _logger);
                 }
                 else
                 {
-                    // Single workbook: use ExcelShutdownService for resilient shutdown
+                    // Single workbook: same ExcelShutdownService path
                     ExcelShutdownService.CloseAndQuit(_workbook, _excel, false, _workbookPath, _logger);
                 }
 
@@ -370,7 +365,16 @@ internal sealed class ExcelBatch : IExcelBatch
                 _workbooks = null;
                 _context = null;
 
-                OleMessageFilter.Revoke();
+                try
+                {
+                    OleMessageFilter.Revoke();
+                }
+                catch (Exception ex)
+                {
+                    // Guard against P/Invoke failure in finally — don't suppress original exception
+                    _logger.LogWarning(ex, "OleMessageFilter.Revoke() failed during STA cleanup");
+                }
+
                 _logger.LogDebug("STA thread cleanup completed for {FileName}", Path.GetFileName(_workbookPath));
             }
         })
@@ -498,6 +502,12 @@ internal sealed class ExcelBatch : IExcelBatch
                 try
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+
+                    // STRUCTURAL SAFETY: Suppress ScreenUpdating for every operation.
+                    // Restores on completion or exception. Reduces COM callbacks and
+                    // improves performance for bulk operations.
+                    using var writeGuard = new ExcelWriteGuard((Excel.Application)_context!.App, _logger);
+
                     var result = operation(_context!, cancellationToken);
                     tcs.SetResult(result);
                 }

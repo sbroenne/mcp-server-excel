@@ -95,7 +95,7 @@ public partial class NamedRangeCommands
         {
             Excel.Name? nameObj = null;
             dynamic? refersToRange = null;
-            int originalCalculation = -1;// xlCalculationAutomatic = -4105, xlCalculationManual = -4135
+            int originalCalculation = -1;
             bool calculationChanged = false;
 
             try
@@ -108,13 +108,11 @@ public partial class NamedRangeCommands
 
                 refersToRange = nameObj.RefersToRange;
 
-                // CRITICAL: Temporarily disable automatic calculation to prevent Excel from
-                // hanging when changed parameter values trigger dependent formulas that reference Data Model/DAX.
-                // Without this, setting values can block the COM interface during recalculation.
+                // Calculation suppressed here (not in ExcelWriteGuard) because Data Model ops need it enabled
                 originalCalculation = (int)ctx.App.Calculation;
                 if (originalCalculation != -4135) // xlCalculationManual
                 {
-                    ctx.App.Calculation = (Excel.XlCalculation)(-4135); // xlCalculationManual
+                    ctx.App.Calculation = (Excel.XlCalculation)(-4135);
                     calculationChanged = true;
                 }
 
@@ -136,7 +134,6 @@ public partial class NamedRangeCommands
             }
             finally
             {
-                // Restore original calculation mode
                 if (calculationChanged && originalCalculation != -1)
                 {
                     try
@@ -145,7 +142,7 @@ public partial class NamedRangeCommands
                     }
                     catch (System.Runtime.InteropServices.COMException)
                     {
-                        // Ignore errors restoring calculation mode - not critical
+                        // Ignore errors restoring calculation mode
                     }
                 }
                 ComUtilities.Release(ref refersToRange);

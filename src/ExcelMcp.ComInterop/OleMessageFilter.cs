@@ -209,6 +209,11 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
     /// Handles pending message during a COM call.
     /// Context-dependent: during long operations, dispatches to HandleInComingCall (which rejects).
     /// During normal operations, queues messages without dispatching.
+    ///
+    /// The ExcelWriteGuard (integrated into Execute) suppresses ScreenUpdating to reduce
+    /// the number of COM callbacks generated. For the remaining callbacks:
+    /// - Long operations (refresh, Data Model): WAITDEFPROCESS → HandleInComingCall rejects
+    /// - Normal operations: WAITNOPROCESS → messages queued until outbound call returns
     /// </summary>
     int IOleMessageFilter.MessagePending(nint htaskCallee, int dwTickCount, int dwPendingType)
     {
@@ -217,28 +222,17 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
         if (_isInLongOperation)
         {
             // PENDINGMSG_WAITDEFPROCESS (2) — dispatch to HandleInComingCall.
-            //
-            // During long operations (e.g., connection.Refresh()), we WANT inbound COM
-            // callbacks to reach HandleInComingCall so we can reject them with
-            // SERVERCALL_RETRYLATER. This triggers the caller's RetryRejectedCall
-            // backoff mechanism (proper COM retry protocol).
-            //
-            // This is safe because HandleInComingCall returns SERVERCALL_RETRYLATER,
-            // which rejects the callback BEFORE any .NET dispatch occurs.
-            // No EnsureScanDefinedEvents, no IDispatch.TryGetTypeInfoCount, no re-entrant
-            // COM calls — the callback is rejected at the COM filter layer.
-            //
-            // The FormatConditions deadlock (failure mode 1 of WAITDEFPROCESS) is NOT
-            // reintroduced because HandleInComingCall rejects before dispatch.
-            return 2; // PENDINGMSG_WAITDEFPROCESS — dispatch to HandleInComingCall
+            // During long operations (e.g., connection.Refresh()), inbound COM callbacks
+            // are dispatched to HandleInComingCall which rejects with SERVERCALL_RETRYLATER.
+            // This prevents deadlocks from re-entrant callbacks during refresh operations.
+            return 2; // PENDINGMSG_WAITDEFPROCESS
         }
 
         // PENDINGMSG_WAITNOPROCESS (1) — queue inbound messages without dispatching.
-        //
-        // For normal short COM operations (property reads, sheet operations), keep the
-        // safe default: don't dispatch inbound messages. They are delivered after the
-        // outgoing call returns.
-        return 1; // PENDINGMSG_WAITNOPROCESS — queue inbound messages, do not dispatch
+        // For normal operations, don't dispatch inbound messages. Dispatching causes
+        // re-entrant COM execution on the STA thread which hangs Data Model operations.
+        // Messages are delivered after the outgoing call returns.
+        return 1; // PENDINGMSG_WAITNOPROCESS
     }
 
     /// <summary>

@@ -124,6 +124,9 @@ Assert.DoesNotContain(file1Content, viewResult.Content);  // ✅ file1 content g
 | .xlsx for VBA tests | Use `.xlsm` |
 | "Accept both" assertions | Binary assertions only |
 | Missing Feature trait | Add from valid feature list above |
+| **Dual fixture pattern** | **NEVER use both `IClassFixture<T>` AND `[Collection("...")]` collection fixture on the same test class. This creates concurrent Excel sessions that deadlock. Use ONLY the collection fixture.** |
+| Manual ScreenUpdating suppression | `Execute()` handles this via `ExcelWriteGuard` — don't add it in commands |
+| Universal Calculation/Events suppression | NEVER suppress universally — Data Model, PivotTable, PQ operations need them enabled |
 
 ## When Tests Fail
 

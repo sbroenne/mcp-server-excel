@@ -136,6 +136,12 @@ public void TestMethod()
 
 **MCP Parameter Naming:** NEVER use underscores in C# Core interface parameter names. The `McpToolGenerator` calls `StringHelper.ToSnakeCase()` on the C# parameter name to produce the MCP snake_case parameter automatically. Use camelCase in C# that produces the desired snake_case output: `rangeAddress` → `range_address`, `sourceRangeAddress` → `source_range_address`. If the C# name can't produce the desired MCP name via ToSnakeCase, use `[FromString("desiredName")]` attribute instead of underscores in C# names.
 
+**ExcelWriteGuard (Structural Safety):** `Execute()` automatically suppresses `ScreenUpdating` via `ExcelWriteGuard`. Do NOT add `ScreenUpdating` suppression in command code. Calculation suppression is manual and ONLY in value/formula write commands (SetValues, SetFormulas, Append, Write). NEVER suppress `EnableEvents` or `Calculation` universally — Data Model, PivotTable, and Power Query operations depend on them.
+
+**Shutdown Resilience:** ALL workbook close paths (single AND multi-workbook) use `ExcelShutdownService`. Save and Close have retry for transient errors. PID capture has retry for Hwnd=0. `AppDomain.ProcessExit` handler kills tracked Excel PIDs on crash.
+
+**Test Fixture Anti-Pattern:** NEVER use both `IClassFixture<T>` and `[Collection("...")]` with a collection fixture on the same test class. Dual fixtures create concurrent Excel sessions that deadlock during initialization with `maxParallelThreads: 1`. Use ONLY the collection fixture.
+
 ---
 
 ## 📚 How Path-Specific Instructions Work

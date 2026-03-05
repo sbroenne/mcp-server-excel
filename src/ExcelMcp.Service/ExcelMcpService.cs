@@ -663,7 +663,14 @@ public sealed class ExcelMcpService : IDisposable
         if (!batch.IsExcelProcessAlive())
         {
             // Excel died - clean up the dead session
-            _sessionManager.CloseSession(sessionId, save: false, force: true);
+            try
+            {
+                _sessionManager.CloseSession(sessionId, save: false, force: true);
+            }
+            catch (Exception cleanupEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
+            }
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
@@ -681,7 +688,14 @@ public sealed class ExcelMcpService : IDisposable
             // Operation timed out — Excel COM call is hung (IDispatch.Invoke stuck).
             // Force-close the session to trigger the force-kill path in ExcelBatch.Dispose(),
             // which will kill the hung Excel process and release the STA thread.
-            _sessionManager.CloseSession(sessionId, save: false, force: true);
+            try
+            {
+                _sessionManager.CloseSession(sessionId, save: false, force: true);
+            }
+            catch (Exception cleanupEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
+            }
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
@@ -696,7 +710,14 @@ public sealed class ExcelMcpService : IDisposable
             // on cancellation, but nobody calls Dispose() — the session stays alive with a
             // stuck STA thread, and all subsequent requests queue up and hang.
             // Force-close the session to kill the hung Excel process and release the STA thread.
-            _sessionManager.CloseSession(sessionId, save: false, force: true);
+            try
+            {
+                _sessionManager.CloseSession(sessionId, save: false, force: true);
+            }
+            catch (Exception cleanupEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
+            }
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
@@ -710,7 +731,14 @@ public sealed class ExcelMcpService : IDisposable
             ex.HResult == ResiliencePipelines.RPC_E_CALL_FAILED)
         {
             // Excel process died during the operation — clean up the dead session
-            _sessionManager.CloseSession(sessionId, save: false, force: true);
+            try
+            {
+                _sessionManager.CloseSession(sessionId, save: false, force: true);
+            }
+            catch (Exception cleanupEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
+            }
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
@@ -723,7 +751,14 @@ public sealed class ExcelMcpService : IDisposable
             ex.Message.Contains("process", StringComparison.OrdinalIgnoreCase))
         {
             // Excel process detected as dead before COM call (ExcelBatch pre-check)
-            _sessionManager.CloseSession(sessionId, save: false, force: true);
+            try
+            {
+                _sessionManager.CloseSession(sessionId, save: false, force: true);
+            }
+            catch (Exception cleanupEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
+            }
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
@@ -733,6 +768,19 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (Exception ex)
         {
+            // Check if Excel died with a non-COM exception — clean up dead session
+            if (batch != null && !batch.IsExcelProcessAlive())
+            {
+                try
+                {
+                    _sessionManager.CloseSession(sessionId, save: false, force: true);
+                }
+                catch (Exception cleanupEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Dead session cleanup failed for {sessionId}: {cleanupEx.Message}");
+                }
+            }
+
             return Task.FromResult(new ServiceResponse { Success = false, ErrorMessage = $"{ex.GetType().Name}: {ex.Message}" });
         }
     }

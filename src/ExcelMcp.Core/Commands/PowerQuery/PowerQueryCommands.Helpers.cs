@@ -40,6 +40,7 @@ public partial class PowerQueryCommands
             connections = workbook.Connections;
             for (int i = 1; i <= connections.Count; i++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 dynamic? conn = null;
                 try
                 {

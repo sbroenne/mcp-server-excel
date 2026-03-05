@@ -27,7 +27,7 @@ public partial class TableCommands
             dynamic? table = null;
             dynamic? sheet = null;
             dynamic? dataBodyRange = null;
-            int originalCalculation = -1; // xlCalculationAutomatic = -4105, xlCalculationManual = -4135
+            int originalCalculation = -1;
             bool calculationChanged = false;
 
             try
@@ -67,13 +67,11 @@ public partial class TableCommands
                 int columnCount = table.ListColumns.Count;
                 int rowsToAdd = resolvedRows.Count;
 
-                // CRITICAL: Temporarily disable automatic calculation to prevent Excel from
-                // hanging when appended data triggers dependent formulas that reference Data Model/DAX.
-                // Without this, setting values can block the COM interface during recalculation.
+                // Calculation suppressed here (not in ExcelWriteGuard) because Data Model ops need it enabled
                 originalCalculation = (int)ctx.App.Calculation;
                 if (originalCalculation != -4135) // xlCalculationManual
                 {
-                    ctx.App.Calculation = (Excel.XlCalculation)(-4135); // xlCalculationManual
+                    ctx.App.Calculation = (Excel.XlCalculation)(-4135);
                     calculationChanged = true;
                 }
 
@@ -96,17 +94,17 @@ public partial class TableCommands
                     }
                 }
 
-                // Restore calculation before resize so the table can recalculate after the operation
+                // Restore calculation before Resize (table operations may need recalculation)
                 if (calculationChanged && originalCalculation != -1)
                 {
                     try
                     {
                         ctx.App.Calculation = (Excel.XlCalculation)originalCalculation;
-                        calculationChanged = false; // Mark as restored
+                        calculationChanged = false;
                     }
                     catch (System.Runtime.InteropServices.COMException)
                     {
-                        // Ignore errors restoring calculation mode - will try again in finally
+                        // Ignore errors restoring calculation mode
                     }
                 }
 
@@ -130,7 +128,6 @@ public partial class TableCommands
             }
             finally
             {
-                // Restore original calculation mode if not already restored
                 if (calculationChanged && originalCalculation != -1)
                 {
                     try
@@ -139,7 +136,7 @@ public partial class TableCommands
                     }
                     catch (System.Runtime.InteropServices.COMException)
                     {
-                        // Ignore errors restoring calculation mode - not critical
+                        // Ignore errors restoring calculation mode
                     }
                 }
                 ComUtilities.Release(ref dataBodyRange);

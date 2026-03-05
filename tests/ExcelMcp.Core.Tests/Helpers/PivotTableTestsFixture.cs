@@ -45,7 +45,12 @@ public class PivotTableTestsFixture : IAsyncLifetime
     /// This IS the test for data preparation - if it fails, all tests fail (correct behavior).
     /// Tests: file creation, sales data creation, persistence.
     /// </summary>
-    public Task InitializeAsync()
+    public async Task InitializeAsync()
+    {
+        await Task.Run(() => InitializeCore());
+    }
+
+    private void InitializeCore()
     {
         var sw = Stopwatch.StartNew();
 
@@ -118,10 +123,8 @@ public class PivotTableTestsFixture : IAsyncLifetime
 
             sw.Stop();
 
-            throw; // Fail all tests in class (correct behavior - no point testing if creation failed)
+            throw; // Fail all tests in class
         }
-
-        return Task.CompletedTask;
     }
 
     /// <summary>

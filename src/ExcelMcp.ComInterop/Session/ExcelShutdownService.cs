@@ -50,9 +50,28 @@ public static class ExcelShutdownService
             // and risking RPC_E_WRONG_THREAD or deadlocks (GitHub #482, Bug 1).
             // This method is always called from inside ExcelBatch.Execute() which already runs
             // on the dedicated STA thread, so a direct call is correct and safe.
-            workbook.Save();
+            const int maxSaveAttempts = 3;
+            const int saveRetryDelayMs = 500;
 
-            logger.LogDebug("Workbook {FileName} saved successfully", fileName);
+            for (int attempt = 1; attempt <= maxSaveAttempts; attempt++)
+            {
+                try
+                {
+                    workbook.Save();
+                    logger.LogDebug("Workbook {FileName} saved successfully", fileName);
+                    return; // Success — exit method
+                }
+                catch (COMException ex) when (
+                    attempt < maxSaveAttempts &&
+                    (ex.HResult == unchecked((int)0x800A03EC) || ex.HResult == unchecked((int)0x800AC472)))
+                {
+                    // File locked by another process or antivirus — retry with delay
+                    logger.LogDebug("Save attempt {Attempt} for {FileName} got transient lock (0x{HResult:X8}), retrying in {Delay}ms",
+                        attempt, fileName, ex.HResult, saveRetryDelayMs * attempt);
+                    Thread.Sleep(saveRetryDelayMs * attempt);
+                }
+                // Other COMException falls through to existing catch block below
+            }
         }
         catch (COMException ex)
         {
@@ -115,34 +134,49 @@ public static class ExcelShutdownService
                 SaveWorkbookWithTimeout(workbook, fileName, logger);
             }
 
-            // Step 2: Close workbook
+            // Step 2: Close workbook with retry for transient COM busy errors
             if (workbook != null)
             {
-                try
+                const int maxCloseAttempts = 3;
+                const int closeRetryDelayMs = 200;
+
+                for (int attempt = 1; attempt <= maxCloseAttempts; attempt++)
                 {
-                    logger.LogDebug("Closing workbook {FileName} (save={Save})", fileName, save);
-                    workbook.Close(save);
-                    logger.LogDebug("Workbook {FileName} closed successfully", fileName);
+                    try
+                    {
+                        logger.LogDebug("Closing workbook {FileName} (save={Save}, attempt {Attempt})", fileName, save, attempt);
+                        workbook.Close(save);
+                        logger.LogDebug("Workbook {FileName} closed successfully", fileName);
+                        break; // Success
+                    }
+                    catch (COMException ex) when (
+                        attempt < maxCloseAttempts &&
+                        (ex.HResult == ResiliencePipelines.RPC_E_SERVERCALL_RETRYLATER ||
+                         ex.HResult == ResiliencePipelines.RPC_E_CALL_REJECTED))
+                    {
+                        logger.LogDebug("Workbook close attempt {Attempt} got transient error (0x{HResult:X8}), retrying in {Delay}ms",
+                            attempt, ex.HResult, closeRetryDelayMs);
+                        Thread.Sleep(closeRetryDelayMs * attempt); // Simple linear backoff
+                    }
+                    catch (COMException ex)
+                    {
+                        logger.LogWarning(ex,
+                            "Failed to close workbook {FileName} (HResult: 0x{HResult:X8}) - continuing with cleanup",
+                            fileName, ex.HResult);
+                        break; // Non-transient error, move on
+                    }
+                    catch (MissingMemberException ex)
+                    {
+                        logger.LogWarning(ex,
+                            "Workbook COM proxy was disconnected while calling Close for {FileName} - continuing with cleanup",
+                            fileName);
+                        break; // COM proxy dead, move on
+                    }
                 }
-                catch (COMException ex)
-                {
-                    logger.LogWarning(ex,
-                        "Failed to close workbook {FileName} (HResult: 0x{HResult:X8}) - continuing with cleanup",
-                        fileName, ex.HResult);
-                }
-                catch (MissingMemberException ex)
-                {
-                    // COM proxy already disconnected (RPC_E_DISCONNECTED / 0x80010108)
-                    logger.LogWarning(ex,
-                        "Workbook COM proxy was disconnected while calling Close for {FileName} - continuing with cleanup",
-                        fileName);
-                }
-                finally
-                {
-                    // Step 3: Release workbook COM reference
-                    Marshal.ReleaseComObject(workbook);
-                    workbook = null;
-                }
+
+                // Release workbook COM reference (moved out of individual catch blocks)
+                try { Marshal.ReleaseComObject(workbook); } catch { /* best effort */ }
+                workbook = null;
             }
 
             // Step 4: Quit Excel application with resilient retry + overall timeout

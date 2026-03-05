@@ -13,6 +13,45 @@ applyTo: "src/ExcelMcp.Core/**/*.cs"
 3. **Exception Propagation** - Never wrap in try-catch, let batch.Execute() handle exceptions (see Exception Propagation section)
 4. **QueryTable Refresh REQUIRED** - `.Refresh(false)` synchronous for persistence
 5. **NEVER use RefreshAll()** - Async/unreliable; use individual `connection.Refresh()` or `queryTable.Refresh(false)`
+6. **ExcelWriteGuard (Automatic)** - `Execute()` automatically suppresses `ScreenUpdating` via `ExcelWriteGuard`. No manual suppression needed. See ExcelWriteGuard section below.
+7. **Calculation Suppression (Manual)** - Suppress `Calculation` only in specific write commands (SetValues, SetFormulas, Append, Write) — NOT universally. Data Model, PivotTable, and Power Query operations require calculation enabled.
+8. **EnableEvents Unchanged** - Do NOT suppress `EnableEvents` universally. Data Model operations depend on internal Excel events for model synchronization.
+
+## ExcelWriteGuard — Structural COM Safety
+
+`ExcelBatch.Execute()` wraps every operation with `ExcelWriteGuard`, which automatically suppresses `ScreenUpdating` and restores it after completion or exception. This is transparent to command implementations.
+
+**What the guard does:**
+- Suppresses `ScreenUpdating = false` → prevents Excel UI repaints during COM calls (performance + stability)
+- Reentrant-safe via thread-static ref counting → nested `Execute()` calls are safe
+
+**What the guard does NOT do (by design):**
+- ❌ Does NOT suppress `EnableEvents` → Data Model operations (AddToDataModel, CreateRelationship, CreateMeasure) depend on internal events
+- ❌ Does NOT suppress `Calculation` → PivotTable refresh, Power Query refresh, Data Model refresh require calculation enabled
+
+**Manual calculation suppression pattern** (only for value/formula write commands):
+```csharp
+// Only in SetValues, SetFormulas, Append, Write — NOT in other commands
+int originalCalculation = (int)ctx.App.Calculation;
+bool calculationChanged = false;
+try
+{
+    if (originalCalculation != -4135) // xlCalculationManual
+    {
+        ctx.App.Calculation = (Excel.XlCalculation)(-4135);
+        calculationChanged = true;
+    }
+    // ... write operations ...
+}
+finally
+{
+    if (calculationChanged && originalCalculation != -1)
+    {
+        try { ctx.App.Calculation = (Excel.XlCalculation)originalCalculation; }
+        catch (COMException) { }
+    }
+}
+```
 
 ## Reference Resources
 
@@ -116,21 +155,25 @@ ExcelShutdownService.CloseAndQuit(workbook, excel, save: false, filePath, logger
 ```
 
 **Shutdown Order:**
-1. **Optional Save** - If `save=true`, calls `workbook.Save()` explicitly before close
-2. **Close Workbook** - Calls `workbook.Close(save)` (save param controls Excel's prompt behavior)
+1. **Optional Save** - If `save=true`, calls `workbook.Save()` with retry (3 attempts, 500ms backoff for file lock errors)
+2. **Close Workbook** - Calls `workbook.Close(save)` with retry (3 attempts, 200ms backoff for COM busy errors)
 3. **Release Workbook** - Releases COM reference via `ComUtilities.Release()`
 4. **Quit Excel** - Calls `excel.Quit()` with exponential backoff retry (6 attempts, 200ms base delay)
 5. **Release Excel** - Releases COM reference via `ComUtilities.Release()`
 6. **Automatic GC** - RCW finalizers handle final cleanup automatically (no forced GC needed per Microsoft guidance)
 
 **Resilience Features:**
-- Uses `Microsoft.Extensions.Resilience` retry pipeline
+- Uses `Microsoft.Extensions.Resilience` retry pipeline for Quit
+- Close and Save have inline retry loops for transient errors
+- **Both single and multi-workbook batches use ExcelShutdownService** (unified path, no bare COM calls)
 - **Outer timeout (30s)**: Overall cancellation for Excel.Quit() - catches hung Excel (modal dialogs, deadlocks)
 - **Inner retry**: Exponential backoff (200ms base, 2x factor, 6 attempts) for transient COM busy errors
 - Retries on: `RPC_E_SERVERCALL_RETRYLATER` (-2147417851), `RPC_E_CALL_REJECTED` (-2147418111)
 - Structured logging for diagnostics (attempt number, HResult, elapsed time)
 - Continues with COM cleanup even if Quit fails/times out
 - **STA thread join (45s)**: Must be >= ExcelQuitTimeout + margin (currently 30s + 15s) to ensure Dispose() waits for full cleanup
+- **PID capture retry**: Hwnd read retried 3 times with 500ms delay if initially zero
+- **ProcessExit handler**: Force-kills tracked Excel PIDs on unexpected .NET process death
 
 **Save Semantics:**
 ```csharp

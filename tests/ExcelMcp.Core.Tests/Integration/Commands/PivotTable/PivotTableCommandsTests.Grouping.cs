@@ -341,7 +341,7 @@ public partial class PivotTableCommandsTests
     /// </summary>
     private string CreateTestFileWithNumericData(string testName)
     {
-        var testFile = _fixture.CreateTestFile(testName);
+        var testFile = _olapFixture.CreateTestFile(testName);
 
         using var batch = ExcelSession.BeginBatch(testFile);
 

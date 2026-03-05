@@ -25,6 +25,55 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </remarks>
 public sealed class SessionManager : IDisposable
 {
+    private static readonly ConcurrentBag<int> _trackedExcelPids = new();
+    private static int _processExitRegistered;
+
+    /// <summary>
+    /// Registers an Excel process ID for cleanup on unexpected process exit.
+    /// Called from ExcelBatch when a PID is captured.
+    /// </summary>
+    public static void TrackExcelProcess(int processId)
+    {
+        _trackedExcelPids.Add(processId);
+
+        // Register handler exactly once (thread-safe)
+        if (Interlocked.CompareExchange(ref _processExitRegistered, 1, 0) == 0)
+        {
+            AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+        }
+    }
+
+    /// <summary>
+    /// Marks an Excel process as no longer needing cleanup.
+    /// ConcurrentBag doesn't support removal, but ProcessExit handler checks HasExited before killing.
+    /// </summary>
+#pragma warning disable IDE0060 // Intentional: parameter documents API intent; ConcurrentBag lacks Remove
+    public static void UntrackExcelProcess(int processId)
+#pragma warning restore IDE0060
+    {
+        // ConcurrentBag doesn't support removal, but that's fine —
+        // ProcessExit handler checks HasExited before killing
+    }
+
+    private static void OnProcessExit(object? sender, EventArgs e)
+    {
+        foreach (var pid in _trackedExcelPids)
+        {
+            try
+            {
+                using var proc = System.Diagnostics.Process.GetProcessById(pid);
+                if (!proc.HasExited)
+                {
+                    proc.Kill();
+                }
+            }
+            catch
+            {
+                // Process already exited or inaccessible — safe to ignore
+            }
+        }
+    }
+
     private readonly ConcurrentDictionary<string, IExcelBatch> _activeSessions = new();
     private readonly ConcurrentDictionary<string, string> _activeFilePaths = new();
     private readonly ConcurrentDictionary<string, string> _sessionFilePaths = new(StringComparer.OrdinalIgnoreCase);
