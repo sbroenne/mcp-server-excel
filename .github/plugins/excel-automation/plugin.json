@@ -24,8 +24,5 @@
   "license": "MIT",
   "agents": [
     "./agents/excel-automation.agent.md"
-  ],
-  "skills": [
-    "../../skills/excel-mcp/"
   ]
 }

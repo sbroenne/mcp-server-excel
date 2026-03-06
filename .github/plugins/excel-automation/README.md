@@ -19,9 +19,9 @@ copilot plugin install excel-automation@awesome-copilot
 
 ### Skills
 
-| Skill | Description |
-|-------|-------------|
-| `excel-mcp` | Comprehensive Excel MCP Server skill with 225+ operations, workflow guidance, tool selection, and reference documentation for Power Query, DAX, PivotTables, Charts, and more. |
+| Skill | Description | Installation |
+|-------|-------------|-------------|
+| `excel-mcp` | Comprehensive Excel MCP Server skill with 225+ operations, workflow guidance, tool selection, and reference documentation for Power Query, DAX, PivotTables, Charts, and more. | `npx skills add sbroenne/mcp-server-excel --skill excel-mcp` |
 
 ## Prerequisites
 
