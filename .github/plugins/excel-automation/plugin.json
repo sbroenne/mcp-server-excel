@@ -1,0 +1,31 @@
+{
+  "name": "excel-automation",
+  "description": "Automate Microsoft Excel on Windows through natural language. 25 tools with 225+ operations covering Power Query, DAX, PivotTables, Charts, VBA, Tables, Ranges, Slicers, and more — all via Excel's native COM API.",
+  "version": "1.0.0",
+  "keywords": [
+    "excel",
+    "spreadsheet",
+    "automation",
+    "mcp",
+    "power-query",
+    "dax",
+    "pivottable",
+    "charts",
+    "vba",
+    "com-interop",
+    "windows"
+  ],
+  "author": {
+    "name": "Stefan Broenner",
+    "url": "https://github.com/sbroenne"
+  },
+  "homepage": "https://github.com/sbroenne/mcp-server-excel",
+  "repository": "https://github.com/sbroenne/mcp-server-excel",
+  "license": "MIT",
+  "agents": [
+    "./agents/excel-automation.agent.md"
+  ],
+  "skills": [
+    "../../skills/excel-mcp/"
+  ]
+}
