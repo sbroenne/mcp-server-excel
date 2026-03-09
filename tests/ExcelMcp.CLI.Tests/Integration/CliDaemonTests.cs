@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Text.Json;
+using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
@@ -37,6 +39,66 @@ public sealed class CliDaemonTests : IAsyncLifetime
     }
 
     private Dictionary<string, string> TestEnv => new() { ["EXCELMCP_CLI_PIPE"] = _testPipeName };
+
+    [Fact]
+    public async Task ServiceStart_AutoStartsDaemonAndAcceptsConnections()
+    {
+        using var startProcess = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = CliProcessHelper.GetExePath(),
+                Arguments = "-q service start",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = Path.GetDirectoryName(CliProcessHelper.GetExePath())!
+            }
+        };
+        foreach (var (key, value) in TestEnv)
+        {
+            startProcess.StartInfo.Environment[key] = value;
+        }
+
+        startProcess.Start();
+        var exited = startProcess.WaitForExit(20000);
+        Assert.True(exited, "service start should exit promptly after spawning the daemon");
+        Assert.Equal(0, startProcess.ExitCode);
+
+        var (statusResult, statusJson) = await CliProcessHelper.RunJsonAsync("service status", environmentVariables: TestEnv);
+        _output.WriteLine($"Status response: {statusResult.Stdout}");
+
+        Assert.Equal(0, statusResult.ExitCode);
+        Assert.True(statusJson.RootElement.GetProperty("running").GetBoolean());
+
+        var processId = statusJson.RootElement.GetProperty("processId").GetInt32();
+        _daemonProcess = Process.GetProcessById(processId);
+    }
+
+    [Fact]
+    public async Task ServiceStart_WhenDaemonMutexHeldButUnresponsive_ReturnsActionableError()
+    {
+        using var daemonMutex = new Mutex(initiallyOwned: true, DaemonAutoStart.GetDaemonMutexName(_testPipeName), out bool createdNew);
+        Assert.True(createdNew, "Test should acquire a unique daemon mutex");
+        try
+        {
+            var result = await CliProcessHelper.RunAsync("service start", timeoutMs: 20000, environmentVariables: TestEnv);
+            _output.WriteLine($"Start response: {result.Stdout}");
+            _output.WriteLine($"Start stderr: {result.Stderr}");
+
+            using var json = JsonDocument.Parse(result.Stdout);
+            Assert.Equal(1, result.ExitCode);
+            Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+
+            var error = json.RootElement.GetProperty("error").GetString();
+            Assert.NotNull(error);
+            Assert.Contains("not responding", error, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("service stop", error, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            daemonMutex.ReleaseMutex();
+        }
+    }
 
     [Fact]
     public async Task ServiceRun_StartsAndAcceptsConnections()
