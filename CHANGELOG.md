@@ -10,6 +10,8 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.8.27] - 2026-03-09
+
 ### Fixed
 
 - **Structural COM stability improvements**: Addressed root cause of intermittent operation hangs and orphan Excel processes. `ExcelBatch.Execute()` now automatically suppresses `ScreenUpdating` via a new `ExcelWriteGuard`, reducing COM callbacks and improving bulk operation performance. Unified multi-workbook shutdown to use the resilient `ExcelShutdownService` (was bare COM calls without retry). Added retry logic to workbook Save (for file locks) and Close (for COM busy errors). Excel process ID capture now retries 3 times with 500ms delay to prevent force-kill from being permanently disabled under load. Added safety-net `ProcessExit` handler that kills tracked Excel processes on unexpected .NET process termination.
