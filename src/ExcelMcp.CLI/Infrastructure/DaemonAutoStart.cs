@@ -9,6 +9,14 @@ namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
 /// </summary>
 internal static class DaemonAutoStart
 {
+    internal static readonly TimeSpan InitialPingTimeout = TimeSpan.FromSeconds(2);
+    internal static readonly TimeSpan BusyDaemonConnectTimeout = TimeSpan.FromSeconds(3);
+    internal static readonly TimeSpan BusyDaemonRetryInterval = TimeSpan.FromMilliseconds(500);
+    internal static readonly TimeSpan BusyDaemonWaitTimeout = TimeSpan.FromSeconds(10);
+    internal static readonly TimeSpan StartupReadyConnectTimeout = TimeSpan.FromSeconds(1);
+    internal static readonly TimeSpan StartupReadyRetryInterval = TimeSpan.FromMilliseconds(250);
+    internal static readonly TimeSpan StartupReadyTimeout = TimeSpan.FromSeconds(10);
+
     /// <summary>
     /// Gets the pipe name for the CLI daemon (supports env var override for testing).
     /// </summary>
@@ -24,12 +32,10 @@ internal static class DaemonAutoStart
         var pipeName = GetPipeName();
 
         // Fast path: daemon already running and responsive
-        var client = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(2));
-        if (await client.PingAsync(cancellationToken))
+        if (await PingAsync(pipeName, InitialPingTimeout, cancellationToken))
         {
-            return client;
+            return new ServiceClient(pipeName);
         }
-        client.Dispose();
 
         // Ping failed — check OS mutex to distinguish "daemon busy" from "daemon not running".
         // The daemon holds this mutex for its entire lifetime, so its presence means
@@ -37,21 +43,35 @@ internal static class DaemonAutoStart
         // This prevents starting a duplicate daemon (and a duplicate tray icon).
         if (IsDaemonMutexHeld(pipeName))
         {
-            // Daemon is running but busy — wait up to 10 seconds for it to become responsive
-            for (int i = 0; i < 20; i++)
+            // Daemon is running but busy — wait briefly for it to become responsive.
+            // If the mutex is still held after the wait window, do NOT try to start a
+            // second daemon: it will immediately exit because the existing process still
+            // owns the mutex. Surface an actionable recovery error instead.
+            var waitUntil = DateTime.UtcNow + BusyDaemonWaitTimeout;
+            while (DateTime.UtcNow < waitUntil)
             {
-                await Task.Delay(500, cancellationToken);
+                await Task.Delay(BusyDaemonRetryInterval, cancellationToken);
 
                 // Re-check mutex: if the daemon exited while we waited, stop waiting
                 if (!IsDaemonMutexHeld(pipeName))
                     break;
 
-                using var retryClient = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(3));
-                if (await retryClient.PingAsync(cancellationToken))
+                var remaining = waitUntil - DateTime.UtcNow;
+                if (remaining <= TimeSpan.Zero)
+                    break;
+
+                if (await PingAsync(pipeName, Min(remaining, BusyDaemonConnectTimeout), cancellationToken))
                     return new ServiceClient(pipeName);
             }
 
-            // Daemon mutex gone (exited) or still not responding after 10s — start a new one
+            if (IsDaemonMutexHeld(pipeName))
+            {
+                throw new TimeoutException(
+                    $"Daemon is running but not responding after {FormatDuration(BusyDaemonWaitTimeout)}. " +
+                    "Stop it with 'excelcli service stop' or terminate the stuck excelcli process, then retry.");
+            }
+
+            // Daemon exited while we waited — start a replacement.
         }
 
         // No daemon running — start it
@@ -90,43 +110,86 @@ internal static class DaemonAutoStart
     /// </summary>
     internal static string GetDaemonMutexName(string pipeName) =>
         $"ExcelMcpCli_{pipeName}";
+
     private static async Task StartDaemonAsync(string pipeName, CancellationToken cancellationToken)
     {
-        var exePath = Environment.ProcessPath;
-        if (string.IsNullOrEmpty(exePath))
-        {
-            throw new InvalidOperationException("Cannot determine executable path to start daemon.");
-        }
+        var exePath = ResolveDaemonExecutablePath();
 
         var startInfo = new ProcessStartInfo
         {
             FileName = exePath,
-            Arguments = "service run",
+            Arguments = $"service run --pipe-name \"{pipeName}\"",
             UseShellExecute = true,
             CreateNoWindow = true,
-            WindowStyle = ProcessWindowStyle.Hidden
+            WindowStyle = ProcessWindowStyle.Hidden,
+            WorkingDirectory = Path.GetDirectoryName(exePath) ?? Environment.CurrentDirectory
         };
 
         try
         {
-            Process.Start(startInfo);
+            using var daemonProcess = Process.Start(startInfo)
+                ?? throw new InvalidOperationException($"Failed to start daemon process '{exePath}'.");
+
+            // Wait for daemon to be ready.
+            var waitUntil = DateTime.UtcNow + StartupReadyTimeout;
+            while (DateTime.UtcNow < waitUntil)
+            {
+                await Task.Delay(StartupReadyRetryInterval, cancellationToken);
+                if (daemonProcess.HasExited)
+                {
+                    throw new InvalidOperationException(
+                        $"Daemon process exited before becoming ready (exit code {daemonProcess.ExitCode}).");
+                }
+
+                var remaining = waitUntil - DateTime.UtcNow;
+                if (remaining <= TimeSpan.Zero)
+                    break;
+
+                if (await PingAsync(pipeName, Min(remaining, StartupReadyConnectTimeout), cancellationToken))
+                {
+                    GC.KeepAlive(daemonProcess);
+                    return;
+                }
+            }
         }
         catch (Exception ex)
         {
             throw new InvalidOperationException($"Failed to start daemon: {ex.Message}", ex);
         }
 
-        // Wait for daemon to be ready (up to 5 seconds)
-        for (int i = 0; i < 20; i++)
+        throw new TimeoutException($"Daemon started but not responding within {FormatDuration(StartupReadyTimeout)}.");
+    }
+
+    private static string ResolveDaemonExecutablePath()
+    {
+        var baseDirectoryCandidate = Path.Combine(AppContext.BaseDirectory, "excelcli.exe");
+        if (File.Exists(baseDirectoryCandidate))
         {
-            await Task.Delay(250, cancellationToken);
-            using var checkClient = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(1));
-            if (await checkClient.PingAsync(cancellationToken))
-            {
-                return;
-            }
+            return baseDirectoryCandidate;
         }
 
-        throw new TimeoutException("Daemon started but not responding within 5 seconds.");
+        var processPath = Environment.ProcessPath;
+        if (!string.IsNullOrWhiteSpace(processPath) && File.Exists(processPath))
+        {
+            return processPath;
+        }
+
+        throw new InvalidOperationException("Cannot determine executable path to start daemon.");
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        return duration.TotalSeconds >= 1
+            ? $"{duration.TotalSeconds:0.#} seconds"
+            : $"{duration.TotalMilliseconds:0} ms";
+    }
+
+    private static TimeSpan Min(TimeSpan left, TimeSpan right) => left <= right ? left : right;
+
+    private static async Task<bool> PingAsync(string pipeName, TimeSpan connectTimeout, CancellationToken cancellationToken)
+    {
+        var requestTimeout = connectTimeout + TimeSpan.FromSeconds(1);
+        using var client = new ServiceClient(pipeName, connectTimeout: connectTimeout, requestTimeout: requestTimeout);
+        return await client.PingAsync(cancellationToken);
     }
 }
