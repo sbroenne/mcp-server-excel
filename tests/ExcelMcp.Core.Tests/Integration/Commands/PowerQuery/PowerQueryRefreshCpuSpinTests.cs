@@ -18,9 +18,20 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Commands.PowerQuery;
 /// - WAITNOPROCESS rejection storm (88% CPU) — v1.8.21 behavior
 /// - WAITDEFPROCESS + EnsureScanDefinedEvents spin (97% CPU) — original behavior
 ///
-/// The fix: Smart OleMessageFilter with EnterLongOperation/ExitLongOperation that
-/// uses WAITDEFPROCESS + SERVERCALL_RETRYLATER rejection in HandleInComingCall,
-/// triggering the caller's RetryRejectedCall backoff mechanism.
+/// HISTORICAL NOTE (v1.8.29+): EnterLongOperation was REMOVED from the Refresh paths
+/// (connection.Refresh and queryTable.Refresh in PowerQueryCommands.Helpers.cs) to fix
+/// a production deadlock. EnterLongOperation caused HandleInComingCall to reject Excel's
+/// essential COM callbacks (MashupHost) with SERVERCALL_RETRYLATER, preventing Excel from
+/// completing the synchronous refresh. The result was a permanent mutual deadlock
+/// (observed: 30-minute hang).
+///
+/// TRADE-OFF: Without EnterLongOperation, the CPU spin returns (~88% during refresh).
+/// This is the accepted trade-off — elevated CPU is preferable to a permanent hang.
+///
+/// THESE TESTS WILL NOW FAIL (by design): CPU during refresh is ~88%, well above the
+/// 25% threshold. They are kept as documentation of the known regression and as
+/// OnDemand tests that can be used to measure CPU impact of future OleMessageFilter changes.
+/// They are intentionally excluded from CI via [Trait("RunType", "OnDemand")].
 ///
 /// These tests use List.Generate to create non-trivial Power Queries (~10K/50K rows)
 /// so the refresh takes long enough to measure CPU accurately.
@@ -105,8 +116,10 @@ public class PowerQueryRefreshCpuSpinTests : IClassFixture<TempDirectoryFixture>
     /// Data Model queries can't use QueryTable.Refresh — they go through WorkbookConnection.Refresh
     /// which is the primary path affected by the OleMessageFilter CPU spin.
     ///
-    /// Before fix: ~88% CPU (WAITNOPROCESS rejection storm)
-    /// After fix: &lt;25% CPU (SERVERCALL_RETRYLATER with proper backoff)
+    /// v1.8.21 behavior: ~88% CPU (WAITNOPROCESS rejection storm)
+    /// v1.8.22-v1.8.28: &lt;25% CPU (SERVERCALL_RETRYLATER with proper backoff via EnterLongOperation)
+    /// v1.8.29+ (deadlock fix): ~88% CPU — EnterLongOperation REMOVED to prevent COM deadlock.
+    ///   This test FAILS intentionally. See class summary for the deadlock trade-off.
     /// </summary>
     [Fact]
     public void Refresh_DataModelQuery_CpuStaysBelowThreshold()
@@ -161,8 +174,9 @@ public class PowerQueryRefreshCpuSpinTests : IClassFixture<TempDirectoryFixture>
     /// Worksheet queries use QueryTable.Refresh which is also affected by the COM callback storm
     /// from MashupHost during refresh.
     ///
-    /// Before fix: elevated CPU from COM callback dispatching
-    /// After fix: &lt;25% CPU
+    /// v1.8.22-v1.8.28: &lt;25% CPU (EnterLongOperation path)
+    /// v1.8.29+ (deadlock fix): elevated CPU — EnterLongOperation REMOVED to prevent COM deadlock.
+    ///   This test FAILS intentionally. See class summary for the deadlock trade-off.
     /// </summary>
     [Fact]
     public void Refresh_WorksheetQuery_CpuStaysBelowThreshold()
