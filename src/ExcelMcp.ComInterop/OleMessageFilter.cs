@@ -53,6 +53,15 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
     private static long _longOperationStartTimestamp;
 
     /// <summary>
+    /// CancellationToken associated with the current outgoing COM call on this STA thread.
+    /// When cancelled, <c>IMessageFilter.MessagePending</c> returns PENDINGMSG_CANCELCALL (0) to abort
+    /// the pending outgoing call (e.g., connection.Refresh()) so the STA thread is not orphaned.
+    /// Set via <see cref="SetPendingCancellationToken"/> before the COM call; cleared in finally.
+    /// </summary>
+    [ThreadStatic]
+    private static CancellationToken _pendingCancellationToken;
+
+    /// <summary>
     /// Registers the OLE message filter for the current STA thread.
     /// Should be called once per STA thread before making COM calls.
     /// </summary>
@@ -134,6 +143,30 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
         _isInLongOperation = false;
         var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(_longOperationStartTimestamp);
         return (_messagePendingCount, _handleInComingCallRejections, elapsed.TotalMilliseconds);
+    }
+
+    /// <summary>
+    /// Associates a <see cref="CancellationToken"/> with the current STA thread's outgoing COM call.
+    /// When the token is cancelled, <c>IMessageFilter.MessagePending</c> returns PENDINGMSG_CANCELCALL (0),
+    /// causing the outgoing COM call (e.g., <c>connection.Refresh()</c>) to abort with
+    /// RPC_E_CALL_CANCELLED rather than hanging until the caller's 30-minute timeout expires.
+    /// </summary>
+    /// <remarks>
+    /// Must be called on the STA thread immediately before the COM call.
+    /// Must be paired with <see cref="ClearPendingCancellationToken"/> in a finally block.
+    /// </remarks>
+    public static void SetPendingCancellationToken(CancellationToken token)
+    {
+        _pendingCancellationToken = token;
+    }
+
+    /// <summary>
+    /// Clears the pending cancellation token after the COM call completes or is cancelled.
+    /// Must be called in a finally block after every <see cref="SetPendingCancellationToken"/> call.
+    /// </summary>
+    public static void ClearPendingCancellationToken()
+    {
+        _pendingCancellationToken = default;
     }
 
     /// <summary>
@@ -219,12 +252,22 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
     {
         Interlocked.Increment(ref _messagePendingCount);
 
+        // If the operation's CancellationToken fired, abort the outgoing COM call immediately.
+        // PENDINGMSG_CANCELCALL (0) — COM cancels the pending call; the outgoing call (e.g.,
+        // connection.Refresh()) returns RPC_E_CALL_CANCELLED, unblocking the STA thread.
+        // This prevents the thread from being permanently orphaned when the caller's timeout
+        // fires while the thread is blocked inside a synchronous COM dispatch to Excel.
+        if (_pendingCancellationToken.IsCancellationRequested)
+        {
+            return 0; // PENDINGMSG_CANCELCALL
+        }
+
         if (_isInLongOperation)
         {
             // PENDINGMSG_WAITDEFPROCESS (2) — dispatch to HandleInComingCall.
-            // During long operations (e.g., connection.Refresh()), inbound COM callbacks
-            // are dispatched to HandleInComingCall which rejects with SERVERCALL_RETRYLATER.
-            // This prevents deadlocks from re-entrant callbacks during refresh operations.
+            // During long operations, inbound COM callbacks are dispatched to HandleInComingCall
+            // which rejects with SERVERCALL_RETRYLATER to trigger the caller's RetryRejectedCall
+            // backoff, preventing CPU spin from re-entrant dispatch.
             return 2; // PENDINGMSG_WAITDEFPROCESS
         }
 

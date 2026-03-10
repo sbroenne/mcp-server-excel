@@ -26,7 +26,7 @@ public partial class PowerQueryCommands
     {
         // Strategy 1: Find and refresh QueryTable directly on worksheet
         // For worksheet queries (InModel=false), errors are thrown by QueryTable.Refresh()
-        if (RefreshQueryTableByName(workbook, queryName))
+        if (RefreshQueryTableByName(workbook, queryName, cancellationToken))
         {
             return true;
         }
@@ -87,7 +87,7 @@ public partial class PowerQueryCommands
     /// </summary>
     /// <returns>True if QueryTable was found and refreshed</returns>
     /// <exception cref="Exception">Thrown if Power Query has formula errors</exception>
-    private static bool RefreshQueryTableByName(dynamic workbook, string queryName)
+    private static bool RefreshQueryTableByName(dynamic workbook, string queryName, CancellationToken cancellationToken)
     {
         dynamic? worksheets = null;
         try
@@ -136,16 +136,23 @@ public partial class PowerQueryCommands
                                 // Keep synchronous refresh semantics for worksheet queries.
                                 // QueryTable.Refresh(false) is the only reliable path that propagates
                                 // Power Query formula errors for worksheet-loaded queries.
-                                OleMessageFilter.EnterLongOperation();
+                                //
+                                // Do NOT use EnterLongOperation() here. EnterLongOperation sets
+                                // _isInLongOperation=true, causing HandleInComingCall to return
+                                // SERVERCALL_RETRYLATER for all inbound COM calls — including any
+                                // callbacks Excel needs to complete the synchronous refresh.
+                                // This can create a mutual deadlock. Instead, register the
+                                // CancellationToken so MessagePending returns PENDINGMSG_CANCELCALL
+                                // if cancelled, allowing the STA thread to exit cleanly.
+                                OleMessageFilter.SetPendingCancellationToken(cancellationToken);
                                 try
                                 {
                                     queryTable.Refresh(false);
                                 }
                                 finally
                                 {
-                                    OleMessageFilter.ExitLongOperation();
+                                    OleMessageFilter.ClearPendingCancellationToken();
                                 }
-
                                 return true;
                             }
                         }
@@ -213,19 +220,31 @@ public partial class PowerQueryCommands
                 // Sub-connection doesn't expose BackgroundQuery via dynamic binding.
             }
 
-            // Enter long operation mode: MessagePending returns WAITDEFPROCESS to dispatch
-            // to HandleInComingCall, which rejects with SERVERCALL_RETRYLATER.
-            // This triggers the caller's RetryRejectedCall backoff instead of either:
-            // - WAITNOPROCESS rejection storm (88% CPU) or
-            // - WAITDEFPROCESS + EnsureScanDefinedEvents spin (97% CPU)
-            OleMessageFilter.EnterLongOperation();
+            // IMPORTANT: Do NOT use EnterLongOperation() here.
+            //
+            // connection.Refresh() with BackgroundQuery=false is a synchronous COM call that
+            // requires Excel to callback into our STA apartment to complete the data load.
+            // EnterLongOperation() sets _isInLongOperation=true, which causes HandleInComingCall
+            // to return SERVERCALL_RETRYLATER for ALL inbound COM calls — including the essential
+            // callbacks Excel needs to complete connection.Refresh(). This creates a mutual
+            // deadlock: Excel waits for our callbacks to be accepted; our STA thread waits for
+            // Excel to respond. The thread hangs indefinitely (observed: 30-minute hang).
+            //
+            // Instead, register the CancellationToken with the message filter so MessagePending
+            // returns PENDINGMSG_CANCELCALL (0) when cancelled, causing connection.Refresh() to
+            // return RPC_E_CALL_CANCELLED and unblocking the STA thread cleanly.
+            //
+            // Trade-off: without EnterLongOperation, inbound EnsureScanDefinedEvents callbacks
+            // are not throttled, which may cause elevated CPU during refresh (~88% peak).
+            // This is preferable to a permanent hang.
+            OleMessageFilter.SetPendingCancellationToken(cancellationToken);
             try
             {
                 connection.Refresh();
             }
             finally
             {
-                OleMessageFilter.ExitLongOperation();
+                OleMessageFilter.ClearPendingCancellationToken();
             }
 
             try
