@@ -10,6 +10,8 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.8.28] - 2026-03-10
+
 ### Fixed
 
 - **`powerquery refresh` could hang indefinitely (permanent COM deadlock)**: `EnterLongOperation` was called before `QueryTable.Refresh(false)` and `connection.Refresh()` in the PowerQuery refresh path. `EnterLongOperation` sets `_isInLongOperation=true`, causing `HandleInComingCall` to return `SERVERCALL_RETRYLATER` for ALL inbound COM calls — including essential MashupHost callbacks Excel needs to complete the synchronous refresh. This created a permanent mutual deadlock (observed: 30-minute hang in production on a worksheet-loaded query). Fixed by removing `EnterLongOperation` from both refresh paths and registering a `CancellationToken` with `OleMessageFilter` so `MessagePending` returns `PENDINGMSG_CANCELCALL` when the token fires, enabling clean STA thread exit. **Trade-off**: Elevated CPU (~88%) during refresh is accepted as preferable to a permanent hang. The CPU spin regression tests (`PowerQueryRefreshCpuSpinTests`) are now intentionally expected to fail — they are excluded from CI via `RunType=OnDemand` and updated to document this known trade-off.
