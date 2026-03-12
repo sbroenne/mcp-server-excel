@@ -46,8 +46,11 @@ public static partial class ExcelWorksheetTool
         [DefaultValue(null)] string? target_file,
         [DefaultValue(null)] string? target_sheet_name,
         [DefaultValue(null)] string? before_sheet,
-        [DefaultValue(null)] string? after_sheet)
+        [DefaultValue(null)] string? after_sheet,
+        CancellationToken cancellationToken = default)
     {
+        using var cancellationScope = ExcelToolsBase.PushCancellationToken(cancellationToken);
+
         return ExcelToolsBase.ExecuteToolAction(
             "worksheet",
             ServiceRegistry.Sheet.ToActionString(action),

@@ -85,6 +85,7 @@ public class McpToolGenerator : IIncrementalGenerator
         sb.AppendLine("#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member");
         sb.AppendLine();
         sb.AppendLine("using System.ComponentModel;");
+        sb.AppendLine("using System.Threading;");
         sb.AppendLine("using ModelContextProtocol.Server;");
         sb.AppendLine("using Sbroenne.ExcelMcp.Generated;");
         if (hasProgress)
@@ -184,7 +185,7 @@ public class McpToolGenerator : IIncrementalGenerator
         if (!info.NoSession)
         {
             sb.Append("        [Description(\"Session ID from file 'open' action\")] string session_id");
-            if (mcpParams.Count > 0) sb.Append(",");
+            sb.Append(",");
             sb.AppendLine();
         }
 
@@ -202,15 +203,16 @@ public class McpToolGenerator : IIncrementalGenerator
             {
                 sb.Append($"        [DefaultValue({defaultExpr})] {p.McpTypeName} {p.Name}");
             }
-            if (i < mcpParams.Count - 1 || hasProgress) sb.Append(",");
+            sb.Append(",");
             sb.AppendLine();
         }
 
         // DI-injected progress parameter (no [Description] — resolved from RequestServiceProvider)
         if (hasProgress)
         {
-            sb.AppendLine("        IProgress<ProgressNotificationValue> progress");
+            sb.AppendLine("        IProgress<ProgressNotificationValue> progress,");
         }
+        sb.AppendLine("        CancellationToken cancellationToken = default");
         sb.AppendLine("    )");
         sb.AppendLine("    {");
 
@@ -257,6 +259,9 @@ public class McpToolGenerator : IIncrementalGenerator
         }
 
         var indent = hasProgress ? "            " : "        ";
+
+        sb.AppendLine($"{indent}using var cancellationScope = ExcelToolsBase.PushCancellationToken(cancellationToken);");
+        sb.AppendLine();
 
         sb.AppendLine($"{indent}return ExcelToolsBase.ExecuteToolAction(");
         sb.AppendLine($"{indent}    \"{toolName}\",");

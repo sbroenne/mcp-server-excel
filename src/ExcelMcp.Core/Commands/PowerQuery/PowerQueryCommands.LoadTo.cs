@@ -104,19 +104,19 @@ public partial class PowerQueryCommands
                 switch (loadMode)
                 {
                     case PowerQueryLoadMode.LoadToTable:
-                        LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result);
+                        LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result, ct);
                         break;
 
                     case PowerQueryLoadMode.LoadToDataModel:
-                        LoadQueryToDataModel(ctx.Book, queryName, result);
+                        LoadQueryToDataModel(ctx.Book, queryName, result, cancellationToken: ct);
                         break;
 
                     case PowerQueryLoadMode.LoadToBoth:
                         // For LoadToBoth, create TWO separate properly-named connections:
                         // 1. Worksheet connection: "Query - {name}" (created by LoadQueryToWorksheet)
                         // 2. Data Model connection: "Query - {name} (Data Model)" (with suffix to avoid conflict)
-                        LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result);
-                        LoadQueryToDataModel(ctx.Book, queryName, result, " (Data Model)");
+                        LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result, ct);
+                        LoadQueryToDataModel(ctx.Book, queryName, result, " (Data Model)", ct);
                         break;
 
                     case PowerQueryLoadMode.ConnectionOnly:
@@ -159,7 +159,8 @@ public partial class PowerQueryCommands
         string queryName,
         string sheetName,
         string targetCellAddress,
-        dynamic result)
+        dynamic result,
+        CancellationToken cancellationToken)
     {
         dynamic? worksheets = null;
         dynamic? sheet = null;
@@ -314,15 +315,17 @@ public partial class PowerQueryCommands
             queryTable.RefreshStyle = 1; // xlInsertDeleteCells
             queryTable.PreserveColumnInfo = false; // Allow schema changes on refresh
 
-            // Refresh to materialize the table
-            OleMessageFilter.EnterLongOperation();
+            // Refresh to materialize the table.
+            // Do NOT use EnterLongOperation here: synchronous QueryTable refresh depends on inbound
+            // Excel callbacks to complete. Rejecting those callbacks can deadlock the load.
+            OleMessageFilter.SetPendingCancellationToken(cancellationToken);
             try
             {
                 queryTable.Refresh(false); // Synchronous refresh
             }
             finally
             {
-                OleMessageFilter.ExitLongOperation();
+                OleMessageFilter.ClearPendingCancellationToken();
             }
 
             // Name the table after the query for predictable M-code referencing.
@@ -366,7 +369,8 @@ public partial class PowerQueryCommands
         dynamic workbook,
         string queryName,
         dynamic result,
-        string? connectionNameSuffix = null)
+        string? connectionNameSuffix = null,
+        CancellationToken cancellationToken = default)
     {
         dynamic? connections = null;
         dynamic? connection = null;
@@ -396,14 +400,16 @@ public partial class PowerQueryCommands
             // Refresh the connection to actually load data into the Data Model.
             // Without this call, the connection is registered but no data is materialized —
             // the table never appears in the Data Model even though success is returned.
-            OleMessageFilter.EnterLongOperation();
+            // Do NOT use EnterLongOperation here: synchronous connection.Refresh() can require
+            // inbound callbacks from Excel/MashupHost to complete.
+            OleMessageFilter.SetPendingCancellationToken(cancellationToken);
             try
             {
                 connection.Refresh();
             }
             finally
             {
-                OleMessageFilter.ExitLongOperation();
+                OleMessageFilter.ClearPendingCancellationToken();
             }
 
             result.RowsLoaded = -1; // Data Model doesn't expose row count

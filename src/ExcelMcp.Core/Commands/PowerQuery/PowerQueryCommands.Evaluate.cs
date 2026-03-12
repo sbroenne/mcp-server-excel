@@ -77,15 +77,17 @@ public partial class PowerQueryCommands
                 queryTable.BackgroundQuery = false; // Synchronous
 
                 // STEP 4: Refresh to execute the M code (errors will throw via QueryTable.Refresh)
-                // This is the key step - if M code has errors, this will throw!
-                OleMessageFilter.EnterLongOperation();
+                // This path uses the same synchronous worksheet refresh mechanism as PowerQuery refresh/load.
+                // Do NOT use EnterLongOperation here: rejecting inbound COM callbacks can deadlock the
+                // MashupHost → Excel → STA callback chain that completes the synchronous refresh.
+                OleMessageFilter.SetPendingCancellationToken(ct);
                 try
                 {
                     queryTable.Refresh(false); // false = synchronous
                 }
                 finally
                 {
-                    OleMessageFilter.ExitLongOperation();
+                    OleMessageFilter.ClearPendingCancellationToken();
                 }
 
                 // STEP 5: Read the results from the worksheet
