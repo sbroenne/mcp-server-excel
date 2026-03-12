@@ -10,6 +10,8 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.8.29] - 2026-03-12
+
 ### Fixed
 
 - **MCP tool cancellation could leave the in-process server wedged until Excel was killed manually**: The MCP `ServiceBridge` created timeout and cancellation tokens but never applied them to the in-process service call, and tool methods did not flow request cancellation into the bridge. When VS Code cancelled a long-running tool call, the Excel COM work could continue on a blocked batch thread while the poisoned session remained in the server, making subsequent requests appear hung. Fixed by running bridge dispatch on a separate task, force-closing the affected session or resetting the service on timeout/cancellation, and propagating request cancellation from MCP tool methods through the shared tool base into the bridge.
