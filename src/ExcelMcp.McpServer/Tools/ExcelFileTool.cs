@@ -46,8 +46,11 @@ public static partial class ExcelFileTool
         [DefaultValue(null)] string? session_id,
         [DefaultValue(false)] bool save,
         [DefaultValue(false)] bool show,
-        [DefaultValue(300)] int timeout_seconds)
+        [DefaultValue(300)] int timeout_seconds,
+        CancellationToken cancellationToken = default)
     {
+        using var cancellationScope = ExcelToolsBase.PushCancellationToken(cancellationToken);
+
         // Validate timeout range
         if (timeout_seconds < 10 || timeout_seconds > 3600)
         {

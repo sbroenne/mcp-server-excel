@@ -130,4 +130,91 @@ in
             $"Possible deadlock regression: check if EnterLongOperation was re-added " +
             $"before connection.Refresh() in PowerQueryCommands.Helpers.cs.");
     }
+
+    /// <summary>
+    /// Regression test: Evaluate uses a temporary worksheet QueryTable refresh internally.
+    /// That path must not reintroduce the same COM deadlock fixed in Refresh().
+    /// </summary>
+    [Fact]
+    public void Evaluate_TemporaryWorksheetQuery_CompletesWithoutDeadlock()
+    {
+        var testExcelFile = _fixture.CreateTestFile();
+
+        using var batch = ExcelSession.BeginBatch(
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(90),
+            testExcelFile);
+
+        var sw = Stopwatch.StartNew();
+
+        var result = _powerQueryCommands.Evaluate(batch, DeadlockRegressionMCode);
+
+        sw.Stop();
+
+        Assert.True(result.Success, $"Evaluate failed: {result.ErrorMessage}");
+        Assert.Equal(3, result.RowCount);
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(60),
+            $"Evaluate took {sw.Elapsed.TotalSeconds:F1}s — suspiciously slow. " +
+            $"Possible deadlock regression in the temporary QueryTable.Refresh(false) path.");
+    }
+
+    /// <summary>
+    /// Regression test: LoadToTable applies destination changes by creating a worksheet QueryTable
+    /// and refreshing it synchronously. That path must not deadlock.
+    /// </summary>
+    [Fact]
+    public void LoadTo_Table_CompletesWithoutDeadlock()
+    {
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "DR_LoadToTable";
+
+        using var batch = ExcelSession.BeginBatch(
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(90),
+            testExcelFile);
+
+        _powerQueryCommands.Create(batch, queryName, DeadlockRegressionMCode, PowerQueryLoadMode.ConnectionOnly);
+        batch.Save();
+
+        var sw = Stopwatch.StartNew();
+
+        var result = _powerQueryCommands.LoadTo(batch, queryName, PowerQueryLoadMode.LoadToTable, queryName, "A1");
+
+        sw.Stop();
+
+        Assert.True(result.Success, $"LoadTo(Table) failed: {result.ErrorMessage}");
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(60),
+            $"LoadTo(Table) took {sw.Elapsed.TotalSeconds:F1}s — suspiciously slow. " +
+            $"Possible deadlock regression in the worksheet QueryTable refresh path.");
+    }
+
+    /// <summary>
+    /// Regression test: LoadToDataModel creates a workbook connection and refreshes it synchronously.
+    /// That connection.Refresh() path must not deadlock.
+    /// </summary>
+    [Fact]
+    public void LoadTo_DataModel_CompletesWithoutDeadlock()
+    {
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "DR_LoadToModel";
+
+        using var batch = ExcelSession.BeginBatch(
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(90),
+            testExcelFile);
+
+        _powerQueryCommands.Create(batch, queryName, DeadlockRegressionMCode, PowerQueryLoadMode.ConnectionOnly);
+        batch.Save();
+
+        var sw = Stopwatch.StartNew();
+
+        var result = _powerQueryCommands.LoadTo(batch, queryName, PowerQueryLoadMode.LoadToDataModel);
+
+        sw.Stop();
+
+        Assert.True(result.Success, $"LoadTo(DataModel) failed: {result.ErrorMessage}");
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(60),
+            $"LoadTo(DataModel) took {sw.Elapsed.TotalSeconds:F1}s — suspiciously slow. " +
+            $"Possible deadlock regression in the data model connection.Refresh() path.");
+    }
 }

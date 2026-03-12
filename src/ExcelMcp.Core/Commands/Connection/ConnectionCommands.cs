@@ -443,7 +443,8 @@ public partial class ConnectionCommands : IConnectionCommands
     private static void CreateQueryTableForConnection(
         dynamic targetSheet,
         dynamic conn,
-        PowerQueryHelpers.QueryTableOptions options)
+        PowerQueryHelpers.QueryTableOptions options,
+        CancellationToken cancellationToken)
     {
         // For regular connections (not Power Query), we need connection string
         string? connectionString = GetConnectionString(conn);
@@ -482,14 +483,16 @@ public partial class ConnectionCommands : IConnectionCommands
 
             if (options.RefreshImmediately)
             {
-                OleMessageFilter.EnterLongOperation();
+                // Do NOT use EnterLongOperation here. Synchronous QueryTable refresh can depend on
+                // inbound Excel callbacks to complete, and rejecting them can deadlock the load.
+                OleMessageFilter.SetPendingCancellationToken(cancellationToken);
                 try
                 {
                     queryTable.Refresh(false);
                 }
                 finally
                 {
-                    OleMessageFilter.ExitLongOperation();
+                    OleMessageFilter.ClearPendingCancellationToken();
                 }
             }
         }

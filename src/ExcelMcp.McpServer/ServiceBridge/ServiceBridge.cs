@@ -3,6 +3,21 @@ using Sbroenne.ExcelMcp.Service;
 
 namespace Sbroenne.ExcelMcp.McpServer.ServiceBridge;
 
+internal interface IServiceBridgeBackend : IDisposable
+{
+    Task<ServiceResponse> ProcessAsync(ServiceRequest request);
+    bool ForceCloseSession(string sessionId);
+}
+
+internal sealed class ExcelMcpServiceBackend(Service.ExcelMcpService service) : IServiceBridgeBackend
+{
+    public Task<ServiceResponse> ProcessAsync(ServiceRequest request) => service.ProcessAsync(request);
+
+    public bool ForceCloseSession(string sessionId) => service.SessionManager.CloseSession(sessionId, save: false, force: true);
+
+    public void Dispose() => service.Dispose();
+}
+
 /// <summary>
 /// Bridge that holds the in-process ExcelMCP Service for direct method calls.
 /// No named pipe — MCP tools call the service directly (same process).
@@ -10,7 +25,11 @@ namespace Sbroenne.ExcelMcp.McpServer.ServiceBridge;
 public static class ServiceBridge
 {
     private static readonly SemaphoreSlim _initLock = new(1, 1);
-    private static Service.ExcelMcpService? _service;
+    private static readonly Func<IServiceBridgeBackend> DefaultServiceFactory =
+        static () => new ExcelMcpServiceBackend(new Service.ExcelMcpService());
+
+    private static IServiceBridgeBackend? _service;
+    private static Func<IServiceBridgeBackend> _serviceFactory = DefaultServiceFactory;
 
     /// <summary>
     /// JSON serializer options for deserializing service responses.
@@ -36,7 +55,7 @@ public static class ServiceBridge
                 return true;
             }
 
-            _service = new Service.ExcelMcpService();
+            _service = _serviceFactory();
             return true;
         }
         catch (Exception)
@@ -75,16 +94,29 @@ public static class ServiceBridge
             Args = args != null ? JsonSerializer.Serialize(args, JsonOptions) : null
         };
 
-        // Apply timeout if specified
+        var service = _service!;
+        var processTask = Task.Run(async () => await service.ProcessAsync(request), CancellationToken.None);
+
+        if (!timeoutSeconds.HasValue && !cancellationToken.CanBeCanceled)
+        {
+            return await processTask;
+        }
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         if (timeoutSeconds.HasValue)
         {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds.Value));
-            try
-            {
-                return await _service!.ProcessAsync(request);
-            }
-            catch (OperationCanceledException) when (cts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        }
+
+        try
+        {
+            return await processTask.WaitAsync(cts.Token);
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            CleanupCancelledRequest(service, sessionId);
+
+            if (timeoutSeconds.HasValue && !cancellationToken.IsCancellationRequested)
             {
                 return new ServiceResponse
                 {
@@ -92,9 +124,35 @@ public static class ServiceBridge
                     ErrorMessage = $"Operation timed out after {timeoutSeconds} seconds."
                 };
             }
+
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorMessage = string.IsNullOrWhiteSpace(sessionId)
+                    ? "Operation was cancelled. The Excel MCP service was reset to avoid leaving a stuck Excel operation behind."
+                    : "Operation was cancelled and the session has been closed to avoid leaving a stuck Excel operation behind. Please reopen the file with a new session."
+            };
+        }
+    }
+
+    private static void CleanupCancelledRequest(IServiceBridgeBackend service, string? sessionId)
+    {
+        if (!string.IsNullOrWhiteSpace(sessionId))
+        {
+            try
+            {
+                if (service.ForceCloseSession(sessionId))
+                {
+                    return;
+                }
+            }
+            catch (Exception)
+            {
+                // Fall back to resetting the entire service below.
+            }
         }
 
-        return await _service!.ProcessAsync(request);
+        Dispose();
     }
 
     /// <summary>
@@ -202,5 +260,17 @@ public static class ServiceBridge
     {
         var service = Interlocked.Exchange(ref _service, null);
         service?.Dispose();
+    }
+
+    internal static void SetServiceFactoryForTests(Func<IServiceBridgeBackend> serviceFactory)
+    {
+        Dispose();
+        _serviceFactory = serviceFactory;
+    }
+
+    internal static void ResetForTests()
+    {
+        Dispose();
+        _serviceFactory = DefaultServiceFactory;
     }
 }

@@ -77,7 +77,7 @@ public partial class ConnectionCommands
                     RefreshImmediately = true
                 };
 
-                CreateQueryTableForConnection(targetSheet, conn, options);
+                CreateQueryTableForConnection(targetSheet, conn, options, ct);
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally

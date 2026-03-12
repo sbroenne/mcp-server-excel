@@ -37,8 +37,11 @@ public static class ExcelScreenshotTool
         [Description("Session ID from file 'open' action")] string session_id,
         [DefaultValue(null)] string? sheet_name,
         [DefaultValue("A1:Z30")] string range_address,
-        [DefaultValue(ScreenshotQuality.Medium)] ScreenshotQuality quality)
+        [DefaultValue(ScreenshotQuality.Medium)] ScreenshotQuality quality,
+        CancellationToken cancellationToken = default)
     {
+        using var cancellationScope = ExcelToolsBase.PushCancellationToken(cancellationToken);
+
         // Forward to service and get JSON response
         var jsonResponse = ExcelToolsBase.ExecuteToolAction(
             "screenshot",

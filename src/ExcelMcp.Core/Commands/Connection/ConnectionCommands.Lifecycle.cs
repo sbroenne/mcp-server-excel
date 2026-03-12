@@ -231,19 +231,17 @@ public partial class ConnectionCommands
                 // Sub-connection doesn't expose BackgroundQuery — proceed with default behavior.
             }
 
-            // Enter long operation mode: MessagePending returns WAITDEFPROCESS to dispatch
-            // to HandleInComingCall, which rejects with SERVERCALL_RETRYLATER.
-            // This triggers the caller's RetryRejectedCall backoff instead of either:
-            // - WAITNOPROCESS rejection storm (88% CPU) or
-            // - WAITDEFPROCESS + EnsureScanDefinedEvents spin (97% CPU)
-            OleMessageFilter.EnterLongOperation();
+            // Do NOT use EnterLongOperation here. Like Power Query refresh, synchronous
+            // connection.Refresh() can require inbound Excel/provider callbacks to complete.
+            // Rejecting those callbacks can deadlock the refresh.
+            OleMessageFilter.SetPendingCancellationToken(cancellationToken);
             try
             {
                 connection.Refresh();
             }
             finally
             {
-                OleMessageFilter.ExitLongOperation();
+                OleMessageFilter.ClearPendingCancellationToken();
             }
 
             try

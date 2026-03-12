@@ -17,6 +17,31 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
 public static class ExcelToolsBase
 {
+    private static readonly AsyncLocal<CancellationToken> CurrentCancellationToken = new();
+
+    private sealed class CancellationTokenScope : IDisposable
+    {
+        private readonly CancellationToken _previousToken;
+        private bool _disposed;
+
+        public CancellationTokenScope(CancellationToken token)
+        {
+            _previousToken = CurrentCancellationToken.Value;
+            CurrentCancellationToken.Value = token;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            CurrentCancellationToken.Value = _previousToken;
+            _disposed = true;
+        }
+    }
+
     /// <summary>
     /// Ensures the ExcelMCP Service is running.
     /// The service is required for all MCP Server operations.
@@ -52,6 +77,9 @@ public static class ExcelToolsBase
     public static readonly Func<string, string, object?, string> ForwardToServiceFunc =
         (command, sessionId, args) => ForwardToService(command, sessionId, args);
 
+    internal static IDisposable PushCancellationToken(CancellationToken cancellationToken) =>
+        new CancellationTokenScope(cancellationToken);
+
     /// <summary>
     /// Forwards a command to the ExcelMCP Service and returns the JSON response.
     /// This is the primary method for MCP tools to execute commands.
@@ -70,7 +98,12 @@ public static class ExcelToolsBase
         object? args = null,
         int? timeoutSeconds = null)
     {
-        var response = ServiceBridge.ServiceBridge.SendAsync(command, sessionId, args, timeoutSeconds).GetAwaiter().GetResult();
+        var response = ServiceBridge.ServiceBridge.SendAsync(
+            command,
+            sessionId,
+            args,
+            timeoutSeconds,
+            CurrentCancellationToken.Value).GetAwaiter().GetResult();
 
         if (!response.Success)
         {
@@ -97,7 +130,12 @@ public static class ExcelToolsBase
         object? args = null,
         int? timeoutSeconds = null)
     {
-        var response = ServiceBridge.ServiceBridge.SendAsync(command, null, args, timeoutSeconds).GetAwaiter().GetResult();
+        var response = ServiceBridge.ServiceBridge.SendAsync(
+            command,
+            null,
+            args,
+            timeoutSeconds,
+            CurrentCancellationToken.Value).GetAwaiter().GetResult();
 
         if (!response.Success)
         {
