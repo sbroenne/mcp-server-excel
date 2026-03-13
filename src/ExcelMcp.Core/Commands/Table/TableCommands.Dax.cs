@@ -153,8 +153,16 @@ public partial class TableCommands
                 modelConnection.CommandType = xlCmdDAX;  // 8 = xlCmdDAX
                 modelConnection.CommandText = daxQuery;
 
-                // Refresh to execute the DAX query
-                modelWbConn.Refresh();
+                // Keep synchronous DAX refresh cancellable without blocking inbound COM callbacks.
+                OleMessageFilter.SetPendingCancellationToken(ct);
+                try
+                {
+                    modelWbConn.Refresh();
+                }
+                finally
+                {
+                    OleMessageFilter.ClearPendingCancellationToken();
+                }
 
                 // Get target range for the table
                 destRange = sheet.Range[targetCell];
@@ -172,8 +180,16 @@ public partial class TableCommands
                 // Set the table name
                 listObject.Name = tableName;
 
-                // Refresh the table to populate data
-                listObject.Refresh();
+                OleMessageFilter.SetPendingCancellationToken(ct);
+                try
+                {
+                    // Refresh the table to populate data.
+                    listObject.Refresh();
+                }
+                finally
+                {
+                    OleMessageFilter.ClearPendingCancellationToken();
+                }
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
@@ -251,9 +267,26 @@ public partial class TableCommands
                 // Update the DAX query
                 modelConnection.CommandText = daxQuery;
 
-                // Refresh to execute the new query
-                workbookConnection.Refresh();
-                table.Refresh();
+                OleMessageFilter.SetPendingCancellationToken(ct);
+                try
+                {
+                    // Refresh to execute the new query.
+                    workbookConnection.Refresh();
+                }
+                finally
+                {
+                    OleMessageFilter.ClearPendingCancellationToken();
+                }
+
+                OleMessageFilter.SetPendingCancellationToken(ct);
+                try
+                {
+                    table.Refresh();
+                }
+                finally
+                {
+                    OleMessageFilter.ClearPendingCancellationToken();
+                }
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }

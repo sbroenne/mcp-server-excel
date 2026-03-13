@@ -46,14 +46,16 @@ public partial class DataModelCommands
 
                         try
                         {
-                            OleMessageFilter.EnterLongOperation();
+                            // Keep synchronous refresh cancellable without globally rejecting
+                            // inbound COM callbacks that Excel may need to complete the operation.
+                            OleMessageFilter.SetPendingCancellationToken(ct);
                             try
                             {
                                 table.Refresh();
                             }
                             finally
                             {
-                                OleMessageFilter.ExitLongOperation();
+                                OleMessageFilter.ClearPendingCancellationToken();
                             }
                         }
                         finally
@@ -64,7 +66,9 @@ public partial class DataModelCommands
                     else
                     {
                         // Refresh entire model
-                        OleMessageFilter.EnterLongOperation();
+                        // Avoid EnterLongOperation here for the same reason as Power Query refresh:
+                        // synchronous model refresh may require inbound COM callbacks.
+                        OleMessageFilter.SetPendingCancellationToken(ct);
                         try
                         {
                             model.Refresh();
@@ -77,7 +81,7 @@ public partial class DataModelCommands
                         }
                         finally
                         {
-                            OleMessageFilter.ExitLongOperation();
+                            OleMessageFilter.ClearPendingCancellationToken();
                         }
                     }
 
