@@ -217,4 +217,86 @@ in
             $"LoadTo(DataModel) took {sw.Elapsed.TotalSeconds:F1}s — suspiciously slow. " +
             $"Possible deadlock regression in the data model connection.Refresh() path.");
     }
+
+    /// <summary>
+    /// Regression test: Update on a worksheet-loaded query must reuse the same COM-safe
+    /// synchronous refresh semantics as Refresh().
+    /// </summary>
+    [Fact]
+    public void Update_WorksheetLoadedQuery_CompletesWithoutDeadlock()
+    {
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "DR_UpdateSheet";
+        var updatedMCode = @"let
+    Source = #table(
+        {""ID"", ""Name"", ""Value"", ""Extra""},
+        {
+            {1, ""Alpha"", 100, ""A""},
+            {2, ""Beta"", 200, ""B""},
+            {3, ""Gamma"", 300, ""C""}
+        }
+    )
+in
+    Source";
+
+        using var batch = ExcelSession.BeginBatch(
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(90),
+            testExcelFile);
+
+        _powerQueryCommands.Create(batch, queryName, DeadlockRegressionMCode, PowerQueryLoadMode.LoadToTable);
+        batch.Save();
+
+        var sw = Stopwatch.StartNew();
+
+        var result = _powerQueryCommands.Update(batch, queryName, updatedMCode, refresh: true);
+
+        sw.Stop();
+
+        Assert.True(result.Success, $"Update(worksheet) failed: {result.ErrorMessage}");
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(60),
+            $"Update(worksheet) took {sw.Elapsed.TotalSeconds:F1}s — suspiciously slow. " +
+            $"Possible deadlock regression in the QueryTable.Refresh(false) update path.");
+    }
+
+    /// <summary>
+    /// Regression test: Update on a data-model query must reuse the same COM-safe
+    /// synchronous refresh semantics as Refresh().
+    /// </summary>
+    [Fact]
+    public void Update_DataModelLoadedQuery_CompletesWithoutDeadlock()
+    {
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "DR_UpdateModel";
+        var updatedMCode = @"let
+    Source = #table(
+        {""ID"", ""Name"", ""Value"", ""Extra""},
+        {
+            {1, ""Alpha"", 100, ""A""},
+            {2, ""Beta"", 200, ""B""},
+            {3, ""Gamma"", 300, ""C""}
+        }
+    )
+in
+    Source";
+
+        using var batch = ExcelSession.BeginBatch(
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(90),
+            testExcelFile);
+
+        _powerQueryCommands.Create(batch, queryName, DeadlockRegressionMCode, PowerQueryLoadMode.LoadToDataModel);
+        batch.Save();
+
+        var sw = Stopwatch.StartNew();
+
+        var result = _powerQueryCommands.Update(batch, queryName, updatedMCode, refresh: true);
+
+        sw.Stop();
+
+        Assert.True(result.Success, $"Update(data model) failed: {result.ErrorMessage}");
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(60),
+            $"Update(data model) took {sw.Elapsed.TotalSeconds:F1}s — suspiciously slow. " +
+            $"Possible deadlock regression in the connection.Refresh() update path.");
+    }
 }

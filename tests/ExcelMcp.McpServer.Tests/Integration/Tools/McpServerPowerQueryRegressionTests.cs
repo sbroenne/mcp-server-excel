@@ -159,6 +159,95 @@ public class McpServerPowerQueryRegressionTests : IAsyncLifetime, IAsyncDisposab
         }
     }
 
+    [Fact]
+    public async Task PowerQuery_UpdateWorksheetLoadedQuery_CompletesViaMcpProtocol()
+    {
+        var workbookPath = Path.Join(_tempDir, $"UpdateWorksheet_{Guid.NewGuid():N}.xlsx");
+        var sessionId = await CreateSessionAsync(workbookPath);
+
+        try
+        {
+            var createResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
+            {
+                ["action"] = "create",
+                ["session_id"] = sessionId,
+                ["query_name"] = "InlineData",
+                ["m_code"] = BuildInlineTableMCode(includeExtraColumn: false)
+            }, ToolTimeout);
+
+            AssertSuccess(createResult, "powerquery.create worksheet");
+
+            var updateResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
+            {
+                ["action"] = "update",
+                ["session_id"] = sessionId,
+                ["query_name"] = "InlineData",
+                ["m_code"] = BuildInlineTableMCode(includeExtraColumn: true),
+                ["refresh"] = true
+            }, ToolTimeout);
+
+            AssertSuccess(updateResult, "powerquery.update worksheet");
+
+            var listSheetsResult = await CallToolAsync("worksheet", new Dictionary<string, object?>
+            {
+                ["action"] = "list",
+                ["session_id"] = sessionId
+            }, ToolTimeout);
+
+            AssertSuccess(listSheetsResult, "worksheet.list after powerquery.update worksheet");
+            Assert.Contains("InlineData", listSheetsResult);
+        }
+        finally
+        {
+            await TryCloseSessionAsync(sessionId);
+        }
+    }
+
+    [Fact]
+    public async Task PowerQuery_UpdateDataModelLoadedQuery_CompletesViaMcpProtocol()
+    {
+        var workbookPath = Path.Join(_tempDir, $"UpdateDataModel_{Guid.NewGuid():N}.xlsx");
+        var sessionId = await CreateSessionAsync(workbookPath);
+
+        try
+        {
+            var createResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
+            {
+                ["action"] = "create",
+                ["session_id"] = sessionId,
+                ["query_name"] = "InlineDataModel",
+                ["m_code"] = BuildInlineTableMCode(includeExtraColumn: false),
+                ["load_destination"] = "load-to-data-model"
+            }, ToolTimeout);
+
+            AssertSuccess(createResult, "powerquery.create data-model");
+
+            var updateResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
+            {
+                ["action"] = "update",
+                ["session_id"] = sessionId,
+                ["query_name"] = "InlineDataModel",
+                ["m_code"] = BuildInlineTableMCode(includeExtraColumn: true),
+                ["refresh"] = true
+            }, ToolTimeout);
+
+            AssertSuccess(updateResult, "powerquery.update data-model");
+
+            var listTablesResult = await CallToolAsync("datamodel", new Dictionary<string, object?>
+            {
+                ["action"] = "list-tables",
+                ["session_id"] = sessionId
+            }, ToolTimeout);
+
+            AssertSuccess(listTablesResult, "datamodel.list-tables after powerquery.update data-model");
+            Assert.Contains("InlineDataModel", listTablesResult);
+        }
+        finally
+        {
+            await TryCloseSessionAsync(sessionId);
+        }
+    }
+
     private async Task DisposeAsyncCore()
     {
         await _cts.CancelAsync();
@@ -280,6 +369,36 @@ public class McpServerPowerQueryRegressionTests : IAsyncLifetime, IAsyncDisposab
     PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars = true])
 in
     PromotedHeaders";
+    }
+
+    private static string BuildInlineTableMCode(bool includeExtraColumn)
+    {
+        if (includeExtraColumn)
+        {
+            return @"let
+    Source = #table(
+        {""ID"", ""Name"", ""Value"", ""Extra""},
+        {
+            {1, ""Alpha"", 100, ""A""},
+            {2, ""Beta"", 200, ""B""},
+            {3, ""Gamma"", 300, ""C""}
+        }
+    )
+in
+    Source";
+        }
+
+        return @"let
+    Source = #table(
+        {""ID"", ""Name"", ""Value""},
+        {
+            {1, ""Alpha"", 100},
+            {2, ""Beta"", 200},
+            {3, ""Gamma"", 300}
+        }
+    )
+in
+    Source";
     }
 
     private static void AssertSuccess(string jsonResult, string operationName)
