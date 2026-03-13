@@ -10,6 +10,8 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.8.30] - 2026-03-13
+
 ### Fixed
 
 - **Synchronous COM refresh follow-up stability** (#544): `powerquery update` still used a standalone synchronous refresh path while related Data Model and DAX-backed table refresh operations continued to rely on callback-sensitive COM patterns. Fixed by routing `powerquery update` through the shared COM-safe refresh helper, replacing `EnterLongOperation()` in Data Model refresh with pending-cancellation handling, and wrapping DAX table refresh calls with the same `OleMessageFilter.SetPendingCancellationToken(...)` pattern. Added both Core and MCP regression coverage for `powerquery update`, and the full Power Query feature slice now passes locally.
