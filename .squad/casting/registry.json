@@ -1,0 +1,52 @@
+{
+  "agents": {
+    "mccauley": {
+      "created_at": "2026-03-15T10:42:22.596Z",
+      "persistent_name": "McCauley",
+      "universe": "Heat",
+      "status": "active"
+    },
+    "hanna": {
+      "created_at": "2026-03-15T10:59:49.044Z",
+      "persistent_name": "Hanna",
+      "universe": "Heat",
+      "status": "active"
+    },
+    "shiherlis": {
+      "created_at": "2026-03-15T10:42:22.596Z",
+      "persistent_name": "Shiherlis",
+      "universe": "Heat",
+      "status": "active"
+    },
+    "cheritto": {
+      "created_at": "2026-03-15T10:42:22.596Z",
+      "persistent_name": "Cheritto",
+      "universe": "Heat",
+      "status": "active"
+    },
+    "nate": {
+      "created_at": "2026-03-15T10:42:22.596Z",
+      "persistent_name": "Nate",
+      "universe": "Heat",
+      "status": "active"
+    },
+    "trejo": {
+      "created_at": "2026-03-15T10:42:22.596Z",
+      "persistent_name": "Trejo",
+      "universe": "Heat",
+      "status": "active"
+    },
+    "scribe": {
+      "created_at": "2026-03-15T10:42:22.596Z",
+      "persistent_name": "Scribe",
+      "universe": "Heat",
+      "status": "active"
+    },
+    "ralph": {
+      "created_at": "2026-03-15T10:42:22.596Z",
+      "persistent_name": "Ralph",
+      "universe": "Heat",
+      "status": "active"
+    }
+  }
+}
