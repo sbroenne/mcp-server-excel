@@ -38,9 +38,12 @@ public class McpToolGenerator : IIncrementalGenerator
 
     /// <summary>
     /// Discovers [ServiceCategory] interfaces from referenced assemblies and extracts ServiceInfo.
+    /// Skips generation for any tool name that already has a manual [McpServerTool] implementation
+    /// in the current compilation, preventing duplicate tool registration.
     /// </summary>
     private static List<ServiceInfo> DiscoverServices(Compilation compilation)
     {
+        var manualToolNames = DiscoverManualToolNames(compilation);
         var result = new List<ServiceInfo>();
 
         foreach (var reference in compilation.References)
@@ -54,8 +57,43 @@ public class McpToolGenerator : IIncrementalGenerator
                     continue;
 
                 var info = ServiceInfoExtractor.ExtractServiceInfo(type);
-                if (info != null && info.HasMcpToolAttribute)
+                if (info != null && info.HasMcpToolAttribute && !manualToolNames.Contains(info.McpToolName))
                     result.Add(info);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Discovers tool names that are manually defined in the current compilation via
+    /// [McpServerTool(Name = "...")] attributes on methods. Used to avoid generating
+    /// tools that would conflict with manual implementations.
+    /// </summary>
+    private static HashSet<string> DiscoverManualToolNames(Compilation compilation)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var type in GetAllTypes(compilation.Assembly.GlobalNamespace))
+        {
+            foreach (var member in type.GetMembers())
+            {
+                if (member is not IMethodSymbol method)
+                    continue;
+
+                foreach (var attr in method.GetAttributes())
+                {
+                    if (attr.AttributeClass?.Name != "McpServerToolAttribute")
+                        continue;
+
+                    foreach (var namedArg in attr.NamedArguments)
+                    {
+                        if (namedArg.Key == "Name" && namedArg.Value.Value is string name)
+                        {
+                            result.Add(name);
+                        }
+                    }
+                }
             }
         }
 

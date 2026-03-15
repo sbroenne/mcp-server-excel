@@ -1,0 +1,23 @@
+{
+  "assignment_cast_snapshots": {
+    "repl-cast-2026-03-15T10:42:22.596Z": {
+      "created_at": "2026-03-15T10:42:22.596Z",
+      "agents": [
+        "mccauley",
+        "shiherlis",
+        "cheritto",
+        "nate",
+        "trejo",
+        "scribe",
+        "ralph"
+      ],
+      "universe": "Heat"
+    }
+  },
+  "universe_usage_history": [
+    {
+      "universe": "Heat",
+      "used_at": "2026-03-15T10:42:22.596Z"
+    }
+  ]
+}
