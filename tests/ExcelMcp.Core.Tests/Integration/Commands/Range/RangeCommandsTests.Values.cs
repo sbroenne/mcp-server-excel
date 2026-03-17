@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Range;
@@ -202,6 +203,72 @@ public partial class RangeCommandsTests
         Assert.Equal(1.0, Convert.ToDouble(readResult.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
         Assert.Equal(8.0, Convert.ToDouble(readResult.Values[0][7], System.Globalization.CultureInfo.InvariantCulture));
         Assert.Equal(16.0, Convert.ToDouble(readResult.Values[0][15], System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
+    public void SetValues_AfterSheetCreate_ToNonA1Range_RoundTripsAndLeavesA1Empty()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+
+        var sheetCommands = new SheetCommands();
+        var sheetName = $"Bug2_{Guid.NewGuid():N}"[..31];
+        var values = new List<List<object?>>
+        {
+            new() { "R1C1", "R1C2", "R1C3", "R1C4", "R1C5", "R1C6", "R1C7" },
+            new() { "R2C1", "R2C2", "R2C3", "R2C4", "R2C5", "R2C6", "R2C7" },
+            new() { "R3C1", "R3C2", "R3C3", "R3C4", "R3C5", "R3C6", "R3C7" },
+            new() { "R4C1", "R4C2", "R4C3", "R4C4", "R4C5", "R4C6", "R4C7" },
+            new() { "R5C1", "R5C2", "R5C3", "R5C4", "R5C5", "R5C6", "R5C7" },
+            new() { "R6C1", "R6C2", "R6C3", "R6C4", "R6C5", "R6C6", "R6C7" },
+            new() { "R7C1", "R7C2", "R7C3", "R7C4", "R7C5", "R7C6", "R7C7" },
+            new() { "R8C1", "R8C2", "R8C3", "R8C4", "R8C5", "R8C6", "R8C7" }
+        };
+
+        sheetCommands.Create(batch, sheetName);
+
+        var writeResult = _commands.SetValues(batch, sheetName, "A3:G10", values);
+
+        Assert.True(writeResult.Success, $"SetValues failed: {writeResult.ErrorMessage}");
+
+        var readResult = _commands.GetValues(batch, sheetName, "A3:G10");
+        Assert.True(readResult.Success, $"GetValues failed: {readResult.ErrorMessage}");
+        Assert.Equal(8, readResult.RowCount);
+        Assert.Equal(7, readResult.ColumnCount);
+
+        for (int rowIndex = 0; rowIndex < values.Count; rowIndex++)
+        {
+            for (int columnIndex = 0; columnIndex < values[rowIndex].Count; columnIndex++)
+            {
+                Assert.Equal(values[rowIndex][columnIndex], readResult.Values[rowIndex][columnIndex]);
+            }
+        }
+
+        var a1Result = _commands.GetValues(batch, sheetName, "A1");
+        Assert.True(a1Result.Success, $"GetValues A1 failed: {a1Result.ErrorMessage}");
+        Assert.True(a1Result.Values[0][0] == null || a1Result.Values[0][0]?.ToString() == string.Empty);
+    }
+
+    [Fact]
+    public void SetValues_JaggedWideRange_ThrowsDescriptiveValidationError()
+    {
+        // Regression test for Bug 1 root cause hypothesis:
+        // wide writes only fail when later rows are shorter than the first row.
+
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        var jaggedValues = new List<List<object?>>
+        {
+            new object?[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 }.ToList(),
+            new object?[] { 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27 }.ToList()
+        };
+
+        var exception = Assert.Throws<ArgumentException>(
+            () => _commands.SetValues(batch, sheetName, "A1:N2", jaggedValues));
+
+        Assert.Contains("row 2", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("column count (13)", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("range column count (14)", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
 }

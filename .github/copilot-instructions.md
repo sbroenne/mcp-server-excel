@@ -48,6 +48,8 @@
 ```powershell
 # ⚠️ CRITICAL: Integration tests take 45+ MINUTES for full suite
 # ALWAYS use surgical testing - test only what you changed!
+# ALWAYS run tests with an explicit timeout in the terminal/tooling layer.
+# Never leave test runs open-ended; fail fast if Excel or COM automation stalls.
 
 # Fast feedback (excludes VBA) - Still takes 10-15 minutes
 dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
@@ -133,6 +135,8 @@ public void TestMethod()
 **PR Review:** Check automated comments immediately (Copilot, GitHub Security). Fix before human review.
 
 **Surgical Testing:** Integration tests take 45+ minutes. ALWAYS test only the feature you changed using `--filter "Feature=<name>"`.
+
+**Test Timeouts:** ALWAYS set an explicit timeout when running tests from terminal or agent tooling so hung Excel/COM runs fail fast instead of blocking the session.
 
 **MCP Parameter Naming:** NEVER use underscores in C# Core interface parameter names. The `McpToolGenerator` calls `StringHelper.ToSnakeCase()` on the C# parameter name to produce the MCP snake_case parameter automatically. Use camelCase in C# that produces the desired snake_case output: `rangeAddress` → `range_address`, `sourceRangeAddress` → `source_range_address`. If the C# name can't produce the desired MCP name via ToSnakeCase, use `[FromString("desiredName")]` attribute instead of underscores in C# names.
 

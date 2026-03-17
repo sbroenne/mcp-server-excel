@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using System.Runtime.InteropServices;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
@@ -10,6 +11,28 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public partial class RangeCommands
 {
     private static readonly int[] BorderEdges = [7, 8, 9, 10];
+
+    private readonly record struct RangeFormatRequest(
+        string? FontName,
+        double? FontSize,
+        bool? Bold,
+        bool? Italic,
+        bool? Underline,
+        int? FontColor,
+        int? FillColor,
+        int? BorderStyle,
+        int? BorderColor,
+        int? BorderWeight,
+        int? HorizontalAlignment,
+        int? VerticalAlignment,
+        bool? WrapText,
+        int? Orientation,
+        string? NumberFormat)
+    {
+        public bool HasFontFormatting => FontName != null || FontSize != null || Bold != null || Italic != null || Underline != null || FontColor != null;
+
+        public bool HasBorderFormatting => BorderStyle != null || BorderColor != null || BorderWeight != null;
+    }
 
     /// <inheritdoc />
     public OperationResult SetStyle(
@@ -25,15 +48,11 @@ public partial class RangeCommands
 
             try
             {
-                // Get sheet
                 sheet = string.IsNullOrEmpty(sheetName)
                     ? ctx.Book.ActiveSheet
                     : ctx.Book.Worksheets[sheetName];
 
-                // Get range
                 range = sheet.Range[rangeAddress];
-
-                // Apply built-in style
                 range.Style = styleName;
 
                 return new OperationResult
@@ -61,55 +80,54 @@ public partial class RangeCommands
         {
             dynamic? sheet = null;
             dynamic? range = null;
+            dynamic? styles = null;
+            dynamic? style = null;
 
             try
             {
-                // Get sheet
                 sheet = string.IsNullOrEmpty(sheetName)
                     ? ctx.Book.ActiveSheet
                     : ctx.Book.Worksheets[sheetName];
 
-                // Get range
                 range = sheet.Range[rangeAddress];
 
-                // Get style name from the first cell in the range
                 string styleName;
                 try
                 {
                     styleName = ComUtilities.SafeGetString(range.Style, "Name");
                     if (string.IsNullOrEmpty(styleName))
+                    {
                         styleName = "Normal";
+                    }
                 }
-                catch (System.Runtime.InteropServices.COMException)
+                catch (COMException)
                 {
                     styleName = "Normal";
                 }
 
-                // Try to determine if it's a built-in style
-                bool isBuiltIn = false;
+                var isBuiltIn = false;
                 string? styleDescription = null;
 
                 try
                 {
-                    dynamic styles = ctx.Book.Styles;
-                    dynamic style = styles.Item(styleName);
+                    styles = ctx.Book.Styles;
+                    style = styles.Item(styleName);
                     isBuiltIn = true;
 
-                    // Try to get additional information about the style
                     try
                     {
                         styleDescription = ComUtilities.SafeGetString(style, "NameLocal");
                         if (string.IsNullOrEmpty(styleDescription))
+                        {
                             styleDescription = null;
+                        }
                     }
-                    catch (System.Runtime.InteropServices.COMException)
+                    catch (COMException)
                     {
-                        // Style description is optional
                     }
                 }
-                catch (System.Runtime.InteropServices.COMException)
+                catch (COMException)
                 {
-                    // If we can't find it in the Styles collection, it might be a custom style
                     isBuiltIn = false;
                 }
 
@@ -126,6 +144,8 @@ public partial class RangeCommands
             }
             finally
             {
+                ComUtilities.Release(ref style!);
+                ComUtilities.Release(ref styles!);
                 ComUtilities.Release(ref range!);
                 ComUtilities.Release(ref sheet!);
             }
@@ -156,103 +176,285 @@ public partial class RangeCommands
         {
             dynamic? sheet = null;
             dynamic? range = null;
-            dynamic? font = null;
-            dynamic? interior = null;
-            dynamic? borders = null;
 
             try
             {
-                // Get sheet
+                var formatRequest = CreateFormatRequest(
+                    fontName,
+                    fontSize,
+                    bold,
+                    italic,
+                    underline,
+                    fontColor,
+                    fillColor,
+                    borderStyle,
+                    borderColor,
+                    borderWeight,
+                    horizontalAlignment,
+                    verticalAlignment,
+                    wrapText,
+                    orientation);
+
                 sheet = string.IsNullOrEmpty(sheetName)
                     ? ctx.Book.ActiveSheet
                     : ctx.Book.Worksheets[sheetName];
 
-                // Get range
                 range = sheet.Range[rangeAddress];
+                ApplyFormattingToRange(range, formatRequest);
 
-                // Apply font formatting
-                if (fontName != null || fontSize != null || bold != null || italic != null || underline != null || fontColor != null)
+                return new OperationResult
                 {
-                    font = range.Font;
-                    if (fontName != null) font.Name = fontName;
-                    if (fontSize != null) font.Size = fontSize.Value;
-                    if (bold != null) font.Bold = bold.Value;
-                    if (italic != null) font.Italic = italic.Value;
-                    if (underline != null) font.Underline = underline.Value ? 2 : -4142; // xlUnderlineStyleSingle : xlUnderlineStyleNone
-                    if (fontColor != null) font.Color = FormattingHelpers.ParseColor(fontColor);
-                }
-
-                // Apply fill color
-                if (fillColor != null)
-                {
-                    interior = range.Interior;
-                    interior.Color = FormattingHelpers.ParseColor(fillColor);
-                }
-
-                // Apply borders
-                if (borderStyle != null || borderColor != null || borderWeight != null)
-                {
-                    // Apply to all edges (7 = xlEdgeLeft, 8 = xlEdgeTop, 9 = xlEdgeBottom, 10 = xlEdgeRight)
-                    foreach (var edge in BorderEdges)
-                    {
-                        dynamic? border = null;
-                        try
-                        {
-                            border = range.Borders.Item(edge);
-                            if (borderStyle != null) border.LineStyle = FormattingHelpers.ParseBorderStyle(borderStyle);
-                            if (borderColor != null) border.Color = FormattingHelpers.ParseColor(borderColor);
-                            if (borderWeight != null) border.Weight = ParseBorderWeight(borderWeight);
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref border!);
-                        }
-                    }
-                }
-
-                // Apply alignment
-                if (horizontalAlignment != null)
-                {
-                    range.HorizontalAlignment = ParseHorizontalAlignment(horizontalAlignment);
-                }
-                if (verticalAlignment != null)
-                {
-                    range.VerticalAlignment = ParseVerticalAlignment(verticalAlignment);
-                }
-
-                // Apply text wrapping
-                if (wrapText != null)
-                {
-                    range.WrapText = wrapText.Value;
-                }
-
-                // Apply orientation
-                if (orientation != null)
-                {
-                    range.Orientation = orientation.Value;
-                }
-
-                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+                    Success = true,
+                    FilePath = batch.WorkbookPath,
+                    Action = "format-range"
+                };
             }
             finally
             {
-                ComUtilities.Release(ref borders!);
-                ComUtilities.Release(ref interior!);
-                ComUtilities.Release(ref font!);
                 ComUtilities.Release(ref range!);
                 ComUtilities.Release(ref sheet!);
             }
         });
     }
 
+    /// <inheritdoc />
+    public OperationResult FormatRanges(
+        IExcelBatch batch,
+        string sheetName,
+        string[] rangeAddresses,
+        string? fontName,
+        double? fontSize,
+        bool? bold,
+        bool? italic,
+        bool? underline,
+        string? fontColor,
+        string? fillColor,
+        string? borderStyle,
+        string? borderColor,
+        string? borderWeight,
+        string? horizontalAlignment,
+        string? verticalAlignment,
+        bool? wrapText,
+        int? orientation,
+        string? numberFormat = null)
+    {
+        return batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+
+            try
+            {
+                ValidateRangeAddresses(rangeAddresses);
+
+                var formatRequest = CreateFormatRequest(
+                    fontName,
+                    fontSize,
+                    bold,
+                    italic,
+                    underline,
+                    fontColor,
+                    fillColor,
+                    borderStyle,
+                    borderColor,
+                    borderWeight,
+                    horizontalAlignment,
+                    verticalAlignment,
+                    wrapText,
+                    orientation,
+                    numberFormat);
+
+                sheet = string.IsNullOrEmpty(sheetName)
+                    ? ctx.Book.ActiveSheet
+                    : ctx.Book.Worksheets[sheetName];
+
+                ValidateTargetRanges(sheet, rangeAddresses, nameof(rangeAddresses));
+
+                foreach (var rangeAddress in rangeAddresses)
+                {
+                    dynamic? range = null;
+
+                    try
+                    {
+                        range = sheet.Range[rangeAddress];
+                        ApplyFormattingToRange(range, formatRequest);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref range!);
+                    }
+                }
+
+                return new OperationResult
+                {
+                    Success = true,
+                    FilePath = batch.WorkbookPath,
+                    Action = "format-ranges"
+                };
+            }
+            finally
+            {
+                ComUtilities.Release(ref sheet!);
+            }
+        });
+    }
+
+    private static RangeFormatRequest CreateFormatRequest(
+        string? fontName,
+        double? fontSize,
+        bool? bold,
+        bool? italic,
+        bool? underline,
+        string? fontColor,
+        string? fillColor,
+        string? borderStyle,
+        string? borderColor,
+        string? borderWeight,
+        string? horizontalAlignment,
+        string? verticalAlignment,
+        bool? wrapText,
+        int? orientation,
+        string? numberFormat = null)
+    {
+        return new RangeFormatRequest(
+            fontName,
+            fontSize,
+            bold,
+            italic,
+            underline,
+            fontColor is null ? null : FormattingHelpers.ParseColor(fontColor),
+            fillColor is null ? null : FormattingHelpers.ParseColor(fillColor),
+            borderStyle is null ? null : FormattingHelpers.ParseBorderStyle(borderStyle),
+            borderColor is null ? null : FormattingHelpers.ParseColor(borderColor),
+            borderWeight is null ? null : ParseBorderWeight(borderWeight),
+            horizontalAlignment is null ? null : ParseHorizontalAlignment(horizontalAlignment),
+            verticalAlignment is null ? null : ParseVerticalAlignment(verticalAlignment),
+            wrapText,
+            orientation,
+            numberFormat);
+    }
+
+    private static void ApplyFormattingToRange(dynamic range, RangeFormatRequest formatRequest)
+    {
+        dynamic? font = null;
+        dynamic? interior = null;
+
+        try
+        {
+            if (formatRequest.HasFontFormatting)
+            {
+                font = range.Font;
+                if (formatRequest.FontName != null) font.Name = formatRequest.FontName;
+                if (formatRequest.FontSize != null) font.Size = formatRequest.FontSize.Value;
+                if (formatRequest.Bold != null) font.Bold = formatRequest.Bold.Value;
+                if (formatRequest.Italic != null) font.Italic = formatRequest.Italic.Value;
+                if (formatRequest.Underline != null) font.Underline = formatRequest.Underline.Value ? 2 : -4142;
+                if (formatRequest.FontColor != null) font.Color = formatRequest.FontColor.Value;
+            }
+
+            if (formatRequest.FillColor != null)
+            {
+                interior = range.Interior;
+                interior.Color = formatRequest.FillColor.Value;
+            }
+
+            if (formatRequest.HasBorderFormatting)
+            {
+                foreach (var edge in BorderEdges)
+                {
+                    dynamic? border = null;
+
+                    try
+                    {
+                        border = range.Borders.Item(edge);
+                        if (formatRequest.BorderStyle != null) border.LineStyle = formatRequest.BorderStyle.Value;
+                        if (formatRequest.BorderColor != null) border.Color = formatRequest.BorderColor.Value;
+                        if (formatRequest.BorderWeight != null) border.Weight = formatRequest.BorderWeight.Value;
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref border!);
+                    }
+                }
+            }
+
+            if (formatRequest.HorizontalAlignment != null)
+            {
+                range.HorizontalAlignment = formatRequest.HorizontalAlignment.Value;
+            }
+
+            if (formatRequest.VerticalAlignment != null)
+            {
+                range.VerticalAlignment = formatRequest.VerticalAlignment.Value;
+            }
+
+            if (formatRequest.WrapText != null)
+            {
+                range.WrapText = formatRequest.WrapText.Value;
+            }
+
+            if (formatRequest.Orientation != null)
+            {
+                range.Orientation = formatRequest.Orientation.Value;
+            }
+
+            if (formatRequest.NumberFormat != null)
+            {
+                range.NumberFormat = formatRequest.NumberFormat;
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref interior!);
+            ComUtilities.Release(ref font!);
+        }
+    }
+
+    private static void ValidateRangeAddresses(string[] rangeAddresses)
+    {
+        if (rangeAddresses == null || rangeAddresses.Length == 0)
+        {
+            throw new ArgumentException("At least one range address is required.", nameof(rangeAddresses));
+        }
+
+        for (var index = 0; index < rangeAddresses.Length; index++)
+        {
+            if (string.IsNullOrWhiteSpace(rangeAddresses[index]))
+            {
+                throw new ArgumentException($"Range address at index {index} cannot be null, empty, or whitespace.", nameof(rangeAddresses));
+            }
+        }
+    }
+
+    private static void ValidateTargetRanges(dynamic sheet, IReadOnlyList<string> rangeAddresses, string parameterName)
+    {
+        for (var index = 0; index < rangeAddresses.Count; index++)
+        {
+            dynamic? range = null;
+
+            try
+            {
+                range = sheet.Range[rangeAddresses[index]];
+                _ = range.Address;
+            }
+            catch (COMException ex)
+            {
+                throw new ArgumentException($"Invalid range address at index {index}: '{rangeAddresses[index]}'", parameterName, ex);
+            }
+            finally
+            {
+                ComUtilities.Release(ref range!);
+            }
+        }
+    }
+
     private static int ParseBorderWeight(string weight)
     {
         return weight.ToLowerInvariant() switch
         {
-            "hairline" => 1, // xlHairline
-            "thin" => 2, // xlThin
-            "medium" => -4138, // xlMedium
-            "thick" => 4, // xlThick
+            "hairline" => 1,
+            "thin" => 2,
+            "medium" => -4138,
+            "thick" => 4,
             _ => throw new ArgumentException($"Invalid border weight: {weight}")
         };
     }
@@ -261,11 +463,11 @@ public partial class RangeCommands
     {
         return alignment.ToLowerInvariant() switch
         {
-            "left" => -4131, // xlLeft
-            "center" => -4108, // xlCenter
-            "right" => -4152, // xlRight
-            "justify" => -4130, // xlJustify
-            "distributed" => -4117, // xlDistributed
+            "left" => -4131,
+            "center" => -4108,
+            "right" => -4152,
+            "justify" => -4130,
+            "distributed" => -4117,
             _ => throw new ArgumentException($"Invalid horizontal alignment: {alignment}")
         };
     }
@@ -274,12 +476,12 @@ public partial class RangeCommands
     {
         return alignment.ToLowerInvariant() switch
         {
-            "top" => -4160, // xlTop
-            "center" => -4108, // xlCenter
-            "middle" => -4108, // xlCenter (common alias)
-            "bottom" => -4107, // xlBottom
-            "justify" => -4130, // xlJustify
-            "distributed" => -4117, // xlDistributed
+            "top" => -4160,
+            "center" => -4108,
+            "middle" => -4108,
+            "bottom" => -4107,
+            "justify" => -4130,
+            "distributed" => -4117,
             _ => throw new ArgumentException($"Invalid vertical alignment: {alignment}")
         };
     }

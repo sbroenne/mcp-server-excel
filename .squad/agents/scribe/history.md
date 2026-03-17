@@ -9,3 +9,4 @@
 ## Learnings
 
 <!-- Append learnings below -->
+- 2026-03-16: Bug triage for `excel-mcp-bug-report.md` resolved into one canonical squad direction: Bugs 1 and 2 are regression-first defect candidates, Bug 4 is the current enhancement candidate, and Bugs 3 and 5 stay in docs/discoverability scope unless a later API review justifies aliases.

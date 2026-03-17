@@ -41,6 +41,24 @@ range_format(action: 'format-range', rangeAddress: 'A1:D1',
 
 Apply each formatting operation **once**. If a subsequent step explicitly changes a property (e.g., "now make the title red"), apply it again — otherwise don't.
 
+If the same formatting applies to multiple disjoint ranges, do not repeat `format-range` for each target:
+
+```
+WRONG: Repeating the same shared formatting payload
+
+range_format(action: 'format-range', rangeAddress: 'A1:D1', bold: true, fillColor: '#4472C4', fontColor: '#FFFFFF')
+range_format(action: 'format-range', rangeAddress: 'A12:D12', bold: true, fillColor: '#4472C4', fontColor: '#FFFFFF')
+range_format(action: 'format-range', rangeAddress: 'A24:D24', bold: true, fillColor: '#4472C4', fontColor: '#FFFFFF')
+```
+
+```
+CORRECT: One shared multi-range formatting call
+
+range_format(action: 'format-ranges',
+    rangeAddresses: ['A1:D1', 'A12:D12', 'A24:D24'],
+    bold: true, fillColor: '#4472C4', fontColor: '#FFFFFF')
+```
+
 ### When Multiple Calls ARE Appropriate
 
 - Applying different formatting to different ranges

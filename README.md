@@ -18,7 +18,7 @@
 
 **Automate Excel with AI - A Model Context Protocol (MCP) server for comprehensive Excel automation through conversational AI.**
 
-**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (25 tools with 225 operations).
+**MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (25 tools with 230 operations).
 
 **🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
 
@@ -33,15 +33,15 @@
 
 ## 🎯 What You Can Do
 
-**25 specialized tools with 225 operations:**
+**25 specialized tools with 230 operations:**
 
-- 🔄 **Power Query** (1 tool, 11 ops) - Atomic workflows, M code management, load destinations
-- 📊 **Data Model/DAX** (2 tools, 18 ops) - Measures with auto-formatted DAX, relationships, model structure
+- 🔄 **Power Query** (1 tool, 12 ops) - Atomic workflows, M code management, load destinations
+- 📊 **Data Model/DAX** (2 tools, 19 ops) - Measures with auto-formatted DAX, relationships, model structure
 - 🎨 **Excel Tables** (2 tools, 27 ops) - Lifecycle, filtering, sorting, structured references
 - 📈 **PivotTables** (3 tools, 30 ops) - Creation, fields, aggregations, calculated members/fields
-- 📉 **Charts** (2 tools, 26 ops) - Create, configure, series, formatting, data labels, trendlines
+- 📉 **Charts** (2 tools, 29 ops) - Create, configure, series, formatting, data labels, trendlines
 - 📝 **VBA** (1 tool, 6 ops) - Modules, execution, version control
-- 📋 **Ranges** (4 tools, 42 ops) - Values, formulas, formatting, validation, protection
+- 📋 **Ranges** (4 tools, 46 ops) - Values, formulas, formatting, validation, protection
 - 📄 **Worksheets** (2 tools, 16 ops) - Lifecycle, colors, visibility, cross-workbook moves
 - 🔌 **Connections** (1 tool, 9 ops) - OLEDB/ODBC management and refresh
 - 🏷️ **Named Ranges** (1 tool, 6 ops) - Parameters and configuration
@@ -52,7 +52,7 @@
 - 📸 **Screenshot** (1 tool, 2 ops) - Capture ranges/sheets as PNG for LLM visual verification
 - 🪧 **Window Management** (1 tool, 9 ops) - Show/hide Excel, arrange, position, status bar feedback
 
-📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 225 operations
+📚 **[Complete Feature Reference →](FEATURES.md)** - Detailed documentation of all 230 operations
 
 
 ## 💬 Example Prompts
@@ -72,6 +72,9 @@
 - *"Format the Price column as currency and highlight values over $500 in green"*
 - *"Convert this range to an Excel Table with a blue style and add a totals row"*
 - *"Make the headers bold with a dark background and auto-fit column widths"*
+- *"Apply the same section-header styling to A1:G1, A12:G12, and A24:G24 in one step"*
+
+Formatting split: number display formats use the `range` tool, while visual styling and auto-fit use `range_format`.
 
 **Automation:**
 - *"Export all Power Query M code to files for version control"*

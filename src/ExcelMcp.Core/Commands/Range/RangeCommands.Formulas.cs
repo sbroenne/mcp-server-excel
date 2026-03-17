@@ -184,6 +184,8 @@ public partial class RangeCommands
                 int rows = resolvedFormulas.Count;
                 int cols = resolvedFormulas.Count > 0 ? resolvedFormulas[0].Count : 0;
 
+                ValidateRectangularRowWidths(resolvedFormulas, Convert.ToInt32(range.Columns.Count), nameof(formulas), "Formula");
+
                 if (rows > 0 && cols > 0)
                 {
                     // Create 1-based array for Excel COM compatibility

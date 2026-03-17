@@ -13,7 +13,7 @@ Excel MCP Server lets you automate Excel through conversation with Claude:
 - **Automate** - VBA macros, batch operations, data refresh
 - **Agent Mode** - Say "show me Excel" and watch AI work in real-time, side-by-side with Claude
 
-**25 tools with 225 operations** for comprehensive Excel automation.
+**25 tools with 230 operations** for comprehensive Excel automation.
 
 ## Requirements
 

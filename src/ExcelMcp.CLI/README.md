@@ -8,7 +8,7 @@
 
 > **Published as its own .NET tool** - Install `Sbroenne.ExcelMcp.CLI` to get the `excelcli` command. Install `Sbroenne.ExcelMcp.McpServer` separately when you also need the MCP server (`mcp-excel`).
 
-The CLI provides 17 command categories with 225 operations matching the MCP Server. Uses **64% fewer tokens** than MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 25 tool schemas into context.
+The CLI provides 17 command categories with 230 operations matching the MCP Server. Uses **64% fewer tokens** than MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 25 tool schemas into context.
 
 | Interface | Best For | Why |
 |-----------|----------|-----|
@@ -101,7 +101,7 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **225 operations** across 17 command categories:
+ExcelMcp.CLI provides **230 operations** across 17 command categories:
 
 📚 **[Complete Feature Reference →](../../FEATURES.md)** - Full documentation with all operations
 
@@ -112,7 +112,7 @@ ExcelMcp.CLI provides **225 operations** across 17 command categories:
 | **File & Session** | 6 | `session create`, `session open` (IRM/AIP auto-detected), `session close`, `session list` |
 | **Worksheets** | 16 | `sheet list`, `sheet create`, `sheet rename`, `sheet copy`, `sheet move`, `sheet copy-to-file` |
 | **Power Query** | 10 | `powerquery list`, `powerquery create`, `powerquery refresh`, `powerquery update` |
-| **Ranges** | 42 | `range get-values`, `range set-values`, `range copy`, `range find`, `range merge-cells` |
+| **Ranges** | 46 | `range get-values`, `range set-values`, `range copy`, `range find`, `range merge-cells` |
 | **Conditional Formatting** | 2 | `conditionalformat add-rule`, `conditionalformat clear-rules` |
 | **Excel Tables** | 27 | `table create`, `table apply-filter`, `table get-data`, `table sort`, `table add-column` |
 | **Charts** | 14 | `chart create-from-range`, `chart list`, `chart delete`, `chart move`, `chart fit-to-range` |

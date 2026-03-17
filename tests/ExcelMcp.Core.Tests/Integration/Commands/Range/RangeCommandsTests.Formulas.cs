@@ -536,6 +536,26 @@ public partial class RangeCommandsTests
         Assert.Equal(32.0, Convert.ToDouble(readResult.Values[0][15], System.Globalization.CultureInfo.InvariantCulture));
     }
 
+    [Fact]
+    public void SetFormulas_JaggedWideRange_ThrowsDescriptiveValidationError()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        var jaggedFormulas = new List<List<string>>
+        {
+            new() { "=1", "=2", "=3", "=4", "=5", "=6", "=7", "=8", "=9", "=10", "=11", "=12", "=13", "=14" },
+            new() { "=15", "=16", "=17", "=18", "=19", "=20", "=21", "=22", "=23", "=24", "=25", "=26", "=27" }
+        };
+
+        var exception = Assert.Throws<ArgumentException>(
+            () => _commands.SetFormulas(batch, sheetName, "A1:N2", jaggedFormulas));
+
+        Assert.Contains("row 2", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("column count (13)", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("range column count (14)", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     // === FORMULA2 REGRESSION TESTS (implicit intersection @ operator) ===
 
     [Fact]

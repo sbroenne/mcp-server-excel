@@ -16,6 +16,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// Required whenever you need a fill colour or custom branding.
 /// Pass ALL desired properties in a SINGLE call — do not call format-range multiple times for the same range.
 ///
+/// format-ranges: Apply one shared formatting payload to multiple ranges on the same worksheet.
+/// Prefer this over repeated format-range calls when the same styling applies to multiple non-contiguous targets.
+/// All target ranges are validated before formatting begins. If any target range is invalid, nothing is formatted.
+///
 /// COLORS: Hex '#RRGGBB' (e.g., '#FF0000' for red, '#00FF00' for green)
 /// FONT: size in points (e.g., 12, 14, 16), alignment: 'left', 'center', 'right' / 'top', 'middle', 'bottom'
 ///
@@ -32,6 +36,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
         "set-style: Named styles (Good/Bad/Neutral have fills and are theme-aware; Heading 1/2/3 for document hierarchy; Normal to reset). " +
         "NOTE: Heading styles do NOT include a fill colour — use format-range for coloured header rows. " +
         "format-range: Custom formatting (bold, fillColor, fontColor, alignment, borders) — pass ALL properties IN ONE CALL, do not call multiple times for same range. " +
+        "format-ranges: Apply one shared formatting payload to multiple ranges on the same worksheet. Validate all target ranges first; if any target is invalid, nothing is formatted. " +
         "COLORS: Hex #RRGGBB. FONT: size in points, alignment left/center/right, top/middle/bottom. " +
         "DATA VALIDATION: Types list/whole/decimal/date/time/textLength/custom. For list: formula1 is source (=$A$1:$A$10 or \"A,B,C\"). " +
         "MERGE: Only top-left cell value preserved. " +
@@ -106,6 +111,49 @@ public interface IRangeFormatCommands
         string? verticalAlignment,
         bool? wrapText,
         int? orientation);
+
+    /// <summary>
+    /// Applies one shared custom visual formatting payload to multiple ranges on the same sheet.
+    /// Validates every target range before applying any formatting so invalid input fails fast without partially formatting earlier targets.
+    /// Reuses the same property set and formatting behavior as format-range.
+    /// </summary>
+    /// <param name="sheetName">Name of the worksheet containing the target ranges</param>
+    /// <param name="rangeAddresses">Cell range addresses to format (e.g., 'A1:D1', 'A3:D3')</param>
+    /// <param name="fontName">Font family name (e.g., 'Arial', 'Calibri', 'Times New Roman')</param>
+    /// <param name="fontSize">Font size in points (e.g., 10, 11, 12, 14, 16)</param>
+    /// <param name="bold">Whether to apply bold formatting</param>
+    /// <param name="italic">Whether to apply italic formatting</param>
+    /// <param name="underline">Whether to apply underline formatting</param>
+    /// <param name="fontColor">Font (foreground) color as hex '#RRGGBB' (e.g., '#FF0000' for red)</param>
+    /// <param name="fillColor">Cell fill (background) color as hex '#RRGGBB' (e.g., '#FFFF00' for yellow)</param>
+    /// <param name="borderStyle">Border line style: 'continuous', 'dash', 'dot', 'dashdot', 'dashdotdot', 'double', 'slantdashdot', 'none'</param>
+    /// <param name="borderColor">Border color as hex '#RRGGBB'</param>
+    /// <param name="borderWeight">Border weight: 'hairline', 'thin', 'medium', 'thick'</param>
+    /// <param name="horizontalAlignment">Horizontal text alignment: 'left', 'center', 'right', 'justify', 'fill'</param>
+    /// <param name="verticalAlignment">Vertical text alignment: 'top', 'center' (or 'middle'), 'bottom', 'justify'</param>
+    /// <param name="wrapText">Whether to wrap text within cells</param>
+    /// <param name="orientation">Text rotation in degrees (-90 to 90, or 255 for vertical)</param>
+    /// <param name="numberFormat">Excel number format code applied to all target ranges (e.g., '0.00%' for percentage, '$#,##0.00' for currency, 'm/d/yyyy' for date). LLMs know Excel format codes natively.</param>
+    [ServiceAction("format-ranges")]
+    OperationResult FormatRanges(
+        IExcelBatch batch,
+        string sheetName,
+        [RequiredParameter] string[] rangeAddresses,
+        string? fontName,
+        double? fontSize,
+        bool? bold,
+        bool? italic,
+        bool? underline,
+        string? fontColor,
+        string? fillColor,
+        string? borderStyle,
+        string? borderColor,
+        string? borderWeight,
+        string? horizontalAlignment,
+        string? verticalAlignment,
+        bool? wrapText,
+        int? orientation,
+        string? numberFormat = null);
 
     // === VALIDATION OPERATIONS ===
 
