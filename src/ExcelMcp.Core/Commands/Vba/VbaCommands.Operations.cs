@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -29,17 +32,53 @@ public partial class VbaCommands
         {
             try
             {
+                // Use late-bound COM dispatch (IDispatch) to avoid loading
+                // Microsoft.Vbe.Interop.dll, which is not available on Office 365
+                // Click-to-Run installations. This mirrors the late-binding approach
+                // used by all other VBA operations (List, View, Import, Update, Delete)
+                // that access ctx.Book.VBProject via ((dynamic)ctx.Book).
                 if (parameters.Length == 0)
                 {
-                    ctx.App.Run(procedureName);
+                    ((dynamic)ctx.App).Run(procedureName);
                 }
                 else
                 {
-                    object[] paramObjects = parameters.Cast<object>().ToArray();
-                    ctx.App.Run(procedureName, paramObjects);
+                    // Application.Run(MacroName, Arg1, ..., Arg30): build the full
+                    // argument array and dispatch via InvokeMember so a variable-length
+                    // parameter list is handled correctly.  This also fixes the previous
+                    // implementation that incorrectly passed the parameter array as a
+                    // single second argument instead of spreading individual parameters.
+                    object[] runArgs = new object[parameters.Length + 1];
+                    runArgs[0] = procedureName;
+                    for (int i = 0; i < parameters.Length; i++)
+                    {
+                        runArgs[i + 1] = parameters[i];
+                    }
+
+                    ctx.App.GetType().InvokeMember(
+                        "Run",
+                        BindingFlags.InvokeMethod,
+                        null,
+                        ctx.App,
+                        runArgs,
+                        CultureInfo.InvariantCulture);
                 }
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+            }
+            catch (TargetInvocationException tie)
+                when (tie.InnerException is COMException comEx &&
+                      (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
+                       comEx.ErrorCode == unchecked((int)0x800A03EC)))
+            {
+                throw new InvalidOperationException(VbaTrustErrorMessage, tie.InnerException);
+            }
+            catch (TargetInvocationException tie) when (tie.InnerException != null)
+            {
+                // Re-throw the original COM exception from InvokeMember, preserving
+                // the original stack trace and exception type.
+                ExceptionDispatchInfo.Capture(tie.InnerException).Throw();
+                throw; // unreachable - satisfies the compiler
             }
             catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
                                              comEx.ErrorCode == unchecked((int)0x800A03EC))
