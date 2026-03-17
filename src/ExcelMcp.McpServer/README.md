@@ -55,15 +55,15 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 ## 🛠️ What You Can Do
 
-**25 specialized tools with 225 operations:**
+**25 specialized tools with 230 operations:**
 
-- 🔄 **Power Query** (1 tool, 11 ops) - Atomic workflows, M code management, load destinations
-- 📊 **Data Model/DAX** (2 tools, 18 ops) - Measures, relationships, model structure
+- 🔄 **Power Query** (1 tool, 12 ops) - Atomic workflows, M code management, load destinations
+- 📊 **Data Model/DAX** (2 tools, 19 ops) - Measures, relationships, model structure
 - 🎨 **Excel Tables** (2 tools, 27 ops) - Lifecycle, filtering, sorting, structured references
 - 📈 **PivotTables** (3 tools, 30 ops) - Creation, fields, aggregations, calculated members/fields
-- 📉 **Charts** (2 tools, 26 ops) - Create, configure, series, formatting, data labels, trendlines
+- 📉 **Charts** (2 tools, 29 ops) - Create, configure, series, formatting, data labels, trendlines
 - 📝 **VBA** (1 tool, 6 ops) - Modules, execution, version control
-- 📋 **Ranges** (4 tools, 42 ops) - Values, formulas, formatting, validation, protection
+- 📋 **Ranges** (4 tools, 46 ops) - Values, formulas, formatting, validation, protection
 - 📄 **Worksheets** (2 tools, 16 ops) - Lifecycle, colors, visibility, cross-workbook moves
 - 🔌 **Connections** (1 tool, 9 ops) - OLEDB/ODBC management and refresh
 - 🏷️ **Named Ranges** (1 tool, 6 ops) - Parameters and configuration
@@ -74,7 +74,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 - 📸 **Screenshot** (1 tool, 2 ops) - Capture ranges/sheets as PNG for visual verification
 - 🪧 **Window Management** (1 tool, 9 ops) - Show/hide Excel, arrange, position, status bar feedback
 
-📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 225 operations
+📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 230 operations
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot, Claude, or ChatGPT

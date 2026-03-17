@@ -18,6 +18,7 @@ This specification consolidates and extends formatting and data validation acros
 - **Fonts** - Family, size, bold, italic, color, underline, strikethrough
 - **Cell appearance** - Background colors, borders, patterns
 - **Alignment** - Horizontal, vertical, text wrapping, indentation, rotation
+- **Shared multi-range formatting** - Apply one formatting payload to multiple disjoint ranges in one call
 - **Common use:** Headers, highlighting, color-coding, readability improvements
 
 ### **Data Validation** - Data Integrity
@@ -34,6 +35,40 @@ When users ask you to "format the sales report" or "add dropdowns for status," y
 2. Apply visual styling (colors, fonts, borders) for readability
 3. Ensure data quality with validation rules
 4. Build user-friendly data entry interfaces
+
+### **Shared Multi-Range Visual Formatting**
+- `range_format(action: 'format-ranges')` applies one shared visual formatting payload to multiple same-sheet ranges.
+- Use it when the same header, section, or callout styling repeats across non-contiguous areas.
+- Failure model: validate all formatting parameters and all target ranges before formatting begins. If any target range is invalid, nothing is formatted.
+
+```json
+{
+  "tool": "range_format",
+  "action": "format-ranges",
+  "sheetName": "Report",
+  "rangeAddresses": ["A1:G1", "A12:G12", "A24:G24"],
+  "bold": true,
+  "fillColor": "#243F60",
+  "fontColor": "#FFFFFF",
+  "horizontalAlignment": "center"
+}
+```
+
+---
+
+## Status Note
+
+As of 2026-03-17, the shipped formatting and validation surface is broader than this document's original proposal and is the authoritative baseline for Bug 4 review.
+
+Use the current public tool surface and action names below when describing product capability:
+
+- `range`: `get-number-formats`, `set-number-format`, `set-number-formats`
+- `range_format`: `get-style`, `set-style`, `format-range`, `format-ranges`, `validate-range`, `get-validation`, `remove-validation`, `auto-fit-columns`, `auto-fit-rows`, `merge-cells`, `unmerge-cells`, `get-merge-info`, `set-column-width`, `set-row-height`
+- `range_link`: `set-cell-lock`, `get-cell-lock`
+- `conditionalformat`: `add-rule`, `clear-rules`
+- `table`: table styles plus column number formatting remain part of the shipped formatting story
+
+Sections later in this document that describe "proposed" interfaces are retained as historical design context. They are not the authoritative source for current MCP or CLI action names.
 
 ---
 
@@ -69,40 +104,42 @@ When users ask you to "format the sales report" or "add dropdowns for status," y
 - ✅ Style management (SetStyleAsync - 28 built-in styles)
 - ✅ Data analysis (refresh, filter, sort)
 
-### ❌ **What's MISSING Today**
+**Range Formatting (`range` + `range_format` + `range_link` - Implemented):**
+- ✅ Range number formatting: get, set uniform, set per-cell
+- ✅ Built-in cell styles: get and set
+- ✅ Custom visual formatting on a single range via `format-range`
+- ✅ Shared visual formatting across multiple same-sheet ranges via `format-ranges`
+- ✅ Data validation via `validate-range`, `get-validation`, `remove-validation`
+- ✅ Merge management: merge, unmerge, get merge info
+- ✅ Auto-fit columns and rows
+- ✅ Explicit column width and row height sizing
+- ✅ Cell lock state management via `range_link`
 
-**Number Formatting:**
-- ❌ Get number formats from ranges
-- ❌ Set number formats (uniform or cell-by-cell)
-- ❌ Common format presets (currency, percentage, date patterns)
-- ❌ Table column number formatting
+**Related Formatting Surfaces (Implemented):**
+- ✅ Conditional formatting rules via `conditionalformat`
+- ✅ Table styles and table column number formatting
 
-**Visual Formatting:**
-- ❌ Font properties (name, size, bold, italic, color, underline, strikethrough)
-- ❌ Cell background colors
-- ❌ Borders (styles, weights, colors)
-- ❌ Alignment (horizontal, vertical, wrap, indent, rotation)
-- ❌ Row height / column width
-- ❌ Auto-fit columns/rows
+### ⚠️ **Remaining Gaps / Follow-Up Candidates**
 
-**Data Validation:**
-- ❌ Add validation rules to ranges
-- ❌ Get validation settings from cells
-- ❌ Remove validation
-- ❌ All validation types (list, whole, decimal, date, time, text-length, custom)
-- ❌ Error alerts and input messages
-- ❌ Table column validation
+**Readback Depth:**
+- ⚠️ Current readback is targeted, not exhaustive: `get-style`, `get-validation`, `get-merge-info`, and number format reads exist, but there are no separate public read APIs for every font, fill, border, alignment, or size property.
 
-**Advanced:**
-- ❌ Conditional formatting
-- ❌ Cell merge/unmerge
-- ❌ Cell locking for protection
+**Multi-Range Formatting Scope:**
+- ⚠️ `format-ranges` applies one shared formatting payload to multiple ranges. Per-range overrides within a single call are not part of the current public surface.
+
+**Table Validation Convenience:**
+- ⚠️ Validation is currently exposed on ranges, not as separate table-column validation actions in the public tool surface.
+
+**Conditional Formatting Scope:**
+- ⚠️ Conditional formatting is available, but the current public surface is intentionally focused on rule creation and clearing rather than a broader management API.
 
 **Note:** PivotTable formatting (field formats, layouts, styles) is **fully implemented** and functional.
 
 ---
 
-## Target Architecture
+## Historical Design Context
+
+The sections below capture the original expansion plan that predated the current shipped `range`, `range_format`, `range_link`, and `conditionalformat` surfaces. Keep them as background material only. For current capability and action naming, use the status note and current state section above.
 
 ### Design Principles
 
@@ -133,7 +170,9 @@ Formatting & Validation Commands:
 
 ---
 
-## Proposed API Design
+## Historical Proposed API Design
+
+The API sketches below reflect an earlier design direction and do not match today's public action names one-to-one.
 
 ### 1. Range Number Formatting
 

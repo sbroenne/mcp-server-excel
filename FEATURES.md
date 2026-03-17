@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**25 specialized tools with 225 operations for comprehensive Excel automation**
+**25 specialized tools with 230 operations for comprehensive Excel automation**
 
 ---
 
@@ -218,7 +218,9 @@
 
 ---
 
-## 📋 Ranges (42 operations)
+## 📋 Ranges (46 operations)
+
+Formatting split: use `range` for number display formats such as dates, currency, percentages, and text display. Use `range_format` for visual styling, validation, auto-fit, and size/layout changes.
 
 **Data Operations:**
 - Get values
@@ -252,22 +254,23 @@
 - List hyperlinks
 - Get specific hyperlink
 
-**Number Formatting:**
+**Number Formatting (`range`):**
 - Get number formats (as 2D array)
 - Set number format (uniform)
 - Set number formats (individual)
 
-**Visual Formatting:**
+**Visual Formatting (`range_format`):**
 - Get style
 - Set style (built-in Excel styles)
 - Format range (font, color, borders, alignment, orientation)
+- Format multiple ranges with one shared formatting payload
 
-**Data Validation:**
+**Data Validation (`range_format`):**
 - Add validation rules (dropdowns, number/date/text rules)
 - Get validation info
 - Remove validation
 
-**Merge Operations:**
+**Merge Operations (`range_format`):**
 - Merge cells
 - Unmerge cells
 - Get merge info
@@ -276,7 +279,7 @@
 - Set cell lock status
 - Get cell lock status
 
-**Auto-Sizing:**
+**Auto-Sizing (`range_format`):**
 - Auto-fit columns
 - Auto-fit rows
 
@@ -438,8 +441,8 @@
 | Data Model/DAX | 19 |
 | Excel Tables | 27 |
 | PivotTables | 30 |
-| Charts | 28 |
-| Ranges | 42 |
+| Charts | 29 |
+| Ranges | 46 |
 | Worksheets | 16 |
 | Connections | 9 |
 | Named Ranges | 6 |
@@ -449,7 +452,7 @@
 | Screenshot | 2 |
 | Calculation Mode | 3 |
 | Window Management | 9 |
-| **Total** | **225** |
+| **Total** | **230** |
 
 ---
 
@@ -491,7 +494,7 @@
 | Visualize data | `chart` |
 | Update parameters | `namedrange` (write operation) |
 | Manage formulas | `range` (set-formulas) |
-| Format data | `range` (format-range, validate-range) |
+| Format data | `range` / `range_format` (`format-range`, `format-ranges`, `validate-range`) |
 | Script automation | `vba` (run macro) |
 
 ---
