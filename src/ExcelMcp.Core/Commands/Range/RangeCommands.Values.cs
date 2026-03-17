@@ -133,6 +133,8 @@ public partial class RangeCommands
                 int rows = resolvedValues.Count;
                 int cols = resolvedValues.Count > 0 ? resolvedValues[0].Count : 0;
 
+                ValidateRectangularRowWidths(resolvedValues, Convert.ToInt32(range.Columns.Count), nameof(values), "Value");
+
                 if (rows > 0 && cols > 0)
                 {
                     // Create 1-based array for Excel COM compatibility
@@ -209,6 +211,22 @@ public partial class RangeCommands
         }
 
         return hasFormulas;
+    }
+
+    /// <summary>
+    /// Validates that every row in a 2D payload matches the target range width before COM indexing.
+    /// </summary>
+    private static void ValidateRectangularRowWidths<T>(List<List<T>> rows, int expectedColumnCount, string parameterName, string itemType)
+    {
+        for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+        {
+            if (rows[rowIndex].Count != expectedColumnCount)
+            {
+                throw new ArgumentException(
+                    $"{itemType} array row {rowIndex + 1} column count ({rows[rowIndex].Count}) doesn't match range column count ({expectedColumnCount})",
+                    parameterName);
+            }
+        }
     }
 }
 

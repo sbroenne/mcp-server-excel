@@ -49,6 +49,7 @@ public interface IRangeCommands
     /// Provide EITHER values (inline JSON 2D array) OR valuesFile (path to .json or .csv file), not both.
     /// JSON file: must contain a 2D array like [[1,2],[3,4]].
     /// CSV file: rows become array rows, comma-separated values become columns.
+    /// Every row must be rectangular and match the target range column count.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range - REQUIRED for cell addresses, use empty string for named ranges only</param>
@@ -73,6 +74,7 @@ public interface IRangeCommands
     /// <summary>
     /// Sets formulas in a range from 2D array or file.
     /// Provide EITHER formulas (inline JSON 2D array) OR formulasFile (path to .json file), not both.
+    /// Every row must be rectangular and match the target range column count.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
