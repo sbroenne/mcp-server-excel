@@ -121,7 +121,15 @@ $sheets = Test-Step "List worksheets" {
 
 Write-Host "  Sheets: $(($sheets.worksheets | Measure-Object).Count)" -ForegroundColor Gray
 
-# 4. Delete worksheet
+# 4. Format ranges (multi-value --range-addresses exercises string[] CLI option)
+Test-Step "Format ranges on 'Data' (multi-value addresses)" {
+    & $cli -q rangeformat format-ranges --session $sessionId --sheet-name Data --range-addresses "A1:A2" --range-addresses "C1:C2" --bold true --fill-color "#FFFF00" | ConvertFrom-Json
+} -Verify {
+    param($r)
+    $r.success -eq $true
+}
+
+# 5. Delete worksheet
 Test-Step "Delete worksheet 'Data'" {
     & $cli -q sheet delete --session $sessionId --sheet-name Data | ConvertFrom-Json
 } -Verify {
@@ -129,7 +137,7 @@ Test-Step "Delete worksheet 'Data'" {
     $r.success -eq $true
 }
 
-# 5. Close session (with save)
+# 6. Close session (with save)
 Test-Step "Close session (with save)" {
     & $cli -q session close --session $sessionId --save | ConvertFrom-Json
 } -Verify {

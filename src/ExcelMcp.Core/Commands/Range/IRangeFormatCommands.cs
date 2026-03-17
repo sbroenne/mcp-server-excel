@@ -133,6 +133,7 @@ public interface IRangeFormatCommands
     /// <param name="verticalAlignment">Vertical text alignment: 'top', 'center' (or 'middle'), 'bottom', 'justify'</param>
     /// <param name="wrapText">Whether to wrap text within cells</param>
     /// <param name="orientation">Text rotation in degrees (-90 to 90, or 255 for vertical)</param>
+    /// <param name="numberFormat">Excel number format code applied to all target ranges (e.g., '0.00%' for percentage, '$#,##0.00' for currency, 'm/d/yyyy' for date). LLMs know Excel format codes natively.</param>
     [ServiceAction("format-ranges")]
     OperationResult FormatRanges(
         IExcelBatch batch,
@@ -151,7 +152,8 @@ public interface IRangeFormatCommands
         string? horizontalAlignment,
         string? verticalAlignment,
         bool? wrapText,
-        int? orientation);
+        int? orientation,
+        string? numberFormat = null);
 
     // === VALIDATION OPERATIONS ===
 

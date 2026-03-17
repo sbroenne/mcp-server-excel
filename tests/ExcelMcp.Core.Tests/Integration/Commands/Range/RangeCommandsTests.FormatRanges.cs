@@ -47,6 +47,49 @@ public partial class RangeCommandsTests
     }
 
     [Fact]
+    public void FormatRanges_WithNumberFormat_AppliesFormatCodeToAllTargetRanges()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+        var method = GetFormatRangesMethod();
+
+        var result = InvokeFormatRanges(
+            method,
+            batch,
+            sheetName,
+            ["A1:A2", "C1:C2"],
+            numberFormat: "0.00%");
+
+        Assert.True(result.Success, $"FormatRanges failed: {result.ErrorMessage}");
+
+        Assert.Equal("0.00%", ReadCellNumberFormat(batch, sheetName, "A1"));
+        Assert.Equal("0.00%", ReadCellNumberFormat(batch, sheetName, "A2"));
+        Assert.Equal("0.00%", ReadCellNumberFormat(batch, sheetName, "C1"));
+        Assert.Equal("0.00%", ReadCellNumberFormat(batch, sheetName, "C2"));
+        // Untouched cells must keep their original format
+        Assert.NotEqual("0.00%", ReadCellNumberFormat(batch, sheetName, "B1"));
+    }
+
+    [Fact]
+    public void FormatRanges_InvalidTargetAddress_ErrorMessageIncludesIndex()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+        var method = GetFormatRangesMethod();
+
+        // "NotARange" is at index 1 (the second item)
+        var ex = Assert.Throws<ArgumentException>(() => InvokeFormatRanges(
+            method,
+            batch,
+            sheetName,
+            ["A1:A2", "NotARange"],
+            bold: true));
+
+        // Error message must include the array index so the caller can identify which entry is bad
+        Assert.Contains("1", ex.Message);
+    }
+
+    [Fact]
     public void FormatRanges_InvalidTargetAddress_FailsFast_AndDoesNotPartiallyApplyEarlierRanges()
     {
         using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
@@ -90,7 +133,8 @@ public partial class RangeCommandsTests
             typeof(string),
             typeof(string),
             typeof(bool?),
-            typeof(int?)
+            typeof(int?),
+            typeof(string)  // numberFormat
         };
 
         var expectedParameters = new (string Name, Type Type)[]
@@ -111,7 +155,8 @@ public partial class RangeCommandsTests
             ("horizontalAlignment", typeof(string)),
             ("verticalAlignment", typeof(string)),
             ("wrapText", typeof(bool?)),
-            ("orientation", typeof(int?))
+            ("orientation", typeof(int?)),
+            ("numberFormat", typeof(string))  // Bug 3 closure: apply number format atomically
         };
 
         var interfaceMethod = typeof(IRangeFormatCommands).GetMethod("FormatRanges", parameterTypes);
@@ -151,7 +196,8 @@ public partial class RangeCommandsTests
         string? horizontalAlignment = null,
         string? verticalAlignment = null,
         bool? wrapText = null,
-        int? orientation = null)
+        int? orientation = null,
+        string? numberFormat = null)
     {
         try
         {
@@ -172,7 +218,8 @@ public partial class RangeCommandsTests
                 horizontalAlignment,
                 verticalAlignment,
                 wrapText,
-                orientation
+                orientation,
+                numberFormat
             ]));
         }
         catch (TargetInvocationException ex) when (ex.InnerException is not null)
@@ -207,6 +254,27 @@ public partial class RangeCommandsTests
             {
                 ComUtilities.Release(ref interior!);
                 ComUtilities.Release(ref font!);
+                ComUtilities.Release(ref range!);
+                ComUtilities.Release(ref sheet!);
+            }
+        });
+    }
+
+    private static string ReadCellNumberFormat(IExcelBatch batch, string sheetName, string cellAddress)
+    {
+        return batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            dynamic? range = null;
+
+            try
+            {
+                sheet = ctx.Book.Worksheets[sheetName];
+                range = sheet.Range[cellAddress];
+                return (string)(range.NumberFormat ?? "General");
+            }
+            finally
+            {
                 ComUtilities.Release(ref range!);
                 ComUtilities.Release(ref sheet!);
             }

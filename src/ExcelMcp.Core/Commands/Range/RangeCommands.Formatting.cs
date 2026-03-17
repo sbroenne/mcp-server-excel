@@ -26,7 +26,8 @@ public partial class RangeCommands
         int? HorizontalAlignment,
         int? VerticalAlignment,
         bool? WrapText,
-        int? Orientation)
+        int? Orientation,
+        string? NumberFormat)
     {
         public bool HasFontFormatting => FontName != null || FontSize != null || Bold != null || Italic != null || Underline != null || FontColor != null;
 
@@ -234,7 +235,8 @@ public partial class RangeCommands
         string? horizontalAlignment,
         string? verticalAlignment,
         bool? wrapText,
-        int? orientation)
+        int? orientation,
+        string? numberFormat = null)
     {
         return batch.Execute((ctx, ct) =>
         {
@@ -258,7 +260,8 @@ public partial class RangeCommands
                     horizontalAlignment,
                     verticalAlignment,
                     wrapText,
-                    orientation);
+                    orientation,
+                    numberFormat);
 
                 sheet = string.IsNullOrEmpty(sheetName)
                     ? ctx.Book.ActiveSheet
@@ -309,7 +312,8 @@ public partial class RangeCommands
         string? horizontalAlignment,
         string? verticalAlignment,
         bool? wrapText,
-        int? orientation)
+        int? orientation,
+        string? numberFormat = null)
     {
         return new RangeFormatRequest(
             fontName,
@@ -325,7 +329,8 @@ public partial class RangeCommands
             horizontalAlignment is null ? null : ParseHorizontalAlignment(horizontalAlignment),
             verticalAlignment is null ? null : ParseVerticalAlignment(verticalAlignment),
             wrapText,
-            orientation);
+            orientation,
+            numberFormat);
     }
 
     private static void ApplyFormattingToRange(dynamic range, RangeFormatRequest formatRequest)
@@ -391,6 +396,11 @@ public partial class RangeCommands
             {
                 range.Orientation = formatRequest.Orientation.Value;
             }
+
+            if (formatRequest.NumberFormat != null)
+            {
+                range.NumberFormat = formatRequest.NumberFormat;
+            }
         }
         finally
         {
@@ -415,20 +425,20 @@ public partial class RangeCommands
         }
     }
 
-    private static void ValidateTargetRanges(dynamic sheet, IEnumerable<string> rangeAddresses, string parameterName)
+    private static void ValidateTargetRanges(dynamic sheet, IReadOnlyList<string> rangeAddresses, string parameterName)
     {
-        foreach (var rangeAddress in rangeAddresses)
+        for (var index = 0; index < rangeAddresses.Count; index++)
         {
             dynamic? range = null;
 
             try
             {
-                range = sheet.Range[rangeAddress];
+                range = sheet.Range[rangeAddresses[index]];
                 _ = range.Address;
             }
             catch (COMException ex)
             {
-                throw new ArgumentException($"Invalid range address: {rangeAddress}", parameterName, ex);
+                throw new ArgumentException($"Invalid range address at index {index}: '{rangeAddresses[index]}'", parameterName, ex);
             }
             finally
             {
