@@ -35,7 +35,7 @@
     <ToolCommandName>mcp-excel</ToolCommandName>
 
     <!-- Multi-Architecture Support: NuGet tool publishes as portable (no RID).
-         Standalone exe builds in CI use different publish args (--runtime win-x64 --self-contained true) -->
+         Standalone exe builds in CI use separate publish args: -r win-x64 -p:SelfContained=true -->
     <PublishSelfContained>false</PublishSelfContained>
     <PublishTrimmed>false</PublishTrimmed>
     <!-- RuntimeIdentifier removed for portable NuGet deployment -->
