@@ -13,7 +13,7 @@ description: >
 
 - Windows host with Microsoft Excel installed (2016+)
 - Uses COM interop — does NOT work on macOS or Linux
-- Install: `dotnet tool install --global Sbroenne.ExcelMcp.CLI`
+- Install: Download `excelcli.exe` from https://github.com/sbroenne/mcp-server-excel/releases/latest and add to PATH
 
 ## Workflow Checklist
 

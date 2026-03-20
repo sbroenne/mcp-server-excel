@@ -7,6 +7,11 @@ This directory contains ready-to-use MCP configuration files for various AI codi
 ### 1. Install ExcelMcp MCP Server
 
 ```powershell
+# Primary: Download standalone exe (no .NET runtime required)
+Download ExcelMcp-MCP-Server-{version}-windows.zip from https://github.com/sbroenne/mcp-server-excel/releases/latest
+Extract mcp-excel.exe to a permanent location and add to PATH
+
+# Secondary: Install via .NET tool (requires .NET 10 runtime)
 dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 ```
 
@@ -147,8 +152,10 @@ Create an Excel file called "test.xlsx"
 
 3. **Reinstall if needed:**
    ```powershell
+   # Via NuGet:
    dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
    dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+   # Or for standalone exe: replace the exe file in your installation directory
    ```
 
 ### Excel Not Found

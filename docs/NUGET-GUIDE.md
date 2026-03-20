@@ -2,6 +2,8 @@
 
 Complete guide for publishing and managing all ExcelMcp NuGet packages using OIDC Trusted Publishing.
 
+> **Distribution Channels:** NuGet is the **secondary** distribution channel. The **primary** channel is standalone self-contained executables distributed via GitHub Releases — no .NET runtime required. See [INSTALLATION.md](INSTALLATION.md) for the recommended installation methods.
+
 ## Table of Contents
 
 - [Published Packages](#published-packages)
@@ -146,12 +148,12 @@ For **each package**, configure a trusted publisher:
 #### MCP Server
 
 1. Go to: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer/manage
-2. Same steps, use workflow: `release-mcp-server.yml`
+2. Same steps, use workflow: `release.yml`
 
 #### CLI Tool
 
 1. Go to: https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI/manage
-2. Same steps, use workflow: `release-cli.yml`
+2. Same steps, use workflow: `release.yml`
 
 ### Step 4: Verify Configuration
 
@@ -166,41 +168,21 @@ After configuration:
 
 ## Release Process
 
-### Publishing Order (Important!)
+### Publishing Order
 
-**Core, MCP Server, and CLI are typically released together** since MCP Server and CLI are wrappers around Core.
+**MCP Server and CLI are released together** via the unified release workflow (`release.yml`). Core and ComInterop are internal dependencies not separately published to NuGet.
 
 ```
-1. ComInterop (if updated - foundation layer)
-   ↓ Wait 5-10 minutes for NuGet indexing
-   
-2. Core (if updated)
-   ↓ Wait 5-10 minutes for NuGet indexing
-   
-3. MCP Server + CLI (released together with same version as Core)
+MCP Server + CLI (released together via release.yml workflow_dispatch)
 ```
 
 ### Standard Release Commands
 
 ```powershell
-# 1. Ensure main branch is up to date
-git checkout main
-git pull
-
-# 2. Release ComInterop (if updated)
-git tag cominterop-v1.1.0
-git push origin cominterop-v1.1.0
-# Wait 5-10 minutes for NuGet indexing
-
-# 3. Release Core (if updated)
-git tag core-v1.1.0
-git push origin core-v1.1.0
-# Wait 5-10 minutes for NuGet indexing
-
-# 4. Release MCP Server and CLI together (aligned versions)
-git tag mcp-v1.1.0
-git push origin mcp-v1.1.0
-
+# Use the unified release workflow via GitHub Actions UI:
+# Actions → Release All Components → Run workflow
+# Select version bump type (patch/minor/major) or enter custom version
+```
 git tag cli-v1.1.0
 git push origin cli-v1.1.0
 

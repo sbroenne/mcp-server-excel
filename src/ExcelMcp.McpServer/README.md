@@ -3,8 +3,9 @@
 <!-- mcp-name: io.github.sbroenne/mcp-server-excel -->
 mcp-name: io.github.sbroenne/mcp-server-excel
 
+[![GitHub Release](https://img.shields.io/github/v/release/sbroenne/mcp-server-excel)](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+[![GitHub Downloads](https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total?label=Downloads)](https://github.com/sbroenne/mcp-server-excel/releases)
 [![NuGet](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
-[![NuGet Downloads](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue.svg)](https://github.com/sbroenne/mcp-server-excel)
 
 **Control Excel with Natural Language** through AI assistants like GitHub Copilot, Claude, and ChatGPT. This MCP server enables AI-powered Excel automation for Power Query, DAX measures, VBA macros, PivotTables, Charts, and more.
@@ -17,7 +18,7 @@ Unlike third-party libraries that manipulate `.xlsx` files (risking corruption),
 
 **🔗 Unified Service Architecture** - The MCP Server forwards all requests to the shared ExcelMCP Service, enabling CLI and MCP to share sessions transparently.
 
-**CLI also available:** The MCP Server tool (`mcp-excel`) and CLI tool (`excelcli`) are published as separate .NET tools. Install `Sbroenne.ExcelMcp.McpServer` for MCP clients, and optionally install `Sbroenne.ExcelMcp.CLI` for scripting/RPA workflows.
+**CLI also available:** `mcp-excel.exe` (MCP Server) and `excelcli.exe` (CLI) are distributed as standalone self-contained executables — no .NET runtime required.
 
 **Requirements:** Windows OS + Excel 2016+
 
@@ -26,19 +27,26 @@ Unlike third-party libraries that manipulate `.xlsx` files (risking corruption),
 **Quick Setup Options:**
 
 1. **VS Code Extension** - [One-click install](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) for GitHub Copilot
-2. **Manual Install** - Works with Claude Desktop, Cursor, Cline, Windsurf, and other MCP clients
+2. **Standalone exe** - Works with Claude Desktop, Cursor, Cline, Windsurf, and other MCP clients
 3. **MCP Registry** - Find us at [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/servers/io.github.sbroenne/mcp-server-excel)
 
 **Manual Installation (All MCP Clients):**
 
-Requires .NET 10 Runtime or SDK
+**Primary — Standalone exe (no .NET runtime required):**
 
 ```powershell
-# Install MCP Server tool
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+# Download from latest release:
+# https://github.com/sbroenne/mcp-server-excel/releases/latest
+# ExcelMcp-MCP-Server-{version}-windows.zip → extract mcp-excel.exe
 
-# Optional: install CLI tool separately
-dotnet tool install --global Sbroenne.ExcelMcp.CLI
+# Add to PATH, then configure your MCP client:
+# { "command": "mcp-excel" }
+```
+
+**Secondary — .NET Global Tool (requires .NET 10 runtime):**
+
+```powershell
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 ```
 
 **Supported AI Assistants:**

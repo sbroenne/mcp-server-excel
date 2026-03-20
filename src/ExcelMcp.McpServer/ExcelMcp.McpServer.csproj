@@ -19,7 +19,7 @@
 
     <!-- Version inherited from Directory.Build.props; overridden by CI via -p:Version -->
 
-    <!-- NuGet MCP Server Configuration -->
+    <!-- NuGet Package Configuration (secondary distribution — primary is standalone exe) -->
     <PackageId>Sbroenne.ExcelMcp.McpServer</PackageId>
     <!-- Note: McpServer type is added via _AddMcpServerPackageType target below
          because .NET 8 SDK unconditionally sets PackageType=DotnetTool when PackAsTool=true -->
@@ -34,10 +34,11 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>mcp-excel</ToolCommandName>
 
-    <!-- Multi-Architecture Support for Windows x64 and ARM64 -->
+    <!-- Multi-Architecture Support: NuGet tool publishes as portable (no RID).
+         Standalone exe builds in CI use separate publish args: -r win-x64 -p:SelfContained=true -->
     <PublishSelfContained>false</PublishSelfContained>
     <PublishTrimmed>false</PublishTrimmed>
-    <!-- RuntimeIdentifier removed for portable deployment -->
+    <!-- RuntimeIdentifier removed for portable NuGet deployment -->
 
     <!-- Package Validation -->
     <EnablePackageValidation>true</EnablePackageValidation>
@@ -47,9 +48,9 @@
     <AppInsightsConnectionString Condition="'$(AppInsightsConnectionString)' == ''">$(APPINSIGHTS_CONNECTION_STRING)</AppInsightsConnectionString>
   </PropertyGroup>
 
-  <!-- Workaround for .NET 8 SDK unconditionally setting PackageType=DotnetTool when PackAsTool=true.
-       This target runs before Pack and appends McpServer to the package type.
-       In .NET 10+, just setting <PackageType>McpServer</PackageType> would work. -->
+  <!-- Workaround: .NET SDK unconditionally sets PackageType=DotnetTool when PackAsTool=true,
+       preventing us from also setting McpServer type. This target appends McpServer before Pack.
+       Note: <PackageType>McpServer</PackageType> alone cannot be set because PackAsTool overrides it. -->
   <Target Name="_AddMcpServerPackageType" BeforeTargets="GenerateNuspec;Pack">
     <PropertyGroup>
       <PackageType>$(PackageType);McpServer</PackageType>

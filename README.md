@@ -2,14 +2,10 @@
 
 [![VS Code Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/sbroenne.excel-mcp?label=VS%20Code%20Installs)](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)
 [![Downloads](https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total?label=GitHub%20Downloads)](https://github.com/sbroenne/mcp-server-excel/releases)
-[![NuGet Downloads - MCP Server](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg?label=NuGet%20MCP%20Server)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
-[![NuGet Downloads - CLI](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.CLI.svg?label=NuGet%20CLI)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
 
 [![Build MCP Server](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-mcp-server.yml/badge.svg)](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-mcp-server.yml)
 [![Build CLI](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-cli.yml/badge.svg)](https://github.com/sbroenne/mcp-server-excel/actions/workflows/build-cli.yml)
 [![Release](https://img.shields.io/github/v/release/sbroenne/mcp-server-excel)](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-[![NuGet MCP Server](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.McpServer.svg?label=MCP%20Server)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
-[![NuGet CLI](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.CLI.svg?label=CLI)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-10-blue.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
@@ -106,7 +102,7 @@ Formatting split: number display formats use the `range` tool, while visual styl
 |----------|-------------|
 | **VS Code** | [Install Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) (one-click, recommended) |
 | **Claude Desktop** | Download `.mcpb` from [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest) |
-| **Any MCP Client** | `dotnet tool install --global Sbroenne.ExcelMcp.McpServer` then `npx add-mcp "mcp-excel" --name excel-mcp` |
+| **Any MCP Client** | Download `mcp-excel.exe` from [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest) and add to PATH |
 | **Details** | 📖 [Installation Guide](docs/INSTALLATION.md) |
 
 **⚠️ Important:** Close all Excel files before using. The server requires exclusive access to workbooks during automation.
@@ -136,11 +132,16 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 
 **Manual Installation:**
 ```powershell
-# Step 1: Install MCP Server and CLI
+# Primary: Download standalone executables from latest release (no .NET runtime required)
+# https://github.com/sbroenne/mcp-server-excel/releases/latest
+# - ExcelMcp-MCP-Server-{version}-windows.zip → extract mcp-excel.exe
+# - ExcelMcp-CLI-{version}-windows.zip → extract excelcli.exe (optional, for scripting)
+
+# Secondary: Install via .NET tool (requires .NET 10 runtime)
 dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
-# Step 2: Auto-configure all your coding agents (requires Node.js)
+# After installing either way, auto-configure all your coding agents:
 npx add-mcp "mcp-excel" --name excel-mcp
 ```
 

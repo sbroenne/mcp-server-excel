@@ -6,13 +6,13 @@ This document outlines the unified release process for all ExcelMcp components.
 
 All ExcelMcp components are released together with a single version tag:
 
-| Component | Distribution | Description |
-|-----------|--------------|-------------|
-| **MCP Server** | NuGet (unified) + ZIP | Model Context Protocol server + CLI (single NuGet package) |
-| **CLI** | Bundled in MCP Server | Command-line interface for scripting (no longer a separate NuGet) |
-| **VS Code Extension** | VSIX + Marketplace | Self-contained — bundles MCP Server + CLI + agent skills (no .NET required) |
-| **MCPB** | Claude Desktop bundle | Self-contained one-click installation for Claude Desktop |
-| **Agent Skills** | ZIP | Reusable skill packages for AI coding assistants |
+| Component | Primary Distribution | Secondary Distribution | Description |
+|-----------|---------------------|----------------------|-------------|
+| **MCP Server** | Standalone exe ZIP | NuGet (.NET tool) | `mcp-excel.exe` — no .NET runtime required |
+| **CLI** | Standalone exe ZIP | NuGet (.NET tool) | `excelcli.exe` — no .NET runtime required |
+| **VS Code Extension** | VSIX + Marketplace | — | Self-contained — bundles MCP Server + CLI + skills |
+| **MCPB** | Claude Desktop bundle | — | Self-contained one-click installation |
+| **Agent Skills** | ZIP | npm | Reusable skill packages for AI coding assistants |
 
 ## Unified Release Workflow
 
@@ -23,25 +23,26 @@ All ExcelMcp components are released together with a single version tag:
 
 When you run the release workflow:
 
-1. **CLI** → Built as dependency (artifact shared with MCP Server job)
-2. **MCP Server** → Unified NuGet (`Sbroenne.ExcelMcp.McpServer` — includes CLI) + ZIP
+1. **CLI** → Standalone self-contained exe (`excelcli.exe`) + ZIP [primary] + NuGet pack [secondary]
+2. **MCP Server** → Standalone self-contained exe (`mcp-excel.exe`) + ZIP [primary] + NuGet pack [secondary]
 3. **VS Code Extension** → Self-contained VSIX (bundles both exes + skills) → VS Code Marketplace
 4. **MCPB** → Claude Desktop bundle (`.mcpb` file)
 5. **Agent Skills** → ZIP package for AI coding assistants
-6. **MCP Registry** → Updated after NuGet propagation
-7. **GitHub Release** → Created with all artifacts + auto-PR to update CHANGELOG
+6. **NuGet** → Both packages published to NuGet.org (secondary channel)
+7. **MCP Registry** → Updated after NuGet propagation
+8. **GitHub Release** → Created with all artifacts + auto-PR to update CHANGELOG
 
 ### Release Artifacts
 
 | Artifact | Format | Distribution |
 |----------|--------|--------------|
-| `ExcelMcp-MCP-Server-{version}-windows.zip` | ZIP | GitHub Release |
+| `ExcelMcp-MCP-Server-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `mcp-excel.exe`) |
+| `ExcelMcp-CLI-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `excelcli.exe`) |
 | `excelmcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace (~68-70 MB, self-contained) |
 | `excel-mcp-{version}.mcpb` | MCPB | GitHub Release |
 | `excel-skills-v{version}.zip` | ZIP | GitHub Release |
-| `Sbroenne.ExcelMcp.McpServer.{version}.nupkg` | NuGet | NuGet.org (unified — includes CLI) |
-
-> **Note:** Separate CLI ZIP and CLI NuGet package are no longer produced. The CLI is bundled in the unified MCP Server NuGet package and in the VS Code extension.
+| `Sbroenne.ExcelMcp.McpServer.{version}.nupkg` | NuGet | NuGet.org (secondary — requires .NET 10 runtime) |
+| `Sbroenne.ExcelMcp.CLI.{version}.nupkg` | NuGet | NuGet.org (secondary — requires .NET 10 runtime) |
 
 ## Release Process
 
@@ -78,36 +79,32 @@ Before creating a release tag, ensure all changes are documented under `## [Unre
 
 The workflow will:
 1. Calculate the next version from the latest git tag
-2. Build all components with the new version
+2. Build all components (standalone exes + NuGet packages)
 3. Create and push the git tag (`v1.5.7`)
-4. Publish to NuGet, VS Code Marketplace, MCP Registry
+4. Publish to NuGet.org, VS Code Marketplace, MCP Registry
 5. Create GitHub Release with all artifacts
 6. Auto-PR to update `CHANGELOG.md`
 
 ### 3. Monitor Workflow
 
-The release workflow runs automatically (7 jobs):
+The release workflow runs automatically (8 jobs):
 
-1. **build-cli** (2-3 min) → Builds CLI as dependency artifact (not published separately)
-2. **build-mcp-server** (3-5 min) → Downloads CLI artifact, builds unified NuGet package, publishes to NuGet.org
-3. **build-vscode** (5-8 min) → Builds self-contained MCP Server + CLI exes, copies skills, packages VSIX, publishes to VS Code Marketplace
+1. **build-cli** (3-5 min) → Builds standalone `excelcli.exe` (win-x64, self-contained), creates ZIP + NuGet pack
+2. **build-mcp-server** (4-6 min) → Builds standalone `mcp-excel.exe` (win-x64, self-contained), creates ZIP + NuGet pack
+3. **build-vscode** (5-8 min) → Builds self-contained VSIX (bundles exes), publishes to VS Code Marketplace
 4. **build-mcpb** (3-5 min) → Builds Claude Desktop bundle
 5. **build-agent-skills** (1-2 min) → Builds agent skills ZIP package
-6. **publish-mcp-registry** (10-30 min) → Waits for NuGet propagation, updates MCP Registry
-7. **create-release** → Creates GitHub Release with all artifacts, then creates auto-PR to update CHANGELOG
-
-**Job dependencies:**
-- `build-mcp-server` depends on `build-cli` (needs CLI build output)
-- `publish-mcp-registry` depends on `build-mcp-server` (needs NuGet published)
-- `create-release` depends on `build-mcp-server`, `build-vscode`, `build-mcpb`, `build-agent-skills`
-- `build-vscode`, `build-mcpb`, `build-agent-skills` run independently (no dependencies)
+6. **create-tag** → Creates git tag (waits for all builds)
+7. **publish-mcp-registry** (10-30 min) → Waits for NuGet propagation, updates MCP Registry
+8. **publish** → Publishes to NuGet.org, VS Code Marketplace, and npm
+9. **create-release** → Creates GitHub Release with all artifacts, then creates auto-PR to update CHANGELOG
 
 ### 4. Verify Release
 
 After workflow completes:
 
-- [ ] GitHub Release created with all artifacts (ZIP, VSIX, MCPB, skills ZIP)
-- [ ] NuGet unified package available (may take 10-30 min for full propagation)
+- [ ] GitHub Release created with all artifacts (MCP Server ZIP, CLI ZIP, VSIX, MCPB, skills ZIP)
+- [ ] NuGet packages available on NuGet.org (may take 10-30 min for full propagation)
 - [ ] VS Code Marketplace updated (verify self-contained extension works without .NET)
 - [ ] MCP Registry updated
 - [ ] Auto-PR created for CHANGELOG rename (merge it to update `[Unreleased]` → `[X.Y.Z]`)
@@ -205,15 +202,6 @@ Configure these GitHub repository secrets:
 - Failures don't block the release (marked continue-on-error)
 - Can be retried manually via MCP publisher tool
 
-## Legacy Workflows
-
-The following workflows have been deprecated:
-
-- `.github/workflows/release-mcp-server.yml.deprecated` - Replaced by unified workflow
-- `.github/workflows/release-vscode-extension.yml.deprecated` - Replaced by unified workflow
-
-These files are kept for reference but are not triggered.
-
 ## Benefits of Unified Releases
 
 1. **Single version** across all components ensures compatibility
@@ -222,5 +210,5 @@ These files are kept for reference but are not triggered.
 4. **Reduced coordination** — no need to remember multiple tag patterns
 5. **Complete changelog** — all changes documented in one place, auto-updated via PR
 6. **Faster releases** — parallel builds for independent components
-7. **Self-contained distributions** — VS Code and MCPB bundle .NET runtime, no external dependencies
-8. **Unified NuGet** — single package installs both MCP Server and CLI
+7. **Dual distribution** — standalone exe (primary, no .NET needed) + NuGet (secondary, for .NET users)
+8. **Self-contained VS Code** — extension bundles everything, no external dependencies

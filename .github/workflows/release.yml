@@ -1,8 +1,8 @@
 name: Release All Components
 
 # Unified release workflow for all ExcelMcp components:
-# - MCP Server (NuGet + ZIP) - includes CLI as bundled dependency
-# - CLI (NuGet) - standalone dotnet tool for coding agents
+# - MCP Server (standalone exe ZIP — primary) + NuGet (.NET tool — secondary)
+# - CLI (standalone exe ZIP — primary) + NuGet (.NET tool — secondary)
 # - VS Code Extension (VSIX + Marketplace)
 # - MCPB (Claude Desktop bundle)
 # - Agent Skills (ZIP package)
@@ -107,10 +107,10 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
   # =============================================================================
-  # Job 1: Build CLI (dependency for MCP Server)
+  # Job 1: Build CLI (standalone exe — primary + NuGet pack — secondary)
   # =============================================================================
   build-cli:
-    name: CLI (Dependency)
+    name: CLI
     needs: [version]
     runs-on: windows-latest
     permissions:
@@ -136,14 +136,41 @@ jobs:
     - name: Build CLI
       run: dotnet build src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-restore -p:Version=${{ env.VERSION }} -p:AssemblyVersion=${{ env.VERSION }}.0 -p:FileVersion=${{ env.VERSION }}.0
 
-    - name: Pack CLI NuGet
+    - name: Pack CLI NuGet (secondary distribution)
       run: dotnet pack src/ExcelMcp.CLI/ExcelMcp.CLI.csproj --configuration Release --no-build --output ./cli-nupkg -p:Version=${{ env.VERSION }}
 
-    - name: Upload CLI Build Output
+    - name: Publish CLI (standalone exe — primary distribution)
+      run: |
+        dotnet publish src/ExcelMcp.CLI/ExcelMcp.CLI.csproj `
+          --configuration Release `
+          --runtime win-x64 `
+          --self-contained true `
+          -p:PublishSingleFile=true `
+          -p:IncludeNativeLibrariesForSelfExtract=true `
+          -p:PublishTrimmed=false `
+          -p:PublishReadyToRun=false `
+          -p:Version=${{ env.VERSION }} `
+          -p:AssemblyVersion=${{ env.VERSION }}.0 `
+          -p:FileVersion=${{ env.VERSION }}.0 `
+          -p:NuGetAudit=false `
+          --output ./cli-publish
+      shell: pwsh
+
+    - name: Create CLI ZIP
+      run: |
+        $version = $env:VERSION
+        New-Item -ItemType Directory -Path "cli-release" -Force
+        Copy-Item "cli-publish/excelcli.exe" "cli-release/"
+        Copy-Item "README.md" "cli-release/"
+        Copy-Item "LICENSE" "cli-release/"
+        Compress-Archive -Path "cli-release/*" -DestinationPath "ExcelMcp-CLI-$version-windows.zip"
+      shell: pwsh
+
+    - name: Upload CLI ZIP Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: cli-build
-        path: src/ExcelMcp.CLI/bin/Release/net10.0-windows/
+        name: cli-zip
+        path: ExcelMcp-CLI-*-windows.zip
 
     - name: Upload CLI NuGet Artifact
       uses: actions/upload-artifact@v4
@@ -151,16 +178,21 @@ jobs:
         name: cli-nupkg
         path: cli-nupkg/*.nupkg
 
+    - name: Upload CLI Build Output (for other jobs)
+      uses: actions/upload-artifact@v4
+      with:
+        name: cli-build
+        path: cli-publish/
+
   # =============================================================================
-  # Job 2: Build MCP Server (includes CLI bundle for service)
+  # Job 2: Build MCP Server (standalone exe — primary + NuGet pack — secondary)
   # =============================================================================
   build-mcp-server:
     name: MCP Server
-    needs: [version, build-cli]
+    needs: [version]
     runs-on: windows-latest
     permissions:
       contents: read
-      packages: write
 
     steps:
     - uses: actions/checkout@v4
@@ -169,12 +201,6 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-
-    - name: Download CLI Build
-      uses: actions/download-artifact@v4
-      with:
-        name: cli-build
-        path: src/ExcelMcp.CLI/bin/Release/net10.0-windows/
 
     - name: Set Version
       run: |
@@ -187,7 +213,7 @@ jobs:
       run: |
         $version = $env:VERSION
 
-        # Update MCP Registry server.json
+        # Update MCP Registry server.json (top-level version and package version)
         $serverJsonPath = "src/ExcelMcp.McpServer/.mcp/server.json"
         $serverContent = Get-Content $serverJsonPath -Raw
         $serverContent = $serverContent -replace '("version":\s*)"[\d\.]+"(\s*,\s*\n\s*"packages")' , "`$1`"$version`"`$2"
@@ -203,17 +229,49 @@ jobs:
       env:
         APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
 
-    - name: Pack NuGet
+    - name: Pack NuGet (secondary distribution)
       run: dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj --configuration Release --no-build --output ./nupkg -p:Version=${{ env.VERSION }}
+
+    - name: Publish MCP Server (standalone exe — primary distribution)
+      run: |
+        dotnet publish src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj `
+          --configuration Release `
+          --runtime win-x64 `
+          --self-contained true `
+          -p:PublishSingleFile=true `
+          -p:IncludeNativeLibrariesForSelfExtract=true `
+          -p:PublishTrimmed=false `
+          -p:PublishReadyToRun=false `
+          -p:Version=${{ env.VERSION }} `
+          -p:AssemblyVersion=${{ env.VERSION }}.0 `
+          -p:FileVersion=${{ env.VERSION }}.0 `
+          -p:NuGetAudit=false `
+          --output ./mcp-server-publish
+      shell: pwsh
+      env:
+        APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
+
+    - name: Rename exe to mcp-excel.exe
+      run: |
+        $expectedExe = "mcp-server-publish/Sbroenne.ExcelMcp.McpServer.exe"
+        if (Test-Path $expectedExe) {
+          Rename-Item $expectedExe "mcp-excel.exe"
+        } else {
+          Write-Error "Expected executable not found at: $expectedExe"
+          Write-Host "Contents of mcp-server-publish/:"
+          Get-ChildItem "mcp-server-publish/" | Select-Object Name
+          exit 1
+        }
+      shell: pwsh
 
     - name: Create Release Package
       run: |
         $version = $env:VERSION
-        New-Item -ItemType Directory -Path "release/ExcelMcp-MCP-Server-$version" -Force
-        Copy-Item "src/ExcelMcp.McpServer/bin/Release/net10.0-windows/*" "release/ExcelMcp-MCP-Server-$version/" -Recurse
-        Copy-Item "README.md" "release/ExcelMcp-MCP-Server-$version/"
-        Copy-Item "LICENSE" "release/ExcelMcp-MCP-Server-$version/"
-        Compress-Archive -Path "release/ExcelMcp-MCP-Server-$version/*" -DestinationPath "ExcelMcp-MCP-Server-$version-windows.zip"
+        New-Item -ItemType Directory -Path "mcp-server-release" -Force
+        Copy-Item "mcp-server-publish/mcp-excel.exe" "mcp-server-release/"
+        Copy-Item "README.md" "mcp-server-release/"
+        Copy-Item "LICENSE" "mcp-server-release/"
+        Compress-Archive -Path "mcp-server-release/*" -DestinationPath "ExcelMcp-MCP-Server-$version-windows.zip"
       shell: pwsh
 
     - name: Upload ZIP Artifact
@@ -537,6 +595,7 @@ jobs:
         $maxAttempts = 3
         $pollInterval = 600  # 10 minutes
 
+        # First check immediately; subsequent checks wait pollInterval seconds
         for ($i = 1; $i -le $maxAttempts; $i++) {
           Write-Output "Attempt $i of $maxAttempts..."
           try {
@@ -552,6 +611,7 @@ jobs:
             Write-Output "README not yet available"
           }
           if ($i -lt $maxAttempts) {
+            Write-Output "Waiting $pollInterval seconds before retry..."
             Start-Sleep -Seconds $pollInterval
           }
         }
@@ -577,7 +637,7 @@ jobs:
   # =============================================================================
   create-tag:
     name: Create Git Tag
-    needs: [version, build-mcp-server, build-vscode, build-mcpb, build-agent-skills]
+    needs: [version, build-cli, build-mcp-server, build-vscode, build-mcpb, build-agent-skills]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -607,7 +667,7 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: read
-      id-token: write  # Required for NuGet OIDC
+      id-token: write  # Required for NuGet OIDC and npm OIDC
 
     steps:
     - uses: actions/checkout@v4
@@ -658,7 +718,7 @@ jobs:
       with:
         user: ${{ secrets.NUGET_USER }}
 
-    - name: Publish to NuGet.org
+    - name: Publish to NuGet.org (secondary distribution)
       run: |
         $version = $env:VERSION
         dotnet nuget push "nupkg/Sbroenne.ExcelMcp.McpServer.$version.nupkg" `
@@ -773,23 +833,27 @@ jobs:
         **Claude Desktop (MCPB)**
         - Download `excel-mcp-${{ env.VERSION }}.mcpb` and double-click to install
 
-        **NuGet (.NET Tool)**
+        **Standalone Executables** (Primary — no .NET runtime required)
+        - MCP Server: Download `ExcelMcp-MCP-Server-${{ env.VERSION }}-windows.zip`, extract `mcp-excel.exe`
+        - CLI: Download `ExcelMcp-CLI-${{ env.VERSION }}-windows.zip`, extract `excelcli.exe`
+        - Add the exe(s) to your PATH, then configure your MCP client with command `mcp-excel`
+
+        **NuGet (.NET Tool)** (Secondary — requires .NET 10 runtime)
         ```powershell
-        # MCP Server (for AI assistants)
         dotnet tool install --global Sbroenne.ExcelMcp.McpServer
-        # CLI (for coding agents and scripting)
         dotnet tool install --global Sbroenne.ExcelMcp.CLI
         ```
 
         **Agent Skills** (for AI coding assistants)
         - VS Code Extension includes both skills automatically (excel-mcp + excel-cli)
-        - Install via npm: `npx skillpm install excel-mcp-skill` or `npx skillpm install excel-cli-skill`
-        - Or download `excel-skills-v${{ env.VERSION }}.zip` or install via `npx skills add sbroenne/mcp-server-excel`
+        - Install via npm: `npx skills add sbroenne/mcp-server-excel --skill excel-cli` or `--skill excel-mcp`
+        - Or download `excel-skills-v${{ env.VERSION }}.zip`
 
         ### Requirements
         - Windows OS
         - Microsoft Excel 2016+
-        - .NET 10 Runtime or SDK (for NuGet installation only; VS Code and MCPB bundle it)
+        - No .NET runtime required for VS Code Extension, MCPB, or standalone executables
+        - .NET 10 Runtime required for NuGet (.NET tool) installation only
 
         ### Documentation
         - [Website](https://excelmcpserver.dev/)
@@ -800,7 +864,7 @@ jobs:
         # Collect all artifacts
         ARTIFACTS=""
         for f in artifacts/mcp-server-zip/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
-        for f in artifacts/cli-nupkg/*.nupkg; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
+        for f in artifacts/cli-zip/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/vscode-vsix/*.vsix; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/mcpb-bundle/*.mcpb; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/agent-skills/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done

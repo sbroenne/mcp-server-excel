@@ -21,7 +21,7 @@
 
     <!-- Version inherited from Directory.Build.props; overridden by CI via -p:Version -->
 
-    <!-- Package-specific properties -->
+    <!-- NuGet Package Configuration (secondary distribution — primary is standalone exe) -->
     <PackageId>Sbroenne.ExcelMcp.CLI</PackageId>
     <Title>ExcelMcp CLI</Title>
     <Description>Command-line interface tool for automating Microsoft Excel operations using COM interop by Sbroenne. 165 operations across Power Query M code, Power Pivot DAX measures, VBA macros, PivotTables, Excel Tables, ranges, formatting, data validation, and connections. Perfect for RPA, CI/CD pipelines, scripting (PowerShell/Bash), and batch processing. Windows x64 and ARM64 support.</Description>
