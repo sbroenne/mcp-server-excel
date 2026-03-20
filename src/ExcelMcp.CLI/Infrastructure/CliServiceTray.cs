@@ -113,7 +113,7 @@ internal sealed class CliServiceTray : IDisposable
                 ShowBalloon(
                     "Update Available",
                     $"ExcelMCP CLI {latestVersion} is available (current: {currentVersion}).\n" +
-                    "Run: dotnet tool update --global Sbroenne.ExcelMcp.CLI");
+                    "Download: github.com/sbroenne/mcp-server-excel/releases/latest");
             }
         }
         catch
@@ -390,15 +390,15 @@ internal sealed class CliServiceTray : IDisposable
 
             var updateCmd = new TextBox
             {
-                Text = "dotnet tool update --global Sbroenne.ExcelMcp.CLI",
+                Text = "https://github.com/sbroenne/mcp-server-excel/releases/latest",
                 ReadOnly = true,
                 BorderStyle = BorderStyle.None,
                 BackColor = form.BackColor,
                 Location = new Point(70, 180),
                 Size = new Size(320, 20),
                 TabIndex = tabIndex++,
-                AccessibleName = "Update command, select to copy",
-                AccessibleDescription = "Run this command in a terminal to update"
+                AccessibleName = "Download URL, select to copy",
+                AccessibleDescription = "Download the latest release from this URL"
             };
 
             form.Controls.AddRange([updateLabel, updateCmd]);

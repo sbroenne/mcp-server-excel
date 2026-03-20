@@ -365,7 +365,7 @@ public class Program
             Provides 22 tools with 195+ operations for AI assistants.
 
             Usage:
-              Sbroenne.ExcelMcp.McpServer.exe [options]
+              mcp-excel.exe [options]
 
             Options:
               -h, --help      Show this help message
@@ -399,8 +399,7 @@ public class Program
         {
             Console.WriteLine();
             Console.WriteLine($"Update available: {currentVersion} -> {latestVersion}");
-            Console.WriteLine("Run: dotnet tool update --global Sbroenne.ExcelMcp.McpServer");
-            Console.WriteLine("Release notes: https://github.com/sbroenne/mcp-server-excel/releases/latest");
+            Console.WriteLine("Download: https://github.com/sbroenne/mcp-server-excel/releases/latest");
         }
     }
 }

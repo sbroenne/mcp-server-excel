@@ -4,16 +4,16 @@ using System.Text.Json.Serialization;
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
 
 /// <summary>
-/// Checks NuGet for the latest version of the CLI package.
+/// Checks GitHub Releases for the latest version of the CLI.
 /// </summary>
 internal static class NuGetVersionChecker
 {
-    private const string PackageId = "sbroenne.excelmcp.cli";
-    private const string NuGetIndexUrl = $"https://api.nuget.org/v3-flatcontainer/{PackageId}/index.json";
+    private const string LatestReleaseUrl = "https://api.github.com/repos/sbroenne/mcp-server-excel/releases/latest";
+    private const string UserAgent = "ExcelMcp-CLI";
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
 
     /// <summary>
-    /// Checks NuGet for the latest version.
+    /// Checks GitHub Releases for the latest version.
     /// </summary>
     /// <returns>Latest version string, or null if check failed.</returns>
     public static async Task<string?> GetLatestVersionAsync(CancellationToken cancellationToken = default)
@@ -21,18 +21,15 @@ internal static class NuGetVersionChecker
         try
         {
             using var httpClient = new HttpClient { Timeout = Timeout };
-            var response = await httpClient.GetFromJsonAsync<NuGetVersionsResponse>(NuGetIndexUrl, cancellationToken);
+            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
 
-            if (response?.Versions == null || response.Versions.Count == 0)
+            var response = await httpClient.GetFromJsonAsync<GitHubReleaseResponse>(LatestReleaseUrl, cancellationToken);
+
+            if (response?.TagName == null)
                 return null;
 
-            // Get highest non-prerelease version
-            var latestVersion = response.Versions
-                .Where(v => !v.Contains('-')) // Exclude prerelease versions
-                .OrderByDescending(v => ParseVersion(v))
-                .FirstOrDefault();
-
-            return latestVersion ?? response.Versions.Last();
+            // Strip 'v' prefix: "v1.2.3" -> "1.2.3"
+            return response.TagName.TrimStart('v');
         }
         catch (Exception)
         {
@@ -41,16 +38,9 @@ internal static class NuGetVersionChecker
         }
     }
 
-    private static Version ParseVersion(string versionString)
+    private sealed class GitHubReleaseResponse
     {
-        // Handle versions like "1.2.3" - strip any suffix after +
-        var cleanVersion = versionString.Split('+')[0].Split('-')[0];
-        return Version.TryParse(cleanVersion, out var version) ? version : new Version(0, 0, 0);
-    }
-
-    private sealed class NuGetVersionsResponse
-    {
-        [JsonPropertyName("versions")]
-        public List<string> Versions { get; set; } = [];
+        [JsonPropertyName("tag_name")]
+        public string? TagName { get; set; }
     }
 }
