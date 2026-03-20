@@ -1,12 +1,12 @@
 # ExcelMcp.CLI - Command-Line Interface for Excel Automation
 
-[![NuGet](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.CLI.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
-[![Downloads](https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.CLI.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
+[![GitHub Release](https://img.shields.io/github/v/release/sbroenne/mcp-server-excel)](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+[![GitHub Downloads](https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total?label=Downloads)](https://github.com/sbroenne/mcp-server-excel/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Command-line interface for Excel automation — preferred by coding agents.**
 
-> **Published as its own .NET tool** - Install `Sbroenne.ExcelMcp.CLI` to get the `excelcli` command. Install `Sbroenne.ExcelMcp.McpServer` separately when you also need the MCP server (`mcp-excel`).
+> **Standalone self-contained executable** - Download `excelcli.exe` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
 
 The CLI provides 17 command categories with 230 operations matching the MCP Server. Uses **64% fewer tokens** than MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 25 tool schemas into context.
 
@@ -23,12 +23,13 @@ Also perfect for RPA workflows, CI/CD pipelines, batch processing, and automated
 
 ## 🚀 Quick Start
 
-### Installation (.NET Global Tool - Recommended)
+### Installation (Standalone Executable)
+
+1. Download **`ExcelMcp-CLI-{version}-windows.zip`** from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+2. Extract `excelcli.exe` to a permanent location (e.g., `C:\Tools\ExcelMcp\`)
+3. Add the directory to your PATH
 
 ```powershell
-# Install CLI tool
-dotnet tool install --global Sbroenne.ExcelMcp.CLI
-
 # Verify installation
 excelcli --version
 
@@ -42,16 +43,16 @@ excelcli --help
 
 ```powershell
 # Check if newer version is available
-excelcli version --check
-
-# Update if available
-dotnet tool update --global Sbroenne.ExcelMcp.CLI
+excelcli --version
+# If an update is available, download the latest release from:
+# https://github.com/sbroenne/mcp-server-excel/releases/latest
 ```
 
 ### Uninstall
 
 ```powershell
-dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
+# Simply delete the exe
+Remove-Item "C:\Tools\ExcelMcp\excelcli.exe" -Force
 ```
 
 ## 🤫 Quiet Mode (Agent-Friendly)
@@ -265,7 +266,7 @@ excelcli session close --session 1 --save
 
 ## 📖 Complete Documentation
 
-- **[NuGet Package](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)** - .NET Global Tool installation
+- **[GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)** - Download latest standalone exe
 - **[GitHub Repository](https://github.com/sbroenne/mcp-server-excel)** - Source code and issues
 - **[Release Notes](https://github.com/sbroenne/mcp-server-excel/releases)** - Latest updates
 
@@ -276,11 +277,11 @@ excelcli session close --session 1 --save
 ### Command Not Found After Installation
 
 ```powershell
-# Verify .NET tools path is in your PATH environment variable
-dotnet tool list --global
+# Check excelcli.exe location
+where.exe excelcli
 
-# If excelcli is listed but not found, add .NET tools to PATH:
-# The default location is: %USERPROFILE%\.dotnet\tools
+# If not found, ensure the directory containing excelcli.exe is in your PATH
+# The default location after extraction might be: C:\Tools\ExcelMcp\
 ```
 
 ### Excel Not Found
@@ -301,7 +302,7 @@ dotnet tool list --global
 
 ```powershell
 # Run PowerShell/CMD as Administrator if you encounter permission errors
-# Or install to user directory: dotnet tool install --global Sbroenne.ExcelMcp.CLI
+# excelcli.exe is a standalone exe - no installation needed
 ```
 
 ---
@@ -325,8 +326,13 @@ foreach ($file in $files) {
 
 ```yaml
 # GitHub Actions example
-- name: Install ExcelMcp.CLI
-  run: dotnet tool install --global Sbroenne.ExcelMcp.CLI
+- name: Download ExcelMcp CLI
+  run: |
+    $version = (Invoke-RestMethod "https://api.github.com/repos/sbroenne/mcp-server-excel/releases/latest").tag_name.TrimStart('v')
+    Invoke-WebRequest "https://github.com/sbroenne/mcp-server-excel/releases/download/v$version/ExcelMcp-CLI-$version-windows.zip" -OutFile cli.zip
+    Expand-Archive cli.zip -DestinationPath C:\Tools\ExcelMcp
+    echo "C:\Tools\ExcelMcp" >> $env:GITHUB_PATH
+  shell: pwsh
 
 - name: Process Excel Files
   run: |
@@ -351,7 +357,7 @@ These tests open actual workbooks, issue `session open/list/close`, and call `ex
 
 ## 🤝 Related Tools
 
-- **[ExcelMcp.McpServer](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)** - MCP server for AI assistant integration
+- **[ExcelMcp MCP Server](https://github.com/sbroenne/mcp-server-excel/releases/latest)** - MCP server for AI assistant integration (`mcp-excel.exe`)
 - **[Excel MCP VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)** - One-click Excel automation in VS Code
 
 

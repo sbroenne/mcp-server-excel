@@ -7,7 +7,8 @@ Complete installation instructions for the ExcelMcp MCP Server and CLI tool.
 ### Required
 - **Windows OS** (Windows 10 or later)
 - **Microsoft Excel 2016 or later** (Desktop version - Office 365, Professional Plus, or Standalone)
-- **.NET 10 Runtime or SDK** (not required for VS Code Extension or MCPB - they bundle it)
+
+> **.NET runtime is NOT required** for any installation method — all distributions are self-contained.
 
 ### Optional (for specific features)
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
@@ -45,7 +46,7 @@ Use this order to avoid setup confusion:
    - Click **Install**
 
 2. **That's It!**
-   - Bundles self-contained MCP server and CLI (no .NET runtime or SDK needed)
+   - Bundles self-contained MCP server and CLI (no .NET runtime needed)
    - Auto-configures GitHub Copilot
    - Registers agent skills (excel-mcp + excel-cli) via `chatSkills`
    - Shows quick start guide on first launch
@@ -70,36 +71,34 @@ That's it! The MCPB bundle includes everything needed - no .NET installation req
 
 **Best for:** Other MCP clients (Cursor, Windsurf, Cline, Claude Code, Codex), advanced users
 
-### Step 1: Install .NET 10
+### Step 1: Download MCP Server
 
-**Check if already installed:**
-```powershell
-dotnet --version
-# Should show 10.0.x or higher
-```
-
-**If not installed:**
+1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+2. Download **`ExcelMcp-MCP-Server-{version}-windows.zip`**
+3. Extract the ZIP to a permanent location (e.g., `C:\Tools\ExcelMcp\`)
 
 ```powershell
-winget install Microsoft.DotNet.Runtime.10
+# Example extraction
+Expand-Archive "ExcelMcp-MCP-Server-1.x.x-windows.zip" -DestinationPath "C:\Tools\ExcelMcp"
 ```
 
-**Manual Download:** [.NET 10 Downloads](https://dotnet.microsoft.com/download/dotnet/10.0)
+The ZIP contains `mcp-excel.exe` — a fully self-contained executable (no .NET runtime needed).
 
-### Step 2: Install ExcelMcp MCP Server
+### Step 2: Add to PATH (Recommended)
+
+To use `mcp-excel` as a command without specifying the full path:
 
 ```powershell
-# Install MCP Server tool (command: mcp-excel)
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer
-
-# Verify installation
-dotnet tool list --global | Select-String "ExcelMcp"
+# Add to user PATH (persistent)
+$toolsDir = "C:\Tools\ExcelMcp"
+$userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+if ($userPath -notlike "*$toolsDir*") {
+    [Environment]::SetEnvironmentVariable("PATH", "$userPath;$toolsDir", "User")
+    Write-Host "Added $toolsDir to user PATH. Restart your terminal to apply."
+}
 ```
 
-> **Optional:** If you also want the standalone CLI command (`excelcli`) for scripting/RPA, install it separately:
-> ```powershell
-> dotnet tool install --global Sbroenne.ExcelMcp.CLI
-> ```
+Or manually: **Settings → System → About → Advanced system settings → Environment Variables → User variables → Path → Edit → New** → add `C:\Tools\ExcelMcp`
 
 ### Step 3: Configure Your MCP Client
 
@@ -126,6 +125,8 @@ npx add-mcp "mcp-excel" --name excel-mcp --all -y
 
 > **Requires:** [Node.js](https://nodejs.org/) for `npx`. Install with `winget install OpenJS.NodeJS.LTS` if not already available. No permanent `add-mcp` installation needed — `npx` downloads, runs, and cleans up automatically.
 
+> **Note:** If `mcp-excel` is not on your PATH, use the full path instead: `npx add-mcp "C:\Tools\ExcelMcp\mcp-excel.exe" --name excel-mcp`
+
 #### Option B: Manual Configuration
 
 **Quick Start:** Ready-to-use config files for all clients are available in [`examples/mcp-configs/`](https://github.com/sbroenne/mcp-server-excel/tree/main/examples/mcp-configs/)
@@ -143,6 +144,8 @@ Create `.vscode/mcp.json` in your workspace:
   }
 }
 ```
+
+> If `mcp-excel` is not on PATH, use the full path: `"command": "C:\\Tools\\ExcelMcp\\mcp-excel.exe"`
 
 **For GitHub Copilot (Visual Studio):**
 
@@ -260,21 +263,29 @@ This opens Excel visibly so you can see every change in real-time - great for de
 
 **Best for:** Scripting, RPA, CI/CD pipelines, automation without AI
 
-### Install CLI
+### Download CLI
+
+1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+2. Download **`ExcelMcp-CLI-{version}-windows.zip`**
+3. Extract the ZIP to a permanent location (e.g., `C:\Tools\ExcelMcp\`)
 
 ```powershell
-# Install CLI as a separate .NET tool
-dotnet tool install --global Sbroenne.ExcelMcp.CLI
-
-# Verify CLI is available
-excelcli --version
+# Example extraction
+Expand-Archive "ExcelMcp-CLI-1.x.x-windows.zip" -DestinationPath "C:\Tools\ExcelMcp"
 ```
 
-> **⚠️ Version Sync:** If you install both MCP Server and CLI, keep both packages on the same version.
+The ZIP contains `excelcli.exe` — a fully self-contained executable (no .NET runtime needed).
+
+### Add CLI to PATH
+
+If you followed Step 2 of the MCP Server setup and added `C:\Tools\ExcelMcp\` to your PATH, `excelcli` is already available.
 
 ### Quick Test
 
 ```powershell
+# Verify CLI is available
+excelcli --version
+
 # Session-based workflow (keeps Excel open between commands)
 excelcli -q session open test.xlsx                   # Returns session ID
 excelcli -q sheet list --session <session-id>        # List worksheets
@@ -316,84 +327,28 @@ npx skills add sbroenne/mcp-server-excel --skill excel-cli --global
 
 ## Updating ExcelMcp
 
-### Check Installed Version
+### Check Current Version
 
-**MCP Server and CLI:**
 ```powershell
-dotnet tool list --global | Select-String "ExcelMcp"
-
-# Or check CLI version
-excelcli --version
-```
-
-### Update Installed Tools
-
-> **⚠️ If both are installed:** update MCP Server and CLI together so versions stay in sync.
-
-**Step 1: Update both tools**
-```powershell
-dotnet tool update --global Sbroenne.ExcelMcp.McpServer
-dotnet tool update --global Sbroenne.ExcelMcp.CLI
-```
-
-**Step 2: Verify update**
-```powershell
-# Check installed version
-dotnet tool list --global | Select-String "ExcelMcp"
-
-# Verify both tools work
-excelcli --version
+# Check MCP Server version
 mcp-excel --version
+
+# Check CLI version
+excelcli --version
 ```
 
-**Step 3: Restart your MCP client**
-- Restart VS Code, Claude Desktop, Cursor, or whichever client you're using
-- The new version will be used automatically
+### Update to New Version
 
-### Troubleshooting Updates
-
-#### Update Command Fails
-
-**Error: "Tool not found"**
-```powershell
-# The tool may need to be reinstalled
-dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer
-```
-
-**Error: "Access denied"**
-- Run PowerShell as Administrator
-- Or install in user directory (not global):
-```powershell
-dotnet tool update --global Sbroenne.ExcelMcp.McpServer --install-dir ~/.dotnet/tools
-```
-
-#### MCP Server Still Running Old Version
-
-**Solution:** Fully restart your MCP client
-- Close VS Code completely (including terminal windows)
-- Close Claude Desktop completely
-- Reopen the application
-
-**Still not working?**
-```powershell
-# Reinstall the tool
-dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer
-```
-
-### Rollback to Previous Version
-
-If an update causes issues, you can downgrade:
+1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+2. Download the new ZIP(s): `ExcelMcp-MCP-Server-{version}-windows.zip` and/or `ExcelMcp-CLI-{version}-windows.zip`
+3. Extract and overwrite the existing files in your installation directory
 
 ```powershell
-# Uninstall current version
-dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
-
-# Install specific version
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer --version 1.2.3
-# Replace 1.2.3 with the version you want
+# Example update
+Expand-Archive "ExcelMcp-MCP-Server-1.x.x-windows.zip" -DestinationPath "C:\Tools\ExcelMcp" -Force
 ```
+
+4. Restart your MCP client (VS Code, Claude Desktop, Cursor, etc.)
 
 ### Check What's New
 
@@ -407,21 +362,26 @@ Before updating, check the release notes:
 
 ### Common Issues
 
-#### 1. "dotnet command not found"
+#### 1. "mcp-excel is not recognized as an internal or external command"
 
-**Solution:** Install .NET 10 SDK or Runtime (see Step 1 above)
+**Solution:** `mcp-excel.exe` is not on your PATH.
+
+Either:
+- Add the directory containing `mcp-excel.exe` to your PATH (see Step 2 above)
+- Or use the full path in your MCP client config: `"command": "C:\\Tools\\ExcelMcp\\mcp-excel.exe"`
 
 #### 2. MCP Server Not Responding
 
-**Check if tool is installed:**
+**Check if the exe exists:**
 ```powershell
-dotnet tool list --global | Select-String "ExcelMcp"
+where.exe mcp-excel
+# Or with full path:
+Test-Path "C:\Tools\ExcelMcp\mcp-excel.exe"
 ```
 
-**Reinstall if missing:**
+**Verify it runs:**
 ```powershell
-dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+mcp-excel --version
 ```
 
 #### 3. "Workbook is locked" or "Cannot open file"
@@ -430,16 +390,28 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 ExcelMcp requires exclusive access to workbooks (Excel COM limitation).
 
+#### 4. MCP Server Still Running Old Version
+
+**Solution:** Fully restart your MCP client
+- Close VS Code completely (including terminal windows)
+- Close Claude Desktop completely
+- Reopen the application
+
 ## Uninstallation
 
 ### Uninstall MCP Server
 ```powershell
-dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
+# Simply delete the extracted files
+Remove-Item "C:\Tools\ExcelMcp\mcp-excel.exe" -Force
+
+# Remove from PATH if you added it
+# Settings → System → About → Advanced system settings → Environment Variables
+# Edit PATH and remove the ExcelMcp directory
 ```
 
 ### Uninstall CLI
 ```powershell
-dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
+Remove-Item "C:\Tools\ExcelMcp\excelcli.exe" -Force
 ```
 
 ---

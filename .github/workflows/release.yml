@@ -231,11 +231,14 @@ jobs:
 
     - name: Rename exe to mcp-excel.exe
       run: |
-        Rename-Item "mcp-server-publish/Sbroenne.ExcelMcp.McpServer.exe" "mcp-excel.exe" -ErrorAction SilentlyContinue
-        if (-not (Test-Path "mcp-server-publish/mcp-excel.exe")) {
-          # Fallback: find and rename the first .exe
-          $exe = Get-ChildItem "mcp-server-publish" -Filter "*.exe" | Select-Object -First 1
-          if ($exe) { Rename-Item $exe.FullName "mcp-excel.exe" }
+        $expectedExe = "mcp-server-publish/Sbroenne.ExcelMcp.McpServer.exe"
+        if (Test-Path $expectedExe) {
+          Rename-Item $expectedExe "mcp-excel.exe"
+        } else {
+          Write-Error "Expected executable not found at: $expectedExe"
+          Write-Host "Contents of mcp-server-publish/:"
+          Get-ChildItem "mcp-server-publish/" | Select-Object Name
+          exit 1
         }
       shell: pwsh
 

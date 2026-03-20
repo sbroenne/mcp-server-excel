@@ -22,8 +22,6 @@ canonical_url: "https://excelmcpserver.dev/"
       <a href="https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp"><img src="https://img.shields.io/visual-studio-marketplace/i/sbroenne.excel-mcp?label=VS%20Code%20Installs" alt="VS Code Marketplace Installs"></a>
       <a href="https://github.com/sbroenne/mcp-server-excel"><img src="https://img.shields.io/github/stars/sbroenne/mcp-server-excel?style=flat&label=GitHub%20Stars" alt="GitHub Stars"></a>
       <a href="https://github.com/sbroenne/mcp-server-excel/releases"><img src="https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total?label=GitHub%20Downloads" alt="GitHub Downloads"></a>
-      <a href="https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer"><img src="https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.McpServer.svg?label=NuGet%20MCP%20Installs" alt="NuGet MCP Server Installs"></a>
-      <a href="https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI"><img src="https://img.shields.io/nuget/dt/Sbroenne.ExcelMcp.CLI.svg?label=NuGet%20CLI%20Installs" alt="NuGet CLI Installs"></a>
     </div>
   </div>
 </div>
@@ -160,11 +158,12 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 
 **Manual Installation:**
 ```powershell
-# Step 1: Install MCP Server and CLI
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer
-dotnet tool install --global Sbroenne.ExcelMcp.CLI
+# Step 1: Download standalone executables from latest release
+# https://github.com/sbroenne/mcp-server-excel/releases/latest
+# - ExcelMcp-MCP-Server-{version}-windows.zip → extract mcp-excel.exe
+# - ExcelMcp-CLI-{version}-windows.zip → extract excelcli.exe (optional, for scripting)
 
-# Step 2: Auto-configure all your coding agents
+# Step 2: Add to PATH, then auto-configure all your coding agents
 npx add-mcp "mcp-excel" --name excel-mcp
 
 # Optional: Install agent skills for better AI guidance

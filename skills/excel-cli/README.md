@@ -81,7 +81,7 @@ excel-cli/
 
 Install the CLI tool via NuGet:
 ```powershell
-dotnet tool install --global Sbroenne.ExcelMcp.CLI
+Download excelcli.exe from https://github.com/sbroenne/mcp-server-excel/releases/latest
 ```
 
 Verify installation:
