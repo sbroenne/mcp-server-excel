@@ -5,6 +5,7 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 [![GitHub Release](https://img.shields.io/github/v/release/sbroenne/mcp-server-excel)](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 [![GitHub Downloads](https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total?label=Downloads)](https://github.com/sbroenne/mcp-server-excel/releases)
+[![NuGet](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue.svg)](https://github.com/sbroenne/mcp-server-excel)
 
 **Control Excel with Natural Language** through AI assistants like GitHub Copilot, Claude, and ChatGPT. This MCP server enables AI-powered Excel automation for Power Query, DAX measures, VBA macros, PivotTables, Charts, and more.
@@ -31,7 +32,7 @@ Unlike third-party libraries that manipulate `.xlsx` files (risking corruption),
 
 **Manual Installation (All MCP Clients):**
 
-No .NET runtime required — `mcp-excel.exe` is fully self-contained.
+**Primary — Standalone exe (no .NET runtime required):**
 
 ```powershell
 # Download from latest release:
@@ -40,9 +41,12 @@ No .NET runtime required — `mcp-excel.exe` is fully self-contained.
 
 # Add to PATH, then configure your MCP client:
 # { "command": "mcp-excel" }
+```
 
-# Optional: download excelcli.exe for scripting/RPA
-# ExcelMcp-CLI-{version}-windows.zip → extract excelcli.exe
+**Secondary — .NET Global Tool (requires .NET 10 runtime):**
+
+```powershell
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 ```
 
 **Supported AI Assistants:**

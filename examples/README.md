@@ -9,7 +9,7 @@ The session mode demo shows how to use sessions for high-performance multi-opera
 ### Requirements
 
 - Windows with Excel installed
-- ExcelMcp installed (`Download mcp-excel.exe from https://github.com/sbroenne/mcp-server-excel/releases/latest`)
+- ExcelMcp installed (standalone exe from [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest) or via `dotnet tool install --global Sbroenne.ExcelMcp.McpServer`)
 
 ### Running the Demo
 

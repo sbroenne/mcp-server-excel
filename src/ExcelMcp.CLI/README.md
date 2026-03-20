@@ -2,11 +2,13 @@
 
 [![GitHub Release](https://img.shields.io/github/v/release/sbroenne/mcp-server-excel)](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 [![GitHub Downloads](https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total?label=Downloads)](https://github.com/sbroenne/mcp-server-excel/releases)
+[![NuGet](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.CLI.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Command-line interface for Excel automation — preferred by coding agents.**
 
-> **Standalone self-contained executable** - Download `excelcli.exe` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
+> **Primary distribution: Standalone executable** — Download `excelcli.exe` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
+> **Secondary distribution: NuGet .NET tool** — `dotnet tool install --global Sbroenne.ExcelMcp.CLI` (requires .NET 10 runtime).
 
 The CLI provides 17 command categories with 230 operations matching the MCP Server. Uses **64% fewer tokens** than MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 25 tool schemas into context.
 
@@ -23,7 +25,7 @@ Also perfect for RPA workflows, CI/CD pipelines, batch processing, and automated
 
 ## 🚀 Quick Start
 
-### Installation (Standalone Executable)
+### Primary Installation: Standalone Executable
 
 1. Download **`ExcelMcp-CLI-{version}-windows.zip`** from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 2. Extract `excelcli.exe` to a permanent location (e.g., `C:\Tools\ExcelMcp\`)
@@ -39,6 +41,13 @@ excelcli --help
 
 > 🔁 **Session Workflow:** Always start with `excelcli session open <file>` (captures the session id), pass `--session <id>` to other commands, then `excelcli session close <id> --save` when finished. The CLI reuses the same Excel instance through that lifecycle.
 
+### Secondary Installation: .NET Global Tool
+
+```powershell
+# Requires .NET 10 Runtime or SDK
+dotnet tool install --global Sbroenne.ExcelMcp.CLI
+```
+
 ### Check for Updates
 
 ```powershell
@@ -46,13 +55,19 @@ excelcli --help
 excelcli --version
 # If an update is available, download the latest release from:
 # https://github.com/sbroenne/mcp-server-excel/releases/latest
+
+# Or update via NuGet (if installed that way):
+dotnet tool update --global Sbroenne.ExcelMcp.CLI
 ```
 
 ### Uninstall
 
 ```powershell
-# Simply delete the exe
+# Standalone exe: delete the file
 Remove-Item "C:\Tools\ExcelMcp\excelcli.exe" -Force
+
+# NuGet (if installed via dotnet tool):
+dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 ```
 
 ## 🤫 Quiet Mode (Agent-Friendly)
@@ -266,7 +281,8 @@ excelcli session close --session 1 --save
 
 ## 📖 Complete Documentation
 
-- **[GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)** - Download latest standalone exe
+- **[GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)** - Download latest standalone exe (primary)
+- **[NuGet Package](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)** - .NET Global Tool (secondary)
 - **[GitHub Repository](https://github.com/sbroenne/mcp-server-excel)** - Source code and issues
 - **[Release Notes](https://github.com/sbroenne/mcp-server-excel/releases)** - Latest updates
 

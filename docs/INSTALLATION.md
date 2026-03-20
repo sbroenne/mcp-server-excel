@@ -298,6 +298,36 @@ excelcli -q session close --session <session-id> --save
 
 ---
 
+## Alternative: NuGet .NET Tool Installation (Secondary)
+
+**For users who prefer package managers or already have .NET installed**
+
+NuGet is a secondary distribution channel. It requires the **.NET 10 Runtime or SDK** to be installed.
+
+```powershell
+# Requires .NET 10 Runtime or SDK
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+dotnet tool install --global Sbroenne.ExcelMcp.CLI
+```
+
+After installation, configure your MCP client with `"command": "mcp-excel"` (same as standalone exe).
+
+**Update via NuGet:**
+```powershell
+dotnet tool update --global Sbroenne.ExcelMcp.McpServer
+dotnet tool update --global Sbroenne.ExcelMcp.CLI
+```
+
+**Uninstall:**
+```powershell
+dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
+dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
+```
+
+> **Why NuGet is secondary:** The standalone exe distributions require no .NET runtime, making them easier to install for most users. NuGet is available as an alternative for users who prefer package managers or already have .NET installed in their workflow.
+
+---
+
 ## Agent Skills Installation (Cross-Platform)
 
 **Best for:** Adding AI guidance to coding agents (Copilot, Cursor, Windsurf, Claude Code, Gemini, Codex, etc.)
@@ -339,6 +369,8 @@ excelcli --version
 
 ### Update to New Version
 
+**Standalone exe (primary):**
+
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 2. Download the new ZIP(s): `ExcelMcp-MCP-Server-{version}-windows.zip` and/or `ExcelMcp-CLI-{version}-windows.zip`
 3. Extract and overwrite the existing files in your installation directory
@@ -349,6 +381,13 @@ Expand-Archive "ExcelMcp-MCP-Server-1.x.x-windows.zip" -DestinationPath "C:\Tool
 ```
 
 4. Restart your MCP client (VS Code, Claude Desktop, Cursor, etc.)
+
+**NuGet (secondary):**
+
+```powershell
+dotnet tool update --global Sbroenne.ExcelMcp.McpServer
+dotnet tool update --global Sbroenne.ExcelMcp.CLI
+```
 
 ### Check What's New
 
@@ -401,17 +440,24 @@ ExcelMcp requires exclusive access to workbooks (Excel COM limitation).
 
 ### Uninstall MCP Server
 ```powershell
-# Simply delete the extracted files
+# Standalone exe: simply delete the extracted files
 Remove-Item "C:\Tools\ExcelMcp\mcp-excel.exe" -Force
 
 # Remove from PATH if you added it
 # Settings → System → About → Advanced system settings → Environment Variables
 # Edit PATH and remove the ExcelMcp directory
+
+# NuGet (if installed via dotnet tool):
+dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
 ```
 
 ### Uninstall CLI
 ```powershell
+# Standalone exe:
 Remove-Item "C:\Tools\ExcelMcp\excelcli.exe" -Force
+
+# NuGet (if installed via dotnet tool):
+dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 ```
 
 ---

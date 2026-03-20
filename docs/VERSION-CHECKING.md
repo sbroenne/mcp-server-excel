@@ -108,6 +108,7 @@ The `tag_name` field is stripped of the `v` prefix to get the version string: `v
 
 When a new version is available:
 
+**Standalone exe (primary):**
 1. Download the latest release from:
    - [https://github.com/sbroenne/mcp-server-excel/releases/latest](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 2. Extract the new exe(s):
@@ -115,3 +116,9 @@ When a new version is available:
    - `ExcelMcp-CLI-{version}-windows.zip` → `excelcli.exe`
 3. Replace the existing exe(s) in your installation directory
 4. Restart your MCP client
+
+**NuGet (secondary):**
+```powershell
+dotnet tool update --global Sbroenne.ExcelMcp.McpServer
+dotnet tool update --global Sbroenne.ExcelMcp.CLI
+```
