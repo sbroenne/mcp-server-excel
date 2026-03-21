@@ -69,6 +69,38 @@
 
 **Decision:** No roster changes. @copilot stays out (redundant, creates false routing, unclear autonomy). Squad is well-designed, fully staffed, and properly aligned to project shape. Each member has deep non-overlapping expertise. Clear boundaries and mandatory review gates prevent bad patterns from shipping.
 
+### 2026-03-21 - Serial Workflow Tests Are Controls, Not RED Tests
+
+**Date:** 2026-03-21
+**Author:** Nate (Tester)
+**Status:** Implemented
+
+**Finding:** Created 7 serial workflow regression tests across two test suites (ExcelBatchSerialWorkflowTests and SessionManagerSerialWorkflowTests). All tests PASSED on first run — they are CONTROLS, not RED tests.
+
+**Validation:** The tests prove the current implementation (post-PRs #525, #526, #542, #543, #545) ALREADY handles the serial workflow correctly:
+1. Later operations fail fast (< 1s) after timeout with useful error message
+2. Dispose completes quickly (< 30s) with pre-emptive Excel kill
+3. Excel processes get killed automatically after timeout cleanup
+4. Reopening same file works immediately (< 10s) after timeout dispose
+5. Multiple sessions isolated — one timeout doesn't poison others
+6. SessionManager state accurate — ActiveSessionCount and GetSession reflect reality
+
+**Implications:** The bug report may have been describing pre-v1.8.32 behavior that's already fixed. No production code changes needed — the tests validate existing correct behavior. If the bug is still reproducible in real workflows, it's NOT the serial timeout recovery path. Investigation should focus on: specific Power Query failure modes (data source connectivity, query complexity), CLI daemon-specific state management, and workload patterns not covered by synthetic test files.
+
+### 2026-03-21 - PIVOT: Escalate Defect Search Above ComInterop Layer
+
+**Date:** 2026-03-21
+**Decision:** Serial workflow regression tests all GREEN (controls, not RED). Remaining bug (if it exists) survives above the session/timeout layer.
+
+**Escalation Path:**
+- **CLI Daemon State** — Session persistence, named-pipe state management across invocations
+- **Service Routing Layer** — ExcelMcpService command forwarding, batch continuity
+- **Workbook-Specific Patterns** — PQ query failures, data source state, connectivity
+
+**New Agents Launched:**
+- **Nate (Tester):** Find the first true RED regression above the current control layer (CLI workflow tests, daemon state validation, workbook-specific sequences)
+- **Cheritto (Platform Dev):** Trace CLI/service/session wrapper seam for bug survival (command routing, session wiring, parameter propagation)
+
 ## Governance
 
 - All meaningful changes require team consensus
