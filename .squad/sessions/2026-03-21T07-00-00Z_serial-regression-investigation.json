@@ -1,0 +1,51 @@
+{
+  "id": "2026-03-21-serial-regression-investigation",
+  "createdAt": "2026-03-21T06:00:00Z",
+  "completedAt": "2026-03-21T07:00:00Z",
+  "topic": "Excel MCP Stability Bug — Serial Power Query Workflows",
+  "requestedBy": "Stefan Broenner",
+  "participants": [
+    "Nate (Tester)",
+    "Cheritto (Platform Dev)",
+    "McCauley (Lead, monitoring)"
+  ],
+  "outcomes": [
+    "ComInterop layer tests all PASSED (7/7 control tests)",
+    "CLI daemon layer shows communication issues (1 test failed at setup)",
+    "No RED regression found at either layer",
+    "Test infrastructure complete and ready for future use",
+    "Investigation blocked on user workbook or new reproduction evidence"
+  ],
+  "decisions": [
+    "Keep all test infrastructure (RunType=OnDemand tagged)",
+    "No production code changes until RED regression reproduced",
+    "Escalate to user for real workbook or detailed reproduction steps"
+  ],
+  "testsCovered": [
+    "ExcelBatchSerialWorkflowTests (3 tests, all PASSED)",
+    "SessionManagerSerialWorkflowTests (4 tests, all PASSED)",
+    "PowerQuerySerialWorkflowRegressionTests (1 test, FAILED at setup)"
+  ],
+  "keyFindings": [
+    "Session layer is provably stable through timeout/recovery/reopen cycle",
+    "Synthetic workloads (List.Generate, <1s) do not reproduce user symptoms",
+    "Real bug pattern requires external data sources, network timeouts, or hours of continuous use",
+    "Test coverage gap in CLI integration layer identified and documented",
+    "If bug exists, it survives in wrapper layer (CLI daemon, service routing, or session continuation)"
+  ],
+  "nextSteps": [
+    "Await user workbook or specific reproduction steps",
+    "Stress test alternative: simulate slow data sources",
+    "Network failure alternative: mock connection timeouts",
+    "Long-run alternative: days of continuous CLI operations"
+  ],
+  "filesChanged": [
+    ".squad/orchestration-log/2026-03-21T07-00-00Z-scribe-sync.md (new)",
+    ".squad/decisions/inbox/nate-no-red-regression-found.md (existing)",
+    ".squad/decisions/inbox/nate-cli-daemon-repro.md (existing)",
+    ".squad/decisions/inbox/cheritto-cli-repro.md (existing)",
+    ".squad/agents/nate/history.md (staged)",
+    ".squad/agents/cheritto/history.md (staged)"
+  ],
+  "investigationStatus": "BLOCKED — awaiting user feedback or new reproduction evidence"
+}

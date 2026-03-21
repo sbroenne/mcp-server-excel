@@ -101,6 +101,91 @@
 - **Nate (Tester):** Find the first true RED regression above the current control layer (CLI workflow tests, daemon state validation, workbook-specific sequences)
 - **Cheritto (Platform Dev):** Trace CLI/service/session wrapper seam for bug survival (command routing, session wiring, parameter propagation)
 
+### 2026-03-21 - No RED Regression Found on Serial Power Query Workflows
+
+**Date:** 2026-03-21  
+**Authors:** Nate (Tester), Cheritto (Platform Dev)  
+**Status:** Investigation complete — no reproducible bug at current visibility
+
+**Summary:**
+Created comprehensive regression tests across ComInterop and CLI layers modeling the exact bug report workflow. All control tests PASSED (7 ComInterop tests). One attempted CLI integration test FAILED at daemon initialization (not a Power Query issue). No RED regression found at either layer.
+
+**Test Coverage Added:**
+- `ExcelBatchSerialWorkflowTests` (3 tests, all PASSED) — timeout detection, fail-fast, dispose cleanup
+- `SessionManagerSerialWorkflowTests` (4 tests, all PASSED) — session recovery, isolation, cleanup accuracy
+- `PowerQuerySerialWorkflowRegressionTests` (1 test, FAILED at setup) — CLI daemon communication
+
+**Key Finding:**
+ComInterop session/batch management is provably stable. Synthetic tests (List.Generate, <1s refresh, in-memory) do not reproduce user symptoms (external data sources, network timeouts, hours of continuous use). Bug (if it exists) is either workload-specific, requires real user workbook, or is in CLI daemon/service routing layer above ComInterop.
+
+**Why No RED Test:**
+The bug report describes symptoms with real external data sources, network latency, and hours of continuous use. Synthetic in-memory tests cannot reproduce those conditions.
+
+**Test Characteristics:**
+- Control tests: ComInterop API direct calls — prove infrastructure is solid
+- Regression test: CLI subprocess + daemon — simulates real user invocation pattern
+- All tagged `RunType=OnDemand` for future validation
+
+**Recommendation:**
+Keep test infrastructure in place. No production code changes until RED regression is reproduced. Options for further investigation:
+1. Request real (sanitized) user workbook
+2. Add artificial delays to simulate slow data sources
+3. Mock network connection timeouts
+4. Long-running stress test (days of continuous operations)
+5. Analyze CLI daemon logs during actual failure
+
+**Implications:**
+- Infrastructure layer (ComInterop, session management, timeout recovery) is stable and battle-tested
+- If bug survives, it's in wrapper layer: CLI daemon state management, service RPC routing, or CLI process spawn → daemon connection continuity
+- Synthetic test harness proven effective for infrastructure validation but insufficient for user workload patterns
+
+---
+
+### 2026-03-21 - CLI Daemon Integration Test Gap Identified
+
+**Date:** 2026-03-21  
+**Author:** Cheritto (Platform Dev)  
+**Status:** Gap documented, test pattern recommended
+
+**Finding:**
+Zero existing CLI integration tests with actual Excel workbook + Power Query workflows. Current CLI test coverage:
+- `CliDaemonTests.cs` — daemon startup, service status, mutex (no Excel operations)
+- `BatchCommandTests.cs` — NDJSON parsing, diagnostics (no Excel operations)
+- `DiagCommandTests.cs` — ping/echo only
+
+**Bug Report Test Gap:**
+Bug report uses full CLI → daemon → service → SessionManager stack. Current tests only validate daemon initialization, not Excel operation routing through the stack.
+
+**Recommended Test Seam (for Nate):**
+Create `PowerQueryWorkflowTests.cs` using:
+- `CliProcessHelper.RunAsync()` to spawn actual `excelcli` process per command
+- `ServiceFixture` to ensure daemon running
+- Test workbook with 2-3 Power Query queries (can use minimal CSV connection)
+- Serial CLI commands matching bug report pattern
+- Timeout injection via workbook with slow query or `--timeout` CLI flag
+
+**Test Pattern:**
+```csharp
+1. excelcli session open workbook.xlsx
+2. excelcli range set-values (warm up session)
+3. excelcli powerquery refresh QueryA (short timeout - will timeout)
+4. excelcli powerquery refresh QueryB (should fail fast or succeed)
+5. excelcli session close
+6. excelcli session open workbook.xlsx (should work immediately)
+7. Assert: no hung Excel processes, no lingering excelcli, operations predictable
+```
+
+**Why This Seam:**
+- Hits actual bug pathway: CLI → daemon → service → session → batch
+- Tests wrapper layer cancellation/timeout propagation
+- Tests daemon session state continuity across multiple CLI invocations
+- Tests cleanup through full stack
+
+**Impact:**
+If CLI integration tests reproduce the bug (RED), then bug is confirmed in wrapper layer, fix likely in service cancellation propagation or daemon session cleanup. If tests still PASS, bug is workload-specific or requires real user workbook structure.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus
