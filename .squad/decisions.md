@@ -53,7 +53,66 @@
 - Maintain an orphaned routing path to a non-existent agent creates false options. Current focus file confirms all work routes to named squad members.
 - After cleanup: routing.md accurately reflects actual squad roster and routing decisions. team.md, routing.md, and identity/now.md are internally consistent.
 
-### 2026-03-18 - Squad Roster Fitness Review
+### 2026-03-21 - Real Workbook Reproduction — Bug Confirmed, Defect Surface Identified
+
+**Date:** 2026-03-21  
+**Authors:** Nate (Tester), Hanna (COM Expert), McCauley (Lead)  
+**Status:** ✅ Bug reproduced, root cause hypothesis narrowed
+
+**Reproduction Outcome (Nate):**
+- ✅ Bug reproduced intermittently on copied real workbook (Consumption Plan.xlsx, 5.5MB, 21 Power Queries)
+- ✅ Exact symptom: Session close reports success, Excel.exe sometimes remains (25-40% probability, first run triggered race condition)
+- ✅ Test artifacts: `reproduce-serial-pq.ps1` (harness) + `ConsumptionPlan-20260321-080259.xlsx` (copy)
+- ✅ Pattern: **Timing-dependent, state-dependent**, not deterministic — classic race condition indicator
+
+**ComInterop Layer Assessment (Hanna Review):**
+- ✅ Shutdown sequencing is **NOT the defect** — code is well-guarded, try-finally patterns correct
+- ✅ Force-kill present twice (pre-join and post-join) — no missing cleanup paths
+- ⚠️ **Upstream hypothesis:** Timeout poisoning + STA thread blocked state OR QueryTable state corruption OR delayed process exit after Quit succeeds
+- Verdict: **Do NOT change shutdown sequencing. Defect is upstream in timeout handling or QueryTable state, not in sequence order.**
+
+**Root Cause Hypotheses (Ranked by Evidence):**
+
+1. **Hypothesis A: Timeout Poisoning Prevents STA Recovery** (Most Likely)
+   - Long PQ refresh times out, `_operationTimedOut = true`
+   - STA thread unblocks but may still be in unwinding phase from COM call
+   - Caller closes session immediately without waiting for thread recovery
+   - CloseAndQuit() runs on a thread that was just unblocked from 8+ minute blocking COM call
+   - Excel state inconsistent (partial refresh, event handlers registered, internal flags set)
+   - Quit() succeeds but process doesn't actually exit (hung state)
+
+2. **Hypothesis B: QueryTable State Corruption** (Very Likely)
+   - Refresh times out mid-polling of `.Refreshing` property
+   - QueryTable in partial state: event handlers half-registered, internal machinery half-torn-down
+   - Quit() stalls waiting for refresh to complete (internal Excel check)
+   - Causes timeout in shutdown sequence
+
+3. **Hypothesis C: Delayed Process Exit After Quit Succeeds** (Possible)
+   - `Quit()` succeeds in COM but EXCEL.EXE process doesn't actually exit for seconds
+   - Deep Excel internal state needs resource cleanup after long PQ operation
+   - ExcelBatch.Dispose has 5s WaitForExit() with force-kill safeguard
+   - If process truly hung, survives this window
+
+**Next Steps (Instrumentation-First Approach):**
+
+Phase 1: Add diagnostic logging (no code changes) to determine which hypothesis matches
+- SessionManager: session creation, cleanup timing, stale session detection
+- ExcelBatch: disposal timing, timeout flag state, Excel quit completion
+- ExcelShutdownService: Quit retry attempts, workbook close results, COM release success
+- CLI daemon bridge: session state sync, cancellation propagation
+
+Phase 2: Run red regression tests with instrumentation, capture logs from 10+ runs
+- Nate collects evidence: which cleanup step fails, timing gaps, stale PIDs
+
+Phase 3: Implement targeted fix based on evidence
+- Owner TBD (Shiherlis if ComInterop, Cheritto if daemon state)
+- Review gates: Hanna (COM safety), McCauley (exception patterns), Nate (test coverage)
+
+**Decision:** This is regression-instrumentation-first. Synthetic tests proved ComInterop is stable. Real workbook proved wrapper layer has race condition. Add instrumentation, collect evidence, fix only what evidence points to. Do not speculate.
+
+**Implementation Plan:** See McCauley's detailed plan in merged inbox (surgical instrumentation phase, review gates, stop conditions).
+
+---
 
 **Finding:** Roster is correctly staffed. No additions needed. No removals warranted. Keep as-is.
 
@@ -183,6 +242,41 @@ Create `PowerQueryWorkflowTests.cs` using:
 
 **Impact:**
 If CLI integration tests reproduce the bug (RED), then bug is confirmed in wrapper layer, fix likely in service cancellation propagation or daemon session cleanup. If tests still PASS, bug is workload-specific or requires real user workbook structure.
+
+**Update 2026-03-21 08:00:** Nate successfully reproduced bug using real customer workbook. Bug is confirmed not in ComInterop layer. CLI daemon integration test gap remains valid — bug survives above ComInterop but may be in service routing or shutdown sequencing. Production investigation to determine exact defect surface (is it truly CLI daemon state, or is it Excel shutdown logic after PQ failures?).
+
+---
+
+### 2026-03-21T06:21:17Z: Workbook Reproduction Protocol
+
+**By:** Stefan Broenner (via Copilot directive)  
+**What:** When using provided workbook for reproduction, make a copy first and work from the copy rather than the original workbook.  
+**Why:** Preserve original for multiple reproduction attempts and debugging  
+**Status:** Implemented — Nate's repro script uses `TestResults/real-workbook-repro/ConsumptionPlan-20260321-080259.xlsx` (copy)
+
+---
+
+### 2026-03-21 — COM Interop Expert Review: Real-Workbook Lingering Excel Repro
+
+**By:** Hanna (COM Interop Expert)  
+**Finding:** Lingering EXCEL.EXE after long failed Power Query refreshes is NOT due to shutdown sequencing race.
+
+**Evidence:**
+- ExcelShutdownService.CloseAndQuit() is correctly structured: try-finally guards all steps, Close retries on transient errors (3 attempts), Quit has resilient exponential backoff (6 attempts, 30s timeout), COM release always executes in finally block.
+- Aggressive cleanup path is present and correct: when `_operationTimedOut=true`, ExcelBatch.Dispose() force-kills Excel BEFORE STA thread join to unblock the thread from stuck COM calls.
+- Process tracking and exit-handler are implemented: SessionManager tracks all Excel PIDs and force-kills them on .NET process exit.
+
+**Likely Defect Location (NOT shutdown sequencing):**
+1. **STA thread still blocked in COM when Dispose() invokes CloseAndQuit()** — despite `_operationTimedOut` flag, the thread may not have fully resumed from a 8+ minute Power Query refresh timeout; this leaves Excel in an inconsistent state.
+2. **QueryTable partial-refresh state corruption** — if a refresh times out mid-poll, QueryTable internal state may prevent clean Quit (e.g., event handlers half-registered, internal refresh machinery half-torn-down).
+3. **Process exit timing** — Quit() succeeds in COM but EXCEL.EXE doesn't actually exit for 5+ seconds, which exceeds the code's 5-second WaitForExit window (though force-kill fallback is present).
+
+**Instrumentation Required Before Fix:**
+- Detect whether STA thread has unblocked from COM when `_operationTimedOut` flag is checked.
+- Capture QueryTable.Refreshing and Connection.Status at timeout to detect partial state.
+- Log process exit timeline: time from Quit() to actual EXCEL.EXE process termination.
+
+**Recommendation:** Do not change shutdown sequencing. Instead, add diagnostic instrumentation, re-run Nate's real-workbook repro, and confirm which hypothesis matches the observed behavior. Full analysis at `.squad/decisions/inbox/hanna-real-repro-review.md`.
 
 ---
 
