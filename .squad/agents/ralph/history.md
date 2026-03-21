@@ -9,3 +9,4 @@
 ## Learnings
 
 <!-- Append learnings below -->
+- 2026-03-18: Squad roster cleaned up. Orphaned @copilot routing references removed from routing.md. Team fully staffed: 7 members (McCauley, Hanna, Shiherlis, Cheritto, Nate, Trejo, Scribe) + 2 monitors (Ralph, Scribe). All domains covered. Routing table now maps worker/reviewer domains to active members only.

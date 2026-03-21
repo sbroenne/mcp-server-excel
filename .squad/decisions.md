@@ -46,6 +46,29 @@
 - Accept Hanna's COM review notes: cleanup discipline is correct, the action is intentionally sheet-scoped, and later Excel write failures are not transactional rollback semantics for this v1 shape.
 - Mark Bug 4 implemented and reviewed after focused Core tests, focused MCP tests, COM leak validation, documentation and spec sync, and McCauley's re-review approval all passed with explicit timeouts.
 
+### 2026-03-18 - Remove Orphaned @copilot Routing
+
+- `routing.md` referenced `@copilot 🤖` as a capable autonomous agent with an entire triage evaluation system and capability profile. However: no roster entry exists, no capability profile exists, 7 orphaned routing paths, and current work routes to named squad members only.
+- Remove all @copilot references from routing.md. Squad is fully staffed with 7 active members (McCauley, Hanna, Shiherlis, Cheritto, Nate, Trejo, Scribe) + 2 monitors (Ralph, Scribe) covering all domains.
+- Maintain an orphaned routing path to a non-existent agent creates false options. Current focus file confirms all work routes to named squad members.
+- After cleanup: routing.md accurately reflects actual squad roster and routing decisions. team.md, routing.md, and identity/now.md are internally consistent.
+
+### 2026-03-18 - Squad Roster Fitness Review
+
+**Finding:** Roster is correctly staffed. No additions needed. No removals warranted. Keep as-is.
+
+**Coverage:**
+- Windows COM Interop: Shiherlis (code) + Hanna (review) — 27 ComInterop files, 16 Core domains
+- MCP Server Tools: Cheritto — 25 tools, ForwardToService routing, action enums
+- CLI Commands & Parity: Cheritto — daemon, named pipe, MCP↔CLI feature parity (Rule 24)
+- Integration Tests: Nate — 6 test projects, round-trip validation, surgical testing
+- Documentation Consistency: Trejo — 6+ READMEs, skills single-source-of-truth, operation tables
+- Architecture & Quality: McCauley — Critical Rules enforcement, exception patterns, code review
+
+**Bus Factor:** 1-2. Each of Shiherlis, Hanna, Cheritto, Nate, Trejo is a singular point of failure for 2+ weeks if unavailable. Manageable but documented. Cross-training and automation recommended as nice-to-haves, not blockers.
+
+**Decision:** No roster changes. @copilot stays out (redundant, creates false routing, unclear autonomy). Squad is well-designed, fully staffed, and properly aligned to project shape. Each member has deep non-overlapping expertise. Clear boundaries and mandatory review gates prevent bad patterns from shipping.
+
 ## Governance
 
 - All meaningful changes require team consensus
