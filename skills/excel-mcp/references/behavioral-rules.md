@@ -75,8 +75,14 @@ When creating or modifying Excel files:
 
 - Set appropriate column widths for content
 - Apply header formatting (bold, filters)
-- Use proper number formats (currency, dates, percentages)
+- Use proper number formats (currency, dates, percentages) with `range set-number-format`
+- Auto-fit variable-width data with `range_format auto-fit-columns` or `range_format auto-fit-rows`
 - Format data as Excel Tables (not plain ranges)
+- When the same visual styling applies to multiple disjoint ranges on one sheet, use `range_format format-ranges`
+
+**Tool split to remember:**
+- `range` owns number display formats such as dates, currency, percentages, and text display
+- `range_format` owns visual styling, validation, auto-fit, and explicit width/height changes
 
 **Use `set-style` for semantic status labels and document structure:**
 - `Good` / `Bad` / `Neutral` — colour-coded status cells (green/red/yellow fills, theme-aware)
@@ -86,6 +92,7 @@ When creating or modifying Excel files:
 **Use `format-range` for visual layout (header rows, custom colours) — ALL properties in ONE call:**
 - `set-style('Heading 1')` does NOT apply a fill colour; if you want a coloured header row use `format-range`
 - Pass bold, fillColor, fontColor, and alignment together in a single call — do not call `format-range` multiple times for the same range
+- If the same formatting payload repeats across multiple non-contiguous ranges, prefer one `format-ranges` call over repeated `format-range` calls
 
 **Apply each formatting operation once** — do not reapply the same properties to the same range unless a later step explicitly changes them.
 
@@ -111,6 +118,7 @@ Always apply number formats after setting values. Without formatting:
 ```
 1. range set-values (data is now in cells)
 2. range set-number-format (apply format to range)
+3. range_format auto-fit-columns (when content would clip at default width)
 ```
 
 ### Format Tabular Data as Excel Tables

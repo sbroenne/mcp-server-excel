@@ -1,0 +1,27 @@
+{
+  "sourceWorkbookPath": "TestResults\\real-workbook-repro\\copied-workbook.xlsx",
+  "workingCopyFileStem": "anonymized-refresh-copy",
+  "configUpdate": {
+    "sheetName": "InputConfig",
+    "rangeAddress": "B2",
+    "valuesJson": "[[\"C:\\\\path\\\\to\\\\input.json\"]]",
+    "timeoutMs": 30000
+  },
+  "refreshSequence": [
+    {
+      "queryName": "RefreshStepA",
+      "expectedSuccess": true,
+      "timeoutMs": 120000
+    },
+    {
+      "queryName": "RefreshStepB",
+      "expectedSuccess": true,
+      "timeoutMs": 120000
+    },
+    {
+      "queryName": "RefreshStepC",
+      "expectedSuccess": false,
+      "timeoutMs": 120000
+    }
+  ]
+}

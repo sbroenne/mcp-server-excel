@@ -57,6 +57,11 @@ public sealed class SessionManager : IDisposable
 
     private static void OnProcessExit(object? sender, EventArgs e)
     {
+        // INSTRUMENTATION: Track ProcessExit handler execution
+        int killedCount = 0;
+        int alreadyExitedCount = 0;
+        int failedCount = 0;
+
         foreach (var pid in _trackedExcelPids)
         {
             try
@@ -65,12 +70,32 @@ public sealed class SessionManager : IDisposable
                 if (!proc.HasExited)
                 {
                     proc.Kill();
+                    killedCount++;
+                    // Note: Cannot use ILogger here - ProcessExit handler runs during AppDomain teardown
+                    SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-KILLED] Force-killed Excel process {pid}");
+                }
+                else
+                {
+                    alreadyExitedCount++;
                 }
             }
-            catch
+            catch (ArgumentException)
             {
-                // Process already exited or inaccessible — safe to ignore
+                // Process already exited
+                alreadyExitedCount++;
             }
+            catch (Exception ex)
+            {
+                // Process inaccessible
+                failedCount++;
+                SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-FAILED] Failed to kill Excel process {pid}: {ex.Message}");
+            }
+        }
+
+        // Summary log
+        if (killedCount > 0 || failedCount > 0)
+        {
+            SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-SUMMARY] Killed={killedCount}, AlreadyExited={alreadyExitedCount}, Failed={failedCount}, Total={_trackedExcelPids.Count}");
         }
     }
 
