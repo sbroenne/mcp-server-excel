@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Microsoft.CSharp.RuntimeBinder;
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -144,10 +145,19 @@ public partial class PowerQueryCommands
                                 // This can create a mutual deadlock. Instead, register the
                                 // CancellationToken so MessagePending returns PENDINGMSG_CANCELCALL
                                 // if cancelled, allowing the STA thread to exit cleanly.
+
+                                // INSTRUMENTATION: Trace QueryTable refresh entry and exit
+                                SessionDiagnostics.WriteStdErr($"[DIAG-PQ-QT-REFRESH-ENTER] Query='{queryName}' WorksheetIndex={ws}");
                                 OleMessageFilter.SetPendingCancellationToken(cancellationToken);
                                 try
                                 {
                                     queryTable.Refresh(false);
+                                    SessionDiagnostics.WriteStdErr($"[DIAG-PQ-QT-REFRESH-EXIT-SUCCESS] Query='{queryName}'");
+                                }
+                                catch (Exception ex)
+                                {
+                                    SessionDiagnostics.WriteStdErr($"[DIAG-PQ-QT-REFRESH-EXIT-EXCEPTION] Query='{queryName}' ExceptionType={ex.GetType().Name} Message={ex.Message}");
+                                    throw;
                                 }
                                 finally
                                 {
@@ -237,10 +247,21 @@ public partial class PowerQueryCommands
             // Trade-off: without EnterLongOperation, inbound EnsureScanDefinedEvents callbacks
             // are not throttled, which may cause elevated CPU during refresh (~88% peak).
             // This is preferable to a permanent hang.
+
+            // INSTRUMENTATION: Trace Connection refresh entry and exit
+            string connName = "";
+            try { connName = connection.Name?.ToString() ?? "(unknown)"; } catch { }
+            SessionDiagnostics.WriteStdErr($"[DIAG-PQ-CONN-REFRESH-ENTER] Connection='{connName}'");
             OleMessageFilter.SetPendingCancellationToken(cancellationToken);
             try
             {
                 connection.Refresh();
+                SessionDiagnostics.WriteStdErr($"[DIAG-PQ-CONN-REFRESH-EXIT-SUCCESS] Connection='{connName}'");
+            }
+            catch (Exception ex)
+            {
+                SessionDiagnostics.WriteStdErr($"[DIAG-PQ-CONN-REFRESH-EXIT-EXCEPTION] Connection='{connName}' ExceptionType={ex.GetType().Name} Message={ex.Message}");
+                throw;
             }
             finally
             {

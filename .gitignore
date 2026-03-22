@@ -216,6 +216,7 @@ FodyWeavers.xsd
 test_files/
 temp/
 sample_files/
+TestResults/real-workbook-repro/*.local.json
 
 # Exception: Allow Data Model template (required for tests)
 !tests/ExcelMcp.Core.Tests/TestAssets/DataModelTemplate.xlsx

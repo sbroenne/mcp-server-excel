@@ -213,35 +213,48 @@ public static class ExcelShutdownService
                         }
                     }, quitTimeout.Token);
 
-                    logger.LogInformation("Excel quit succeeded for {FileName} after {Attempts} attempt(s) in {Elapsed}ms",
+                    // INSTRUMENTATION: Track successful quit path
+                    logger.LogInformation(
+                        "[DIAG-QUIT-SUCCESS] Excel quit succeeded for {FileName} after {Attempts} attempt(s) in {Elapsed}ms",
                         fileName, attemptNumber, stopwatch.ElapsedMilliseconds);
+                    SessionDiagnostics.WriteStdErr(
+                        $"[DIAG-QUIT-SUCCESS] Excel quit succeeded for {fileName} after {attemptNumber} attempt(s) in {stopwatch.ElapsedMilliseconds}ms");
                 }
                 catch (OperationCanceledException) when (quitTimeout.Token.IsCancellationRequested)
                 {
                     // Overall timeout reached - Excel is truly hung
+                    // INSTRUMENTATION: Track timeout path
                     logger.LogError(
-                        "Excel quit TIMED OUT after {Timeout} for {FileName} (Attempts: {Attempts}). " +
+                        "[DIAG-QUIT-TIMEOUT] Excel quit TIMED OUT after {Timeout} for {FileName} (Attempts: {Attempts}). " +
                         "Excel is likely hung (modal dialog or deadlock). Proceeding with forced COM cleanup.",
                         ComInteropConstants.ExcelQuitTimeout, fileName, attemptNumber);
+                    SessionDiagnostics.WriteStdErr(
+                        $"[DIAG-QUIT-TIMEOUT] Excel quit TIMED OUT after {ComInteropConstants.ExcelQuitTimeout} for {fileName} (Attempts: {attemptNumber}). Excel is likely hung (modal dialog or deadlock). Proceeding with forced COM cleanup.");
                     lastException = new TimeoutException($"Excel.Quit() timed out after {ComInteropConstants.ExcelQuitTimeout} for {fileName}");
                 }
                 catch (COMException ex) when (ex.HResult == ResiliencePipelines.RPC_E_CALL_FAILED)
                 {
                     // Fatal RPC connection failure - Excel is unreachable
+                    // INSTRUMENTATION: Track RPC failure path
                     logger.LogError(ex,
-                        "Excel RPC connection FAILED (0x800706BE) for {FileName}. " +
+                        "[DIAG-QUIT-RPC-FAILED] Excel RPC connection FAILED (0x800706BE) for {FileName}. " +
                         "Excel is unreachable - this is a FATAL error that cannot be retried. " +
                         "Proceeding with forced COM cleanup. Excel process should be force-killed by caller.",
                         fileName);
+                    SessionDiagnostics.WriteStdErr(
+                        $"[DIAG-QUIT-RPC-FAILED] Excel RPC connection FAILED (0x800706BE) for {fileName}. Excel is unreachable - this is a FATAL error that cannot be retried. Proceeding with forced COM cleanup. Excel process should be force-killed by caller.");
                     lastException = ex;
                     // Don't retry - RPC connection is dead, Excel is gone
                 }
                 catch (COMException ex)
                 {
                     // All retry attempts exhausted or non-retriable error
+                    // INSTRUMENTATION: Track retry exhaustion path
                     logger.LogError(ex,
-                        "Excel quit failed for {FileName} after {Attempts} attempt(s) (HResult: 0x{HResult:X8}, Elapsed: {Elapsed}ms) - proceeding with COM cleanup",
+                        "[DIAG-QUIT-RETRY-EXHAUSTED] Excel quit failed for {FileName} after {Attempts} attempt(s) (HResult: 0x{HResult:X8}, Elapsed: {Elapsed}ms) - proceeding with COM cleanup",
                         fileName, attemptNumber, ex.HResult, stopwatch.ElapsedMilliseconds);
+                    SessionDiagnostics.WriteStdErr(
+                        $"[DIAG-QUIT-RETRY-EXHAUSTED] Excel quit failed for {fileName} after {attemptNumber} attempt(s) (HResult: 0x{ex.HResult:X8}, Elapsed: {stopwatch.ElapsedMilliseconds}ms) - proceeding with COM cleanup");
                     lastException = ex;
                 }
                 catch (MissingMemberException ex)
@@ -261,10 +274,13 @@ public static class ExcelShutdownService
                 // Additional diagnostic if quit failed
                 if (lastException != null)
                 {
+                    // INSTRUMENTATION: Track cleanup after failed quit
                     logger.LogWarning(
-                        "Excel quit unsuccessful for {FileName} (Elapsed: {Elapsed}s, Type: {ExceptionType}). " +
+                        "[DIAG-QUIT-CLEANUP-AFTER-FAILURE] Excel quit unsuccessful for {FileName} (Elapsed: {Elapsed}s, Type: {ExceptionType}). " +
                         "COM cleanup completed. Process may leak if Excel remains hung.",
                         fileName, stopwatch.Elapsed.TotalSeconds, lastException.GetType().Name);
+                    SessionDiagnostics.WriteStdErr(
+                        $"[DIAG-QUIT-CLEANUP-AFTER-FAILURE] Excel quit unsuccessful for {fileName} (Elapsed: {stopwatch.Elapsed.TotalSeconds:F3}s, Type: {lastException.GetType().Name}). COM cleanup completed. Process may leak if Excel remains hung.");
                 }
             }
         }
