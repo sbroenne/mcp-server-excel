@@ -1,7 +1,9 @@
 using System.Diagnostics;
+using System.IO.Pipes;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
+using Sbroenne.ExcelMcp.Service;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -77,27 +79,81 @@ public sealed class CliDaemonTests : IAsyncLifetime
     [Fact]
     public async Task ServiceStart_WhenDaemonMutexHeldButUnresponsive_ReturnsActionableError()
     {
-        using var daemonMutex = new Mutex(initiallyOwned: true, DaemonAutoStart.GetDaemonMutexName(_testPipeName), out bool createdNew);
-        Assert.True(createdNew, "Test should acquire a unique daemon mutex");
-        try
-        {
-            var result = await CliProcessHelper.RunAsync("service start", timeoutMs: 20000, environmentVariables: TestEnv);
-            _output.WriteLine($"Start response: {result.Stdout}");
-            _output.WriteLine($"Start stderr: {result.Stderr}");
+        await using var heldMutex = await HeldMutex.AcquireAsync(DaemonAutoStart.GetDaemonMutexName(_testPipeName));
 
-            using var json = JsonDocument.Parse(result.Stdout);
-            Assert.Equal(1, result.ExitCode);
-            Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        var result = await CliProcessHelper.RunAsync("service start", timeoutMs: 20000, environmentVariables: TestEnv);
+        _output.WriteLine($"Start response: {result.Stdout}");
+        _output.WriteLine($"Start stderr: {result.Stderr}");
 
-            var error = json.RootElement.GetProperty("error").GetString();
-            Assert.NotNull(error);
-            Assert.Contains("not responding", error, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("service stop", error, StringComparison.OrdinalIgnoreCase);
-        }
-        finally
-        {
-            daemonMutex.ReleaseMutex();
-        }
+        using var json = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(1, result.ExitCode);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+
+        var error = json.RootElement.GetProperty("error").GetString();
+        Assert.NotNull(error);
+        Assert.Contains("not responding", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("service stop", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ServiceStart_WhenDaemonAcceptsConnectionButNeverReplies_ReturnsActionableError()
+    {
+        await using var heldMutex = await HeldMutex.AcquireAsync(DaemonAutoStart.GetDaemonMutexName(_testPipeName));
+
+        await using var stalledDaemon = new StalledPipeServer(_testPipeName, _output);
+        await stalledDaemon.StartAsync();
+
+        var result = await CliProcessHelper.RunAsync("service start", timeoutMs: 20000, environmentVariables: TestEnv);
+        _output.WriteLine($"Start response: {result.Stdout}");
+        _output.WriteLine($"Start stderr: {result.Stderr}");
+
+        using var json = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(1, result.ExitCode);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+
+        var error = json.RootElement.GetProperty("error").GetString();
+        Assert.NotNull(error);
+        Assert.Contains("not responding", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("service stop", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ServiceStatus_WhenDaemonAcceptsConnectionButNeverReplies_FailsQuicklyWithTimeoutError()
+    {
+        await using var stalledDaemon = new StalledPipeServer(_testPipeName, _output);
+        await stalledDaemon.StartAsync();
+
+        var result = await CliProcessHelper.RunAsync("service status", timeoutMs: 10000, environmentVariables: TestEnv);
+        _output.WriteLine($"Status response: {result.Stdout}");
+        _output.WriteLine($"Status stderr: {result.Stderr}");
+
+        using var json = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(1, result.ExitCode);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.False(json.RootElement.GetProperty("running").GetBoolean());
+
+        var error = json.RootElement.GetProperty("error").GetString();
+        Assert.NotNull(error);
+        Assert.Contains("timed out", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SessionList_WhenDaemonAcceptsConnectionButNeverReplies_FailsQuicklyWithTimeoutError()
+    {
+        await using var stalledDaemon = new StalledPipeServer(_testPipeName, _output);
+        await stalledDaemon.StartAsync();
+
+        var result = await CliProcessHelper.RunAsync("session list", timeoutMs: 10000, environmentVariables: TestEnv);
+        _output.WriteLine($"Session list response: {result.Stdout}");
+        _output.WriteLine($"Session list stderr: {result.Stderr}");
+
+        using var json = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(1, result.ExitCode);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+
+        var error = json.RootElement.GetProperty("error").GetString();
+        Assert.NotNull(error);
+        Assert.Contains("timed out", error, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -288,6 +344,147 @@ public sealed class CliDaemonTests : IAsyncLifetime
         finally
         {
             _daemonProcess.Dispose();
+        }
+    }
+
+    private sealed class StalledPipeServer : IAsyncDisposable
+    {
+        private readonly string _pipeName;
+        private readonly ITestOutputHelper _output;
+        private readonly CancellationTokenSource _cts = new();
+        private readonly TaskCompletionSource _listeningTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly Task _serverTask;
+        private NamedPipeServerStream? _server;
+
+        public StalledPipeServer(string pipeName, ITestOutputHelper output)
+        {
+            _pipeName = pipeName;
+            _output = output;
+            _serverTask = RunAsync();
+        }
+
+        public Task StartAsync() => _listeningTcs.Task;
+
+        public async ValueTask DisposeAsync()
+        {
+            _cts.Cancel();
+
+            if (_server != null)
+            {
+                try
+                {
+                    await _server.DisposeAsync();
+                }
+                catch
+                {
+                }
+            }
+
+            try
+            {
+                await _serverTask;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+
+            _cts.Dispose();
+        }
+
+        private async Task RunAsync()
+        {
+            try
+            {
+                _server = ServiceSecurity.CreateSecureServer(_pipeName);
+                _listeningTcs.TrySetResult();
+                _output.WriteLine($"Stalled pipe server listening on {_pipeName}");
+
+                await _server.WaitForConnectionAsync(_cts.Token);
+                _output.WriteLine("Stalled pipe server accepted a connection");
+
+                await Task.Delay(Timeout.InfiniteTimeSpan, _cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            finally
+            {
+                if (_server != null)
+                {
+                    try
+                    {
+                        if (_server.IsConnected)
+                        {
+                            _server.Disconnect();
+                        }
+                    }
+                    catch
+                    {
+                    }
+
+                    await _server.DisposeAsync();
+                    _server = null;
+                }
+            }
+        }
+    }
+
+    private sealed class HeldMutex : IAsyncDisposable
+    {
+        private readonly string _mutexName;
+        private readonly TaskCompletionSource _acquiredTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly ManualResetEventSlim _releaseSignal = new(false);
+        private readonly Thread _thread;
+        private Mutex? _mutex;
+
+        private HeldMutex(string mutexName)
+        {
+            _mutexName = mutexName;
+            _thread = new Thread(ThreadMain)
+            {
+                IsBackground = true,
+                Name = $"HeldMutex-{mutexName}"
+            };
+            _thread.Start();
+        }
+
+        public static async Task<HeldMutex> AcquireAsync(string mutexName)
+        {
+            var heldMutex = new HeldMutex(mutexName);
+            await heldMutex._acquiredTcs.Task;
+            return heldMutex;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            _releaseSignal.Set();
+            _thread.Join(TimeSpan.FromSeconds(5));
+            _releaseSignal.Dispose();
+            return ValueTask.CompletedTask;
+        }
+
+        private void ThreadMain()
+        {
+            try
+            {
+                _mutex = new Mutex(initiallyOwned: true, _mutexName, out bool createdNew);
+                if (!createdNew)
+                {
+                    throw new InvalidOperationException($"Failed to acquire unique test mutex '{_mutexName}'.");
+                }
+
+                _acquiredTcs.TrySetResult();
+                _releaseSignal.Wait();
+                _mutex.ReleaseMutex();
+            }
+            catch (Exception ex)
+            {
+                _acquiredTcs.TrySetException(ex);
+            }
+            finally
+            {
+                _mutex?.Dispose();
+            }
         }
     }
 }

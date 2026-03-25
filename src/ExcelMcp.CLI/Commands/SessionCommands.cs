@@ -137,10 +137,12 @@ internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseCommand.Set
 
 internal sealed class SessionListCommand : AsyncCommand
 {
+    private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(2);
+
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
-        using var client = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(2));
+        using var client = new ServiceClient(pipeName, connectTimeout: CommandTimeout, requestTimeout: CommandTimeout);
 
         try
         {

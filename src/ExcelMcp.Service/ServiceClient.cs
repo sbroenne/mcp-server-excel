@@ -32,18 +32,20 @@ public sealed class ServiceClient : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         using var pipe = ServiceSecurity.CreateClient(_pipeName);
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(_requestTimeout);
+        using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        connectCts.CancelAfter(_connectTimeout);
 
         try
         {
-            await pipe.ConnectAsync((int)_connectTimeout.TotalMilliseconds, timeoutCts.Token);
+            await pipe.ConnectAsync((int)_connectTimeout.TotalMilliseconds, connectCts.Token);
 
             // Use StreamJsonRpc typed proxy for the RPC call
             var proxy = JsonRpc.Attach<IExcelDaemonRpc>(pipe);
             try
             {
-                return await proxy.ProcessCommandAsync(request);
+                using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                requestCts.CancelAfter(_requestTimeout);
+                return await proxy.ProcessCommandAsync(request).WaitAsync(requestCts.Token);
             }
             finally
             {
@@ -55,7 +57,11 @@ public sealed class ServiceClient : IDisposable
         {
             return new ServiceResponse { Success = false, ErrorMessage = "Service connection timed out" };
         }
-        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (connectCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "Service connection timed out" };
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             return new ServiceResponse { Success = false, ErrorMessage = "Service request timed out" };
         }
