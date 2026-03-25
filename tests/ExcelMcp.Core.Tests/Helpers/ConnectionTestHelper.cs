@@ -1,3 +1,4 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -32,14 +33,17 @@ public static class ConnectionTestHelper
         using var batch = ExcelSession.BeginBatch(filePath);
         batch.Execute((ctx, ct) =>
         {
+            dynamic? connections = null;
+            dynamic? newConnection = null;
+            dynamic? oledb = null;
             try
             {
                 // Get connections collection
-                dynamic connections = ctx.Book.Connections;
+                connections = ctx.Book.Connections;
 
                 // Create OLEDB connection using Add2() (current method, Add() is deprecated)
                 // Per instructions: Must use Connections.Add2() for OLEDB/ODBC connections
-                dynamic newConnection = connections.Add2(
+                newConnection = connections.Add2(
                     Name: connectionName,
                     Description: $"Test OLEDB connection created by {nameof(CreateOleDbConnection)}",
                     ConnectionString: connectionString,
@@ -52,7 +56,7 @@ public static class ConnectionTestHelper
                 // Configure OLEDB connection properties
                 if (newConnection.Type == 1) // OLEDB
                 {
-                    dynamic oledb = newConnection.OLEDBConnection;
+                    oledb = newConnection.OLEDBConnection;
                     if (oledb != null)
                     {
                         oledb.BackgroundQuery = true;
@@ -68,6 +72,12 @@ public static class ConnectionTestHelper
             {
                 throw new InvalidOperationException($"Failed to create OLEDB connection '{connectionName}': {ex.Message}", ex);
             }
+            finally
+            {
+                ComUtilities.Release(ref oledb);
+                ComUtilities.Release(ref newConnection);
+                ComUtilities.Release(ref connections);
+            }
         });
     }
 
@@ -79,9 +89,10 @@ public static class ConnectionTestHelper
         using var batch = ExcelSession.BeginBatch(filePath);
         batch.Execute((ctx, ct) =>
         {
+            dynamic? connections = null;
             try
             {
-                dynamic connections = ctx.Book.Connections;
+                connections = ctx.Book.Connections;
 
                 // Create ODBC connection using NAMED parameters (Excel COM requires this)
                 connections.Add(
@@ -97,6 +108,10 @@ public static class ConnectionTestHelper
             catch (Exception ex)
             {
                 throw new InvalidOperationException($"Failed to create ODBC connection '{connectionName}': {ex.Message}", ex);
+            }
+            finally
+            {
+                ComUtilities.Release(ref connections);
             }
         });
     }

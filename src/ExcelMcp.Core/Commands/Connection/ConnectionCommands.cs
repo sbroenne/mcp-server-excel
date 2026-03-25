@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
+using Excel = Microsoft.Office.Interop.Excel;
 
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -14,24 +15,47 @@ public partial class ConnectionCommands : IConnectionCommands
 {
     #region Helper Methods
 
-    /// <summary>
-    /// Returns the typed sub-connection (OLEDBConnection, ODBCConnection, TextConnection, or WebConnection)
-    /// based on the connection type. For types 3/4, tries TextConnection first then WebConnection
-    /// because Excel may report CSV files as either type.
-    /// </summary>
+    private static DateTime? GetRefreshDateSafe(object? refreshDate)
+    {
+        return refreshDate switch
+        {
+            null => null,
+            DateTime dateTime => dateTime,
+            double oaDate => DateTime.FromOADate(oaDate),
+            _ => null
+        };
+    }
+
     private static dynamic? GetTypedSubConnection(dynamic conn)
     {
         int connType = conn.Type;
 
-        if (connType == 1) return conn.OLEDBConnection;
-        if (connType == 2) return conn.ODBCConnection;
+        if (connType == 1)
+        {
+            return conn.OLEDBConnection;
+        }
+
+        if (connType == 2)
+        {
+            return conn.ODBCConnection;
+        }
+
         if (connType is 3 or 4)
         {
-            try { return conn.TextConnection; }
+            try
+            {
+                return conn.TextConnection;
+            }
             catch (COMException)
             {
-                try { return conn.WebConnection; }
-                catch (COMException) { return null; }
+                try
+                {
+                    return conn.WebConnection;
+                }
+                catch (COMException)
+                {
+                    return null;
+                }
             }
         }
 
@@ -40,38 +64,314 @@ public partial class ConnectionCommands : IConnectionCommands
 
     private static bool GetBackgroundQuerySetting(dynamic conn)
     {
-        try { return GetTypedSubConnection(conn)?.BackgroundQuery ?? false; }
-        catch (COMException) { return false; }
+        try
+        {
+            int connType = conn.Type;
+            if (connType == 1)
+            {
+                Excel.OLEDBConnection? oledbConnection = null;
+                try
+                {
+                    oledbConnection = conn.OLEDBConnection;
+                    return oledbConnection?.BackgroundQuery ?? false;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref oledbConnection);
+                }
+            }
+
+            if (connType == 2)
+            {
+                Excel.ODBCConnection? odbcConnection = null;
+                try
+                {
+                    odbcConnection = conn.ODBCConnection;
+                    return odbcConnection?.BackgroundQuery ?? false;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref odbcConnection);
+                }
+            }
+
+            if (connType is 3 or 4)
+            {
+                dynamic? textConnection = null;
+                try
+                {
+                    textConnection = conn.TextConnection;
+                    return textConnection?.BackgroundQuery ?? false;
+                }
+                catch (COMException)
+                {
+                }
+                finally
+                {
+                    ComUtilities.Release(ref textConnection);
+                }
+
+                dynamic? webConnection = null;
+                try
+                {
+                    webConnection = conn.WebConnection;
+                    return webConnection?.BackgroundQuery ?? false;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref webConnection);
+                }
+            }
+        }
+        catch (COMException)
+        {
+        }
+
+        return false;
     }
 
     private static bool GetRefreshOnFileOpenSetting(dynamic conn)
     {
-        try { return GetTypedSubConnection(conn)?.RefreshOnFileOpen ?? false; }
-        catch (COMException) { return false; }
+        try
+        {
+            int connType = conn.Type;
+            if (connType == 1)
+            {
+                Excel.OLEDBConnection? oledbConnection = null;
+                try
+                {
+                    oledbConnection = conn.OLEDBConnection;
+                    return oledbConnection?.RefreshOnFileOpen ?? false;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref oledbConnection);
+                }
+            }
+
+            if (connType == 2)
+            {
+                Excel.ODBCConnection? odbcConnection = null;
+                try
+                {
+                    odbcConnection = conn.ODBCConnection;
+                    return odbcConnection?.RefreshOnFileOpen ?? false;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref odbcConnection);
+                }
+            }
+
+            if (connType is 3 or 4)
+            {
+                dynamic? textConnection = null;
+                try
+                {
+                    textConnection = conn.TextConnection;
+                    return textConnection?.RefreshOnFileOpen ?? false;
+                }
+                catch (COMException)
+                {
+                }
+                finally
+                {
+                    ComUtilities.Release(ref textConnection);
+                }
+
+                dynamic? webConnection = null;
+                try
+                {
+                    webConnection = conn.WebConnection;
+                    return webConnection?.RefreshOnFileOpen ?? false;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref webConnection);
+                }
+            }
+        }
+        catch (COMException)
+        {
+        }
+
+        return false;
     }
 
     private static bool GetSavePasswordSetting(dynamic conn)
     {
-        try { return GetTypedSubConnection(conn)?.SavePassword ?? false; }
-        catch (COMException) { return false; }
+        try
+        {
+            int connType = conn.Type;
+            if (connType == 1)
+            {
+                Excel.OLEDBConnection? oledbConnection = null;
+                try
+                {
+                    oledbConnection = conn.OLEDBConnection;
+                    return oledbConnection?.SavePassword ?? false;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref oledbConnection);
+                }
+            }
+
+            if (connType == 2)
+            {
+                Excel.ODBCConnection? odbcConnection = null;
+                try
+                {
+                    odbcConnection = conn.ODBCConnection;
+                    return odbcConnection?.SavePassword ?? false;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref odbcConnection);
+                }
+            }
+
+            if (connType is 3 or 4)
+            {
+                dynamic? textConnection = null;
+                try
+                {
+                    textConnection = conn.TextConnection;
+                    return textConnection?.SavePassword ?? false;
+                }
+                catch (COMException)
+                {
+                }
+                finally
+                {
+                    ComUtilities.Release(ref textConnection);
+                }
+
+                dynamic? webConnection = null;
+                try
+                {
+                    webConnection = conn.WebConnection;
+                    return webConnection?.SavePassword ?? false;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref webConnection);
+                }
+            }
+        }
+        catch (COMException)
+        {
+        }
+
+        return false;
     }
 
     private static int GetRefreshPeriod(dynamic conn)
     {
-        try { return GetTypedSubConnection(conn)?.RefreshPeriod ?? 0; }
-        catch (COMException) { return 0; }
+        try
+        {
+            int connType = conn.Type;
+            if (connType == 1)
+            {
+                Excel.OLEDBConnection? oledbConnection = null;
+                try
+                {
+                    oledbConnection = conn.OLEDBConnection;
+                    return oledbConnection?.RefreshPeriod ?? 0;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref oledbConnection);
+                }
+            }
+
+            if (connType == 2)
+            {
+                Excel.ODBCConnection? odbcConnection = null;
+                try
+                {
+                    odbcConnection = conn.ODBCConnection;
+                    return odbcConnection?.RefreshPeriod ?? 0;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref odbcConnection);
+                }
+            }
+
+            if (connType is 3 or 4)
+            {
+                dynamic? textConnection = null;
+                try
+                {
+                    textConnection = conn.TextConnection;
+                    return textConnection?.RefreshPeriod ?? 0;
+                }
+                catch (COMException)
+                {
+                }
+                finally
+                {
+                    ComUtilities.Release(ref textConnection);
+                }
+
+                dynamic? webConnection = null;
+                try
+                {
+                    webConnection = conn.WebConnection;
+                    return webConnection?.RefreshPeriod ?? 0;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref webConnection);
+                }
+            }
+        }
+        catch (COMException)
+        {
+        }
+
+        return 0;
     }
 
     private static DateTime? GetLastRefreshDate(dynamic conn)
     {
         try
         {
-            // RefreshDate is only available on OLEDB and ODBC connections
             int connType = conn.Type;
-            if (connType is not (1 or 2)) return null;
-            return GetTypedSubConnection(conn)?.RefreshDate;
+            if (connType == 1)
+            {
+                Excel.OLEDBConnection? oledbConnection = null;
+                try
+                {
+                    oledbConnection = conn.OLEDBConnection;
+                    return GetRefreshDateSafe(oledbConnection?.RefreshDate);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref oledbConnection);
+                }
+            }
+
+            if (connType == 2)
+            {
+                Excel.ODBCConnection? odbcConnection = null;
+                try
+                {
+                    odbcConnection = conn.ODBCConnection;
+                    return GetRefreshDateSafe(odbcConnection?.RefreshDate);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref odbcConnection);
+                }
+            }
         }
-        catch (COMException) { return null; }
+        catch (COMException)
+        {
+        }
+
+        return null;
     }
 
     private static string? GetConnectionString(dynamic conn)
@@ -81,28 +381,63 @@ public partial class ConnectionCommands : IConnectionCommands
             int connType = conn.Type;
             string? connectionString = null;
 
-            if (connType == 1) // OLEDB
+            if (connType == 1)
             {
-                connectionString = conn.OLEDBConnection?.Connection?.ToString();
-            }
-            else if (connType == 2) // ODBC
-            {
-                connectionString = conn.ODBCConnection?.Connection?.ToString();
-            }
-            else if (connType == 4) // TEXT (xlConnectionTypeTEXT)
-            {
-                dynamic textConn = conn.TextConnection;
-                if (textConn != null)
+                Excel.OLEDBConnection? oledbConnection = null;
+                try
                 {
-                    connectionString = textConn.Connection?.ToString();
+                    oledbConnection = conn.OLEDBConnection;
+                    connectionString = oledbConnection?.Connection?.ToString();
+                }
+                finally
+                {
+                    ComUtilities.Release(ref oledbConnection);
                 }
             }
-            else if (connType == 5) // WEB (xlConnectionTypeWEB)
+            else if (connType == 2)
             {
-                dynamic webConn = conn.WebConnection;
-                if (webConn != null)
+                Excel.ODBCConnection? odbcConnection = null;
+                try
                 {
-                    connectionString = webConn.Connection?.ToString();
+                    odbcConnection = conn.ODBCConnection;
+                    connectionString = odbcConnection?.Connection?.ToString();
+                }
+                finally
+                {
+                    ComUtilities.Release(ref odbcConnection);
+                }
+            }
+            else if (connType is 3 or 4)
+            {
+                dynamic? textConnection = null;
+                try
+                {
+                    textConnection = conn.TextConnection;
+                    connectionString = textConnection?.Connection?.ToString();
+                }
+                catch (COMException)
+                {
+                }
+                finally
+                {
+                    ComUtilities.Release(ref textConnection);
+                }
+
+                if (string.IsNullOrWhiteSpace(connectionString))
+                {
+                    dynamic? webConnection = null;
+                    try
+                    {
+                        webConnection = conn.WebConnection;
+                        connectionString = webConnection?.Connection?.ToString();
+                    }
+                    catch (COMException)
+                    {
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref webConnection);
+                    }
                 }
             }
 
@@ -131,31 +466,133 @@ public partial class ConnectionCommands : IConnectionCommands
 
     private static string? GetCommandText(dynamic conn)
     {
-        try { return GetTypedSubConnection(conn)?.CommandText?.ToString(); }
-        catch (COMException) { return null; }
+        try
+        {
+            int connType = conn.Type;
+            if (connType == 1)
+            {
+                Excel.OLEDBConnection? oledbConnection = null;
+                try
+                {
+                    oledbConnection = conn.OLEDBConnection;
+                    return oledbConnection?.CommandText?.ToString();
+                }
+                finally
+                {
+                    ComUtilities.Release(ref oledbConnection);
+                }
+            }
+
+            if (connType == 2)
+            {
+                Excel.ODBCConnection? odbcConnection = null;
+                try
+                {
+                    odbcConnection = conn.ODBCConnection;
+                    return odbcConnection?.CommandText?.ToString();
+                }
+                finally
+                {
+                    ComUtilities.Release(ref odbcConnection);
+                }
+            }
+
+            if (connType is 3 or 4)
+            {
+                dynamic? textConnection = null;
+                try
+                {
+                    textConnection = conn.TextConnection;
+                    return textConnection?.CommandText?.ToString();
+                }
+                catch (COMException)
+                {
+                }
+                finally
+                {
+                    ComUtilities.Release(ref textConnection);
+                }
+
+                dynamic? webConnection = null;
+                try
+                {
+                    webConnection = conn.WebConnection;
+                    return webConnection?.CommandText?.ToString();
+                }
+                finally
+                {
+                    ComUtilities.Release(ref webConnection);
+                }
+            }
+        }
+        catch (COMException)
+        {
+        }
+
+        return null;
     }
 
     private static string? GetCommandType(dynamic conn)
     {
+        int commandType;
         try
         {
-            // CommandType is only available on OLEDB and ODBC connections
             int connType = conn.Type;
-            if (connType is not (1 or 2)) return null;
-
-            int? cmdType = GetTypedSubConnection(conn)?.CommandType;
-            if (!cmdType.HasValue) return "Unknown(null)";
-            return cmdType.Value switch
+            if (connType == 1)
             {
-                1 => "Cube",
-                2 => "SQL",
-                3 => "Table",
-                4 => "Default",
-                5 => "List",
-                _ => $"Unknown({cmdType.Value.ToString(CultureInfo.InvariantCulture)})"
-            };
+                Excel.OLEDBConnection? oledbConnection = null;
+                try
+                {
+                    oledbConnection = conn.OLEDBConnection;
+                    if (oledbConnection == null)
+                    {
+                        return null;
+                    }
+
+                    commandType = Convert.ToInt32(oledbConnection.CommandType, CultureInfo.InvariantCulture);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref oledbConnection);
+                }
+            }
+            else if (connType == 2)
+            {
+                Excel.ODBCConnection? odbcConnection = null;
+                try
+                {
+                    odbcConnection = conn.ODBCConnection;
+                    if (odbcConnection == null)
+                    {
+                        return null;
+                    }
+
+                    commandType = Convert.ToInt32(odbcConnection.CommandType, CultureInfo.InvariantCulture);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref odbcConnection);
+                }
+            }
+            else
+            {
+                return null;
+            }
         }
-        catch (COMException) { return null; }
+        catch (COMException)
+        {
+            return null;
+        }
+
+        return commandType switch
+        {
+            1 => "Cube",
+            2 => "SQL",
+            3 => "Table",
+            4 => "Default",
+            5 => "List",
+            _ => $"Unknown({commandType.ToString(CultureInfo.InvariantCulture)})"
+        };
     }
 
     private static object GetConnectionProperties(dynamic conn)
@@ -232,116 +669,174 @@ public partial class ConnectionCommands : IConnectionCommands
 
             if (connType == 1) // OLEDB
             {
-                var oledb = conn.OLEDBConnection;
-                if (oledb != null)
+                Excel.OLEDBConnection? oledbConnection = null;
+                try
                 {
-                    if (!string.IsNullOrWhiteSpace(definition.ConnectionString))
+                    oledbConnection = conn.OLEDBConnection;
+                    if (oledbConnection != null)
                     {
-                        oledb.Connection = definition.ConnectionString;
+                        if (!string.IsNullOrWhiteSpace(definition.ConnectionString))
+                        {
+                            oledbConnection.Connection = definition.ConnectionString;
+                        }
+                        if (!string.IsNullOrWhiteSpace(definition.CommandText))
+                        {
+                            oledbConnection.CommandText = definition.CommandText;
+                        }
+                        if (definition.BackgroundQuery.HasValue)
+                        {
+                            oledbConnection.BackgroundQuery = definition.BackgroundQuery.Value;
+                        }
+                        if (definition.RefreshOnFileOpen.HasValue)
+                        {
+                            oledbConnection.RefreshOnFileOpen = definition.RefreshOnFileOpen.Value;
+                        }
+                        if (definition.SavePassword.HasValue)
+                        {
+                            oledbConnection.SavePassword = definition.SavePassword.Value;
+                        }
+                        if (definition.RefreshPeriod.HasValue)
+                        {
+                            oledbConnection.RefreshPeriod = definition.RefreshPeriod.Value;
+                        }
                     }
-                    if (!string.IsNullOrWhiteSpace(definition.CommandText))
-                    {
-                        oledb.CommandText = definition.CommandText;
-                    }
-                    if (definition.BackgroundQuery.HasValue)
-                    {
-                        oledb.BackgroundQuery = definition.BackgroundQuery.Value;
-                    }
-                    if (definition.RefreshOnFileOpen.HasValue)
-                    {
-                        oledb.RefreshOnFileOpen = definition.RefreshOnFileOpen.Value;
-                    }
-                    if (definition.SavePassword.HasValue)
-                    {
-                        oledb.SavePassword = definition.SavePassword.Value;
-                    }
-                    if (definition.RefreshPeriod.HasValue)
-                    {
-                        oledb.RefreshPeriod = definition.RefreshPeriod.Value;
-                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref oledbConnection);
                 }
             }
             else if (connType == 2) // ODBC
             {
-                var odbc = conn.ODBCConnection;
-                if (odbc != null)
+                Excel.ODBCConnection? odbcConnection = null;
+                try
                 {
-                    if (!string.IsNullOrWhiteSpace(definition.ConnectionString))
+                    odbcConnection = conn.ODBCConnection;
+                    if (odbcConnection != null)
                     {
-                        odbc.Connection = definition.ConnectionString;
+                        if (!string.IsNullOrWhiteSpace(definition.ConnectionString))
+                        {
+                            odbcConnection.Connection = definition.ConnectionString;
+                        }
+                        if (!string.IsNullOrWhiteSpace(definition.CommandText))
+                        {
+                            odbcConnection.CommandText = definition.CommandText;
+                        }
+                        if (definition.BackgroundQuery.HasValue)
+                        {
+                            odbcConnection.BackgroundQuery = definition.BackgroundQuery.Value;
+                        }
+                        if (definition.RefreshOnFileOpen.HasValue)
+                        {
+                            odbcConnection.RefreshOnFileOpen = definition.RefreshOnFileOpen.Value;
+                        }
+                        if (definition.SavePassword.HasValue)
+                        {
+                            odbcConnection.SavePassword = definition.SavePassword.Value;
+                        }
+                        if (definition.RefreshPeriod.HasValue)
+                        {
+                            odbcConnection.RefreshPeriod = definition.RefreshPeriod.Value;
+                        }
                     }
-                    if (!string.IsNullOrWhiteSpace(definition.CommandText))
-                    {
-                        odbc.CommandText = definition.CommandText;
-                    }
-                    if (definition.BackgroundQuery.HasValue)
-                    {
-                        odbc.BackgroundQuery = definition.BackgroundQuery.Value;
-                    }
-                    if (definition.RefreshOnFileOpen.HasValue)
-                    {
-                        odbc.RefreshOnFileOpen = definition.RefreshOnFileOpen.Value;
-                    }
-                    if (definition.SavePassword.HasValue)
-                    {
-                        odbc.SavePassword = definition.SavePassword.Value;
-                    }
-                    if (definition.RefreshPeriod.HasValue)
-                    {
-                        odbc.RefreshPeriod = definition.RefreshPeriod.Value;
-                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref odbcConnection);
                 }
             }
             else if (connType is 3 or 4) // TEXT (type 3) or WEB (type 4) - Excel may report CSV files as either
             {
                 // Excel has type 3/4 confusion: CSV files created with "TEXT;filepath" may be reported as type 4 (WEB)
                 // Try TextConnection first (correct for type 3), fall back to WebConnection if that fails
-                dynamic? textOrWeb = null!;
+                dynamic? textConnection = null;
                 try
                 {
-                    textOrWeb = conn.TextConnection; // Try TEXT first
+                    textConnection = conn.TextConnection; // Try TEXT first
                 }
-                catch (System.Runtime.InteropServices.COMException)
+                catch (COMException)
+                {
+                }
+
+                if (textConnection != null)
                 {
                     try
                     {
-                        textOrWeb = conn.WebConnection; // Fall back to WEB
+                        if (!string.IsNullOrWhiteSpace(definition.ConnectionString))
+                        {
+                            textConnection.Connection = definition.ConnectionString;
+                        }
+                        if (!string.IsNullOrWhiteSpace(definition.CommandText))
+                        {
+                            textConnection.CommandText = definition.CommandText;
+                        }
+                        if (definition.BackgroundQuery.HasValue)
+                        {
+                            textConnection.BackgroundQuery = definition.BackgroundQuery.Value;
+                        }
+                        if (definition.RefreshOnFileOpen.HasValue)
+                        {
+                            textConnection.RefreshOnFileOpen = definition.RefreshOnFileOpen.Value;
+                        }
+                        if (definition.SavePassword.HasValue)
+                        {
+                            textConnection.SavePassword = definition.SavePassword.Value;
+                        }
+                        if (definition.RefreshPeriod.HasValue)
+                        {
+                            textConnection.RefreshPeriod = definition.RefreshPeriod.Value;
+                        }
                     }
-                    catch (System.Runtime.InteropServices.COMException)
+                    finally
                     {
-                        // Neither works - skip property updates
+                        ComUtilities.Release(ref textConnection);
                     }
+
+                    return;
                 }
 
-                if (textOrWeb != null)
+                dynamic? webConnection = null;
+                try
                 {
-                    if (!string.IsNullOrWhiteSpace(definition.ConnectionString))
+                    webConnection = conn.WebConnection; // Fall back to WEB
+                    if (webConnection != null)
                     {
-                        textOrWeb.Connection = definition.ConnectionString;
-                    }
-                    if (!string.IsNullOrWhiteSpace(definition.CommandText))
-                    {
-                        textOrWeb.CommandText = definition.CommandText;
-                    }
-                    if (definition.BackgroundQuery.HasValue)
-                    {
-                        textOrWeb.BackgroundQuery = definition.BackgroundQuery.Value;
-                    }
-                    if (definition.RefreshOnFileOpen.HasValue)
-                    {
-                        textOrWeb.RefreshOnFileOpen = definition.RefreshOnFileOpen.Value;
-                    }
-                    if (definition.SavePassword.HasValue)
-                    {
-                        textOrWeb.SavePassword = definition.SavePassword.Value;
-                    }
-                    if (definition.RefreshPeriod.HasValue)
-                    {
-                        textOrWeb.RefreshPeriod = definition.RefreshPeriod.Value;
+                        if (!string.IsNullOrWhiteSpace(definition.ConnectionString))
+                        {
+                            webConnection.Connection = definition.ConnectionString;
+                        }
+                        if (!string.IsNullOrWhiteSpace(definition.CommandText))
+                        {
+                            webConnection.CommandText = definition.CommandText;
+                        }
+                        if (definition.BackgroundQuery.HasValue)
+                        {
+                            webConnection.BackgroundQuery = definition.BackgroundQuery.Value;
+                        }
+                        if (definition.RefreshOnFileOpen.HasValue)
+                        {
+                            webConnection.RefreshOnFileOpen = definition.RefreshOnFileOpen.Value;
+                        }
+                        if (definition.SavePassword.HasValue)
+                        {
+                            webConnection.SavePassword = definition.SavePassword.Value;
+                        }
+                        if (definition.RefreshPeriod.HasValue)
+                        {
+                            webConnection.RefreshPeriod = definition.RefreshPeriod.Value;
+                        }
                     }
                 }
+                catch (COMException)
+                {
+                    // Neither works - skip property updates
+                }
+                finally
+                {
+                    ComUtilities.Release(ref webConnection);
+                }
             }
-            else if (connType == 5) // XMLMAP (moved from 4 due to type 3/4 merge)
+            else if (connType == 5) // XMLMAP
             {
                 // XMLMAP connection properties - future implementation
                 // For now, just update basic properties like description (already done above)
@@ -408,9 +903,10 @@ public partial class ConnectionCommands : IConnectionCommands
     {
         if (!value.HasValue) return;
 
+        dynamic? subConn = null;
         try
         {
-            dynamic? subConn = GetTypedSubConnection(conn);
+            subConn = GetTypedSubConnection(conn);
             if (subConn != null)
             {
                 SetProperty(subConn, propertyName, value.Value);
@@ -419,6 +915,10 @@ public partial class ConnectionCommands : IConnectionCommands
         catch (COMException)
         {
             // Property not available for this connection type
+        }
+        finally
+        {
+            ComUtilities.Release(ref subConn);
         }
     }
 

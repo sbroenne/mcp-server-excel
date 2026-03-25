@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.InteropServices;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
@@ -214,8 +213,8 @@ public static class ExcelSession
 
                 ComUtilities.TryQuitExcel(excel);
 
-                if (workbook != null) { Marshal.ReleaseComObject(workbook); workbook = null; }
-                if (excel != null) { Marshal.ReleaseComObject(excel); excel = null; }
+                ComUtilities.Release(ref workbook);
+                ComUtilities.Release(ref excel);
 
                 try
                 {

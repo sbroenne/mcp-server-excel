@@ -16,15 +16,19 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         // Regular PivotTables are NOT OLAP and have PivotFields
         if (PivotTableHelpers.IsOlapPivotTable(pivot))
             return false; // This is OLAP, not regular
-
+        dynamic? pivotFields = null;
         try
         {
-            dynamic pivotFields = pivot.PivotFields;
+            pivotFields = pivot.PivotFields;
             return pivotFields != null;
         }
         catch (System.Runtime.InteropServices.COMException)
         {
             return false;
+        }
+        finally
+        {
+            ComUtilities.Release(ref pivotFields);
         }
     }
 
