@@ -402,24 +402,13 @@ public sealed class ExcelMcpService : IDisposable
             return new ServiceResponse { Success = false, ErrorMessage = "sessionId is required" };
         }
 
-        var batch = _sessionManager.GetSession(request.SessionId);
-        if (batch == null)
+        var sessionError = TryGetUsableSession(request.SessionId, out var batch);
+        if (sessionError != null)
         {
-            return new ServiceResponse { Success = false, ErrorMessage = $"Session '{request.SessionId}' not found" };
+            return sessionError;
         }
 
-        // Check if Excel process is still alive before attempting save
-        if (!batch.IsExcelProcessAlive())
-        {
-            _sessionManager.CloseSession(request.SessionId, save: false, force: true);
-            return new ServiceResponse
-            {
-                Success = false,
-                ErrorMessage = $"Excel process for session '{request.SessionId}' has died. Session has been closed. Please create a new session."
-            };
-        }
-
-        batch.Save();
+        batch!.Save();
         return new ServiceResponse { Success = true };
     }
 
@@ -653,34 +642,15 @@ public sealed class ExcelMcpService : IDisposable
             return Task.FromResult(new ServiceResponse { Success = false, ErrorMessage = "sessionId is required" });
         }
 
-        var batch = _sessionManager.GetSession(sessionId);
-        if (batch == null)
+        var sessionError = TryGetUsableSession(sessionId, out var batch);
+        if (sessionError != null)
         {
-            return Task.FromResult(new ServiceResponse { Success = false, ErrorMessage = $"Session '{sessionId}' not found" });
-        }
-
-        // Check if Excel process is still alive before attempting operation
-        if (!batch.IsExcelProcessAlive())
-        {
-            // Excel died - clean up the dead session
-            try
-            {
-                _sessionManager.CloseSession(sessionId, save: false, force: true);
-            }
-            catch (Exception cleanupEx)
-            {
-                System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
-            }
-            return Task.FromResult(new ServiceResponse
-            {
-                Success = false,
-                ErrorMessage = $"Excel process for session '{sessionId}' has died. Session has been closed. Please create a new session."
-            });
+            return Task.FromResult(sessionError);
         }
 
         try
         {
-            var response = action(batch);
+            var response = action(batch!);
             return Task.FromResult(response);
         }
         catch (TimeoutException ex)
@@ -783,6 +753,45 @@ public sealed class ExcelMcpService : IDisposable
 
             return Task.FromResult(new ServiceResponse { Success = false, ErrorMessage = $"{ex.GetType().Name}: {ex.Message}" });
         }
+    }
+
+    private ServiceResponse? TryGetUsableSession(string sessionId, out IExcelBatch? batch)
+    {
+        batch = _sessionManager.GetSession(sessionId);
+        if (batch == null)
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = $"Session '{sessionId}' not found" };
+        }
+
+        if (batch.HasTimedOutOperation)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorMessage = $"A previous operation on session '{sessionId}' timed out or was cancelled. " +
+                               "Please close the session and reopen the workbook before retrying."
+            };
+        }
+
+        if (!batch.IsExcelProcessAlive())
+        {
+            try
+            {
+                _sessionManager.CloseSession(sessionId, save: false, force: true);
+            }
+            catch (Exception cleanupEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
+            }
+
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorMessage = $"Excel process for session '{sessionId}' has died. Session has been closed. Please create a new session."
+            };
+        }
+
+        return null;
     }
 
     public void Dispose()

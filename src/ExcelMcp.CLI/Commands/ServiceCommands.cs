@@ -37,12 +37,14 @@ internal sealed class ServiceStartCommand : AsyncCommand
 /// </summary>
 internal sealed class ServiceStopCommand : AsyncCommand
 {
+    private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(2);
+
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
         try
         {
-            using var client = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(2));
+            using var client = new ServiceClient(pipeName, connectTimeout: CommandTimeout, requestTimeout: CommandTimeout);
             var response = await client.SendAsync(new ServiceRequest { Command = "service.shutdown" }, cancellationToken);
             if (response.Success)
             {
@@ -70,12 +72,14 @@ internal sealed class ServiceStopCommand : AsyncCommand
 /// </summary>
 internal sealed class ServiceStatusCommand : AsyncCommand
 {
+    private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(2);
+
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
         try
         {
-            using var client = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(2));
+            using var client = new ServiceClient(pipeName, connectTimeout: CommandTimeout, requestTimeout: CommandTimeout);
             var response = await client.SendAsync(new ServiceRequest { Command = "service.status" }, cancellationToken);
             if (response.Success && response.Result != null)
             {

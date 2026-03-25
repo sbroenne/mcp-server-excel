@@ -422,6 +422,8 @@ internal sealed class ExcelBatch : IExcelBatch
 
     public TimeSpan OperationTimeout => _operationTimeout;
 
+    public bool HasTimedOutOperation => _operationTimedOut;
+
     public bool IsExcelProcessAlive()
     {
         if (_disposed != 0) return false;
