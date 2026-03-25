@@ -1,10 +1,13 @@
 ---
 name: excel-cli
 description: >
-  Automate Microsoft Excel on Windows via CLI. Use when creating, reading,
-  or modifying Excel workbooks from scripts, CI/CD, or coding agents.
-  Supports Power Query, DAX, PivotTables, Tables, Ranges, Charts, VBA.
-  Triggers: Excel, spreadsheet, workbook, xlsx, excelcli, CLI automation.
+  CLI tool for scripting, batch automation, and unattended Excel workflows on Windows.
+  Use for CI/CD pipelines, scheduled tasks, bulk data processing, and coding agents
+  that require token-efficient, discoverable commands. Supports Power Query, DAX,
+  PivotTables, Tables, Ranges, Charts, VBA, Data Models. Built for automation-first
+  scenarios where process portability and shell integration matter more than interactive UX.
+  Triggers: excelcli, CLI, batch, script, automation, CI/CD, scheduled, PowerShell,
+  Bash, unattended, coding agent, workflow, processing.
 ---
 
 # Excel Automation with excelcli
@@ -90,14 +93,21 @@ excelcli -q datamodel create-measure --session <id> ...               # Step 2 -
 **BEST PRACTICE: Test M code before creating permanent queries**
 
 ```powershell
-# Step 1: Test M code without persisting (catches errors early)
-excelcli -q powerquery evaluate --session 1 --m-code-file query.m
+# Step 1: Create/open a session and capture the session ID
+$session = excelcli -q session create C:\path\file.xlsx | ConvertFrom-Json
+$sessionId = $session.sessionId
 
-# Step 2: Create permanent query with validated code
-excelcli -q powerquery create --session 1 --query-name Q1 --m-code-file query.m
+# Step 2: Test M code without persisting (catches errors early)
+excelcli -q powerquery evaluate --session $sessionId --m-code-file query.m
 
-# Step 3: Load data to destination
-excelcli -q powerquery refresh --session 1 --query-name Q1
+# Step 3: Create permanent query with validated code
+excelcli -q powerquery create --session $sessionId --query-name Q1 --m-code-file query.m
+
+# Step 4: Load data to destination
+excelcli -q powerquery refresh --session $sessionId --query-name Q1
+
+# Step 5: Close session
+excelcli -q session close --session $sessionId --save
 ```
 
 ### Rule 6: Report File Errors Immediately
@@ -109,18 +119,25 @@ If you see "File not found" or "Path not found" - STOP and report to user. Don't
 When writing many values/formulas (10+ cells), disable auto-recalc for performance:
 
 ```powershell
-# 1. Set manual mode
-excelcli -q calculationmode set-mode --session 1 --mode manual
+# 1. Create/open a session and capture the session ID
+$session = excelcli -q session create C:\path\file.xlsx | ConvertFrom-Json
+$sessionId = $session.sessionId
 
-# 2. Write data row by row for reliability
-excelcli -q range set-values --session 1 --sheet-name Sheet1 --range-address A1:B1 --values '[["Name","Amount"]]'
-excelcli -q range set-values --session 1 --sheet-name Sheet1 --range-address A2:B2 --values '[["Salary",5000]]'
+# 2. Set manual mode
+excelcli -q calculationmode set-mode --session $sessionId --mode manual
 
-# 3. Recalculate once at end
-excelcli -q calculationmode calculate --session 1 --scope workbook
+# 3. Write data row by row for reliability
+excelcli -q range set-values --session $sessionId --sheet-name Sheet1 --range-address A1:B1 --values '[["Name","Amount"]]'
+excelcli -q range set-values --session $sessionId --sheet-name Sheet1 --range-address A2:B2 --values '[["Salary",5000]]'
 
-# 4. Restore automatic mode
-excelcli -q calculationmode set-mode --session 1 --mode automatic
+# 4. Recalculate once at end
+excelcli -q calculationmode calculate --session $sessionId --scope workbook
+
+# 5. Restore automatic mode
+excelcli -q calculationmode set-mode --session $sessionId --mode automatic
+
+# 6. Close session
+excelcli -q session close --session $sessionId --save
 ```
 
 ### Rule 8: Use Batch Mode for Bulk Operations (10+ commands)
@@ -219,12 +236,14 @@ Parameters that accept lists (e.g., `--selected-items` for slicers) require JSON
 
 - [Core execution rules and LLM guidelines](./references/behavioral-rules.md)
 - [Common mistakes to avoid](./references/anti-patterns.md)
+- [Gotchas & known limits](./references/gotchas.md)
 - [Data Model constraints and patterns](./references/workflows.md)
 - [Charts, positioning, and formatting](./references/chart.md)
 - [Conditional formatting operations](./references/conditionalformat.md)
 - [Dashboard and report best practices](./references/dashboard.md)
 - [Data Model/DAX specifics](./references/datamodel.md)
 - [DMV query reference for Data Model analysis](./references/dmv-reference.md)
+- [Excel agent mode and advanced automation](./references/excel_agent_mode.md)
 - [Power Query M code syntax reference](./references/m-code-syntax.md)
 - [PivotTable operations](./references/pivottable.md)
 - [Power Query specifics](./references/powerquery.md)
@@ -232,4 +251,5 @@ Parameters that accept lists (e.g., `--selected-items` for slicers) require JSON
 - [Screenshot and visual verification](./references/screenshot.md)
 - [Slicer operations](./references/slicer.md)
 - [Table operations](./references/table.md)
+- [Window and visibility operations](./references/window.md)
 - [Worksheet operations](./references/worksheet.md)

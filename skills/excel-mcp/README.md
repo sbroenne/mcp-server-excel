@@ -53,18 +53,24 @@ excel-mcp/
 ├── VERSION            # Version tracking
 ├── README.md          # This file
 └── references/        # Detailed domain-specific guidance
-    ├── behavioral-rules.md
     ├── anti-patterns.md
-    ├── workflows.md
-    ├── range.md
-    ├── table.md
-    ├── worksheet.md
+    ├── behavioral-rules.md
     ├── chart.md
-    ├── slicer.md
-    ├── powerquery.md
-    ├── datamodel.md
     ├── conditionalformat.md
-    └── claude-desktop.md
+    ├── dashboard.md
+    ├── datamodel.md
+    ├── dmv-reference.md
+    ├── excel_agent_mode.md
+    ├── gotchas.md
+    ├── m-code-syntax.md
+    ├── pivottable.md
+    ├── powerquery.md
+    ├── range.md
+    ├── screenshot.md
+    ├── slicer.md
+    ├── table.md
+    ├── window.md
+    └── worksheet.md
 ```
 
 ## MCP Server Setup
