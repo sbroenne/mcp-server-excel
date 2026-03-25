@@ -196,6 +196,8 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
     /// <summary>
     /// Handles rejected COM calls from Excel.
     /// Implements automatic retry logic with exponential backoff for busy/unavailable conditions.
+    /// Also retries SERVERCALL_REJECTED (modal dialogs like auth popups) with a longer window
+    /// so the user has time to dismiss the dialog before the call is cancelled.
     /// </summary>
     /// <param name="htaskCallee">Handle to the task that rejected the call</param>
     /// <param name="dwTickCount">Number of milliseconds since rejection occurred</param>
@@ -209,33 +211,54 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
     {
         // dwRejectType values:
         // SERVERCALL_RETRYLATER (2) = Server is busy, try again later
-        // SERVERCALL_REJECTED (1) = Server rejected the call
+        // SERVERCALL_REJECTED (1) = Server rejected the call (typically modal dialog showing)
 
+        const int SERVERCALL_REJECTED = 1;
         const int SERVERCALL_RETRYLATER = 2;
         const int RETRY_TIMEOUT_MS = 30000;
+        const int REJECTED_RETRY_TIMEOUT_MS = 120000; // 2 minutes for modal dialogs (auth popups, etc.)
 
-        if (dwRejectType != SERVERCALL_RETRYLATER)
+        if (dwRejectType == SERVERCALL_RETRYLATER)
         {
-            return -1; // Cancel immediately for non-retry scenarios
+            if (dwTickCount >= RETRY_TIMEOUT_MS)
+            {
+                return -1; // Cancel the call if timeout exceeded
+            }
+
+            // Exponential backoff based on elapsed time:
+            // 0-1s:   100ms delays (quick retries for brief busy states)
+            // 1-5s:   200ms delays
+            // 5-15s:  500ms delays
+            // 15-30s: 1000ms delays (Excel is seriously stuck)
+            return dwTickCount switch
+            {
+                < 1000 => 100,
+                < 5000 => 200,
+                < 15000 => 500,
+                _ => 1000
+            };
         }
 
-        if (dwTickCount >= RETRY_TIMEOUT_MS)
+        if (dwRejectType == SERVERCALL_REJECTED)
         {
-            return -1; // Cancel the call if timeout exceeded
+            // Modal dialog scenario (auth popups, privacy level dialogs, etc.)
+            // Retry with longer backoff to give the user time to dismiss the dialog.
+            // Without this, COM calls fail immediately when Excel shows any modal UI.
+            if (dwTickCount >= REJECTED_RETRY_TIMEOUT_MS)
+            {
+                return -1; // Give up after 2 minutes — dialog was not dismissed
+            }
+
+            // Slower backoff since we're waiting for human interaction
+            return dwTickCount switch
+            {
+                < 2000 => 500,
+                < 10000 => 1000,
+                _ => 2000
+            };
         }
 
-        // Exponential backoff based on elapsed time:
-        // 0-1s:   100ms delays (quick retries for brief busy states)
-        // 1-5s:   200ms delays
-        // 5-15s:  500ms delays
-        // 15-30s: 1000ms delays (Excel is seriously stuck)
-        return dwTickCount switch
-        {
-            < 1000 => 100,
-            < 5000 => 200,
-            < 15000 => 500,
-            _ => 1000
-        };
+        return -1; // Cancel immediately for unknown rejection types
     }
 
     /// <summary>

@@ -27,6 +27,11 @@ internal sealed class ExcelBatch : IExcelBatch
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
+    // P/Invoke for connecting to a running COM object (replaces Marshal.GetActiveObject in .NET 5+)
+    // Internal so ExcelSession can also use it for CreateWorkbookOnStaThread
+    [DllImport("oleaut32.dll", PreserveSig = false)]
+    internal static extern void GetActiveObject([MarshalAs(UnmanagedType.LPStruct)] Guid rclsid, IntPtr pvReserved, [MarshalAs(UnmanagedType.IUnknown)] out object ppunk);
+
     private readonly string _workbookPath; // Primary workbook path
     private readonly string[] _allWorkbookPaths; // All workbook paths (includes primary)
     private readonly bool _showExcel; // Whether to show Excel window
@@ -40,6 +45,7 @@ internal sealed class ExcelBatch : IExcelBatch
     private int _disposed; // 0 = not disposed, 1 = disposed (using int for Interlocked.CompareExchange)
     private int? _excelProcessId; // Excel.exe process ID for force-kill if needed
     private bool _operationTimedOut; // Track if an operation timed out for aggressive cleanup
+    private bool _attachedToExisting; // True if we connected to an already-running Excel (don't quit on dispose)
 
     // COM state (STA thread only)
     private Excel.Application? _excel;
@@ -110,14 +116,38 @@ internal sealed class ExcelBatch : IExcelBatch
                 OleMessageFilter.Register();
 
                 // Create Excel and workbook ON THIS STA THREAD
+                // Try to connect to an already-running Excel instance first.
+                // This avoids auth/sign-in popups that fire during new COM activation
+                // on corporate/managed machines where the popup can't be suppressed.
                 Type? excelType = Type.GetTypeFromProgID("Excel.Application");
                 if (excelType == null)
                 {
                     throw new InvalidOperationException("Microsoft Excel is not installed on this system.");
                 }
 
-                Excel.Application tempExcel = (Excel.Application)Activator.CreateInstance(excelType)!;
-                tempExcel.Visible = _showExcel;
+                Excel.Application tempExcel;
+                bool attachedToExisting = false;
+
+                try
+                {
+                    // Attempt to connect to an existing Excel.Application via the Running Object Table.
+                    // If the user already has Excel open (and authenticated), we piggyback on that instance.
+                    Guid excelClsid = excelType.GUID;
+                    GetActiveObject(excelClsid, IntPtr.Zero, out object existingObj);
+                    tempExcel = (Excel.Application)existingObj;
+                    attachedToExisting = true;
+                    _logger.LogDebug("Attached to existing Excel instance (avoiding new COM activation auth popups)");
+                }
+                catch (COMException)
+                {
+                    // No running Excel — create a new instance.
+                    // Start visible so any auth dialogs can be interacted with.
+                    tempExcel = (Excel.Application)Activator.CreateInstance(excelType)!;
+                    tempExcel.Visible = true;
+                    _logger.LogDebug("Created new Excel instance (no existing instance found)");
+                }
+
+                _attachedToExisting = attachedToExisting;
                 tempExcel.DisplayAlerts = false;
 
                 // Capture Excel process ID for force-kill scenarios (hung Excel, dead RPC connection)
@@ -254,6 +284,13 @@ internal sealed class ExcelBatch : IExcelBatch
                 _workbooks = tempWorkbooks;
                 _context = new ExcelContext(_workbookPath, _excel, _workbook!);
 
+                // Now that workbooks are open and any auth dialogs have been handled,
+                // set the requested visibility. If user didn't ask to show Excel, hide it.
+                if (!_showExcel)
+                {
+                    tempExcel.Visible = false;
+                }
+
                 started.SetResult();
 
                 // Message pump - process work queue until completion or cancellation.
@@ -357,6 +394,9 @@ internal sealed class ExcelBatch : IExcelBatch
                 // Previously multi-workbook batches used bare COM calls without resilience,
                 // while single-workbook batches used ExcelShutdownService. Now both paths
                 // get the same exponential backoff retry for COM busy conditions.
+                //
+                // If we attached to an existing Excel instance (_attachedToExisting), we only
+                // close our workbooks — we do NOT quit Excel since it belongs to the user.
                 if (_workbooks != null && _workbooks.Count > 1)
                 {
                     _logger.LogDebug("Closing {Count} workbooks via ExcelShutdownService", _workbooks.Count);
@@ -374,13 +414,15 @@ internal sealed class ExcelBatch : IExcelBatch
                     }
                     _workbooks.Clear();
 
-                    // Close primary workbook AND quit Excel (with resilient retry)
-                    ExcelShutdownService.CloseAndQuit(_workbook, _excel, false, _workbookPath, _logger);
+                    // Close primary workbook — only quit Excel if we created it
+                    var excelToQuit = _attachedToExisting ? null : _excel;
+                    ExcelShutdownService.CloseAndQuit(_workbook, excelToQuit, false, _workbookPath, _logger);
                 }
                 else
                 {
-                    // Single workbook: same ExcelShutdownService path
-                    ExcelShutdownService.CloseAndQuit(_workbook, _excel, false, _workbookPath, _logger);
+                    // Single workbook — only quit Excel if we created it
+                    var excelToQuit = _attachedToExisting ? null : _excel;
+                    ExcelShutdownService.CloseAndQuit(_workbook, excelToQuit, false, _workbookPath, _logger);
                 }
 
                 _workbook = null;

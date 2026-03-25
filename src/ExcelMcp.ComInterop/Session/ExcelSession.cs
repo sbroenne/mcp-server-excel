@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
@@ -167,21 +168,37 @@ public static class ExcelSession
             Excel.Application? excel = null;
             Excel.Workbook? workbook = null;
 
+            bool attachedToExisting = false;
+
             try
             {
                 OleMessageFilter.Register();
 
-                var excelType = Type.GetTypeFromProgID("Excel.Application");
-                if (excelType == null)
+                // Try connecting to an already-running Excel first (avoids auth popups on managed machines)
+                try
                 {
-                    throw new InvalidOperationException("Excel is not installed or not properly registered.");
+                    var excelClsid = new Guid("00024500-0000-0000-C000-000000000046");
+                    ExcelBatch.GetActiveObject(excelClsid, IntPtr.Zero, out object existingExcel);
+                    excel = (Excel.Application)existingExcel;
+                    attachedToExisting = true;
                 }
+                catch (COMException)
+                {
+                    // No running Excel — fall back to creating a new instance
+                    var excelType = Type.GetTypeFromProgID("Excel.Application");
+                    if (excelType == null)
+                    {
+                        throw new InvalidOperationException("Excel is not installed or not properly registered.");
+                    }
 
 #pragma warning disable IL2072
-                excel = (Excel.Application)Activator.CreateInstance(excelType)!;
+                    excel = (Excel.Application)Activator.CreateInstance(excelType)!;
 #pragma warning restore IL2072
 
-                excel.Visible = false;
+                    // Start visible so auth dialogs are interactable on managed machines
+                    excel.Visible = true;
+                }
+
                 excel.DisplayAlerts = false;
 
                 workbook = (Excel.Workbook)excel.Workbooks.Add();
@@ -211,7 +228,11 @@ public static class ExcelSession
                 }
                 catch { }
 
-                ComUtilities.TryQuitExcel(excel);
+                // Only quit Excel if we created it (don't kill user's existing instance)
+                if (!attachedToExisting)
+                {
+                    ComUtilities.TryQuitExcel(excel);
+                }
 
                 ComUtilities.Release(ref workbook);
                 ComUtilities.Release(ref excel);
