@@ -45,28 +45,69 @@ public partial class PowerQueryCommands : IPowerQueryCommands
         return true;
     }
 
-    /// <summary>
-    /// Parse COM exception to extract user-friendly Power Query error message
-    /// </summary>
-    private static string ParsePowerQueryError(COMException comEx)
+    private static string? ClassifyPowerQueryError(string message)
     {
-        var message = comEx.Message;
+        if (message.Contains("Formula.Firewall", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("privacy level", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("combine data", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("may not directly access a data source", StringComparison.OrdinalIgnoreCase))
+            return "Privacy";
 
         if (message.Contains("authentication", StringComparison.OrdinalIgnoreCase))
-            return "Data source authentication failed. Check credentials and permissions.";
+            return "Authentication";
+
         if (message.Contains("could not reach", StringComparison.OrdinalIgnoreCase) ||
-            message.Contains("unable to connect", StringComparison.OrdinalIgnoreCase))
-            return "Cannot connect to data source. Check network connectivity.";
-        if (message.Contains("privacy level", StringComparison.OrdinalIgnoreCase) ||
-            message.Contains("combine data", StringComparison.OrdinalIgnoreCase))
-            return "Formula.Firewall error - privacy levels must be configured in Excel UI (cannot be automated)";
-        if (message.Contains("syntax", StringComparison.OrdinalIgnoreCase))
-            return "M code syntax error. Review query formula.";
+            message.Contains("unable to connect", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("DataSource.Error", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("Web.Contents", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("File.Contents", StringComparison.OrdinalIgnoreCase))
+            return "Connectivity";
+
+        if (message.Contains("syntax", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("token", StringComparison.OrdinalIgnoreCase))
+            return "Syntax";
+
         if (message.Contains("permission", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("access denied", StringComparison.OrdinalIgnoreCase))
-            return "Access denied. Check file or data source permissions.";
+            return "Permissions";
 
-        return message; // Return original if no pattern matches
+        if (message.Contains("Expression.Error", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("wasn't recognized", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("didn't find", StringComparison.OrdinalIgnoreCase))
+            return "Expression";
+
+        return null;
+    }
+
+    private static bool TryWrapPowerQueryException(Exception exception, out PowerQueryCommandException? powerQueryException)
+    {
+        var category = ClassifyPowerQueryError(exception.Message);
+        if (category != null)
+        {
+            powerQueryException = new PowerQueryCommandException(exception.Message, category, exception);
+            return true;
+        }
+
+        powerQueryException = null;
+        return false;
+    }
+
+    private static bool IsLikelyPrivacyFirewallRisk(string? mCode)
+    {
+        if (string.IsNullOrWhiteSpace(mCode))
+        {
+            return false;
+        }
+
+        bool usesWorkbookParameter = mCode.Contains("Excel.CurrentWorkbook", StringComparison.OrdinalIgnoreCase);
+        bool usesExternalSource =
+            mCode.Contains("File.Contents", StringComparison.OrdinalIgnoreCase) ||
+            mCode.Contains("Web.Contents", StringComparison.OrdinalIgnoreCase) ||
+            mCode.Contains("SharePoint.Contents", StringComparison.OrdinalIgnoreCase) ||
+            mCode.Contains("Sql.Database", StringComparison.OrdinalIgnoreCase) ||
+            mCode.Contains("OData.Feed", StringComparison.OrdinalIgnoreCase);
+
+        return usesWorkbookParameter && usesExternalSource;
     }
 
     /// <summary>

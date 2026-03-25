@@ -127,6 +127,7 @@ public static partial class ExcelFileTool
             {
                 success = false,
                 errorMessage = response.ErrorMessage ?? "Failed to open session",
+                errorCategory = response.ErrorCategory,
                 filePath = path,
                 isError = true
             }, ExcelToolsBase.JsonOptions);
@@ -192,6 +193,7 @@ public static partial class ExcelFileTool
                 success = false,
                 session_id = sessionId,
                 errorMessage = response.ErrorMessage ?? "Failed to close session",
+                errorCategory = response.ErrorCategory,
                 isError = true
             }, ExcelToolsBase.JsonOptions);
         }
@@ -245,6 +247,7 @@ public static partial class ExcelFileTool
             {
                 success = false,
                 errorMessage = response.ErrorMessage ?? "Failed to create session",
+                errorCategory = response.ErrorCategory,
                 filePath = path,
                 isError = true
             }, ExcelToolsBase.JsonOptions);
@@ -314,6 +317,7 @@ public static partial class ExcelFileTool
             {
                 success = false,
                 errorMessage = response.ErrorMessage ?? "Failed to list sessions",
+                errorCategory = response.ErrorCategory,
                 isError = true
             }, ExcelToolsBase.JsonOptions);
         }

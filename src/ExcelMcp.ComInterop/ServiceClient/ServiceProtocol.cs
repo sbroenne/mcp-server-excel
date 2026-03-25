@@ -61,6 +61,9 @@ public sealed class ServiceResponse
     /// <summary>Error message if Success is false.</summary>
     public string? ErrorMessage { get; init; }
 
+    /// <summary>Structured error category if Success is false.</summary>
+    public string? ErrorCategory { get; init; }
+
     /// <summary>JSON-serialized result data.</summary>
     public string? Result { get; init; }
 }

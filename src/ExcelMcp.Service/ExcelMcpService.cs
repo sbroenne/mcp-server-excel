@@ -254,7 +254,7 @@ public sealed class ExcelMcpService : IDisposable
         catch (Exception ex)
         {
             // Include type name so callers can distinguish exception kinds (GitHub #482, Bug 5)
-            return new ServiceResponse { Success = false, ErrorMessage = $"{ex.GetType().Name}: {ex.Message}" };
+            return CreateErrorResponse(ex);
         }
     }
 
@@ -350,7 +350,7 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (Exception ex)
         {
-            return new ServiceResponse { Success = false, ErrorMessage = $"{ex.GetType().Name}: {ex.Message}" };
+            return CreateErrorResponse(ex);
         }
     }
 
@@ -376,7 +376,7 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (Exception ex)
         {
-            return new ServiceResponse { Success = false, ErrorMessage = $"{ex.GetType().Name}: {ex.Message}" };
+            return CreateErrorResponse(ex);
         }
     }
 
@@ -669,6 +669,7 @@ public sealed class ExcelMcpService : IDisposable
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
+                ErrorCategory = "Timeout",
                 ErrorMessage = $"Excel operation timed out and the session has been closed: {ex.Message} " +
                                "Please reopen the file with a new session."
             });
@@ -691,6 +692,7 @@ public sealed class ExcelMcpService : IDisposable
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
+                ErrorCategory = "Cancelled",
                 ErrorMessage = $"Operation was cancelled and the session has been closed. " +
                                "The Excel COM thread may have been unresponsive. " +
                                "Please reopen the file with a new session."
@@ -712,6 +714,7 @@ public sealed class ExcelMcpService : IDisposable
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
+                ErrorCategory = "ExcelProcessDied",
                 ErrorMessage = $"Excel process for session '{sessionId}' has died (the application may have been closed or crashed). " +
                                "Session has been cleaned up. Please reopen the file with a new session."
             });
@@ -732,6 +735,7 @@ public sealed class ExcelMcpService : IDisposable
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
+                ErrorCategory = "ExcelProcessDied",
                 ErrorMessage = $"Excel process for session '{sessionId}' is no longer running. " +
                                "Session has been cleaned up. Please reopen the file with a new session."
             });
@@ -751,8 +755,26 @@ public sealed class ExcelMcpService : IDisposable
                 }
             }
 
-            return Task.FromResult(new ServiceResponse { Success = false, ErrorMessage = $"{ex.GetType().Name}: {ex.Message}" });
+            return Task.FromResult(CreateErrorResponse(ex));
         }
+    }
+
+    private static ServiceResponse CreateErrorResponse(Exception ex)
+    {
+        return ex switch
+        {
+            PowerQueryCommandException pqEx => new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = pqEx.ErrorCategory,
+                ErrorMessage = $"{pqEx.GetType().Name}: {pqEx.Message}"
+            },
+            _ => new ServiceResponse
+            {
+                Success = false,
+                ErrorMessage = $"{ex.GetType().Name}: {ex.Message}"
+            }
+        };
     }
 
     private ServiceResponse? TryGetUsableSession(string sessionId, out IExcelBatch? batch)

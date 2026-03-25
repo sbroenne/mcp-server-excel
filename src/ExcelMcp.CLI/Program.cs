@@ -274,46 +274,55 @@ internal sealed class Program
             daemonMutex.Dispose();
             return 0;
         }
-        var service = new Service.ExcelMcpService();
+        DaemonProcessTracker.RegisterCurrentProcess(pipeName);
 
-        // Capture the UI synchronization context after Application starts
-        SynchronizationContext? uiContext = null;
-
-        // Start pipe server on background thread with 10-minute idle timeout
-        var serviceTask = Task.Run(() => service.RunAsync(pipeName, idleTimeout: TimeSpan.FromMinutes(10)));
-
-        // When service shuts down (idle timeout or remote shutdown), exit the WinForms loop
-        serviceTask.ContinueWith(_ =>
+        try
         {
-            if (uiContext != null)
+            var service = new Service.ExcelMcpService();
+
+            // Capture the UI synchronization context after Application starts
+            SynchronizationContext? uiContext = null;
+
+            // Start pipe server on background thread with 10-minute idle timeout
+            var serviceTask = Task.Run(() => service.RunAsync(pipeName, idleTimeout: TimeSpan.FromMinutes(10)));
+
+            // When service shuts down (idle timeout or remote shutdown), exit the WinForms loop
+            serviceTask.ContinueWith(_ =>
             {
-                uiContext.Post(_ => Application.ExitThread(), null);
-            }
-            else
+                if (uiContext != null)
+                {
+                    uiContext.Post(_ => Application.ExitThread(), null);
+                }
+                else
+                {
+                    Application.ExitThread();
+                }
+            }, TaskScheduler.Default);
+
+            // Run WinForms message loop with tray icon on main thread
+            using var tray = new CliServiceTray(service.SessionManager, () =>
             {
+                service.RequestShutdown();
                 Application.ExitThread();
-            }
-        }, TaskScheduler.Default);
+            });
 
-        // Run WinForms message loop with tray icon on main thread
-        using var tray = new CliServiceTray(service.SessionManager, () =>
+            uiContext = SynchronizationContext.Current;
+            Application.Run();
+
+            // Wait for service to finish
+            serviceTask.Wait(TimeSpan.FromSeconds(5));
+            service.Dispose();
+
+            return 0;
+        }
+        finally
         {
-            service.RequestShutdown();
-            Application.ExitThread();
-        });
+            DaemonProcessTracker.Clear(pipeName);
 
-        uiContext = SynchronizationContext.Current;
-        Application.Run();
-
-        // Wait for service to finish
-        serviceTask.Wait(TimeSpan.FromSeconds(5));
-        service.Dispose();
-
-        // Release the daemon mutex so a new daemon can start if needed
-        daemonMutex.ReleaseMutex();
-        daemonMutex.Dispose();
-
-        return 0;
+            // Release the daemon mutex so a new daemon can start if needed
+            daemonMutex.ReleaseMutex();
+            daemonMutex.Dispose();
+        }
     }
 }
 

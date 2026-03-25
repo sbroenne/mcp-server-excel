@@ -121,6 +121,41 @@ in
             $"Expected Power Query error but got: {exception.Message}");
     }
 
+    [Fact]
+    public void Refresh_QueryWithSyntheticFirewallError_ThrowsCategorizedPowerQueryException()
+    {
+        var testExcelFile = _fixture.CreateTestFile();
+        var queryName = "SyntheticFirewallQuery";
+
+        var validMCode = @"let
+    Source = #table({""X""}, {{1}})
+in
+    Source";
+
+        var firewallMCode = @"let
+    Root = error Error.Record(
+        ""Formula.Firewall"",
+        ""Query 'ConfigData' (step 'Root') references other queries or steps, so it may not directly access a data source."",
+        null)
+in
+    Root";
+
+        using var batch = ExcelSession.BeginBatch(testExcelFile);
+
+        _powerQueryCommands.Create(batch, queryName, validMCode, PowerQueryLoadMode.LoadToTable);
+        batch.Save();
+
+        _powerQueryCommands.Update(batch, queryName, firewallMCode, refresh: false);
+        batch.Save();
+
+        var exception = Assert.Throws<PowerQueryCommandException>(() =>
+            _powerQueryCommands.Refresh(batch, queryName, TimeSpan.FromMinutes(1)));
+
+        Assert.Equal("Privacy", exception.ErrorCategory);
+        Assert.Contains("Formula.Firewall", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("may not directly access a data source", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Regression test: Valid worksheet query should refresh successfully (no false positives).
     /// </summary>
