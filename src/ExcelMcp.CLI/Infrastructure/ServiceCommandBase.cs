@@ -79,10 +79,7 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
         {
             // Parameter validation failed (e.g., required param missing)
             // Return clean JSON error with exit code 1 instead of unhandled crash
-            Console.WriteLine(JsonSerializer.Serialize(
-                new { success = false, error = ex.Message },
-                ServiceProtocol.JsonOptions));
-            return 1;
+            return CliErrorOutput.WriteError(ex.Message);
         }
 
         // Connect to CLI daemon service (auto-starts if not running)
@@ -114,11 +111,7 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
         }
         else
         {
-            var errorJson = JsonSerializer.Serialize(
-                new { success = false, error = response.ErrorMessage },
-                ServiceProtocol.JsonOptions);
-            Console.WriteLine(errorJson);
-            return 1;
+            return CliErrorOutput.WriteServiceError(response);
         }
     }
 

@@ -12,6 +12,8 @@ This changelog covers all components:
 
 ### Fixed
 
+- **Power Query privacy/firewall failures were flattened into generic service errors or hangs instead of surfacing a stable diagnostic**: Core now classifies recognized Power Query failures into structured categories such as `Privacy`, `Expression`, `Connectivity`, and `Authentication` via `PowerQueryCommandException`. The service, CLI, and MCP layers now preserve `errorCategory` in their responses, and refresh timeouts on firewall-prone query formulas are reported as likely privacy issues instead of leaving callers blind. Added a privacy-safe synthetic firewall repro in Core, a CLI regression for structured privacy output, and real verification against the CP Toolkit `ConfigData` scenario.
+
 - **Synchronous COM refresh follow-up stability** (#544): `powerquery update` still used a standalone synchronous refresh path while related Data Model and DAX-backed table refresh operations continued to rely on callback-sensitive COM patterns. Fixed by routing `powerquery update` through the shared COM-safe refresh helper, replacing `EnterLongOperation()` in Data Model refresh with pending-cancellation handling, and wrapping DAX table refresh calls with the same `OleMessageFilter.SetPendingCancellationToken(...)` pattern. Added both Core and MCP regression coverage for `powerquery update`, and the full Power Query feature slice now passes locally.
 
 ### Added

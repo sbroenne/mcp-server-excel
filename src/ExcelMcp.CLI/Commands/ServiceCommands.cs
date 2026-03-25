@@ -38,6 +38,8 @@ internal sealed class ServiceStartCommand : AsyncCommand
 internal sealed class ServiceStopCommand : AsyncCommand
 {
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan ShutdownWaitTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan ShutdownPollInterval = TimeSpan.FromMilliseconds(250);
 
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
@@ -48,21 +50,119 @@ internal sealed class ServiceStopCommand : AsyncCommand
             var response = await client.SendAsync(new ServiceRequest { Command = "service.shutdown" }, cancellationToken);
             if (response.Success)
             {
-                Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped." }, ServiceProtocol.JsonOptions));
-                return 0;
-            }
-            else
-            {
-                Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage ?? "Failed to stop service." }, ServiceProtocol.JsonOptions));
+                if (await WaitForDaemonExitAsync(pipeName, cancellationToken))
+                {
+                    Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped." }, ServiceProtocol.JsonOptions));
+                    return 0;
+                }
+
+                if (await TryForceStopTrackedDaemonAsync(pipeName, cancellationToken))
+                {
+                    Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped.", forced = true }, ServiceProtocol.JsonOptions));
+                    return 0;
+                }
+
+                Console.WriteLine(JsonSerializer.Serialize(
+                    new { success = false, error = $"Service acknowledged shutdown but did not exit within {ShutdownWaitTimeout.TotalSeconds:0} seconds." },
+                    ServiceProtocol.JsonOptions));
                 return 1;
             }
+
+            if (!DaemonAutoStart.IsDaemonMutexHeld(pipeName))
+            {
+                Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service not running." }, ServiceProtocol.JsonOptions));
+                return 0;
+            }
+
+            if (await TryForceStopTrackedDaemonAsync(pipeName, cancellationToken))
+            {
+                Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped.", forced = true }, ServiceProtocol.JsonOptions));
+                return 0;
+            }
+
+            Console.WriteLine(JsonSerializer.Serialize(
+                new
+                {
+                    success = false,
+                    error = response.ErrorMessage ?? "Daemon is running but not responding, and the tracked daemon process could not be stopped."
+                },
+                ServiceProtocol.JsonOptions));
+            return 1;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Can't connect — daemon not running
-            Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service not running." }, ServiceProtocol.JsonOptions));
-            return 0;
+            if (!DaemonAutoStart.IsDaemonMutexHeld(pipeName))
+            {
+                Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service not running." }, ServiceProtocol.JsonOptions));
+                return 0;
+            }
+
+            if (await TryForceStopTrackedDaemonAsync(pipeName, cancellationToken))
+            {
+                Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped.", forced = true }, ServiceProtocol.JsonOptions));
+                return 0;
+            }
+
+            Console.WriteLine(JsonSerializer.Serialize(
+                new
+                {
+                    success = false,
+                    error = $"Daemon is running but not responding, and the tracked daemon process could not be stopped. {ex.GetType().Name}: {ex.Message}"
+                },
+                ServiceProtocol.JsonOptions));
+            return 1;
         }
+    }
+
+    private static async Task<bool> WaitForDaemonExitAsync(string pipeName, CancellationToken cancellationToken)
+    {
+        var deadline = DateTime.UtcNow + ShutdownWaitTimeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            if (!DaemonAutoStart.IsDaemonMutexHeld(pipeName))
+            {
+                DaemonProcessTracker.Clear(pipeName);
+                return true;
+            }
+
+            await Task.Delay(ShutdownPollInterval, cancellationToken);
+        }
+
+        return !DaemonAutoStart.IsDaemonMutexHeld(pipeName);
+    }
+
+    private static async Task<bool> TryForceStopTrackedDaemonAsync(string pipeName, CancellationToken cancellationToken)
+    {
+        if (!DaemonProcessTracker.TryGetTrackedProcess(pipeName, out var trackedProcess))
+        {
+            return false;
+        }
+
+        using var _ = trackedProcess;
+
+        try
+        {
+            trackedProcess.Kill(entireProcessTree: true);
+
+            using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            waitCts.CancelAfter(ShutdownWaitTimeout);
+            await trackedProcess.WaitForExitAsync(waitCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            // Already exited between lookup and kill.
+        }
+        catch
+        {
+            return false;
+        }
+
+        DaemonProcessTracker.Clear(pipeName);
+        return await WaitForDaemonExitAsync(pipeName, cancellationToken);
     }
 }
 

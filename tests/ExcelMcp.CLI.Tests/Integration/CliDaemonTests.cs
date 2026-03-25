@@ -220,6 +220,32 @@ public sealed class CliDaemonTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ServiceStop_WhenDaemonIsUnresponsiveButTracked_ForceStopsTrackedProcess()
+    {
+        var mutexName = DaemonAutoStart.GetDaemonMutexName(_testPipeName);
+        using var sleeper = StartMutexHoldingProcess(mutexName);
+        await WaitForMutexAsync(mutexName);
+
+        DaemonProcessTracker.RegisterProcess(
+            _testPipeName,
+            sleeper.Id,
+            sleeper.StartTime.ToUniversalTime().ToFileTimeUtc());
+
+        var result = await CliProcessHelper.RunAsync("service stop", timeoutMs: 15000, environmentVariables: TestEnv);
+        _output.WriteLine($"Forced stop response: {result.Stdout}");
+        _output.WriteLine($"Forced stop stderr: {result.Stderr}");
+
+        using var json = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(json.RootElement.GetProperty("forced").GetBoolean());
+
+        var exited = sleeper.WaitForExit(5000);
+        Assert.True(exited, "Tracked daemon process should be force-stopped when shutdown RPC cannot get through");
+        Assert.False(File.Exists(DaemonProcessTracker.GetTrackingFilePath(_testPipeName)));
+    }
+
+    [Fact]
     public async Task ServiceRun_SecondInstance_ExitsImmediatelyWithoutDuplicate()
     {
         // Start first daemon and wait until it is ready
@@ -301,6 +327,43 @@ public sealed class CliDaemonTests : IAsyncLifetime
         var process = new Process { StartInfo = startInfo };
         process.Start();
         return process;
+    }
+
+    private static Process StartMutexHoldingProcess(string mutexName)
+    {
+        var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = "powershell",
+                Arguments = $"-NoLogo -NoProfile -NonInteractive -Command \"$created = $false; $m = New-Object System.Threading.Mutex($true, '{mutexName}', [ref]$created); if (-not $created) {{ exit 99 }}; try {{ Start-Sleep -Seconds 60 }} finally {{ $m.ReleaseMutex(); $m.Dispose() }}\"",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            }
+        };
+
+        process.Start();
+        return process;
+    }
+
+    private static async Task WaitForMutexAsync(string mutexName, int maxRetries = 20, int delayMs = 250)
+    {
+        for (var i = 0; i < maxRetries; i++)
+        {
+            try
+            {
+                using var mutex = Mutex.OpenExisting(mutexName);
+                return;
+            }
+            catch (WaitHandleCannotBeOpenedException)
+            {
+                await Task.Delay(delayMs);
+            }
+        }
+
+        throw new TimeoutException($"Mutex '{mutexName}' was not acquired within {maxRetries * delayMs}ms");
     }
 
     private async Task WaitForDaemonReadyAsync(int maxRetries = 20, int delayMs = 500)

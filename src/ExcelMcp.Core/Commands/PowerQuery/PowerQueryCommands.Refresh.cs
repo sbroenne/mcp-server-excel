@@ -38,44 +38,65 @@ public partial class PowerQueryCommands
         }
 
         using var timeoutCts = new CancellationTokenSource(timeout);
+        string? queryFormula = null;
 
-        return batch.Execute((ctx, ct) =>
+        try
         {
-            Excel.WorkbookQuery? query = null;
-            try
+            return batch.Execute((ctx, ct) =>
             {
-                query = ComUtilities.FindQuery(ctx.Book, queryName);
-                if (query == null)
+                Excel.WorkbookQuery? query = null;
+                try
                 {
-                    throw new InvalidOperationException($"Query '{queryName}' not found.");
+                    query = ComUtilities.FindQuery(ctx.Book, queryName);
+                    if (query == null)
+                    {
+                        throw new InvalidOperationException($"Query '{queryName}' not found.");
+                    }
+
+                    queryFormula = query.Formula?.ToString();
+
+                    // Refresh the query - exceptions propagate from both:
+                    // - QueryTable.Refresh() for worksheet queries
+                    // - Connection.Refresh() for Data Model queries
+                    progress?.Report(new ProgressInfo { Current = 0, Total = 1, Message = $"Refreshing '{queryName}'" });
+                    bool refreshed;
+                    try
+                    {
+                        refreshed = RefreshConnectionByQueryName(ctx.Book, queryName, timeoutCts.Token);
+                    }
+                    catch (Exception ex) when (TryWrapPowerQueryException(ex, out var pqEx))
+                    {
+                        throw pqEx!;
+                    }
+
+                    if (!refreshed)
+                    {
+                        throw new InvalidOperationException($"Could not find connection or table for query '{queryName}'.");
+                    }
+
+                    result.HasErrors = false;
+                    result.Success = true;
+                    result.LoadedToSheet = DetermineLoadedSheet(ctx.Book, queryName);
+
+                    bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
+                    result.IsConnectionOnly = string.IsNullOrEmpty(result.LoadedToSheet) && !isLoadedToDataModel;
+
+                    progress?.Report(new ProgressInfo { Current = 1, Total = 1, Message = $"Refreshed '{queryName}'" });
+                    return result;
                 }
-
-                // Refresh the query - exceptions propagate from both:
-                // - QueryTable.Refresh() for worksheet queries
-                // - Connection.Refresh() for Data Model queries
-                progress?.Report(new ProgressInfo { Current = 0, Total = 1, Message = $"Refreshing '{queryName}'" });
-                bool refreshed = RefreshConnectionByQueryName(ctx.Book, queryName, timeoutCts.Token);
-
-                if (!refreshed)
+                finally
                 {
-                    throw new InvalidOperationException($"Could not find connection or table for query '{queryName}'.");
+                    ComUtilities.Release(ref query);
                 }
-
-                result.HasErrors = false;
-                result.Success = true;
-                result.LoadedToSheet = DetermineLoadedSheet(ctx.Book, queryName);
-
-                bool isLoadedToDataModel = IsQueryLoadedToDataModel(ctx.Book, queryName);
-                result.IsConnectionOnly = string.IsNullOrEmpty(result.LoadedToSheet) && !isLoadedToDataModel;
-
-                progress?.Report(new ProgressInfo { Current = 1, Total = 1, Message = $"Refreshed '{queryName}'" });
-                return result;
-            }
-            finally
-            {
-                ComUtilities.Release(ref query);
-            }
-        }, timeoutCts.Token);
+            }, timeoutCts.Token);
+        }
+        catch (TimeoutException ex) when (IsLikelyPrivacyFirewallRisk(queryFormula))
+        {
+            throw new PowerQueryCommandException(
+                $"Likely Formula.Firewall/privacy-blocked refresh for query '{queryName}'. The query combines Excel.CurrentWorkbook with an external data source and Excel may have shown a privacy/modal prompt instead of returning a normal refresh error.",
+                "Privacy",
+                ex);
+        }
     }
 
     /// <summary>
@@ -125,6 +146,11 @@ public partial class PowerQueryCommands
                         try
                         {
                             refreshed = RefreshConnectionByQueryName(ctx.Book, queryName, timeoutCts.Token);
+                        }
+                        catch (Exception ex) when (TryWrapPowerQueryException(ex, out var pqEx))
+                        {
+                            errors.Add($"{queryName} [{pqEx!.ErrorCategory}]: {pqEx.Message}");
+                            continue;
                         }
                         catch (COMException ex)
                         {

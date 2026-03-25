@@ -35,8 +35,7 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
         }
         else
         {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, ServiceProtocol.JsonOptions));
-            return 1;
+            return CliErrorOutput.WriteServiceError(response);
         }
     }
 
@@ -76,8 +75,7 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
         }
         else
         {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, ServiceProtocol.JsonOptions));
-            return 1;
+            return CliErrorOutput.WriteServiceError(response);
         }
     }
 
@@ -118,8 +116,7 @@ internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseCommand.Set
         }
         else
         {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, ServiceProtocol.JsonOptions));
-            return 1;
+            return CliErrorOutput.WriteServiceError(response);
         }
     }
 
@@ -154,8 +151,7 @@ internal sealed class SessionListCommand : AsyncCommand
             }
             else
             {
-                Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, ServiceProtocol.JsonOptions));
-                return 1;
+                return CliErrorOutput.WriteServiceError(response);
             }
         }
         catch (Exception)
@@ -191,8 +187,7 @@ internal sealed class SessionSaveCommand : AsyncCommand<SessionSaveCommand.Setti
         }
         else
         {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = response.ErrorMessage }, ServiceProtocol.JsonOptions));
-            return 1;
+            return CliErrorOutput.WriteServiceError(response);
         }
     }
 

@@ -85,7 +85,7 @@ internal static class DaemonAutoStart
     /// Checks whether a daemon process currently holds the daemon mutex for the given pipe name.
     /// Returns true if a daemon is running (even if temporarily busy).
     /// </summary>
-    private static bool IsDaemonMutexHeld(string pipeName)
+    internal static bool IsDaemonMutexHeld(string pipeName)
     {
         try
         {

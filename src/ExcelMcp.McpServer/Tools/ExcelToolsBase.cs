@@ -111,6 +111,7 @@ public static class ExcelToolsBase
             {
                 success = false,
                 errorMessage = response.ErrorMessage ?? $"Command '{command}' failed",
+                errorCategory = response.ErrorCategory,
                 isError = true
             }, JsonOptions);
         }
@@ -143,6 +144,7 @@ public static class ExcelToolsBase
             {
                 success = false,
                 errorMessage = response.ErrorMessage ?? $"Command '{command}' failed",
+                errorCategory = response.ErrorCategory,
                 isError = true
             }, JsonOptions);
         }
