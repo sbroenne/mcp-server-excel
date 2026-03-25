@@ -13,14 +13,19 @@ public class RegularChartStrategy : IChartStrategy
     public bool CanHandle(dynamic chart)
     {
         // Regular charts: chart.PivotLayout is null or doesn't exist
+        dynamic? pivotLayout = null;
         try
         {
-            var pivotLayout = chart.PivotLayout;
+            pivotLayout = chart.PivotLayout;
             return pivotLayout == null;
         }
         catch (COMException)
         {
             return true; // No PivotLayout property = Regular chart
+        }
+        finally
+        {
+            ComUtilities.Release(ref pivotLayout);
         }
     }
 
