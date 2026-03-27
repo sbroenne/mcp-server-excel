@@ -21,7 +21,9 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "File")]
 [Trait("RequiresExcel", "true")]
-public sealed class ExcelFileToolProtocolRegressionTests : IAsyncLifetime, IAsyncDisposable
+#pragma warning disable CA1001 // _cts is disposed in IAsyncLifetime.DisposeAsync
+public sealed class ExcelFileToolProtocolRegressionTests : IAsyncLifetime
+#pragma warning restore CA1001
 {
     private readonly ITestOutputHelper _output;
     private readonly string _tempDir;
@@ -61,12 +63,7 @@ public sealed class ExcelFileToolProtocolRegressionTests : IAsyncLifetime, IAsyn
     public async Task DisposeAsync()
     {
         await DisposeAsyncCore();
-    }
-
-    async ValueTask IAsyncDisposable.DisposeAsync()
-    {
-        await DisposeAsyncCore();
-        GC.SuppressFinalize(this);
+        _cts.Dispose();
     }
 
     [Fact]
@@ -150,11 +147,6 @@ public sealed class ExcelFileToolProtocolRegressionTests : IAsyncLifetime, IAsyn
                 _output.WriteLine("Warning: Server did not stop within timeout");
             }
         }
-
-        _clientToServerPipe.Writer.Complete();
-        _clientToServerPipe.Reader.Complete();
-        _serverToClientPipe.Writer.Complete();
-        _serverToClientPipe.Reader.Complete();
 
         Program.ResetTestTransport();
 

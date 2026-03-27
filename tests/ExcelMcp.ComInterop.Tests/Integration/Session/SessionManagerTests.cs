@@ -379,7 +379,7 @@ public class SessionManagerTests : IDisposable
         var testFile = CreateTestFile(nameof(CreateSession_FileLockedByAnotherProcess_DoesNotLeakExcelProcess));
         using var manager = new SessionManager();
 
-        var startingCount = Process.GetProcessesByName("EXCEL").Length;
+        var pidsBefore = new HashSet<int>(Process.GetProcessesByName("EXCEL").Select(p => p.Id));
 
         using (var fileLock = new FileStream(testFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
         {
@@ -387,11 +387,19 @@ public class SessionManagerTests : IDisposable
             Assert.Contains("already open", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
 
-        Thread.Sleep(2000);
+        // Poll until no new Excel PIDs remain (up to 15 seconds)
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(15);
+        HashSet<int> newPids;
+        do
+        {
+            Thread.Sleep(250);
+            var pidsAfter = new HashSet<int>(Process.GetProcessesByName("EXCEL").Select(p => p.Id));
+            pidsAfter.ExceptWith(pidsBefore);
+            newPids = pidsAfter;
+        } while (newPids.Count > 0 && DateTime.UtcNow < deadline);
 
-        var endingCount = Process.GetProcessesByName("EXCEL").Length;
-        Assert.True(endingCount <= startingCount,
-            $"Excel process leak after SessionManager.CreateSession failed on locked file. Started with {startingCount}, ended with {endingCount}.");
+        Assert.True(newPids.Count == 0,
+            $"Excel process leak after SessionManager.CreateSession failed on locked file. New PIDs still running: {string.Join(", ", newPids)}");
         Assert.Equal(0, manager.ActiveSessionCount);
     }
 
