@@ -121,7 +121,10 @@ internal sealed class ExcelBatch : IExcelBatch
 
                 Excel.Application tempExcel = (Excel.Application)Activator.CreateInstance(excelType)!;
                 startupExcel = tempExcel;
-                tempExcel.Visible = _showExcel;
+                // Start Excel visible during workbook open so enterprise auth/sign-in
+                // dialogs are interactable. Hide after all workbooks open successfully.
+                // This also covers IRM-protected files which already needed Visible=true.
+                tempExcel.Visible = true;
                 tempExcel.DisplayAlerts = false;
 
                 // Capture Excel process ID for force-kill scenarios (hung Excel, dead RPC connection)
@@ -218,11 +221,9 @@ internal sealed class ExcelBatch : IExcelBatch
                         if (isIrm)
                         {
                             // IRM/AIP-protected files are OLE2 containers that cannot be opened
-                            // exclusively. Excel must be visible so the user can authenticate
-                            // through the IRM credential prompt.
-                            tempExcel.Visible = true;
+                            // exclusively. Open read-only so the IRM credential prompt works.
                             _logger.LogDebug(
-                                "IRM-protected file detected: {FileName}. Forcing Excel visible and opening read-only.",
+                                "IRM-protected file detected: {FileName}. Opening read-only.",
                                 Path.GetFileName(normalizedPath));
                         }
                         else
@@ -253,6 +254,13 @@ internal sealed class ExcelBatch : IExcelBatch
                         primaryWorkbook = wb;
                         startupPrimaryWorkbook = wb;
                     }
+                }
+
+                // All workbooks opened successfully — safe to apply user's visibility preference.
+                // Enterprise auth/sign-in dialogs (if any) have already been dismissed.
+                if (!_showExcel)
+                {
+                    tempExcel.Visible = false;
                 }
 
                 _excel = tempExcel;

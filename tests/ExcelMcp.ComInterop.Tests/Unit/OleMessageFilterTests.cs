@@ -172,6 +172,154 @@ public class OleMessageFilterTests
 
         Assert.Equal(PENDINGMSG_WAITDEFPROCESS, returnValue);
     }
+
+    /// <summary>
+    /// REGRESSION TEST for enterprise auth popup fix:
+    /// RetryRejectedCall with SERVERCALL_REJECTED should retry (return > 0)
+    /// when dwTickCount is below the rejection timeout, giving the user time
+    /// to dismiss authentication dialogs.
+    /// Previously returned -1 (cancel immediately).
+    /// </summary>
+    [Fact]
+    public void RetryRejectedCall_ServerCallRejected_BelowTimeout_RetriesInsteadOfCancelling()
+    {
+        const int SERVERCALL_REJECTED = 1;
+
+        var returnValue = -999;
+        Exception? threadException = null;
+
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                OleMessageFilter.Register();
+
+                var filterInstance = Activator.CreateInstance<OleMessageFilter>();
+                Assert.NotNull(filterInstance);
+
+                var iOleMsgFilterType = typeof(OleMessageFilter).Assembly.GetType(
+                    "Sbroenne.ExcelMcp.ComInterop.IOleMessageFilter");
+                Assert.NotNull(iOleMsgFilterType);
+
+                var method = iOleMsgFilterType.GetMethod("RetryRejectedCall");
+                Assert.NotNull(method);
+
+                // dwTickCount=5000 (5 seconds elapsed) — well below timeout
+                returnValue = (int)method.Invoke(filterInstance, [IntPtr.Zero, 5000, SERVERCALL_REJECTED])!;
+
+                OleMessageFilter.Revoke();
+            }
+            catch (Exception ex)
+            {
+                threadException = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (threadException != null) throw new InvalidOperationException($"Thread exception: {threadException.Message}", threadException);
+
+        // Should return a positive retry delay (> 0), not -1 (cancel)
+        Assert.True(returnValue > 0, $"Expected retry delay > 0 but got {returnValue}. SERVERCALL_REJECTED should retry to allow auth dialog dismissal.");
+    }
+
+    /// <summary>
+    /// RetryRejectedCall with SERVERCALL_REJECTED should cancel (-1)
+    /// when dwTickCount exceeds the rejection timeout (120s).
+    /// </summary>
+    [Fact]
+    public void RetryRejectedCall_ServerCallRejected_AboveTimeout_Cancels()
+    {
+        const int SERVERCALL_REJECTED = 1;
+
+        var returnValue = -999;
+        Exception? threadException = null;
+
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                OleMessageFilter.Register();
+
+                var filterInstance = Activator.CreateInstance<OleMessageFilter>();
+                Assert.NotNull(filterInstance);
+
+                var iOleMsgFilterType = typeof(OleMessageFilter).Assembly.GetType(
+                    "Sbroenne.ExcelMcp.ComInterop.IOleMessageFilter");
+                Assert.NotNull(iOleMsgFilterType);
+
+                var method = iOleMsgFilterType.GetMethod("RetryRejectedCall");
+                Assert.NotNull(method);
+
+                // dwTickCount=130000 (130 seconds) — above the 120s rejection timeout
+                returnValue = (int)method.Invoke(filterInstance, [IntPtr.Zero, 130000, SERVERCALL_REJECTED])!;
+
+                OleMessageFilter.Revoke();
+            }
+            catch (Exception ex)
+            {
+                threadException = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (threadException != null) throw new InvalidOperationException($"Thread exception: {threadException.Message}", threadException);
+
+        Assert.Equal(-1, returnValue);
+    }
+
+    /// <summary>
+    /// SERVERCALL_RETRYLATER still works as before — exponential backoff up to 30s.
+    /// Ensures the new REJECTED handling didn't break RETRYLATER.
+    /// </summary>
+    [Fact]
+    public void RetryRejectedCall_ServerCallRetryLater_StillRetriesWithBackoff()
+    {
+        const int SERVERCALL_RETRYLATER = 2;
+
+        var returnValue = -999;
+        Exception? threadException = null;
+
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                OleMessageFilter.Register();
+
+                var filterInstance = Activator.CreateInstance<OleMessageFilter>();
+                Assert.NotNull(filterInstance);
+
+                var iOleMsgFilterType = typeof(OleMessageFilter).Assembly.GetType(
+                    "Sbroenne.ExcelMcp.ComInterop.IOleMessageFilter");
+                Assert.NotNull(iOleMsgFilterType);
+
+                var method = iOleMsgFilterType.GetMethod("RetryRejectedCall");
+                Assert.NotNull(method);
+
+                // 500ms elapsed — should get 100ms retry (exponential backoff < 1s tier)
+                returnValue = (int)method.Invoke(filterInstance, [IntPtr.Zero, 500, SERVERCALL_RETRYLATER])!;
+
+                OleMessageFilter.Revoke();
+            }
+            catch (Exception ex)
+            {
+                threadException = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (threadException != null) throw new InvalidOperationException($"Thread exception: {threadException.Message}", threadException);
+
+        Assert.Equal(100, returnValue);
+    }
 }
 
 
