@@ -209,33 +209,49 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
     {
         // dwRejectType values:
         // SERVERCALL_RETRYLATER (2) = Server is busy, try again later
-        // SERVERCALL_REJECTED (1) = Server rejected the call
+        // SERVERCALL_REJECTED (1) = Server rejected the call (may be showing a modal dialog)
 
+        const int SERVERCALL_REJECTED = 1;
         const int SERVERCALL_RETRYLATER = 2;
-        const int RETRY_TIMEOUT_MS = 30000;
+        const int RETRY_LATER_TIMEOUT_MS = 30000;
+        const int REJECTED_TIMEOUT_MS = 120000; // 2 minutes for auth/sign-in dialogs
 
-        if (dwRejectType != SERVERCALL_RETRYLATER)
+        if (dwRejectType == SERVERCALL_RETRYLATER)
         {
-            return -1; // Cancel immediately for non-retry scenarios
+            if (dwTickCount >= RETRY_LATER_TIMEOUT_MS)
+            {
+                return -1; // Cancel the call if timeout exceeded
+            }
+
+            // Exponential backoff based on elapsed time:
+            // 0-1s:   100ms delays (quick retries for brief busy states)
+            // 1-5s:   200ms delays
+            // 5-15s:  500ms delays
+            // 15-30s: 1000ms delays (Excel is seriously stuck)
+            return dwTickCount switch
+            {
+                < 1000 => 100,
+                < 5000 => 200,
+                < 15000 => 500,
+                _ => 1000
+            };
         }
 
-        if (dwTickCount >= RETRY_TIMEOUT_MS)
+        if (dwRejectType == SERVERCALL_REJECTED)
         {
-            return -1; // Cancel the call if timeout exceeded
+            // On enterprise-managed devices, Excel may show auth/sign-in modal dialogs
+            // during startup, which causes COM calls to be rejected (SERVERCALL_REJECTED).
+            // Retry with longer timeout to give the user time to dismiss these dialogs.
+            if (dwTickCount >= REJECTED_TIMEOUT_MS)
+            {
+                return -1; // Give up after 2 minutes
+            }
+
+            // Use slower backoff — the rejection is likely a dialog waiting for user input
+            return 1000;
         }
 
-        // Exponential backoff based on elapsed time:
-        // 0-1s:   100ms delays (quick retries for brief busy states)
-        // 1-5s:   200ms delays
-        // 5-15s:  500ms delays
-        // 15-30s: 1000ms delays (Excel is seriously stuck)
-        return dwTickCount switch
-        {
-            < 1000 => 100,
-            < 5000 => 200,
-            < 15000 => 500,
-            _ => 1000
-        };
+        return -1; // Cancel immediately for unknown rejection types
     }
 
     /// <summary>
