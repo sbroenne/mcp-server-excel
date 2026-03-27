@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
@@ -144,6 +145,60 @@ End Sub";
         Assert.Contains("UpdatedCode", viewResult.Code);
         Assert.Contains("Updated", viewResult.Code);
         Assert.DoesNotContain("OriginalCode", viewResult.Code);
+    }
+
+    [Fact]
+    public void ScriptCommands_Run_WithParameters_PassesArgumentsCorrectly()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        // Import a macro that writes a parameter to a cell for verification
+        string vbaCode = @"Sub TestWithParam(value As String)
+    ThisWorkbook.Sheets(1).Range(""A1"").Value = value
+End Sub";
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+        _scriptCommands.Import(batch, "ParamTest", vbaCode);
+
+        // Act - Run with parameter
+        _scriptCommands.Run(batch, "ParamTest.TestWithParam", null, "HelloWorld");
+
+        // Assert - Verify the macro wrote the value
+        var rangeCommands = new RangeCommands();
+        var result = rangeCommands.GetValues(batch, "Sheet1", "A1");
+        Assert.True(result.Success, $"GetValues should succeed. Error: {result.ErrorMessage}");
+        Assert.NotNull(result.Values);
+        Assert.Single(result.Values);
+        Assert.Equal("HelloWorld", result.Values[0][0]?.ToString());
+    }
+
+    [Fact]
+    public void ScriptCommands_Run_WithMultipleParameters_PassesAllArguments()
+    {
+        // Arrange
+        var testFile = _fixture.CreateTestFile();
+
+        // Import a macro that writes two parameters to separate cells
+        string vbaCode = @"Sub TestMultiParam(val1 As String, val2 As String)
+    ThisWorkbook.Sheets(1).Range(""A1"").Value = val1
+    ThisWorkbook.Sheets(1).Range(""B1"").Value = val2
+End Sub";
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+        _scriptCommands.Import(batch, "MultiParamTest", vbaCode);
+
+        // Act - Run with two parameters
+        _scriptCommands.Run(batch, "MultiParamTest.TestMultiParam", null, "First", "Second");
+
+        // Assert - Verify both parameters were passed correctly
+        var rangeCommands = new RangeCommands();
+        var result = rangeCommands.GetValues(batch, "Sheet1", "A1:B1");
+        Assert.True(result.Success, $"GetValues should succeed. Error: {result.ErrorMessage}");
+        Assert.NotNull(result.Values);
+        Assert.Single(result.Values); // one row
+        Assert.Equal("First", result.Values[0][0]?.ToString());
+        Assert.Equal("Second", result.Values[0][1]?.ToString());
     }
 }
 
