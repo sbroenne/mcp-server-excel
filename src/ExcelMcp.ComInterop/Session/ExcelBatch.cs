@@ -104,6 +104,9 @@ internal sealed class ExcelBatch : IExcelBatch
 
         _staThread = new Thread(() =>
         {
+            Excel.Application? startupExcel = null;
+            Excel.Workbook? startupPrimaryWorkbook = null;
+            Dictionary<string, Excel.Workbook>? startupWorkbooks = null;
             try
             {
                 // CRITICAL: Register OLE message filter on STA thread for Excel busy handling
@@ -117,6 +120,7 @@ internal sealed class ExcelBatch : IExcelBatch
                 }
 
                 Excel.Application tempExcel = (Excel.Application)Activator.CreateInstance(excelType)!;
+                startupExcel = tempExcel;
                 tempExcel.Visible = _showExcel;
                 tempExcel.DisplayAlerts = false;
 
@@ -176,6 +180,7 @@ internal sealed class ExcelBatch : IExcelBatch
 
                 // Open or create workbooks in the same Excel instance
                 var tempWorkbooks = new Dictionary<string, Excel.Workbook>(StringComparer.OrdinalIgnoreCase);
+                startupWorkbooks = tempWorkbooks;
                 Excel.Workbook? primaryWorkbook = null;
 
                 foreach (var path in _allWorkbookPaths)
@@ -246,6 +251,7 @@ internal sealed class ExcelBatch : IExcelBatch
                     if (path == _workbookPath)
                     {
                         primaryWorkbook = wb;
+                        startupPrimaryWorkbook = wb;
                     }
                 }
 
@@ -330,6 +336,15 @@ internal sealed class ExcelBatch : IExcelBatch
                 // Cleanup COM objects on STA thread exit
                 _logger.LogDebug("STA thread cleanup starting for {FileName}", Path.GetFileName(_workbookPath));
 
+                // Startup failures can happen after Excel was created but before the local COM state
+                // was promoted into the instance fields (for example: locked workbook, Open() failure,
+                // or second workbook failure in a multi-workbook batch). In that case, the instance
+                // fields remain null and cleanup must fall back to the startup locals to avoid leaking
+                // a hidden Excel.exe process.
+                var cleanupExcel = _excel ?? startupExcel;
+                var cleanupWorkbook = _workbook ?? startupPrimaryWorkbook;
+                var cleanupWorkbooks = _workbooks ?? startupWorkbooks;
+
                 // INSTRUMENTATION: Check if Excel process is alive BEFORE entering shutdown
                 if (_excelProcessId.HasValue)
                 {
@@ -357,14 +372,14 @@ internal sealed class ExcelBatch : IExcelBatch
                 // Previously multi-workbook batches used bare COM calls without resilience,
                 // while single-workbook batches used ExcelShutdownService. Now both paths
                 // get the same exponential backoff retry for COM busy conditions.
-                if (_workbooks != null && _workbooks.Count > 1)
+                if (cleanupWorkbooks != null && cleanupWorkbooks.Count > 1)
                 {
-                    _logger.LogDebug("Closing {Count} workbooks via ExcelShutdownService", _workbooks.Count);
+                    _logger.LogDebug("Closing {Count} workbooks via ExcelShutdownService", cleanupWorkbooks.Count);
 
                     // Close all non-primary workbooks first (without quitting Excel)
-                    foreach (var kvp in _workbooks.ToList())
+                    foreach (var kvp in cleanupWorkbooks.ToList())
                     {
-                        if (kvp.Value == _workbook)
+                        if (kvp.Value == cleanupWorkbook)
                         {
                             continue; // Primary workbook closed last (with Quit)
                         }
@@ -372,15 +387,15 @@ internal sealed class ExcelBatch : IExcelBatch
                         // CloseAndQuit with excel=null closes workbook only, doesn't quit
                         ExcelShutdownService.CloseAndQuit(kvp.Value, null, false, kvp.Key, _logger);
                     }
-                    _workbooks.Clear();
+                    cleanupWorkbooks.Clear();
 
                     // Close primary workbook AND quit Excel (with resilient retry)
-                    ExcelShutdownService.CloseAndQuit(_workbook, _excel, false, _workbookPath, _logger);
+                    ExcelShutdownService.CloseAndQuit(cleanupWorkbook, cleanupExcel, false, _workbookPath, _logger);
                 }
                 else
                 {
                     // Single workbook: same ExcelShutdownService path
-                    ExcelShutdownService.CloseAndQuit(_workbook, _excel, false, _workbookPath, _logger);
+                    ExcelShutdownService.CloseAndQuit(cleanupWorkbook, cleanupExcel, false, _workbookPath, _logger);
                 }
 
                 _workbook = null;
@@ -410,8 +425,44 @@ internal sealed class ExcelBatch : IExcelBatch
         _staThread.SetApartmentState(ApartmentState.STA);
         _staThread.Start();
 
-        // Wait for STA thread to initialize
-        started.Task.GetAwaiter().GetResult();
+        // Wait for STA thread to initialize. If startup fails, the STA thread may still be in
+        // its finally-block cleanup path (closing a hidden Excel instance created before the
+        // failure). Wait for that cleanup before rethrowing so callers do not immediately race
+        // a lingering hidden Excel.exe from the failed startup attempt.
+        try
+        {
+            started.Task.GetAwaiter().GetResult();
+        }
+        catch
+        {
+            if (_staThread.IsAlive)
+            {
+                if (!_staThread.Join(TimeSpan.FromSeconds(10)) && _excelProcessId.HasValue)
+                {
+                    try
+                    {
+                        using var excelProcess = System.Diagnostics.Process.GetProcessById(_excelProcessId.Value);
+                        if (!excelProcess.HasExited)
+                        {
+                            excelProcess.Kill();
+                            excelProcess.WaitForExit(5000);
+                        }
+                    }
+                    catch (ArgumentException)
+                    {
+                        // Excel process already exited during startup cleanup.
+                    }
+                    catch (Exception)
+                    {
+                        // Best effort only — rethrow original startup failure below.
+                    }
+
+                    _ = _staThread.Join(TimeSpan.FromSeconds(5));
+                }
+            }
+
+            throw;
+        }
     }
 
     public string WorkbookPath => _workbookPath;

@@ -374,6 +374,28 @@ public class SessionManagerTests : IDisposable
     }
 
     [Fact]
+    public void CreateSession_FileLockedByAnotherProcess_DoesNotLeakExcelProcess()
+    {
+        var testFile = CreateTestFile(nameof(CreateSession_FileLockedByAnotherProcess_DoesNotLeakExcelProcess));
+        using var manager = new SessionManager();
+
+        var startingCount = Process.GetProcessesByName("EXCEL").Length;
+
+        using (var fileLock = new FileStream(testFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            var ex = Assert.Throws<InvalidOperationException>(() => manager.CreateSession(testFile));
+            Assert.Contains("already open", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        Thread.Sleep(2000);
+
+        var endingCount = Process.GetProcessesByName("EXCEL").Length;
+        Assert.True(endingCount <= startingCount,
+            $"Excel process leak after SessionManager.CreateSession failed on locked file. Started with {startingCount}, ended with {endingCount}.");
+        Assert.Equal(0, manager.ActiveSessionCount);
+    }
+
+    [Fact]
     public void CreateSession_AfterClosingPrevious_AllowsReopeningFile()
     {
         var testFile = CreateTestFile(nameof(CreateSession_AfterClosingPrevious_AllowsReopeningFile));

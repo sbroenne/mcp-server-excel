@@ -447,6 +447,48 @@ public class ExcelBatchTests : IAsyncLifetime
         }
     }
 
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "FileLocking")]
+    public void Constructor_FileLockedByAnotherProcess_DoesNotLeakExcelProcess()
+    {
+        var lockedTestFile = Path.Join(Path.GetTempPath(), $"batch-test-locked-leak-{Guid.NewGuid():N}.xlsx");
+        File.Copy(_staticTestFile!, lockedTestFile, overwrite: true);
+
+        var startingCount = Process.GetProcessesByName("EXCEL").Length;
+
+        try
+        {
+            using var fileLock = new FileStream(
+                lockedTestFile,
+                FileMode.Open,
+                FileAccess.ReadWrite,
+                FileShare.None);
+
+            var ex = Assert.Throws<InvalidOperationException>(() =>
+            {
+                using var batch = ExcelSession.BeginBatch(lockedTestFile);
+            });
+
+            Assert.Contains("already open", ex.Message, StringComparison.OrdinalIgnoreCase);
+
+            Thread.Sleep(2000);
+
+            var endingCount = Process.GetProcessesByName("EXCEL").Length;
+            Assert.True(endingCount <= startingCount,
+                $"Excel process leak after locked-file startup failure. Started with {startingCount}, ended with {endingCount}.");
+        }
+        finally
+        {
+            if (File.Exists(lockedTestFile))
+            {
+#pragma warning disable CA1031
+                try { File.Delete(lockedTestFile); } catch (Exception) { }
+#pragma warning restore CA1031
+            }
+        }
+    }
+
     // Note: Testing file-already-open scenario is complex because:
     // 1. Excel's behavior when opening an already-open file can vary (hang, prompt, or succeed)
     // 2. The error detection code in ExcelBatch.cs catches COM Error 0x800A03EC
