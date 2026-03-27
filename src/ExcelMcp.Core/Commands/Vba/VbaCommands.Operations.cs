@@ -29,15 +29,24 @@ public partial class VbaCommands
         {
             try
             {
-                if (parameters.Length == 0)
+                // Use late-bound COM dispatch via Type.InvokeMember to avoid dependency on
+                // Microsoft.Vbe.Interop.dll, which is not available on Click-to-Run Office
+                // installations. The early-bound PIA call ctx.App.Run() triggers assembly
+                // resolution of VBE types through the embedded Application interface metadata.
+                var args = new object[1 + parameters.Length];
+                args[0] = procedureName;
+                for (int i = 0; i < parameters.Length; i++)
                 {
-                    ctx.App.Run(procedureName);
+                    args[i + 1] = parameters[i];
                 }
-                else
-                {
-                    object[] paramObjects = parameters.Cast<object>().ToArray();
-                    ctx.App.Run(procedureName, paramObjects);
-                }
+
+                ctx.App.GetType().InvokeMember(
+                    "Run",
+                    System.Reflection.BindingFlags.InvokeMethod,
+                    null,
+                    ctx.App,
+                    args,
+                    System.Globalization.CultureInfo.InvariantCulture);
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }

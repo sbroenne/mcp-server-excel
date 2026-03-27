@@ -12,6 +12,8 @@ This changelog covers all components:
 
 ### Fixed
 
+- **vba(action: 'run') fails on Office 365 Click-to-Run** (#550): `vba.run` used early-bound PIA call `Application.Run()` which triggered assembly resolution of `Microsoft.Vbe.Interop.dll` — a DLL not available on Click-to-Run Office installations without the Visual Studio Office workload. Switched to late-bound COM dispatch via `Type.InvokeMember`, matching the pattern used by all other VBA operations. Also fixed parameter spreading — multiple macro arguments are now passed as individual COM parameters instead of a single array.
+
 - **Session startup "Specified cast is not valid" now includes COM diagnostic info** (#559): When `Activator.CreateInstance` succeeds but PIA interface cast fails (typically due to COM registration mismatches on certain Office Click-to-Run configurations), the error message now includes the resolved CLSID, PIA interface GUID, process bitness, and Office install path. This helps diagnose machine-specific COM registration issues without requiring remote debugging.
 
 - **Enterprise-managed devices: auth/sign-in pop-ups could freeze session startup**: On enterprise-managed Windows devices, Excel sometimes shows modal authentication or sign-in dialogs during startup. Because ExcelMcp started Excel hidden, these dialogs were invisible and blocked COM calls indefinitely (SERVERCALL_REJECTED). Fixed with two changes: (1) `OleMessageFilter.RetryRejectedCall` now retries `SERVERCALL_REJECTED` responses for up to 120 seconds instead of cancelling immediately, giving users time to interact with auth dialogs. (2) `ExcelBatch` now starts Excel visible during session open so auth dialogs are interactable, then hides it after all workbooks are loaded if `show=false` was requested.
