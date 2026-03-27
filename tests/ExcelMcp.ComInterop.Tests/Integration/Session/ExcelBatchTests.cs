@@ -447,6 +447,56 @@ public class ExcelBatchTests : IAsyncLifetime
         }
     }
 
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "FileLocking")]
+    public void Constructor_FileLockedByAnotherProcess_DoesNotLeakExcelProcess()
+    {
+        var lockedTestFile = Path.Join(Path.GetTempPath(), $"batch-test-locked-leak-{Guid.NewGuid():N}.xlsx");
+        File.Copy(_staticTestFile!, lockedTestFile, overwrite: true);
+
+        var pidsBefore = new HashSet<int>(Process.GetProcessesByName("EXCEL").Select(p => p.Id));
+
+        try
+        {
+            using var fileLock = new FileStream(
+                lockedTestFile,
+                FileMode.Open,
+                FileAccess.ReadWrite,
+                FileShare.None);
+
+            var ex = Assert.Throws<InvalidOperationException>(() =>
+            {
+                using var batch = ExcelSession.BeginBatch(lockedTestFile);
+            });
+
+            Assert.Contains("already open", ex.Message, StringComparison.OrdinalIgnoreCase);
+
+            // Poll until no new Excel PIDs remain (up to 15 seconds)
+            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(15);
+            HashSet<int> newPids;
+            do
+            {
+                Thread.Sleep(250);
+                var pidsAfter = new HashSet<int>(Process.GetProcessesByName("EXCEL").Select(p => p.Id));
+                pidsAfter.ExceptWith(pidsBefore);
+                newPids = pidsAfter;
+            } while (newPids.Count > 0 && DateTime.UtcNow < deadline);
+
+            Assert.True(newPids.Count == 0,
+                $"Excel process leak after locked-file startup failure. New PIDs still running: {string.Join(", ", newPids)}");
+        }
+        finally
+        {
+            if (File.Exists(lockedTestFile))
+            {
+#pragma warning disable CA1031
+                try { File.Delete(lockedTestFile); } catch (Exception) { }
+#pragma warning restore CA1031
+            }
+        }
+    }
+
     // Note: Testing file-already-open scenario is complex because:
     // 1. Excel's behavior when opening an already-open file can vary (hang, prompt, or succeed)
     // 2. The error detection code in ExcelBatch.cs catches COM Error 0x800A03EC
