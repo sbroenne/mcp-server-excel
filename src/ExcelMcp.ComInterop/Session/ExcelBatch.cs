@@ -41,6 +41,13 @@ internal sealed class ExcelBatch : IExcelBatch
     private int? _excelProcessId; // Excel.exe process ID for force-kill if needed
     private bool _operationTimedOut; // Track if an operation timed out for aggressive cleanup
 
+    /// <summary>
+    /// When true, suppresses the "start visible during open" behavior.
+    /// Used by test infrastructure to avoid flashing Excel windows during automated test runs.
+    /// Production code should never set this.
+    /// </summary>
+    internal static bool SuppressVisibleDuringOpen { get; set; }
+
     // COM state (STA thread only)
     private Excel.Application? _excel;
     private Excel.Workbook? _workbook; // Primary workbook
@@ -119,12 +126,30 @@ internal sealed class ExcelBatch : IExcelBatch
                     throw new InvalidOperationException("Microsoft Excel is not installed on this system.");
                 }
 
-                Excel.Application tempExcel = (Excel.Application)Activator.CreateInstance(excelType)!;
+                Excel.Application tempExcel;
+                try
+                {
+                    tempExcel = (Excel.Application)Activator.CreateInstance(excelType)!;
+                }
+                catch (InvalidCastException ex)
+                {
+                    // Enrich with COM environment diagnostics for remote debugging (Issue #559)
+                    var diagnostics = ComDiagnostics.FormatForErrorMessage(ComDiagnostics.Collect());
+                    throw new InvalidOperationException(
+                        $"Failed to cast Excel COM object to PIA interface. " +
+                        $"This typically indicates a COM registration mismatch (architecture, version, or corruption).\n{diagnostics}",
+                        ex);
+                }
                 startupExcel = tempExcel;
                 // Start Excel visible during workbook open so enterprise auth/sign-in
                 // dialogs are interactable. Hide after all workbooks open successfully.
                 // This also covers IRM-protected files which already needed Visible=true.
-                tempExcel.Visible = true;
+                // SuppressVisibleDuringOpen: test infrastructure disables this to avoid
+                // flashing windows during automated runs.
+                if (!SuppressVisibleDuringOpen)
+                {
+                    tempExcel.Visible = true;
+                }
                 tempExcel.DisplayAlerts = false;
 
                 // Capture Excel process ID for force-kill scenarios (hung Excel, dead RPC connection)
