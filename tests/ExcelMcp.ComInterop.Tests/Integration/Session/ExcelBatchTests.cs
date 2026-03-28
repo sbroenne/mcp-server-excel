@@ -32,6 +32,14 @@ public class ExcelBatchTests : IAsyncLifetime
     private static string? _staticTestFile;
     private string? _testFileCopy;
 
+    private static string? GetConfiguredIrmTestFilePath()
+    {
+        var irmTestFile = Environment.GetEnvironmentVariable("TEST_IRM_FILE");
+        return !string.IsNullOrWhiteSpace(irmTestFile) && File.Exists(irmTestFile)
+            ? Path.GetFullPath(irmTestFile)
+            : null;
+    }
+
     public ExcelBatchTests(ITestOutputHelper output)
     {
         _output = output;
@@ -398,6 +406,104 @@ public class ExcelBatchTests : IAsyncLifetime
 #pragma warning disable CA1031 // Intentional: best-effort test cleanup
                 try { File.Delete(testFile); } catch (Exception) { /* Best effort cleanup */ }
 #pragma warning restore CA1031
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("RunType", "OnDemand")]
+    public void BeginBatch_IrmWorkbook_ShowFalse_FailsFastBeforeOpen()
+    {
+        string fakeIrmFile = Path.Join(Path.GetTempPath(), $"batch-irm-headless-{Guid.NewGuid():N}.xlsx");
+        File.WriteAllBytes(fakeIrmFile, [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+
+        bool openAttempted = false;
+        ExcelBatch.BeforeWorkbookOpenHook = (_, _) => openAttempted = true;
+
+        try
+        {
+            var ex = Assert.Throws<InvalidOperationException>(() =>
+                ExcelSession.BeginBatch(show: false, operationTimeout: TimeSpan.FromSeconds(15), fakeIrmFile));
+
+            Assert.False(openAttempted);
+            Assert.Contains("IRM/AIP-protected workbook", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("show=true", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            ExcelBatch.BeforeWorkbookOpenHook = null;
+
+#pragma warning disable CA1031 // Intentional: best-effort test cleanup
+            try { File.Delete(fakeIrmFile); } catch (Exception) { }
+#pragma warning restore CA1031
+        }
+    }
+
+    [Fact]
+    [Trait("RunType", "OnDemand")]
+    public async Task BeginBatch_RealIrmWorkbook_CompletesStartupWithinBudget_WhenConfigured()
+    {
+        // Real IRM startup depends on interactive auth/enterprise policy and cannot run in CI.
+        var irmTestFile = GetConfiguredIrmTestFilePath();
+        if (irmTestFile == null)
+        {
+            return;
+        }
+
+        var startingExcelPids = Process.GetProcessesByName("EXCEL")
+            .Select(process => process.Id)
+            .ToHashSet();
+
+        var stopwatch = Stopwatch.StartNew();
+        IExcelBatch? batch = null;
+
+        try
+        {
+            var openTask = Task.Run(() => ExcelSession.BeginBatch(show: true, operationTimeout: TimeSpan.FromSeconds(15), irmTestFile));
+
+            try
+            {
+                batch = await openTask.WaitAsync(TimeSpan.FromSeconds(20));
+            }
+            catch (TimeoutException)
+            {
+                KillUnexpectedExcelProcesses(startingExcelPids);
+                Assert.Fail(
+                    "Opening the configured IRM workbook did not complete within 20 seconds. " +
+                    "This is the hang regression surface for protected-workbook startup.");
+            }
+            _output.WriteLine($"Opened IRM workbook in {stopwatch.Elapsed.TotalSeconds:F1}s");
+        }
+        finally
+        {
+            batch?.Dispose();
+        }
+    }
+
+    private static void KillUnexpectedExcelProcesses(HashSet<int> startingExcelPids)
+    {
+        foreach (var process in Process.GetProcessesByName("EXCEL"))
+        {
+            if (startingExcelPids.Contains(process.Id))
+            {
+                process.Dispose();
+                continue;
+            }
+
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: false);
+                    process.WaitForExit(5000);
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                process.Dispose();
             }
         }
     }

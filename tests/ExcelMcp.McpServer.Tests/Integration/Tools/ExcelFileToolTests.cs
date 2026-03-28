@@ -19,6 +19,11 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("Feature", "File")]
 public class ExcelFileToolTests(ITestOutputHelper output)
 {
+    private static readonly byte[] Ole2Signature =
+    [
+        0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1
+    ];
+
     [Fact]
     public void Create_ProtectedSystemPath_ReturnsJsonError()
     {
@@ -173,6 +178,44 @@ public class ExcelFileToolTests(ITestOutputHelper output)
         var json = JsonDocument.Parse(result).RootElement;
         Assert.False(json.GetProperty("success").GetBoolean());
         Assert.False(json.GetProperty("exists").GetBoolean());
+    }
+
+    [Fact]
+    public void Test_IrmSignatureFile_ReturnsIrmMetadata()
+    {
+        // Arrange
+        var tempPath = Path.Join(Path.GetTempPath(), $"ExcelFileTool_Irm_{Guid.NewGuid():N}.xlsx");
+
+        try
+        {
+            File.WriteAllBytes(tempPath, Ole2Signature);
+
+            // Act
+            var result = ExcelFileTool.ExcelFile(
+                FileAction.Test,
+                path: tempPath,
+                session_id: null,
+                save: false,
+                show: false,
+                timeout_seconds: 300);
+
+            output.WriteLine($"Result: {result}");
+
+            // Assert
+            var json = JsonDocument.Parse(result).RootElement;
+            Assert.True(json.GetProperty("success").GetBoolean());
+            Assert.True(json.GetProperty("exists").GetBoolean());
+            Assert.True(json.GetProperty("isValid").GetBoolean());
+            Assert.True(json.GetProperty("isIrmProtected").GetBoolean());
+            Assert.False(json.TryGetProperty("isError", out _));
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+        }
     }
 }
 

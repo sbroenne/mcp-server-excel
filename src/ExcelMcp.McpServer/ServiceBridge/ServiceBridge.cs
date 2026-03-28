@@ -30,6 +30,7 @@ public static class ServiceBridge
 
     private static IServiceBridgeBackend? _service;
     private static Func<IServiceBridgeBackend> _serviceFactory = DefaultServiceFactory;
+    private static Exception? _lastStartupException;
 
     /// <summary>
     /// JSON serializer options for deserializing service responses.
@@ -56,10 +57,12 @@ public static class ServiceBridge
             }
 
             _service = _serviceFactory();
+            _lastStartupException = null;
             return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            _lastStartupException = ex;
             return false;
         }
         finally
@@ -83,7 +86,7 @@ public static class ServiceBridge
             return new ServiceResponse
             {
                 Success = false,
-                ErrorMessage = "Failed to start ExcelMCP Service in-process."
+                ErrorMessage = BuildServiceStartupErrorMessage(_lastStartupException)
             };
         }
 
@@ -260,6 +263,7 @@ public static class ServiceBridge
     {
         var service = Interlocked.Exchange(ref _service, null);
         service?.Dispose();
+        _lastStartupException = null;
     }
 
     internal static void SetServiceFactoryForTests(Func<IServiceBridgeBackend> serviceFactory)
@@ -272,5 +276,15 @@ public static class ServiceBridge
     {
         Dispose();
         _serviceFactory = DefaultServiceFactory;
+    }
+
+    private static string BuildServiceStartupErrorMessage(Exception? exception)
+    {
+        if (exception == null)
+        {
+            return "Failed to start ExcelMCP Service in-process.";
+        }
+
+        return $"Failed to start ExcelMCP Service in-process: {exception.GetType().Name}: {exception.Message}";
     }
 }

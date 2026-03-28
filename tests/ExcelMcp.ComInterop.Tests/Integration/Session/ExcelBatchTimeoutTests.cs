@@ -68,6 +68,73 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
         return Task.CompletedTask;
     }
 
+    [Fact]
+    public void BeginBatch_StartupOpenBlocks_ThrowsTimeoutExceptionInsteadOfHanging()
+    {
+        using var startupBlocked = new ManualResetEventSlim(false);
+        ExcelBatch.BeforeWorkbookOpenHook = (_, cancellationToken) =>
+        {
+            startupBlocked.Set();
+            cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(30));
+        };
+
+        try
+        {
+            var sw = Stopwatch.StartNew();
+
+            var ex = Assert.Throws<TimeoutException>(() =>
+                ExcelSession.BeginBatch(
+                    show: false,
+                    operationTimeout: TimeSpan.FromSeconds(8),
+                    _testFileCopy!));
+
+            sw.Stop();
+
+            Assert.True(startupBlocked.Wait(TimeSpan.FromSeconds(10)),
+                "Startup hook was not reached before the timeout assertion.");
+            Assert.Contains("startup timed out", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains(Path.GetFileName(_testFileCopy!), ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.True(sw.Elapsed < TimeSpan.FromSeconds(30),
+                $"Startup timeout regression: BeginBatch took {sw.Elapsed.TotalSeconds:F1}s. Expected a bounded timeout, not a hang.");
+        }
+        finally
+        {
+            ExcelBatch.BeforeWorkbookOpenHook = null;
+        }
+    }
+
+    [Fact]
+    public void BeginBatch_IrmStartupOpenBlocks_TimeoutMessageIncludesInteractiveGuidance()
+    {
+        string fakeIrmFile = Path.Join(Path.GetTempPath(), $"batch-timeout-irm-{Guid.NewGuid():N}.xlsx");
+        File.WriteAllBytes(fakeIrmFile, [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]);
+
+        ExcelBatch.BeforeWorkbookOpenHook = (_, cancellationToken) =>
+        {
+            cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(30));
+        };
+
+        try
+        {
+            var ex = Assert.Throws<TimeoutException>(() =>
+                ExcelSession.BeginBatch(
+                    show: true,
+                    operationTimeout: TimeSpan.FromSeconds(8),
+                    fakeIrmFile));
+
+            Assert.Contains("IRM/AIP-protected", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("show=true", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            ExcelBatch.BeforeWorkbookOpenHook = null;
+
+#pragma warning disable CA1031 // Intentional: best-effort test cleanup
+            try { File.Delete(fakeIrmFile); } catch (Exception) { }
+#pragma warning restore CA1031
+        }
+    }
+
     /// <summary>
     /// REGRESSION TEST: Execute() must throw TimeoutException when operation exceeds the configured timeout.
     /// Before Bug 8 fix, timeout existed but had no recovery — the caller got the exception but

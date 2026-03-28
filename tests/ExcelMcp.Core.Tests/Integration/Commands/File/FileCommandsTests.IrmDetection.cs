@@ -11,6 +11,19 @@ public partial class FileCommandsTests
 {
     // === IMPROVEMENT #5: IRM DETECTION TESTS ===
 
+    private static readonly byte[] Ole2Signature =
+    [
+        0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1
+    ];
+
+    private static string? GetConfiguredIrmTestFilePath()
+    {
+        var irmTestFile = Environment.GetEnvironmentVariable("TEST_IRM_FILE");
+        return !string.IsNullOrWhiteSpace(irmTestFile) && System.IO.File.Exists(irmTestFile)
+            ? Path.GetFullPath(irmTestFile)
+            : null;
+    }
+
     [Fact]
     public void Test_NormalFile_NoIrmProtection()
     {
@@ -28,14 +41,48 @@ public partial class FileCommandsTests
     }
 
     [Fact]
-    public void Test_IrmProtectedFile_DetectsProtection()
+    public void Test_IrmSignatureFile_DetectsProtection()
     {
-        // Arrange - Skip if no IRM protected test file available
-        // For now, simulate or use a real IRM-protected file if available
-        string? irmTestFile = Environment.GetEnvironmentVariable("TEST_IRM_FILE");
-        if (string.IsNullOrEmpty(irmTestFile) || !System.IO.File.Exists(irmTestFile))
+        // Arrange - deterministic OLE2 header seam for IRM detection logic
+        var testFile = Path.Join(_fixture.TempDir, $"FakeIrm_{Guid.NewGuid():N}.xlsx");
+        System.IO.File.WriteAllBytes(testFile, Ole2Signature);
+
+        // Act
+        var info = _fileCommands.Test(testFile);
+
+        // Assert
+        Assert.True(info.Exists);
+        Assert.True(info.IsValid);
+        Assert.True(info.IsIrmProtected);
+        Assert.Null(info.Message);
+    }
+
+    [Fact]
+    public void Test_LegacyXlsFile_NotFlaggedAsIrm()
+    {
+        // Regression: .xls files are always OLE2 compound documents by design.
+        // They must NOT be misclassified as IRM-protected.
+        var testFile = Path.Join(_fixture.TempDir, $"LegacyBiff_{Guid.NewGuid():N}.xls");
+        System.IO.File.WriteAllBytes(testFile, Ole2Signature);
+
+        // Act
+        var info = _fileCommands.Test(testFile);
+
+        // Assert
+        Assert.True(info.Exists);
+        // Note: .xls is not in the Test() valid-extension list (.xlsx/.xlsm only),
+        // so IsValid is false. The key assertion is IRM detection.
+        Assert.False(info.IsIrmProtected, "Legacy .xls (OLE2) must not be flagged as IRM-protected");
+    }
+
+    [Fact]
+    [Trait("RunType", "OnDemand")]
+    public void Test_RealIrmProtectedFile_DetectsProtection_WhenConfigured()
+    {
+        // Real protected workbooks require local credentials and cannot run safely in CI.
+        var irmTestFile = GetConfiguredIrmTestFilePath();
+        if (irmTestFile == null)
         {
-            // Skip this test - requires actual IRM-protected file
             return;
         }
 

@@ -70,6 +70,19 @@ public sealed class ServiceBridgeCancellationTests : IDisposable
         Assert.Contains("session-ambient", backend.ClosedSessions);
     }
 
+    [Fact]
+    public async Task SendAsync_WhenServiceFactoryThrows_IncludesStartupFailureDetails()
+    {
+        Bridge.SetServiceFactoryForTests(static () => throw new FileNotFoundException("office runtime missing"));
+
+        var response = await Bridge.SendAsync("session.open");
+
+        Assert.False(response.Success);
+        Assert.Contains("Failed to start ExcelMCP Service in-process", response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("FileNotFoundException", response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("office runtime missing", response.ErrorMessage, StringComparison.Ordinal);
+    }
+
     private sealed class BlockingBackend : IServiceBridgeBackend
     {
         private readonly TaskCompletionSource<ServiceResponse> _response =

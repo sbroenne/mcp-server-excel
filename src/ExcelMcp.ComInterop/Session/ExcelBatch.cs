@@ -40,6 +40,7 @@ internal sealed class ExcelBatch : IExcelBatch
     private int _disposed; // 0 = not disposed, 1 = disposed (using int for Interlocked.CompareExchange)
     private int? _excelProcessId; // Excel.exe process ID for force-kill if needed
     private bool _operationTimedOut; // Track if an operation timed out for aggressive cleanup
+    private bool _startupDetectedIrmProtectedWorkbook;
 
     /// <summary>
     /// When true, suppresses the "start visible during open" behavior.
@@ -47,6 +48,12 @@ internal sealed class ExcelBatch : IExcelBatch
     /// Production code should never set this.
     /// </summary>
     internal static bool SuppressVisibleDuringOpen { get; set; }
+
+    /// <summary>
+    /// Test-only seam for simulating a blocked workbook open path during startup.
+    /// Production code must leave this null.
+    /// </summary>
+    internal static Action<string, CancellationToken>? BeforeWorkbookOpenHook { get; set; }
 
     // COM state (STA thread only)
     private Excel.Application? _excel;
@@ -245,6 +252,12 @@ internal sealed class ExcelBatch : IExcelBatch
 
                         if (isIrm)
                         {
+                            _startupDetectedIrmProtectedWorkbook = true;
+                            if (!_showExcel)
+                            {
+                                throw new InvalidOperationException(CreateIrmRequiresVisibleSessionMessage(normalizedPath));
+                            }
+
                             // IRM/AIP-protected files are OLE2 containers that cannot be opened
                             // exclusively. Open read-only so the IRM credential prompt works.
                             _logger.LogDebug(
@@ -260,6 +273,8 @@ internal sealed class ExcelBatch : IExcelBatch
                         // Open workbook with Excel COM
                         try
                         {
+                            BeforeWorkbookOpenHook?.Invoke(normalizedPath, _shutdownCts.Token);
+                            _shutdownCts.Token.ThrowIfCancellationRequested();
                             wb = isIrm
                                 // ReadOnly=true prevents "exclusive access required" errors on IRM-encrypted files
                                 ? (Excel.Workbook)tempExcel.Workbooks.Open(normalizedPath, ReadOnly: true)
@@ -464,6 +479,28 @@ internal sealed class ExcelBatch : IExcelBatch
         // a lingering hidden Excel.exe from the failed startup attempt.
         try
         {
+            bool completedInTime;
+            try
+            {
+                completedInTime = started.Task.Wait(_operationTimeout);
+            }
+            catch (AggregateException)
+            {
+                // Task.Wait() wraps faulted-task exceptions in AggregateException.
+                // Fall through to GetAwaiter().GetResult() which unwraps to the
+                // original exception type (e.g. InvalidOperationException for IRM).
+                completedInTime = true;
+            }
+
+            if (!completedInTime)
+            {
+                _operationTimedOut = true;
+                _workQueue.Writer.TryComplete();
+                _shutdownCts.Cancel();
+
+                throw new TimeoutException(CreateStartupTimeoutMessage());
+            }
+
             started.Task.GetAwaiter().GetResult();
         }
         catch
@@ -496,6 +533,24 @@ internal sealed class ExcelBatch : IExcelBatch
 
             throw;
         }
+    }
+
+    private string CreateStartupTimeoutMessage()
+    {
+        var protectedWorkbookHint = _startupDetectedIrmProtectedWorkbook
+            ? $" {CreateIrmRequiresVisibleSessionMessage(_workbookPath)}"
+            : string.Empty;
+
+        return
+            $"Excel startup timed out after {_operationTimeout.TotalSeconds} seconds while opening '{Path.GetFileName(_workbookPath)}'. " +
+            $"Excel may be blocked on an interactive dialog or unresponsive workbook open.{protectedWorkbookHint}";
+    }
+
+    private static string CreateIrmRequiresVisibleSessionMessage(string workbookPath)
+    {
+        return
+            $"IRM/AIP-protected workbook '{Path.GetFileName(workbookPath)}' requires an interactive Excel session. " +
+            "Retry with show=true so Excel stays visible for rights-management or enterprise-auth prompts, or open the workbook interactively first.";
     }
 
     public string WorkbookPath => _workbookPath;
