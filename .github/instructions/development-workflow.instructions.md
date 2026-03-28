@@ -102,6 +102,20 @@ Quick reference:
 
 Workflow calculates version → builds all components → creates git tag → GitHub release with all artifacts
 
+**Quick release from terminal:**
+```powershell
+gh workflow run release.yml -f bump=patch   # or minor/major
+```
+
+## GitHub Issue Comment Protocol
+
+**ALWAYS verify @mention usernames before posting comments on issues or PRs.**
+
+1. Read the issue/PR to confirm the actual author's GitHub handle
+2. Use the correct handle in @mentions — never guess from display names
+3. Wrong @mentions are embarrassing and may notify the wrong person
+4. When posting on multiple issues in sequence, re-verify each author (they differ!)
+
 ## Key Principles
 
 1. Feature branches mandatory

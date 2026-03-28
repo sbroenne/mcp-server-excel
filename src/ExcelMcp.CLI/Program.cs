@@ -93,11 +93,11 @@ internal sealed class Program
             // Session commands
             config.AddBranch("session", branch =>
             {
-                branch.SetDescription("Session management. WORKFLOW: open -> use sessionId -> close (--save to persist).");
+                branch.SetDescription("Session management. WORKFLOW: open -> use sessionId -> close (--save to persist). Use --show for IRM/auth prompts.");
                 branch.AddCommand<SessionCreateCommand>("create")
-                    .WithDescription("Create a new Excel file, open it, and create a session.");
+                    .WithDescription("Create a new Excel file, open it, and create a session. Add --show for visible Excel.");
                 branch.AddCommand<SessionOpenCommand>("open")
-                    .WithDescription("Open an Excel file and create a session.");
+                    .WithDescription("Open an Excel file and create a session. Add --show for visible Excel.");
                 branch.AddCommand<SessionCloseCommand>("close")
                     .WithDescription("Close a session. Use --save to persist changes.");
                 branch.AddCommand<SessionListCommand>("list")

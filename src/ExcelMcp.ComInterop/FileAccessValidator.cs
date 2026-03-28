@@ -13,19 +13,32 @@ public static class FileAccessValidator
 
     /// <summary>
     /// Detects if the file is IRM/AIP-protected by checking for the OLE2 compound document
-    /// signature. IRM-protected files must be opened as read-only with Excel visible so the
-    /// user can authenticate through the Information Rights Management credential prompt.
+    /// signature on files whose format should be ZIP-based (OOXML). Legacy .xls files are
+    /// always OLE2 by design and are excluded from this check to avoid false positives.
+    /// IRM-protected files must be opened as read-only with Excel visible so the user can
+    /// authenticate through the Information Rights Management credential prompt.
     /// </summary>
     /// <param name="filePath">The file path to inspect.</param>
     /// <returns>
-    /// <c>true</c> if the file has the OLE2 Compound Document header, indicating IRM/AIP
-    /// encryption; <c>false</c> for standard ZIP-based .xlsx/.xlsm files or if the file
-    /// cannot be read.
+    /// <c>true</c> if the file has the OLE2 Compound Document header AND uses a modern
+    /// OOXML extension (.xlsx, .xlsm, .xlsb), indicating IRM/AIP encryption;
+    /// <c>false</c> for legacy .xls files (always OLE2), standard ZIP-based files, or
+    /// if the file cannot be read.
     /// </returns>
     public static bool IsIrmProtected(string filePath)
     {
         if (!File.Exists(filePath))
             return false;
+
+        // Legacy .xls/.xlt files are always OLE2 compound documents by design.
+        // They are NOT IRM-protected just because they have an OLE2 header.
+        var ext = Path.GetExtension(filePath);
+        if (ext.Equals(".xls", StringComparison.OrdinalIgnoreCase) ||
+            ext.Equals(".xlt", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
         try
         {
             Span<byte> header = stackalloc byte[8];

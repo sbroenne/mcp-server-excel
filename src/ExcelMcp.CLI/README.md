@@ -39,7 +39,7 @@ excelcli --version
 excelcli --help
 ```
 
-> 🔁 **Session Workflow:** Always start with `excelcli session open <file>` (captures the session id), pass `--session <id>` to other commands, then `excelcli session close <id> --save` when finished. The CLI reuses the same Excel instance through that lifecycle.
+> 🔁 **Session Workflow:** Always start with `excelcli session open <file>` (captures the session id), pass `--session <id>` to other commands, then `excelcli session close --session <id> --save` when finished. Add `--show` when Excel must stay visible for IRM/AIP sign-in or other authentication prompts.
 
 ### Secondary Installation: .NET Global Tool
 
@@ -78,6 +78,9 @@ For scripting and coding agents, use `-q`/`--quiet` to suppress banner and outpu
 excelcli -q session open data.xlsx
 excelcli -q range get-values --session 1 --sheet Sheet1 --range A1:B2
 excelcli -q session close --session 1 --save
+
+# IRM/AIP-protected workbook
+excelcli -q session open protected.xlsx --show --timeout 15
 ```
 
 Banner auto-suppresses when stdout is piped or redirected.
@@ -155,6 +158,9 @@ The CLI uses an explicit session-based workflow where you open a file, perform o
 excelcli session open data.xlsx
 # Output: Session ID: 550e8400-e29b-41d4-a716-446655440000
 
+# IRM/AIP or auth prompt workflow
+excelcli session open protected.xlsx --show
+
 # 2. List active sessions anytime
 excelcli session list
 
@@ -163,10 +169,10 @@ excelcli sheet create --session 550e8400-e29b-41d4-a716-446655440000 --sheet "Ne
 excelcli powerquery list --session 550e8400-e29b-41d4-a716-446655440000
 
 # 4. Close and save changes
-excelcli session close 550e8400-e29b-41d4-a716-446655440000 --save
+excelcli session close --session 550e8400-e29b-41d4-a716-446655440000 --save
 
 # OR: Close and discard changes (no --save flag)
-excelcli session close 550e8400-e29b-41d4-a716-446655440000
+excelcli session close --session 550e8400-e29b-41d4-a716-446655440000
 ```
 
 ### Session Lifecycle Benefits
@@ -220,6 +226,13 @@ excelcli -q session open report.xlsx           # Returns session ID
 excelcli -q sheet create --session 1 --sheet "Summary"
 excelcli -q range set-values --session 1 --sheet Summary --range A1 --values '[["Hello"]]'
 excelcli -q session close --session 1 --save   # Persist changes
+```
+
+**Visible Excel for IRM/auth workflows:**
+```powershell
+excelcli -q session open "D:\Docs\Protected.xlsx" --show --timeout 120
+excelcli -q session list                        # session shows isExcelVisible=true
+excelcli -q session close --session <id>
 ```
 
 **Power Query ETL:**
@@ -320,6 +333,15 @@ where.exe excelcli
 # Run PowerShell/CMD as Administrator if you encounter permission errors
 # excelcli.exe is a standalone exe - no installation needed
 ```
+
+### IRM / AIP Protected Workbooks
+
+```powershell
+# Keep Excel visible so authentication or policy prompts can surface
+excelcli session open "D:\Docs\Protected.xlsx" --show --timeout 120
+```
+
+Use `--show` whenever hidden automation would block on a sign-in, consent, or information-protection prompt.
 
 ---
 

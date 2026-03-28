@@ -146,6 +146,19 @@ public void TestMethod()
 
 **Test Fixture Anti-Pattern:** NEVER use both `IClassFixture<T>` and `[Collection("...")]` with a collection fixture on the same test class. Dual fixtures create concurrent Excel sessions that deadlock during initialization with `maxParallelThreads: 1`. Use ONLY the collection fixture.
 
+**Golden Rule (Diagnose Before Coding):** No changes without a failing test first. Write a test that proves the bug exists, watch it fail, then fix it, then watch it pass. Diagnose root cause before writing any code — spent a full session implementing the wrong fix once (issue was daemon dying, but coded a UI fix + 4 tests, all reverted).
+
+**COM Fix Patterns (2026):**
+- `OleMessageFilter.MessagePending` must return `WAITDEFPROCESS` (1), not `WAITNOPROCESS` (2) — causes STA deadlock on re-entrant COM callbacks (e.g. conditional formatting on formula cells).
+- `OleMessageFilter.RetryRejectedCall` must retry `SERVERCALL_REJECTED` (dwRejectType=1) for 120s — enterprise auth dialogs cause repeated rejections.
+- `ExcelBatch` starts Excel visible during open so auth/sign-in dialogs are interactable, hides after success. Tests suppress via `ExcelBatch.SuppressVisibleDuringOpen = true` in `[ModuleInitializer]`.
+- VBA `App.Run()` must use late-bound `Type.InvokeMember("Run", BindingFlags.InvokeMethod, ...)` — early-bound PIA `Run()` triggers `FileNotFoundException` for `Microsoft.Vbe.Interop.dll` when VBE isn't installed.
+- Startup leak fix: use locals (`startupExcel`, `startupPrimaryWorkbook`, `startupWorkbooks`) for COM cleanup during `ExcelBatch` open — don't rely on session fields that may not be set if open fails mid-way.
+- `ComDiagnostics.Collect()` utility gathers COM environment info (CLSID, PIA GUID, bitness, Office install type) for enriching `InvalidCastException` messages.
+- `WithSessionAsync` must catch `OperationCanceledException` and force-close session; `ExcelBatch.Execute` must fail fast if `_operationTimedOut` is set.
+
+**GitHub Issue Comments:** ALWAYS verify @mention usernames match the actual issue/PR author before posting. Read the issue/PR to confirm the author's handle — wrong @mentions are embarrassing and unprofessional.
+
 ---
 
 ## 📚 How Path-Specific Instructions Work

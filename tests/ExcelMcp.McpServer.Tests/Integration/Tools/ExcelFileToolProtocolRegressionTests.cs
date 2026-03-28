@@ -41,6 +41,14 @@ public sealed class ExcelFileToolProtocolRegressionTests : IAsyncLifetime
         _output.WriteLine($"Test directory: {_tempDir}");
     }
 
+    private static string? GetConfiguredIrmTestFilePath()
+    {
+        var irmTestFile = Environment.GetEnvironmentVariable("TEST_IRM_FILE");
+        return !string.IsNullOrWhiteSpace(irmTestFile) && File.Exists(irmTestFile)
+            ? Path.GetFullPath(irmTestFile)
+            : null;
+    }
+
     public async Task InitializeAsync()
     {
         Program.ConfigureTestTransport(_clientToServerPipe, _serverToClientPipe);
@@ -119,6 +127,78 @@ public sealed class ExcelFileToolProtocolRegressionTests : IAsyncLifetime
             ["session_id"] = sessionId,
             ["save"] = false
         });
+    }
+
+    [Fact]
+    [Trait("RunType", "OnDemand")]
+    public async Task FileOpen_RealIrmWorkbook_ReturnsWithinTimeoutBudget_WhenConfigured()
+    {
+        // Real IRM/AIP workbooks require local auth state and are intentionally opt-in only.
+        var irmTestFile = GetConfiguredIrmTestFilePath();
+        if (irmTestFile == null)
+        {
+            return;
+        }
+
+        var testResult = await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "test",
+            ["path"] = irmTestFile
+        });
+
+        using (var testJson = JsonDocument.Parse(testResult))
+        {
+            Assert.True(testJson.RootElement.GetProperty("success").GetBoolean());
+            Assert.True(testJson.RootElement.GetProperty("isIrmProtected").GetBoolean());
+        }
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var openResult = await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "open",
+            ["path"] = irmTestFile,
+            ["timeout_seconds"] = 15
+        }).WaitAsync(TimeSpan.FromSeconds(20));
+        stopwatch.Stop();
+
+        _output.WriteLine($"IRM open result after {stopwatch.Elapsed.TotalSeconds:F1}s: {openResult}");
+
+        using var openJson = JsonDocument.Parse(openResult);
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(20),
+            "MCP file.open must return within the requested timeout budget for protected workbooks.");
+        Assert.True(openJson.RootElement.TryGetProperty("success", out var successProp));
+
+        string? sessionId = null;
+        if (successProp.GetBoolean())
+        {
+            sessionId = openJson.RootElement.GetProperty("session_id").GetString();
+            Assert.False(string.IsNullOrWhiteSpace(sessionId));
+        }
+        else
+        {
+            var errorMessage = openJson.RootElement.GetProperty("errorMessage").GetString();
+            Assert.False(string.IsNullOrWhiteSpace(errorMessage));
+        }
+
+        var listResult = await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "list"
+        });
+
+        using (var listJson = JsonDocument.Parse(listResult))
+        {
+            Assert.True(listJson.RootElement.GetProperty("success").GetBoolean());
+        }
+
+        if (!string.IsNullOrWhiteSpace(sessionId))
+        {
+            await CallToolAsync("file", new Dictionary<string, object?>
+            {
+                ["action"] = "close",
+                ["session_id"] = sessionId,
+                ["save"] = false
+            });
+        }
     }
 
     private async Task DisposeAsyncCore()

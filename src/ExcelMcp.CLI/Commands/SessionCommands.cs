@@ -25,7 +25,12 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
         var response = await client.SendAsync(new ServiceRequest
         {
             Command = "session.create",
-            Args = JsonSerializer.Serialize(new { filePath = settings.FilePath, timeoutSeconds = settings.TimeoutSeconds }, ServiceProtocol.JsonOptions)
+            Args = JsonSerializer.Serialize(new
+            {
+                filePath = settings.FilePath,
+                show = settings.Show,
+                timeoutSeconds = settings.TimeoutSeconds
+            }, ServiceProtocol.JsonOptions)
         }, cancellationToken);
 
         if (response.Success)
@@ -48,6 +53,10 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
         [CommandOption("--timeout <SECONDS>")]
         [Description("Session timeout in seconds")]
         public int? TimeoutSeconds { get; init; }
+
+        [CommandOption("--show")]
+        [Description("Show the Excel window for IRM/auth prompts instead of running hidden")]
+        public bool Show { get; init; }
     }
 }
 
@@ -65,7 +74,12 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
         var response = await client.SendAsync(new ServiceRequest
         {
             Command = "session.open",
-            Args = JsonSerializer.Serialize(new { filePath = settings.FilePath, timeoutSeconds = settings.TimeoutSeconds }, ServiceProtocol.JsonOptions)
+            Args = JsonSerializer.Serialize(new
+            {
+                filePath = settings.FilePath,
+                show = settings.Show,
+                timeoutSeconds = settings.TimeoutSeconds
+            }, ServiceProtocol.JsonOptions)
         }, cancellationToken);
 
         if (response.Success)
@@ -88,6 +102,10 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
         [CommandOption("--timeout <SECONDS>")]
         [Description("Session timeout in seconds")]
         public int? TimeoutSeconds { get; init; }
+
+        [CommandOption("--show")]
+        [Description("Show the Excel window for IRM/auth prompts instead of running hidden")]
+        public bool Show { get; init; }
     }
 }
 
