@@ -219,3 +219,8 @@ Other projects by the author:
 - [Windows MCP Server](https://windowsmcpserver.dev/) — AI-powered Windows automation via MCP
 - [OBS Studio MCP Server](https://github.com/sbroenne/mcp-server-obs) — AI-powered OBS Studio automation
 - [HeyGen MCP Server](https://github.com/sbroenne/heygen-mcp) — MCP server for HeyGen AI video generation
+
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/sbroenne-mcp-server-excel).
+
