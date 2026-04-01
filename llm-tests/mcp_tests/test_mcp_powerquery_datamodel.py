@@ -71,10 +71,10 @@ Save the workbook and report:
 
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("table")
-    assert result.tool_was_called("datamodel_relationship")
-    assert result.tool_was_called("pivottable")
-    assert result.tool_was_called("chart")
+    assert result.tool_was_called("excel-mcp-table")
+    assert result.tool_was_called("excel-mcp-datamodel_relationship")
+    assert result.tool_was_called("excel-mcp-pivottable")
+    assert result.tool_was_called("excel-mcp-chart")
     assert_regex(result.final_response, r"(?i)(electronics|furniture)")
     assert_regex(result.final_response, r"(?i)(relationship|pivot|chart|data model)")
 
@@ -120,9 +120,9 @@ Report:
 
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("powerquery")
-    assert result.tool_was_called("datamodel")
-    assert result.tool_was_called("pivottable")
-    assert result.tool_was_called("chart")
+    assert result.tool_was_called("excel-mcp-powerquery")
+    assert result.tool_was_called("excel-mcp-datamodel")
+    assert result.tool_was_called("excel-mcp-pivottable")
+    assert result.tool_was_called("excel-mcp-chart")
     assert_regex(result.final_response, r"(?i)(dimension|fact|measure|data model)")
     assert_regex(result.final_response, r"(?i)(chart|saved)")

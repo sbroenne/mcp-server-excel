@@ -15,7 +15,6 @@ async def test_mcp_chart_workflows(copilot_eval, excel_mcp_servers, excel_mcp_sk
         "mcp-chart-workflows",
         servers=excel_mcp_servers,
         skill_dir=excel_mcp_skill_dir,
-        allowed_tools=["chart", "chart_config", "table", "file", "range", "worksheet"],
         max_turns=30,
     )
 
@@ -67,7 +66,9 @@ Scenario 4 - Target-range positioning:
   West, 600, 700, 650, 800
 - Create a bar chart and place it near G2 using an explicit target range.
 
-Save the workbook and report:
+    Carry out the workbook changes now. Do not stop at a plan or outline.
+
+    Save the workbook and report:
 - how many charts were created,
 - which chart types were used,
 - confirmation that the dashboard charts do not overlap,
@@ -77,8 +78,8 @@ Save the workbook and report:
 
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("chart")
-    assert result.tool_was_called("table")
-    assert_regex(result.final_response, r"(?i)(4 charts|four charts)")
+    assert result.tool_was_called("excel-mcp-chart")
+    assert result.tool_was_called("excel-mcp-table")
+    assert_regex(result.final_response, r"(?is)(5 charts|five charts|charts\s*created[^0-9]*5)")
     assert_regex(result.final_response, r"(?i)(column|line|pie|bar)")
     assert_regex(result.final_response, r"(?i)(row 7|row seven|G2|near G2|no overlap|do not overlap)")

@@ -120,9 +120,10 @@ public class Program
                     2. Use sessionId with ALL subsequent tools
                     3. file(action:'close', save:true/false) → ONLY when completely done
 
-                    CALCULATION MODE:
-                    - When a task mentions manual/automatic calculation or explicit recalculation, you MUST use calculation_mode.
-                    - Sequence: set-mode manual → perform writes → calculate (scope: workbook) → set-mode automatic.
+                    CALCULATION MODE (Performance Optimization):
+                    - Use calculation_mode for bulk write operations (10+ cells with values or formulas).
+                    - Workflow: set-mode(manual) → perform all writes → calculate(scope: workbook) → set-mode(automatic).
+                    - Skips recalculation after every cell write, calculates once at end — much faster for batch operations.
                     - Use get-mode when user asks for current calculation mode.
 
                     CRITICAL - DO NOT CLOSE SESSION PREMATURELY:

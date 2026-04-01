@@ -54,7 +54,7 @@ After creating the PivotTable, summarize what you created and confirm it uses a 
 """
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("pivottable")
+    assert result.tool_was_called("excel-mcp-pivottable")
     assert _has_row_layout(result, 1)
     # Empty response is OK if tools were called successfully
     if result.final_response:
@@ -94,7 +94,7 @@ Add Department and Team as row fields, and Hours as a value field.
 """
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("pivottable")
+    assert result.tool_was_called("excel-mcp-pivottable")
     assert _has_row_layout(result, 0)
     assert_regex(result.final_response, r"(?i)(pivot|compact|layout|created|success)")
 
@@ -134,6 +134,6 @@ Summarize: What are the three layout styles and when should each be used?
 """
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("pivottable")
+    assert result.tool_was_called("excel-mcp-pivottable")
     assert _has_row_layout(result, 2)
     assert_regex(result.final_response, r"(?i)(compact|tabular|outline)")

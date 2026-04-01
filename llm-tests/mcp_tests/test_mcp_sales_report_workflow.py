@@ -92,10 +92,10 @@ Report all of the following explicitly:
 
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("table")
-    assert result.tool_was_called("datamodel")
-    assert result.tool_was_called("pivottable")
-    assert result.tool_was_called("chart")
+    assert result.tool_was_called("excel-mcp-table")
+    assert result.tool_was_called("excel-mcp-datamodel")
+    assert result.tool_was_called("excel-mcp-pivottable")
+    assert result.tool_was_called("excel-mcp-chart")
     for sheet in ("Sales", "Summary", "DimDate", "AnalysisRegion", "AnalysisSales"):
         assert sheet in (result.final_response or "")
     assert_regex(result.final_response, r"(?i)(13 rows|13 transactions)")

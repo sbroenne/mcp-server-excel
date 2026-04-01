@@ -72,7 +72,7 @@ public class CalculationModeResult : OperationResult
 /// </summary>
 [ServiceCategory("calculation", "Calculation")]
 [McpTool("calculation_mode", Title = "Calculation Mode Control", Destructive = false, Category = "settings",
-    Description = "Set or get Excel calculation mode and explicitly recalculate formulas. MODES: automatic (recalculates on every change, default), manual (only when explicitly requested), semi-automatic (auto except data tables). WORKFLOW for batch operations: 1. set-mode(manual) 2. Perform data operations 3. calculate(workbook) 4. set-mode(automatic). SCOPES for calculate: workbook (all formulas), sheet (requires sheetName), range (requires sheetName + rangeAddress).")]
+    Description = "Optimize bulk write performance by controlling Excel's automatic recalculation. Use manual mode when writing 10+ cells to avoid recalculating after every write. MODES: automatic (default - recalculates on every change), manual (only when explicitly requested), semi-automatic (auto except data tables). BATCH WORKFLOW (required for 10+ cell operations): 1. set-mode(manual) 2. Perform all writes (range set-values, set-formulas) 3. calculate(workbook) 4. set-mode(automatic). SCOPES for calculate: workbook (all formulas), sheet (requires sheetName), range (requires sheetName + rangeAddress). NOT needed for: reading formulas, small edits (1-9 cells), or when immediate calculation results are required.")]
 public interface ICalculationModeCommands
 {
     /// <summary>

@@ -77,12 +77,12 @@ Save the workbook and report:
 
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("chart")
-    assert result.tool_was_called("table")
+    assert result.tool_was_called("excel-mcp-chart")
+    assert result.tool_was_called("excel-mcp-table")
     assert_regex(result.final_response, r"(?i)(4 charts|four charts|dashboard)")
 
     if expects_screenshot:
-        assert result.tool_was_called("screenshot")
+        assert result.tool_was_called("excel-mcp-screenshot")
         assert_regex(result.final_response, r"(?i)(screenshot|visual verification)")
     else:
-        assert not result.tool_was_called("screenshot")
+        assert not result.tool_was_called("excel-mcp-screenshot")

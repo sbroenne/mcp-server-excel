@@ -39,7 +39,7 @@ Close the file without saving.
 """
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("table")
+    assert result.tool_was_called("excel-mcp-table")
     assert_regex(result.final_response, r"(?i)(QuarterlySales|table|style)")
 
 
@@ -100,5 +100,5 @@ Close the file without saving.
 """
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("range_format")
+    assert result.tool_was_called("excel-mcp-range_format")
     assert_regex(result.final_response, r"(?i)(header|format|blue|white|bold)")

@@ -35,7 +35,7 @@ async def test_mcp_table_create_query(copilot_eval, excel_mcp_servers, excel_mcp
 """
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("table")
+    assert result.tool_was_called("excel-mcp-table")
     assert_regex(result.final_response, r"(?i)(SalesData)")
 
 
@@ -61,5 +61,5 @@ async def test_mcp_table_lifecycle(copilot_eval, excel_mcp_servers, excel_mcp_sk
 """
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("table")
+    assert result.tool_was_called("excel-mcp-table")
     assert_regex(result.final_response, r"(?i)(TaskList)")

@@ -50,8 +50,8 @@ Report:
 
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("pivottable")
-    assert result.tool_was_called("slicer")
+    assert result.tool_was_called("excel-mcp-pivottable")
+    assert result.tool_was_called("excel-mcp-slicer")
     assert_regex(result.final_response, r"(?i)(north)")
     assert_regex(result.final_response, r"50[\,.]?500")
     assert_regex(result.final_response, r"(?i)(two slicers|2 slicers|removed)")
@@ -97,8 +97,8 @@ Report:
 
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("table")
-    assert result.tool_was_called("slicer")
+    assert result.tool_was_called("excel-mcp-table")
+    assert result.tool_was_called("excel-mcp-slicer")
     assert_regex(result.final_response, r"(?i)(engineering)")
     assert_regex(result.final_response, r"(?i)(3|three)")
     assert_regex(result.final_response, r"(?i)(6|six|active)")
@@ -149,9 +149,9 @@ Report:
 
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("table")
-    assert result.tool_was_called("pivottable")
-    assert result.tool_was_called("slicer")
+    assert result.tool_was_called("excel-mcp-table")
+    assert result.tool_was_called("excel-mcp-pivottable")
+    assert result.tool_was_called("excel-mcp-slicer")
     assert_regex(result.final_response, r"(?i)(table slicer|pivottable slicer)")
     assert_regex(result.final_response, r"\b170\b")
     assert_regex(result.final_response, r"(?i)(cleared|clear)")

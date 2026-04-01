@@ -33,7 +33,7 @@ async def test_mcp_range_set_get(copilot_eval, excel_mcp_servers, excel_mcp_skil
 """
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("range")
+    assert result.tool_was_called("excel-mcp-range")
     assert_regex(result.final_response, r"(?i)(Product)")
 
 

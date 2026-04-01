@@ -41,7 +41,7 @@ async def test_mcp_range_updates(copilot_eval, excel_mcp_servers, excel_mcp_skil
 """
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("range")
+    assert result.tool_was_called("excel-mcp-range")
     # Loosen assertions - either values or formula verification mentioned
     assert_regex(result.final_response, r"(?i)(1004|formula|d1|verified)")
     assert_regex(result.final_response, r"(?i)(480|food|updated|utilities)")
@@ -73,7 +73,7 @@ async def test_mcp_table_updates(copilot_eval, excel_mcp_servers, excel_mcp_skil
 """
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("table")
+    assert result.tool_was_called("excel-mcp-table")
     assert_regex(result.final_response, r"(?i)(salestable)")
     assert_regex(result.final_response, r"(?i)(125)")
 
@@ -103,7 +103,7 @@ async def test_mcp_chart_updates(copilot_eval, excel_mcp_servers, excel_mcp_skil
 """
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("chart")
+    assert result.tool_was_called("excel-mcp-chart")
     assert_regex(result.final_response, r"(?i)(q1 sales|chart|title|updated|changed)")
 
 
@@ -137,7 +137,7 @@ async def test_mcp_sheet_structural_changes(copilot_eval, excel_mcp_servers, exc
 """
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("range")
+    assert result.tool_was_called("excel-mcp-range")
     assert_regex(result.final_response, r"(?i)(200)")
     assert_regex(result.final_response, r"(?i)(300)")
     assert_regex(result.final_response, r"(?i)(400)")

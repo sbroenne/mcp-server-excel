@@ -39,9 +39,9 @@ async def test_mcp_chart_position_below_data(copilot_eval, excel_mcp_servers, ex
 """
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("chart")
+    assert result.tool_was_called("excel-mcp-chart")
     # Looser assertion - just confirm chart work was done
-    assert result.final_response or result.tool_was_called("chart")
+    assert result.final_response or result.tool_was_called("excel-mcp-chart")
 
 
 @pytest.mark.asyncio
@@ -69,6 +69,6 @@ async def test_mcp_chart_position_right_of_table(copilot_eval, excel_mcp_servers
 """
     result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("chart")
+    assert result.tool_was_called("excel-mcp-chart")
     # Loosen - either chart or table mentioned
-    assert result.final_response or result.tool_was_called("chart")
+    assert result.final_response or result.tool_was_called("excel-mcp-chart")
