@@ -14,15 +14,18 @@ public static partial class ExcelWorksheetTool
 {
     /// <summary>
     /// Worksheet lifecycle: create, rename, copy, delete, move.
+    /// RENAME: Use old_name + new_name.
     /// ATOMIC OPERATIONS: copy-to-file and move-to-file don't require a session (open/close automatically).
     /// POSITIONING: Use before OR after (not both) to place sheet relative to another.
     /// Use worksheet_style for tab colors and visibility.
     /// </summary>
     /// <param name="action">The action to perform</param>
     /// <param name="session_id">Session ID from file 'open' action (required for: list, create, rename, delete, move, copy. Not required for: copy-to-file, move-to-file)</param>
-    /// <param name="sheet_name">Name of the worksheet (required for: create, rename, delete, move, copy)</param>
+    /// <param name="sheet_name">Name of the worksheet (required for: create, delete, move)</param>
+    /// <param name="old_name">Current name of the worksheet (required for: rename)</param>
     /// <param name="source_name">Name of the source worksheet (required for: copy)</param>
-    /// <param name="target_name">New name for the worksheet (required for: rename, copy)</param>
+    /// <param name="target_name">Name for the copied worksheet (required for: copy)</param>
+    /// <param name="new_name">New name for the worksheet (required for: rename)</param>
     /// <param name="file_path">Optional file path when batch contains multiple workbooks</param>
     /// <param name="source_file">Full path to the source workbook (required for: copy-to-file, move-to-file)</param>
     /// <param name="source_sheet">Name of the sheet to copy (required for: copy-to-file, move-to-file)</param>
@@ -33,20 +36,46 @@ public static partial class ExcelWorksheetTool
     [McpServerTool(Name = "worksheet", Title = "Worksheet Operations", Destructive = true)]
     [McpMeta("category", "structure")]
     [McpMeta("requiresSession", false)]  // Session is optional - depends on the action
-    [Description("Worksheet lifecycle: create, rename, copy, delete, move. ATOMIC OPERATIONS: copy-to-file and move-to-file don't require a session (open/close automatically). POSITIONING: Use before OR after (not both) to place sheet relative to another. Use worksheet_style for tab colors and visibility.")]
+    [Description("Worksheet lifecycle: create, rename, copy, delete, move. RENAME: Use old_name plus new_name. ATOMIC OPERATIONS: copy-to-file and move-to-file don't require a session (open/close automatically). POSITIONING: Use before OR after (not both) to place sheet relative to another. Use worksheet_style for tab colors and visibility.")]
     public static string ExcelWorksheet(
         [Description("The action to perform")] SheetAction action,
-        [DefaultValue(null)] string? session_id,
-        [DefaultValue(null)] string? sheet_name,
-        [DefaultValue(null)] string? source_name,
-        [DefaultValue(null)] string? target_name,
-        [DefaultValue(null)] string? file_path,
-        [DefaultValue(null)] string? source_file,
-        [DefaultValue(null)] string? source_sheet,
-        [DefaultValue(null)] string? target_file,
-        [DefaultValue(null)] string? target_sheet_name,
-        [DefaultValue(null)] string? before_sheet,
-        [DefaultValue(null)] string? after_sheet,
+        [Description(
+            "Session ID from file 'open' or 'create'. Required for same-workbook actions: list, create, rename, delete, move, and copy. Not used by copy-to-file or move-to-file.")]
+        string? session_id = null,
+        [Description(
+            "Worksheet name for create, delete, and move.")]
+        string? sheet_name = null,
+        [Description(
+            "Current worksheet name for rename.")]
+        string? old_name = null,
+        [Description(
+            "Source worksheet name for copy within the same workbook.")]
+        string? source_name = null,
+        [Description(
+            "Target worksheet name for copy within the same workbook.")]
+        string? target_name = null,
+        [Description(
+            "New worksheet name for rename.")]
+        string? new_name = null,
+        [Description(
+            "Optional workbook path when the current batch session has multiple open workbooks.")]
+        string? file_path = null,
+        [Description("Source workbook path for copy-to-file and move-to-file.")]
+        string? source_file = null,
+        [Description(
+            "Source worksheet name for copy-to-file and move-to-file.")]
+        string? source_sheet = null,
+        [Description("Target workbook path for copy-to-file and move-to-file.")]
+        string? target_file = null,
+        [Description(
+            "Optional new worksheet name when using copy-to-file. If omitted, the copied sheet keeps its original name.")]
+        string? target_sheet_name = null,
+        [Description(
+            "Optional position control for move, copy-to-file, or move-to-file: insert before this worksheet.")]
+        string? before_sheet = null,
+        [Description(
+            "Optional position control for move, copy-to-file, or move-to-file: insert after this worksheet.")]
+        string? after_sheet = null,
         CancellationToken cancellationToken = default)
     {
         using var cancellationScope = ExcelToolsBase.PushCancellationToken(cancellationToken);
@@ -97,6 +126,19 @@ public static partial class ExcelWorksheetTool
                     }, ExcelToolsBase.JsonOptions);
                 }
 
+                if (action == SheetAction.Rename)
+                {
+                    if (string.IsNullOrWhiteSpace(old_name))
+                    {
+                        throw new ArgumentException("old_name is required for rename action", nameof(old_name));
+                    }
+
+                    if (string.IsNullOrWhiteSpace(new_name))
+                    {
+                        throw new ArgumentException("new_name is required for rename action", nameof(new_name));
+                    }
+                }
+
                 // Session-based operations
                 return action switch
                 {
@@ -118,8 +160,8 @@ public static partial class ExcelWorksheetTool
                             action,
                             session_id,
                             ExcelToolsBase.ForwardToServiceFunc,
-                            oldName: sheet_name,
-                            newName: target_name),
+                            oldName: old_name,
+                            newName: new_name),
                     SheetAction.Delete =>
                         ServiceRegistry.Sheet.RouteAction(
                             action,
