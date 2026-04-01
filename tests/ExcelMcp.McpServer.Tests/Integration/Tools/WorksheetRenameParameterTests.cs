@@ -8,15 +8,13 @@ using Xunit.Abstractions;
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
 /// <summary>
-/// Regression tests for Bug Report 2026-02-23.
-/// Bug 2: worksheet(action: 'rename') parameters are not discoverable — callers
-/// cannot determine the correct parameter names (sheet_name + target_name) because
-/// target_name is documented as "Name for the target/copied worksheet" with no
-/// mention of rename.
+/// Regression tests for the worksheet rename parameter contract.
+/// The canonical worksheet rename surface is old_name + new_name so it matches
+/// other rename actions and the CLI sheet rename command.
 ///
 /// These tests verify:
-/// 1. The correct parameter combination (sheet_name + target_name) works
-/// 2. Incorrect combinations fail with clear error messages
+/// 1. The canonical parameter combination (old_name + new_name) works
+/// 2. Legacy and cross-action MCP aliases still work for backward compatibility
 /// 3. Missing parameters produce actionable errors, not cryptic COM exceptions
 /// </summary>
 [Collection("ProgramTransport")]
@@ -81,11 +79,10 @@ public class WorksheetRenameParameterTests : IAsyncLifetime, IAsyncDisposable
     #region Bug 2: Correct parameter combination
 
     /// <summary>
-    /// Verifies that the correct parameter combination (sheet_name + target_name) works.
-    /// This is the only working combination, but it is not obvious from the parameter descriptions.
+    /// Verifies that the canonical rename parameter combination (old_name + new_name) works.
     /// </summary>
     [Fact]
-    public async Task Rename_WithSheetNameAndTargetName_Succeeds()
+    public async Task Rename_WithOldNameAndNewName_Succeeds()
     {
         // Arrange — create a sheet to rename
         await CallToolAsync("worksheet", new Dictionary<string, object?>
@@ -95,20 +92,20 @@ public class WorksheetRenameParameterTests : IAsyncLifetime, IAsyncDisposable
             ["sheet_name"] = "OriginalSheet"
         });
 
-        // Act — rename using the correct (but non-obvious) parameter combination
+        // Act — rename using the canonical parameter combination
         var json = await CallToolAsync("worksheet", new Dictionary<string, object?>
         {
             ["action"] = "rename",
             ["session_id"] = _sessionId,
-            ["sheet_name"] = "OriginalSheet",   // Maps to oldName
-            ["target_name"] = "RenamedSheet"     // Maps to newName
+            ["old_name"] = "OriginalSheet",
+            ["new_name"] = "RenamedSheet"
         });
         _output.WriteLine($"Response: {json}");
 
         // Assert
         var doc = JsonDocument.Parse(json);
         Assert.True(doc.RootElement.GetProperty("success").GetBoolean(),
-            $"Rename with sheet_name + target_name should succeed. Response: {json}");
+            $"Rename with old_name + new_name should succeed. Response: {json}");
 
         // Verify the sheet was actually renamed
         var listJson = await CallToolAsync("worksheet", new Dictionary<string, object?>
@@ -120,121 +117,156 @@ public class WorksheetRenameParameterTests : IAsyncLifetime, IAsyncDisposable
         Assert.DoesNotContain("OriginalSheet", listJson);
     }
 
+    /// <summary>
+    /// Verifies that the legacy MCP aliases (sheet_name + target_name) still work.
+    /// This preserves backward compatibility for existing callers while MCP now exposes old_name + new_name.
+    /// </summary>
+    [Fact]
+    public async Task Rename_WithLegacySheetNameAndTargetName_Succeeds()
+    {
+        // Arrange
+        await CallToolAsync("worksheet", new Dictionary<string, object?>
+        {
+            ["action"] = "create",
+            ["session_id"] = _sessionId,
+            ["sheet_name"] = "LegacySheet"
+        });
+
+        // Act
+        var json = await CallToolAsync("worksheet", new Dictionary<string, object?>
+        {
+            ["action"] = "rename",
+            ["session_id"] = _sessionId,
+            ["sheet_name"] = "LegacySheet",
+            ["target_name"] = "RenamedLegacy"
+        });
+        _output.WriteLine($"Response: {json}");
+
+        // Assert
+        var doc = JsonDocument.Parse(json);
+        Assert.True(doc.RootElement.GetProperty("success").GetBoolean(),
+            $"Rename with legacy sheet_name + target_name should still succeed. Response: {json}");
+
+        var listJson = await CallToolAsync("worksheet", new Dictionary<string, object?>
+        {
+            ["action"] = "list",
+            ["session_id"] = _sessionId
+        });
+        Assert.Contains("RenamedLegacy", listJson);
+        Assert.DoesNotContain("LegacySheet", listJson);
+    }
+
+    /// <summary>
+    /// Claude/Desktop guessed target_sheet_name because that parameter is already used by copy-to-file.
+    /// Rename should accept it as an alias for the new worksheet name.
+    /// </summary>
+    [Fact]
+    public async Task Rename_WithSheetNameAndTargetSheetName_Succeeds()
+    {
+        await CallToolAsync("worksheet", new Dictionary<string, object?>
+        {
+            ["action"] = "create",
+            ["session_id"] = _sessionId,
+            ["sheet_name"] = "TargetSheetAlias"
+        });
+
+        var json = await CallToolAsync("worksheet", new Dictionary<string, object?>
+        {
+            ["action"] = "rename",
+            ["session_id"] = _sessionId,
+            ["sheet_name"] = "TargetSheetAlias",
+            ["target_sheet_name"] = "RenamedViaTargetSheet"
+        });
+        _output.WriteLine($"Response: {json}");
+
+        var doc = JsonDocument.Parse(json);
+        Assert.True(doc.RootElement.GetProperty("success").GetBoolean(),
+            $"Rename with sheet_name + target_sheet_name should succeed. Response: {json}");
+
+        var listJson = await CallToolAsync("worksheet", new Dictionary<string, object?>
+        {
+            ["action"] = "list",
+            ["session_id"] = _sessionId
+        });
+        Assert.Contains("RenamedViaTargetSheet", listJson);
+        Assert.DoesNotContain("TargetSheetAlias", listJson);
+    }
+
+    /// <summary>
+    /// Claude/Desktop also guessed source_name because it is used by the copy action.
+    /// Rename should accept it as an alias for the current worksheet name.
+    /// </summary>
+    [Fact]
+    public async Task Rename_WithSourceNameAndTargetName_Succeeds()
+    {
+        await CallToolAsync("worksheet", new Dictionary<string, object?>
+        {
+            ["action"] = "create",
+            ["session_id"] = _sessionId,
+            ["sheet_name"] = "SourceNameAlias"
+        });
+
+        var json = await CallToolAsync("worksheet", new Dictionary<string, object?>
+        {
+            ["action"] = "rename",
+            ["session_id"] = _sessionId,
+            ["source_name"] = "SourceNameAlias",
+            ["target_name"] = "RenamedViaSourceName"
+        });
+        _output.WriteLine($"Response: {json}");
+
+        var doc = JsonDocument.Parse(json);
+        Assert.True(doc.RootElement.GetProperty("success").GetBoolean(),
+            $"Rename with source_name + target_name should succeed. Response: {json}");
+
+        var listJson = await CallToolAsync("worksheet", new Dictionary<string, object?>
+        {
+            ["action"] = "list",
+            ["session_id"] = _sessionId
+        });
+        Assert.Contains("RenamedViaSourceName", listJson);
+        Assert.DoesNotContain("SourceNameAlias", listJson);
+    }
+
+    /// <summary>
+    /// This matches Claude's first failed v1.8.40 attempt captured in mcp.log.
+    /// Rename should accept the cross-file names as aliases for better MCP compatibility.
+    /// </summary>
+    [Fact]
+    public async Task Rename_WithSourceSheetAndTargetSheetName_Succeeds()
+    {
+        await CallToolAsync("worksheet", new Dictionary<string, object?>
+        {
+            ["action"] = "create",
+            ["session_id"] = _sessionId,
+            ["sheet_name"] = "SourceSheetAlias"
+        });
+
+        var json = await CallToolAsync("worksheet", new Dictionary<string, object?>
+        {
+            ["action"] = "rename",
+            ["session_id"] = _sessionId,
+            ["source_sheet"] = "SourceSheetAlias",
+            ["target_sheet_name"] = "RenamedViaSourceSheet"
+        });
+        _output.WriteLine($"Response: {json}");
+
+        var doc = JsonDocument.Parse(json);
+        Assert.True(doc.RootElement.GetProperty("success").GetBoolean(),
+            $"Rename with source_sheet + target_sheet_name should succeed. Response: {json}");
+
+        var listJson = await CallToolAsync("worksheet", new Dictionary<string, object?>
+        {
+            ["action"] = "list",
+            ["session_id"] = _sessionId
+        });
+        Assert.Contains("RenamedViaSourceSheet", listJson);
+        Assert.DoesNotContain("SourceSheetAlias", listJson);
+    }
+
     #endregion
 
-    #region Bug 2: Parameter combinations that fail (as reported)
-
-    /// <summary>
-    /// Bug report attempt 1: sheet_name + target_sheet_name fails.
-    /// User guessed target_sheet_name (which is a separate parameter for cross-file ops).
-    /// Expected error: "newName is required" because target_name was not provided.
-    /// </summary>
-    [Fact]
-    public async Task Rename_WithSheetNameAndTargetSheetName_FailsWithNewNameRequired()
-    {
-        // Arrange
-        await CallToolAsync("worksheet", new Dictionary<string, object?>
-        {
-            ["action"] = "create",
-            ["session_id"] = _sessionId,
-            ["sheet_name"] = "TestSheet1"
-        });
-
-        // Act — user's attempt 1 from bug report
-        var json = await CallToolAsync("worksheet", new Dictionary<string, object?>
-        {
-            ["action"] = "rename",
-            ["session_id"] = _sessionId,
-            ["sheet_name"] = "TestSheet1",
-            ["target_sheet_name"] = "NewName"  // Wrong param! target_sheet_name is for cross-file ops
-        });
-        _output.WriteLine($"Response: {json}");
-
-        // Assert — should fail because target_name (newName) is null
-        var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
-
-        // The response should indicate failure with a meaningful error about the missing parameter
-        Assert.False(root.GetProperty("success").GetBoolean(),
-            "Should fail when target_sheet_name is used instead of target_name");
-        Assert.True(root.TryGetProperty("errorMessage", out var errorMsg),
-            "Expected errorMessage in response");
-        Assert.Contains("newName", errorMsg.GetString()!, StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// Bug report attempt 2: source_name + target_name fails.
-    /// User guessed source_name (which is for copy operations).
-    /// Expected error: "oldName is required" because sheet_name was not provided.
-    /// </summary>
-    [Fact]
-    public async Task Rename_WithSourceNameAndTargetName_FailsWithOldNameRequired()
-    {
-        // Arrange
-        await CallToolAsync("worksheet", new Dictionary<string, object?>
-        {
-            ["action"] = "create",
-            ["session_id"] = _sessionId,
-            ["sheet_name"] = "TestSheet2"
-        });
-
-        // Act — user's attempt 2 from bug report
-        var json = await CallToolAsync("worksheet", new Dictionary<string, object?>
-        {
-            ["action"] = "rename",
-            ["session_id"] = _sessionId,
-            ["source_name"] = "TestSheet2",   // Wrong param! source_name is for copy
-            ["target_name"] = "NewName2"      // Correct param for newName
-        });
-        _output.WriteLine($"Response: {json}");
-
-        // Assert — should fail because sheet_name (oldName) is null
-        var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
-
-        Assert.False(root.GetProperty("success").GetBoolean(),
-            "Should fail when source_name is used instead of sheet_name");
-        Assert.True(root.TryGetProperty("errorMessage", out var errorMsg),
-            "Expected errorMessage in response");
-        Assert.Contains("oldName", errorMsg.GetString()!, StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// Bug report attempt 3: sheet_name + source_sheet fails.
-    /// User guessed source_sheet (which is for cross-file move/copy).
-    /// Expected error: "newName is required" because target_name was not provided.
-    /// </summary>
-    [Fact]
-    public async Task Rename_WithSheetNameAndSourceSheet_FailsWithNewNameRequired()
-    {
-        // Arrange
-        await CallToolAsync("worksheet", new Dictionary<string, object?>
-        {
-            ["action"] = "create",
-            ["session_id"] = _sessionId,
-            ["sheet_name"] = "TestSheet3"
-        });
-
-        // Act — user's attempt 3 from bug report
-        var json = await CallToolAsync("worksheet", new Dictionary<string, object?>
-        {
-            ["action"] = "rename",
-            ["session_id"] = _sessionId,
-            ["sheet_name"] = "TestSheet3",
-            ["source_sheet"] = "NewName3"     // Wrong param! source_sheet is for cross-file ops
-        });
-        _output.WriteLine($"Response: {json}");
-
-        // Assert — should fail because target_name (newName) is null
-        var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
-
-        Assert.False(root.GetProperty("success").GetBoolean(),
-            "Should fail when source_sheet is used instead of target_name");
-        Assert.True(root.TryGetProperty("errorMessage", out var errorMsg),
-            "Expected errorMessage in response");
-        Assert.Contains("newName", errorMsg.GetString()!, StringComparison.OrdinalIgnoreCase);
-    }
+    #region Validation errors that should fail
 
     /// <summary>
     /// Verify that both old and new name missing produces a clear error.
