@@ -4,24 +4,22 @@
 
 Use session-based actions for worksheet lifecycle within the same workbook:
 
-| Action | Preferred Parameters | Compatibility Aliases |
-|--------|----------------------|-----------------------|
-| `create` | `sheet_name` | none |
-| `rename` | `old_name`, `new_name` | current name: `sheet_name`, `source_name`, `source_sheet`; new name: `target_name`, `target_sheet_name` |
-| `delete` | `sheet_name` | none |
-| `move` | `sheet_name`, `before_sheet`/`after_sheet` | none |
-| `copy` | `source_name`, `target_name` | none |
+| Action | Parameters |
+|--------|------------|
+| `create` | `sheet_name` |
+| `rename` | `old_name`, `new_name` |
+| `delete` | `sheet_name` |
+| `move` | `sheet_name`, `before_sheet`/`after_sheet` |
+| `copy` | `source_name`, `target_name` |
 
-**Rename example (preferred):**
+**Rename example:**
 ```
 action: rename
 old_name: Sheet1
 new_name: Summary
 ```
 
-**Rename compatibility note:**
-- Prefer `old_name` + `new_name` for new MCP callers.
-- The worksheet tool also accepts legacy aliases so existing clients and LLM guesses still work.
+Rename requires `old_name` + `new_name`.
 
 ## Atomic Cross-File Operations
 
@@ -71,9 +69,9 @@ For same-file operations (copy within same workbook, rename, delete, tab colors)
 
 For `rename`, use `old_name` and `new_name`.
 
-- MCP now exposes `old_name` + `new_name`
+- MCP rename requires `old_name` + `new_name`
 - CLI uses `--old-name` + `--new-name`
-- `sheet_name` + `target_name` remain accepted in MCP as legacy aliases only
+- Copy and cross-file parameters such as `sheet_name`, `source_name`, `source_sheet`, `target_name`, and `target_sheet_name` are not rename aliases
 
 ## Common Errors
 

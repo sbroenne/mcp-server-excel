@@ -73,18 +73,22 @@ public sealed class WorksheetToolSchemaTests : IAsyncLifetime, IAsyncDisposable
         Assert.True(properties.TryGetProperty("target_sheet_name", out var targetSheetNameProperty), $"worksheet schema is missing target_sheet_name: {schema.GetRawText()}");
 
         Assert.Contains("create", GetDescription(sheetNameProperty), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("rename", GetDescription(sheetNameProperty), StringComparison.OrdinalIgnoreCase);
         Assert.Contains("rename", GetDescription(oldNameProperty), StringComparison.OrdinalIgnoreCase);
         Assert.Contains("rename", GetDescription(newNameProperty), StringComparison.OrdinalIgnoreCase);
         Assert.Contains("copy", GetDescription(sourceNameProperty), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("rename", GetDescription(sourceNameProperty), StringComparison.OrdinalIgnoreCase);
         Assert.Contains("copy", GetDescription(targetNameProperty), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("rename", GetDescription(targetNameProperty), StringComparison.OrdinalIgnoreCase);
         Assert.Contains("copy-to-file", GetDescription(sourceFileProperty), StringComparison.OrdinalIgnoreCase);
         Assert.Contains("move-to-file", GetDescription(sourceFileProperty), StringComparison.OrdinalIgnoreCase);
         Assert.Contains("copy-to-file", GetDescription(sourceSheetProperty), StringComparison.OrdinalIgnoreCase);
         Assert.Contains("move-to-file", GetDescription(sourceSheetProperty), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("rename", GetDescription(sourceSheetProperty), StringComparison.OrdinalIgnoreCase);
         Assert.Contains("copy-to-file", GetDescription(targetFileProperty), StringComparison.OrdinalIgnoreCase);
         Assert.Contains("move-to-file", GetDescription(targetFileProperty), StringComparison.OrdinalIgnoreCase);
         Assert.Contains("copy-to-file", GetDescription(targetSheetNameProperty), StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("rename", GetDescription(targetSheetNameProperty), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("rename", GetDescription(targetSheetNameProperty), StringComparison.OrdinalIgnoreCase);
     }
 
     private static string GetDescription(JsonElement property)
