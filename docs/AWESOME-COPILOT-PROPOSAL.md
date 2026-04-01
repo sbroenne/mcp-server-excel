@@ -131,7 +131,7 @@ External plugin — source hosted at [sbroenne/mcp-server-excel](https://github.
 ### Testing
 - Plugin structure validated with `npm run plugin:validate`
 - MCP Server is published on NuGet and actively maintained
-- Tool behavior validated with real LLM workflows using [pytest-aitest](https://github.com/sbroenne/pytest-aitest)
+- Tool behavior validated with real LLM workflows using [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering)
 
 ### Related Links
 - Repository: https://github.com/sbroenne/mcp-server-excel

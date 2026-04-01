@@ -103,7 +103,7 @@ It works with any MCP-compatible AI assistant like GitHub Copilot, Claude Deskto
 
 <div class="feature-card">
 <h3>🧪 LLM-Tested Quality</h3>
-<p>Tool behavior validated with real LLM workflows using <a href="https://github.com/sbroenne/pytest-aitest">pytest-aitest</a>. We test that LLMs correctly understand and use our tools.</p>
+<p>Tool behavior validated with real LLM workflows using <a href="https://github.com/sbroenne/pytest-skill-engineering">pytest-skill-engineering</a>. We test that LLMs correctly understand and use our tools.</p>
 </div>
 </div>
 
@@ -241,7 +241,7 @@ The AI will display the Excel window so you can watch every operation happen liv
 
 Other projects by the author:
 
-- [pytest-aitest](https://github.com/sbroenne/pytest-aitest) — LLM-powered testing framework for AI agents — validate that LLMs correctly understand and use your tools
+- [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering) — LLM-powered testing framework for AI agents — validate that LLMs correctly understand and use your tools
 - [Windows MCP Server](https://windowsmcpserver.dev/) — AI-powered Windows automation via GitHub Copilot, Claude, and other MCP clients — including mouse, keyboard, windows, and screenshots
 - [OBS Studio MCP Server](https://github.com/sbroenne/mcp-server-obs) — AI-powered OBS Studio automation for recording, streaming, and window capture
 - [HeyGen MCP Server](https://github.com/sbroenne/heygen-mcp) — MCP server for HeyGen AI video generation

@@ -773,11 +773,11 @@ When this feature is implemented, **ALL** these files require updates:
 
 ---
 
-## LLM Testing with pytest-aitest
+## LLM Testing with pytest-skill-engineering
 
-This feature should be validated using [pytest-aitest](https://github.com/sbroenne/pytest-aitest), which tests whether LLMs can correctly understand and use the new tools.
+This feature should be validated using [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering), which tests whether LLMs can correctly understand and use the new tools.
 
-### Why pytest-aitest?
+### Why pytest-skill-engineering?
 
 - **Tests the AI interface, not just code** - Validates tool descriptions, not just implementations
 - **AI-powered reports** - Tells you *what to fix*, not just *what failed*
@@ -787,90 +787,51 @@ This feature should be validated using [pytest-aitest](https://github.com/sbroen
 ### Proposed Test Cases
 
 ```python
-# tests/ExcelMcp.AITests/test_calculation_mode.py
+# llm-tests/cli/test_cli_calculation_mode.py
 import pytest
-from pytest_aitest import Agent, CLIServer, Provider, Skill
 
-@pytest.fixture
-def excel_cli_server():
-    return CLIServer(
-        name="excel-cli",
-        command="excelcli",
-        tool_prefix="excel",
-        shell="powershell",
+from conftest import build_excel_cli_eval, assert_cli_exit_codes, assert_regex, unique_path
+
+
+@pytest.mark.asyncio
+async def test_cli_calculation_mode_batch(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
+    agent = build_excel_cli_eval(
+        "cli-calculation-batch",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
+        max_turns=15,
     )
 
-@pytest.fixture
-def excel_skill():
-    return Skill.from_path("skills/excel-cli")
+    result = await copilot_eval(
+        agent,
+        f"Create a workbook at {unique_path('calc-batch')} with 20 rows of sample data, "
+        "use calculation mode appropriately for efficient writes, then restore automatic "
+        "calculation before saving and report what you did."
+    )
+
+    assert result.success
+    assert_cli_exit_codes(result)
 
 
-class TestCalculationModeDiscovery:
-    """Test that LLMs discover and understand calculation mode."""
+@pytest.mark.asyncio
+async def test_cli_calculation_mode_debugging(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
+    agent = build_excel_cli_eval(
+        "cli-calculation-debug",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
+        max_turns=20,
+    )
 
-    @pytest.mark.asyncio
-    async def test_llm_uses_manual_mode_for_batch(self, aitest_run, excel_cli_server, excel_skill):
-        """LLM should use manual mode when doing many writes."""
-        agent = Agent(
-            name="batch-test",
-            provider=Provider(model="azure/gpt-5-mini"),
-            cli_servers=[excel_cli_server],
-            skill=excel_skill,
-            max_turns=15,
-        )
+    result = await copilot_eval(
+        agent,
+        f"Create a workbook at {unique_path('calc-debug')} with A1=10, A2=20, and "
+        "A3=SUM(A1:A2). Use manual calculation mode to verify the formula, change A1 "
+        "to 100, recalculate, save the workbook, and report the new value."
+    )
 
-        result = await aitest_run(
-            agent,
-            "Create a workbook, add 20 rows of sample data efficiently, then close it."
-        )
-
-        assert result.success
-        assert result.tool_was_called("excel_execute")
-        # Tool output should show set-mode manual was used
-
-    @pytest.mark.asyncio
-    async def test_llm_restores_automatic_mode(self, aitest_run, excel_cli_server, excel_skill):
-        """LLM should restore automatic mode after batch operations."""
-        agent = Agent(
-            name="restore-test",
-            provider=Provider(model="azure/gpt-5-mini"),
-            cli_servers=[excel_cli_server],
-            skill=excel_skill,
-            max_turns=15,
-        )
-
-        result = await aitest_run(
-            agent,
-            "Create a workbook with sample data using efficient batching, "
-            "then verify the calculation mode is back to automatic before closing."
-        )
-
-        assert result.success
-
-
-class TestCalculationModeDebugging:
-    """Test formula debugging workflow with calculation mode."""
-
-    @pytest.mark.asyncio
-    async def test_step_through_debugging(self, aitest_run, excel_cli_server, excel_skill, llm_assert):
-        """LLM can use manual mode for step-through formula debugging."""
-        agent = Agent(
-            name="debug-test",
-            provider=Provider(model="azure/gpt-5-mini"),
-            cli_servers=[excel_cli_server],
-            skill=excel_skill,
-            max_turns=20,
-        )
-
-        result = await aitest_run(
-            agent,
-            "Create a workbook with A1=10, A2=20, and A3=SUM(A1:A2). "
-            "Use manual calculation mode to verify the formula. "
-            "Change A1 to 100, recalculate just A3, and report the new value."
-        )
-
-        assert result.success
-        assert llm_assert(result.final_response, "mentions the calculated value 120")
+    assert result.success
+    assert_cli_exit_codes(result)
+    assert_regex(result.final_response, r"\b120\b")
 ```
 
 ### Test Categories
@@ -885,7 +846,7 @@ class TestCalculationModeDebugging:
 
 ### Report Insights Expected
 
-With pytest-aitest's AI-powered reports, we expect insights like:
+With pytest-skill-engineering's AI-powered reports, we expect insights like:
 
 ```
 🎯 RECOMMENDATION

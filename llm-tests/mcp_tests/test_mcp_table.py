@@ -4,22 +4,22 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_aitest import Agent, Provider
+from conftest import (
+    build_excel_mcp_eval,
+    assert_regex,
+    unique_path,
+)
 
-from conftest import assert_regex, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
-
-pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
+pytestmark = [pytest.mark.aitest, pytest.mark.copilot, pytest.mark.mcp]
 
 
 @pytest.mark.asyncio
-async def test_mcp_table_create_query(aitest_run, excel_mcp_server, excel_mcp_skill):
-    agent = Agent(
-        name="mcp-table-create",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+async def test_mcp_table_create_query(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
+    agent = build_excel_mcp_eval(
+        "mcp-table-create",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -33,21 +33,19 @@ async def test_mcp_table_create_query(aitest_run, excel_mcp_server, excel_mcp_sk
 6. Get the data from the SalesData table
 7. Close the file without saving
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert result.tool_was_called("table")
     assert_regex(result.final_response, r"(?i)(SalesData)")
 
 
 @pytest.mark.asyncio
-async def test_mcp_table_lifecycle(aitest_run, excel_mcp_server, excel_mcp_skill):
-    agent = Agent(
-        name="mcp-table-lifecycle",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+async def test_mcp_table_lifecycle(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
+    agent = build_excel_mcp_eval(
+        "mcp-table-lifecycle",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -61,7 +59,7 @@ async def test_mcp_table_lifecycle(aitest_run, excel_mcp_server, excel_mcp_skill
 6. Delete the TaskList table
 7. Close the file without saving
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert result.tool_was_called("table")
     assert_regex(result.final_response, r"(?i)(TaskList)")

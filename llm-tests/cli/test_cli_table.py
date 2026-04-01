@@ -4,22 +4,23 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_aitest import Agent, Provider
+from conftest import (
+    build_excel_cli_eval,
+    assert_cli_exit_codes,
+    assert_regex,
+    unique_path,
+)
 
-from conftest import assert_cli_exit_codes, assert_regex, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
-
-pytestmark = [pytest.mark.aitest, pytest.mark.cli]
+pytestmark = [pytest.mark.aitest, pytest.mark.copilot, pytest.mark.cli]
 
 
 @pytest.mark.asyncio
-async def test_cli_table_create_query(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = Agent(
-        name="cli-table-create",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
+async def test_cli_table_create_query(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
+    agent = build_excel_cli_eval(
+        "cli-table-create",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -34,21 +35,19 @@ Using the Excel CLI tool:
 6. Get the data from the SalesData table
 7. Close the file without saving
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
     assert_regex(result.final_response, r"(?i)(SalesData)")
 
 
 @pytest.mark.asyncio
-async def test_cli_table_lifecycle(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = Agent(
-        name="cli-table-lifecycle",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
+async def test_cli_table_lifecycle(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
+    agent = build_excel_cli_eval(
+        "cli-table-lifecycle",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -64,7 +63,7 @@ Using the Excel CLI tool:
 7. Close the file without saving
 8. Summarize what you did, including the table name.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
     # Loosen - either TaskList or table/created/deleted mentioned

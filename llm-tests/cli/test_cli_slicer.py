@@ -4,34 +4,24 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_aitest import Agent, Provider
+from conftest import build_excel_cli_eval, assert_cli_exit_codes, assert_regex, unique_path
 
-from conftest import assert_cli_exit_codes, assert_regex, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
-
-pytestmark = [pytest.mark.aitest, pytest.mark.cli]
+pytestmark = [pytest.mark.aitest, pytest.mark.copilot, pytest.mark.cli]
 
 
-@pytest.mark.xfail(reason="Multi-step slicer workflow; LLM intermittently fails with action parameter", strict=False)
 @pytest.mark.asyncio
-async def test_cli_pivottable_slicer_workflow(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = Agent(
-        name="cli-pivot-slicer",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
-        max_turns=30,
-        retries=DEFAULT_RETRIES,
+async def test_cli_pivottable_slicer_workflow(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
+    agent = build_excel_cli_eval(
+        "cli-pivot-slicer",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
+        max_turns=25,
     )
 
-    messages = None
-
     prompt = f"""
-I want to test PivotTable slicers.
+Using the Excel CLI tool, create a new workbook at {unique_path('pivottable-slicer-cli')}.
 
-Create a new Excel file at {unique_path('pivottable-slicer-cli')}
-
-On Sheet1, enter this sales data starting at A1:
-
+On Sheet1, enter:
 Region, Product, Quarter, Sales
 North, Laptop, Q1, 15000
 North, Phone, Q1, 8000
@@ -42,73 +32,42 @@ South, Phone, Q1, 7500
 South, Laptop, Q2, 14000
 South, Phone, Q2, 8200
 
-Convert this to a table called "SalesData".
+Convert the range to a table named SalesData.
+Create a PivotTable on a new sheet named Analysis with Region as rows and Sum of Sales as values.
+Create a Region slicer for that PivotTable at E2.
+Use the slicer to show only North.
+Create a second slicer for Product at G2, then clear the Region filter.
+Delete both slicers.
+Save the workbook.
 
-Then create a PivotTable on a new sheet called "Analysis" that shows:
-- Region as rows
-- Sum of Sales as values
+Report:
+- that the PivotTable slicers were created,
+- that North sales equal 50,500,
+- that two slicers existed before deletion,
+- that both slicers were removed before saving.
 """
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
+
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"(?i)(pivot|region|sales|created)")
-    messages = result.messages
-
-    prompt = """
-Create a slicer for the Region field on the PivotTable.
-
-After creating, list all slicers to confirm it was created.
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"(?i)(slicer|region|created|success)")
-    messages = result.messages
-
-    prompt = """
-Use the Region slicer to show only "North" region data.
-
-After applying the filter, what does the PivotTable show for total North sales?
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_cli_exit_codes(result)
-    # Loosen - either filter worked or north was mentioned
-    assert_regex(result.final_response, r"(?i)(north|filter|slicer|sales|pivot)")
-    messages = result.messages
-
-    prompt = """
-Delete the slicer we created.
-
-Save and close the file.
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"(?i)(delete|removed|closed|saved|success)")
+    assert_regex(result.final_response, r"(?i)(north)")
+    assert_regex(result.final_response, r"50[\,.]?500")
+    assert_regex(result.final_response, r"(?i)(two slicers|2 slicers|removed)")
 
 
-@pytest.mark.xfail(reason="Multi-step slicer workflow; LLM intermittently fails with action parameter", strict=False)
 @pytest.mark.asyncio
-async def test_cli_table_slicer_workflow(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = Agent(
-        name="cli-table-slicer",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
-        max_turns=30,
-        retries=DEFAULT_RETRIES,
+async def test_cli_table_slicer_workflow(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
+    agent = build_excel_cli_eval(
+        "cli-table-slicer",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
+        max_turns=25,
     )
 
-    messages = None
-
     prompt = f"""
-I want to test Table slicers (different from PivotTable slicers).
+Using the Excel CLI tool, create a new workbook at {unique_path('table-slicer-cli')}.
 
-Create a new Excel file at {unique_path('table-slicer-cli')}
-
-On Sheet1, enter this employee data starting at A1:
-
+On Sheet1, enter:
 Department, Employee, Status, Salary
 Engineering, Alice, Active, 85000
 Engineering, Bob, Active, 92000
@@ -116,45 +75,27 @@ Marketing, Carol, Active, 78000
 Marketing, Dave, Inactive, 70000
 Sales, Eve, Active, 65000
 Sales, Frank, Inactive, 62000
+Engineering, Grace, Active, 88000
+Sales, Henry, Active, 71000
 
-Convert this to an Excel table called "Employees".
+Convert the range to an Excel table named Employees.
+Create a Department table slicer at F2 and use it to filter to Engineering only.
+Create a Status slicer at H2 and filter to Active employees.
+Delete both slicers.
+Save the workbook.
+
+Report:
+- that the table slicers were created,
+- that Engineering has 3 employees,
+- that there are 6 active employees total,
+- a short explanation of how table slicers differ from PivotTable slicers,
+- confirmation that both slicers were removed before saving.
 """
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
+
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"(?i)(employees|table|created|success)")
-    messages = result.messages
-
-    prompt = """
-Create a Table slicer for the Department column.
-
-List all Table slicers to confirm it was created.
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"(?i)(slicer|department|table|created|success)")
-    messages = result.messages
-
-    prompt = """
-Use the Department slicer to filter the table to show only Engineering employees.
-
-How many Engineering employees are there?
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"(?i)(engineering|2|two|filter|alice|bob)")
-    messages = result.messages
-
-    prompt = """
-Delete the Table slicer.
-
-Save and close the file.
-
-What's the difference between Table slicers and PivotTable slicers?
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"(?i)(delete|table|pivot|different|closed|saved)")
+    assert_regex(result.final_response, r"(?i)(engineering)")
+    assert_regex(result.final_response, r"(?i)(3|three)")
+    assert_regex(result.final_response, r"(?i)(6|six|active)")
+    assert_regex(result.final_response, r"(?i)(pivottable slicer|table slicer|removed)")

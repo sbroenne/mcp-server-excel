@@ -1,6 +1,6 @@
 # ExcelMcp LLM Integration Tests
 
-LLM-powered integration tests for both ExcelMcp MCP Server and Excel CLI using pytest-aitest.
+LLM-powered integration tests for both ExcelMcp MCP Server and Excel CLI using pytest-skill-engineering.
 
 ## Prerequisites
 
@@ -17,7 +17,7 @@ Set the endpoint for Entra ID auth:
 $env:AZURE_OPENAI_ENDPOINT = "https://<your-resource>.openai.azure.com/"
 ```
 
-## Setup (uv + local pytest-aitest)
+## Setup
 
 From this directory:
 
@@ -25,17 +25,12 @@ From this directory:
 uv sync
 ```
 
-This uses a local editable dependency via:
-
-```toml
-[tool.uv.sources]
-pytest-aitest = { path = "../../../pytest-aitest", editable = true }
-```
+This installs the test dependencies from `pyproject.toml`, including `pytest-skill-engineering[copilot]`.
 
 ## Build MCP Server (Required)
 
 ```powershell
-dotnet build ..\..\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj -c Release
+dotnet build ..\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj -c Release
 ```
 
 ## Run Tests (Manual Only)
@@ -66,9 +61,19 @@ uv run pytest -m aitest -v
 Example:
 
 ```powershell
-$env:EXCEL_MCP_SERVER_COMMAND = "d:\\source\\mcp-server-excel\\src\\ExcelMcp.McpServer\\bin\\Release\\net10.0\\ExcelMcp.McpServer.exe"
+$env:EXCEL_MCP_SERVER_COMMAND = "d:\\source\\mcp-server-excel\\src\\ExcelMcp.McpServer\\bin\\Release\\net10.0-windows\\Sbroenne.ExcelMcp.McpServer.exe"
 $env:EXCEL_CLI_COMMAND = "excelcli"
 ```
+
+## GitHub Copilot Authentication
+
+These tests use the Copilot-backed `CopilotEval` harness from `pytest-skill-engineering`, so you must be authenticated with GitHub:
+
+```powershell
+gh auth login
+```
+
+Or set `GITHUB_TOKEN` in the environment before running `pytest`.
 
 ## Test Structure
 

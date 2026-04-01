@@ -26,6 +26,8 @@ This changelog covers all components:
 
 ### Added
 
+- **LLM integration test framework overhaul**: Migrated `llm-tests/` from `pytest-aitest` to `pytest-skill-engineering` with a clean full rewrite and no backward-compatibility shim. The new harness uses `CopilotEval` for both CLI and MCP workflows, enforces GitHub Copilot authentication checks, and standardizes explicit timeout and turn limits. All LLM workflow scenarios were rewritten around natural-language prompts and outcome-focused assertions, with active docs and instructions updated to match the new framework and workflow.
+
 - **Power Query stability diagnostics** (#560): Added DIAG traces throughout the shutdown/dispose/PQ refresh paths (gated by `EXCELMCP_DIAGNOSTICS=1` environment variable) to aid future debugging of intermittent MashupContainer.Loader.exe crashes. New `SessionDiagnostics` helper class for conditional diagnostic output.
 
 - **CLI backward-compatibility aliases**: Added `--sheet` and `--range` short aliases in the CLI source generator for backward compatibility with pre-generator parameter names (`--sheet-name` and `--range-address` remain primary).

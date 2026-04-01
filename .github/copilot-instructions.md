@@ -202,7 +202,7 @@ Copy-Item scripts\pre-commit.ps1 .git\hooks\pre-commit
 
 ## 🧪 LLM Integration Tests (`llm-tests/`)
 
-Separate pytest-based project validating LLM behavior using `pytest-aitest`:
+Separate pytest-based project validating LLM behavior using `pytest-skill-engineering`:
 
 ```powershell
 # Setup
@@ -218,6 +218,7 @@ uv run pytest -m aitest -v   # All LLM tests
 **Prerequisites:**
 - Azure OpenAI endpoint: `$env:AZURE_OPENAI_ENDPOINT = "https://<resource>.openai.azure.com/"`
 - Build MCP Server: `dotnet build src\ExcelMcp.McpServer -c Release`
+- GitHub auth via `gh auth login` or `GITHUB_TOKEN`
 
 **Structure:**
 - `test_mcp_*.py` - MCP Server workflows

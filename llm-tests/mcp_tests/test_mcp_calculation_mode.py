@@ -14,11 +14,13 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_aitest import Agent, Provider
+from conftest import (
+    build_excel_mcp_eval,
+    assert_regex,
+    unique_results_path,
+)
 
-from conftest import assert_regex, unique_results_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
-
-pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
+pytestmark = [pytest.mark.aitest, pytest.mark.copilot, pytest.mark.mcp]
 
 
 # =============================================================================
@@ -27,17 +29,15 @@ pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="LLM may not autonomously use calculation_mode for small batches", strict=False)
-async def test_mcp_calculation_mode_batch_with_skill(aitest_run, excel_mcp_server, excel_mcp_skill):
+async def test_mcp_calculation_mode_batch_with_skill(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
     """Test that LLM uses manual calculation mode for batch writes (with skill).
 
     The skill provides guidance on when to use calculation mode.
     """
-    agent = Agent(
-        name="mcp-calc-batch-skill",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+    agent = build_excel_mcp_eval(
+        "mcp-calc-batch-skill",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         allowed_tools=[
             "calculation_mode",
             "file",
@@ -45,7 +45,6 @@ async def test_mcp_calculation_mode_batch_with_skill(aitest_run, excel_mcp_serve
             "worksheet",
         ],
         max_turns=25,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -65,7 +64,7 @@ Add a grand total formula in D6 that sums D2:D5.
 
 Report the calculated grand total in D6.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert result.tool_was_called("calculation_mode"), \
         "LLM with skill should use calculation_mode for batch writes"
@@ -79,18 +78,15 @@ Report the calculated grand total in D6.
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="LLM may not autonomously use calculation_mode for small batches", strict=False)
-async def test_mcp_calculation_mode_batch_no_skill(aitest_run, excel_mcp_server):
+async def test_mcp_calculation_mode_batch_no_skill(copilot_eval, excel_mcp_servers):
     """Test that LLM uses manual calculation mode for batch writes (no skill).
 
     Without the skill, the LLM must discover the calculation mode tool
     purely from its description. This tests tool discoverability.
     """
-    agent = Agent(
-        name="mcp-calc-batch-noskill",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        # No skill - relying on tool descriptions only
+    agent = build_excel_mcp_eval(
+        "mcp-calc-batch-noskill",
+        servers=excel_mcp_servers,
         allowed_tools=[
             "calculation_mode",
             "file",
@@ -98,7 +94,6 @@ async def test_mcp_calculation_mode_batch_no_skill(aitest_run, excel_mcp_server)
             "worksheet",
         ],
         max_turns=25,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -118,7 +113,7 @@ Add a grand total formula in D6 that sums D2:D5.
 
 Report the calculated grand total in D6.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert result.tool_was_called("calculation_mode"), \
         "LLM without skill should discover and use calculation_mode for batch writes"

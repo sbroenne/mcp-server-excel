@@ -4,24 +4,23 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_aitest import Agent, Provider
+from conftest import (
+    build_excel_mcp_eval,
+    assert_regex,
+    unique_path,
+)
 
-from conftest import assert_regex, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
-
-pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
+pytestmark = [pytest.mark.aitest, pytest.mark.copilot, pytest.mark.mcp]
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="LLM intermittently omits required action parameter on complex workflows", strict=False)
-async def test_mcp_range_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
-    agent = Agent(
-        name="mcp-range-updates",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+async def test_mcp_range_updates(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
+    agent = build_excel_mcp_eval(
+        "mcp-range-updates",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         allowed_tools=["range", "file", "worksheet"],
         max_turns=25,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -40,7 +39,7 @@ async def test_mcp_range_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
 9. Close the file without saving
 10. Summarize the values you found, especially D1 and the updated amounts.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert result.tool_was_called("range")
     # Loosen assertions - either values or formula verification mentioned
@@ -49,15 +48,13 @@ async def test_mcp_range_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
 
 
 @pytest.mark.asyncio
-async def test_mcp_table_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
-    agent = Agent(
-        name="mcp-table-updates",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+async def test_mcp_table_updates(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
+    agent = build_excel_mcp_eval(
+        "mcp-table-updates",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         allowed_tools=["range", "table", "file", "worksheet"],
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -74,7 +71,7 @@ async def test_mcp_table_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
 7. Read D2 to verify formula recalculated (should be 125)
 8. Close the file without saving
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert result.tool_was_called("table")
     assert_regex(result.final_response, r"(?i)(salestable)")
@@ -82,15 +79,13 @@ async def test_mcp_table_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
 
 
 @pytest.mark.asyncio
-async def test_mcp_chart_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
-    agent = Agent(
-        name="mcp-chart-updates",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+async def test_mcp_chart_updates(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
+    agent = build_excel_mcp_eval(
+        "mcp-chart-updates",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         allowed_tools=["chart", "chart_config", "file", "worksheet", "range"],
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -106,23 +101,20 @@ async def test_mcp_chart_updates(aitest_run, excel_mcp_server, excel_mcp_skill):
 6. Read chart info to verify the title is now "Q1 Sales Report"
 7. Close the file without saving
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert result.tool_was_called("chart")
     assert_regex(result.final_response, r"(?i)(q1 sales|chart|title|updated|changed)")
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="LLM intermittently omits required action parameter on complex workflows", strict=False)
-async def test_mcp_sheet_structural_changes(aitest_run, excel_mcp_server, excel_mcp_skill):
-    agent = Agent(
-        name="mcp-sheet-struct",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+async def test_mcp_sheet_structural_changes(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
+    agent = build_excel_mcp_eval(
+        "mcp-sheet-struct",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         allowed_tools=["range", "file", "worksheet"],
         max_turns=25,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -143,7 +135,7 @@ async def test_mcp_sheet_structural_changes(aitest_run, excel_mcp_server, excel_
 6. Close the file without saving
 7. Summarize what values you found in column C after the row deletion.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert result.tool_was_called("range")
     assert_regex(result.final_response, r"(?i)(200)")

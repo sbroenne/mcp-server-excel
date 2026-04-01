@@ -76,10 +76,10 @@
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
-    "@types/node": "^22.19.11",
-    "@types/vscode": "^1.109.0",
+    "@types/node": "^25.5.0",
+    "@types/vscode": "^1.110.0",
     "@vscode/vsce": "^3.7.1",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.2"
 
   }
 }

@@ -98,7 +98,7 @@ dotnet test --filter "Feature=Connections&RunType!=OnDemand"
 
 ## LLM Tests
 
-The `llm-tests/` project validates that LLMs correctly use Excel MCP Server and CLI tools using [pytest-aitest](https://github.com/sbroenne/pytest-aitest).
+The `llm-tests/` project validates that LLMs correctly use Excel MCP Server and CLI tools using [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering).
 
 ### When to Run LLM Tests
 
@@ -118,7 +118,7 @@ uv run pytest -m aitest -v
 
 - `AZURE_OPENAI_ENDPOINT` environment variable
 - Windows desktop with Excel installed
-- pytest-aitest dependency (local path via uv)
+- GitHub auth via `gh auth login` or `GITHUB_TOKEN`
 
 **See [LLM Tests README](../llm-tests/README.md) for complete documentation.**
 

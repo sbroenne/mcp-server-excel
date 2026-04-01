@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_aitest import Agent, Provider
+from conftest import (
+    build_excel_mcp_eval,
+    assert_regex,
+    unique_results_path,
+)
 
-from conftest import assert_regex, unique_results_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
-
-pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
+pytestmark = [pytest.mark.aitest, pytest.mark.copilot, pytest.mark.mcp]
 
 
 def _has_row_layout(result, value: int) -> bool:
@@ -17,15 +19,13 @@ def _has_row_layout(result, value: int) -> bool:
 
 
 @pytest.mark.asyncio
-async def test_mcp_pivottable_tabular_layout(aitest_run, excel_mcp_server, excel_mcp_skill):
-    agent = Agent(
-        name="mcp-pivot-tabular",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+async def test_mcp_pivottable_tabular_layout(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
+    agent = build_excel_mcp_eval(
+        "mcp-pivot-tabular",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         allowed_tools=["pivottable", "pivottable_calc", "table", "range", "file", "worksheet"],
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -52,7 +52,7 @@ Add Region and Product as row fields, and Sales as a value field.
 
 After creating the PivotTable, summarize what you created and confirm it uses a tabular/flat layout suitable for data export.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert result.tool_was_called("pivottable")
     assert _has_row_layout(result, 1)
@@ -62,16 +62,13 @@ After creating the PivotTable, summarize what you created and confirm it uses a 
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Multi-step PivotTable+slicer workflow; LLM intermittently fails", strict=False)
-async def test_mcp_pivottable_compact_layout(aitest_run, excel_mcp_server, excel_mcp_skill):
-    agent = Agent(
-        name="mcp-pivot-compact",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+async def test_mcp_pivottable_compact_layout(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
+    agent = build_excel_mcp_eval(
+        "mcp-pivot-compact",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         allowed_tools=["pivottable", "pivottable_calc", "table", "range", "file", "worksheet"],
         max_turns=25,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -95,7 +92,7 @@ Create a PivotTable on a new sheet at A3 named "HoursSummary" with the standard 
 
 Add Department and Team as row fields, and Hours as a value field.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert result.tool_was_called("pivottable")
     assert _has_row_layout(result, 0)
@@ -103,16 +100,13 @@ Add Department and Team as row fields, and Hours as a value field.
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="LLM intermittently omits required action parameter on complex workflows", strict=False)
-async def test_mcp_pivottable_outline_layout(aitest_run, excel_mcp_server, excel_mcp_skill):
-    agent = Agent(
-        name="mcp-pivot-outline",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+async def test_mcp_pivottable_outline_layout(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
+    agent = build_excel_mcp_eval(
+        "mcp-pivot-outline",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         allowed_tools=["pivottable", "pivottable_calc", "table", "range", "file", "worksheet"],
         max_turns=25,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -138,7 +132,7 @@ Add Country, State, and City as row fields, and Revenue as a value field.
 
 Summarize: What are the three layout styles and when should each be used?
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert result.tool_was_called("pivottable")
     assert _has_row_layout(result, 2)
