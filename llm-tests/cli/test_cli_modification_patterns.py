@@ -4,23 +4,23 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_aitest import Agent, Provider
+from conftest import (
+    build_excel_cli_eval,
+    assert_cli_exit_codes,
+    assert_regex,
+    unique_path,
+)
 
-from conftest import assert_cli_exit_codes, assert_regex, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
-
-pytestmark = [pytest.mark.aitest, pytest.mark.cli]
+pytestmark = [pytest.mark.aitest, pytest.mark.copilot, pytest.mark.cli]
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="LLM intermittently omits required action parameter on complex workflows", strict=False)
-async def test_cli_range_updates(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = Agent(
-        name="cli-range-updates",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
+async def test_cli_range_updates(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
+    agent = build_excel_cli_eval(
+        "cli-range-updates",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -39,7 +39,7 @@ async def test_cli_range_updates(aitest_run, excel_cli_server, excel_cli_skill):
 9. Close the file without saving
 10. Summarize the values you found, especially D1 and the updated amounts.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
     # Loosen assertions - either 1004 appears or the formula was verified
@@ -48,14 +48,12 @@ async def test_cli_range_updates(aitest_run, excel_cli_server, excel_cli_skill):
 
 
 @pytest.mark.asyncio
-async def test_cli_table_updates(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = Agent(
-        name="cli-table-updates",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
+async def test_cli_table_updates(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
+    agent = build_excel_cli_eval(
+        "cli-table-updates",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -70,21 +68,19 @@ async def test_cli_table_updates(aitest_run, excel_cli_server, excel_cli_skill):
 5. List tables to confirm exactly 1 table named "SalesTable" exists
 6. Close the file without saving
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
     assert_regex(result.final_response, r"(?i)(salestable)")
 
 
 @pytest.mark.asyncio
-async def test_cli_chart_updates(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = Agent(
-        name="cli-chart-updates",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
+async def test_cli_chart_updates(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
+    agent = build_excel_cli_eval(
+        "cli-chart-updates",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -99,22 +95,19 @@ async def test_cli_chart_updates(aitest_run, excel_cli_server, excel_cli_skill):
 5. List charts to confirm exactly 1 chart exists
 6. Close the file without saving
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
     assert_regex(result.final_response, r"(?i)(q1 sales report|chart)")
 
 
-@pytest.mark.xfail(reason="LLM intermittently omits required action parameter on complex workflows", strict=False)
 @pytest.mark.asyncio
-async def test_cli_sheet_structural_changes(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = Agent(
-        name="cli-sheet-struct",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
+async def test_cli_sheet_structural_changes(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
+    agent = build_excel_cli_eval(
+        "cli-sheet-struct",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -135,7 +128,7 @@ async def test_cli_sheet_structural_changes(aitest_run, excel_cli_server, excel_
    - Header B1 says "Team"
 6. Close the file without saving
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
     assert_regex(result.final_response, r"(?i)(200)")

@@ -4,23 +4,24 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_aitest import Agent, Provider
+from conftest import (
+    build_excel_cli_eval,
+    assert_cli_exit_codes,
+    assert_regex,
+    unique_path,
+)
 
-from conftest import assert_cli_exit_codes, assert_regex, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
-
-pytestmark = [pytest.mark.aitest, pytest.mark.cli]
+pytestmark = [pytest.mark.aitest, pytest.mark.copilot, pytest.mark.cli]
 
 
 @pytest.mark.asyncio
-async def test_cli_styling_table_style(aitest_run, excel_cli_server, excel_cli_skill):
+async def test_cli_styling_table_style(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
     """LLM should use table(set-style) for table visual styling, not range_format on header."""
-    agent = Agent(
-        name="cli-styling-table",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
+    agent = build_excel_cli_eval(
+        "cli-styling-table",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -37,22 +38,20 @@ with a visually appealing style.
 
 Close the file without saving.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
     assert_regex(result.final_response, r"(?i)(QuarterlySales|table|style)")
 
 
 @pytest.mark.asyncio
-async def test_cli_styling_semantic_status(aitest_run, excel_cli_server, excel_cli_skill):
+async def test_cli_styling_semantic_status(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
     """LLM should use range_format(set-style) with Good/Bad/Neutral for status cells."""
-    agent = Agent(
-        name="cli-styling-status",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
+    agent = build_excel_cli_eval(
+        "cli-styling-status",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -71,22 +70,20 @@ yellow or neutral for In Progress.
 
 Close the file without saving.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
     assert_regex(result.final_response, r"(?i)(format|style|colour|color|green|red)")
 
 
 @pytest.mark.asyncio
-async def test_cli_styling_header_fill(aitest_run, excel_cli_server, excel_cli_skill):
+async def test_cli_styling_header_fill(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
     """LLM should use format-range (not set-style) for a header row with a fill colour."""
-    agent = Agent(
-        name="cli-styling-header",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
+    agent = build_excel_cli_eval(
+        "cli-styling-header",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -103,7 +100,7 @@ centred horizontally.
 
 Close the file without saving.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
     assert_regex(result.final_response, r"(?i)(header|format|blue|white|bold)")

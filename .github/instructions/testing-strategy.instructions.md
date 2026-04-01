@@ -142,9 +142,9 @@ Assert.DoesNotContain(file1Content, viewResult.Content);  // ✅ file1 content g
 
 ## LLM Integration Tests
 
-**Location**: `tests/ExcelMcp.LLM.Tests/`
+**Location**: `llm-tests/`
 
-**Purpose**: Validate that LLMs correctly use Excel MCP Server and CLI tools using [pytest-aitest](https://github.com/sbroenne/pytest-aitest).
+**Purpose**: Validate that LLMs correctly use Excel MCP Server and CLI tools using [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering).
 
 ### When to Run
 
@@ -158,7 +158,7 @@ Assert.DoesNotContain(file1Content, viewResult.Content);  // ✅ file1 content g
 # Navigate to the LLM tests directory first
 cd d:\source\mcp-server-excel\tests\ExcelMcp.LLM.Tests
 
-# Install deps (local pytest-aitest path is configured via tool.uv.sources)
+# Install deps
 uv sync
 
 # Run MCP tests only
@@ -181,11 +181,12 @@ uv run pytest -m aitest -v
 
 - `EXCEL_MCP_SERVER_COMMAND` to override MCP server command
 - `EXCEL_CLI_COMMAND` to override CLI command
+- GitHub auth via `gh auth login` or `GITHUB_TOKEN`
 
 ### Test Results
 
-Reports are generated in `tests/ExcelMcp.LLM.Tests/TestResults/`:
+Reports are generated in `llm-tests/TestResults/`:
 - `report.html` - Visual HTML report
 - `report.json` - Machine-readable JSON
 
-See `tests/ExcelMcp.LLM.Tests/README.md` for complete documentation.
+See `llm-tests/README.md` for complete documentation.

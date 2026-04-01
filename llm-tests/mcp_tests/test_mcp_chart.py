@@ -4,108 +4,82 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_aitest import Agent, Provider
+from conftest import build_excel_mcp_eval, assert_regex, unique_path
 
-from conftest import assert_regex, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
-
-pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
+pytestmark = [pytest.mark.aitest, pytest.mark.copilot, pytest.mark.mcp]
 
 
 @pytest.mark.asyncio
-async def test_mcp_chart_workflows(aitest_run, excel_mcp_server, excel_mcp_skill):
-    agent = Agent(
-        name="mcp-chart-workflows",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
-        allowed_tools=["chart", "table", "file", "range", "worksheet"],
-        max_turns=20,
-        retries=DEFAULT_RETRIES,
+async def test_mcp_chart_workflows(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
+    agent = build_excel_mcp_eval(
+        "mcp-chart-workflows",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
+        max_turns=30,
     )
 
-    messages = None
-
     prompt = f"""
-Create a sales analysis chart:
+Create a new Excel workbook at {unique_path('chart-workflows-mcp')}.
 
-1. Create a new Excel file at {unique_path('chart-from-table')}
-2. Enter this sales data in A1:C5:
-   Product, Q1 Sales, Q2 Sales
-   Laptop, 45000, 52000
-   Phone, 38000, 41000
-   Tablet, 22000, 28000
-   Monitor, 15000, 18000
-3. Convert the data to a table called "SalesData"
-4. Create a column chart from the table using create-from-table
-5. Position it below the data (targetRange='A8:F20')
-6. Save and close
+Build four independent chart scenarios in the same workbook and save it at the end.
+
+Scenario 1 - Table-backed column chart:
+- On a sheet named "SalesTable", enter:
+  Product, Q1 Sales, Q2 Sales
+  Laptop, 45000, 52000
+  Phone, 38000, 41000
+  Tablet, 22000, 28000
+  Monitor, 15000, 18000
+- Convert the data to a table named SalesData.
+- Create a clustered column chart from SalesData.
+- Position it below the data so the chart does not overlap rows 1-5.
+
+Scenario 2 - Line chart below the source range:
+- On a sheet named "BudgetTrend", enter:
+  Month, Revenue, Expenses
+  January, 50000, 35000
+  February, 55000, 38000
+  March, 48000, 32000
+  April, 62000, 41000
+  May, 58000, 39000
+- Create a line chart from the data.
+- Position it below row 6 and confirm the chart starts at row 7 or later.
+
+Scenario 3 - Two non-overlapping dashboard charts:
+- On a sheet named "MarketDashboard", enter:
+  Company, Revenue, Market Share
+  Alpha, 500000, 35
+  Beta, 400000, 28
+  Gamma, 300000, 22
+  Delta, 200000, 15
+- Convert the data to a table named MarketData.
+- Create a pie chart for Market Share.
+- Create a bar chart for Revenue.
+- Place the two charts so they do not overlap each other or the data table.
+
+Scenario 4 - Target-range positioning:
+- On a sheet named "QuarterlyPosition", enter:
+  Region, Q1, Q2, Q3, Q4
+  North, 1000, 1200, 1100, 1400
+  South, 800, 900, 950, 1000
+  East, 1500, 1600, 1450, 1700
+  West, 600, 700, 650, 800
+- Create a bar chart and place it near G2 using an explicit target range.
+
+    Carry out the workbook changes now. Do not stop at a plan or outline.
+
+    Save the workbook and report:
+- how many charts were created,
+- which chart types were used,
+- confirmation that the dashboard charts do not overlap,
+- confirmation that the BudgetTrend chart starts at row 7 or later,
+- confirmation that the QuarterlyPosition chart is near G2.
 """
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
+
+    result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("chart")
-    assert result.tool_was_called("table")
-    assert_regex(result.final_response, r"(?i)(salesdata|chart|created)")
-    messages = result.messages
-
-    prompt = f"""
-I need a chart that doesn't overlap my data:
-
-1. Create a new Excel file at {unique_path('chart-position')}
-2. Put this budget data in A1:C6:
-   Month, Revenue, Expenses
-   January, 50000, 35000
-   February, 55000, 38000
-   March, 48000, 32000
-   April, 62000, 41000
-   May, 58000, 39000
-3. Create a line chart from the data
-4. Make sure the chart is positioned BELOW row 6 so it doesn't cover the data
-5. Read chart info and confirm the topLeftCell is row 7 or later
-6. Save and close
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert result.tool_was_called("chart")
-    assert_regex(result.final_response, r"(?i)(chart|row [7-9]|\$[A-Z]+\$[7-9])")
-    messages = result.messages
-
-    prompt = f"""
-Create a dashboard with multiple chart types:
-
-1. Create a new Excel file at {unique_path('multi-chart')}
-2. Enter market data in A1:C5:
-   Company, Revenue, Market Share
-   Alpha, 500000, 35
-   Beta, 400000, 28
-   Gamma, 300000, 22
-   Delta, 200000, 15
-3. Convert to a table called "MarketData"
-4. Create a PIE chart showing Market Share, position at F2:K12
-5. Create a BAR chart showing Revenue, position at F14:K24
-6. List charts and confirm both exist without overlapping
-7. Save and close
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert result.tool_was_called("chart")
-    assert_regex(result.final_response, r"(?i)(pie|bar|2 chart|two chart)")
-    messages = result.messages
-
-    prompt = f"""
-Create a chart with precise cell-based positioning:
-
-1. Create a new Excel file at {unique_path('chart-targetrange')}
-2. Enter quarterly data in A1:E5:
-   Region, Q1, Q2, Q3, Q4
-   North, 1000, 1200, 1100, 1400
-   South, 800, 900, 950, 1000
-   East, 1500, 1600, 1450, 1700
-   West, 600, 700, 650, 800
-3. Create a bar chart using targetRange='G2:L15' for positioning
-4. Verify the chart's topLeftCell is at or near G2
-5. Save and close
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert result.tool_was_called("chart")
-    assert_regex(result.final_response, r"(?i)(\$G\$2|G2|chart|created)")
+    assert result.tool_was_called("excel-mcp-chart")
+    assert result.tool_was_called("excel-mcp-table")
+    assert_regex(result.final_response, r"(?is)(5 charts|five charts|charts\s*created[^0-9]*5)")
+    assert_regex(result.final_response, r"(?i)(column|line|pie|bar)")
+    assert_regex(result.final_response, r"(?i)(row 7|row seven|G2|near G2|no overlap|do not overlap)")

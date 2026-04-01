@@ -4,22 +4,22 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_aitest import Agent, Provider
+from conftest import (
+    build_excel_cli_eval,
+    assert_cli_exit_codes,
+    unique_path,
+)
 
-from conftest import assert_cli_exit_codes, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
-
-pytestmark = [pytest.mark.aitest, pytest.mark.cli]
+pytestmark = [pytest.mark.aitest, pytest.mark.copilot, pytest.mark.cli]
 
 
 @pytest.mark.asyncio
-async def test_cli_file_and_worksheet_workflow(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = Agent(
-        name="cli-file-worksheet",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
+async def test_cli_file_and_worksheet_workflow(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
+    agent = build_excel_cli_eval(
+        "cli-file-worksheet",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -40,6 +40,6 @@ On the Expenses sheet, add:
 
 Save the file when done.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)

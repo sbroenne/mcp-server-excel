@@ -20,7 +20,7 @@
 
 **💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
 
-**🧪 LLM-Tested Quality** - Tool behavior validated with real LLM workflows using [pytest-aitest](https://github.com/sbroenne/pytest-aitest). We test that LLMs correctly understand and use our tools.
+**🧪 LLM-Tested Quality** - Tool behavior validated with real LLM workflows using [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering). We test that LLMs correctly understand and use our tools.
 
 **Technical Requirements:**
 - ⚠️ **Windows Only** - COM interop is Windows-specific
@@ -215,7 +215,7 @@ The AI will display the Excel window so you can watch every operation happen liv
 
 Other projects by the author:
 
-- [pytest-aitest](https://github.com/sbroenne/pytest-aitest) — LLM-powered testing framework for AI agents
+- [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering) — LLM-powered testing framework for AI agents
 - [Windows MCP Server](https://windowsmcpserver.dev/) — AI-powered Windows automation via MCP
 - [OBS Studio MCP Server](https://github.com/sbroenne/mcp-server-obs) — AI-powered OBS Studio automation
 - [HeyGen MCP Server](https://github.com/sbroenne/heygen-mcp) — MCP server for HeyGen AI video generation

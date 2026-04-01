@@ -11,7 +11,7 @@ target_tests = [
 ]
 
 # Find the most recent file with CLI tests
-files = sorted(glob.glob("aitest-reports/results_pytest-aitest_*.json"), reverse=True)
+files = sorted(glob.glob("aitest-reports/results_*.json"), reverse=True)
 
 for f in files:
     with open(f) as fh:

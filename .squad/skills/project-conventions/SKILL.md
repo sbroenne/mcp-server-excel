@@ -39,6 +39,12 @@ ALL dynamic COM objects must be released in `finally` blocks using `ComUtilities
 - MCP Server: Return JSON with `isError: true` for business errors; throw McpException for validation
 - CLI: Wrap Core calls in try-catch, display with `AnsiConsole.MarkupLine`
 
+### MCP Schema Discoverability
+
+- For hand-written MCP tools, add `[Description("...")]` attributes to each exposed parameter that needs to appear in the published schema.
+- XML `/// <param>` comments are not enough by themselves for MCP client discoverability; verify the live schema with an integration test that calls `ListToolsAsync()`.
+- When fixing LLM discoverability bugs, preserve runtime aliases if needed, but make the canonical parameter pair explicit in both the parameter descriptions and the shared skill doc.
+
 ### Testing
 
 - Framework: xUnit with integration tests ONLY (no unit tests)

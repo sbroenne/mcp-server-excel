@@ -4,23 +4,23 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_aitest import Agent, Provider
+from conftest import (
+    build_excel_mcp_eval,
+    assert_regex,
+    unique_path,
+)
 
-from conftest import assert_regex, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
-
-pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
+pytestmark = [pytest.mark.aitest, pytest.mark.copilot, pytest.mark.mcp]
 
 
 @pytest.mark.asyncio
-async def test_mcp_styling_table_style(aitest_run, excel_mcp_server, excel_mcp_skill):
+async def test_mcp_styling_table_style(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
     """LLM should use table(set-style) for table visual styling, not range_format on header."""
-    agent = Agent(
-        name="mcp-styling-table",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+    agent = build_excel_mcp_eval(
+        "mcp-styling-table",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -37,22 +37,20 @@ with a visually appealing style.
 
 Close the file without saving.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("table")
+    assert result.tool_was_called("excel-mcp-table")
     assert_regex(result.final_response, r"(?i)(QuarterlySales|table|style)")
 
 
 @pytest.mark.asyncio
-async def test_mcp_styling_semantic_status(aitest_run, excel_mcp_server, excel_mcp_skill):
+async def test_mcp_styling_semantic_status(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
     """LLM should use range_format(set-style) with Good/Bad/Neutral for status cells."""
-    agent = Agent(
-        name="mcp-styling-status",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+    agent = build_excel_mcp_eval(
+        "mcp-styling-status",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -71,21 +69,19 @@ yellow or neutral for In Progress.
 
 Close the file without saving.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_regex(result.final_response, r"(?i)(format|style|colour|color|green|red|conditional)")
 
 
 @pytest.mark.asyncio
-async def test_mcp_styling_header_fill(aitest_run, excel_mcp_server, excel_mcp_skill):
+async def test_mcp_styling_header_fill(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
     """LLM should use format-range (not set-style) for a header row with a fill colour."""
-    agent = Agent(
-        name="mcp-styling-header",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+    agent = build_excel_mcp_eval(
+        "mcp-styling-header",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -102,7 +98,7 @@ centred horizontally.
 
 Close the file without saving.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("range_format")
+    assert result.tool_was_called("excel-mcp-range_format")
     assert_regex(result.final_response, r"(?i)(header|format|blue|white|bold)")

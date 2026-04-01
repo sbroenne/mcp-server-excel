@@ -4,22 +4,23 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_aitest import Agent, Provider
+from conftest import (
+    build_excel_cli_eval,
+    assert_cli_exit_codes,
+    assert_regex,
+    unique_path,
+)
 
-from conftest import assert_cli_exit_codes, assert_regex, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
-
-pytestmark = [pytest.mark.aitest, pytest.mark.cli]
+pytestmark = [pytest.mark.aitest, pytest.mark.copilot, pytest.mark.cli]
 
 
 @pytest.mark.asyncio
-async def test_cli_pivottable_tabular_layout(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = Agent(
-        name="cli-pivot-tabular",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
+async def test_cli_pivottable_tabular_layout(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
+    agent = build_excel_cli_eval(
+        "cli-pivot-tabular",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -45,22 +46,19 @@ Add Region and Product as row fields, and Sales as a value field.
 
 Save and close the file.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
     assert_regex(result.final_response, r"(?i)(pivot|tabular|created|success)")
 
 
-@pytest.mark.xfail(reason="Multi-step PivotTable+slicer workflow; LLM intermittently fails", strict=False)
 @pytest.mark.asyncio
-async def test_cli_pivottable_compact_layout(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = Agent(
-        name="cli-pivot-compact",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
+async def test_cli_pivottable_compact_layout(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
+    agent = build_excel_cli_eval(
+        "cli-pivot-compact",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -83,22 +81,19 @@ Add Department and Team as row fields, and Hours as a value field.
 
 Save and close the file.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
     assert_regex(result.final_response, r"(?i)(pivot|compact|created|success)")
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="LLM intermittently omits required action parameter on complex workflows", strict=False)
-async def test_cli_pivottable_outline_layout(aitest_run, excel_cli_server, excel_cli_skill):
-    agent = Agent(
-        name="cli-pivot-outline",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
+async def test_cli_pivottable_outline_layout(copilot_eval, excel_cli_servers, excel_cli_skill_dir):
+    agent = build_excel_cli_eval(
+        "cli-pivot-outline",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -123,7 +118,7 @@ Save and close the file.
 
 Summarize: What are the three PivotTable layout styles?
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
     assert_regex(result.final_response, r"(?i)(compact|tabular|outline)")

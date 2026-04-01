@@ -180,6 +180,7 @@ See `references/` for detailed guidance:
 
 - [Core execution rules and LLM guidelines](./references/behavioral-rules.md)
 - [Common mistakes to avoid](./references/anti-patterns.md)
+- [Bulk write performance optimization](./references/calculation.md)
 - [Data Model constraints and patterns](./references/workflows.md)
 - [Charts and formatting](./references/chart.md)
 - [Conditional formatting operations](./references/conditionalformat.md)

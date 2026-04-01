@@ -4,23 +4,22 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_aitest import Agent, Provider
+from conftest import (
+    build_excel_mcp_eval,
+    assert_regex,
+    unique_path,
+)
 
-from conftest import assert_regex, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
-
-pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
+pytestmark = [pytest.mark.aitest, pytest.mark.copilot, pytest.mark.mcp]
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="LLM intermittently omits required action parameter on complex workflows", strict=False)
-async def test_mcp_chart_position_below_data(aitest_run, excel_mcp_server, excel_mcp_skill):
-    agent = Agent(
-        name="mcp-chart-below",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+async def test_mcp_chart_position_below_data(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
+    agent = build_excel_mcp_eval(
+        "mcp-chart-below",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -38,22 +37,20 @@ async def test_mcp_chart_position_below_data(aitest_run, excel_mcp_server, excel
 6. Save and close the file
 7. Summarize the chart you created and its position.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("chart")
+    assert result.tool_was_called("excel-mcp-chart")
     # Looser assertion - just confirm chart work was done
-    assert result.final_response or result.tool_was_called("chart")
+    assert result.final_response or result.tool_was_called("excel-mcp-chart")
 
 
 @pytest.mark.asyncio
-async def test_mcp_chart_position_right_of_table(aitest_run, excel_mcp_server, excel_mcp_skill):
-    agent = Agent(
-        name="mcp-chart-right",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+async def test_mcp_chart_position_right_of_table(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
+    agent = build_excel_mcp_eval(
+        "mcp-chart-right",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         max_turns=25,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -70,8 +67,8 @@ async def test_mcp_chart_position_right_of_table(aitest_run, excel_mcp_server, e
 6. Save and close the file
 7. Confirm what you created.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("chart")
+    assert result.tool_was_called("excel-mcp-chart")
     # Loosen - either chart or table mentioned
-    assert result.final_response or result.tool_was_called("chart")
+    assert result.final_response or result.tool_was_called("excel-mcp-chart")

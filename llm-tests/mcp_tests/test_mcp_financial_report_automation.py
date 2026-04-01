@@ -4,148 +4,81 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_aitest import Agent, Provider
+from conftest import build_excel_mcp_eval, assert_regex, unique_path
 
-from conftest import assert_regex, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
-
-pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
+pytestmark = [pytest.mark.aitest, pytest.mark.copilot, pytest.mark.mcp]
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Complex multi-turn workflow; LLM intermittently omits action parameter", strict=False)
-async def test_mcp_financial_report_automation(aitest_run, excel_mcp_server, excel_mcp_skill):
-    agent = Agent(
-        name="mcp-financial-report",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
-        max_turns=25,
-        retries=DEFAULT_RETRIES,
+async def test_mcp_financial_report_automation(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
+    agent = build_excel_mcp_eval(
+        "mcp-financial-report",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
+        max_turns=30,
     )
 
-    messages = None
-
     prompt = f"""
-I need to automate the creation of our monthly financial report. Let me build this from scratch with data, formulas, and formatting.
+Create a new Excel workbook at {unique_path('financial-report-jan2025-mcp')}.
 
-STEP 1: Create the report file and structure
+Build a complete monthly financial report on Sheet1.
 
-Create {unique_path('financial-report-jan2025')}
-Open it and create the following structure in Sheet1:
+Section 1 - Revenue summary in A1:B6:
+- A1: Revenue Summary
+- A2:B4:
+  Product Sales, 450000
+  Service Revenue, 125000
+  Other Income, 18500
+- A5:B5: Total Revenue with formula =SUM(B2:B4)
 
-In A1:B6, create the revenue section:
-Revenue Summary,
-Product Sales, 450000
-Service Revenue, 125000
-Other Income, 18500
-Total Revenue, (formula: =SUM(B2:B4))
+Section 2 - Expense summary in A8:B12:
+- A8: Operating Expenses
+- A9:B11:
+  Salaries, 280000
+  Rent, 35000
+  Utilities, 12000
+- A12:B12: Total Expenses with formula =SUM(B9:B11)
 
-In A8:B12, create the expense section:
-Operating Expenses,
-Salaries, 280000
-Rent, 35000
-Utilities, 12000
-Total Expenses, (formula: =SUM(B9:B11))
+Section 3 - Net income in A14:B15:
+- A14: Net Income
+- B15 should calculate =B5-B12
 
-In A14:B15:
-Net Income, (formula: =B6-B12)
+Format the report professionally:
+- make A1, A8, and A14 bold,
+- format all monetary cells as currency with 2 decimals,
+- apply alternating row colors to the expense section,
+- set column widths to A=25 and B=15.
 
-STEP 2: Format the report professionally
+Then add a variance analysis:
+- Put Budget in D1 and Variance in E1.
+- Add budget values for Product Sales 440000, Service Revenue 110000, Other Income 20000,
+  Salaries 290000, Rent 35000, Utilities 15000.
+- Add variance formulas as Actual minus Budget for each line item and for the totals.
+- Update Product Sales actuals from 450000 to 455000 and let formulas recalculate.
 
-- Make headers (A1, A8, A14) bold
-- Format all currency amounts (B2:B4, B9:B11, B6, B12, B15) as currency (2 decimals)
-- Apply alternating row colors to the expense section
-- Set column widths: A=25, B=15
+Finally, add an executive summary table in A17:B22:
+- KPI, Value
+- Total Revenue (linked to the revenue total),
+- Total Expenses (linked to the expense total),
+- Net Income (linked to the net income),
+- Profit Margin % with a formula based on Net Income / Total Revenue,
+- YoY Growth % with a static value of 8.5%.
+- Format the summary header with a light blue background, currency cells as currency,
+  and percentages with 1 decimal place.
 
-STEP 3: Verify calculations
-
-Read the calculated values:
-- Total Revenue
-- Total Expenses
-- Net Income
-
-Report all three values to confirm formulas are working.
+Save the workbook and report:
+- Total Revenue,
+- Product Sales variance,
+- Net Income,
+- Profit Margin percentage,
+- confirmation that formulas recalculated correctly,
+- confirmation that the file was saved.
 """
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
+
+    result = await copilot_eval(agent, prompt)
     assert result.success
-    assert_regex(result.final_response, r"(?i)(450000|revenue|net income|formula)")
-    messages = result.messages
-
-    prompt = """
-Great! Now add a variance analysis. I need to compare actual vs. budget.
-
-STEP 1: Add Budget data
-
-In column D, add Budget column header, then budget figures:
-- Product Sales Budget: 440000
-- Service Revenue Budget: 110000
-- Other Income Budget: 20000
-- Salaries Budget: 290000
-- Rent Budget: 35000
-- Utilities Budget: 15000
-
-STEP 2: Add Variance formulas
-
-In column E (labeled "Variance"), add formulas that calculate:
-- Variance = Actual - Budget for each line item
-- For totals, show the variance calculations too
-
-STEP 3: Update one actual value
-
-Product Sales actually came in at 455000 (not 450000). Update B2 to reflect this.
-Verify that:
-- The variance in E2 automatically recalculates
-- The Total Revenue in B6 updates automatically
-- The Net Income in B15 updates automatically
-
-STEP 4: Report final numbers
-
-Provide:
-- New Total Revenue
-- Product Sales Variance (actual vs. budget)
-- New Net Income
-- Confirm all formulas are still working
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_regex(result.final_response, r"(?i)(variance|455000|formula|recalculate|updated)")
-    messages = result.messages
-
-    prompt = """
-Perfect! Let me create a summary dashboard at the bottom and finalize the report.
-
-STEP 1: Create Executive Summary Table
-
-In A17:B22, create a summary table:
-KPI, Value
-Total Revenue, (formula referencing B6)
-Total Expenses, (formula referencing B12)
-Net Income, (formula referencing B15)
-Profit Margin %, (formula: =B20/B18*100, formatted as percentage)
-YoY Growth %, 8.5%
-
-STEP 2: Format the summary
-- Make the table header (A17:B17) bold with light blue background
-- Format currency cells appropriately
-- Format percentage to 1 decimal place
-
-STEP 3: Final validation
-
-Read the used range of the sheet - should show everything is there and formatted.
-
-Get the Profit Margin % value to verify it calculated correctly:
-Should be approximately: (573500 / 455000 + 125000 + 18500) * 100
-
-STEP 4: Save the report
-
-Save the file with all changes.
-
-Report:
-- Total Revenue amount
-- Net Income amount
-- Profit Margin percentage
-- Confirmation file was saved
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_regex(result.final_response, r"(?i)(summary|margin|saved|598500|complete)")
+    assert_regex(result.final_response, r"\$?598[\,.]?500(\.00)?")
+    assert_regex(result.final_response, r"\$?15[\,.]?000(\.00)?")
+    assert_regex(result.final_response, r"\$?271[\,.]?500(\.00)?")
+    assert_regex(result.final_response, r"(?i)(45\.4|45\.3|profit margin)")
+    assert_regex(result.final_response, r"(?i)(recalculated|formula|saved)")

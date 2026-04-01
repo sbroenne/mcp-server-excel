@@ -82,17 +82,22 @@ deleting and recreating the chart.
 The system prompt belongs to the agent, not to us. We don't control what system prompt VS Code, Cursor, Claude Desktop, or any other host uses.
 
 ```python
-# ❌ WRONG: Adding our own guidance to the system prompt
-agent = Agent(
-    system_prompt=(
+# ❌ WRONG: Overloading the eval with custom system-prompt-style instructions
+agent = build_excel_cli_eval(
+    "bad-example",
+    servers=excel_cli_servers,
+    skill_dir=excel_cli_skill_dir,
+    instructions=(
         "Run 'excelcli <command> --help' when unsure about parameter names\n"
         "Always use -q flag for clean JSON output"
     ),
 )
 
-# ✅ CORRECT: No system prompt (use skill only) or minimal role context
-agent = Agent(
-    skill=excel_cli_skill,  # Our product — this IS the right place for guidance
+# ✅ CORRECT: Use the shared harness defaults or only minimal role context
+agent = build_excel_cli_eval(
+    "good-example",
+    servers=excel_cli_servers,
+    skill_dir=excel_cli_skill_dir,
 )
 ```
 
@@ -215,35 +220,39 @@ If the LLM consistently gets a parameter name wrong, the name might be confusing
 ### Agent Configuration
 
 ```python
-agent = Agent(
-    name="descriptive-test-name",
-    provider=Provider(model=f"azure/{DEFAULT_MODEL}", rpm=DEFAULT_RPM, tpm=DEFAULT_TPM),
-    cli_servers=[excel_cli_server],   # CLI tests
-    # OR
-    mcp_servers=[excel_mcp_server],   # MCP tests
-    skill=excel_cli_skill,            # Our product documentation
+agent = build_excel_cli_eval(
+    "descriptive-test-name",
+    servers=excel_cli_servers,        # CLI tests
+    skill_dir=excel_cli_skill_dir,    # Our product documentation
     max_turns=DEFAULT_MAX_TURNS,      # Always set explicitly
+)
+
+# OR
+
+agent = build_excel_mcp_eval(
+    "descriptive-test-name",
+    servers=excel_mcp_servers,        # MCP tests
+    skill_dir=excel_mcp_skill_dir,
+    max_turns=DEFAULT_MAX_TURNS,
 )
 ```
 
 - **Always set `max_turns`** explicitly — relying on defaults creates silent failures
-- **No custom `system_prompt`** unless testing a specific user persona (rare)
-- **Always include `skill`** — this is our product's documentation
+- **No custom eval instructions** unless testing a specific user persona (rare)
+- **Always include the skill directory** — this is our product's documentation
 
-### Multi-Turn Tests
+### Single-Prompt Workflows
 
-Each turn should be a natural continuation of the conversation:
+Prefer a single end-to-end prompt over multi-turn session emulation:
 
 ```python
-# Turn 1: Set up
-result = await aitest_run(agent, "Create file and enter data...")
-messages = result.messages
-
-# Turn 2: Analyze (natural continuation)
-result = await aitest_run(agent, "Now create a PivotTable from that data...", messages=messages)
+result = await copilot_eval(
+    agent,
+    "Create a file, enter data, build a PivotTable, add a slicer, save it, and report the totals."
+)
 ```
 
-Keep multi-turn tests to **2-3 turns maximum**. If you need 5 turns, the test is testing too many features at once — split it into separate tests.
+If a workflow becomes too large, split it into multiple independent tests rather than passing conversation state between turns.
 
 ## MCP/CLI Test Sync Rule (CRITICAL)
 
@@ -268,7 +277,7 @@ Keep multi-turn tests to **2-3 turns maximum**. If you need 5 turns, the test is
 
 ### Rules for Creating / Updating / Deleting Tests
 
-1. **Creating a new test:** ALWAYS create BOTH the CLI and MCP version. Name them identically except for the prefix (`test_cli_` vs `test_mcp_`). The prompt text should be identical — only the agent configuration differs (cli_servers vs mcp_servers, cli skill vs mcp skill).
+1. **Creating a new test:** ALWAYS create BOTH the CLI and MCP version. Name them identically except for the prefix (`test_cli_` vs `test_mcp_`). The prompt text should be identical or nearly identical — only the harness setup should differ.
 
 2. **Updating a test:** Update BOTH the CLI and MCP version. If you change the prompt or assertions in one, apply the same change to the other. The test scenario must remain equivalent.
 
@@ -282,18 +291,18 @@ The ONLY differences between CLI and MCP versions of a test should be:
 
 ```python
 # CLI version
-agent = Agent(
-    name="test-name-cli",
-    cli_servers=[excel_cli_server],
-    skill=excel_cli_skill,
+agent = build_excel_cli_eval(
+    "test-name-cli",
+    servers=excel_cli_servers,
+    skill_dir=excel_cli_skill_dir,
     ...
 )
 
 # MCP version
-agent = Agent(
-    name="test-name-mcp",
-    mcp_servers=[excel_mcp_server],
-    skill=excel_mcp_skill,
+agent = build_excel_mcp_eval(
+    "test-name-mcp",
+    servers=excel_mcp_servers,
+    skill_dir=excel_mcp_skill_dir,
     ...
 )
 ```

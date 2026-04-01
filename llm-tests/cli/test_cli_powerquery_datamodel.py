@@ -4,198 +4,107 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_aitest import Agent, Provider
-
 from conftest import (
+    build_excel_cli_eval,
     assert_cli_args_contain,
     assert_cli_exit_codes,
     assert_regex,
     unique_path,
-    DEFAULT_RETRIES,
-    DEFAULT_TIMEOUT_MS,
 )
 
-pytestmark = [pytest.mark.aitest, pytest.mark.cli]
+pytestmark = [pytest.mark.aitest, pytest.mark.copilot, pytest.mark.cli]
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Multi-step star schema workflow is fragile with LLM", strict=False)
-async def test_cli_star_schema_workflow(aitest_run, excel_cli_server, excel_cli_skill, fixtures_dir):
-    agent = Agent(
-        name="cli-star-schema",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
+async def test_cli_star_schema_workflow(copilot_eval, excel_cli_servers, excel_cli_skill_dir, fixtures_dir):
+    agent = build_excel_cli_eval(
+        "cli-star-schema",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
         max_turns=30,
-        retries=DEFAULT_RETRIES,
     )
 
     products_json = (fixtures_dir / "products-dimension.json").as_posix()
     orders_json = (fixtures_dir / "orders-fact.json").as_posix()
 
-    messages = None
-
     prompt = f"""
-I need to set up a proper star schema for analysis.
+Using the Excel CLI tool, create a new workbook at {unique_path('star-schema-cli')}.
 
-Create a new Excel file at {unique_path('star-schema-cli')}
+Build a complete star-schema workflow:
 
-Create a sheet called "Products" and write the data from this JSON file to range A1:
+1. Create a Products sheet and write the JSON data from this file to A1:
 {products_json}
 
-IMPORTANT: JSON arrays with commas break CLI argument parsing.
-You MUST use --values-file with the path above instead of --values with inline JSON.
-
-Then make it a table called "Products" and add it to the Data Model.
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_cli_exit_codes(result)
-    assert_cli_args_contain(result, "--values-file")
-    messages = result.messages
-
-    prompt = f"""
-Now let's add the transaction data.
-
-Create a new sheet called "Orders" and write the data from this JSON file to range A1:
+2. Create an Orders sheet and write the JSON data from this file to A1:
 {orders_json}
 
-IMPORTANT: JSON arrays with commas break CLI argument parsing.
-You MUST use --values-file with the path above.
+IMPORTANT:
+- JSON arrays with commas break CLI argument parsing.
+- You must use --values-file for both datasets instead of inline --values.
 
-Then make it a table called "Orders" and add it to the Data Model.
+Then:
+- convert the Products range into a table named Products and add it to the Data Model,
+- convert the Orders range into a table named Orders and add it to the Data Model,
+- create a relationship between Orders[ProductID] and Products[ProductID],
+- create a PivotTable on a new sheet showing product category rows with sum of Quantity as values,
+- add a pie chart showing quantity distribution by category,
+- save the workbook.
+
+Report:
+- whether Electronics or Furniture has more total quantity,
+- confirmation that both tables were added to the Data Model,
+- confirmation that the relationship, PivotTable, and chart were created.
 """
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
+
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
     assert_cli_args_contain(result, "--values-file")
-    messages = result.messages
-
-    prompt = """
-Now link the tables together.
-
-Create a relationship between the Orders and Products tables using ProductID.
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_cli_exit_codes(result)
-    messages = result.messages
-
-    prompt = """
-Now for the analysis! Create a PivotTable on a new sheet that shows:
-- Product Categories as rows (from the Products table)
-- Sum of Quantity as the values (from the Orders table)
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"(?i)(pivot|electronics|furniture|category)")
-    messages = result.messages
-
-    prompt = """
-Add a pie chart showing the quantity distribution by category.
-
-Save and close the file.
-
-Which category had more orders - Electronics or Furniture?
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"(?i)(pie|chart|saved|closed|success)")
+    assert_regex(result.final_response, r"(?i)(electronics|furniture)")
+    assert_regex(result.final_response, r"(?i)(relationship|pivot|chart|data model)")
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(reason="Multi-step powerquery workflow is fragile with LLM", strict=False)
-async def test_cli_powerquery_products_workflow(
-    aitest_run, excel_cli_server, excel_cli_skill, fixtures_dir
-):
-    agent = Agent(
-        name="cli-pq-products",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        cli_servers=[excel_cli_server],
-        skill=excel_cli_skill,
-        max_turns=30,
-        retries=DEFAULT_RETRIES,
+async def test_cli_powerquery_products_workflow(copilot_eval, excel_cli_servers, excel_cli_skill_dir, fixtures_dir):
+    agent = build_excel_cli_eval(
+        "cli-pq-products",
+        servers=excel_cli_servers,
+        skill_dir=excel_cli_skill_dir,
+        max_turns=35,
     )
 
     mcode_file = (fixtures_dir / "products-powerquery.m").as_posix()
 
-    messages = None
-
     prompt = f"""
-I want to analyze product sales data using Power Query.
+Using the Excel CLI tool, create a new workbook at {unique_path('products-analysis-cli')}.
 
-Create a new Excel file at {unique_path('products-analysis-cli')}
-
-Use Power Query to create a query named "Products" using the M code from this file:
+Use Power Query to create a query named Products from this M code file:
 {mcode_file}
 
-IMPORTANT: M code contains special characters that break CLI parsing.
-You MUST use --mcode-file with the path above. Do NOT try inline --mcode.
+IMPORTANT:
+- M code contains characters that break CLI inline parsing.
+- You must use --mcode-file with the path above instead of inline --mcode.
 
-Load the query to a worksheet (the default behavior).
+Then:
+- load the Products query to a worksheet as a table,
+- add the loaded Products table to the Data Model,
+- explain which columns are dimensions and which are facts/measures,
+- create DAX measures for Average Rating, Total Products, Average Price, and Total Revenue,
+- create a PivotTable on a new sheet with category rows and Total Products plus Average Rating as values,
+- add a bar chart for that analysis,
+- save the workbook.
+
+Report:
+- confirmation that the Power Query import succeeded,
+- confirmation that the table is in the Data Model,
+- which category has the most products,
+- a short summary of the measures you created,
+- confirmation that the chart was created and the file was saved.
 """
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
+
+    result = await copilot_eval(agent, prompt)
     assert result.success
     assert_cli_exit_codes(result)
     assert_cli_args_contain(result, "--mcode-file")
-    messages = result.messages
-
-    prompt = """
-The Products data from the Power Query is on a worksheet as an Excel Table, but I need it in Power Pivot (the Data Model) for DAX analysis.
-
-Add the Products table to the Data Model so I can create DAX measures on it.
-
-After adding to the Data Model, analyze the data structure:
-- Which columns are dimensions (descriptive attributes for slicing/filtering)?
-- Which columns are facts/measures (numeric values to aggregate)?
-
-Confirm the table is now in the Data Model and ready for DAX measures.
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"(?i)(dimension|fact|data.?model|added)")
-    messages = result.messages
-
-    prompt = """
-Now create some useful DAX measures on your Products table in the Data Model:
-
-1. Average Rating: AVERAGE(Products[Rating])
-2. Total Products: COUNTROWS(Products)
-3. Average Price: AVERAGE(Products[Price])
-4. Total Revenue: SUM(Products[Price])
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"(?i)(measure|rating|price|revenue|created)")
-    messages = result.messages
-
-    prompt = """
-Create a PivotTable on a new sheet using your star schema.
-
-Show product categories as rows with Total Products and Average Rating as values.
-
-Which category has the most products and what's their average rating?
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"(?i)(pivot|category|rating|products)")
-    messages = result.messages
-
-    prompt = """
-Add a bar chart showing:
-- Categories on the X-axis
-- Total Products and Average Rating as values
-
-Save and close the file.
-
-Summarize the star schema you built: how many dimension tables, fact tables, relationships, and measures did you create?
-"""
-    result = await aitest_run(agent, prompt, messages=messages, timeout_ms=DEFAULT_TIMEOUT_MS)
-    assert result.success
-    assert_cli_exit_codes(result)
-    assert_regex(result.final_response, r"(?i)(chart|star.?schema|dimension|fact|relationship|measure|saved|closed)")
+    assert_regex(result.final_response, r"(?i)(dimension|fact|measure|data model)")
+    assert_regex(result.final_response, r"(?i)(chart|saved)")

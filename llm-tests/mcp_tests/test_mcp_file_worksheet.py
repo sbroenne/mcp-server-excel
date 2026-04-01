@@ -4,22 +4,21 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_aitest import Agent, Provider
+from conftest import (
+    build_excel_mcp_eval,
+    unique_path,
+)
 
-from conftest import unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
-
-pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
+pytestmark = [pytest.mark.aitest, pytest.mark.copilot, pytest.mark.mcp]
 
 
 @pytest.mark.asyncio
-async def test_mcp_file_and_worksheet_workflow(aitest_run, excel_mcp_server, excel_mcp_skill):
-    agent = Agent(
-        name="mcp-file-worksheet",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+async def test_mcp_file_and_worksheet_workflow(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
+    agent = build_excel_mcp_eval(
+        "mcp-file-worksheet",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         max_turns=25,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -40,5 +39,5 @@ On the Expenses sheet, add:
 
 Save the file when done.
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success

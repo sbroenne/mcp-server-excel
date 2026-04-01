@@ -4,22 +4,22 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_aitest import Agent, Provider
+from conftest import (
+    build_excel_mcp_eval,
+    assert_regex,
+    unique_path,
+)
 
-from conftest import assert_regex, unique_path, DEFAULT_RETRIES, DEFAULT_TIMEOUT_MS
-
-pytestmark = [pytest.mark.aitest, pytest.mark.mcp]
+pytestmark = [pytest.mark.aitest, pytest.mark.copilot, pytest.mark.mcp]
 
 
 @pytest.mark.asyncio
-async def test_mcp_range_set_get(aitest_run, excel_mcp_server, excel_mcp_skill, fixtures_dir):
-    agent = Agent(
-        name="mcp-range",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+async def test_mcp_range_set_get(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir, fixtures_dir):
+    agent = build_excel_mcp_eval(
+        "mcp-range",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
     values_file = (fixtures_dir / "range-test-data.json").as_posix()
 
@@ -31,21 +31,19 @@ async def test_mcp_range_set_get(aitest_run, excel_mcp_server, excel_mcp_skill, 
 3. Read back the data from A1:C2 to verify it was written correctly
 4. Close the file without saving
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
-    assert result.tool_was_called("range")
+    assert result.tool_was_called("excel-mcp-range")
     assert_regex(result.final_response, r"(?i)(Product)")
 
 
 @pytest.mark.asyncio
-async def test_mcp_range_error_handling(aitest_run, excel_mcp_server, excel_mcp_skill):
-    agent = Agent(
-        name="mcp-range-error",
-        provider=Provider(model="azure/gpt-4.1", rpm=10, tpm=10000),
-        mcp_servers=[excel_mcp_server],
-        skill=excel_mcp_skill,
+async def test_mcp_range_error_handling(copilot_eval, excel_mcp_servers, excel_mcp_skill_dir):
+    agent = build_excel_mcp_eval(
+        "mcp-range-error",
+        servers=excel_mcp_servers,
+        skill_dir=excel_mcp_skill_dir,
         max_turns=20,
-        retries=DEFAULT_RETRIES,
     )
 
     prompt = f"""
@@ -53,5 +51,5 @@ async def test_mcp_range_error_handling(aitest_run, excel_mcp_server, excel_mcp_
 2. Try to get values from a large range like A1:Z1000 to see what happens
 3. Then close the file without saving
 """
-    result = await aitest_run(agent, prompt, timeout_ms=DEFAULT_TIMEOUT_MS)
+    result = await copilot_eval(agent, prompt)
     assert result.success
