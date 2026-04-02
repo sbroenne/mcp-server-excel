@@ -496,3 +496,24 @@ CALCULATION MODE (Performance Optimization):
 - All meaningful changes require team consensus
 - Document architectural decisions here
 - Keep history focused on work, decisions focused on direction
+
+---
+
+## Pre-Commit Hook Release Gates (2026-04-02)
+
+**Date:** 2026-04-02  
+**Context:** Release workflow run 23886836872 failed because VS Code extension packaging step detected a dependency version mismatch (`engines.vscode ^1.109.0` vs `@types/vscode ^1.110.0`). Lighter pre-commit checks (install, compile) did not catch this; only the full `npm run package` step exercised the release-time validation.
+
+**Decision:** Extend `scripts/pre-commit.ps1` to include VS Code extension packaging as a mandatory gate. This ensures release-blocking packaging failures are caught before publication.
+
+**Evidence (by Nate):**
+- `cd vscode-extension && npm install` → ✅ PASS
+- `cd vscode-extension && npm run compile` → ✅ PASS  
+- `cd vscode-extension && npm run package` → ❌ FAIL (reproduces exact release error)
+
+**Action (by Trejo):**
+1. Added VS Code extension packaging gate to `scripts/pre-commit.ps1`
+2. Updated `vscode-extension/package.json`: `engines.vscode` → `^1.110.0`
+3. Updated `docs/PRE-COMMIT-SETUP.md` and `.github/copilot-instructions.md` to reflect new gate
+
+**Status:** ✅ Complete. Pre-commit hook now validates packaging; gate list synchronized with script. Known blocker: CLI session close failure prevents full pre-commit validation on current HEAD (separate issue, awaiting diagnosis).
