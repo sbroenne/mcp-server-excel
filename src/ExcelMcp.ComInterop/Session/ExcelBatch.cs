@@ -204,14 +204,20 @@ internal sealed class ExcelBatch : IExcelBatch
                     _logger.LogWarning(ex, "Failed to capture Excel process ID. Force-kill will not be available.");
                 }
 
-                // Disable macro security warnings for unattended automation
-                // msoAutomationSecurityForceDisable = 3 (disable all macros, no prompts)
+                // Workbook macro execution must remain available for explicit VBA operations on
+                // reopened .xlsm sessions. Force-disabling macros at open makes vba.run impossible
+                // later in the same batch. Keep non-macro workbooks on ForceDisable, but allow
+                // macro-enabled workbook opens to use Low.
+                // msoAutomationSecurityLow = 1
+                // msoAutomationSecurityForceDisable = 3
                 // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
                 // PIA gap: MsoAutomationSecurity is in office.dll (Microsoft.Office.Core) which is NOT bundled
                 // with the Excel PIA NuGet package. Casting tempExcel to (object) first forces pure IDispatch
                 // binding so the DLR never tries to load office.dll to resolve the MsoAutomationSecurity type.
                 // Without (object) cast: ((dynamic)Excel.Application) retains COM type metadata → office.dll load → crash.
-                ((dynamic)(object)tempExcel).AutomationSecurity = 3;
+                bool opensMacroEnabledWorkbook = _isMacroEnabled ||
+                    _allWorkbookPaths.Any(path => string.Equals(Path.GetExtension(path), ".xlsm", StringComparison.OrdinalIgnoreCase));
+                ((dynamic)(object)tempExcel).AutomationSecurity = opensMacroEnabledWorkbook ? 1 : 3;
 
                 // Open or create workbooks in the same Excel instance
                 var tempWorkbooks = new Dictionary<string, Excel.Workbook>(StringComparer.OrdinalIgnoreCase);

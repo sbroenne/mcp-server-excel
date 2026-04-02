@@ -698,7 +698,7 @@ Table column, filtering, and sorting operations for Excel Tables (ListObjects). 
 
 ### vba
 
-VBA scripts (requires .xlsm and VBA trust enabled). PREREQUISITES: - Workbook must be macro-enabled (.xlsm) - VBA trust must be enabled for automation RUN: procedureName format is 'Module.Procedure' (e.g., 'Module1.MySub').
+VBA module and procedure operations for macro-enabled workbooks (.xlsm). PREREQUISITES: - Workbook must be macro-enabled (.xlsm) - VBA trust must be enabled manually in Excel for project access SCOPE: - List and view existing VBA components and their procedures - Import creates new standard modules from inline code or a file - Update/delete works on existing VBA components by name - Run executes a procedure by name RUN: procedureName format is 'Module.Procedure' (e.g., 'Module1.MySub'). ExcelMcp does not configure VBA trust settings for you.
 
 **Actions:** `list`, `view`, `import`, `update`, `run`, `delete`
 
@@ -706,7 +706,7 @@ VBA scripts (requires .xlsm and VBA trust enabled). PREREQUISITES: - Workbook mu
 |-----------|-------------|
 | `--module-name` | Name of the VBA module (required for: view, import, update, delete) |
 | `--vba-code` | VBA code to import (required for: import, update) |
-| `--procedure-name` | Name of the procedure to run (e.g., "Module1.MySub") (required for: run) |
+| `--procedure-name` | Name of the procedure to run (for example "Module1.MySub") (required for: run) |
 | `--timeout` | Optional timeout for execution |
 | `--parameters` | Optional parameters to pass to the procedure (required for: run) |
 

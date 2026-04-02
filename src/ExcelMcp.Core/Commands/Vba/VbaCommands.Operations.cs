@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -13,22 +16,32 @@ public partial class VbaCommands
     /// <inheritdoc />
     public OperationResult Run(IExcelBatch batch, string procedureName, TimeSpan? timeout, params string[] parameters)
     {
+        parameters ??= [];
+
         var (isValid, validationError) = ValidateVbaFile(batch.WorkbookPath);
         if (!isValid)
         {
             throw new ArgumentException(validationError, nameof(batch));
         }
 
-        // Check VBA trust BEFORE attempting operation
-        if (!IsVbaTrustEnabled())
-        {
-            throw new InvalidOperationException(VbaTrustErrorMessage);
-        }
-
         return batch.Execute((ctx, ct) =>
         {
+            var originalCulture = CultureInfo.CurrentCulture;
+            var originalUiCulture = CultureInfo.CurrentUICulture;
+            object? originalAutomationSecurity = null;
             try
             {
+                var excelCulture = CultureInfo.GetCultureInfo("en-US");
+                CultureInfo.CurrentCulture = excelCulture;
+                CultureInfo.CurrentUICulture = excelCulture;
+
+                // Explicit macro execution is an opt-in operation. Temporarily switch automation
+                // security to low so Application.Run can execute on workbooks reopened by the
+                // automation host, then restore the previous setting after the call.
+                dynamic app = (dynamic)(object)ctx.App;
+                originalAutomationSecurity = app.AutomationSecurity;
+                app.AutomationSecurity = 1;
+
                 // Use late-bound COM dispatch via Type.InvokeMember to avoid dependency on
                 // Microsoft.Vbe.Interop.dll, which is not available on Click-to-Run Office
                 // installations. The early-bound PIA call ctx.App.Run() triggers assembly
@@ -40,20 +53,41 @@ public partial class VbaCommands
                     args[i + 1] = parameters[i];
                 }
 
-                ctx.App.GetType().InvokeMember(
+                var excelApplicationType = Type.GetTypeFromProgID("Excel.Application")
+                    ?? throw new InvalidOperationException("Excel is not installed or not properly registered.");
+
+                excelApplicationType.InvokeMember(
                     "Run",
-                    System.Reflection.BindingFlags.InvokeMethod,
+                    BindingFlags.InvokeMethod,
                     null,
                     ctx.App,
                     args,
-                    System.Globalization.CultureInfo.InvariantCulture);
+                    excelCulture);
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
-            catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
-                                             comEx.ErrorCode == unchecked((int)0x800A03EC))
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
             {
-                throw new InvalidOperationException(VbaTrustErrorMessage, comEx);
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw;
+            }
+            finally
+            {
+                if (originalAutomationSecurity != null)
+                {
+                    try
+                    {
+                        // PIA gap: AutomationSecurity lives in office.dll (Microsoft.Office.Core),
+                        // so restoring it must stay late-bound to avoid loading a missing Office core assembly.
+                        ((dynamic)(object)ctx.App).AutomationSecurity = originalAutomationSecurity;
+                    }
+                    catch (COMException)
+                    {
+                    }
+                }
+
+                CultureInfo.CurrentCulture = originalCulture;
+                CultureInfo.CurrentUICulture = originalUiCulture;
             }
         });
     }

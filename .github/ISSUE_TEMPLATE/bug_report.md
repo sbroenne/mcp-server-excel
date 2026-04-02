@@ -54,7 +54,7 @@ If applicable, paste the full error message:
 If possible, attach a sample Excel file that reproduces the issue (remove sensitive data).
 
 ## VBA-Related Issues (if applicable)
-- [ ] VBA trust is properly configured (`ExcelMcp check-vba-trust`)
+- [ ] Excel Trust Center setting "Trust access to the VBA project object model" is enabled
 - [ ] Using .xlsm file format for VBA commands
 - [ ] VBA module exists in the workbook
 - [ ] Macro security settings allow programmatic access

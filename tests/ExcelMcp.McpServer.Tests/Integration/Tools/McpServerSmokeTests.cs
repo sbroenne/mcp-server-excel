@@ -649,6 +649,92 @@ in
         _output.WriteLine("✓ Atomic operation (copy-to-file) correctly works without session requirement!");
     }
 
+    [Fact]
+    public async Task VbaRun_OnMacroWorkbook_ViaMcpProtocol_ExecutesAndPersistsWorkbookSideEffect()
+    {
+        _output.WriteLine("\n✓ Testing vba.run end-to-end via MCP protocol...");
+
+        var macroWorkbook = Path.Join(_tempDir, "VbaRunProof.xlsm");
+
+        var createResult = await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "create",
+            ["path"] = macroWorkbook
+        });
+        AssertSuccess(createResult, "Create macro workbook");
+        var sessionId = GetJsonProperty(createResult, "session_id");
+        Assert.NotNull(sessionId);
+
+        var importResult = await CallToolAsync("vba", new Dictionary<string, object?>
+        {
+            ["action"] = "import",
+            ["path"] = macroWorkbook,
+            ["session_id"] = sessionId,
+            ["module_name"] = "TransportProof",
+            ["vba_code"] = """
+Sub WriteTransportProof()
+    ThisWorkbook.Sheets(1).Range("A1").Value = "mcp-vba-run-ok"
+End Sub
+"""
+        });
+        AssertSuccess(importResult, "Import VBA module");
+
+        var runResult = await CallToolAsync("vba", new Dictionary<string, object?>
+        {
+            ["action"] = "run",
+            ["path"] = macroWorkbook,
+            ["session_id"] = sessionId,
+            ["procedure_name"] = "TransportProof.WriteTransportProof"
+        });
+        AssertSuccess(runResult, "Run VBA procedure");
+
+        var getValuesResult = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "get-values",
+            ["path"] = macroWorkbook,
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Sheet1",
+            ["range_address"] = "A1"
+        });
+        AssertSuccess(getValuesResult, "Read VBA side effect");
+        Assert.Equal("mcp-vba-run-ok", GetFirstCellValue(getValuesResult));
+
+        var closeResult = await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "close",
+            ["session_id"] = sessionId,
+            ["save"] = true
+        });
+        AssertSuccess(closeResult, "Close macro workbook");
+
+        var reopenedResult = await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "open",
+            ["path"] = macroWorkbook
+        });
+        AssertSuccess(reopenedResult, "Reopen macro workbook");
+        var reopenedSessionId = GetJsonProperty(reopenedResult, "session_id");
+        Assert.NotNull(reopenedSessionId);
+
+        var persistedValueResult = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "get-values",
+            ["path"] = macroWorkbook,
+            ["session_id"] = reopenedSessionId,
+            ["sheet_name"] = "Sheet1",
+            ["range_address"] = "A1"
+        });
+        AssertSuccess(persistedValueResult, "Read persisted VBA side effect");
+        Assert.Equal("mcp-vba-run-ok", GetFirstCellValue(persistedValueResult));
+
+        await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "close",
+            ["session_id"] = reopenedSessionId,
+            ["save"] = false
+        });
+    }
+
     /// <summary>
     /// Calls a tool via the MCP protocol and returns the text response.
     /// </summary>
@@ -711,6 +797,14 @@ in
         {
             Assert.Fail($"{operationName} returned invalid JSON: {ex.Message}\nResponse: {jsonResult}");
         }
+    }
+
+    private static string? GetFirstCellValue(string jsonResult)
+    {
+        using var json = JsonDocument.Parse(jsonResult);
+        return json.RootElement
+            .GetProperty("values")[0][0]
+            .GetString();
     }
 
     /// <summary>

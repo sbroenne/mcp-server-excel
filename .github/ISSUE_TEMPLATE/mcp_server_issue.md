@@ -96,7 +96,7 @@ AI: [response]
   - [ ] External connections
 
 ## VBA-Related Issues (if applicable)
-- [ ] VBA trust is properly configured (`ExcelMcp check-vba-trust`)
+- [ ] Excel Trust Center setting "Trust access to the VBA project object model" is enabled
 - [ ] Using .xlsm file format for VBA operations
 - [ ] VBA module exists in the workbook
 - [ ] Macro security settings allow programmatic access
