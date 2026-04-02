@@ -99,7 +99,7 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ### 🔧 Excel Development Automation
 - **Power Query Management** - Export, import, update, and version control M code
-- **VBA Development** - Manage VBA modules, run macros, automated testing
+- **VBA Development** - Manage VBA modules and run procedures in `.xlsm` workbooks
 - **Data Model & DAX** - Create measures, manage relationships, Power Pivot operations
 - **PivotTable Automation** - Create, configure, and manage PivotTables programmatically
 - **Conditional Formatting** - Add rules (cell value, expression-based), clear formatting
@@ -237,8 +237,8 @@ excelcli -q session close --session <id>
 
 **Power Query ETL:**
 ```powershell
-excelcli powerquery create --session 1 --query "CleanData" --mcode-file transform.pq
-excelcli powerquery refresh --session 1 --query "CleanData"
+excelcli powerquery create --session 1 --query-name "CleanData" --m-code-file transform.pq
+excelcli powerquery refresh --session 1 --query-name "CleanData"
 ```
 
 **PivotTable from Data Model:**
@@ -250,8 +250,8 @@ excelcli pivottable add-value-field --session 1 --pivot-table SalesPivot --field
 
 **VBA automation:**
 ```powershell
-excelcli vba import --session 1 --module "Helpers" --code-file helpers.vba
-excelcli vba run --session 1 --macro "Helpers.ProcessData"
+excelcli vba import --session 1 --module-name "Helpers" --vba-code-file helpers.vba
+excelcli vba run --session 1 --procedure-name "Helpers.ProcessData"
 ```
 
 ---
@@ -270,7 +270,7 @@ excelcli vba run --session 1 --macro "Helpers.ProcessData"
 
 ## 🔒 VBA Operations Setup (One-Time)
 
-VBA commands require **"Trust access to the VBA project object model"** to be enabled:
+VBA commands require **"Trust access to the VBA project object model"** to be enabled manually in Excel:
 
 1. Open Excel
 2. Go to **File → Options → Trust Center**
@@ -279,14 +279,19 @@ VBA commands require **"Trust access to the VBA project object model"** to be en
 5. Check **"✓ Trust access to the VBA project object model"**
 6. Click **OK** twice
 
-This is a security setting that must be manually enabled. ExcelMcp.CLI never modifies security settings automatically.
+This is a security setting that must be enabled manually. ExcelMcp.CLI does not provide a `setup-vba-trust` or `check-vba-trust` command and never modifies Trust Center settings automatically.
+
+Current VBA support is procedural and module-focused:
+- `vba list` and `vba view` inspect existing VBA components and procedures
+- `vba import` creates a new standard module from inline code or `--vba-code-file`
+- `vba update`, `vba delete`, and `vba run` work against existing component/procedure names
 
 For macro-enabled workbooks, use `.xlsm` extension:
 
 ```powershell
 excelcli session create macros.xlsm
 # Returns session ID (e.g., 1)
-excelcli vba import --session 1 --module MyModule --code-file code.vba
+excelcli vba import --session 1 --module-name MyModule --vba-code-file code.vba
 excelcli session close --session 1 --save
 ```
 
@@ -375,8 +380,8 @@ foreach ($file in $files) {
 - name: Process Excel Files
   run: |
     SESSION=$(excelcli session open data.xlsx | grep "Session ID:" | cut -d' ' -f3)
-    excelcli powerquery create --session $SESSION --query "Query1" --mcode-file queries/query1.pq
-    excelcli powerquery refresh --session $SESSION --query "Query1"
+    excelcli powerquery create --session $SESSION --query-name "Query1" --m-code-file queries/query1.pq
+    excelcli powerquery refresh --session $SESSION --query-name "Query1"
     excelcli session close $SESSION --save
 ```
 

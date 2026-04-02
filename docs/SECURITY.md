@@ -46,7 +46,7 @@ ExcelMcp implements comprehensive security measures:
 
 ExcelMcp uses Excel COM automation with security safeguards:
 
-- **Macro Execution**: ExcelMcp can execute VBA macros when using script-run command
+- **Macro Execution**: ExcelMcp can execute VBA procedures through the `vba run` command
 - **VBA Trust**: VBA operations require "Trust access to the VBA project object model" to be manually enabled in Excel settings (one-time setup)
 - **File Validation**: Strict file extension validation (.xlsx, .xlsm, .xls only)
 - **File Access**: ExcelMcp requires read/write access to Excel files with size validation
@@ -66,7 +66,7 @@ ExcelMcp implements security-first privacy level handling:
 
 ### VBA Security Considerations
 
-- **Macro Content**: VBA scripts imported via script-import will be executed when called
+- **Macro Content**: VBA code imported via `vba import` can be executed later through `vba run`
 - **Manual Trust Setup**: VBA trust must be enabled manually through Excel's Trust Center settings (never modified automatically by ExcelMcp)
 - **File Format**: Only .xlsm files can contain and execute VBA code
 - **Code Injection**: Always validate VBA source files before importing
@@ -75,7 +75,7 @@ ExcelMcp implements security-first privacy level handling:
 ### Best Practices for Users
 
 1. **File Validation**: Only run ExcelMcp on trusted Excel files
-2. **VBA Source Control**: Validate VBA code files before importing with script-import
+2. **VBA Source Control**: Validate VBA code files before importing with `vba import`
 3. **Network Files**: Be cautious when processing files from network locations
 4. **Permissions**: Run ExcelMcp with minimal necessary permissions
 5. **Backup**: Always backup important Excel files before processing

@@ -163,7 +163,7 @@ We follow responsible disclosure practices:
 - **Local Only**: ExcelMcp only supports local Excel automation
 - **Windows Only**: Requires Windows with Excel installed
 - **Excel Process**: Creates Excel.Application COM objects
-- **Macro Security**: VBA operations require user consent via `setup-vba-trust`
+- **Macro Security**: VBA operations require the user to manually enable "Trust access to the VBA project object model" in Excel Trust Center settings
 
 ### File System Access
 

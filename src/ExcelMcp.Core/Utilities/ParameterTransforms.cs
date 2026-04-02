@@ -290,28 +290,28 @@ public static class ParameterTransforms
     }
 
     /// <summary>
-    /// Validates that a required parameter is not null or empty.
+    /// Validates that a required parameter is not null, empty, or whitespace.
     /// </summary>
     /// <param name="value">The parameter value to validate</param>
     /// <param name="parameterName">Name of the parameter for error messages</param>
     /// <param name="actionName">Name of the action for error messages</param>
-    /// <exception cref="ArgumentException">Thrown when value is null or empty</exception>
+    /// <exception cref="ArgumentException">Thrown when value is null, empty, or whitespace</exception>
     public static void RequireNotEmpty(string? value, string parameterName, string actionName)
     {
-        if (string.IsNullOrEmpty(value))
+        if (string.IsNullOrWhiteSpace(value))
         {
             throw new ArgumentException($"{parameterName} is required for {actionName} action", parameterName);
         }
     }
 
     /// <summary>
-    /// Validates that a required parameter is not null or empty, returning the value if valid.
+    /// Validates that a required parameter is not null, empty, or whitespace, returning the value if valid.
     /// </summary>
     /// <param name="value">The parameter value to validate</param>
     /// <param name="parameterName">Name of the parameter for error messages</param>
     /// <param name="actionName">Name of the action for error messages</param>
     /// <returns>The validated non-null value</returns>
-    /// <exception cref="ArgumentException">Thrown when value is null or empty</exception>
+    /// <exception cref="ArgumentException">Thrown when value is null, empty, or whitespace</exception>
     public static string RequireNotEmptyReturn(string? value, string parameterName, string actionName)
     {
         RequireNotEmpty(value, parameterName, actionName);

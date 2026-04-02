@@ -352,17 +352,17 @@ Formatting split: use `range` for number display formats such as dates, currency
 
 ## 📝 VBA Macros (6 operations)
 
-- **List:** List all VBA modules and procedures
-- **View:** Display module code without exporting
-- **Import:** Add VBA module from file
-- **Update:** Modify existing VBA module
-- **Delete:** Remove VBA module
-- **Run:** Execute macro with optional parameters
+- **List:** List VBA components and discovered procedures
+- **View:** Display component code without exporting
+- **Import:** Create a new standard module from code or file input
+- **Update:** Replace code in an existing VBA component
+- **Delete:** Remove a VBA component by name
+- **Run:** Execute a procedure with optional string parameters
 
 **Features:**
-- Version control through file exports
-- Parameter passing to macros
-- Full module lifecycle management
+- Procedural/module-focused VBA support for `.xlsm` workbooks
+- Manual VBA trust prerequisite in Excel (no trust-configuration command)
+- Import creates standard modules; list/view also cover class, form, and document components
 
 ---
 
