@@ -175,7 +175,7 @@ Modular approach = relevant context without overload.
 
 ---
 
-## 🔒 Pre-Commit Hooks (10 Automated Checks)
+## 🔒 Pre-Commit Hooks (14 Automated Gates)
 
 Pre-commit runs `scripts/pre-commit.ps1` which blocks commits if any check fails:
 
@@ -183,14 +183,18 @@ Pre-commit runs `scripts/pre-commit.ps1` which blocks commits if any check fails
 |---|-------|--------|-------------------|
 | 1 | Branch | (inline) | Never commit to `main` directly (Rule 6) |
 | 2 | COM Leaks | `check-com-leaks.ps1` | All `dynamic` COM objects have `ComUtilities.Release()` in finally |
-| 3 | Coverage Audit | `audit-core-coverage.ps1` | 100% Core methods exposed via MCP Server |
+| 3 | Coverage + Naming Audit | `audit-core-coverage.ps1` | 100% Core methods exposed via MCP Server and action names stay aligned |
 | 4 | MCP-Core Implementation | `check-mcp-core-implementations.ps1` | All enum actions have Core method implementations |
 | 5 | Success Flag | `check-success-flag.ps1` | Rule 0: Never `Success=true` with `ErrorMessage` |
-| 6 | CLI Coverage | `check-cli-coverage.ps1` | All action enums have CLI commands |
-| 7 | CLI Action Switch | `check-cli-action-coverage.ps1` | Actions requiring args have explicit switch cases |
-| 8 | CLI Settings Usage | `check-cli-settings-usage.ps1` | All Settings properties used in args |
-| 9 | CLI Workflow Test | `Test-CliWorkflow.ps1` | E2E CLI workflow smoke test |
-| 10 | MCP Smoke Test | `dotnet test --filter "...SmokeTest..."` | All MCP tools functional |
+| 6 | Release Solution Build | `dotnet build Sbroenne.ExcelMcp.sln -c Release` | Refreshes Release binaries and generated skill outputs used by packaging |
+| 7 | CLI Workflow Test | `Test-CliWorkflow.ps1` | E2E CLI workflow smoke test |
+| 8 | MCP Smoke Test | `dotnet test --filter "...SmokeTest..."` | All MCP tools functional |
+| 9 | CLI Release Deliverables | `dotnet pack` + `dotnet publish` + ZIP | Local CLI NuGet + standalone ZIP match release shapes |
+| 10 | MCP Server Release Deliverables | `dotnet pack` + `dotnet publish` + ZIP | Local MCP Server NuGet + standalone ZIP match release shapes |
+| 11 | VS Code Extension Package | `npm run package` | Release packaging path succeeds before commit |
+| 12 | MCPB Bundle | `mcpb\Build-McpBundle.ps1` | Claude Desktop `.mcpb` bundle builds locally |
+| 13 | Agent Skills Deliverables | `Build-AgentSkills.ps1` + `npm pack` | Skills ZIP and npm-packable skill packages build locally |
+| 14 | Dynamic Cast Audit | `check-dynamic-casts.ps1` | Every `((dynamic))` cast has a justification comment |
 
 **Install hook:**
 ```powershell
