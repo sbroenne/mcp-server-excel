@@ -1,17 +1,23 @@
 # Pre-Commit Hook Setup
 
-This repository includes automated pre-commit checks to prevent code quality issues and coverage regression.
+This repository includes automated pre-commit checks to prevent code quality issues, release-time surprises, and coverage regression.
 
 ## What Gets Checked
 
 1. **Branch Protection** - Blocks direct commits to `main` branch (Rule 6)
 2. **COM Object Leaks** - Ensures all dynamic COM objects are properly released
-3. **Core Commands Coverage** - Verifies 100% of Core methods are exposed via MCP Server
-4. **Naming Consistency** - Ensures enum action names match Core method names exactly
+3. **Core Commands Coverage and Naming** - Verifies 100% of Core methods are exposed via MCP Server and action names stay aligned
+4. **MCP-Core Implementation** - Verifies every MCP action still has a Core implementation
 5. **Success Flag Violations** - Ensures Success=true never paired with ErrorMessage (Rule 1)
-6. **CLI Actions Audit** - Verifies CLI action catalog matches Core action enums
+6. **Release Solution Build** - Builds the solution in Release so generated skill docs and downstream packaging inputs are fresh
 7. **CLI Workflow Smoke Test** - Validates the end-to-end CLI workflow
-8. **MCP Server Smoke Test** - Validates all 11 MCP tools work correctly
+8. **MCP Server Smoke Test** - Validates the all-tools MCP smoke workflow
+9. **CLI Release Deliverables** - Builds the CLI NuGet package and standalone ZIP locally
+10. **MCP Server Release Deliverables** - Builds the MCP Server NuGet package and standalone ZIP locally
+11. **VS Code Extension Packaging** - Runs the VSIX release packaging path (`npm run package`)
+12. **MCPB Bundle Packaging** - Builds the Claude Desktop `.mcpb` bundle locally
+13. **Agent Skills Deliverables** - Builds the skills ZIP plus npm-packable skill packages locally
+14. **Dynamic Cast Documentation** - Ensures `((dynamic))` casts carry a justification comment
 
 ## Setup Instructions
 
@@ -105,6 +111,8 @@ Run manually before committing:
 bash .git/hooks/pre-commit
 ```
 
+Release deliverable validation writes scratch outputs under `artifacts\pre-commit\` so the hook can verify the same artifact shapes the release workflow publishes without touching release tags or publication steps.
+
 ## Troubleshooting
 
 ### PowerShell not found
@@ -135,5 +143,14 @@ These same checks run in CI/CD pipelines:
 - Pre-commit hook provides **instant local feedback**
 - CI/CD provides **safety net** if hook bypassed with `--no-verify`
 - **Double protection** against coverage regression
+
+The hook now validates every locally buildable release artifact before commit publication:
+- CLI NuGet package + standalone ZIP
+- MCP Server NuGet package + standalone ZIP
+- VS Code VSIX
+- Claude Desktop MCPB bundle
+- Agent skills ZIP + npm skill tarballs
+
+If the CLI workflow smoke test fails, the hook stops before those packaging gates can be trusted. Treat that as a hard blocker for publication work, not something to bypass.
 
 The pre-commit hook gives you **instant feedback** before pushing to remote.
