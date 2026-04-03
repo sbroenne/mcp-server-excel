@@ -38,6 +38,8 @@ ALL dynamic COM objects must be released in `finally` blocks using `ComUtilities
 - Core Commands: Let exceptions propagate through batch.Execute()
 - MCP Server: Return JSON with `isError: true` for business errors; throw McpException for validation
 - CLI: Wrap Core calls in try-catch, display with `AnsiConsole.MarkupLine`
+- When evolving failure envelopes, preserve the legacy `error` field for compatibility and add richer diagnostics additively (`errorMessage`, `isError`, `exceptionType`, `hresult`, `innerError`) instead of renaming contracts in place.
+- If CLI/MCP parity needs richer diagnostics, add them to the shared `ServiceResponse` transport first so both entry points receive the same failure detail.
 
 ### MCP Schema Discoverability
 

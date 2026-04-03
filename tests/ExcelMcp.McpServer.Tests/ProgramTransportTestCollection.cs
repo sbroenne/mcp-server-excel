@@ -7,15 +7,11 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests;
 
 /// <summary>
 /// Collection definition for tests that use Program.ConfigureTestTransport().
-/// These tests MUST run sequentially because they share static state in Program.cs.
+/// These tests MUST run sequentially because the in-memory MCP host uses a shared static transport hook.
 /// </summary>
 /// <remarks>
-/// Tests in this collection:
-/// - McpServerSmokeTests
-/// - ExcelFileToolOperationTrackingTests
-/// 
-/// Both use Program.ConfigureTestTransport() which sets static pipe fields.
-/// Running them in parallel causes "writer already completed" errors.
+/// Any test that uses Program.ConfigureTestTransport() or mutates ServiceBridge test state
+/// must join this collection so the shared transport and in-process service lifecycle stay serialized.
 /// </remarks>
 [CollectionDefinition("ProgramTransport")]
 #pragma warning disable CA1711 // xUnit collection definition requires class name ending in 'Collection' by convention

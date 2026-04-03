@@ -107,11 +107,18 @@ public static class ExcelToolsBase
 
         if (!response.Success)
         {
+            var errorMessage = response.ErrorMessage ?? $"Command '{command}' failed";
             return JsonSerializer.Serialize(new
             {
                 success = false,
-                errorMessage = response.ErrorMessage ?? $"Command '{command}' failed",
+                error = errorMessage,
+                errorMessage,
                 errorCategory = response.ErrorCategory,
+                command = response.Command,
+                sessionId = response.SessionId,
+                exceptionType = response.ExceptionType,
+                hresult = response.HResult,
+                innerError = response.InnerError,
                 isError = true
             }, JsonOptions);
         }
@@ -140,11 +147,18 @@ public static class ExcelToolsBase
 
         if (!response.Success)
         {
+            var errorMessage = response.ErrorMessage ?? $"Command '{command}' failed";
             return JsonSerializer.Serialize(new
             {
                 success = false,
-                errorMessage = response.ErrorMessage ?? $"Command '{command}' failed",
+                error = errorMessage,
+                errorMessage,
                 errorCategory = response.ErrorCategory,
+                command = response.Command,
+                sessionId = response.SessionId,
+                exceptionType = response.ExceptionType,
+                hresult = response.HResult,
+                innerError = response.InnerError,
                 isError = true
             }, JsonOptions);
         }
@@ -266,6 +280,7 @@ public static class ExcelToolsBase
             return JsonSerializer.Serialize(new
             {
                 success = false,
+                error = errorMessage,
                 errorMessage,
                 filePath = path,
                 suggestedPath,
@@ -315,6 +330,7 @@ public static class ExcelToolsBase
         var payload = new
         {
             success = false,
+            error = errorMessage,
             errorMessage,
             isError = true,
             exceptionType,
@@ -337,6 +353,7 @@ public static class ExcelToolsBase
         return JsonSerializer.Serialize(new
         {
             success = false,
+            error = $"The 'action' parameter is required for the '{toolName}' tool. Provide a valid action value.",
             errorMessage = $"The 'action' parameter is required for the '{toolName}' tool. Provide a valid action value.",
             isError = true
         }, JsonOptions);

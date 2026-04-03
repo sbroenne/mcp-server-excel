@@ -55,23 +55,63 @@ public sealed class ServiceClient : IDisposable
         }
         catch (TimeoutException)
         {
-            return new ServiceResponse { Success = false, ErrorMessage = "Service connection timed out" };
+            return new ServiceResponse
+            {
+                Success = false,
+                Command = request.Command,
+                SessionId = request.SessionId,
+                ErrorCategory = "Timeout",
+                ErrorMessage = "Service connection timed out",
+                ExceptionType = nameof(TimeoutException)
+            };
         }
         catch (OperationCanceledException) when (connectCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
-            return new ServiceResponse { Success = false, ErrorMessage = "Service connection timed out" };
+            return new ServiceResponse
+            {
+                Success = false,
+                Command = request.Command,
+                SessionId = request.SessionId,
+                ErrorCategory = "Timeout",
+                ErrorMessage = "Service connection timed out",
+                ExceptionType = nameof(OperationCanceledException)
+            };
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return new ServiceResponse { Success = false, ErrorMessage = "Service request timed out" };
+            return new ServiceResponse
+            {
+                Success = false,
+                Command = request.Command,
+                SessionId = request.SessionId,
+                ErrorCategory = "Timeout",
+                ErrorMessage = "Service request timed out",
+                ExceptionType = nameof(OperationCanceledException)
+            };
         }
         catch (ConnectionLostException)
         {
-            return new ServiceResponse { Success = false, ErrorMessage = "Connection to service lost. Is it running?" };
+            return new ServiceResponse
+            {
+                Success = false,
+                Command = request.Command,
+                SessionId = request.SessionId,
+                ErrorCategory = "ServiceUnavailable",
+                ErrorMessage = "Connection to service lost. Is it running?",
+                ExceptionType = nameof(ConnectionLostException)
+            };
         }
         catch (IOException ex) when (ex.Message.Contains("pipe"))
         {
-            return new ServiceResponse { Success = false, ErrorMessage = "Cannot connect to service. Is it running?" };
+            return new ServiceResponse
+            {
+                Success = false,
+                Command = request.Command,
+                SessionId = request.SessionId,
+                ErrorCategory = "ServiceUnavailable",
+                ErrorMessage = "Cannot connect to service. Is it running?",
+                ExceptionType = nameof(IOException)
+            };
         }
     }
 

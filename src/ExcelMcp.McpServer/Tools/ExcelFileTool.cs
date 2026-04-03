@@ -123,11 +123,16 @@ public static partial class ExcelFileTool
 
         if (!response.Success)
         {
+            var errorMessage = response.ErrorMessage ?? "Failed to open session";
             return JsonSerializer.Serialize(new
             {
                 success = false,
-                errorMessage = response.ErrorMessage ?? "Failed to open session",
+                error = errorMessage,
+                errorMessage,
                 errorCategory = response.ErrorCategory,
+                exceptionType = response.ExceptionType,
+                hresult = response.HResult,
+                innerError = response.InnerError,
                 filePath = path,
                 isError = true
             }, ExcelToolsBase.JsonOptions);
@@ -188,12 +193,17 @@ public static partial class ExcelFileTool
 
         if (!response.Success)
         {
+            var errorMessage = response.ErrorMessage ?? "Failed to close session";
             return JsonSerializer.Serialize(new
             {
                 success = false,
                 session_id = sessionId,
-                errorMessage = response.ErrorMessage ?? "Failed to close session",
+                error = errorMessage,
+                errorMessage,
                 errorCategory = response.ErrorCategory,
+                exceptionType = response.ExceptionType,
+                hresult = response.HResult,
+                innerError = response.InnerError,
                 isError = true
             }, ExcelToolsBase.JsonOptions);
         }
@@ -243,11 +253,16 @@ public static partial class ExcelFileTool
 
         if (!response.Success)
         {
+            var errorMessage = response.ErrorMessage ?? "Failed to create session";
             return JsonSerializer.Serialize(new
             {
                 success = false,
-                errorMessage = response.ErrorMessage ?? "Failed to create session",
+                error = errorMessage,
+                errorMessage,
                 errorCategory = response.ErrorCategory,
+                exceptionType = response.ExceptionType,
+                hresult = response.HResult,
+                innerError = response.InnerError,
                 filePath = path,
                 isError = true
             }, ExcelToolsBase.JsonOptions);
@@ -313,11 +328,16 @@ public static partial class ExcelFileTool
 
         if (!response.Success)
         {
+            var errorMessage = response.ErrorMessage ?? "Failed to list sessions";
             return JsonSerializer.Serialize(new
             {
                 success = false,
-                errorMessage = response.ErrorMessage ?? "Failed to list sessions",
+                error = errorMessage,
+                errorMessage,
                 errorCategory = response.ErrorCategory,
+                exceptionType = response.ExceptionType,
+                hresult = response.HResult,
+                innerError = response.InnerError,
                 isError = true
             }, ExcelToolsBase.JsonOptions);
         }

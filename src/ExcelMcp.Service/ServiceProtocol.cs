@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 // Re-export shared types from ComInterop for CLI internal use
 using SharedProtocol = Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceProtocol;
@@ -60,11 +61,27 @@ public sealed class ServiceResponse
     /// <summary>Whether the command succeeded.</summary>
     public bool Success { get; init; }
 
+    /// <summary>The service command that produced this response, when available.</summary>
+    public string? Command { get; init; }
+
+    /// <summary>The session ID associated with this response, when available.</summary>
+    public string? SessionId { get; init; }
+
     /// <summary>Error message if Success is false.</summary>
     public string? ErrorMessage { get; init; }
 
     /// <summary>Structured error category if Success is false.</summary>
     public string? ErrorCategory { get; init; }
+
+    /// <summary>Exception type that produced the failure, when available.</summary>
+    public string? ExceptionType { get; init; }
+
+    /// <summary>HRESULT from a COM failure, when available.</summary>
+    [JsonPropertyName("hresult")]
+    public string? HResult { get; init; }
+
+    /// <summary>Inner exception details, when available.</summary>
+    public string? InnerError { get; init; }
 
     /// <summary>JSON-serialized result data.</summary>
     public string? Result { get; init; }
@@ -75,8 +92,13 @@ public sealed class ServiceResponse
     public static ServiceResponse FromShared(SharedResponse shared) => new()
     {
         Success = shared.Success,
+        Command = shared.Command,
+        SessionId = shared.SessionId,
         ErrorMessage = shared.ErrorMessage,
         ErrorCategory = shared.ErrorCategory,
+        ExceptionType = shared.ExceptionType,
+        HResult = shared.HResult,
+        InnerError = shared.InnerError,
         Result = shared.Result
     };
 }

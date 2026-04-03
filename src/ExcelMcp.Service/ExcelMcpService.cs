@@ -194,7 +194,7 @@ public sealed class ExcelMcpService : IDisposable
             var category = parts[0];
             var action = parts.Length > 1 ? parts[1] : "";
 
-            return category switch
+            ServiceResponse response = category switch
             {
                 "service" => HandleServiceCommand(action),
                 "session" => HandleSessionCommand(action, request),
@@ -250,11 +250,13 @@ public sealed class ExcelMcpService : IDisposable
                 "diag" => DispatchSessionless(action, request),
                 _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown command category: {category}" }
             };
+
+            return AttachRequestContext(request, response);
         }
         catch (Exception ex)
         {
             // Include type name so callers can distinguish exception kinds (GitHub #482, Bug 5)
-            return CreateErrorResponse(ex);
+            return CreateErrorResponse(ex, request.Command, request.SessionId);
         }
     }
 
@@ -520,7 +522,7 @@ public sealed class ExcelMcpService : IDisposable
 
                 {
 
-                    return new ServiceResponse { Success = false, ErrorMessage = $"{ex.GetType().Name}: {ex.Message}" };
+                    return CreateErrorResponse(ex);
 
                 }
 
@@ -671,7 +673,8 @@ public sealed class ExcelMcpService : IDisposable
                 Success = false,
                 ErrorCategory = "Timeout",
                 ErrorMessage = $"Excel operation timed out and the session has been closed: {ex.Message} " +
-                               "Please reopen the file with a new session."
+                               "Please reopen the file with a new session.",
+                ExceptionType = ex.GetType().Name
             });
         }
         catch (OperationCanceledException)
@@ -695,7 +698,8 @@ public sealed class ExcelMcpService : IDisposable
                 ErrorCategory = "Cancelled",
                 ErrorMessage = $"Operation was cancelled and the session has been closed. " +
                                "The Excel COM thread may have been unresponsive. " +
-                               "Please reopen the file with a new session."
+                               "Please reopen the file with a new session.",
+                ExceptionType = nameof(OperationCanceledException)
             });
         }
         catch (COMException ex) when (
@@ -716,7 +720,9 @@ public sealed class ExcelMcpService : IDisposable
                 Success = false,
                 ErrorCategory = "ExcelProcessDied",
                 ErrorMessage = $"Excel process for session '{sessionId}' has died (the application may have been closed or crashed). " +
-                               "Session has been cleaned up. Please reopen the file with a new session."
+                               "Session has been cleaned up. Please reopen the file with a new session.",
+                ExceptionType = ex.GetType().Name,
+                HResult = $"0x{ex.HResult:X8}"
             });
         }
         catch (InvalidOperationException ex) when (
@@ -737,7 +743,8 @@ public sealed class ExcelMcpService : IDisposable
                 Success = false,
                 ErrorCategory = "ExcelProcessDied",
                 ErrorMessage = $"Excel process for session '{sessionId}' is no longer running. " +
-                               "Session has been cleaned up. Please reopen the file with a new session."
+                               "Session has been cleaned up. Please reopen the file with a new session.",
+                ExceptionType = ex.GetType().Name
             });
         }
         catch (Exception ex)
@@ -759,20 +766,86 @@ public sealed class ExcelMcpService : IDisposable
         }
     }
 
-    private static ServiceResponse CreateErrorResponse(Exception ex)
+    private static ServiceResponse AttachRequestContext(ServiceRequest request, ServiceResponse response)
     {
+        if (response.Success)
+        {
+            return response;
+        }
+
+        var command = response.Command ?? request.Command;
+        var sessionId = response.SessionId ?? request.SessionId;
+
+        if (string.Equals(command, response.Command, StringComparison.Ordinal)
+            && string.Equals(sessionId, response.SessionId, StringComparison.Ordinal))
+        {
+            return response;
+        }
+
+        return CloneResponse(response, command, sessionId);
+    }
+
+    private static ServiceResponse CloneResponse(ServiceResponse response, string? command, string? sessionId)
+    {
+        return new ServiceResponse
+        {
+            Success = response.Success,
+            Command = command,
+            SessionId = sessionId,
+            ErrorMessage = response.ErrorMessage,
+            ErrorCategory = response.ErrorCategory,
+            ExceptionType = response.ExceptionType,
+            HResult = response.HResult,
+            InnerError = response.InnerError,
+            Result = response.Result
+        };
+    }
+
+    private static ServiceResponse CreateErrorResponse(Exception ex, string? command = null, string? sessionId = null)
+    {
+        var exceptionType = ex.GetType().Name;
+        string? hresult = ex is COMException comEx ? $"0x{comEx.HResult:X8}" : null;
+        string? innerError = null;
+        var errorCategory = ex switch
+        {
+            PowerQueryCommandException pqEx => pqEx.ErrorCategory,
+            ArgumentException => "InvalidInput",
+            COMException => "ComInterop",
+            _ => null
+        };
+
+        if (ex.InnerException != null)
+        {
+            innerError = ex.InnerException.Message;
+            if (ex.InnerException is COMException innerComEx)
+            {
+                innerError += $" [COM: 0x{innerComEx.HResult:X8}]";
+            }
+        }
+
         return ex switch
         {
             PowerQueryCommandException pqEx => new ServiceResponse
             {
                 Success = false,
+                Command = command,
+                SessionId = sessionId,
                 ErrorCategory = pqEx.ErrorCategory,
-                ErrorMessage = $"{pqEx.GetType().Name}: {pqEx.Message}"
+                ErrorMessage = $"{pqEx.GetType().Name}: {pqEx.Message}",
+                ExceptionType = exceptionType,
+                HResult = hresult,
+                InnerError = innerError
             },
             _ => new ServiceResponse
             {
                 Success = false,
-                ErrorMessage = $"{ex.GetType().Name}: {ex.Message}"
+                Command = command,
+                SessionId = sessionId,
+                ErrorCategory = errorCategory,
+                ErrorMessage = $"{exceptionType}: {ex.Message}",
+                ExceptionType = exceptionType,
+                HResult = hresult,
+                InnerError = innerError
             }
         };
     }

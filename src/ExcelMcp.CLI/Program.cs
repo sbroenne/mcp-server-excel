@@ -27,6 +27,7 @@ internal sealed class Program
         var isQuiet = args.Any(arg => QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase));
         var isPiped = Console.IsOutputRedirected;
         var showBanner = !isQuiet && !isPiped;
+        var jsonOutputMode = isQuiet || isPiped;
 
         // Remove --quiet/-q from args before passing to Spectre.Console.Cli
         var filteredArgs = args.Where(arg => !QuietFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)).ToArray();
@@ -71,6 +72,12 @@ internal sealed class Program
             config.SetApplicationVersion(GetCurrentVersion());
             config.SetExceptionHandler((ex, _) =>
             {
+                if (jsonOutputMode)
+                {
+                    CliErrorOutput.WriteException(ex);
+                    return;
+                }
+
                 AnsiConsole.MarkupLine($"[red]Unhandled error:[/] {ex.Message.EscapeMarkup()}");
             });
 
@@ -120,17 +127,27 @@ internal sealed class Program
         }
         catch (CommandRuntimeException ex)
         {
+            if (jsonOutputMode)
+            {
+                return CliErrorOutput.WriteException(ex);
+            }
+
             AnsiConsole.MarkupLine($"[red]Command error:[/] {ex.Message.EscapeMarkup()}");
-            return -1;
+            return 1;
         }
         catch (Exception ex)
         {
+            if (jsonOutputMode)
+            {
+                return CliErrorOutput.WriteException(ex);
+            }
+
             AnsiConsole.MarkupLine($"[red]Fatal error:[/] {ex.Message.EscapeMarkup()}");
             if (AnsiConsole.Profile.Capabilities.Ansi)
             {
                 AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
             }
-            return -1;
+            return 1;
         }
     }
 

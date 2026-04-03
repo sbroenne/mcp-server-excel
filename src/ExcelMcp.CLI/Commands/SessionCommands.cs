@@ -2,7 +2,6 @@ using System.ComponentModel;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.Service;
-using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace Sbroenne.ExcelMcp.CLI.Commands;
@@ -17,8 +16,7 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
     {
         if (string.IsNullOrWhiteSpace(settings.FilePath))
         {
-            AnsiConsole.MarkupLine("[red]File path is required.[/]");
-            return 1;
+            return CliErrorOutput.WriteError("File path is required.");
         }
 
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
@@ -66,8 +64,7 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
     {
         if (string.IsNullOrWhiteSpace(settings.FilePath))
         {
-            AnsiConsole.MarkupLine("[red]File path is required.[/]");
-            return 1;
+            return CliErrorOutput.WriteError("File path is required.");
         }
 
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
@@ -115,8 +112,7 @@ internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseCommand.Set
     {
         if (string.IsNullOrWhiteSpace(settings.SessionId))
         {
-            AnsiConsole.MarkupLine("[red]Session ID is required.[/]");
-            return 1;
+            return CliErrorOutput.WriteError("Session ID is required.");
         }
 
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
@@ -187,8 +183,7 @@ internal sealed class SessionSaveCommand : AsyncCommand<SessionSaveCommand.Setti
     {
         if (string.IsNullOrWhiteSpace(settings.SessionId))
         {
-            AnsiConsole.MarkupLine("[red]Session ID is required.[/]");
-            return 1;
+            return CliErrorOutput.WriteError("Session ID is required.");
         }
 
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
