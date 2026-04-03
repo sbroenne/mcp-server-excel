@@ -56,6 +56,8 @@ ALL dynamic COM objects must be released in `finally` blocks using `ComUtilities
 - NEVER share test files between tests — each test creates unique files
 - ALWAYS verify actual Excel state, not just success flags (round-trip validation)
 - For range write bugs, test payload shape explicitly: rectangular wide writes, jagged rows, and create-sheet-then-write-non-A1 flows. Don’t infer COM limits from jagged input failures.
+- When hardening diagnostics regressions, centralize failure-envelope assertions in the shared test harness so every regression checks the same contract: `success=false`, `isError=true`, `error == errorMessage`, expected `exceptionType`, and scenario-specific presence/absence of `errorCategory`, `hresult`, and `innerError`.
+- For CLI parity tests, assert exit code `1` on business-error paths (for example, missing sheet or invalid input). If the setup command itself returns non-JSON stdout, treat that as startup/harness noise and surface raw stdout/stderr in the helper exception instead of misclassifying it as a contract failure.
 
 ### Bug Report Triage For Tests
 
