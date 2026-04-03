@@ -12,6 +12,13 @@ applyTo: ".github/workflows/**/*.yml,**/*.csproj,global.json"
 
 Enforced: PR reviews, CI/CD checks, create a branch first, up-to-date branches, no force pushes
 
+**Merge Strategy: Squash Merge**
+
+All PRs are merged using **squash merge** (single commit to `main`). This keeps git history clean and makes it easy to revert changes if needed. When you merge a PR:
+- GitHub automatically squashes all commits from your branch into one commit
+- Commit message is auto-populated from PR title/description — verify it's accurate before confirming merge
+- Your feature branch can be safely deleted after merge
+
 ## Development Process
 
 1. **Create feature branch**: `git checkout -b feature/name`
