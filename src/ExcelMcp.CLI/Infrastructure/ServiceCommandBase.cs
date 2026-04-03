@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Sbroenne.ExcelMcp.Service;
-using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -48,24 +47,21 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
         var sessionId = GetSessionId(settings);
         if (RequiresSession && string.IsNullOrWhiteSpace(sessionId))
         {
-            AnsiConsole.MarkupLine("[red]Session ID is required. Use --session <id>[/]");
-            return 1;
+            return CliErrorOutput.WriteError("Session ID is required. Use --session <id>");
         }
 
         // Action validation
         var rawAction = GetAction(settings);
         if (string.IsNullOrWhiteSpace(rawAction))
         {
-            AnsiConsole.MarkupLine("[red]Action is required.[/]");
-            return 1;
+            return CliErrorOutput.WriteError("Action is required.");
         }
 
         var action = rawAction.Trim().ToLowerInvariant();
         if (!ValidActions.Contains(action, StringComparer.OrdinalIgnoreCase))
         {
             var validList = string.Join(", ", ValidActions);
-            AnsiConsole.MarkupLine($"[red]Invalid action '{action}'. Valid actions: {validList}[/]");
-            return 1;
+            return CliErrorOutput.WriteError($"Invalid action '{action}'. Valid actions: {validList}");
         }
 
         // Route and execute

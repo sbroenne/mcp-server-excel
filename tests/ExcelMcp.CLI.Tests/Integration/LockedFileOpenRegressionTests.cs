@@ -47,12 +47,16 @@ public sealed class LockedFileOpenRegressionTests : IDisposable
 
             Assert.Equal(1, lockedResult.ExitCode);
             Assert.False(lockedJson.RootElement.GetProperty("success").GetBoolean());
+            Assert.True(lockedJson.RootElement.GetProperty("isError").GetBoolean());
 
             var error = lockedJson.RootElement.GetProperty("error").GetString();
+            var errorMessage = lockedJson.RootElement.GetProperty("errorMessage").GetString();
             Assert.NotNull(error);
+            Assert.Equal(error, errorMessage);
             Assert.Contains("already open", error, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("close the file", error, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("exclusive access", error, StringComparison.OrdinalIgnoreCase);
+            Assert.False(string.IsNullOrWhiteSpace(lockedJson.RootElement.GetProperty("exceptionType").GetString()));
         }
 
         var (listAfterFailureResult, listAfterFailureJson) = await CliProcessHelper.RunJsonAsync(

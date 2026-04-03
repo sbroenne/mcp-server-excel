@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
 using Xunit;
 
@@ -67,8 +68,15 @@ public sealed class PowerQueryErrorReportingTests : IDisposable
 
             Assert.NotEqual(0, refreshResult.ExitCode);
             Assert.False(refreshJson.RootElement.GetProperty("success").GetBoolean());
+            Assert.True(refreshJson.RootElement.GetProperty("isError").GetBoolean());
             Assert.Equal("Privacy", refreshJson.RootElement.GetProperty("errorCategory").GetString());
-            Assert.Contains("Formula.Firewall", refreshJson.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+            Assert.Equal("PowerQueryCommandException", refreshJson.RootElement.GetProperty("exceptionType").GetString());
+            Assert.Equal(
+                refreshJson.RootElement.GetProperty("error").GetString(),
+                refreshJson.RootElement.GetProperty("errorMessage").GetString());
+            Assert.False(refreshJson.RootElement.TryGetProperty("hresult", out _));
+            AssertOptionalNonEmptyStringProperty(refreshJson.RootElement, "innerError");
+            Assert.Contains("Formula.Firewall", refreshJson.RootElement.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -104,5 +112,15 @@ public sealed class PowerQueryErrorReportingTests : IDisposable
         }
 
         GC.SuppressFinalize(this);
+    }
+
+    private static void AssertOptionalNonEmptyStringProperty(JsonElement root, string propertyName)
+    {
+        if (!root.TryGetProperty(propertyName, out var property))
+        {
+            return;
+        }
+
+        Assert.False(string.IsNullOrWhiteSpace(property.GetString()), $"{propertyName} should be non-empty when present.");
     }
 }

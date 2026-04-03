@@ -168,7 +168,9 @@ internal static class CliProcessHelper
         }
         catch (JsonException ex)
         {
-            throw new InvalidOperationException($"excelcli command '{commandLabel}' returned invalid JSON.", ex);
+            throw new InvalidOperationException(
+                $"excelcli command '{commandLabel}' returned invalid JSON. Stdout: {result.Stdout}{Environment.NewLine}Stderr: {result.Stderr}",
+                ex);
         }
 
         return (result, json);
@@ -192,7 +194,9 @@ internal static class CliProcessHelper
         }
         catch (JsonException ex)
         {
-            throw new InvalidOperationException($"excelcli command '{commandLabel}' returned invalid JSON.", ex);
+            throw new InvalidOperationException(
+                $"excelcli command '{commandLabel}' returned invalid JSON. Stdout: {result.Stdout}{Environment.NewLine}Stderr: {result.Stderr}",
+                ex);
         }
 
         return (result, json);

@@ -42,21 +42,11 @@ public class McpServerPowerQueryRegressionTests : IAsyncLifetime, IAsyncDisposab
 
     public async Task InitializeAsync()
     {
-        Program.ConfigureTestTransport(_clientToServerPipe, _serverToClientPipe);
-        _serverTask = Program.Main([]);
-
-        await Task.Delay(100);
-
-        _client = await McpClient.CreateAsync(
-            new StreamClientTransport(
-                serverInput: _clientToServerPipe.Writer.AsStream(),
-                serverOutput: _serverToClientPipe.Reader.AsStream()),
-            clientOptions: new McpClientOptions
-            {
-                ClientInfo = new() { Name = "PowerQueryRegressionClient", Version = "1.0.0" },
-                InitializationTimeout = TimeSpan.FromSeconds(30)
-            },
-            cancellationToken: _cts.Token);
+        (_client, _serverTask) = await ProgramTransportTestHost.StartAsync(
+            _clientToServerPipe,
+            _serverToClientPipe,
+            _cts.Token,
+            "PowerQueryRegressionClient");
     }
 
     public async Task DisposeAsync()
@@ -250,37 +240,12 @@ public class McpServerPowerQueryRegressionTests : IAsyncLifetime, IAsyncDisposab
 
     private async Task DisposeAsyncCore()
     {
-        await _cts.CancelAsync();
-
-        if (_client != null)
-        {
-            await _client.DisposeAsync();
-        }
-
-        await _clientToServerPipe.Writer.CompleteAsync();
-        await _serverToClientPipe.Reader.CompleteAsync();
-
-        if (_serverTask != null)
-        {
-            try
-            {
-                await _serverTask.WaitAsync(TimeSpan.FromSeconds(10));
-            }
-            catch (OperationCanceledException)
-            {
-            }
-            catch (TimeoutException)
-            {
-                _output.WriteLine("Warning: MCP server did not stop within timeout.");
-            }
-        }
-
-        _clientToServerPipe.Writer.Complete();
-        _clientToServerPipe.Reader.Complete();
-        _serverToClientPipe.Writer.Complete();
-        _serverToClientPipe.Reader.Complete();
-
-        Program.ResetTestTransport();
+        await ProgramTransportTestHost.StopAsync(
+            _client,
+            _clientToServerPipe,
+            _serverToClientPipe,
+            _serverTask,
+            _output);
 
         if (Directory.Exists(_tempDir))
         {

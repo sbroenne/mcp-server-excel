@@ -31,6 +31,8 @@ public static class ServiceBridge
     private static IServiceBridgeBackend? _service;
     private static Func<IServiceBridgeBackend> _serviceFactory = DefaultServiceFactory;
     private static Exception? _lastStartupException;
+    private static long _pendingTestOwnerToken;
+    private static long _serviceOwnerToken;
 
     /// <summary>
     /// JSON serializer options for deserializing service responses.
@@ -57,6 +59,7 @@ public static class ServiceBridge
             }
 
             _service = _serviceFactory();
+            _serviceOwnerToken = Interlocked.Read(ref _pendingTestOwnerToken);
             _lastStartupException = null;
             return true;
         }
@@ -86,7 +89,11 @@ public static class ServiceBridge
             return new ServiceResponse
             {
                 Success = false,
-                ErrorMessage = BuildServiceStartupErrorMessage(_lastStartupException)
+                Command = command,
+                SessionId = sessionId,
+                ErrorCategory = "ServiceStartup",
+                ErrorMessage = BuildServiceStartupErrorMessage(_lastStartupException),
+                ExceptionType = _lastStartupException?.GetType().Name
             };
         }
 
@@ -117,6 +124,12 @@ public static class ServiceBridge
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
+            var completedResponse = await TryGetCompletedResponseAsync(processTask);
+            if (completedResponse != null)
+            {
+                return completedResponse;
+            }
+
             CleanupCancelledRequest(service, sessionId);
 
             if (timeoutSeconds.HasValue && !cancellationToken.IsCancellationRequested)
@@ -124,16 +137,24 @@ public static class ServiceBridge
                 return new ServiceResponse
                 {
                     Success = false,
-                    ErrorMessage = $"Operation timed out after {timeoutSeconds} seconds."
+                    Command = command,
+                    SessionId = sessionId,
+                    ErrorCategory = "Timeout",
+                    ErrorMessage = $"Operation timed out after {timeoutSeconds} seconds.",
+                    ExceptionType = nameof(TimeoutException)
                 };
             }
 
             return new ServiceResponse
             {
                 Success = false,
+                Command = command,
+                SessionId = sessionId,
+                ErrorCategory = "Cancelled",
                 ErrorMessage = string.IsNullOrWhiteSpace(sessionId)
                     ? "Operation was cancelled. The Excel MCP service was reset to avoid leaving a stuck Excel operation behind."
-                    : "Operation was cancelled and the session has been closed to avoid leaving a stuck Excel operation behind. Please reopen the file with a new session."
+                    : "Operation was cancelled and the session has been closed to avoid leaving a stuck Excel operation behind. Please reopen the file with a new session.",
+                ExceptionType = nameof(OperationCanceledException)
             };
         }
     }
@@ -158,6 +179,25 @@ public static class ServiceBridge
         Dispose();
     }
 
+    private static async Task<ServiceResponse?> TryGetCompletedResponseAsync(Task<ServiceResponse> processTask)
+    {
+        if (processTask.IsCompleted)
+        {
+            return await processTask;
+        }
+
+        var completedTask = await Task.WhenAny(
+            processTask,
+            Task.Delay(TimeSpan.FromMilliseconds(50))).ConfigureAwait(false);
+
+        if (completedTask == processTask)
+        {
+            return await processTask.ConfigureAwait(false);
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// Sends a session-scoped command to the service.
     /// </summary>
@@ -173,6 +213,7 @@ public static class ServiceBridge
             return new ServiceResponse
             {
                 Success = false,
+                Command = command,
                 ErrorMessage = "sessionId is required. Use file 'open' action to start a session."
             };
         }
@@ -262,8 +303,25 @@ public static class ServiceBridge
     public static void Dispose()
     {
         var service = Interlocked.Exchange(ref _service, null);
+        Interlocked.Exchange(ref _serviceOwnerToken, 0);
         service?.Dispose();
         _lastStartupException = null;
+    }
+
+    internal static void SetTestOwnerToken(long ownerToken)
+    {
+        Interlocked.Exchange(ref _pendingTestOwnerToken, ownerToken);
+    }
+
+    internal static bool DisposeIfOwnedBy(long ownerToken)
+    {
+        if (ownerToken == 0 || Interlocked.Read(ref _serviceOwnerToken) != ownerToken)
+        {
+            return false;
+        }
+
+        Dispose();
+        return true;
     }
 
     internal static void SetServiceFactoryForTests(Func<IServiceBridgeBackend> serviceFactory)
@@ -275,6 +333,7 @@ public static class ServiceBridge
     internal static void ResetForTests()
     {
         Dispose();
+        Interlocked.Exchange(ref _pendingTestOwnerToken, 0);
         _serviceFactory = DefaultServiceFactory;
     }
 

@@ -16,11 +16,15 @@ namespace Sbroenne.ExcelMcp.McpServer;
 /// </summary>
 public class Program
 {
+    private static readonly object TestTransportLock = new();
+
     // Test transport configuration - set by tests before calling Main()
-    // These are intentionally static for test injection. Thread-safety is not required
-    // because tests run sequentially and call ResetTestTransport() after each test.
+    // These are intentionally static for test injection, but we still guard them so
+    // leaked test state fails fast instead of contaminating the next transport-backed test.
     private static Pipe? _testInputPipe;
     private static Pipe? _testOutputPipe;
+    private static CancellationTokenSource? _testShutdownCts;
+    private static long _testTransportGeneration;
 
     /// <summary>
     /// Configures the server to use in-memory pipe transport for testing.
@@ -30,17 +34,64 @@ public class Program
     /// <param name="outputPipe">Pipe for writing server responses (server writes, client reads)</param>
     public static void ConfigureTestTransport(Pipe inputPipe, Pipe outputPipe)
     {
-        _testInputPipe = inputPipe;
-        _testOutputPipe = outputPipe;
+        lock (TestTransportLock)
+        {
+            if (_testInputPipe != null || _testOutputPipe != null || _testShutdownCts != null)
+            {
+                throw new InvalidOperationException(
+                    "Test transport is already configured. Ensure the previous MCP transport test completed cleanup before starting another one.");
+            }
+
+            _testInputPipe = inputPipe;
+            _testOutputPipe = outputPipe;
+            _testShutdownCts = new CancellationTokenSource();
+            _testTransportGeneration++;
+        }
     }
 
     /// <summary>
-    /// Resets test transport configuration (call after test completes).
+    /// Requests shutdown for the active in-memory test transport without clearing transport state.
+    /// </summary>
+    public static void RequestTestTransportShutdown()
+    {
+        CancellationTokenSource? shutdownCts;
+
+        lock (TestTransportLock)
+        {
+            shutdownCts = _testShutdownCts;
+        }
+
+        if (shutdownCts != null)
+        {
+            try
+            {
+                shutdownCts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // ResetTestTransport() owns disposing the test CTS after the host has fully stopped.
+            }
+        }
+    }
+
+    /// <summary>
+    /// Resets test transport configuration after the in-memory test host has stopped.
     /// </summary>
     public static void ResetTestTransport()
     {
-        _testInputPipe = null;
-        _testOutputPipe = null;
+        CancellationTokenSource? shutdownCts;
+
+        lock (TestTransportLock)
+        {
+            shutdownCts = _testShutdownCts;
+            _testShutdownCts = null;
+            _testInputPipe = null;
+            _testOutputPipe = null;
+        }
+
+        shutdownCts?.Dispose();
+
+        ServiceBridge.ServiceBridge.ResetForTests();
     }
 
     public static async Task<int> Main(string[] args)
@@ -68,6 +119,26 @@ public class Program
 
         // Register global exception handlers for unhandled exceptions (telemetry)
         RegisterGlobalExceptionHandlers();
+
+        Pipe? testInputPipe;
+        Pipe? testOutputPipe;
+        CancellationTokenSource? testShutdownCts;
+        long testTransportGeneration;
+
+        lock (TestTransportLock)
+        {
+            testInputPipe = _testInputPipe;
+            testOutputPipe = _testOutputPipe;
+            testShutdownCts = _testShutdownCts;
+            testTransportGeneration = testInputPipe != null && testOutputPipe != null
+                ? _testTransportGeneration
+                : 0;
+        }
+
+        if (testTransportGeneration != 0)
+        {
+            ServiceBridge.ServiceBridge.SetTestOwnerToken(testTransportGeneration);
+        }
 
         var builder = Host.CreateApplicationBuilder(args);
 
@@ -162,12 +233,12 @@ public class Program
             .WithToolsFromAssembly()
             .WithPromptsFromAssembly(); // Auto-discover prompts marked with [McpServerPromptType]
 
-        if (_testInputPipe != null && _testOutputPipe != null)
+        if (testInputPipe != null && testOutputPipe != null)
         {
             // Test mode: use in-memory pipe transport
             mcpBuilder.WithStreamServerTransport(
-                _testInputPipe.Reader.AsStream(),
-                _testOutputPipe.Writer.AsStream());
+                testInputPipe.Reader.AsStream(),
+                testOutputPipe.Writer.AsStream());
         }
         else
         {
@@ -183,9 +254,11 @@ public class Program
         // Note: Update checks are handled by ExcelMCP Service (shown via Windows notification)
         // to avoid duplicate notifications when running in unified package mode
 
+        var runToken = testShutdownCts?.Token ?? CancellationToken.None;
+
         try
         {
-            await host.RunAsync();
+            await host.RunAsync(runToken);
             return 0;
         }
         catch (OperationCanceledException)
@@ -210,7 +283,14 @@ public class Program
         {
             // CRITICAL: Auto-save all sessions and clean up Excel processes on shutdown.
             // Without this, MCP client disconnect or process exit silently discards all unsaved work.
-            ServiceBridge.ServiceBridge.Dispose();
+            if (testTransportGeneration == 0)
+            {
+                ServiceBridge.ServiceBridge.Dispose();
+            }
+            else
+            {
+                ServiceBridge.ServiceBridge.DisposeIfOwnedBy(testTransportGeneration);
+            }
         }
     }
 

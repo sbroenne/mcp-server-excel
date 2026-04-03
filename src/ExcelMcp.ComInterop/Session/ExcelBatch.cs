@@ -572,7 +572,14 @@ internal sealed class ExcelBatch : IExcelBatch
     public bool IsExcelProcessAlive()
     {
         if (_disposed != 0) return false;
-        if (!_excelProcessId.HasValue) return false;
+        if (!_excelProcessId.HasValue)
+        {
+            // PID capture is best-effort during startup. Under load, Excel can still be healthy
+            // even when Hwnd-based PID discovery misses the short retry window. Treat this as
+            // "unknown but assumed alive" so callers do not tear down a live session before the
+            // first COM command runs; real COM failures still surface on the actual operation.
+            return true;
+        }
 
         try
         {

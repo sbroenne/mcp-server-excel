@@ -491,6 +491,83 @@ CALCULATION MODE (Performance Optimization):
 
 ---
 
+
+## 2026-04-02 - Error Diagnostics Slice and Issue #585 Parity
+
+### 2026-04-02T12:13:14Z: User directive
+
+**By:** Stefan Broenner (via Copilot)  
+**What:** Re-scope the work honestly as hardening + diagnostic improvement rather than “bug fixed,” then continue the follow-up items.  
+**Why:** Keep the team narrative aligned with what was actually proven.
+
+---
+
+### McCauley (Lead) — Error Diagnostics Contract Gate
+
+- **Verdict:** Conditionally approved.
+- Routing architecture is correct: MCP and CLI both converge at `ExcelMcpService.ProcessAsync`.
+- #585 regression coverage is structurally sound and round-trips actual Excel formatting state.
+- **Blocking Rule 24 decision:** CLI must mirror MCP's failure envelope rather than shipping a divergent JSON shape.
+- Required parity fields for this slice: `error`, `errorMessage`, `isError`, `errorCategory`, `exceptionType`, `hresult`, `innerError`.
+- Advisory follow-up: converge MCP's two internal error shapes and keep failure-path tests focused and surgical until the unrelated broad-session flake is resolved.
+
+---
+
+### Cheritto (Platform Dev) — First Slice Boundaries
+
+- Keep the milestone strictly in the shared transport and presentation layers, not Core/COM behavior.
+- Enrich `ServiceResponse` additively with optional `ExceptionType`, `HResult`, and `InnerError`.
+- Preserve compatibility by exposing both `error` and `errorMessage` through CLI and MCP.
+- Treat the remaining `ProgramTransport` / session-loss noise from some full MCP class runs as separate harness instability, not part of this slice.
+
+---
+
+### Nate (Tester) — Parity Test Posture and Validation
+
+- Preserve CLI's existing `error` field for compatibility while adding `errorMessage`, `isError`, `exceptionType`, `hresult`, and `innerError` across both entry points.
+- Assert the new structured fields explicitly whenever the shared transport changes.
+- Focused validation passed for:
+  - #585-style CLI/MCP parity regressions
+  - focused protocol buckets
+  - focused range-format transparency buckets
+- Broader full-class MCP runs still show existing `ProgramTransport` / session flake noise; do not use those runs as the primary gate for this milestone.
+
+---
+
+## 2026-04-02 - PR Scope, Publication Posture, and #559/#558 Guidance
+
+### Hanna (COM Interop Expert) — Startup Cleanup Compile Blocker
+
+- The compile blocker was a boundary mismatch, not a shutdown-design defect.
+- `ExcelSession.CreateWorkbookOnStaThread()` now keeps the startup Excel reference as `object`, so `ComUtilities.TryQuitExcel()` must accept `object?` and call `Quit()` late-bound.
+- No shutdown sequencing change is warranted; `ExcelShutdownService` remains the real production quit path.
+
+---
+
+### McCauley (Lead) — Scope and Publication Posture
+
+- `#559` should be described as **startup hardening + improved diagnostics**, not a fully proven environment-wide fix.
+- Current branch scope is broader than `#559` alone: it also carries `#550`, `#558`, and CLI validation hardening.
+- `.squad/*` artifacts remain internal context and should stay out of user-facing PR narrative.
+- Final publication gate stays **NOT READY** until the CLI workflow smoke turns green again; current failure is the post-`session close --save` service-loss path, followed by non-JSON reopen output.
+
+---
+
+### Nate (Tester) — Follow-Up Coverage and Validation Limits
+
+- Reopened-session VBA coverage strengthened CLI and MCP transport proof for `#558` without reopening the underlying late-bound VBA fix.
+- Exact `#559` startup slice re-passed locally in focused ComInterop tests, targeted CLI service tests, and targeted MCP reopened-session smoke tests.
+- Tester posture remains: **no publish** as a clean `#559`-only branch because affected-environment proof is still missing and adjacent workflow noise remains.
+
+---
+
+### Trejo (Documentation) — #559 Changelog Rescope
+
+- CHANGELOG messaging now reflects that `#559` removed hard-typed startup casts and improved diagnostics.
+- Public wording must say **behavioral hardening with validation pending**, not “diagnostic enrichment only” and not an overclaimed universal fix.
+
+---
+
 ## Governance
 
 - All meaningful changes require team consensus

@@ -1,7 +1,4 @@
-using System.IO.Pipelines;
 using System.Text.Json;
-using ModelContextProtocol.Client;
-using ModelContextProtocol.Protocol;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -16,49 +13,23 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "Worksheets")]
-public sealed class WorksheetToolSchemaTests : IAsyncLifetime, IAsyncDisposable
+public sealed class WorksheetToolSchemaTests : McpIntegrationTestBase
 {
-    private readonly ITestOutputHelper _output;
-    private readonly Pipe _clientToServerPipe = new();
-    private readonly Pipe _serverToClientPipe = new();
-    private readonly CancellationTokenSource _cts = new();
-
-    private McpClient? _client;
-    private Task? _serverTask;
-
     public WorksheetToolSchemaTests(ITestOutputHelper output)
+        : base(output, "WorksheetSchemaClient")
     {
-        _output = output;
-    }
-
-    public async Task InitializeAsync()
-    {
-        Program.ConfigureTestTransport(_clientToServerPipe, _serverToClientPipe);
-        _serverTask = Program.Main([]);
-        await Task.Delay(100);
-
-        _client = await McpClient.CreateAsync(
-            new StreamClientTransport(
-                serverInput: _clientToServerPipe.Writer.AsStream(),
-                serverOutput: _serverToClientPipe.Reader.AsStream()),
-            clientOptions: new McpClientOptions
-            {
-                ClientInfo = new() { Name = "WorksheetSchemaClient", Version = "1.0.0" },
-                InitializationTimeout = TimeSpan.FromSeconds(30)
-            },
-            cancellationToken: _cts.Token);
     }
 
     [Fact]
     public async Task ListTools_WorksheetSchema_ExposesActionSpecificWorksheetDescriptions()
     {
-        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         var worksheetTool = tools.SingleOrDefault(tool => tool.Name == "worksheet");
 
         Assert.NotNull(worksheetTool);
 
         var schema = worksheetTool!.JsonSchema;
-        _output.WriteLine(schema.GetRawText());
+        Output.WriteLine(schema.GetRawText());
 
         var properties = schema.GetProperty("properties");
 
@@ -95,48 +66,5 @@ public sealed class WorksheetToolSchemaTests : IAsyncLifetime, IAsyncDisposable
     {
         Assert.True(property.TryGetProperty("description", out var description), $"Schema property is missing description: {property.GetRawText()}");
         return description.GetString() ?? string.Empty;
-    }
-
-    public async Task DisposeAsync()
-    {
-        await CleanupAsync();
-    }
-
-    async ValueTask IAsyncDisposable.DisposeAsync()
-    {
-        await CleanupAsync();
-        GC.SuppressFinalize(this);
-    }
-
-    private async Task CleanupAsync()
-    {
-        if (_client != null)
-        {
-            await _client.DisposeAsync();
-        }
-
-        _clientToServerPipe.Writer.Complete();
-        _serverToClientPipe.Writer.Complete();
-
-        if (_serverTask != null)
-        {
-            var shutdownTimeout = Task.Delay(TimeSpan.FromSeconds(10));
-            var completed = await Task.WhenAny(_serverTask, shutdownTimeout);
-
-            if (completed == shutdownTimeout)
-            {
-                await _cts.CancelAsync();
-                try
-                {
-                    await _serverTask;
-                }
-                catch (OperationCanceledException)
-                {
-                }
-            }
-        }
-
-        Program.ResetTestTransport();
-        _cts.Dispose();
     }
 }
