@@ -75,6 +75,105 @@ public sealed class RangeFormatIssue585CliParityTests : IDisposable
         Assert.Equal(new CellFormattingState(true, IssueFillColor, WhiteFontColor), j1);
     }
 
+    [Fact]
+    public async Task RangeFormat_FormatRange_InvalidColor_ReturnsTransparentFailureEnvelopeViaCli()
+    {
+        var (openResult, openJson) = await CliProcessHelper.RunJsonAsync(
+            $"session create \"{_testFile}\"",
+            timeoutMs: 60000,
+            diagnosticLabel: "session create for rangeformat diagnostics");
+        Assert.Equal(0, openResult.ExitCode);
+
+        var sessionId = openJson.RootElement.GetProperty("sessionId").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(sessionId));
+
+        try
+        {
+            var createSheetResult = await CliProcessHelper.RunAsync(
+                $"sheet create --session {sessionId} --sheet-name \"Toutes les transactions\"",
+                timeoutMs: 60000,
+                diagnosticLabel: "sheet create for rangeformat diagnostics");
+            Assert.Equal(0, createSheetResult.ExitCode);
+
+            var (formatResult, formatJson) = await CliProcessHelper.RunJsonAsync(
+                $"rangeformat format-range --session {sessionId} --sheet-name \"Toutes les transactions\" --range-address A1:J1 --fill-color not-a-color",
+                timeoutMs: 60000,
+                diagnosticLabel: "rangeformat invalid-color diagnostics");
+
+            _output.WriteLine($"CLI stdout: {formatResult.Stdout}");
+            _output.WriteLine($"CLI stderr: {formatResult.Stderr}");
+
+            Assert.Equal(1, formatResult.ExitCode);
+            AssertFailureEnvelope(
+                formatJson.RootElement,
+                "CLI rangeformat invalid-color",
+                expectedExceptionType: "ArgumentException",
+                expectedErrorCategory: "InvalidInput",
+                expectedCommand: "rangeformat.format-range",
+                expectedSessionId: sessionId);
+
+            var errorMessage = formatJson.RootElement.GetProperty("errorMessage").GetString();
+            Assert.Contains("Invalid color format: not-a-color", errorMessage, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await CliProcessHelper.RunAsync(
+                $"session close --session {sessionId} --save false",
+                timeoutMs: 60000,
+                diagnosticLabel: "session close for rangeformat diagnostics");
+        }
+    }
+
+    [Fact]
+    public async Task RangeFormat_FormatRange_Issue585Payload_OnMissingSheet_ReturnsTransparentFailure()
+    {
+        var (openResult, openJson) = await CliProcessHelper.RunJsonAsync(
+            $"session create \"{_testFile}\"",
+            timeoutMs: 60000,
+            diagnosticLabel: "session create for rangeformat failure parity");
+        Assert.Equal(0, openResult.ExitCode);
+
+        var sessionId = openJson.RootElement.GetProperty("sessionId").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(sessionId));
+
+        try
+        {
+            var formatResult = await CliProcessHelper.RunAsync(
+                $"rangeformat format-range --session {sessionId} --sheet-name \"Toutes les transactions\" --range-address A1:J1 --bold true --fill-color \"#1F4E79\" --font-color \"#FFFFFF\"",
+                timeoutMs: 60000,
+                diagnosticLabel: "rangeformat format-range issue585 failure payload");
+
+            _output.WriteLine($"CLI stdout: {formatResult.Stdout}");
+            _output.WriteLine($"CLI stderr: {formatResult.Stderr}");
+
+            Assert.Equal(1, formatResult.ExitCode);
+
+            using var formatJson = JsonDocument.Parse(formatResult.Stdout);
+            AssertFailureEnvelope(
+                formatJson.RootElement,
+                "CLI rangeformat missing-sheet",
+                expectedExceptionType: "COMException",
+                expectedErrorCategory: "ComInterop",
+                expectedCommand: "rangeformat.format-range",
+                expectedSessionId: sessionId);
+
+            Assert.True(formatJson.RootElement.TryGetProperty("hresult", out var hresult));
+            Assert.False(string.IsNullOrWhiteSpace(hresult.GetString()));
+
+            var errorMessage = formatJson.RootElement.GetProperty("errorMessage").GetString();
+            Assert.NotNull(errorMessage);
+            Assert.Contains("COMException", errorMessage, StringComparison.Ordinal);
+            Assert.Contains("Invalid index", errorMessage, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            await CliProcessHelper.RunAsync(
+                $"session close --session {sessionId} --save false",
+                timeoutMs: 60000,
+                diagnosticLabel: "session close for rangeformat failure parity");
+        }
+    }
+
     public void Dispose()
     {
         if (File.Exists(_testFile))
@@ -123,4 +222,43 @@ public sealed class RangeFormatIssue585CliParityTests : IDisposable
     }
 
     private sealed record CellFormattingState(bool Bold, int? FillColor, int? FontColor);
+
+    private static void AssertFailureEnvelope(
+        JsonElement root,
+        string operationName,
+        string expectedExceptionType,
+        string? expectedErrorCategory = null,
+        string? expectedCommand = null,
+        string? expectedSessionId = null)
+    {
+        Assert.False(root.GetProperty("success").GetBoolean(), $"{operationName} unexpectedly succeeded.");
+        Assert.True(root.GetProperty("isError").GetBoolean(), $"{operationName} should return isError=true.");
+        Assert.Equal(expectedExceptionType, root.GetProperty("exceptionType").GetString());
+
+        var error = root.GetProperty("error").GetString();
+        var errorMessage = root.GetProperty("errorMessage").GetString();
+
+        Assert.False(string.IsNullOrWhiteSpace(errorMessage), $"{operationName} should return errorMessage.");
+        Assert.Equal(errorMessage, error);
+        Assert.False(root.TryGetProperty("innerError", out _), $"{operationName} should not include innerError for these failures.");
+        AssertOptionalStringProperty(root, "errorCategory", expectedErrorCategory, operationName);
+        AssertOptionalStringProperty(root, "command", expectedCommand, operationName);
+        AssertOptionalStringProperty(root, "sessionId", expectedSessionId, operationName);
+    }
+
+    private static void AssertOptionalStringProperty(
+        JsonElement root,
+        string propertyName,
+        string? expectedValue,
+        string operationName)
+    {
+        if (expectedValue == null)
+        {
+            Assert.False(root.TryGetProperty(propertyName, out _), $"{operationName} should not include {propertyName}.");
+            return;
+        }
+
+        Assert.True(root.TryGetProperty(propertyName, out var property), $"{operationName} should include {propertyName}.");
+        Assert.Equal(expectedValue, property.GetString());
+    }
 }

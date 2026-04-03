@@ -43,27 +43,11 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
 
     public async Task InitializeAsync()
     {
-        // Configure the server to use our test pipes
-        Program.ConfigureTestTransport(_clientToServerPipe, _serverToClientPipe);
-
-        // Run the real server
-        _serverTask = Program.Main([]);
-
-        // Allow server to initialize before client connection
-        // SDK 0.5.0+ has stricter initialization timing
-        await Task.Delay(100);
-
-        // Create client connected to the server via pipes
-        _client = await McpClient.CreateAsync(
-            new StreamClientTransport(
-                serverInput: _clientToServerPipe.Writer.AsStream(),
-                serverOutput: _serverToClientPipe.Reader.AsStream()),
-            clientOptions: new McpClientOptions
-            {
-                ClientInfo = new() { Name = "OpTrackingTestClient", Version = "1.0.0" },
-                InitializationTimeout = TimeSpan.FromSeconds(30)  // Increase timeout for test stability
-            },
-            cancellationToken: _cts.Token);
+        (_client, _serverTask) = await ProgramTransportTestHost.StartAsync(
+            _clientToServerPipe,
+            _serverToClientPipe,
+            _cts.Token,
+            "OpTrackingTestClient");
 
         _output.WriteLine($"✓ Connected to server: {_client.ServerInfo?.Name} v{_client.ServerInfo?.Version}");
     }
@@ -81,44 +65,12 @@ public class ExcelFileToolOperationTrackingTests : IAsyncLifetime, IAsyncDisposa
 
     private async Task DisposeAsyncCore()
     {
-        // Cancel any pending operations
-        await _cts.CancelAsync();
-
-        // Close client
-        if (_client != null)
-        {
-            await _client.DisposeAsync();
-        }
-
-        // Complete the pipes to signal server to stop
-        await _clientToServerPipe.Writer.CompleteAsync();
-        await _serverToClientPipe.Reader.CompleteAsync();
-
-        // Wait for server to finish
-        if (_serverTask != null)
-        {
-            try
-            {
-                await _serverTask.WaitAsync(TimeSpan.FromSeconds(10));
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected
-            }
-            catch (TimeoutException)
-            {
-                _output.WriteLine("Warning: Server did not stop within timeout");
-            }
-        }
-
-        // Cleanup pipes
-        _clientToServerPipe.Writer.Complete();
-        _clientToServerPipe.Reader.Complete();
-        _serverToClientPipe.Writer.Complete();
-        _serverToClientPipe.Reader.Complete();
-
-        // Reset test transport to avoid contaminating other tests
-        Program.ResetTestTransport();
+        await ProgramTransportTestHost.StopAsync(
+            _client,
+            _clientToServerPipe,
+            _serverToClientPipe,
+            _serverTask,
+            _output);
 
         // Delete test files
         if (Directory.Exists(_tempDir))

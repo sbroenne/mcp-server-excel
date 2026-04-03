@@ -46,20 +46,11 @@ public class WorksheetRenameParameterTests : IAsyncLifetime, IAsyncDisposable
 
     public async Task InitializeAsync()
     {
-        Program.ConfigureTestTransport(_clientToServerPipe, _serverToClientPipe);
-        _serverTask = Program.Main([]);
-        await Task.Delay(100);
-
-        _client = await McpClient.CreateAsync(
-            new StreamClientTransport(
-                serverInput: _clientToServerPipe.Writer.AsStream(),
-                serverOutput: _serverToClientPipe.Reader.AsStream()),
-            clientOptions: new McpClientOptions
-            {
-                ClientInfo = new() { Name = "WsRenameRegressionClient", Version = "1.0.0" },
-                InitializationTimeout = TimeSpan.FromSeconds(30)
-            },
-            cancellationToken: _cts.Token);
+        (_client, _serverTask) = await ProgramTransportTestHost.StartAsync(
+            _clientToServerPipe,
+            _serverToClientPipe,
+            _cts.Token,
+            "WsRenameRegressionClient");
 
         // Create a fresh workbook and open session
         var createJson = await CallToolAsync("file", new Dictionary<string, object?>
@@ -315,35 +306,12 @@ public class WorksheetRenameParameterTests : IAsyncLifetime, IAsyncDisposable
             }
         }
 
-        if (_client != null)
-        {
-            await _client.DisposeAsync();
-        }
-
-        _clientToServerPipe.Writer.Complete();
-        _serverToClientPipe.Writer.Complete();
-
-        if (_serverTask != null)
-        {
-            var shutdownTimeout = Task.Delay(TimeSpan.FromSeconds(10));
-            var completed = await Task.WhenAny(_serverTask, shutdownTimeout);
-
-            if (completed == shutdownTimeout)
-            {
-                _output.WriteLine("Warning: Server did not shut down gracefully, forcing cancellation");
-                await _cts.CancelAsync();
-                try
-                {
-                    await _serverTask;
-                }
-                catch (OperationCanceledException)
-                {
-                    // Expected
-                }
-            }
-        }
-
-        Program.ResetTestTransport();
+        await ProgramTransportTestHost.StopAsync(
+            _client,
+            _clientToServerPipe,
+            _serverToClientPipe,
+            _serverTask,
+            _output);
         _cts.Dispose();
 
         try

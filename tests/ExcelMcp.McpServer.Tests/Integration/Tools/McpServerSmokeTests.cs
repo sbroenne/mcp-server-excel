@@ -73,29 +73,11 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
     /// </summary>
     public async Task InitializeAsync()
     {
-        // Configure the server to use our test pipes instead of stdio
-        // This is the ONLY difference from production - transport layer only
-        Program.ConfigureTestTransport(_clientToServerPipe, _serverToClientPipe);
-
-        // Run the REAL server (Program.Main) - exact same code path as production
-        // The server will use our configured pipes for transport
-        _serverTask = Program.Main([]);
-
-        // Allow server to initialize before client connection
-        // SDK 0.5.0+ has stricter initialization timing
-        await Task.Delay(100);
-
-        // Create client connected to the server via pipes
-        _client = await McpClient.CreateAsync(
-            new StreamClientTransport(
-                serverInput: _clientToServerPipe.Writer.AsStream(),
-                serverOutput: _serverToClientPipe.Reader.AsStream()),
-            clientOptions: new McpClientOptions
-            {
-                ClientInfo = new() { Name = "SmokeTestClient", Version = "1.0.0" },
-                InitializationTimeout = TimeSpan.FromSeconds(30)  // Increase timeout for test stability
-            },
-            cancellationToken: _cts.Token);
+        (_client, _serverTask) = await ProgramTransportTestHost.StartAsync(
+            _clientToServerPipe,
+            _serverToClientPipe,
+            _cts.Token,
+            "SmokeTestClient");
 
         _output.WriteLine($"✓ Connected to server: {_client.ServerInfo?.Name} v{_client.ServerInfo?.Version}");
     }
@@ -116,42 +98,12 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         // Flush telemetry before shutdown to ensure test telemetry is sent
         ExcelMcpTelemetry.Flush();
 
-        // Dispose client first - this signals we're done sending requests
-        if (_client != null)
-        {
-            await _client.DisposeAsync();
-        }
-
-        // Complete the pipes to signal EOF - this triggers GRACEFUL server shutdown
-        // The MCP SDK will see EOF and stop the host naturally, allowing
-        // Application Insights and other services to flush during shutdown
-        _clientToServerPipe.Writer.Complete();
-        _serverToClientPipe.Writer.Complete();
-
-        // Wait for server to shut down gracefully (with timeout)
-        if (_serverTask != null)
-        {
-            // Give the server time to flush telemetry and clean up
-            var shutdownTimeout = Task.Delay(TimeSpan.FromSeconds(10));
-            var completed = await Task.WhenAny(_serverTask, shutdownTimeout);
-
-            if (completed == shutdownTimeout)
-            {
-                // Server didn't shut down in time - cancel as fallback
-                await _cts.CancelAsync();
-                try
-                {
-                    await _serverTask;
-                }
-                catch (OperationCanceledException)
-                {
-                    // Expected when we had to force cancel
-                }
-            }
-        }
-
-        // Reset test transport for next test
-        Program.ResetTestTransport();
+        await ProgramTransportTestHost.StopAsync(
+            _client,
+            _clientToServerPipe,
+            _serverToClientPipe,
+            _serverTask,
+            _output);
 
         _cts.Dispose();
 
