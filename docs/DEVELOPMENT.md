@@ -63,7 +63,10 @@ git push origin feature/your-feature-name
 - **Automated checks** will run (build, tests, linting)
 - **Code review** by maintainers
 - **Address feedback** if requested
-- **Merge** once approved and all checks pass
+- **Merge strategy**: **Squash merge** — All PRs are merged as a single commit to `main` to keep history clean
+  - When you click "Merge pull request," select the squash merge option
+  - Verify the final commit message accurately describes your changes
+  - This ensures `main` has a clean, linear history with one commit per feature/fix
 
 ### 6. **After Merge**
 

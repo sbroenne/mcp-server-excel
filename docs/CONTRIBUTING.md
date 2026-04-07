@@ -33,6 +33,8 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 
 **All changes must be made through Pull Requests (PRs).** Direct commits to `main` are prohibited.
 
+**Merge Strategy: Squash Merge** — All PRs are merged via squash merge (single commit to `main`). This keeps the history clean.
+
 ### Quick PR Process
 
 1. **Create feature branch**: `git checkout -b feature/your-feature`
@@ -40,7 +42,9 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 3. **Push branch**: `git push origin feature/your-feature`
 4. **Create PR**: Use GitHub's PR template
 5. **Address review**: Make requested changes
-6. **Merge**: After approval and CI checks pass
+6. **Merge**: After approval and CI checks pass — **GitHub will squash commits automatically**
+   - Verify the final commit message accurately describes the changes
+   - After merge, your feature branch can be safely deleted
 
 📋 **Detailed workflow**: See [DEVELOPMENT.md](DEVELOPMENT.md) for complete instructions.
 
