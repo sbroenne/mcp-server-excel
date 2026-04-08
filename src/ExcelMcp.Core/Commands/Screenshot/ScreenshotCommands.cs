@@ -11,7 +11,9 @@ public class ScreenshotCommands : IScreenshotCommands
 {
     // Excel COM constants
     private const int XlScreen = 1;      // xlScreen - required for CopyPicture to render correctly
-    private const int XlBitmap = 2;      // xlBitmap
+    private const int XlPicture = -4147; // xlPicture - more reliable than xlBitmap for range capture
+    private const int XlNormal = -4143;  // xlNormal
+    private const int XlMinimized = -4140; // xlMinimized
 
     // CopyPicture retry configuration
     // After Save or large operations, Excel rendering can take several seconds.
@@ -118,6 +120,8 @@ public class ScreenshotCommands : IScreenshotCommands
         dynamic? chart = null;
         string? tempFile = null;
         bool wasVisible = false;
+        int originalWindowState = XlNormal;
+        bool windowStateChanged = false;
 
         try
         {
@@ -140,18 +144,15 @@ public class ScreenshotCommands : IScreenshotCommands
                 Thread.Sleep(1000);
             }
 
-            // Try to activate the Excel window to ensure it has focus for proper rendering.
-            // This helps ensure content is fully rendered before capture.
-            try
+            originalWindowState = Convert.ToInt32(app.WindowState);
+            if (originalWindowState == XlMinimized)
             {
-                app.Activate();
-                // Allow activation and message pump to settle
+                app.WindowState = XlNormal;
+                windowStateChanged = true;
                 Thread.Sleep(500);
             }
-            catch
-            {
-                // Activate may fail in some contexts (minimized, headless, etc.) - ignore
-            }
+
+            PrepareRangeForCapture(app, sheet, range);
 
             // Get range dimensions for the chart
             double width = Convert.ToDouble(range.Width);
@@ -190,7 +191,9 @@ public class ScreenshotCommands : IScreenshotCommands
 
             // Copy range as picture (with retry — CopyPicture is clipboard-dependent
             // and intermittently fails when Excel is still rendering after chart/table operations)
+            try { app.CutCopyMode = false; } catch (COMException) { }
             CopyPictureWithRetry(range);
+            Thread.Sleep(250);
 
             // Create a temporary ChartObject to paste into and export
             chartObjects = sheet.ChartObjects();
@@ -198,11 +201,11 @@ public class ScreenshotCommands : IScreenshotCommands
             chart = chartObject.Chart;
 
             // Paste the copied picture into the chart
-            chart.Paste();
+            PastePictureWithRetry(app, sheet, range, chart);
 
             // Clear clipboard immediately after paste — releases clipboard for subsequent screenshot calls
             // (otherwise marching ants remain and next CopyPicture may fail with clipboard contention)
-            try { app.CutCopyMode = false; } catch { /* best effort */ }
+            try { app.CutCopyMode = false; } catch (COMException) { }
 
             // Export to temp file in the appropriate format
             tempFile = Path.Combine(Path.GetTempPath(), $"excelmcp-screenshot-{Guid.NewGuid():N}.{fileExt}");
@@ -244,7 +247,12 @@ public class ScreenshotCommands : IScreenshotCommands
             // Restore Excel visibility if we changed it
             if (!wasVisible)
             {
-                try { app.Visible = false; } catch { /* best effort */ }
+                try { app.Visible = false; } catch (COMException) { }
+            }
+
+            if (windowStateChanged)
+            {
+                try { app.WindowState = originalWindowState; } catch (COMException) { }
             }
 
             // Clean up temp file
@@ -266,12 +274,72 @@ public class ScreenshotCommands : IScreenshotCommands
         {
             try
             {
-                range.CopyPicture(XlScreen, XlBitmap);
+                range.CopyPicture(XlScreen, XlPicture);
                 return;
             }
             catch (COMException) when (attempt < CopyPictureMaxRetries - 1)
             {
                 Thread.Sleep(CopyPictureRetryDelayMs * (attempt + 1));
+            }
+        }
+    }
+
+    private static void PrepareRangeForCapture(dynamic app, dynamic sheet, dynamic range)
+    {
+        dynamic? topLeftCell = null;
+        dynamic? activeWindow = null;
+
+        try
+        {
+            try { sheet.Activate(); } catch (COMException) { }
+
+            try
+            {
+                topLeftCell = range.Cells[1, 1];
+                app.Goto(topLeftCell, true);
+            }
+            catch (COMException) { }
+
+            try
+            {
+                activeWindow = app.ActiveWindow;
+                if (activeWindow != null && topLeftCell != null)
+                {
+                    activeWindow.ScrollRow = Convert.ToInt32(topLeftCell.Row);
+                    activeWindow.ScrollColumn = Convert.ToInt32(topLeftCell.Column);
+                }
+            }
+            catch (COMException) { }
+
+            try { range.Select(); } catch (COMException) { }
+            Thread.Sleep(500);
+        }
+        finally
+        {
+            ComUtilities.Release(ref activeWindow);
+            ComUtilities.Release(ref topLeftCell);
+        }
+    }
+
+    private static void PastePictureWithRetry(dynamic app, dynamic sheet, dynamic range, dynamic chart)
+    {
+        for (int attempt = 0; attempt < CopyPictureMaxRetries; attempt++)
+        {
+            try
+            {
+                try { chart.Parent.Activate(); } catch (COMException) { }
+                try { chart.ChartArea.Select(); } catch (COMException) { }
+                Thread.Sleep(100);
+                chart.Paste();
+                Thread.Sleep(250);
+                return;
+            }
+            catch (COMException) when (attempt < CopyPictureMaxRetries - 1)
+            {
+                Thread.Sleep(CopyPictureRetryDelayMs * (attempt + 1));
+                PrepareRangeForCapture(app, sheet, range);
+                try { app.CutCopyMode = false; } catch (COMException) { }
+                CopyPictureWithRetry(range);
             }
         }
     }
