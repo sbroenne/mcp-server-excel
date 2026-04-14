@@ -10,7 +10,7 @@ dependencies = [
     "pytest-skill-engineering>=0.5.9",
     "azure-identity>=1.25",
     "pytest-timeout>=2.4.0",
-    "pillow>=12.1.1",
+    "pillow>=12.2.0",
 ]
 
 [tool.pytest.ini_options]
