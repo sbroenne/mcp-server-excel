@@ -594,3 +594,295 @@ CALCULATION MODE (Performance Optimization):
 3. Updated `docs/PRE-COMMIT-SETUP.md` and `.github/copilot-instructions.md` to reflect new gate
 
 **Status:** ✅ Complete. Pre-commit hook now validates packaging; gate list synchronized with script. Known blocker: CLI session close failure prevents full pre-commit validation on current HEAD (separate issue, awaiting diagnosis).
+
+---
+
+## 2026-04-23 - Copilot CLI Plugin Planning — Six Decisions Finalized
+
+**Date:** 2026-04-23  
+**Scope:** Architecture, naming, distribution, publication for ExcelMcp Copilot CLI plugins  
+**Outcome:** All 6 decisions locked; Kelso's override on MCP binary distribution accepted by Stefan
+
+### Decision 1: Plugin Names — `excel-mcp` and `excel-cli`
+
+**Decision:**
+- MCP plugin: `excel-mcp` (contains MCP server, agent, binary download script)
+- CLI plugin: `excel-cli` (contains CLI skill only)
+
+**Rationale:**
+- Clear naming convention (matches skill names)
+- Users install only what they need (clean separation)
+- Matches existing skills/tools architecture
+
+**Owner:** Kelso (Plugin Engineer)
+
+### Decision 2: Published Repository — `sbroenne/mcp-server-excel-plugins`
+
+**Decision:** New dedicated marketplace repo for plugin distribution. NOT published inside source repo.
+
+**Rationale:**
+- Clean separation of concerns (source vs. published)
+- Easier for users to discover (dedicated namespace)
+- Supports automated cross-repo publish via GitHub Action (PAT-based)
+
+**Owner:** Kelso (Plugin Engineer)
+
+### Decision 3: Custom Excel Agent — YES for MCP Plugin, NO for CLI Plugin
+
+**Decision:**
+- ✅ Excel agent for `excel-mcp` plugin (thin, conversational scaffolding)
+- ❌ NO agent for `excel-cli` plugin (scripting needs no agent)
+
+**Rationale:**
+- MCP plugin targets conversational AI → agent enforces CRITICAL RULES, workflow hints, session management
+- CLI plugin targets scripting/batch → agent adds no value
+- office-coding-agent precedent: agents present in all plugins, but Kelso argued MCP-only (rationale: agent scaffolds conversational workflows, not scripting)
+
+**Agent Pattern (Recommended):**
+```markdown
+---
+name: Excel
+description: AI assistant for Excel automation via MCP server tools
+---
+
+You are an Excel automation expert using excel-mcp MCP server tools.
+
+CRITICAL RULES:
+1. NEVER ask clarifying questions — use list tools to discover
+2. ALWAYS close sessions (file close with save: true)
+3. For bulk operations, use calculation_mode
+4. ALWAYS end with text summary
+
+WORKFLOW HINTS:
+- Power Query: connection list → power-query import
+- Data Model: datamodel list-tables before creating measures
+
+See excel-mcp skill for complete workflows.
+```
+
+**Owner:** Kelso (Plugin Engineer)
+
+### Decision 4: MCP Binary Distribution — GITHUB RELEASE DOWNLOAD (Override by Kelso)
+
+**Decision:** Ship `bin/download.ps1` script with plugin; user runs script post-install to download binary from matching GitHub Release.
+
+**NOT:** Commit 50–80MB binary directly to Git history.
+
+**Rationale (Kelso's Pushback):**
+- .NET self-contained publish = 50–80MB for Windows x64
+- Each release = +50–80MB to Git history (unrecoverable bloat)
+- Release download keeps repo lean, fast clones, long-term maintainability
+- Tradeoff: Two-step install (plugin + binary) vs. chronic Git bloat → **Release download wins**
+
+**Implementation:**
+1. Plugin includes `bin/download.ps1` (small script, committed to Git)
+2. `.mcp.json` references `{pluginDir}/bin/mcp-excel.exe` (gitignored, user downloads)
+3. User runs `download.ps1` after `copilot plugin install` (one-time)
+4. Script pulls binary from GitHub Release asset matching plugin version tag
+5. MCP server starts via local path
+
+**Stefan's Approval:** Accepted Kelso's override; 2-step install is better than repo bloat.
+
+**Owner:** Kelso (Plugin Engineer), Stefan (Approver)
+
+### Decision 5: Marketplace Submission — DEFERRED TO v2
+
+**Decision:** Do NOT submit to github/copilot-plugins or github/awesome-copilot in v1.
+
+**Rationale:**
+- Focus on "installable from sbroenne/mcp-server-excel-plugins" first
+- Validate with early users before official marketplace
+- Marketplace submission = PR review overhead, acceptance criteria
+- Can add later once stable
+
+**Owner:** Stefan (User), Kelso (Plugin Engineer)
+
+### Decision 6: Publication Mechanism — AUTOMATED VIA GITHUB ACTION
+
+**Decision:** Automated GitHub Action on release tag push (deviates from office-coding-agent's manual precedent).
+
+**Why Automate:**
+- ✅ Less toil (no manual rsync every release)
+- ✅ Fewer sync bugs (no forgotten files, stale content)
+- ✅ Faster release cycle (tag → published in minutes)
+- ✅ Version consistency enforced (plugin version = MCP server release tag)
+
+**Implementation:**
+- Trigger: Release tag push in source repo (`v*`)
+- Action:
+  1. Build plugins via `scripts/Build-PluginPackages.ps1`
+  2. Clone published repo (`mcp-server-excel-plugins`)
+  3. Copy `plugins/excel-mcp/` and `plugins/excel-cli/` to published repo
+  4. Commit + push to published repo
+- Requires: Personal Access Token (PAT) with repo write access
+
+**Owner:** Kelso (Plugin Engineer, automation design), Stefan (PAT provider)
+
+### Bonus Decisions (Kelso's Refinement)
+
+#### Version Pinning: Lockstep (plugin version = MCP server release tag)
+
+**Rationale:**
+- Simplifies user confusion ("I have plugin v1.2.0, what server?" → "Same version")
+- Plugin tightly coupled to binary (bundled via download)
+- Each plugin release = one MCP server release
+
+#### Windows-Only Gating: Multi-Layered
+
+1. `plugin.json` description: "⚠️ WINDOWS-ONLY: Excel automation via COM interop (requires Excel 2016+)"
+2. `plugin.json` keywords: `["windows", "windows-only", "com-interop"]`
+3. `SKILL.md` preconditions: Explicit Windows + Excel requirement
+4. `README.md`: Prominent warning at top
+5. MCP server runtime: Graceful failure with clear error if COM unavailable
+
+**Rationale:** Can't prevent install (no OS enforcement in plugin spec), but fail gracefully with clear messaging.
+
+---
+
+### Published Repo Structure (Final)
+
+```
+sbroenne/mcp-server-excel-plugins/  (NEW repo)
+├── README.md                        # Installation instructions, Windows warning
+├── .gitignore                       # Ignore bin/*.exe, keep bin/download.ps1
+└── plugins/
+    ├── excel-mcp/
+    │   ├── plugin.json              # name: "excel-mcp", version: "X.Y.Z"
+    │   ├── .mcp.json                # References {pluginDir}/bin/mcp-excel.exe
+    │   ├── agents/excel.agent.md
+    │   ├── skills/excel-mcp/SKILL.md
+    │   └── bin/
+    │       ├── download.ps1         # Committed
+    │       └── mcp-excel.exe        # Gitignored (user downloads)
+    └── excel-cli/
+        ├── plugin.json              # name: "excel-cli", version: "X.Y.Z"
+        └── skills/excel-cli/SKILL.md
+```
+
+### Execution Plan (Phased, ~9 hours total)
+
+- **Phase 0:** Create `sbroenne/mcp-server-excel-plugins` repo (20 min)
+- **Phase 1:** Build plugins in source repo, test locally (3 hours)
+- **Phase 2:** Build automation script (2 hours)
+- **Phase 3:** Documentation (2 hours)
+- **Phase 4:** GitHub Action for automated publication (2 hours)
+
+**Total:** ~9 hours (1 dev day) to "installable from published repo"
+
+---
+
+### Installation Workflow (For Users)
+
+```powershell
+# Register marketplace (one-time)
+copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
+
+# For AI assistants (Claude, Copilot Chat):
+copilot plugin install excel-mcp@mcp-server-excel
+cd ~/.copilot/plugins/excel-mcp/bin && ./download.ps1  # One-time binary download
+
+# For scripting:
+copilot plugin install excel-cli@mcp-server-excel
+```
+
+### Status
+
+✅ **ALL DECISIONS LOCKED** — Ready for Phase 0 execution.
+
+**Owners:** Kelso (Plugin Engineer, architecture), Stefan (User/Approver)
+
+---
+
+### 2026-04-23T18:09:00Z: User Directive - Accept Rubber-Duck Findings + Add Phase -1 Spike
+
+**By:** Stefan Brönner (via Copilot CLI)
+
+**Approved Findings:**
+- Accept all **4 critical findings** from rubber-duck review:
+  1. Wrapper script (`bin/start-mcp.ps1`) for missing-binary detection
+  2. Phase -1 (Spike): Validate `.mcp.json` + `{pluginDir}` placeholder expansion before Phase 0
+  3. GitHub App or deploy key authentication (replace PAT in release workflow)
+  4. SHA256 checksum verification in `download.ps1`
+
+- Accept all **4 moderate findings**:
+  5. Version skew detection (embed `version.txt` in plugin, wrapper script validates)
+  6. Publish workflow atomicity (concurrency control, single commit)
+  7. CLI plugin discovery without agent presence (docs-driven)
+  8. Drop custom frontmatter fields (keep only `name` + `description`)
+
+**New Phase -1 (Spike):**
+- Goal: Prove install mechanism works before Phase 0
+- Create minimal "hello-world" plugin with `.mcp.json` referencing `{pluginDir}/bin/stub.ps1`
+- Verify: CLI expands `{pluginDir}` placeholder? Wrapper pattern works? Missing-binary detection works?
+- Exit criteria: Working install flow confirmed or pivot if placeholder doesn't work
+- BLOCKING: Only proceed to Phase 0 if spike succeeds
+
+**Implication:** Phase plan becomes Phase -1 (spike) → Phase 0–4 (original plan)
+
+---
+
+### 2026-04-23T18:40:00Z: Kelso Plan Refinement - Spike-First Design Complete
+
+**By:** Kelso (general-purpose agent, Turn 3)
+
+**Work Completed:**
+- ✅ Incorporated all 4 critical + 4 moderate findings into plugin design
+- ✅ Answered all 5 open questions (Q1–Q5):
+  - Q1: YES — release.yml exists with binary assets
+  - Q2: YES — race condition exists; solution: use `workflow_run` trigger
+  - Q3: YES — `download.ps1` supports corporate proxies (DefaultWebProxy)
+  - Q4: NO — air-gapped not in v1 (roadmap item)
+  - Q5: NO — only `excel-mcp` includes binary download, `excel-cli` is skill-only
+- ✅ Fully scoped Phase -1 (Spike) with exit criteria
+- ✅ Updated `.squad/agents/kelso/history.md` with session context
+
+**Critical Fixes Implementation Details:**
+
+1. **Wrapper Script (`bin/start-mcp.ps1`):**
+   - Check if `mcp-excel.exe` exists
+   - If missing: Display clear error + instructions, optionally prompt `download.ps1`
+   - If present: Check version skew (compare binary version vs `version.txt`)
+   - If mismatch: Warn user, offer re-download
+   - Launch `mcp-excel.exe` with forwarded args
+
+2. **Phase -1 Spike:**
+   - Throwaway hello-world plugin (NOT in repo)
+   - Minimal `.mcp.json` with `{pluginDir}/bin/stub.ps1`
+   - Install via `copilot plugin install <path>`
+   - Verify placeholder expansion or determine alternative (env var? `$PSScriptRoot`? absolute path?)
+   - Document findings: `.squad/agents/kelso/proposals/phase-minus-1-spike-results.md`
+
+3. **GitHub App Auth (Phase 4):**
+   - Create GitHub App scoped to `sbroenne/mcp-server-excel-plugins` only
+   - Permissions: `contents: write` on target repo
+   - Replace PAT with app token in workflow: `actions/create-github-app-token@v1`
+
+4. **SHA256 Verification:**
+   - Release workflow produces `checksums.txt` (SHA256 hashes for all assets)
+   - `download.ps1` verifies: `SHA256(downloaded_zip) == expected_hash`
+   - Mismatch: Error exit, delete corrupt file
+
+**Status:** ✅ Plan ready for execution (Phase -1 first)
+
+---
+
+## Decision Summary (2026-04-23)
+
+| Decision | Status | Owner | Notes |
+|----------|--------|-------|-------|
+| Accept rubber-duck findings (4 critical + 4 moderate) | ✅ APPROVED | Stefan | All findings incorporated into design |
+| Add Phase -1 (Spike) before Phase 0 | ✅ APPROVED | Stefan | Blocks Phase 0 until spike succeeds |
+| Implement wrapper script for missing-binary detection | ✅ APPROVED | Kelso | Design complete, ready for Phase 0 |
+| Validate `{pluginDir}` placeholder (Phase -1) | ✅ APPROVED | Kelso | Test plan complete, ready for spike |
+| Replace PAT with GitHub App | ✅ APPROVED | Kelso | Phase 4 implementation planned |
+| Add SHA256 verification in download.ps1 | ✅ APPROVED | Kelso | Release workflow + download script designed |
+| Answer 5 open questions | ✅ COMPLETE | Kelso | Q1–Q5 answered with technical details |
+
+---
+
+## Next Steps (Ordered)
+
+1. **Phase -1 (Spike):** Kelso creates minimal plugin, validates install mechanism
+2. **Phase -1 Results:** Document findings in `.squad/agents/kelso/proposals/phase-minus-1-spike-results.md`
+3. **Phase 0 GO/NO-GO:** Stefan reviews spike results, approves proceeding to Phase 0 or pivots as needed
+4. **Phase 0–4:** If spike succeeds, proceed with full implementation (create repo, build plugins, etc.)
