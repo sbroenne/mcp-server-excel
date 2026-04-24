@@ -222,7 +222,9 @@ uv run pytest -m aitest -v   # All LLM tests
 **Prerequisites:**
 - Azure OpenAI endpoint: `$env:AZURE_OPENAI_ENDPOINT = "https://<resource>.openai.azure.com/"`
 - Build MCP Server: `dotnet build src\ExcelMcp.McpServer -c Release`
-- GitHub auth via `gh auth login` or `GITHUB_TOKEN`
+- GitHub auth for public-repo operations must use a personal GitHub account (not an EMU account) via `gh auth login --with-token` or a `GITHUB_TOKEN` from that account
+
+**GitHub auth rule for this repo:** When using `gh` against `sbroenne/mcp-server-excel` (issues, PRs, comments, merges), verify the authenticated account is a personal GitHub account. Enterprise Managed User accounts cannot create PRs or access some public-repo API paths here.
 
 **Structure:**
 - `test_mcp_*.py` - MCP Server workflows

@@ -18,6 +18,7 @@
 | Cheritto | Platform Dev | `.squad/agents/cheritto/charter.md` | ✅ Active |
 | Nate | Tester | `.squad/agents/nate/charter.md` | ✅ Active |
 | Trejo | Docs Lead | `.squad/agents/trejo/charter.md` | ✅ Active |
+| Kelso | Copilot CLI Plugin Engineer | `.squad/agents/kelso/charter.md` | ✅ Active |
 | Scribe | Session Logger | `.squad/agents/scribe/charter.md` | 📋 Silent |
 | Ralph | Work Monitor | `.squad/agents/ralph/charter.md` | 🔄 Monitor |
 

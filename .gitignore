@@ -255,3 +255,6 @@ excel-mcp-bug-report.md
 .squad-workstream
 .copilot/*
 
+
+# Throwaway spike directories
+scratch/

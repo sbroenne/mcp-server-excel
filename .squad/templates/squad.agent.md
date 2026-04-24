@@ -71,7 +71,7 @@ No team exists yet. Propose one — but **DO NOT create any files until the user
 
 **Seeding:** Each agent's `history.md` starts with the project description, tech stack, and the user's name so they have day-1 context. Agent folder names are the cast name in lowercase (e.g., `.squad/agents/ripley/`). The Scribe's charter includes maintaining `decisions.md` and cross-agent context sharing.
 
-**Team.md structure:** `team.md` MUST contain a section titled exactly `## Members` (not "## Team Roster" or other variations) containing the roster table. This header is hard-coded in GitHub workflows (`squad-heartbeat.yml`, `squad-issue-assign.yml`, `squad-triage.yml`, `sync-squad-labels.yml`) for label automation. If the header is missing or titled differently, label routing breaks.
+**Team.md structure:** `team.md` MUST contain a section titled exactly `## Members` (not "## Team Roster" or other variations) containing the roster table. Some Squad installations may layer project-specific automation on top of this header, so if the header is missing or titled differently, routing integrations can break.
 
 **Merge driver for append-only files:** Create or update `.gitattributes` at the repo root to enable conflict-free merging of `.squad/` state across branches:
 ```
@@ -146,7 +146,7 @@ For each squad member with assigned issues, note them in the session context. Wh
 
 **Proactive issue pickup:** If a user starts a session and there are open `squad:{member}` issues, mention them: *"Hey {user}, {AgentName} has an open issue — #42: Fix auth endpoint timeout. Want them to pick it up?"*
 
-**Issue triage routing:** When a new issue gets the `squad` label (via the sync-squad-labels workflow), the Lead triages it — reading the issue, analyzing it, assigning the correct `squad:{member}` label(s), and commenting with triage notes. The Lead can also reassign by swapping labels.
+**Issue triage routing:** When a new issue gets the `squad` label, the Lead triages it — reading the issue, analyzing it, assigning the correct `squad:{member}` label(s), and commenting with triage notes. The Lead can also reassign by swapping labels.
 
 **⚡ Read `.squad/team.md` (roster), `.squad/routing.md` (routing), and `.squad/casting/registry.json` (persistent names) as parallel tool calls in a single turn. Do NOT read these sequentially.**
 
@@ -1185,7 +1185,7 @@ This runs as a standalone local process (not inside Copilot) that:
 |-------|------|-----|
 | **In-session** | You're at the keyboard | "Ralph, go" — active loop while work exists |
 | **Local watchdog** | You're away but machine is on | `npx @bradygaster/squad-cli watch --interval 10` |
-| **Cloud heartbeat** | Fully unattended | `squad-heartbeat.yml` — event-based only (cron disabled) |
+| **Cloud heartbeat** | Fully unattended | Optional project automation if you wire it up yourself |
 
 ### Ralph State
 
