@@ -30,6 +30,30 @@
 - **McCauley** (Lead) — architecture approval (including whether to author new agent files)
 - **Hanna** — COM review gate (doesn't apply to pure packaging work)
 
+## Current Coordination
+
+### 2026-04-24T14:06:40Z: Plugin Auth Revert Session (Completed)
+
+**Session Participants:** Kelso + Trejo
+
+**Context:** User requested revert from GitHub App auth back to simpler stored cross-repo PAT (`PLUGINS_REPO_TOKEN`) while preserving iq-core-style hardening.
+
+**Kelso's Work:**
+- Verified workflow already token-based (already uses `secrets.PLUGINS_REPO_TOKEN` throughout)
+- Coordinated docs revert with Trejo
+- Generalized cross-repo-release-preflight skill to document both PAT and App auth patterns
+
+**Trejo's Work:**
+- Updated publish-plugins-setup.md with simpler token options (PAT + app token)
+- Aligned RELEASE-STRATEGY.md, INSTALLATION.md, README.md, gh-pages/index.md
+
+**Coordination Result:**
+- ✅ Decisions recorded and merged to decisions.md
+- ✅ Orchestration logs created
+- ⏳ Awaiting user to store PLUGINS_REPO_TOKEN secret
+
+**Related:** `.squad/decisions.md` → 2026-04-24T14:06:40Z entry
+
 ## Learnings
 
 ### 2026-04-24: Reverted plugin publish from GitHub App to stored PAT

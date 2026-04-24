@@ -42,7 +42,29 @@
 - **Plugin surface wording:** Describe published artifacts as GitHub Copilot plugins, but keep install commands scoped to the client flows we have actually validated.
 - **Release discoverability:** If release mechanics change, make the canonical release doc discoverable from README instead of expecting contributors to infer workflow relationships.
 - **Skills architecture:** Skills remain single-source guidance; plugin packaging wraps them, but should not fork or restate their behavioral content unnecessarily.
+- **Auth model evolution:** GitHub App auth introduced complexity (browser setup, two-part secrets, app installation). Users prefer simpler stored-token model (Option 3). When feature could work either way, choose simplicity. Publish-plugins workflow behavior (sync gate, guards, build) is auth-independent, so switching models is a documentation + workflow syntax refresh, not an architecture redesign.
+- **Consistent terminology:** After auth model changes, audit all user-facing and maintainer-facing docs to ensure terminology alignment. README and gh-pages should use identical wording as setup docs. Small inconsistencies leak into user questions and troubleshooting.
 
 ## Archive
 
 - Detailed session history was moved to `.squad\agents\trejo\history-archive-2026-04-24.md` on 2026-04-24.
+
+---
+
+## Cross-Agent Session Notes
+
+### 2026-04-24T14:06:40Z: Plugin Auth Revert Session
+
+**Session Participants:**
+- Kelso (Copilot CLI Plugin Engineer) — Verified workflow already token-based, coordinated docs revert
+- Trejo (Docs Lead) — Aligned all user-facing and maintainer docs to PLUGINS_REPO_TOKEN model
+
+**Coordination Results:**
+- ✅ Workflow consistency verified (already uses `secrets.PLUGINS_REPO_TOKEN` throughout)
+- ✅ All docs surfaces aligned (publish-plugins-setup.md, RELEASE-STRATEGY.md, INSTALLATION.md, README.md, gh-pages/index.md)
+- ✅ Cross-repo-release-preflight skill generalized to document both PAT and GitHub App patterns
+- ✅ Both decisions recorded and merged to decisions.md
+- ✅ Orchestration logs created for both agents
+- ⏳ Awaiting user to store PLUGINS_REPO_TOKEN secret in repo
+
+**Decision Recorded:** `.squad/decisions.md` → 2026-04-24T14:06:40Z entry

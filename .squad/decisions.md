@@ -327,3 +327,61 @@ Kelso executed Phases -1 through 3 of Copilot CLI plugin implementation, with de
 6. **Docs are deliberately layered.**
    - Maintainer docs (`publish-plugins-setup.md`, `RELEASE-STRATEGY.md`) carry the detailed gate/guard/manual-replay behavior.
    - User-facing docs (`README.md`, `docs/INSTALLATION.md`, `gh-pages/index.md`) keep the promise short: plugin republishing is automatic but guarded, and install guidance remains client-specific.
+
+---
+
+### 2026-04-24T14:06:40Z: Revert Plugin Publish Auth from GitHub App to Stored Cross-Repo Token
+
+**Date:** 2026-04-24  
+**Agents:** Kelso (Plugin Release Engineer), Trejo (Docs Lead)  
+**Status:** ✅ Completed
+
+**Context:** User directed revert from GitHub App-based token minting back to simpler stored cross-repo PAT ('PLUGINS_REPO_TOKEN') model while preserving iq-core-style operational hardening.
+
+**Decision:** Switch 'publish-plugins.yml' workflow authentication from GitHub App to single stored secret 'PLUGINS_REPO_TOKEN' (PAT or app token).
+
+**Key Findings:**
+- Workflow was already token-based throughout — only docs needed alignment
+- GitHub App auth introduced unnecessary complexity for public repo use case
+- Stored PAT provides equivalent security with simpler operational setup
+
+**Changes Delivered:**
+
+1. **Workflow:** Already token-based; verified consistency across preflight, checkout, and all git operations
+2. **Docs Updated:**
+   - '.github/workflows/docs/publish-plugins-setup.md' — Replaced GitHub App setup with simpler token options (Option A: PAT, Option B: existing app token)
+   - 'docs/RELEASE-STRATEGY.md' — Updated secrets table, removed App ID/private key entries, updated troubleshooting
+   - 'INSTALLATION.md' — Verified user install flow independent of auth mechanism
+   - 'README.md' — Already correct language
+   - 'gh-pages/index.md' — Already correct language
+3. **Skills:** Cross-repo-release-preflight skill generalized to document both PAT and GitHub App patterns as equivalent options
+
+**Operational Hardening Retained:** ✅
+- Preflight validation (fails fast if token missing/unreachable)
+- Source-side sync gate (skips unchanged releases)
+- Version guards (rejects downgrades/mismatches)
+- Manual re-sync via 'workflow_dispatch'
+- Duplicate detection with auto/manual modes
+- Concurrency control (one publish at a time)
+
+**Rationale:**
+- **Simpler Setup:** 1 secret ('PLUGINS_REPO_TOKEN') vs 1 variable + 1 secret
+- **Easier Rotation:** Update one secret value when token expires
+- **Same Security Posture:** For public repo use case, fine-grained PAT with 'public_repo' scope provides equivalent security to GitHub App with 'contents:write'
+- **Industry Standard:** Stored PAT is the simpler pattern for single cross-repo workflows; GitHub App auth adds value for multi-repo installations
+- **Operational Hardening Preserved:** All iq-core-style guards remain intact (preflight, sync gate, version guards, manual re-sync)
+
+**Required Action Items (User):**
+- [ ] Create fine-grained PAT with 'public_repo' scope (90-day expiration recommended)
+- [ ] Store as repository secret: 'gh secret set PLUGINS_REPO_TOKEN --repo sbroenne/mcp-server-excel --body \"<token>\"'
+- [ ] Verify preflight: Next release workflow should validate token and proceed to publish
+
+**Related Files:**
+- '.github/workflows/publish-plugins.yml' (workflow)
+- '.github/workflows/docs/publish-plugins-setup.md' (setup guide)
+- 'docs/RELEASE-STRATEGY.md' (release process)
+- '.squad/skills/cross-repo-release-preflight/SKILL.md' (reusable pattern)
+
+**Notes:**
+This decision aligns with the project's preference for simplicity where equivalent security is achieved. GitHub App auth remains documented as an alternative pattern in the cross-repo-release-preflight skill for teams with multi-repo installation needs. The workflow behavior (sync gate, version/tag guards, manual replay, concurrency control) is auth-independent, so switching models is a documentation + workflow syntax refresh, not an architecture redesign.
+
