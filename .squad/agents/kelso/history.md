@@ -32,6 +32,23 @@
 
 ## Learnings
 
+### 2026-04-24: Reverted plugin publish from GitHub App to stored PAT
+
+- User requested switching option 3: revert from GitHub App auth back to stored cross-repo token, while keeping iq-core-style operational hardening.
+- **Already mostly done:** The workflow was already using `PLUGINS_REPO_TOKEN` throughout — only docs needed alignment.
+- **Changes made:**
+  - Workflow: Already token-based (just verified consistency)
+  - Docs: Updated publish-plugins-setup.md, RELEASE-STRATEGY.md, INSTALLATION.md, README.md, gh-pages/index.md
+  - Removed references to `PLUGINS_PUBLISH_APP_ID` and `PLUGINS_PUBLISH_APP_PRIVATE_KEY`
+  - Updated cross-repo-release-preflight SKILL to generalize patterns for both PAT and App auth options
+- **Operational hardening preserved:**
+  - Preflight validation (fails fast if token missing/unreachable)
+  - Source-side sync gate (skips publish when plugin surface unchanged)
+  - Version guards (rejects downgrade, tag mismatch)
+  - Manual re-sync path via workflow_dispatch
+  - Duplicate detection with auto/manual mode distinction
+- **Rationale:** Simpler setup (1 secret vs 1 var + 1 secret), easier rotation, same security posture for public repo use case.
+
 ### 2026-04-24: Plugin release docs must separate artifact publication from client UX
 
 - Plugin bundles are broader than a single CLI surface: the package format can carry skills, agents, hooks, and MCP config that may matter to multiple plugin-capable clients.
