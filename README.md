@@ -119,20 +119,28 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 
 **⚡ CLI Commands:** Generated automatically from Core service definitions using Roslyn source generators. All 22 command categories maintain exact 1:1 parity with MCP tools through shared code generation. See [code generation docs](docs/DEVELOPMENT.md#-cli-command-code-generation) for details.
 
-### 📦 GitHub Copilot CLI Plugins (Alternative Installation)
+### 📦 GitHub Copilot Plugins (Alternative Installation)
 
-For **GitHub Copilot CLI users**, Excel automation is available as two distributable plugins:
+ExcelMcp is available as two distributable **GitHub Copilot plugins** published through the GitHub Copilot plugin marketplace:
 
 ```powershell
 # Register the plugin marketplace (one-time)
 copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 
-# Install one or both plugins:
+# Install one or both plugins with Copilot CLI
 copilot plugin install excel-mcp@mcp-server-excel     # For conversational AI
 copilot plugin install excel-cli@mcp-server-excel     # For scripting / coding agents
 ```
 
-**📖 [Plugin Installation Guide →](https://github.com/sbroenne/mcp-server-excel-plugins)** - Detailed setup, prerequisites, and troubleshooting
+- **`excel-mcp`** — MCP-server-centric workflows
+- **`excel-cli`** — token-efficient CLI workflows
+- Install **either plugin or both**, depending on your agent surface and workflow
+
+These are **GitHub Copilot marketplace packages**, not a generic cross-tool install command. The commands above are the documented Copilot CLI install path. VS Code also supports agent plugins in preview, and Claude has its own plugin system, but those surfaces have their own installation and enablement flows.
+
+These plugins are republished automatically after each successful ExcelMcp release by a follow-on workflow that uses a stored cross-repo PAT scoped to the published marketplace repo. That publish path is sync-gated (no downstream republish when plugin-facing install artifacts did not change), keeps downgrade/tag mismatches blocked, and still exposes a manual maintainer re-sync path for repair/replay scenarios.
+
+**📖 [Plugin Installation Guide →](docs/INSTALLATION.md#github-copilot-plugins-alternative-installation)** | **[Published Marketplace Repo →](https://github.com/sbroenne/mcp-server-excel-plugins)** | **[VS Code Agent Plugins →](https://code.visualstudio.com/docs/copilot/customization/agent-plugins)** | **[Claude Plugins Reference →](https://code.claude.com/docs/en/plugins-reference)**
 
 <details>
 <summary>📊 Benchmark Results (same task, same model)</summary>
@@ -217,7 +225,7 @@ The AI will display the Excel window so you can watch every operation happen liv
 
 **Privacy:** See [PRIVACY.md](PRIVACY.md) for our privacy policy
 
-**Releasing:** See [RELEASE-STRATEGY.md](docs/RELEASE-STRATEGY.md) for the unified release workflow (MCP Server, CLI, VS Code Extension, MCPB, Agent Skills, and GitHub Copilot CLI plugins)
+**Releasing:** See [RELEASE-STRATEGY.md](docs/RELEASE-STRATEGY.md) for the unified release workflow (MCP Server, CLI, VS Code Extension, MCPB, Agent Skills, and GitHub Copilot plugins, including the cross-repo PAT-backed plugin republish flow)
 
 **Contributing:** See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines
 

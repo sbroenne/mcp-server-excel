@@ -2,44 +2,71 @@
 
 ## Overview
 
-The `publish-plugins.yml` workflow automates synchronization of plugin artifacts from the source repository (`sbroenne/mcp-server-excel`) to the published repository (`sbroenne/mcp-server-excel-plugins`).
+The `publish-plugins.yml` workflow automates synchronization of agent plugin artifacts from the source repository (`sbroenne/mcp-server-excel`) to the published repository (`sbroenne/mcp-server-excel-plugins`).
 
 **Key Design:** Copies validated Phase 1/2 plugin structure, injects version, refreshes skills content.
 
-**Trigger:** After successful completion of the "Release All Components" workflow
-**Actions:** Builds plugins from validated templates, updates versions, commits to published repo, creates tags
-**Authentication:** Requires `PLUGINS_REPO_TOKEN` secret
+**Trigger:** After successful completion of the "Release All Components" workflow, with a manual `workflow_dispatch` re-sync entry point reserved for repair/replay runs
+**Actions:** Builds plugin bundles from validated templates, updates versions, commits to published repo, creates tags
+**Authentication:** Requires a repository secret `PLUGINS_REPO_TOKEN` (a PAT or app token with write access to the published repo)
+
+**Scope note:** This workflow publishes plugin artifacts and version metadata. Client-specific installation UX is separate. The workflow summary currently includes verified GitHub Copilot CLI install examples; other plugin-capable clients (for example VS Code agent plugins or Claude plugin systems) have their own discovery and installation behavior.
+
+## What can be automated from this environment?
+
+- **Token creation:** **No** — you must create a PAT or obtain an app token outside this workflow and store it as a repository secret.
+- **Source-repo wiring with the token:** **Yes** — store the secret with `gh`.
+- **Workflow readiness checks:** **Yes** — this repo already contains a preflight gate in `publish-plugins.yml` that fails fast if the secret is missing or the published repo is unreachable.
+
+### CLI command to store the token
+
+```powershell
+# Store the PAT or app token as a repository secret in the source repo
+gh secret set PLUGINS_REPO_TOKEN --repo sbroenne/mcp-server-excel --body "<token-value>"
+```
+
+### Validate the repo-side wiring
+
+```powershell
+# Confirm the secret name exists (GitHub never returns the secret value)
+gh secret list -R sbroenne/mcp-server-excel
+```
 
 ---
 
 ## Required Repository Secret
 
-The workflow needs write access to the published repository. Configure the following:
+The workflow needs write access to the published repository. Store a token in the source repo:
 
-### Fine-Grained Personal Access Token (Required)
+### Token Setup (Required)
 
-1. Go to [GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens](https://github.com/settings/tokens?type=beta)
-2. Click "Generate new token"
-3. **Token name:** `plugins-repo-publish` (or similar)
-4. **Resource owner:** `sbroenne` (your account)
-5. **Repository access:** Select "Only select repositories" → Choose `mcp-server-excel-plugins`
-6. **Permissions:**
-   - Repository permissions:
-     - Contents: **Read and write**
-     - Metadata: **Read-only** (automatic)
-7. Click "Generate token"
-8. **Copy the token immediately** (you won't see it again!)
+Choose **one** of these options:
 
-Then add to source repo:
-1. Go to [Source Repo Settings → Secrets and variables → Actions](https://github.com/sbroenne/mcp-server-excel/settings/secrets/actions)
-2. Click "New repository secret"
-3. **Name:** `PLUGINS_REPO_TOKEN`
-4. **Secret:** Paste the token
-5. Click "Add secret"
+#### Option A: Personal Access Token (PAT)
 
-**⚠️ Critical:** This token is used BOTH for:
-- Cloning the published repo (to get validated plugin templates)
-- Pushing updated plugins back to the published repo
+1. Go to [GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
+2. Click **Generate new token (classic)**
+3. **Token name:** `ExcelMcp Plugin Publisher`
+4. **Expiration:** 90 days (recommended; rotate every 90 days or manually when workflow fails)
+5. **Scopes:** Select `public_repo` (minimum scope for publishing to a public repo)
+6. Click **Generate token** and copy the token value
+7. Store it in the source repo:
+   ```powershell
+   gh secret set PLUGINS_REPO_TOKEN --repo sbroenne/mcp-server-excel --body "<token-value>"
+   ```
+
+#### Option B: GitHub App Token
+
+If you've already created a GitHub App for other purposes:
+1. Generate a temporary app installation token from the app's settings
+2. Store it as `PLUGINS_REPO_TOKEN` (same as above)
+
+### Why Stored Token?
+
+- ✅ Simple setup — one secret, no extra variables
+- ✅ Works immediately — no browser-based app creation or installation flow
+- ✅ Easy to rotate — update the secret when needed
+- ✅ Same behavior as the legacy PAT approach
 
 ---
 
@@ -48,21 +75,24 @@ Then add to source repo:
 ### Trigger Conditions
 - ✅ Runs ONLY when "Release All Components" workflow completes successfully
 - ✅ Runs ONLY on `main` branch releases
+- ✅ Maintainers also get a manual re-sync entry point for repair/replay scenarios
 - ❌ Does NOT run on failed releases
 - ❌ Does NOT run on PR builds or test runs
 
 ### What It Does
 
-1. **Get Version** — Extracts version from the triggering workflow's HEAD commit tag
-2. **Clone Repos** — Clones BOTH source and published repos
-3. **Build Plugins** — Runs `scripts/Build-Plugins.ps1` which:
-   - Copies validated plugin structure from `../mcp-server-excel-plugins/plugins/`
-   - Updates `plugin.json` version and `version.txt`
-   - Refreshes skills content from source repo (`skills/excel-mcp`, `skills/excel-cli`)
-   - Refreshes shared references from source repo (`skills/shared/*.md`)
-4. **Sync to Published Repo** — Commits and pushes plugin updates
-5. **Create Tag** — Tags the published repo with the same version (e.g., `v1.2.3`)
-6. **Summary** — Generates workflow summary with install instructions
+1. **Resolve Tag + Version** — Extracts version from the triggering workflow's HEAD commit tag, or validates the manually supplied source release tag
+2. **Source-Side Sync Gate** — Skips downstream publish when the plugin-published source surface did not change since the previous release tag
+3. **Clone Repos** — Clones BOTH source and published repos
+4. **Build Plugins** — Runs `scripts/Build-Plugins.ps1` which:
+    - Copies validated plugin structure from `../mcp-server-excel-plugins/plugins/`
+    - Updates `plugin.json` version and `version.txt`
+    - Refreshes skills content from source repo (`skills/excel-mcp`, `skills/excel-cli`)
+    - Refreshes shared references from source repo (`skills/shared/*.md`)
+5. **Published-Repo Guards** — Rejects downgrade or tag/version mismatch publishes before mutating the published repo
+6. **Sync to Published Repo** — Only commits and pushes when the guarded sync path says publication is needed
+7. **Create or Repair Tag** — Tags the published repo with the same version (for example `v1.2.3`) when the tag is missing
+8. **Summary** — Generates workflow summary with the publish/skip decision and GitHub Copilot CLI install examples for changed published artifacts
 
 ### Version Extraction Strategy
 
@@ -72,20 +102,33 @@ Then add to source repo:
 - ✅ No drift: If multiple releases happen close together, each publish uses the correct version
 - ❌ Old (incorrect) approach: "latest release" could grab the wrong version in rapid succession
 
+### Sync Gate
+
+- The hardened source-side flow skips downstream plugin publication when the install-surface inputs have not changed since the prior release tag.
+- Result: normal releases still publish all core artifacts, but plugin republishing only happens when plugin-facing content actually changed.
+
+### Version and Tag Guards
+
+- Published-side sync rejects downgrade attempts.
+- Manual repair/replay runs must keep the requested tag/version aligned with the incoming plugin manifest/version metadata.
+- Result: maintainers can re-sync safely without accidentally stamping the wrong release tag onto plugin artifacts.
+
 ### Concurrency Control
 - Only one publish workflow runs at a time
 - Does NOT cancel in-progress runs (waits for completion)
 - Prevents race conditions during concurrent releases
 
 ### Idempotency
-- If plugins are already up to date, workflow completes with "No changes to commit"
-- Safe to re-run on the same version (no duplicate commits)
+- Automatic release-follow-on runs skip entirely when no plugin-published source files changed since the previous release tag
+- Automatic duplicate publishes are skipped when the published repo already has the same version and tag
+- Manual re-sync runs can replay an existing release tag without cutting a new source release
+- If the published repo is already in sync, the workflow exits with a clear summary instead of making an empty commit
 
 ---
 
 ## Testing the Workflow
 
-### Test After Token Setup
+### Test After GitHub App Setup
 
 1. **Trigger a test release** (or wait for next real release):
    ```powershell
@@ -103,23 +146,44 @@ Then add to source repo:
    ```
 
 3. **Verify published repo updated**:
-   ```powershell
-   cd ../mcp-server-excel-plugins
-   git pull
-   git log -1  # Should see commit from github-actions[bot]
-   git tag     # Should see new version tag
-   ```
+    ```powershell
+    cd ../mcp-server-excel-plugins
+    git pull
+    git log -1  # Should see commit from the GitHub App bot user
+    git tag     # Should see new version tag
+    ```
+
+### Manual Re-Sync
+
+If the automatic follow-on publish needs to be replayed after a transient failure, use the workflow's manual `workflow_dispatch` entry point with an existing source release tag:
+
+```powershell
+gh workflow run publish-plugins.yml -f release_tag=v1.2.3
+```
+
+Keep the requested release tag aligned with the plugin manifest/version the workflow is syncing; the published-side guards reject mismatched or downgrade attempts.
 
 ### Troubleshooting
 
-**Workflow fails with "Resource not accessible by integration":**
-- Secret is missing or has wrong name
-- Token lacks required permissions (needs `contents: write`)
-- Token expired or was revoked
+**Workflow fails with "Resource not accessible":**
+- Token does not have write access to `sbroenne/mcp-server-excel-plugins`
+- Token is expired or revoked
+- Check that `PLUGINS_REPO_TOKEN` secret exists in the source repo
+
+**Workflow fails immediately with a missing configuration message:**
+- Add repository secret `PLUGINS_REPO_TOKEN` in `sbroenne/mcp-server-excel`
+- Verify the secret contains a valid PAT or app token with write access to the published repo
+- Rotate PAT if it has expired or been compromised
 
 **Workflow completes but no commit in published repo:**
-- Plugins were already up to date (check "No changes to commit" in workflow logs)
-- OR: Build-Plugins.ps1 generated identical content
+- The source-side sync gate detected no plugin-published source changes since the prior release tag
+- OR: The published repo already had the same version and tag, so the automatic duplicate publish was skipped
+- OR: Build-Plugins.ps1 generated identical content and the published repo stayed in sync without a new commit
+
+**Workflow fails with a version/tag guard message:**
+- Confirm the requested `release_tag` exists in the source repo and matches the plugin manifest/version being synced
+- Check `marketplace.json` and existing tags in `sbroenne/mcp-server-excel-plugins`
+- Downgrade attempts and inconsistent "tag exists but version differs" states are intentionally blocked
 
 **Build step fails:**
 - Build-Plugins.ps1 requires .NET 10.0 SDK
@@ -151,7 +215,7 @@ If you change the plugin structure (add/remove files, change manifest schema):
 
 If you rename `mcp-server-excel-plugins`:
 1. Update `PUBLISHED_REPO` env var in `publish-plugins.yml`
-2. Update `PLUGINS_REPO_TOKEN` secret to grant access to new repo
+2. Rotate or update `PLUGINS_REPO_TOKEN` secret if needed
 3. Update `repository.url` in plugin.json templates in `Build-Plugins.ps1`
 
 ### Debugging Build Issues
@@ -230,10 +294,10 @@ The published repo is NOT a submodule of the source repo. Instead:
 ✅ **Workflow created:** `.github/workflows/publish-plugins.yml`
 ✅ **Build script created:** `scripts/Build-Plugins.ps1`
 ✅ **Documentation created:** This file
-⚠️ **Secret configuration required:** User must add `PLUGINS_REPO_TOKEN`
+⚠️ **Token configuration required:** User must add repository secret `PLUGINS_REPO_TOKEN`
 ⚠️ **First run test required:** Validate after next release
 
 ---
 
-**Status:** Implementation complete, pending token configuration and first-run validation
-**Next Steps:** User must configure `PLUGINS_REPO_TOKEN` secret, then test on next release
+**Status:** Implementation complete, pending token setup and first-run validation
+**Next Steps:** User must configure repository secret `PLUGINS_REPO_TOKEN` in `sbroenne/mcp-server-excel`, then validate both the automatic release-follow-on path and the manual `workflow_dispatch` re-sync path

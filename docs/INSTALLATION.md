@@ -31,6 +31,7 @@ Use this order to avoid setup confusion:
    - VS Code Extension (Copilot users)
    - Claude Desktop MCPB
    - Manual MCP setup (all other MCP clients)
+   - GitHub Copilot plugins (Copilot plugin surfaces)
 2. **Validate MCP setup** (run the quick test prompt in Step 4 of manual setup, or test in your client after extension/MCPB install)
 3. **Optional:** install CLI (`excelcli`) for scripting/RPA
 4. **Optional:** install agent skills for non-extension environments
@@ -298,6 +299,40 @@ excelcli -q session close --session <session-id> --save
 
 ---
 
+## GitHub Copilot Plugins (Alternative Installation)
+
+**Best for:** GitHub Copilot users who want packaged Excel automation plugins through supported plugin surfaces
+
+ExcelMcp ships two **GitHub Copilot marketplace plugins**:
+
+- **`excel-mcp`** — Best for conversational Excel workflows through the MCP server
+- **`excel-cli`** — Best for token-efficient scripting and coding-agent workflows
+- You can install **either plugin alone or both together**
+
+### Copilot CLI install path
+
+This is the documented install flow for the published marketplace repo:
+
+```powershell
+# Register the plugin marketplace (one-time)
+copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
+
+# Install one or both plugins
+copilot plugin install excel-mcp@mcp-server-excel
+copilot plugin install excel-cli@mcp-server-excel
+```
+
+### Other supported plugin surfaces
+
+- **VS Code agent plugins** — VS Code supports agent plugins in preview. See the official docs for supported plugin behavior and enablement: [Agent plugins in VS Code](https://code.visualstudio.com/docs/copilot/customization/agent-plugins) and [third-party agents in VS Code](https://code.visualstudio.com/docs/copilot/agents/third-party-agents).
+- **Claude plugin system** — Claude supports plugins with its own component model and install/runtime rules. See the official [Claude plugins reference](https://code.claude.com/docs/en/plugins-reference).
+
+> **Important:** The commands above are the **GitHub Copilot CLI** install commands for the published marketplace repo `sbroenne/mcp-server-excel-plugins`. Do not assume the same commands apply to VS Code or Claude. Use the surface-specific docs for those environments.
+
+The plugins are republished automatically after every successful ExcelMcp release by a follow-up workflow that uses a stored cross-repo PAT scoped to the published marketplace repo. That publish path is sync-gated (so unchanged plugin-facing releases do not force a republish), keeps downgrade/tag mismatch guards in place, and retains a manual maintainer re-sync path for repair/replay scenarios. If a fresh GitHub release is visible but the plugin marketplace is still catching up, wait for the follow-up **Publish Plugins** workflow to finish.
+
+---
+
 ## Alternative: NuGet .NET Tool Installation (Secondary)
 
 **For users who prefer package managers or already have .NET installed**
@@ -332,7 +367,7 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 
 **Best for:** Adding AI guidance to coding agents (Copilot, Cursor, Windsurf, Claude Code, Gemini, Codex, etc.)
 
-Skills are auto-installed by the VS Code extension. For other platforms:
+Skills are auto-installed by the VS Code extension. Plugins and skills are different things: plugins are packaged surface integrations, while skills are reusable AI guidance. For environments where you want skills directly, use the commands below:
 
 ```powershell
 # CLI skill (for coding agents - token-efficient workflows)

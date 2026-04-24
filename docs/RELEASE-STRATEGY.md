@@ -19,11 +19,6 @@ All ExcelMcp components are released together with a single version tag:
 **Workflow**: `.github/workflows/release.yml`
 **Trigger**: `workflow_dispatch` with version bump (major/minor/patch) or custom version
 
-## Unified Release Workflow
-
-**Workflow**: `.github/workflows/release.yml`
-**Trigger**: `workflow_dispatch` with version bump (major/minor/patch) or custom version
-
 ### What Gets Released
 
 When you run the release workflow, all components are released together:
@@ -33,7 +28,7 @@ When you run the release workflow, all components are released together:
 3. **VS Code Extension** → Self-contained VSIX (bundles both exes + skills) → VS Code Marketplace
 4. **MCPB** → Claude Desktop bundle (`.mcpb` file)
 5. **Agent Skills** → ZIP package for AI coding assistants
-6. **GitHub Copilot CLI Plugins** → Republished to GitHub plugin registry via `publish-plugins.yml` workflow (see [Phase 3 Plugin Publishing](../.github/workflows/docs/publish-plugins-setup.md))
+6. **GitHub Copilot Plugins** → Republished to the GitHub Copilot plugin marketplace repo via `publish-plugins.yml` (see [Phase 3 Plugin Publishing](../.github/workflows/docs/publish-plugins-setup.md))
 7. **NuGet** → Both packages published to NuGet.org (secondary channel)
 8. **MCP Registry** → Updated after NuGet propagation
 9. **GitHub Release** → Created with all artifacts + auto-PR to update CHANGELOG
@@ -93,7 +88,7 @@ The workflow will:
 
 ### 3. Monitor Workflow
 
-The release workflow runs automatically (8 jobs):
+The main release workflow runs automatically (9 jobs), then the plugin publish workflow runs automatically if the release succeeds:
 
 1. **build-cli** (3-5 min) → Builds standalone `excelcli.exe` (win-x64, self-contained), creates ZIP + NuGet pack
 2. **build-mcp-server** (4-6 min) → Builds standalone `mcp-excel.exe` (win-x64, self-contained), creates ZIP + NuGet pack
@@ -104,6 +99,7 @@ The release workflow runs automatically (8 jobs):
 7. **publish-mcp-registry** (10-30 min) → Waits for NuGet propagation, updates MCP Registry
 8. **publish** → Publishes to NuGet.org, VS Code Marketplace, and npm
 9. **create-release** → Creates GitHub Release with all artifacts, then creates auto-PR to update CHANGELOG
+10. **publish-plugins.yml** (follow-on workflow) → Sync-gated republish of `excel-mcp` and `excel-cli` to `sbroenne/mcp-server-excel-plugins` when plugin-facing install artifacts changed
 
 ### 4. Verify Release
 
@@ -113,30 +109,56 @@ After workflow completes:
 - [ ] NuGet packages available on NuGet.org (may take 10-30 min for full propagation)
 - [ ] VS Code Marketplace updated (verify self-contained extension works without .NET)
 - [ ] MCP Registry updated
+- [ ] `publish-plugins.yml` completed; if the sync gate detected plugin-facing changes, `sbroenne/mcp-server-excel-plugins` was updated
 - [ ] Auto-PR created for CHANGELOG rename (merge it to update `[Unreleased]` → `[X.Y.Z]`)
 
-### 5. GitHub Copilot CLI Plugin Publishing (Automatic)
+### 5. Agent Plugin Publishing (Automatic)
 
 **Workflow**: `.github/workflows/publish-plugins.yml`
-**Trigger**: Runs automatically after `release.yml` completes successfully
-**Published Repo**: `sbroenne/mcp-server-excel-plugins` (GitHub Copilot CLI plugin registry)
+**Trigger**: Runs automatically after `release.yml` completes successfully, with a manual `workflow_dispatch` re-sync path for existing source release tags
+**Published Repo**: `sbroenne/mcp-server-excel-plugins` (published plugin artifact repo)
 
 The `publish-plugins.yml` workflow automatically publishes updated plugins when the release workflow completes:
 
 1. **Extracts version** from the release tag created by `release.yml`
-2. **Builds plugins** via `scripts/Build-Plugins.ps1`:
-   - Copies validated plugin structure from the published repo
-   - Updates version in plugin.json and version.txt
-   - Refreshes skill content (always uses latest source)
-3. **Publishes to GitHub Copilot CLI registry** by committing and tagging the published repo
+2. **Runs a source-side sync gate** and skips the downstream publish when no plugin-published source files changed since the previous release tag
+3. **Builds plugins** via `scripts/Build-Plugins.ps1`:
+    - Copies validated plugin structure from the published repo
+    - Updates version in plugin.json and version.txt
+    - Refreshes skill content (always uses latest source)
+4. **Checks published-repo guards** before mutation:
+   - Rejects explicit tag/version mismatches
+   - Rejects downgrade publishes
+   - Skips automatic duplicate publishes when the published repo already has the same version and tag
+5. **Publishes plugin artifacts** by committing and tagging the published repo when needed
+
+Maintainers can also replay plugin publication for an existing release tag without cutting a new release:
+
+```powershell
+gh workflow run publish-plugins.yml -f release_tag=v1.2.3
+```
 
 **Key Points:**
 - ✅ **Automatic** — No manual intervention required
 - ✅ **Idempotent** — Safe to re-run on the same version
 - ✅ **Version-aligned** — Uses the exact version from the release
-- ⚠️ **Requires token setup** — First-time setup needs `PLUGINS_REPO_TOKEN` secret (see [Phase 3 Plugin Publishing docs](./.github/workflows/docs/publish-plugins-setup.md))
+- ✅ **Sync-gated** — skips downstream plugin republish when plugin install-surface inputs did not change since the prior release tag
+- ✅ **Guarded replay** — downgrade syncs are rejected, automatic duplicates are skipped, and manual repair/replay runs must keep the requested tag aligned with the incoming plugin manifest/version
+- ✅ **Manual repair path** — maintainers keep a `workflow_dispatch` re-sync entry point for repair/replay scenarios
+- ⚠️ **Requires cross-repo token** — First-time setup needs a repository secret `PLUGINS_REPO_TOKEN` (PAT with `public_repo` scope) in the source repo (see [Phase 3 Plugin Publishing docs](../.github/workflows/docs/publish-plugins-setup.md))
+- ℹ️ **Setup command** — After creating the PAT: `gh secret set PLUGINS_REPO_TOKEN --repo sbroenne/mcp-server-excel --body "<token-value>"`
 
-For detailed setup instructions and troubleshooting, see [Phase 3 Plugin Publishing Setup](./.github/workflows/docs/publish-plugins-setup.md).
+**Surface note:**
+- The release automation publishes plugin bundles (manifest, skills, agents, hooks, MCP config, helper scripts) to the published repo.
+- Those artifacts can be relevant across multiple plugin-capable clients, but marketplace registration, discovery, and installation UX remain client-specific.
+- The current workflow and docs only claim a verified GitHub Copilot install flow; they do **not** claim automatic publication into VS Code or Claude-specific plugin marketplaces.
+
+**Hardening note:**
+- Automatic publication now passes through a source-side sync gate so unchanged plugin install surfaces do not produce redundant downstream publishes.
+- The published-side sync path rejects downgrade attempts and keeps explicit repair/replay runs honest by requiring tag/version alignment.
+- Maintainers still have a manual `workflow_dispatch` re-sync entry point when a repair or replay is needed.
+
+For detailed setup instructions and troubleshooting, see [Phase 3 Plugin Publishing Setup](../.github/workflows/docs/publish-plugins-setup.md).
 
 ## Version Management
 
@@ -196,17 +218,21 @@ The release workflow extracts content from `## [Unreleased]` for GitHub Release 
 
 > **Why auto-PR instead of direct push?** Branch protection requires pull requests for all changes to `main`. The `github-actions[bot]` cannot be added to the bypass list in GitHub Rulesets, so the workflow creates a PR with `continue-on-error: true` to handle this gracefully.
 
-## Required Secrets
+## Required Secrets and Variables
 
-Configure these GitHub repository secrets:
+Configure these GitHub repository secrets and variables:
 
-| Secret | Purpose |
-|--------|---------|
-| `NUGET_USER` | NuGet.org username (for OIDC trusted publishing) |
-| `VSCE_TOKEN` | VS Code Marketplace PAT |
-| `APPINSIGHTS_CONNECTION_STRING` | Application Insights (optional telemetry) |
+| Type | Name | Purpose |
+|------|------|---------|
+| Secret | `NUGET_USER` | NuGet.org username (for OIDC trusted publishing) |
+| Secret | `VSCE_TOKEN` | VS Code Marketplace PAT |
+| Secret | `APPINSIGHTS_CONNECTION_STRING` | Application Insights (optional telemetry) |
+| Secret | `PLUGINS_REPO_TOKEN` | Cross-repo PAT with `public_repo` scope for publishing plugins to `sbroenne/mcp-server-excel-plugins` |
 
-> **Note:** NuGet uses OIDC trusted publishing (no API key needed). The `NUGET_USER` is just the NuGet.org profile name for OIDC token exchange.
+> **Notes:**
+> - NuGet uses OIDC trusted publishing (no API key needed). The `NUGET_USER` is just the NuGet.org profile name for OIDC token exchange.
+> - npm skill packages also use trusted publishing via GitHub OIDC (`id-token: write` in `release.yml`), so no npm token is required.
+> - The follow-on plugin publish workflow uses a stored cross-repo PAT (`PLUGINS_REPO_TOKEN`) with `contents:write` on the published plugin repo.
 
 ## Troubleshooting
 
@@ -230,6 +256,15 @@ Configure these GitHub repository secrets:
 - MCP Registry update uses GitHub OIDC
 - Failures don't block the release (marked continue-on-error)
 - Can be retried manually via MCP publisher tool
+
+### Publish Plugins Fails
+
+- Confirm the repository secret `PLUGINS_REPO_TOKEN` exists in `sbroenne/mcp-server-excel`
+- Confirm the token has `public_repo` scope (or `repo` if the plugin repo were private)
+- Verify the token hasn't expired and has push access to `sbroenne/mcp-server-excel-plugins`
+- If the main release succeeded but plugins did not update, inspect the separate follow-on `publish-plugins.yml` run
+- If you need to replay the publish without cutting a new release, dispatch `publish-plugins.yml` manually with `release_tag=vX.Y.Z`
+- If the workflow reports a downgrade, duplicate, or tag/version mismatch, fix the published repo state first instead of forcing a lower or inconsistent version through
 
 ## Benefits of Unified Releases
 

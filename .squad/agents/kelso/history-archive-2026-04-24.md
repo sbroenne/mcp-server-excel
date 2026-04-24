@@ -32,6 +32,12 @@
 
 ## Learnings
 
+### 2026-04-24: Cross-repo plugin publish should mint per-job GitHub App tokens
+
+- For a source-repo workflow that clones and pushes to a separate published plugin repo, store the GitHub App ID as a repository variable and the private key as a repository secret in the source repo, then mint installation tokens inside each job with `actions/create-github-app-token`.
+- Scope the app installation to the published repo only and keep job permissions narrow: `contents: read` for preflight/build checkout, `contents: write` only for the publish job that commits and tags.
+- Keep the preflight gate, but make it validate the GitHub App variable/secret pair and actual repo reachability so configuration errors fail before the first cross-repo checkout.
+
 ### 2026-04-24: Plugin release docs must separate artifact publication from client UX
 
 - Plugin bundles are broader than a single CLI surface: the package format can carry skills, agents, hooks, and MCP config that may matter to multiple plugin-capable clients.
@@ -41,7 +47,7 @@
 ### 2026-04-24: Cross-repo plugin publish needs a preflight gate
 
 - A follow-on release workflow that pushes into a separate published plugin repo should fail fast on configuration, not at the first checkout step.
-- Add an explicit preflight job that checks the required cross-repo secret exists and can read the target repo, so missing marketplace credentials surface as a precise action item (`PLUGINS_REPO_TOKEN`) instead of a vague checkout failure.
+- Add an explicit preflight job that checks the required cross-repo credential configuration exists and can read the target repo, so missing marketplace credentials surface as a precise action item instead of a vague checkout failure.
 - Treat the plugin republish as part of release verification: release docs and checklists should explicitly include the follow-on `publish-plugins.yml` run, not just the main `release.yml` workflow.
 
 ### 2026-04-24: Do not open the plugin PR from a mixed dirty tree
@@ -55,7 +61,7 @@
 - Reused the existing sibling working directory at `D:\source\mcp-server-excel-plugins` instead of creating a second local copy, then cleaned it into an evergreen publish-target shape before initializing git.
 - Kept the publish-target repo minimal and workflow-friendly: root `README.md`, `.gitignore`, `LICENSE`, `marketplace.json`, and `plugins/excel-mcp` + `plugins/excel-cli`.
 - Added the missing `"skills": "skills/"` manifest entry to `plugins/excel-cli/plugin.json`; without it, the CLI plugin package would not advertise its bundled skill content.
-- The source repo still needs the `PLUGINS_REPO_TOKEN` Actions secret configured so `publish-plugins.yml` can clone and push to the new published repo.
+- The source repo still needs cross-repo publish credentials configured so `publish-plugins.yml` can clone and push to the new published repo (originally a PAT, later upgraded to GitHub App auth).
 
 ### 2026-04-24: Issue-first handoff when plugin branch is dirty and unpushed
 
@@ -492,10 +498,3 @@ Final decision record merged to \.squad/decisions.md\ (deduped).
 - Scribe orchestration logs and session logs written (ISO 8601 UTC timestamps).
 - User explicitly directed revert of unrelated RangeCommands.Formulas.cs change (completed by Nate).
 - Session winding down; awaiting branch narrowing before PR submission.
-
-
-### 2026-04-24: Publish Workflow Hardening
-
-- Hardened `publish-plugins.yml` with a source-side sync gate so automatic follow-on runs only publish when the plugin install surface changed since the previous release tag.
-- Added published-repo downgrade, duplicate, and tag/version consistency guards before sync.
-- Kept a manual `workflow_dispatch` replay path that targets an existing source `release_tag` for recovery without cutting a fresh release.
