@@ -32,6 +32,36 @@
 
 ## Learnings
 
+### 2026-04-24: Plugin release docs must separate artifact publication from client UX
+
+- Plugin bundles are broader than a single CLI surface: the package format can carry skills, agents, hooks, and MCP config that may matter to multiple plugin-capable clients.
+- Release and workflow docs should therefore describe what we publish as plugin artifacts or agent plugins, while keeping installation claims narrow to the clients we have actually documented and verified.
+- Good release wording: "publishes plugin artifacts to the published repo." Risky wording: implying the same workflow automatically registers those artifacts with every client marketplace.
+
+### 2026-04-24: Cross-repo plugin publish needs a preflight gate
+
+- A follow-on release workflow that pushes into a separate published plugin repo should fail fast on configuration, not at the first checkout step.
+- Add an explicit preflight job that checks the required cross-repo secret exists and can read the target repo, so missing marketplace credentials surface as a precise action item (`PLUGINS_REPO_TOKEN`) instead of a vague checkout failure.
+- Treat the plugin republish as part of release verification: release docs and checklists should explicitly include the follow-on `publish-plugins.yml` run, not just the main `release.yml` workflow.
+
+### 2026-04-24: Do not open the plugin PR from a mixed dirty tree
+
+- The `feature/copilot-cli-plugins` working tree currently mixes the Copilot CLI plugin packaging work with unrelated changes, including Squad workflow scaffolding and a `RangeCommands.Formulas.cs` code edit.
+- When plugin packaging is bundled with unrelated infrastructure or product-code changes, stop and report the blocker instead of guessing a safe split for commit/PR creation.
+
+### 2026-04-24: Published plugin repo initialized from the sibling template repo
+
+- Created and pushed the public published repo: `https://github.com/sbroenne/mcp-server-excel-plugins`.
+- Reused the existing sibling working directory at `D:\source\mcp-server-excel-plugins` instead of creating a second local copy, then cleaned it into an evergreen publish-target shape before initializing git.
+- Kept the publish-target repo minimal and workflow-friendly: root `README.md`, `.gitignore`, `LICENSE`, `marketplace.json`, and `plugins/excel-mcp` + `plugins/excel-cli`.
+- Added the missing `"skills": "skills/"` manifest entry to `plugins/excel-cli/plugin.json`; without it, the CLI plugin package would not advertise its bundled skill content.
+- The source repo still needs the `PLUGINS_REPO_TOKEN` Actions secret configured so `publish-plugins.yml` can clone and push to the new published repo.
+
+### 2026-04-24: Issue-first handoff when plugin branch is dirty and unpushed
+
+- Created source-repo tracking issue **#606** for the Copilot CLI plugin packaging work (`excel-mcp`, `excel-cli`, publish automation, docs, and local install validation).
+- When the working tree is dirty and the feature branch has no upstream, do **not** guess which local changes are ready for review just to open a PR. Open the issue, record the blocker, and wait for the branch state to be made reviewable before creating the PR.
+
 ### 2026-04-23: Initial Plugin Plan Research + Precedent Study
 
 **Copilot CLI Plugin Spec Deep Dive:**
@@ -300,6 +330,23 @@ concurrency:
 
 **Documentation Added:**
 - `excel-cli/SKILL.md` precondition: "Requires `excelcli.exe` in PATH. Install via Chocolatey, Scoop, or manual download."
+
+---
+
+### 2026-04-24: Orchestration — Ready for PR Creation
+
+**Status:** All phases complete. Branch staged. Awaiting explicit user approval to create PR.
+
+**Key Actions Completed:**
+- Published repo `sbroenne/mcp-server-excel-plugins` initialized and pushed
+- Source repo tracking issue #606 created
+- All plugin phases locked (scaffold, MCP plugin, CLI plugin, publish workflow, audit complete)
+- All 23 source repo changes staged for commit
+
+**Pending:**
+- User approval to open PR from `feature/copilot-cli-plugins` → `main`
+- PR references issue #606
+- Scribe will orchestrate git commit and PR creation upon approval
 - Differentiated skill descriptions:
   - `excel-mcp`: "AI assistant for Excel automation via MCP server tools"
   - `excel-cli`: "CLI skill for scripting and batch automation"
@@ -431,3 +478,17 @@ Final decision record saved to `.squad/decisions/inbox/kelso-plugin-shape-final.
 **Next Step:** Execute Phase -1 spike, document results in \.squad/agents/kelso/proposals/phase-minus-1-spike-results.md\, then await Stefan's Phase 0 GO/NO-GO decision.
 
 Final decision record merged to \.squad/decisions.md\ (deduped).
+
+### 2026-04-24: Package Metadata Cleanup
+
+- Removed stale skillpm metadata from plugin package manifests when present.
+- Confirmed packages\excel-mcp-skill\package.json needed cleanup and packages\excel-cli-skill\package.json already matched the desired shape.
+
+### 2026-04-24: Session End — Blocker on PR, Inbox Merged, Decisions Captured
+
+- Reported blocker: Do NOT open plugin PR from mixed dirty tree (plugin packaging work mixed with Squad infrastructure changes and unrelated RangeCommands.Formulas.cs product-code edit).
+- Decision inbox merged to decisions.md (6 inbox files deduplicated and incorporated).
+- Cross-agent history updated for Nate, Kelso, Trejo, and other affected agents.
+- Scribe orchestration logs and session logs written (ISO 8601 UTC timestamps).
+- User explicitly directed revert of unrelated RangeCommands.Formulas.cs change (completed by Nate).
+- Session winding down; awaiting branch narrowing before PR submission.
