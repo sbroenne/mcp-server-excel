@@ -1,0 +1,262 @@
+name: Publish Plugins
+
+# Phase 3: Publish plugin artifacts to sbroenne/mcp-server-excel-plugins
+#
+# TRIGGER: After successful release workflow completion
+# - Avoids binary race by waiting for GitHub Release to exist
+# - Uses workflow_run to get the version that was just released
+#
+# WHAT IT DOES:
+# 1. Builds both plugins (excel-mcp, excel-cli) from source
+# 2. Updates version.txt to match the release version
+# 3. Pushes to published repo (sbroenne/mcp-server-excel-plugins)
+#
+# AUTHENTICATION:
+# - Requires PLUGINS_REPO_TOKEN secret (fine-grained PAT or GitHub App token)
+# - Token needs: repo scope, contents:write permission
+# - Target repo: sbroenne/mcp-server-excel-plugins
+#
+# CONCURRENCY:
+# - Only one publish per plugin at a time (prevents race conditions)
+# - Does NOT cancel in-progress (let it finish before next publish)
+
+on:
+  workflow_run:
+    workflows: ["Release All Components"]
+    types:
+      - completed
+    branches:
+      - main
+
+concurrency:
+  group: publish-plugins-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PUBLISHED_REPO: sbroenne/mcp-server-excel-plugins
+  PUBLISHED_REPO_URL: https://github.com/sbroenne/mcp-server-excel-plugins
+
+jobs:
+  # =============================================================================
+  # Job 1: Get Version from Triggering Release Workflow
+  # =============================================================================
+  get-version:
+    name: Get Release Version
+    runs-on: ubuntu-latest
+    # Only proceed if the release workflow succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      version: ${{ steps.extract_version.outputs.version }}
+      tag: ${{ steps.extract_version.outputs.tag }}
+    steps:
+      - name: Extract version from triggering workflow
+        id: extract_version
+        run: |
+          # Get the HEAD commit from the triggering workflow run
+          # This is the commit that just got released
+          HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+          echo "Triggering workflow HEAD commit: $HEAD_SHA"
+
+          # Get tags pointing to this commit
+          # The release workflow creates the tag AFTER building, so it should exist now
+          TAG=$(gh api repos/${{ github.repository }}/git/matching-refs/tags/v --jq ".[] | select(.object.sha == \"$HEAD_SHA\") | .ref" | head -1 | sed 's|refs/tags/||')
+
+          if [ -z "$TAG" ]; then
+            echo "::error::No release tag found for commit $HEAD_SHA"
+            echo "::error::The release workflow may not have completed tag creation yet."
+            exit 1
+          fi
+
+          VERSION="${TAG#v}"
+
+          echo "Found release tag: $TAG"
+          echo "Extracted version: $VERSION"
+          echo "Commit SHA: $HEAD_SHA"
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # =============================================================================
+  # Job 2: Build Plugin Artifacts
+  # =============================================================================
+  build-plugins:
+    name: Build Plugin Artifacts
+    runs-on: windows-latest
+    needs: [get-version]
+    steps:
+      - name: Checkout source repo
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Checkout published repo (plugin templates)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.PUBLISHED_REPO }}
+          token: ${{ secrets.PLUGINS_REPO_TOKEN }}
+          path: published
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build plugins from validated templates
+        run: |
+          $VERSION = "${{ needs.get-version.outputs.version }}"
+          Write-Host "Building plugins for version: $VERSION"
+
+          # Build script copies from ../mcp-server-excel-plugins/plugins/
+          # We checked out published repo at ./published, so adjust path
+          cd source
+          & .\scripts\Build-Plugins.ps1 -Version $VERSION -PluginTemplateDir "..\published\plugins"
+        shell: pwsh
+
+      - name: Upload excel-mcp plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: excel-mcp-plugin
+          path: source/plugins/excel-mcp/
+          retention-days: 1
+
+      - name: Upload excel-cli plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: excel-cli-plugin
+          path: source/plugins/excel-cli/
+          retention-days: 1
+
+  # =============================================================================
+  # Job 3: Publish to Plugin Repo
+  # =============================================================================
+  publish:
+    name: Publish to Plugin Repo
+    runs-on: ubuntu-latest
+    needs: [get-version, build-plugins]
+    steps:
+      - name: Download excel-mcp plugin
+        uses: actions/download-artifact@v4
+        with:
+          name: excel-mcp-plugin
+          path: excel-mcp
+
+      - name: Download excel-cli plugin
+        uses: actions/download-artifact@v4
+        with:
+          name: excel-cli-plugin
+          path: excel-cli
+
+      - name: Checkout published repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.PUBLISHED_REPO }}
+          token: ${{ secrets.PLUGINS_REPO_TOKEN }}
+          path: published-repo
+
+      - name: Sync plugins to published repo
+        run: |
+          VERSION="${{ needs.get-version.outputs.version }}"
+          TAG="${{ needs.get-version.outputs.tag }}"
+
+          echo "Syncing plugins for version $VERSION (tag: $TAG)"
+
+          cd published-repo
+
+          # Clean and recreate plugin directories
+          rm -rf plugins/excel-mcp plugins/excel-cli
+          mkdir -p plugins/excel-mcp plugins/excel-cli
+
+          # Copy plugin artifacts
+          cp -r ../excel-mcp/* plugins/excel-mcp/
+          cp -r ../excel-cli/* plugins/excel-cli/
+
+          # Update marketplace.json version
+          jq --arg ver "$VERSION" '.version = $ver' marketplace.json > marketplace.json.tmp
+          mv marketplace.json.tmp marketplace.json
+
+          # Stage all changes
+          git add plugins/ marketplace.json
+
+          # Check if there are any changes
+          if git diff --staged --quiet; then
+            echo "No changes to commit (plugins already up to date)"
+            echo "has_changes=false" >> $GITHUB_ENV
+          else
+            echo "has_changes=true" >> $GITHUB_ENV
+          fi
+
+      - name: Commit and push changes
+        if: env.has_changes == 'true'
+        run: |
+          VERSION="${{ needs.get-version.outputs.version }}"
+          TAG="${{ needs.get-version.outputs.tag }}"
+
+          cd published-repo
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Commit changes
+          git commit -m "Release $TAG
+
+Published plugins synchronized from sbroenne/mcp-server-excel release $TAG
+
+- excel-mcp plugin updated to v$VERSION
+- excel-cli plugin updated to v$VERSION
+- marketplace.json version updated to $VERSION
+
+Source: ${{ github.server_url }}/${{ github.repository }}/releases/tag/$TAG"
+
+          # Push to main
+          git push origin main
+
+          echo "✅ Published plugins to ${{ env.PUBLISHED_REPO_URL }}"
+
+      - name: Create plugin repo tag
+        if: env.has_changes == 'true'
+        run: |
+          TAG="${{ needs.get-version.outputs.tag }}"
+
+          cd published-repo
+
+          # Create and push tag to published repo
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+          echo "✅ Created tag $TAG in published repo"
+
+      - name: Summary
+        run: |
+          VERSION="${{ needs.get-version.outputs.version }}"
+          TAG="${{ needs.get-version.outputs.tag }}"
+
+          if [ "${{ env.has_changes }}" = "true" ]; then
+            echo "## ✅ Plugins Published Successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Version:** $VERSION" >> $GITHUB_STEP_SUMMARY
+            echo "**Tag:** $TAG" >> $GITHUB_STEP_SUMMARY
+            echo "**Repository:** [${{ env.PUBLISHED_REPO }}](${{ env.PUBLISHED_REPO_URL }})" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Published Plugins" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ excel-mcp" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ excel-cli" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Installation" >> $GITHUB_STEP_SUMMARY
+            echo '```powershell' >> $GITHUB_STEP_SUMMARY
+            echo "# Register marketplace (one-time)" >> $GITHUB_STEP_SUMMARY
+            echo "copilot plugin marketplace add ${{ env.PUBLISHED_REPO }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "# Install MCP plugin" >> $GITHUB_STEP_SUMMARY
+            echo "copilot plugin install excel-mcp@mcp-server-excel" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "# OR install CLI plugin" >> $GITHUB_STEP_SUMMARY
+            echo "copilot plugin install excel-cli@mcp-server-excel" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ℹ️ No Changes to Publish" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Plugins are already up to date in the published repository." >> $GITHUB_STEP_SUMMARY
+          fi

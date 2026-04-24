@@ -119,6 +119,21 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 
 **⚡ CLI Commands:** Generated automatically from Core service definitions using Roslyn source generators. All 22 command categories maintain exact 1:1 parity with MCP tools through shared code generation. See [code generation docs](docs/DEVELOPMENT.md#-cli-command-code-generation) for details.
 
+### 📦 GitHub Copilot CLI Plugins (Alternative Installation)
+
+For **GitHub Copilot CLI users**, Excel automation is available as two distributable plugins:
+
+```powershell
+# Register the plugin marketplace (one-time)
+copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
+
+# Install one or both plugins:
+copilot plugin install excel-mcp@mcp-server-excel     # For conversational AI
+copilot plugin install excel-cli@mcp-server-excel     # For scripting / coding agents
+```
+
+**📖 [Plugin Installation Guide →](https://github.com/sbroenne/mcp-server-excel-plugins)** - Detailed setup, prerequisites, and troubleshooting
+
 <details>
 <summary>📊 Benchmark Results (same task, same model)</summary>
 
@@ -201,6 +216,8 @@ The AI will display the Excel window so you can watch every operation happen liv
 **License:** MIT License - see [LICENSE](LICENSE) file
 
 **Privacy:** See [PRIVACY.md](PRIVACY.md) for our privacy policy
+
+**Releasing:** See [RELEASE-STRATEGY.md](docs/RELEASE-STRATEGY.md) for the unified release workflow (MCP Server, CLI, VS Code Extension, MCPB, Agent Skills, and GitHub Copilot CLI plugins)
 
 **Contributing:** See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines
 

@@ -28,10 +28,5 @@
     "README.md",
     "LICENSE"
   ],
-  "dependencies": {},
-  "skillpm": {
-    "mcpServers": [
-      "sbroenne/mcp-server-excel"
-    ]
-  }
+  "dependencies": {}
 }

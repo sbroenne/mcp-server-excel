@@ -16,21 +16,27 @@ All ExcelMcp components are released together with a single version tag:
 
 ## Unified Release Workflow
 
-**Workflow**: `.github/workflows/release.yml`  
+**Workflow**: `.github/workflows/release.yml`
+**Trigger**: `workflow_dispatch` with version bump (major/minor/patch) or custom version
+
+## Unified Release Workflow
+
+**Workflow**: `.github/workflows/release.yml`
 **Trigger**: `workflow_dispatch` with version bump (major/minor/patch) or custom version
 
 ### What Gets Released
 
-When you run the release workflow:
+When you run the release workflow, all components are released together:
 
 1. **CLI** → Standalone self-contained exe (`excelcli.exe`) + ZIP [primary] + NuGet pack [secondary]
 2. **MCP Server** → Standalone self-contained exe (`mcp-excel.exe`) + ZIP [primary] + NuGet pack [secondary]
 3. **VS Code Extension** → Self-contained VSIX (bundles both exes + skills) → VS Code Marketplace
 4. **MCPB** → Claude Desktop bundle (`.mcpb` file)
 5. **Agent Skills** → ZIP package for AI coding assistants
-6. **NuGet** → Both packages published to NuGet.org (secondary channel)
-7. **MCP Registry** → Updated after NuGet propagation
-8. **GitHub Release** → Created with all artifacts + auto-PR to update CHANGELOG
+6. **GitHub Copilot CLI Plugins** → Republished to GitHub plugin registry via `publish-plugins.yml` workflow (see [Phase 3 Plugin Publishing](../.github/workflows/docs/publish-plugins-setup.md))
+7. **NuGet** → Both packages published to NuGet.org (secondary channel)
+8. **MCP Registry** → Updated after NuGet propagation
+9. **GitHub Release** → Created with all artifacts + auto-PR to update CHANGELOG
 
 ### Release Artifacts
 
@@ -108,6 +114,29 @@ After workflow completes:
 - [ ] VS Code Marketplace updated (verify self-contained extension works without .NET)
 - [ ] MCP Registry updated
 - [ ] Auto-PR created for CHANGELOG rename (merge it to update `[Unreleased]` → `[X.Y.Z]`)
+
+### 5. GitHub Copilot CLI Plugin Publishing (Automatic)
+
+**Workflow**: `.github/workflows/publish-plugins.yml`
+**Trigger**: Runs automatically after `release.yml` completes successfully
+**Published Repo**: `sbroenne/mcp-server-excel-plugins` (GitHub Copilot CLI plugin registry)
+
+The `publish-plugins.yml` workflow automatically publishes updated plugins when the release workflow completes:
+
+1. **Extracts version** from the release tag created by `release.yml`
+2. **Builds plugins** via `scripts/Build-Plugins.ps1`:
+   - Copies validated plugin structure from the published repo
+   - Updates version in plugin.json and version.txt
+   - Refreshes skill content (always uses latest source)
+3. **Publishes to GitHub Copilot CLI registry** by committing and tagging the published repo
+
+**Key Points:**
+- ✅ **Automatic** — No manual intervention required
+- ✅ **Idempotent** — Safe to re-run on the same version
+- ✅ **Version-aligned** — Uses the exact version from the release
+- ⚠️ **Requires token setup** — First-time setup needs `PLUGINS_REPO_TOKEN` secret (see [Phase 3 Plugin Publishing docs](./.github/workflows/docs/publish-plugins-setup.md))
+
+For detailed setup instructions and troubleshooting, see [Phase 3 Plugin Publishing Setup](./.github/workflows/docs/publish-plugins-setup.md).
 
 ## Version Management
 
