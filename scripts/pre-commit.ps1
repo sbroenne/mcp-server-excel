@@ -18,7 +18,8 @@
     10. VS Code extension packaging - validates the VSIX release packaging path
     11. MCPB bundle packaging - validates the Claude Desktop bundle artifact
     12. Agent skills packaging - validates the ZIP deliverable
-    13. Dynamic cast audit - ensures ((dynamic)) casts are documented
+    13. Plugin README validation - ensures overlays are complete and not stub content
+    14. Dynamic cast audit - ensures ((dynamic)) casts are documented
 
     Ensures code quality and prevents regression.
 
@@ -490,6 +491,28 @@ Invoke-ValidationStep `
             Pop-Location
         }
     }
+
+Write-Host ""
+Write-Host "Validating plugin README overlays..." -ForegroundColor Cyan
+
+try {
+    $pluginReadmeScript = Join-Path $rootDir "scripts\check-plugin-readmes.ps1"
+    & $pluginReadmeScript
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "Plugin README validation failed!" -ForegroundColor Red
+        Write-Host "   Thin/stub README overlays would overwrite richer published templates." -ForegroundColor Red
+        Write-Host "   Enrich the overlay or remove it to use the published template." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "Plugin README validation passed - overlays are complete" -ForegroundColor Green
+}
+catch {
+    Write-Host "Error running plugin README check: $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host "   Continuing..." -ForegroundColor Gray
+}
 
 Write-Host ""
 Write-Host "Checking for undocumented ((dynamic)) casts..." -ForegroundColor Cyan
