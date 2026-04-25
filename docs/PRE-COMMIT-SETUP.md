@@ -16,7 +16,7 @@ This repository includes automated pre-commit checks to prevent code quality iss
 10. **MCP Server Release Deliverables** - Builds the MCP Server NuGet package and standalone ZIP locally
 11. **VS Code Extension Packaging** - Runs the VSIX release packaging path (`npm run package`)
 12. **MCPB Bundle Packaging** - Builds the Claude Desktop `.mcpb` bundle locally
-13. **Agent Skills Deliverables** - Builds the skills ZIP plus npm-packable skill packages locally
+13. **Agent Skills Deliverables** - Builds the skills ZIP locally
 14. **Dynamic Cast Documentation** - Ensures `((dynamic))` casts carry a justification comment
 
 ## Setup Instructions
@@ -144,12 +144,12 @@ These same checks run in CI/CD pipelines:
 - CI/CD provides **safety net** if hook bypassed with `--no-verify`
 - **Double protection** against coverage regression
 
-The hook now validates every locally buildable release artifact before commit publication:
-- CLI NuGet package + standalone ZIP
-- MCP Server NuGet package + standalone ZIP
-- VS Code VSIX
-- Claude Desktop MCPB bundle
-- Agent skills ZIP + npm skill tarballs
+ The hook now validates every locally buildable release artifact before commit publication:
+ - CLI NuGet package + standalone ZIP
+ - MCP Server NuGet package + standalone ZIP
+ - VS Code VSIX
+ - Claude Desktop MCPB bundle
+ - Agent skills ZIP
 
 If the CLI workflow smoke test fails, the hook stops before those packaging gates can be trusted. Treat that as a hard blocker for publication work, not something to bypass.
 

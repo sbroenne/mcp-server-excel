@@ -108,7 +108,7 @@ If you've already created a GitHub App for other purposes:
 
 ### Version Extraction Strategy
 
-**Corrected:** Uses `workflow_run.head_sha` to find the tag created by the release workflow.
+**Corrected:** Uses `workflow_run.head_sha` plus the checked-out git tag graph to find the annotated source release tag created by the release workflow.
 
 - ✅ Avoids race condition: Uses the exact commit that was just released
 - ✅ No drift: If multiple releases happen close together, each publish uses the correct version

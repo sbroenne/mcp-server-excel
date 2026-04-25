@@ -5,8 +5,6 @@
 .DESCRIPTION
     Creates distributable artifacts for Agent Skills:
     - excel-skills-v{version}.zip: Combined skill package with both excel-mcp and excel-cli
-    - packages/excel-mcp-skill/: npm package for excel-mcp skill (publish with npm publish)
-    - packages/excel-cli-skill/: npm package for excel-cli skill (publish with npm publish)
     - CLAUDE.md: Claude Code project instructions
     - .cursorrules: Cursor project rules
 
@@ -14,7 +12,6 @@
     to both excel-mcp/references/ and excel-cli/references/ during packaging.
 
     Users install with: npx skills add sbroenne/mcp-server-excel
-    Or via npm: npx skillpm install excel-mcp-skill
 
 .PARAMETER OutputDir
     Output directory for artifacts. Default: artifacts/skills
@@ -311,32 +308,6 @@ try {
     if (Test-Path $StagingDir) {
         Remove-Item $StagingDir -Recurse -Force
     }
-}
-
-Write-Host ""
-Write-Host "Building npm skill packages..." -ForegroundColor Yellow
-
-# Populate excel-mcp-skill npm package
-$NpmMcpDir = Join-Path $RepoRoot "packages/excel-mcp-skill/skills/excel-mcp"
-if (Test-Path $NpmMcpDir) {
-    # Clean previous build output (keep .gitkeep)
-    Get-ChildItem $NpmMcpDir -Exclude ".gitkeep" -Recurse | Remove-Item -Recurse -Force
-    # Copy SKILL.md
-    Copy-Item -Path (Join-Path $SkillsDir "excel-mcp/SKILL.md") -Destination $NpmMcpDir
-    Copy-SharedReferences -SkillPath $NpmMcpDir -SkillName "excel-mcp"
-    Write-Host "  Populated: packages/excel-mcp-skill/" -ForegroundColor Green
-}
-
-# Populate excel-cli-skill npm package
-$NpmCliDir = Join-Path $RepoRoot "packages/excel-cli-skill/skills/excel-cli"
-if (Test-Path $NpmCliDir) {
-    # Clean previous build output (keep .gitkeep)
-    Get-ChildItem $NpmCliDir -Exclude ".gitkeep" -Recurse | Remove-Item -Recurse -Force
-    # Copy SKILL.md
-    Copy-Item -Path (Join-Path $SkillsDir "excel-cli/SKILL.md") -Destination $NpmCliDir
-    Copy-SharedReferences -SkillPath $NpmCliDir -SkillName "excel-cli"
-    Generate-CliReference -SkillPath $NpmCliDir
-    Write-Host "  Populated: packages/excel-cli-skill/" -ForegroundColor Green
 }
 
 # Copy CLAUDE.md and .cursorrules

@@ -56,6 +56,12 @@
 
 ## Learnings
 
+### 2026-04-25: Retiring a legacy distribution surface needs one end-to-end pass
+
+- If a package line is truly obsolete, remove all three layers together: source artifacts/directories, local validation hooks, and release/publish workflow steps.
+- For this repo, the Copilot CLI marketplace repo (`sbroenne/mcp-server-excel-plugins`) is the active plugin distribution path, so the old `packages/excel-*-skill` npm packaging flow was safe to remove once `Build-AgentSkills.ps1`, `pre-commit.ps1`, and `release.yml` no longer referenced it.
+- Leave historical mentions in `.squad/` records alone, but sweep active operational files for stale package names so future packaging work does not accidentally resurrect the retired surface.
+
 ### 2026-04-24: Reverted plugin publish from GitHub App to stored PAT
 
 - User requested switching option 3: revert from GitHub App auth back to stored cross-repo token, while keeping iq-core-style operational hardening.

@@ -12,7 +12,8 @@ All ExcelMcp components are released together with a single version tag:
 | **CLI** | Standalone exe ZIP | NuGet (.NET tool) | `excelcli.exe` — no .NET runtime required |
 | **VS Code Extension** | VSIX + Marketplace | — | Self-contained — bundles MCP Server + CLI + skills |
 | **MCPB** | Claude Desktop bundle | — | Self-contained one-click installation |
-| **Agent Skills** | ZIP | npm | Reusable skill packages for AI coding assistants |
+| **GitHub Copilot Plugins** | Published plugin marketplace | — | `excel-mcp` and `excel-cli` plugins with bundled binary and skills |
+| **Agent Skills** | GitHub Release ZIP | Direct skill extraction | Reusable skill packages for AI coding assistants (`npx skills add`) |
 
 ## Unified Release Workflow
 
@@ -44,8 +45,7 @@ When you run the release workflow, all components are released together:
 | `ExcelMcp-CLI-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `excelcli.exe`) |
 | `Sbroenne.ExcelMcp.CLI.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `excelcli.exe`, requires .NET 10 runtime) |
 | `Sbroenne.ExcelMcp.McpServer.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `mcp-excel.exe`, requires .NET 10 runtime) |
-| `excel-skills-v{version}.zip` | ZIP | GitHub Release (contains `excel-cli` + `excel-mcp` skills) |
-| `excel-skills-v{version}.tgz` | npm | npm registry (same skills, npm-packable format) |
+| `excel-skills-v{version}.zip` | ZIP | GitHub Release (contains `excel-cli` + `excel-mcp` skills for direct extraction) |
 | `excelmcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace (~68-70 MB, self-contained with both exes + skills) |
 | `excel-mcp-{version}.mcpb` | MCPB | GitHub Release (Claude Desktop bundle, self-contained) |
 
@@ -92,16 +92,16 @@ The workflow will:
 
 ### 3. Monitor Workflow
 
-The main release workflow runs automatically (9 jobs), then the plugin publish workflow runs automatically if the release succeeds:
+The main release workflow runs automatically (10 jobs), then the plugin publish workflow runs automatically if the release succeeds:
 
 1. **build-cli** (3-5 min) → Builds standalone `excelcli.exe` (win-x64, self-contained), creates ZIP + NuGet pack
 2. **build-mcp-server** (4-6 min) → Builds standalone `mcp-excel.exe` (win-x64, self-contained), creates ZIP + NuGet pack
 3. **build-vscode** (5-8 min) → Builds self-contained VSIX (bundles exes), publishes to VS Code Marketplace
 4. **build-mcpb** (3-5 min) → Builds Claude Desktop bundle
-5. **build-agent-skills** (1-2 min) → Builds agent skills ZIP package
+5. **build-agent-skills** (1-2 min) → Builds agent skills ZIP package (for direct skill extraction via `npx skills add`)
 6. **create-tag** → Creates git tag (waits for all builds)
 7. **publish-mcp-registry** (10-30 min) → Waits for NuGet propagation, updates MCP Registry
-8. **publish** → Publishes to NuGet.org, VS Code Marketplace, and npm
+8. **publish** → Publishes to NuGet.org and VS Code Marketplace
 9. **create-release** → Creates GitHub Release with all artifacts, then creates auto-PR to update CHANGELOG
 10. **publish-plugins.yml** (follow-on workflow) → Sync-gated republish of `excel-mcp` and `excel-cli` to `sbroenne/mcp-server-excel-plugins`, including the bundled self-contained `excelcli.exe` inside the `excel-cli` plugin when plugin-facing install artifacts changed
 
@@ -151,8 +151,8 @@ gh workflow run publish-plugins.yml -f release_tag=v1.2.3
 - ✅ **Sync-gated** — skips downstream plugin republish when plugin install-surface inputs did not change since the prior release tag
 - ✅ **Guarded replay** — downgrade syncs are rejected, automatic duplicates are skipped, and manual repair/replay runs must keep the requested tag aligned with the incoming plugin manifest/version
 - ✅ **Manual repair path** — maintainers keep a `workflow_dispatch` re-sync entry point for repair/replay scenarios
-- ⚠️ **Requires cross-repo token** — First-time setup needs a repository secret `PLUGINS_REPO_TOKEN` (PAT with `public_repo` scope) in the source repo (see [Phase 3 Plugin Publishing docs](../.github/workflows/docs/publish-plugins-setup.md))
-- ℹ️ **Setup command** — After creating the PAT: `gh secret set PLUGINS_REPO_TOKEN --repo sbroenne/mcp-server-excel --body "<token-value>"`
+- ⚠️ **Requires cross-repo token** — First-time setup needs a repository secret `PLUGINS_REPO_TOKEN` in the source repo. Use either a PAT with `public_repo` scope or an app token with `contents:write` on `sbroenne/mcp-server-excel-plugins` (see [Phase 3 Plugin Publishing docs](../.github/workflows/docs/publish-plugins-setup.md))
+- ℹ️ **Setup command** — After creating the token: `gh secret set PLUGINS_REPO_TOKEN --repo sbroenne/mcp-server-excel --body "<token-value>"`
 
 **Surface note:**
 - The release automation publishes plugin bundles (manifest, skills, agents, hooks, MCP config, helper scripts) to the published repo.
@@ -234,12 +234,12 @@ Configure these GitHub repository secrets and variables:
 | Secret | `NUGET_USER` | NuGet.org username (for OIDC trusted publishing) |
 | Secret | `VSCE_TOKEN` | VS Code Marketplace PAT |
 | Secret | `APPINSIGHTS_CONNECTION_STRING` | Application Insights (optional telemetry) |
-| Secret | `PLUGINS_REPO_TOKEN` | Cross-repo PAT with `public_repo` scope for publishing plugins to `sbroenne/mcp-server-excel-plugins` |
+| Secret | `PLUGINS_REPO_TOKEN` | Cross-repo PAT (`public_repo`) or app token (`contents:write`) for publishing plugins to `sbroenne/mcp-server-excel-plugins` |
 
 > **Notes:**
 > - NuGet uses OIDC trusted publishing (no API key needed). The `NUGET_USER` is just the NuGet.org profile name for OIDC token exchange.
-> - npm skill packages also use trusted publishing via GitHub OIDC (`id-token: write` in `release.yml`), so no npm token is required.
-> - The follow-on plugin publish workflow uses a stored cross-repo PAT (`PLUGINS_REPO_TOKEN`) with `contents:write` on the published plugin repo.
+> - The follow-on plugin publish workflow uses a stored cross-repo token (`PLUGINS_REPO_TOKEN`) with write access to the published plugin repo. A PAT needs `public_repo`; an app token needs `contents:write`.
+> - **No npm tokens required** — agent skills are distributed through GitHub Release ZIP and direct skill extraction (`npx skills add`), not npm registry.
 
 ## Troubleshooting
 
@@ -267,7 +267,7 @@ Configure these GitHub repository secrets and variables:
 ### Publish Plugins Fails
 
 - Confirm the repository secret `PLUGINS_REPO_TOKEN` exists in `sbroenne/mcp-server-excel`
-- Confirm the token has `public_repo` scope (or `repo` if the plugin repo were private)
+- Confirm the token is valid for the published repo (PAT with `public_repo`, or app token with `contents:write`)
 - Verify the token hasn't expired and has push access to `sbroenne/mcp-server-excel-plugins`
 - If the main release succeeded but plugins did not update, inspect the separate follow-on `publish-plugins.yml` run
 - If you need to replay the publish without cutting a new release, dispatch `publish-plugins.yml` manually with `release_tag=vX.Y.Z`

@@ -89,6 +89,11 @@ jobs:
       tag: ${{ steps.extract_version.outputs.tag }}
       trigger_mode: ${{ steps.extract_version.outputs.trigger_mode }}
     steps:
+      - name: Checkout source repo with tags
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Resolve release tag and version
         id: extract_version
         run: |
@@ -110,11 +115,23 @@ jobs:
             HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
             echo "Triggering workflow HEAD commit: $HEAD_SHA"
 
-            TAG=$(gh api repos/${{ github.repository }}/git/matching-refs/tags/v --jq ".[] | select(.object.sha == \"$HEAD_SHA\") | .ref" | head -1 | sed 's|refs/tags/||')
+            TAG=""
+            for attempt in 1 2 3; do
+              git fetch --force --tags origin >/dev/null 2>&1
+              TAG=$(git tag --points-at "$HEAD_SHA" --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$' | head -n1 || true)
+              if [ -n "$TAG" ]; then
+                break
+              fi
+
+              if [ "$attempt" -lt 3 ]; then
+                echo "No source release tag visible for $HEAD_SHA yet; retrying in 5 seconds..."
+                sleep 5
+              fi
+            done
 
             if [ -z "$TAG" ]; then
-              echo "::error::No release tag found for commit $HEAD_SHA"
-              echo "::error::The release workflow may not have completed tag creation yet."
+              echo "::error::No source release tag points at commit $HEAD_SHA."
+              echo "::error::Expected an annotated source release tag (for example v1.2.3) created by release.yml."
               exit 1
             fi
 
