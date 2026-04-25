@@ -9,6 +9,10 @@
 ## Learnings
 
 <!-- Append learnings below -->
+- 2026-04-25: **Extended workflow audit — removal analysis complete.** 11 active workflows all KEEP (build-cli, build-mcp-server, codeql, dependency-review, stale, deploy-gh-pages, release all essential; publish-plugins new but critical for Copilot CLI marketplace). Two disabled workflows recommended for REMOVAL: deploy-azure-runner.yml.disabled (infrastructure undeployed 4 months, no active use) and integration-tests.yml.disabled (superseded by coverage audits in build pipeline). Removal plan: delete .disabled files, archive infrastructure context in .github/docs/INFRASTRUCTURE_DECISIONS.md, document in TESTING_STRATEGY.md. Risk: none — git history + documentation preserved. Recommendation: execute removal immediately (cleaner directory, no functional loss). Detailed report: .squad/decisions/inbox/mccauley-workflow-removal-recommendations.md
+
+- 2026-04-25: **Workflow audit complete.** All 11 active workflows are current, properly ordered, and follow GitHub best practices. No deprecated action versions, missing permission scopes, or contradictory messaging. Release pipeline (release.yml + publish-plugins.yml) is well-architected for multi-component coordination. One publish-plugins failure (2026-04-24) traced to environmental cause (dirty branch state during parallel Phase work), not workflow defect. Monitoring: next publish-plugins run after release #82 for confirmation. PR gate opens for fix/workflow-warnings-and-cleanup branch; Cheritto changes must preserve job dependencies, coverage audits, release messaging. Detailed report: .squad/decisions/inbox/mccauley-workflow-audit-report.md
+
 - 2026-03-16: Treat reported `set-values` width failures above 13 columns as MCP/service/client-shape suspects first, not automatic Core defects; Core integration coverage already exercises `SetValues` on `A1:P1` successfully.
 - 2026-03-16: Split "missing formatting capability" reports into real product gaps versus discoverability gaps. `set-number-format` already exists on `range`, and `auto-fit-columns` already exists on `range_format`.
 - 2026-03-16: Do not accept "activate the new sheet" as the default fix for post-create write issues without proof; `SetValues` resolves by explicit sheet name, so a non-`A1` write failure after sheet creation needs a targeted reproduction test before changing lifecycle behavior.
@@ -83,3 +87,25 @@
 **User Directive Executed:**
 - Reverted unrelated RangeCommands.Formulas.cs working-tree change (Nate completed).
 - Repo working tree cleaned per user instruction.
+
+---
+
+## 2026-04-25: Workflow Audit Complete
+
+**Finding:** No stale/legacy workflows detected. Repository maintains lean, active CI/CD suite:
+
+- **11 active workflows:** Build (CLI, MCP), Release (unified), Publish Plugins, Security (CodeQL + Dependency Review), Pages, Stale Management, Squad CI
+- **2 intentionally disabled:** Azure runner + integration tests (infrastructure undeployed; documented in setup guide with revival path)
+- **Complexity justified:** release.yml (910 lines) = 8 release targets unified in one gate; publish-plugins.yml (554 lines) = required for Copilot CLI marketplace automation
+- **No cleanup recommended:** All workflows have recent activity (some within last 24h). April 24 publish-plugins failure was environmental (dirty branch state noted in team history)
+
+**Key Assets:**
+- Full audit report written to `.squad/decisions/inbox/mccauley-workflow-audit.md`
+- Release/publish workflows are coordinated via `workflow_run` (auto-trigger after release completes)
+- Static site deployment active (GitHub Pages); IndexNow integration included for SEO
+
+**Advisory:** If Azure infrastructure is permanently abandoned, consider removing `.disabled` files (but keep docs reference).
+
+
+- 2026-04-25: **WORKFLOW AUDIT COMPLETE — NO ACTION REQUIRED.** Inventory audit found 11 active workflows (all current) + 2 intentionally disabled Azure workflows (properly documented). Zero stale workflows detected. publish-plugins.yml showed 1 failure (2026-04-24) due to environmental cause (dirty branch during Phase 2/3 plugin work), not workflow defect. Recommendation: monitor next publish run post-release #82. Conclusion: Workflow suite is lean and healthy; release + plugin pipelines fully coordinated; no cleanup needed.
+

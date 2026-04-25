@@ -9,6 +9,9 @@
 ## Learnings
 
 <!-- Append learnings below -->
+- 2026-04-25: A failed Dependabot security update on `vscode-extension` can be a real repo issue without a usable upstream patch path. In this case `@vscode/vsce` 3.x pulled `@azure/msal-node -> uuid@^8.3.0`, so the practical fix was to validate Dependabot's suggested `@vscode/vsce` 2.25.0 downgrade, then confirm `npm audit` and the exact `npm run package` release path still pass before merging.
+- 2026-04-25: `publish-plugins.yml` must resolve source release tags from a fetched git checkout (`git tag --points-at workflow_run.head_sha`), not from the REST `matching-refs` payload. Release tags here are annotated, so `.object.sha` is the tag object SHA, not the released commit SHA; the old lookup caused the follow-on publish workflow to fail immediately after a successful release.
+- 2026-04-25: The retired Azure runner workflow files were safe to delete once the docs stopped telling people to rename `.disabled` files back into service. Minimal cleanup was enough: remove the two disabled workflow files, update the workflow instructions, and reframe the Azure runner guide as historical infrastructure reference.
 - 2026-03-16: Bug 3 is already supported under `range.set-number-format`; the actual gap is that the formatting surface is split between `range` (display formats) and `range_format` (visual styling), and top-level feature tables currently hide that split.
 - 2026-03-16: Bug 5 is already supported under `range_format.auto-fit-columns` / `auto-fit-rows`; the main weakness is discoverability, not backend capability.
 - 2026-03-16: Bug 4 is a real surface gap. A `List<...>` batch request is consistent with existing patterns such as `IRangeEditCommands.Sort(... List<SortColumn> ...)`, so the likely risk is in API review and docs parity, not generator feasibility.

@@ -68,3 +68,56 @@
 - ⏳ Awaiting user to store PLUGINS_REPO_TOKEN secret in repo
 
 **Decision Recorded:** `.squad/decisions.md` → 2026-04-24T14:06:40Z entry
+
+---
+
+## 2026-04-25: Legacy Skill Package Distribution Cleanup
+
+**By:** Trejo (Docs Lead)
+
+**Task:** Remove legacy npm skill package references and update documentation to reflect new plugin marketplace distribution model.
+
+**Work Completed:**
+
+✅ **Package READMEs Deprecated:**
+- `packages/excel-cli-skill/README.md` — Updated to deprecation message pointing to:
+  - GitHub Copilot plugins (primary)
+  - Direct skill extraction via `npx skills add` (secondary)
+  - VS Code extension (bundled)
+- `packages/excel-mcp-skill/README.md` — Same deprecation pattern, added Claude Desktop MCPB option
+
+✅ **Skills Distribution Docs Updated:**
+- `skills/README.md` — Removed references to `npx skillpm install` and `npm install`, added deprecation note for legacy npm packages
+- Reorganized installation order: plugins first, then direct extraction, then VS Code extension
+
+✅ **Release Strategy Updated:**
+- `docs/RELEASE-STRATEGY.md` — Removed npm registry as distribution channel for skills
+- Updated release artifacts table: removed `.tgz` npm format, kept GitHub Release ZIP
+- Updated step 8 "publish" job description to remove npm publishing reference
+- Updated "Required Secrets" section: removed note about npm OIDC trusted publishing
+- Clarified agent skills distributed via "GitHub Release ZIP" and "Direct skill extraction" only
+
+✅ **Installation Docs Verified:**
+- `docs/INSTALLATION.md` — Already correct (no npm package install references present)
+- Confirmed `npx skills add` references are still valid (user can extract skills directly)
+
+✅ **README and gh-pages Verified:**
+- Main `README.md` — Already correct (uses `npx skills add` for direct extraction)
+- `gh-pages/index.md` — Already correct (no npm package install references)
+- `.github/copilot-instructions.md` — Already correct (uses `npx skills add`)
+
+**Distinction Maintained (Correct):**
+- ✅ `npx skills add sbroenne/mcp-server-excel --skill excel-cli|mcp` → **KEPT** (valid direct extraction method for agents without plugin support)
+- ✅ GitHub Copilot plugins → **PRIMARY** (plugin marketplace distribution via `copilot plugin install`)
+- ✅ VS Code extension → **BUNDLED** (auto-installs both skills)
+- ❌ `npm install excel-cli-skill` → **REMOVED** (no longer published)
+- ❌ `npx skillpm install` → **REMOVED** (legacy skillpm command, not used)
+
+**Risk Analysis:**
+- 🟢 **LOW RISK** — Changes are documentation-only. Kelso's workflow/code changes not touched.
+- ⚠️ **FOLLOW-UP (Recommended):** Verify release.yml no longer attempts npm tarball publishing for skills. If Kelso changed the release workflow, confirm step 8 ("publish" job) reflects the new distribution model.
+
+**Learnings for Future Work:**
+- Legacy package cleanup requires auditing multiple doc surfaces: installation docs, package READMEs, release strategy, skills overviews, and platform-specific docs (gh-pages).
+- When distribution models change, track both positive statements (what IS published) and negative statements (what IS NOT published) — silence about removed channels can confuse users.
+- Deprecation messages in legacy package directories should guide users to the exact new method (GitHub Copilot plugins with marketplace URLs + npx skills add example).

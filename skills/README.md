@@ -1,13 +1,15 @@
 # Excel MCP Server - Agent Skills
 
-Two skill packages bundled in GitHub Copilot plugins and distributed separately:
+Two skill packages for different integration models:
 
 | Skill | Component | Distribution | Best For |
 |-------|-----------|--------------|----------|
-| **[excel-cli](excel-cli/SKILL.md)** | CLI Tool (`excelcli.exe`) | Copilot plugin `excel-cli`, npx, NuGet | Coding agents - token-efficient, `--help` discoverable |
-| **[excel-mcp](excel-mcp/SKILL.md)** | MCP Server (`mcp-excel.exe`) | Copilot plugin `excel-mcp`, VS Code extension, MCPB | Conversational AI - rich tool schemas |
+| **[excel-cli](excel-cli/SKILL.md)** | CLI Tool (`excelcli.exe`) | Copilot plugin `excel-cli`, direct skill extraction | Coding agents - token-efficient, `--help` discoverable |
+| **[excel-mcp](excel-mcp/SKILL.md)** | MCP Server (`mcp-excel.exe`) | Copilot plugin `excel-mcp`, VS Code extension, MCPB, direct skill extraction | Conversational AI - rich tool schemas |
 
 **Shared guidance:** `skills/shared/*.md` — source of truth for both skills (auto-copied to each skill's `references/` folder)
+
+> **Note:** Legacy npm packages (`excel-cli-skill`, `excel-mcp-skill`) are no longer published. Use the methods below instead.
 
 ## Installation
 
@@ -18,7 +20,7 @@ copilot plugin install excel-mcp@sbroenne/mcp-server-excel-plugins
 copilot plugin install excel-cli@sbroenne/mcp-server-excel-plugins
 ```
 
-**Manual skill extraction:**
+**Direct skill extraction (for agents without plugin support):**
 ```bash
 # Via npx (interactive — select excel-cli, excel-mcp, or both)
 npx skills add sbroenne/mcp-server-excel

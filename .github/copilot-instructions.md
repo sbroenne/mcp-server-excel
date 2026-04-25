@@ -193,7 +193,7 @@ Pre-commit runs `scripts/pre-commit.ps1` which blocks commits if any check fails
 | 10 | MCP Server Release Deliverables | `dotnet pack` + `dotnet publish` + ZIP | Local MCP Server NuGet + standalone ZIP match release shapes |
 | 11 | VS Code Extension Package | `npm run package` | Release packaging path succeeds before commit |
 | 12 | MCPB Bundle | `mcpb\Build-McpBundle.ps1` | Claude Desktop `.mcpb` bundle builds locally |
-| 13 | Agent Skills Deliverables | `Build-AgentSkills.ps1` + `npm pack` | Skills ZIP and npm-packable skill packages build locally |
+| 13 | Agent Skills Deliverables | `Build-AgentSkills.ps1` | Skills ZIP package builds locally |
 | 14 | Dynamic Cast Audit | `check-dynamic-casts.ps1` | Every `((dynamic))` cast has a justification comment |
 
 **Install hook:**

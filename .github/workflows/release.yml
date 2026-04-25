@@ -17,9 +17,6 @@ name: Release All Components
 # - VSCE_TOKEN: VS Code Marketplace PAT
 # - APPINSIGHTS_CONNECTION_STRING: Application Insights connection string
 #
-# npm publishing uses Trusted Publishing (OIDC) — no token needed.
-# Configure at npmjs.com → Package Settings → Trusted Publisher.
-
 on:
   workflow_dispatch:
     inputs:
@@ -524,38 +521,6 @@ jobs:
         name: agent-skills
         path: artifacts/skills/excel-skills-*.zip
 
-    - name: Populate npm Skill Packages
-      run: |
-        $version = $env:VERSION
-
-        # Populate excel-mcp-skill
-        $mcpTarget = "packages/excel-mcp-skill/skills/excel-mcp"
-        Get-ChildItem $mcpTarget -Exclude ".gitkeep" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
-        Copy-Item "skills/excel-mcp/SKILL.md" $mcpTarget
-        Copy-Item "skills/excel-mcp/references" "$mcpTarget/references" -Recurse -ErrorAction SilentlyContinue
-
-        # Populate excel-cli-skill
-        $cliTarget = "packages/excel-cli-skill/skills/excel-cli"
-        Get-ChildItem $cliTarget -Exclude ".gitkeep" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
-        Copy-Item "skills/excel-cli/SKILL.md" $cliTarget
-        Copy-Item "skills/excel-cli/references" "$cliTarget/references" -Recurse -ErrorAction SilentlyContinue
-
-        # Update versions in package.json files
-        foreach ($pkg in @("packages/excel-mcp-skill/package.json", "packages/excel-cli-skill/package.json")) {
-          $content = Get-Content $pkg -Raw
-          $content = $content -replace '"version":\s*"[\d\.]+"', "`"version`": `"$version`""
-          Set-Content $pkg $content
-        }
-
-        Write-Host "Populated npm skill packages at v$version"
-      shell: pwsh
-
-    - name: Upload npm Skill Packages
-      uses: actions/upload-artifact@v4
-      with:
-        name: npm-skill-packages
-        path: packages/
-
   # =============================================================================
   # Job 6: Wait for NuGet Propagation + MCP Registry
   # =============================================================================
@@ -667,7 +632,7 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: read
-      id-token: write  # Required for NuGet OIDC and npm OIDC
+      id-token: write  # Required for NuGet OIDC
 
     steps:
     - uses: actions/checkout@v4
@@ -706,12 +671,6 @@ jobs:
         name: vscode-vsix
         path: vscode-vsix
 
-    - name: Download npm Skill Packages
-      uses: actions/download-artifact@v4
-      with:
-        name: npm-skill-packages
-        path: npm-packages
-
     - name: NuGet Login (OIDC)
       uses: NuGet/login@v1
       id: nuget-login
@@ -740,24 +699,6 @@ jobs:
         pat: ${{ secrets.VSCE_TOKEN }}
         registryUrl: https://marketplace.visualstudio.com
         extensionFile: vscode-vsix/excelmcp-${{ env.VERSION }}.vsix
-      continue-on-error: true
-
-    - name: Setup npm registry
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        registry-url: https://registry.npmjs.org
-
-    - name: Publish excel-mcp-skill to npm
-      run: |
-        cd npm-packages/excel-mcp-skill
-        npm publish --provenance --access public
-      continue-on-error: true
-
-    - name: Publish excel-cli-skill to npm
-      run: |
-        cd npm-packages/excel-cli-skill
-        npm publish --provenance --access public
       continue-on-error: true
 
   # =============================================================================
@@ -846,7 +787,7 @@ jobs:
 
         **Agent Skills** (for AI coding assistants)
         - VS Code Extension includes both skills automatically (excel-mcp + excel-cli)
-        - Install via npm: `npx skills add sbroenne/mcp-server-excel --skill excel-cli` or `--skill excel-mcp`
+        - Install via Skills CLI: `npx skills add sbroenne/mcp-server-excel --skill excel-cli` or `--skill excel-mcp`
         - Or download `excel-skills-v${{ env.VERSION }}.zip`
 
         ### Requirements

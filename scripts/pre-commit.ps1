@@ -17,7 +17,7 @@
     9. MCP Server release packaging - validates NuGet + standalone ZIP artifacts
     10. VS Code extension packaging - validates the VSIX release packaging path
     11. MCPB bundle packaging - validates the Claude Desktop bundle artifact
-    12. Agent skills packaging - validates ZIP + npm publishable skill packages
+    12. Agent skills packaging - validates the ZIP deliverable
     13. Dynamic cast audit - ensures ((dynamic)) casts are documented
 
     Ensures code quality and prevents regression.
@@ -473,12 +473,10 @@ Invoke-ValidationStep `
 Invoke-ValidationStep `
     -Heading "Building agent skills deliverables..." `
     -FailureSummary "Agent skills deliverable validation failed!" `
-    -SuccessSummary "Agent skills deliverables passed - ZIP package and npm publishable packages were built locally" `
+    -SuccessSummary "Agent skills deliverables passed - ZIP package was built locally" `
     -Action {
         $skillsOutputDir = Join-Path $preCommitArtifactsDir "skills"
-        $npmPackDir = Join-Path $preCommitArtifactsDir "npm-skill-packages"
         Reset-Directory -Path $skillsOutputDir
-        Reset-Directory -Path $npmPackDir
 
         Push-Location $rootDir
         try {
@@ -486,26 +484,6 @@ Invoke-ValidationStep `
 
             if (-not (Get-ChildItem $skillsOutputDir -Filter "excel-skills-v*.zip" -ErrorAction Stop)) {
                 throw "Agent skills ZIP artifact was not created."
-            }
-
-            Push-Location (Join-Path $rootDir "packages\excel-mcp-skill")
-            try {
-                npm pack --pack-destination $npmPackDir
-            }
-            finally {
-                Pop-Location
-            }
-
-            Push-Location (Join-Path $rootDir "packages\excel-cli-skill")
-            try {
-                npm pack --pack-destination $npmPackDir
-            }
-            finally {
-                Pop-Location
-            }
-
-            if ((Get-ChildItem $npmPackDir -Filter "*.tgz" -ErrorAction Stop | Measure-Object).Count -lt 2) {
-                throw "npm skill packages were not created."
             }
         }
         finally {
