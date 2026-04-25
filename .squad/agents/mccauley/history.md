@@ -83,3 +83,25 @@
 **User Directive Executed:**
 - Reverted unrelated RangeCommands.Formulas.cs working-tree change (Nate completed).
 - Repo working tree cleaned per user instruction.
+
+---
+
+## 2026-04-25: Workflow Audit Complete
+
+**Finding:** No stale/legacy workflows detected. Repository maintains lean, active CI/CD suite:
+
+- **11 active workflows:** Build (CLI, MCP), Release (unified), Publish Plugins, Security (CodeQL + Dependency Review), Pages, Stale Management, Squad CI
+- **2 intentionally disabled:** Azure runner + integration tests (infrastructure undeployed; documented in setup guide with revival path)
+- **Complexity justified:** release.yml (910 lines) = 8 release targets unified in one gate; publish-plugins.yml (554 lines) = required for Copilot CLI marketplace automation
+- **No cleanup recommended:** All workflows have recent activity (some within last 24h). April 24 publish-plugins failure was environmental (dirty branch state noted in team history)
+
+**Key Assets:**
+- Full audit report written to `.squad/decisions/inbox/mccauley-workflow-audit.md`
+- Release/publish workflows are coordinated via `workflow_run` (auto-trigger after release completes)
+- Static site deployment active (GitHub Pages); IndexNow integration included for SEO
+
+**Advisory:** If Azure infrastructure is permanently abandoned, consider removing `.disabled` files (but keep docs reference).
+
+
+- 2026-04-25: **WORKFLOW AUDIT COMPLETE — NO ACTION REQUIRED.** Inventory audit found 11 active workflows (all current) + 2 intentionally disabled Azure workflows (properly documented). Zero stale workflows detected. publish-plugins.yml showed 1 failure (2026-04-24) due to environmental cause (dirty branch during Phase 2/3 plugin work), not workflow defect. Recommendation: monitor next publish run post-release #82. Conclusion: Workflow suite is lean and healthy; release + plugin pipelines fully coordinated; no cleanup needed.
+

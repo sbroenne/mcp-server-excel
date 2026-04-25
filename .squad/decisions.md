@@ -4,6 +4,32 @@
 
 > Archived earlier decisions moved to .squad\decisions\archive\2026-03-16-to-2026-04-23.md on 2026-04-24 to keep this file readable.
 
+### 2026-04-25T13:21:35Z: Workflow Audit Complete — No Action Required
+
+**By:** McCauley (Lead)  
+**Status:** ✅ COMPLETE
+
+**Audit Finding:** Infrastructure inventory complete.  
+- ✅ **11 active workflows** — all current with recent activity
+- ✅ **2 disabled workflows** — intentionally marked `.disabled` for Azure infrastructure (undeployed but documented)
+- ✅ **0 stale workflows** — no cleanup required
+- ⚠️ **1 publish-plugins failure** (2026-04-24) — environmental cause: dirty branch during Phase 2/3 plugin work, NOT a workflow defect
+
+**Key Recommendations:**
+1. Keep all 11 active workflows — each serves a current purpose
+2. Monitor next publish-plugins run after release #82 completes
+3. If Azure infrastructure is permanently abandoned, optionally remove .disabled files (keep docs reference for historical context)
+4. No workflow simplification recommended — both release.yml (910 lines) and publish-plugins.yml (554 lines) are appropriately complex
+
+**Conclusion:** Workflow suite is lean and active. Release + plugin publish pipelines are fully coordinated. No action items raised.
+
+**Files examined:**
+- .github/workflows/*.yml (10 active, 2 disabled)
+- docs/AZURE_SELFHOSTED_RUNNER_SETUP.md (Azure context)
+- Release history (#82 in-flight as of audit time)
+
+---
+
 ### 2026-04-23T18:09:00Z: User Directive - Accept Rubber-Duck Findings + Add Phase -1 Spike
 
 **By:** Stefan Brönner (via Copilot CLI)
