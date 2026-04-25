@@ -12,7 +12,7 @@ All ExcelMcp components are released together with a single version tag:
 | **CLI** | Standalone exe ZIP | NuGet (.NET tool) | `excelcli.exe` — no .NET runtime required |
 | **VS Code Extension** | VSIX + Marketplace | — | Self-contained — bundles MCP Server + CLI + skills |
 | **MCPB** | Claude Desktop bundle | — | Self-contained one-click installation |
-| **GitHub Copilot Plugins** | Published plugin marketplace | — | `excel-mcp` and `excel-cli` plugins with bundled binary and skills |
+| **GitHub Copilot Plugins** | Published plugin marketplace | — | `excel-mcp` and `excel-cli` plugins with MCP config and skills |
 | **Agent Skills** | GitHub Release ZIP | Direct skill extraction | Reusable skill packages for AI coding assistants (`npx skills add`) |
 
 ## Unified Release Workflow
@@ -27,7 +27,6 @@ When you run the release workflow, all components are released together:
 1. **CLI** → Standalone self-contained exe (`excelcli.exe`) shipped as:
    - ZIP file (primary distribution)
    - NuGet package (secondary distribution)
-   - **Bundled inside the `excel-cli` GitHub Copilot plugin** (published by `publish-plugins.yml`)
 2. **MCP Server** → Standalone self-contained exe (`mcp-excel.exe`) + ZIP [primary] + NuGet pack [secondary]
 3. **VS Code Extension** → Self-contained VSIX (bundles both exes + skills) → VS Code Marketplace
 4. **MCPB** → Claude Desktop bundle (`.mcpb` file)
@@ -103,7 +102,7 @@ The main release workflow runs automatically (10 jobs), then the plugin publish 
 7. **publish-mcp-registry** (10-30 min) → Waits for NuGet propagation, updates MCP Registry
 8. **publish** → Publishes to NuGet.org and VS Code Marketplace
 9. **create-release** → Creates GitHub Release with all artifacts, then creates auto-PR to update CHANGELOG
-10. **publish-plugins.yml** (follow-on workflow) → Sync-gated republish of `excel-mcp` and `excel-cli` to `sbroenne/mcp-server-excel-plugins`, including the bundled self-contained `excelcli.exe` inside the `excel-cli` plugin when plugin-facing install artifacts changed
+10. **publish-plugins.yml** (follow-on workflow) → Sync-gated republish of `excel-mcp` and `excel-cli` to `sbroenne/mcp-server-excel-plugins` when plugin-facing install artifacts changed
 
 ### 4. Verify Release
 
@@ -130,7 +129,7 @@ The `publish-plugins.yml` workflow automatically publishes updated plugins when 
     - Copies validated plugin structure from the published marketplace repo
     - Applies source-owned plugin overlays from `.github/plugins/` (overlay content only; not standalone plugin roots)
     - Updates version in plugin.json and version.txt
-    - Bundles the self-contained CLI publish output into `plugins/excel-cli/bin/`
+    - Keeps `excel-cli` as a skill-only plugin; standalone CLI distribution remains the release ZIP/NuGet tool
     - Refreshes skill content (always uses latest source)
 4. **Checks published-repo guards** before mutation, reading the current published plugin version from the canonical marketplace manifest when present (or the legacy root manifest before migration):
     - Rejects explicit tag/version mismatches

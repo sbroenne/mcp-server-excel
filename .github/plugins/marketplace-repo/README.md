@@ -7,7 +7,7 @@ This repository is the publish target for plugin artifacts from [`sbroenne/mcp-s
 ## Plugins
 
 - **excel-mcp** — MCP server plugin for conversational Excel automation
-- **excel-cli** — CLI skill plugin with bundled `excelcli.exe` for scripting and coding-agent workflows
+- **excel-cli** — CLI skill plugin for scripting and coding-agent workflows
 
 ## Repository Layout
 
@@ -31,17 +31,13 @@ copilot plugin install excel-mcp@mcp-server-excel-plugins
 copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
 
-After installing `excel-cli`, run the bundled helper once to wire the plugin-shipped CLI onto PATH:
-
-```powershell
-pwsh -ExecutionPolicy Bypass -File "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\bin\install-global.ps1"
-```
+The `excel-cli` plugin is skill-only. Install `excelcli` separately from the main release ZIP or NuGet tool if you want the command on PATH.
 
 ## Notes
 
 - **Windows only** — ExcelMcp depends on Microsoft Excel COM automation.
 - **excel-mcp** includes MCP configuration plus helper scripts for the ExcelMcp MCP server.
-- **excel-cli** bundles the actual self-contained `excelcli.exe` binary inside `plugins/excel-cli/bin/`.
+- **excel-cli** provides the skill package only; install `excelcli` separately from the source repo releases if needed.
 
 ## Source and Support
 
