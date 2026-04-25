@@ -11,7 +11,6 @@
     3. Apply source-owned plugin overlays from .github/plugins/ (overlay content only, not standalone plugin roots)
     4. Refresh skills content from source repo
     5. Refresh shared references from source repo
-    6. Bundle the released/self-contained excelcli publish output into the excel-cli plugin
 
     WHY COPY NOT GENERATE:
     - Phase 1/2 created validated bin scripts, READMEs, configs
@@ -32,9 +31,6 @@
 .PARAMETER PluginTemplateDir
     Validated plugin templates source. Default: ../mcp-server-excel-plugins/plugins/ in the published marketplace repo.
 
-.PARAMETER CliPublishDir
-    Directory containing the self-contained CLI publish output (must contain excelcli.exe).
-
 .EXAMPLE
     ./Build-Plugins.ps1
 
@@ -44,8 +40,7 @@
 param(
     [string]$Version = $null,
     [string]$OutputDir = "plugins",
-    [string]$PluginTemplateDir = $null,
-    [string]$CliPublishDir = $null
+    [string]$PluginTemplateDir = $null
 )
 
 $ErrorActionPreference = "Stop"
@@ -117,49 +112,6 @@ function Apply-PluginOverlay {
 
     Write-Host "  Applying source-owned plugin overlay..." -ForegroundColor Cyan
     Copy-DirectoryFiles -SourceDir $overlaySource -DestinationDir $DestinationDir
-}
-
-function Resolve-CliPublishDir {
-    param(
-        [string]$RequestedPath
-    )
-
-    $candidates = @()
-
-    if ($RequestedPath) {
-        $candidates += $RequestedPath
-    }
-
-    $candidates += @(
-        (Join-Path $RepoRoot "plugin-cli-publish"),
-        (Join-Path $RepoRoot "cli-publish"),
-        (Join-Path $RepoRoot "artifacts\pre-commit\cli-publish"),
-        (Join-Path $RepoRoot "src\ExcelMcp.CLI\bin\Release\net10.0-windows")
-    )
-
-    foreach ($candidate in $candidates | Select-Object -Unique) {
-        if ($candidate -and (Test-Path (Join-Path $candidate "excelcli.exe"))) {
-            return (Resolve-Path $candidate).Path
-        }
-    }
-
-    Write-Error @"
-❌ CLI publish output not found.
-
-Build-Plugins.ps1 now bundles the actual excelcli deliverable into the excel-cli plugin.
-Provide -CliPublishDir pointing at a self-contained publish directory, or build one first:
-
-  dotnet publish src\ExcelMcp.CLI\ExcelMcp.CLI.csproj `
-    --configuration Release `
-    --runtime win-x64 `
-    --self-contained true `
-    -p:PublishSingleFile=true `
-    -p:IncludeNativeLibrariesForSelfExtract=true `
-    -p:PublishTrimmed=false `
-    -p:PublishReadyToRun=false `
-    --output .\plugin-cli-publish
-"@
-    exit 1
 }
 
 Write-Host "`n=== Building Copilot CLI Plugins v$Version ===" -ForegroundColor Green
@@ -248,14 +200,6 @@ $pluginJson | ConvertTo-Json -Depth 10 | Set-Content $PluginJsonPath -Encoding U
 Write-Host "  Updating version.txt to $Version..." -ForegroundColor Cyan
 Set-Content -Path (Join-Path $OutputCli "version.txt") -Value $Version -Encoding UTF8 -NoNewline
 
-Write-Host "  Bundling excelcli deliverable..." -ForegroundColor Cyan
-$ResolvedCliPublishDir = Resolve-CliPublishDir -RequestedPath $CliPublishDir
-$CliBinDir = Join-Path $OutputCli "bin"
-if (-not (Test-Path $CliBinDir)) {
-    New-Item -ItemType Directory -Path $CliBinDir -Force | Out-Null
-}
-Copy-Item -Path (Join-Path $ResolvedCliPublishDir "*") -Destination $CliBinDir -Recurse -Force
-
 Write-Host "  Refreshing excel-cli skill content..." -ForegroundColor Cyan
 $SourceSkillCli = Join-Path $SkillsDir "excel-cli\SKILL.md"
 $DestSkillCli = Join-Path $OutputCli "skills\excel-cli\SKILL.md"
@@ -284,7 +228,7 @@ Write-Host "Output:  $OutputDir"
 Write-Host ""
 Write-Host "Plugins:" -ForegroundColor Cyan
 Write-Host "  ✓ excel-mcp (MCP Server + Skill)" -ForegroundColor Green
-Write-Host "  ✓ excel-cli (CLI Skill + bundled excelcli.exe)" -ForegroundColor Green
+Write-Host "  ✓ excel-cli (CLI Skill only; install excelcli separately)" -ForegroundColor Green
 Write-Host ""
 Write-Host "Test locally:" -ForegroundColor Yellow
 Write-Host "  copilot plugin install $OutputDir\excel-mcp"

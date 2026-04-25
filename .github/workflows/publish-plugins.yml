@@ -261,24 +261,6 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Publish self-contained CLI for plugin bundling
-        run: |
-          $VERSION = "${{ needs.get-version.outputs.version }}"
-          dotnet publish source\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj `
-            --configuration Release `
-            --runtime win-x64 `
-            --self-contained true `
-            -p:PublishSingleFile=true `
-            -p:IncludeNativeLibrariesForSelfExtract=true `
-            -p:PublishTrimmed=false `
-            -p:PublishReadyToRun=false `
-            -p:Version=$VERSION `
-            -p:AssemblyVersion=$VERSION.0 `
-            -p:FileVersion=$VERSION.0 `
-            -p:NuGetAudit=false `
-            --output source\plugin-cli-publish
-        shell: pwsh
-
       - name: Build plugins from validated templates
         run: |
           $VERSION = "${{ needs.get-version.outputs.version }}"
@@ -287,7 +269,7 @@ jobs:
           # Build script copies from ../mcp-server-excel-plugins/plugins/
           # We checked out published repo at ./published, so adjust path
           cd source
-          & .\scripts\Build-Plugins.ps1 -Version $VERSION -PluginTemplateDir "..\published\plugins" -CliPublishDir ".\plugin-cli-publish"
+          & .\scripts\Build-Plugins.ps1 -Version $VERSION -PluginTemplateDir "..\published\plugins"
         shell: pwsh
 
       - name: Upload excel-mcp plugin artifact

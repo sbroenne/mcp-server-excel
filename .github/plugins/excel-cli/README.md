@@ -19,18 +19,19 @@ copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
 
-### Step 2: Wire the Bundled CLI onto PATH
+### Step 2: Install `excelcli`
 
-The plugin now ships the actual `excelcli.exe` binary in `bin\`. Run the helper once to expose it as the `excelcli` command from any terminal:
+Install the CLI separately, then keep using the plugin for guidance:
 
+**Option A: Standalone ZIP**
+1. Download `ExcelMcp-CLI-{version}-windows.zip` from [Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+2. Extract `excelcli.exe` to a permanent folder
+3. Add that folder to your PATH
+
+**Option B: .NET Tool**
 ```powershell
-pwsh -ExecutionPolicy Bypass -File "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\bin\install-global.ps1"
+dotnet tool install --global Sbroenne.ExcelMcp.CLI
 ```
-
-The helper:
-- creates `~/.copilot/bin` if needed
-- writes `excelcli.cmd` and `excelcli.ps1` shims that point at the plugin-bundled binary
-- adds `~/.copilot/bin` to your user PATH if missing
 
 ### Step 3: Verify
 
@@ -41,14 +42,11 @@ excelcli --help
 
 ## What's Included
 
-- **Bundled `excelcli.exe`** — self-contained Windows CLI, no separate download
 - **`excel-cli` skill** — token-efficient Excel automation guidance for coding agents
-- **Install helper** — one-time PATH wiring for the bundled CLI
 
 ## Notes
 
-- If you reinstall the plugin or test a locally built plugin path, re-run `install-global.ps1` so the shim points at the current plugin directory.
-- The standalone ZIP and NuGet tool remain available for non-plugin installs, but they are no longer required for the Copilot plugin path.
+- The plugin is skill-only; install `excelcli` separately via the standalone ZIP or NuGet tool.
 
 ## Support
 

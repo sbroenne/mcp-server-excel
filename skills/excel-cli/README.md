@@ -86,21 +86,19 @@ excel-cli/
 
 ## CLI Tool Installation
 
-The **GitHub Copilot `excel-cli` plugin** now bundles the self-contained `excelcli.exe` deliverable (no .NET runtime required for that install path).
+The **GitHub Copilot `excel-cli` plugin** installs the skill package only.
 
 ### Via GitHub Copilot Plugin
 
-If you install `excel-cli` through the GitHub Copilot plugin marketplace, the plugin ships the actual CLI in its `bin\` folder. Run the bundled helper once to expose it on PATH:
+If you install `excel-cli` through the GitHub Copilot plugin marketplace, install `excelcli` separately and keep using the plugin for workflow guidance:
 
 ```powershell
-pwsh -ExecutionPolicy Bypass -File "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\bin\install-global.ps1"
+dotnet tool install --global Sbroenne.ExcelMcp.CLI
 ```
 
 ### Via Skill Package
 
 Plain skill-only installs still need `excelcli` available separately on PATH (for example via the standalone ZIP or the NuGet tool below).
-
-If you reinstall the plugin to a different location, re-run `install-global.ps1` so the shim points at the current bundled binary.
 
 ### Manual Download (Standalone)
 
