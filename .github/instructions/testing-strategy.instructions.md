@@ -176,6 +176,7 @@ uv run pytest -m aitest -v
 - `AZURE_OPENAI_ENDPOINT` environment variable
 - Windows desktop with Excel installed
 - MCP Server built (Release) and CLI available on PATH
+- For GitHub-backed LLM tests or issue/PR automation, `gh` must be authenticated as a personal GitHub account, not an EMU account
 
 ### Configuration Overrides
 

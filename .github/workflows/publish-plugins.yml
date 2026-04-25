@@ -1,0 +1,554 @@
+name: Publish Plugins
+
+# Phase 3: Publish Copilot CLI plugin artifacts to sbroenne/mcp-server-excel-plugins
+#
+# TRIGGER: After successful release workflow completion
+# - Avoids binary race by waiting for GitHub Release to exist
+# - Uses workflow_run to get the version that was just released
+#
+# WHAT IT DOES:
+# 1. Builds both plugin bundles (excel-mcp, excel-cli) from source
+# 2. Stages the self-contained excelcli publish output into the excel-cli plugin
+# 3. Updates version.txt to match the release version
+# 4. Pushes published plugin artifacts to sbroenne/mcp-server-excel-plugins
+# 5. Rewrites the published repo to the canonical marketplace layout (.github/plugin/marketplace.json, no legacy root manifest)
+#
+# NOTE:
+# - sbroenne/mcp-server-excel-plugins is the actual Copilot CLI marketplace repo
+# - this source repo is NOT a marketplace; .github/plugins/ only contains source-owned overlays copied into the published plugins
+#
+# AUTHENTICATION:
+# - Requires repository secret PLUGINS_REPO_TOKEN (PAT or app token)
+# - Token must have contents:write on sbroenne/mcp-server-excel-plugins
+#
+# CONCURRENCY:
+# - Only one publish per plugin at a time (prevents race conditions)
+# - Does NOT cancel in-progress (let it finish before next publish)
+
+on:
+  workflow_run:
+    workflows: ["Release All Components"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing source release tag to re-sync (for example v1.2.3)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-plugins-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PUBLISHED_REPO_OWNER: sbroenne
+  PUBLISHED_REPO_NAME: mcp-server-excel-plugins
+  PUBLISHED_REPO: sbroenne/mcp-server-excel-plugins
+  PUBLISHED_REPO_URL: https://github.com/sbroenne/mcp-server-excel-plugins
+
+jobs:
+  # =============================================================================
+  # Job 0: Validate cross-repo publish configuration
+  # =============================================================================
+  preflight:
+    name: Validate Publish Configuration
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Verify required token configuration exists
+        env:
+          PLUGINS_REPO_TOKEN: ${{ secrets.PLUGINS_REPO_TOKEN }}
+        run: |
+          if [ -z "$PLUGINS_REPO_TOKEN" ]; then
+            echo "::error::Missing required Actions secret PLUGINS_REPO_TOKEN."
+            echo "::error::Store a PAT or app token with contents:write on ${{ env.PUBLISHED_REPO }} in repository secrets for this repo."
+            exit 1
+          fi
+
+      - name: Verify published repo is reachable
+        env:
+          GH_TOKEN: ${{ secrets.PLUGINS_REPO_TOKEN }}
+        run: gh api repos/${{ env.PUBLISHED_REPO }} --silent
+
+  # =============================================================================
+  # Job 1: Get Version from Triggering Release Workflow
+  # =============================================================================
+  get-version:
+    name: Get Release Version
+    runs-on: ubuntu-latest
+    needs: [preflight]
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      version: ${{ steps.extract_version.outputs.version }}
+      tag: ${{ steps.extract_version.outputs.tag }}
+      trigger_mode: ${{ steps.extract_version.outputs.trigger_mode }}
+    steps:
+      - name: Resolve release tag and version
+        id: extract_version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.release_tag }}"
+
+            if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$'; then
+              echo "::error::Manual re-sync requires a full source release tag like v1.2.3."
+              exit 1
+            fi
+
+            gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null
+
+            VERSION="${TAG#v}"
+            TRIGGER_MODE="manual"
+
+            echo "Manual plugin re-sync requested for tag: $TAG"
+          else
+            HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+            echo "Triggering workflow HEAD commit: $HEAD_SHA"
+
+            TAG=$(gh api repos/${{ github.repository }}/git/matching-refs/tags/v --jq ".[] | select(.object.sha == \"$HEAD_SHA\") | .ref" | head -1 | sed 's|refs/tags/||')
+
+            if [ -z "$TAG" ]; then
+              echo "::error::No release tag found for commit $HEAD_SHA"
+              echo "::error::The release workflow may not have completed tag creation yet."
+              exit 1
+            fi
+
+            VERSION="${TAG#v}"
+            TRIGGER_MODE="automatic"
+          fi
+
+          echo "Resolved release tag: $TAG"
+          echo "Resolved version: $VERSION"
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "trigger_mode=$TRIGGER_MODE" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # =============================================================================
+  # Job 2: Source-side sync gate
+  # =============================================================================
+  detect-plugin-surface:
+    name: Detect Plugin Surface Changes
+    runs-on: ubuntu-latest
+    needs: [get-version]
+    outputs:
+      should_publish: ${{ steps.diff.outputs.should_publish }}
+      reason: ${{ steps.diff.outputs.reason }}
+    steps:
+      - name: Checkout source repo with tags
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Evaluate publish-worthy source changes
+        id: diff
+        run: |
+          CURRENT_TAG="${{ needs.get-version.outputs.tag }}"
+          TRIGGER_MODE="${{ needs.get-version.outputs.trigger_mode }}"
+
+          if [ "$TRIGGER_MODE" = "manual" ]; then
+            REASON="Manual re-sync requested for $CURRENT_TAG."
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "reason=$REASON" >> "$GITHUB_OUTPUT"
+
+            {
+              echo "## Plugin Surface Gate"
+              echo ""
+              echo "- Trigger: manual re-sync"
+              echo "- Decision: $REASON"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          PREVIOUS_TAG=$(git tag --list 'v*' --sort=-version:refname | grep -Fxv "$CURRENT_TAG" | head -n1 || true)
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            REASON="No previous release tag found before $CURRENT_TAG; publishing initial plugin surface."
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "reason=$REASON" >> "$GITHUB_OUTPUT"
+
+            {
+              echo "## Plugin Surface Gate"
+              echo ""
+              echo "- Current tag: $CURRENT_TAG"
+              echo "- Previous tag: none"
+              echo "- Decision: $REASON"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          mapfile -t CHANGED_FILES < <(git diff --name-only "$PREVIOUS_TAG" "$CURRENT_TAG" -- .github/plugins .github/workflows/publish-plugins.yml scripts/Build-Plugins.ps1 scripts/Sync-PublishedPluginRepo.ps1 skills/excel-cli skills/excel-mcp skills/shared)
+
+          if [ "${#CHANGED_FILES[@]}" -eq 0 ]; then
+            REASON="No plugin-published source files changed between $PREVIOUS_TAG and $CURRENT_TAG; skipping downstream publish."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            echo "reason=$REASON" >> "$GITHUB_OUTPUT"
+
+            {
+              echo "## Plugin Surface Gate"
+              echo ""
+              echo "- Current tag: $CURRENT_TAG"
+              echo "- Previous tag: $PREVIOUS_TAG"
+              echo "- Decision: $REASON"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          REASON="Detected ${#CHANGED_FILES[@]} plugin-published source file(s) between $PREVIOUS_TAG and $CURRENT_TAG."
+          echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          echo "reason=$REASON" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Plugin Surface Gate"
+            echo ""
+            echo "- Current tag: $CURRENT_TAG"
+            echo "- Previous tag: $PREVIOUS_TAG"
+            echo "- Decision: $REASON"
+            echo ""
+            echo "### Changed publish surface"
+            for file in "${CHANGED_FILES[@]}"; do
+              echo "- $file"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # =============================================================================
+  # Job 3: Build Plugin Artifacts
+  # =============================================================================
+  build-plugins:
+    name: Build Plugin Artifacts
+    runs-on: windows-latest
+    needs: [get-version, detect-plugin-surface]
+    if: ${{ needs.detect-plugin-surface.outputs.should_publish == 'true' }}
+    steps:
+      - name: Checkout source repo
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Checkout published repo (plugin templates)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.PUBLISHED_REPO }}
+          token: ${{ secrets.PLUGINS_REPO_TOKEN }}
+          path: published
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish self-contained CLI for plugin bundling
+        run: |
+          $VERSION = "${{ needs.get-version.outputs.version }}"
+          dotnet publish source\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:PublishTrimmed=false `
+            -p:PublishReadyToRun=false `
+            -p:Version=$VERSION `
+            -p:AssemblyVersion=$VERSION.0 `
+            -p:FileVersion=$VERSION.0 `
+            -p:NuGetAudit=false `
+            --output source\plugin-cli-publish
+        shell: pwsh
+
+      - name: Build plugins from validated templates
+        run: |
+          $VERSION = "${{ needs.get-version.outputs.version }}"
+          Write-Host "Building plugins for version: $VERSION"
+
+          # Build script copies from ../mcp-server-excel-plugins/plugins/
+          # We checked out published repo at ./published, so adjust path
+          cd source
+          & .\scripts\Build-Plugins.ps1 -Version $VERSION -PluginTemplateDir "..\published\plugins" -CliPublishDir ".\plugin-cli-publish"
+        shell: pwsh
+
+      - name: Upload excel-mcp plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: excel-mcp-plugin
+          path: source/plugins/excel-mcp/
+          retention-days: 1
+
+      - name: Upload excel-cli plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: excel-cli-plugin
+          path: source/plugins/excel-cli/
+          retention-days: 1
+
+  # =============================================================================
+  # Job 4: Publish to Plugin Repo
+  # =============================================================================
+  publish:
+    name: Publish to Plugin Repo
+    runs-on: ubuntu-latest
+    needs: [get-version, detect-plugin-surface, build-plugins]
+    if: ${{ needs.detect-plugin-surface.outputs.should_publish == 'true' }}
+    steps:
+      - name: Download excel-mcp plugin
+        uses: actions/download-artifact@v4
+        with:
+          name: excel-mcp-plugin
+          path: built-plugins/excel-mcp
+
+      - name: Download excel-cli plugin
+        uses: actions/download-artifact@v4
+        with:
+          name: excel-cli-plugin
+          path: built-plugins/excel-cli
+
+      - name: Checkout source repo
+        uses: actions/checkout@v4
+        with:
+          path: source-repo
+
+      - name: Checkout published repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.PUBLISHED_REPO }}
+          token: ${{ secrets.PLUGINS_REPO_TOKEN }}
+          path: published-repo
+          fetch-depth: 0
+
+      - name: Get git user info for commits
+        id: git-user
+        run: |
+          echo "user_name=ExcelMcp Publisher Bot" >> "$GITHUB_OUTPUT"
+          echo "user_email=excelmcp-publisher[bot]@users.noreply.github.com" >> "$GITHUB_OUTPUT"
+
+      - name: Validate sync target and published repo state
+        id: guard
+        run: |
+          VERSION="${{ needs.get-version.outputs.version }}"
+          TAG="${{ needs.get-version.outputs.tag }}"
+          TRIGGER_MODE="${{ needs.get-version.outputs.trigger_mode }}"
+          EXPECTED_TAG="v$VERSION"
+          SEMVER_REGEX='^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$'
+
+          if ! [[ "$VERSION" =~ $SEMVER_REGEX ]]; then
+            echo "::error::Resolved version '$VERSION' is not a supported semantic version."
+            exit 1
+          fi
+
+          if [ "$TAG" != "$EXPECTED_TAG" ]; then
+            echo "::error::Resolved tag '$TAG' does not match version '$VERSION'. Expected '$EXPECTED_TAG'."
+            exit 1
+          fi
+
+          MANIFEST_MODE=""
+          MARKETPLACE_MANIFEST=""
+          if [ -f published-repo/.github/plugin/marketplace.json ]; then
+            MANIFEST_MODE="canonical"
+            MARKETPLACE_MANIFEST="published-repo/.github/plugin/marketplace.json"
+          elif [ -f published-repo/marketplace.json ]; then
+            MANIFEST_MODE="legacy"
+            MARKETPLACE_MANIFEST="published-repo/marketplace.json"
+          else
+            echo "::error::No marketplace manifest found in published repo. Expected .github/plugin/marketplace.json (canonical) or marketplace.json (legacy)."
+            exit 1
+          fi
+
+          if [ "$MANIFEST_MODE" = "canonical" ]; then
+            CURRENT_PUBLISHED_VERSION=$(jq -r '[.plugins[].version] | unique | if length == 1 then .[0] else empty end' "$MARKETPLACE_MANIFEST")
+          else
+            CURRENT_PUBLISHED_VERSION=$(jq -r '.version // empty' "$MARKETPLACE_MANIFEST")
+          fi
+
+          if [ -z "$CURRENT_PUBLISHED_VERSION" ]; then
+            echo "::error::$MARKETPLACE_MANIFEST is missing a resolvable published plugin version."
+            exit 1
+          fi
+
+          if ! [[ "$CURRENT_PUBLISHED_VERSION" =~ $SEMVER_REGEX ]]; then
+            echo "::error::Published repo version '$CURRENT_PUBLISHED_VERSION' is not a supported semantic version."
+            exit 1
+          fi
+
+          for plugin in excel-mcp excel-cli; do
+            ARTIFACT_VERSION=$(jq -r '.version // empty' "built-plugins/$plugin/plugin.json")
+            if [ "$ARTIFACT_VERSION" != "$VERSION" ]; then
+              echo "::error::built-plugins/$plugin/plugin.json resolved version '$ARTIFACT_VERSION' but expected '$VERSION'."
+              exit 1
+            fi
+          done
+
+          MCP_VERSION_TXT=$(tr -d '\r\n' < built-plugins/excel-mcp/version.txt)
+          if [ "$MCP_VERSION_TXT" != "$VERSION" ]; then
+            echo "::error::built-plugins/excel-mcp/version.txt resolved version '$MCP_VERSION_TXT' but expected '$VERSION'."
+            exit 1
+          fi
+
+          CLI_VERSION_TXT=$(tr -d '\r\n' < built-plugins/excel-cli/version.txt)
+          if [ "$CLI_VERSION_TXT" != "$VERSION" ]; then
+            echo "::error::built-plugins/excel-cli/version.txt resolved version '$CLI_VERSION_TXT' but expected '$VERSION'."
+            exit 1
+          fi
+
+          TAG_EXISTS=false
+          if git -C published-repo rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            TAG_EXISTS=true
+          fi
+
+          if [ "$CURRENT_PUBLISHED_VERSION" != "$VERSION" ] && [ "$(printf '%s\n%s\n' "$CURRENT_PUBLISHED_VERSION" "$VERSION" | sort -V | tail -n1)" = "$CURRENT_PUBLISHED_VERSION" ]; then
+            echo "::error::Published repo version $CURRENT_PUBLISHED_VERSION is newer than requested version $VERSION. Downgrade publish blocked."
+            exit 1
+          fi
+
+          if [ "$TAG_EXISTS" = true ] && [ "$CURRENT_PUBLISHED_VERSION" != "$VERSION" ]; then
+            echo "::error::Published repo already contains tag $TAG but ${MARKETPLACE_MANIFEST#published-repo/} reports version $CURRENT_PUBLISHED_VERSION. Refusing to publish into inconsistent state."
+            exit 1
+          fi
+
+          SYNC_MODE="publish"
+          REASON="Ready to publish $TAG."
+
+          if [ "$CURRENT_PUBLISHED_VERSION" = "$VERSION" ] && [ "$TAG_EXISTS" = true ] && [ "$TRIGGER_MODE" != "manual" ]; then
+            SYNC_MODE="skip"
+            REASON="Published repo already has $TAG; automatic duplicate publish skipped."
+          elif [ "$CURRENT_PUBLISHED_VERSION" = "$VERSION" ] && [ "$TAG_EXISTS" = true ]; then
+            SYNC_MODE="resync"
+            REASON="Manual re-sync allowed for existing published version $TAG."
+          elif [ "$CURRENT_PUBLISHED_VERSION" = "$VERSION" ] && [ "$TAG_EXISTS" = false ]; then
+            SYNC_MODE="tag-repair"
+            REASON="Published content is already at version $VERSION, but tag $TAG is missing."
+          fi
+
+          echo "current_published_version=$CURRENT_PUBLISHED_VERSION" >> "$GITHUB_OUTPUT"
+          echo "marketplace_manifest=$MARKETPLACE_MANIFEST" >> "$GITHUB_OUTPUT"
+          echo "manifest_mode=$MANIFEST_MODE" >> "$GITHUB_OUTPUT"
+          echo "tag_exists=$TAG_EXISTS" >> "$GITHUB_OUTPUT"
+          echo "sync_mode=$SYNC_MODE" >> "$GITHUB_OUTPUT"
+          echo "reason=$REASON" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Publish Guard"
+            echo ""
+            echo "- Requested tag: $TAG"
+            echo "- Requested version: $VERSION"
+            echo "- Trigger mode: $TRIGGER_MODE"
+            echo "- Manifest mode: $MANIFEST_MODE"
+            echo "- Marketplace manifest: ${MARKETPLACE_MANIFEST#published-repo/}"
+            echo "- Published repo version: $CURRENT_PUBLISHED_VERSION"
+            echo "- Published tag exists: $TAG_EXISTS"
+            echo "- Decision: $REASON"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Sync plugins to published repo
+        id: sync
+        if: steps.guard.outputs.sync_mode != 'skip'
+        shell: pwsh
+        run: |
+          $version = "${{ needs.get-version.outputs.version }}"
+          $tag = "${{ needs.get-version.outputs.tag }}"
+
+          Write-Host "Syncing plugins for version $version (tag: $tag)"
+
+          & ./source-repo/scripts/Sync-PublishedPluginRepo.ps1 `
+            -PublishedRepoDir ./published-repo `
+            -BuiltPluginsDir ./built-plugins `
+            -Version $version
+
+          git -C published-repo add -A
+
+          if (git -C published-repo diff --staged --quiet) {
+            Write-Host "No changes to commit (plugins already up to date)"
+            "has_changes=false" >> $env:GITHUB_OUTPUT
+          }
+          else {
+            "has_changes=true" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Commit and push changes
+        if: steps.guard.outputs.sync_mode != 'skip' && steps.sync.outputs.has_changes == 'true'
+        run: |
+          VERSION="${{ needs.get-version.outputs.version }}"
+          TAG="${{ needs.get-version.outputs.tag }}"
+
+          cd published-repo
+
+          # Configure git
+          git config user.name "${{ steps.git-user.outputs.user_name }}"
+          git config user.email "${{ steps.git-user.outputs.user_email }}"
+
+          # Commit changes
+          git commit \
+            -m "Release $TAG" \
+            -m "Published plugins synchronized from sbroenne/mcp-server-excel release $TAG" \
+            -m "excel-mcp plugin updated to v$VERSION; excel-cli plugin updated to v$VERSION; canonical marketplace manifest rewritten at .github/plugin/marketplace.json" \
+            -m "Source: ${{ github.server_url }}/${{ github.repository }}/releases/tag/$TAG"
+
+          # Push to main
+          git push origin main
+
+          echo "✅ Published plugins to ${{ env.PUBLISHED_REPO_URL }}"
+
+      - name: Create plugin repo tag
+        if: steps.guard.outputs.sync_mode != 'skip' && steps.guard.outputs.tag_exists != 'true'
+        run: |
+          TAG="${{ needs.get-version.outputs.tag }}"
+
+          cd published-repo
+
+          # Create and push tag to published repo
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+          echo "✅ Created tag $TAG in published repo"
+
+      - name: Summary
+        run: |
+          VERSION="${{ needs.get-version.outputs.version }}"
+          TAG="${{ needs.get-version.outputs.tag }}"
+          SYNC_MODE="${{ steps.guard.outputs.sync_mode }}"
+          REASON="${{ steps.guard.outputs.reason }}"
+
+          if [ "$SYNC_MODE" = "skip" ]; then
+            echo "## ℹ️ Duplicate Publish Skipped" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "$REASON" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.sync.outputs.has_changes }}" = "true" ]; then
+            echo "## ✅ Plugins Published Successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Version:** $VERSION" >> $GITHUB_STEP_SUMMARY
+            echo "**Tag:** $TAG" >> $GITHUB_STEP_SUMMARY
+            echo "**Repository:** [${{ env.PUBLISHED_REPO }}](${{ env.PUBLISHED_REPO_URL }})" >> $GITHUB_STEP_SUMMARY
+            echo "**Mode:** $SYNC_MODE" >> $GITHUB_STEP_SUMMARY
+            echo "**Marketplace manifest:** \`.github/plugin/marketplace.json\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Published Plugins" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ excel-mcp" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ excel-cli" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Copilot CLI Installation Examples" >> $GITHUB_STEP_SUMMARY
+            echo '```powershell' >> $GITHUB_STEP_SUMMARY
+            echo "# Register marketplace (one-time)" >> $GITHUB_STEP_SUMMARY
+            echo "copilot plugin marketplace add ${{ env.PUBLISHED_REPO }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "# Install MCP plugin" >> $GITHUB_STEP_SUMMARY
+            echo "copilot plugin install excel-mcp@mcp-server-excel-plugins" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "# OR install CLI plugin" >> $GITHUB_STEP_SUMMARY
+            echo "copilot plugin install excel-cli@mcp-server-excel-plugins" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "These published plugin artifacts may also be relevant to other plugin-capable clients, but their installation UX and marketplace wiring are client-specific and are not configured by this workflow." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ℹ️ Plugin Publish Already In Sync" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "$REASON" >> $GITHUB_STEP_SUMMARY
+            if [ "${{ steps.guard.outputs.tag_exists }}" != "true" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "Missing published tag was created without changing plugin files." >> $GITHUB_STEP_SUMMARY
+            fi
+          fi

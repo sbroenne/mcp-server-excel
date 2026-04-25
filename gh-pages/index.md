@@ -158,6 +158,31 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 | **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | **64% fewer tokens** - single tool, no large schemas. Better for cost-sensitive, high-throughput automation. |
 | **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery, persistent connection. Better for interactive, exploratory workflows. |
 
+### GitHub Copilot Plugins
+
+ExcelMcp is available as two distributable GitHub Copilot plugins published through the GitHub Copilot plugin marketplace:
+
+```powershell
+# Register the plugin marketplace (one-time)
+copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
+
+# Install one or both plugins with Copilot CLI
+copilot plugin install excel-mcp@mcp-server-excel-plugins
+copilot plugin install excel-cli@mcp-server-excel-plugins   # Bundles excelcli.exe
+```
+
+- **`excel-mcp`** — Best for conversational Excel workflows through the MCP server
+- **`excel-cli`** — Best for token-efficient scripting and coding-agent workflows with bundled self-contained `excelcli.exe`
+- Install **either one or both** depending on how you work
+
+These are **GitHub Copilot marketplace packages**. The commands above are the documented Copilot CLI install path. VS Code also supports agent plugins in preview, and Claude has its own plugin system, but those surfaces use their own enablement and installation flows. The published marketplace repo is refreshed automatically after each ExcelMcp release by a follow-on workflow that uses a stored cross-repo PAT scoped to that repo. That publish path is sync-gated, blocks downgrade/tag mismatches, and still keeps a manual maintainer re-sync path for repair/replay scenarios. The published repo is the marketplace; this source repo only owns the release inputs and overlay files used to build those published plugin directories.
+
+After installing `excel-cli`, run the bundled one-time helper to expose the plugin-shipped CLI on PATH:
+
+```powershell
+pwsh -ExecutionPolicy Bypass -File "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\bin\install-global.ps1"
+```
+
 **Manual Installation:**
 ```powershell
 # Primary: Download standalone executables (no .NET runtime required)
@@ -173,10 +198,11 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 npx add-mcp "mcp-excel" --name excel-mcp
 
 # Optional: Install agent skills for better AI guidance
-npx skills add sbroenne/mcp-server-excel
+npx skills add sbroenne/mcp-server-excel --skill excel-cli
+npx skills add sbroenne/mcp-server-excel --skill excel-mcp
 ```
 
-> 💡 **Skills provide AI guidance** - The CLI skill is highly recommended (agents don't work perfectly with CLI without it). The MCP skill adds workflow best practices and reduces token usage.
+> 💡 **Skills provide AI guidance** - The CLI skill is highly recommended (agents don't work perfectly with CLI without it). The MCP skill adds workflow best practices and reduces token usage. Skills are separate from the Copilot CLI plugins above.
 
 
 ## ⚙️ How It Works - Unified Service Architecture

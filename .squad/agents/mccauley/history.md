@@ -25,4 +25,61 @@
 - 2026-04-01: **CHART HARDENING ASSESSMENT COMPLETED.** Chart surface already provides comprehensive structured metadata (positioning fields, collision detection, warnings). No confirmed product bug exists. Cost (3-4 hours) outweighs marginal value. Decision: DEFER indefinitely pending real user failure, cross-tool parity requirement, multi-model evidence, or skill author request. If triggered, minimal scope only: add single `CollisionWarning: bool` + `SuggestedNextAction: string` to `ChartCreateResult`. Confidence HIGH.
 
 - 2026-04-02: **ERROR DIAGNOSTICS CONTRACT GATE — CONDITIONAL APPROVAL.** Reviewed first-slice implementation for #585 error handling milestone. Routing architecture is correct (MCP/CLI converge at ExcelMcpService.ProcessAsync identically). #585 regression tests are structurally clean with proper round-trip verification. Exception propagation and COM cleanup pass. One blocking finding: CLI error envelope uses `error` property while MCP uses `errorMessage`, CLI omits `isError` flag, and CLI lacks structured diagnostic fields (`exceptionType`, `hresult`). This is a Rule 24 parity violation. Fix assigned to Cheritto. Advisory items: MCP's two error shapes should converge; failure-path test coverage needed (Nate).
-- 2026-04-02: **Team closeout for the first diagnostics slice.** Final team posture for #585 is additive parity only: CLI must mirror MCP envelope fields, the shared transport should carry structured diagnostics, and focused validation slices outrank broader MCP class runs until the existing `ProgramTransport` session flake is fixed separately.
+- 2026-04-02: **Team closeout for the first diagnostics slice.** Final team posture for #585 is additive parity only: CLI must mirror MCP envelope fields, the shared transport should carry structured diagnostics, and focused validation slices outrank broader MCP class runs until the existing `ProgramTransport` session flake is fixed separately.---
+
+## 2026-04-24: Kelso Plugin Phases -1 to 3 Complete — All Decisions Locked
+
+**Status:** ✅ APPROVED  
+**Scope:** Copilot CLI plugin implementation, distribution automation, infrastructure audit  
+
+**Key Decisions (All Locked):**
+1. Phase -1 Spike: Validated plugin install mechanism, workspace-scoped MCP finding
+2. Phase 0 Scaffold: Created published repo structure, two-plugin separation (excel-mcp + excel-cli)
+3. Phase 1: Removed placeholder agent (not needed; skills provide comprehensive guidance)
+4. Phase 3: Automated release workflow with corrected version extraction
+5. Audit: Infrastructure 85% clean, 3 actionable items identified (2 for Trejo, 1 for Kelso)
+
+**Agent Decision Already Made:**
+- Phase 1 placeholder agent: REMOVED entirely (no value add, spec doesn't require agents)
+- Rationale: Skills already comprehensive; agent without clear scope is worse than nothing
+- Can add later if multi-step workflow orchestration justifies it
+
+**No Architectural Gate Needed:** All phases completed with your earlier approval. Kelso is ready to create GitHub issue + PR on `feature/copilot-cli-plugins` branch.
+
+**Deliverables:**
+- ✅ Published repo created: `sbroenne/mcp-server-excel-plugins`
+- ✅ 2-plugin architecture: `excel-mcp` (MCP server + skill) + `excel-cli` (skill-only)
+- ✅ Release workflow: `.github/workflows/publish-plugins.yml` with automated publishing
+- ✅ Audit complete: 3 cleanup items identified, no blockers
+
+**Next:** Scribe will orchestrate Kelso's PR creation after merging all decisions.
+
+---
+
+### 2026-04-24: Session End — Blocker on PR, Decisions Merged, Scribe Logs Written
+
+**Phase 5 E2E Plugin Testing (Nate):**
+- Both excel-mcp and excel-cli plugins validated production-ready end-to-end.
+- Real installation tested with GitHub Copilot CLI; all scripts execute successfully.
+- Only blocker: missing v0.0.1 GitHub Release asset (for download.ps1 e2e flow).
+- Workaround validated: manual binary placement works perfectly.
+
+**Phase 6 Release Docs (Trejo):**
+- Docs audit complete: old infrastructure cleaned up, new release process well-documented but undiscoverable.
+- Release docs now linked from main README (3-line addition).
+- RELEASE-STRATEGY.md updated to explicitly document GitHub Copilot CLI plugin publishing workflow.
+
+**Blocker Reported (Kelso):**
+- DO NOT open plugin PR from current mixed dirty tree (plugin work + Squad infrastructure + RangeCommands.Formulas.cs).
+- Stop, report blocker plainly, wait for branch narrowing before PR creation.
+
+**Scribe Actions (2026-04-24T09:26:02Z):**
+- ✅ Orchestration log written: 2026-04-24T09-26-02Z-nate-revert-range-change.md
+- ✅ Session log written: 2026-04-24T09-26-02Z-revert-range-change.md
+- ✅ Decision inbox merged to decisions.md (6 files, deduplicated)
+- ✅ Cross-agent history updated (Nate, Kelso, Trejo, McCauley)
+- ✅ Git commit skipped (nothing staged, user explicitly directed revert)
+
+**User Directive Executed:**
+- Reverted unrelated RangeCommands.Formulas.cs working-tree change (Nate completed).
+- Repo working tree cleaned per user instruction.

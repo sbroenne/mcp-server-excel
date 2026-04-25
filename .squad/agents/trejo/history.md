@@ -2,115 +2,69 @@
 
 ## Core Context
 
-- **Project:** A Windows COM interop MCP server and CLI for programmatic Excel automation with 25 tools and 225 operations.
+- **Project:** A Windows COM interop MCP server and CLI for programmatic Excel automation with equal MCP Server and CLI entry points.
 - **Role:** Docs Lead
 - **Joined:** 2026-03-15T10:42:22.625Z
 
+## Current Working Posture
+
+- Keep user-facing documentation honest, concise, and aligned with the implemented release/install experience.
+- Treat maintainer docs as the home for workflow mechanics, release gates, and recovery procedures.
+- Preserve the distinction between plugins, skills, and MCP so install guidance stays surface-accurate.
+
+## Cross-Agent Impact Notes
+
+- **2026-04-24:** Kelso owns Copilot plugin packaging and publish automation; Trejo owns the maintainer/user documentation layer that explains those flows without overclaiming client support.
+
+## Recent Work
+
+### 2026-04-24: Publish Workflow Hardening Docs Sync
+- Aligned maintainer docs with the hardened `publish-plugins.yml` flow: source-side sync gate, published-repo downgrade/tag-version guards, and manual `workflow_dispatch` replay via an existing `release_tag`.
+- Kept user-facing wording to one accurate promise: plugin republishing is automatic but guarded, and install instructions remain client-specific.
+- Recorded the docs-layering decision for Scribe merge work.
+
+### 2026-04-24: GitHub App Publish Docs Sync
+- Updated workflow setup, release strategy, and public wording together when cross-repo publication moved from PAT auth to GitHub App auth.
+- Standardized the maintainer setup details around `PLUGINS_PUBLISH_APP_ID` plus `PLUGINS_PUBLISH_APP_PRIVATE_KEY`.
+
+### 2026-04-24: Release Docs Cleanup
+- Linked the main README release story to `docs\RELEASE-STRATEGY.md`.
+- Added explicit Copilot plugin release coverage so the main release workflow and follow-on publish workflow are discoverable together.
+
+### 2026-04-23: Plugin Distribution Documentation
+- Updated source and published-repo plugin docs to reflect the validated two-plugin distribution story and the honest local-testing blockers.
+- Kept counts aligned to the authoritative feature inventory and documented the release-asset dependency for first-time binary download.
+
 ## Learnings
 
-### Calculation Mode LLM Discoverability Alignment (2026-03-XX)
+- **Docs layering:** Put sync-gate, version/tag guard, and manual replay details in maintainer docs first; keep user-facing docs to concise, accurate statements.
+- **GitHub App auth changes:** When publication auth changes, update workflow setup notes, release docs, and any “published automatically” wording together.
+- **Plugin surface wording:** Describe published artifacts as GitHub Copilot plugins, but keep install commands scoped to the client flows we have actually validated.
+- **Release discoverability:** If release mechanics change, make the canonical release doc discoverable from README instead of expecting contributors to infer workflow relationships.
+- **Skills architecture:** Skills remain single-source guidance; plugin packaging wraps them, but should not fork or restate their behavioral content unnecessarily.
+- **Auth model evolution:** GitHub App auth introduced complexity (browser setup, two-part secrets, app installation). Users prefer simpler stored-token model (Option 3). When feature could work either way, choose simplicity. Publish-plugins workflow behavior (sync gate, guards, build) is auth-independent, so switching models is a documentation + workflow syntax refresh, not an architecture redesign.
+- **Consistent terminology:** After auth model changes, audit all user-facing and maintainer-facing docs to ensure terminology alignment. README and gh-pages should use identical wording as setup docs. Small inconsistencies leak into user questions and troubleshooting.
 
-**Task:** Fix docs/skills to align with repaired LLM tests validating calculation_mode tool discovery (both with and without skill guidance)
+## Archive
 
-**Tests Expect:**
-- LLM should call `calculation_mode` when writing 10+ cells (batch operations)
-- Tool should be discoverable from tool description alone (without skill guidance)
-- Workflow: set manual → write data → calculate → set automatic
+- Detailed session history was moved to `.squad\agents\trejo\history-archive-2026-04-24.md` on 2026-04-24.
 
-**Root Cause of Drift:**
-- Tool description was generic ("Set or get Excel calculation mode")
-- No reference file dedicated to calculation mode (only inline in SKILL.md main body)
-- LLMs lacked clear threshold guidance (10+ cell rule) in discoverable locations
+---
 
-**Fixes Applied:**
-1. **Created `skills/excel-mcp/references/calculation.md`** — Dedicated reference explaining:
-   - When to use (10+ cells threshold explicitly stated)
-   - When NOT needed (small edits, reading formulas, immediate results)
-   - 4-step workflow with clear purpose of each step
-   - Scenario examples (sales table, dashboard) showing performance gains
-2. **Enhanced tool description in CalculationModeCommands.cs** — Now includes:
-   - "Optimize bulk write performance" → immediate relevance signaling
-   - "10+ cells" threshold explicitly mentioned
-   - "BATCH WORKFLOW (required for 10+ cell operations)" emphasizes when to use
-   - "NOT needed for: reading formulas, small edits (1-9 cells)" eliminates false positives
-3. **Updated SKILL.mcp.sbn template** — Added calculation.md to reference documentation list (alphabetically after anti-patterns)
+## Cross-Agent Session Notes
 
-**Outcome:**
-- Tool description auto-generates to MCP tool signatures at build time (generators read Core layer attributes)
-- SKILL.md regenerates from template, auto-includes calculation.md link
-- Skills copied to references/ folder at build time (both MCP clients and skill-based clients get identical guidance)
-- Single source of truth: Core attributes → generated MCP tools → SKILL.md → skill references
+### 2026-04-24T14:06:40Z: Plugin Auth Revert Session
 
-**Pattern Observed:**
-- MCP tool descriptions drive LLM discovery when skill docs unavailable
-- Concrete thresholds (10+, 1-9) are more discoverable than vague language ("many")
-- Explicit "NOT needed for" sections prevent false positives
-- Dedicated reference files improve hierarchical organization (especially for complex tools)
+**Session Participants:**
+- Kelso (Copilot CLI Plugin Engineer) — Verified workflow already token-based, coordinated docs revert
+- Trejo (Docs Lead) — Aligned all user-facing and maintainer docs to PLUGINS_REPO_TOKEN model
 
-### Claude Desktop Release Artifacts & Documentation (2026-03-15)
+**Coordination Results:**
+- ✅ Workflow consistency verified (already uses `secrets.PLUGINS_REPO_TOKEN` throughout)
+- ✅ All docs surfaces aligned (publish-plugins-setup.md, RELEASE-STRATEGY.md, INSTALLATION.md, README.md, gh-pages/index.md)
+- ✅ Cross-repo-release-preflight skill generalized to document both PAT and GitHub App patterns
+- ✅ Both decisions recorded and merged to decisions.md
+- ✅ Orchestration logs created for both agents
+- ⏳ Awaiting user to store PLUGINS_REPO_TOKEN secret in repo
 
-**What we release for Claude Desktop:**
-- `.mcpb` bundle file (e.g., `excel-mcp-1.7.0.mcpb`) built via `mcpb/Build-McpBundle.ps1`
-- Self-contained Windows x64 executable (`excel-mcp-server.exe`) embedded in the bundle
-- The bundle contains: manifest.json (with metadata), icon-512.png, README.md, LICENSE, CHANGELOG.md, and /server/ folder with the exe
-- Built and uploaded by `release.yml` Job 4 (`build-mcpb`) to GitHub release artifacts
-- Installation: users download from latest release and double-click to install in Claude Desktop
-
-**What docs say about Claude Desktop:**
-- Main README: Quick start table lists "Claude Desktop" with link to download `.mcpb` from releases
-- `mcpb/README.md`: End-user facing documentation (ships in the bundle) — comprehensive, 120+ lines with examples, requirements, troubleshooting
-- `skills/excel-mcp/references/claude-desktop.md`: Configuration guide for manual setup (Windows container considerations, file system access, session persistence)
-- `docs/CLAUDE-MCPB-SUBMISSION.md`: Developer guide for Anthropic submission process (checklist, manifest schema, asset requirements)
-- Release workflow notes say MCPB is released alongside MCP Server, CLI, VS Code Extension, and Agent Skills
-- CHANGELOG.md lists MCPB as one of four components: "- **MCPB** - Claude Desktop bundle for one-click installation"
-
-**Manifest metadata:**
-- `mcpb/manifest.json` (v0.3 spec): display_name="Excel (Windows)", 23 tools, 214 operations listed, Claude Desktop >=0.10.0, platforms: win32 only
-- Note: Manifest says 23 tools, 214 ops; README says 25 tools, 230 ops — count mismatch
-
-**Release mechanics check:**
-- Release workflow downloads artifacts from 5 build jobs, generates release notes with installation instructions
-- Release notes explicitly mention "Claude Desktop (MCPB)" as one of four installation options, with download link
-- Docs match actual release: `.mcpb` file is what gets shipped
-
-**Key gap identified:**
-- Manifest.json says 23 tools/214 operations, but code and other docs consistently say 25 tools/230 operations
-- This is a docs consistency issue, not a release mechanics issue
-
-### LLM Tests Migration Write-Up (2026-03-XX)
-
-**Task:** Draft polished GitHub issue and PR copy for pytest-aitest → pytest-skill-engineering migration
-
-**Deliverables Created:**
-1. **GitHub Issue** — Title + body covering scope, changes, validation, impact
-2. **GitHub PR** — Title + body with technical details, checklist, validation steps
-3. **CHANGELOG Entry** — "Added" section with philosophy emphasis and scope summary
-
-**Key Narrative Choices:**
-- Lead with **framework scope** not patches: "Clean full rewrite, no backward-compat shim"
-- Emphasize **philosophy shift**: "Tests validate skill docs quality, not LLM capability"
-- Highlight **Golden Rule**: "Fix product issues, never hide test failures"
-- Assert **no regression**: "All 12 test scenarios preserved with enhanced assertions"
-
-**Documentation Insights:**
-- LLM testing philosophy is canonical source for test patterns (instruction docs)
-- Natural language prompts (user perspective, not CLI tutoring) is non-negotiable
-- CLI/MCP test parity enforced by "MCP/CLI Sync Rule" (same scenarios for both)
-- Failed tests = product issues (skill docs, tool descriptions, error messages), never test brittleness
-
-**Migration Pattern:**
-- Dependencies: pytest-aitest → pytest-skill-engineering[copilot] >= 0.5.9
-- Fixtures: CopilotEval-based (conftest.py rewrite)
-- Test setup: GitHub Copilot auth gating, explicit max_turns=20, 600s timeout
-- Manual execution: `uv run pytest -m mcp|cli|aitest` (not CI/CD automated)
-
-**Governance Implication:**
-- Skill docs are auto-synced to MCP prompts at build time (single source of truth)
-- Test failures always trigger skill/doc/help improvements, not test hides (xfail/skip forbidden)
-- Both CLI and MCP are equal citizens in test validation
-
-- 2026-04-06: **Calculation Mode LLM Discoverability Alignment Complete.** Created dedicated `skills/excel-mcp/references/calculation.md` reference explaining when/when-not to use (10+ cells threshold explicit, scenario examples, best practices). Enhanced `CalculationModeCommands.cs` tool description with "Optimize bulk write performance," explicit 10+ cell threshold, "BATCH WORKFLOW (required)" emphasizing workflow requirement. Updated `skills/templates/SKILL.mcp.sbn` to include calculation.md in reference list. Single source of truth flow: Core → MCP schema → Claude Desktop tool description; SKILL template → skill doc → reference docs. Test alignment: with-skill tests read calculation.md, no-skill tests read enhanced tool description. Both scenarios now equally discoverable. No product code changes — pure skill/doc alignment.
-
-
-- 2026-04-02: **Pre-commit release-gate alignment.** The VS Code extension mismatch (`@types/vscode` 1.110 vs `engines.vscode` 1.109) only surfaced at `npm run package`; `npm install` and TypeScript compile were not enough. When hardening `scripts\pre-commit.ps1`, keep the hook inventory in docs synchronized with the actual script and use the release packaging path itself when a release blocker lives in manifest/package metadata.
-- 2026-04-02: **Pre-commit now mirrors all local release deliverables.** `release.yml` publishes seven deliverable shapes: CLI ZIP, CLI NuGet, MCP Server ZIP, MCP Server NuGet, VSIX, MCPB, and agent-skills ZIP, plus npm-ready skill packages for registry publish. The durable pattern was to gate them with the smallest local commands that match release outputs (`dotnet pack`, `dotnet publish`, `npm run package`, `Build-McpBundle.ps1`, `Build-AgentSkills.ps1`, `npm pack`) and write all scratch artifacts under `artifacts\pre-commit\` so validation stays local and disposable.
+**Decision Recorded:** `.squad/decisions.md` → 2026-04-24T14:06:40Z entry

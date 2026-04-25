@@ -675,9 +675,10 @@ if (string.IsNullOrWhiteSpace(tableName))
 
 ```powershell
 # Retrieve inline code review comments using GitHub CLI
-# ⚠️ IMPORTANT: gh CLI requires authentication with a PERSONAL GitHub account.
+# ⚠️ IMPORTANT: for this public repo, gh CLI must be authenticated as a PERSONAL GitHub account.
 # Enterprise Managed User (EMU) accounts cannot access public repos via gh CLI.
-# Use: gh auth login --with-token (with a personal access token)
+# Verify with: gh auth status
+# If needed, switch with: gh auth login --with-token (using a personal access token from a personal GitHub account)
 gh api repos/sbroenne/mcp-server-excel/pulls/PULL_NUMBER/comments --paginate
 
 # Or use the mcp_github tool if available
