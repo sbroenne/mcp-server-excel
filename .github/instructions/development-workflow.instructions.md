@@ -75,11 +75,10 @@ Quick reference:
 - `codeql.yml` - Security analysis
 - `dependency-review.yml` - Dependency security scanning
 
-**Disabled Workflows:**
-- `integration-tests.yml.disabled` - Excel COM integration tests (Azure runner undeployed)
-- `deploy-azure-runner.yml.disabled` - Azure runner deployment (infrastructure removed)
+**Removed Legacy Workflows:**
+- Self-hosted Azure runner deployment and Excel integration-test workflows were retired when the Azure runner was undeployed.
 
-**Note:** Integration tests are currently disabled. The Azure self-hosted runner has been undeployed. To re-enable, see `docs/AZURE_SELFHOSTED_RUNNER_SETUP.md`.
+**Note:** Integration tests are currently not run in GitHub Actions. See `docs/AZURE_SELFHOSTED_RUNNER_SETUP.md` only as historical infrastructure reference if self-hosted Excel CI is ever rebuilt.
 
 ## Workflow Config Updates
 

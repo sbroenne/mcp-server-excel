@@ -136,8 +136,7 @@ These same checks run in CI/CD pipelines:
 - `check-com-leaks.ps1` runs in build workflow
 - `audit-core-coverage.ps1` runs **after every build** in:
   - `build-mcp-server.yml` - MCP Server builds
-  - `build-cli.yml` - CLI builds  
-  - `integration-tests.yml` - Integration test runs
+  - `build-cli.yml` - CLI builds
 
 **Pipeline enforcement ensures:**
 - Pre-commit hook provides **instant local feedback**

@@ -1,6 +1,6 @@
 # Azure Self-Hosted Runner Setup for Excel Integration Testing
 
-> **⚠️ STATUS: DISABLED** - The Azure self-hosted runner has been undeployed and the integration tests workflow is currently disabled. The workflows `integration-tests.yml` and `deploy-azure-runner.yml` have been renamed to `.disabled` extension. To re-enable, rename them back to `.yml` and redeploy the Azure runner infrastructure.
+> **⚠️ STATUS: RETIRED** - The Azure self-hosted runner has been undeployed and the legacy GitHub workflow files were removed from the repo. This document is kept only as infrastructure reference in case self-hosted Excel CI is rebuilt later.
 
 > **Purpose:** Enable full Excel COM integration testing in CI/CD using Azure-hosted Windows VM with Microsoft Excel
 
@@ -10,7 +10,7 @@
 
 | Scenario | Guide | Time |
 |----------|-------|------|
-| **🚀 New setup (no VM)** | [Automated Deployment](#automated-deployment-recommended) | 5 min + 30 min Excel |
+| **🚀 New setup (no VM)** | [Legacy automation reference](#legacy-automated-deployment-reference) | Reference |
 | **🔧 Manual setup (existing VM)** | [Manual Installation](#manual-installation) | 15 min + 30 min Excel |
 | **📖 Infrastructure details** | [`infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md`](../infrastructure/azure/GITHUB_ACTIONS_DEPLOYMENT.md) | Reference |
 | **🔍 Infrastructure code** | [`infrastructure/azure/README.md`](../infrastructure/azure/README.md) | Reference |
@@ -28,7 +28,7 @@ ExcelMcp requires Microsoft Excel for integration testing. GitHub-hosted runners
 │ GitHub Repository                                        │
 │                                                          │
 │  ┌──────────────────────────────────────────┐          │
-│  │ .github/workflows/integration-tests.yml  │          │
+│  │ legacy self-hosted integration workflow  │          │
 │  │ runs-on: [self-hosted, windows, excel]   │          │
 │  └────────────────┬─────────────────────────┘          │
 └───────────────────┼──────────────────────────────────────┘
@@ -49,9 +49,9 @@ ExcelMcp requires Microsoft Excel for integration testing. GitHub-hosted runners
 
 ---
 
-## Automated Deployment (Recommended)
+## Legacy Automated Deployment Reference
 
-**✨ Fastest way to deploy - only manual step is installing Excel!**
+**Reference only:** the old deployment workflow was removed, but the underlying infrastructure notes remain useful if this setup is ever reintroduced.
 
 **What gets automated:**
 - ✅ VM provisioning (Standard_B2s, 4GB RAM - cheapest suitable option)
@@ -366,7 +366,7 @@ gh api --method POST \
 
 **Why It Works:** The GitHub CLI (`gh`) has proper authentication mechanisms that work with runner operations, while direct API calls are blocked for security reasons.
 
-**Verification:** The automated deployment workflow (`.github/workflows/deploy-azure-runner.yml`) already uses this fix. If you're implementing manual deployment, use `gh api` instead of `curl` for token generation.
+**Verification:** The removed deployment workflow used this fix before retirement. If you recreate automation or perform the setup manually, use `gh api` instead of `curl` for token generation.
 
 ### Runner Not Appearing in GitHub
 
