@@ -478,12 +478,27 @@ jobs:
 
           git -C published-repo add -A
 
-          if (git -C published-repo diff --staged --quiet) {
+          $previousNativeCommandPreference = $PSNativeCommandUseErrorActionPreference
+          $stagedDiffExitCode = 0
+
+          try {
+            $PSNativeCommandUseErrorActionPreference = $false
+            git -C published-repo diff --staged --quiet
+            $stagedDiffExitCode = $LASTEXITCODE
+          }
+          finally {
+            $PSNativeCommandUseErrorActionPreference = $previousNativeCommandPreference
+          }
+
+          if ($stagedDiffExitCode -eq 0) {
             Write-Host "No changes to commit (plugins already up to date)"
             "has_changes=false" >> $env:GITHUB_OUTPUT
           }
-          else {
+          elseif ($stagedDiffExitCode -eq 1) {
             "has_changes=true" >> $env:GITHUB_OUTPUT
+          }
+          else {
+            throw "git diff --staged --quiet failed with exit code $stagedDiffExitCode"
           }
 
       - name: Commit and push changes
