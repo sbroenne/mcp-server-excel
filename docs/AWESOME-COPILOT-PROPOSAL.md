@@ -1,166 +1,108 @@
-# Awesome Copilot Contribution Proposal
+# GitHub Copilot Plugin Distribution
 
-This document outlines the plan for contributing the Excel MCP Server as a plugin to [github/awesome-copilot](https://github.com/github/awesome-copilot).
+This document outlines how the Excel MCP Server and Excel CLI are distributed as GitHub Copilot CLI plugins through the official marketplace.
 
 ## Overview
 
-The Excel MCP Server provides 25 specialized tools with 225+ operations for comprehensive Excel automation through AI assistants. Contributing it as an awesome-copilot plugin makes it discoverable to the broader GitHub Copilot community.
+ExcelMcp is published as **two complementary plugins** in the GitHub Copilot plugin marketplace:
 
-## Contribution Type: External Plugin
+- **`excel-mcp`** — MCP Server with 25 tools (230 operations) for conversational AI (Claude Desktop, Copilot chat)
+- **`excel-cli`** — CLI-only skill for coding agents (token-efficient, `--help` discoverable)
 
-We contribute as an **external plugin** — the plugin definition lives in this repository and is referenced from awesome-copilot's `plugins/external.json`.
+Both plugins are maintained in a separate published repository and auto-synced from this source repo.
 
-### Why External Plugin?
+## Distribution Architecture
 
-- Plugin source files stay in this repo alongside the MCP Server code
-- Updates to the agent, skill, or plugin metadata don't require PRs to awesome-copilot
-- The skill references and agent file remain synchronized with the actual tool implementation
-- Version management stays under our control
+**Two-Repository Pattern:**
+- **This repo** (`sbroenne/mcp-server-excel`) — Source code, release artifacts, plugin templates
+- **Published repo** (`sbroenne/mcp-server-excel-plugins`) — GitHub Copilot plugin marketplace artifacts
+- **Sync path:** `publish-plugins.yml` workflow copies templates, applies overlays, and publishes to marketplace
 
-## Plugin Structure (This Repository)
+### Why Two Repositories?
 
-The plugin is defined at `.github/plugins/excel-automation/`:
+- **Plugin marketplace** requires a specific structure with versioned plugin metadata
+- **Source repo** focuses on development and component releases
+- **Separation of concerns** — release pipeline is independent from plugin packaging
+
+## Plugin Structure (Published Repository)
+
+Each plugin lives in `plugins/` at the published repo:
 
 ```
-.github/plugins/excel-automation/
-├── plugin.json                              # Plugin metadata (Claude Code spec)
-├── README.md                                # Plugin documentation
-└── agents/
-    └── excel-automation.agent.md            # Excel automation agent definition
+plugins/excel-mcp/
+├── plugin.json         # MCP Server + skill metadata
+├── .mcp.json           # MCP Server configuration
+├── version.txt         # Published version
+├── bin/                # MCP Server executable
+├── agents/             # Optional agent definitions
+└── skills/             # Behavioral guidance (excel-mcp skill)
+
+plugins/excel-cli/
+├── plugin.json         # CLI-only metadata
+├── version.txt         # Published version
+├── bin/                # CLI executable (excelcli.exe)
+└── skills/             # Behavioral guidance (excel-cli skill)
 ```
 
-The plugin references the existing skill at `skills/excel-mcp/` for detailed tool guidance.
+The skills reference is shared from this source repo (`skills/shared/*.md`).
 
-## PR to awesome-copilot
+## Installation
 
-### Step 1: Fork and Branch
+Users install the two plugins directly from the GitHub Copilot CLI marketplace:
 
-```bash
-# Fork github/awesome-copilot
-# Clone your fork
-git clone https://github.com/<your-username>/awesome-copilot.git
-cd awesome-copilot
-git checkout -b add-excel-automation-plugin
+```powershell
+# Register the marketplace (one-time)
+copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
+
+# Install both plugins (or install separately as needed)
+copilot plugin install excel-mcp@sbroenne/mcp-server-excel-plugins
+copilot plugin install excel-cli@sbroenne/mcp-server-excel-plugins
 ```
 
-### Step 2: Add External Plugin Entry
+### Excel MCP Plugin
 
-Edit `plugins/external.json` and add the following entry to the array:
+Provides the full MCP Server with 25 tools (230 operations) for conversational AI:
 
-```json
-{
-  "name": "excel-automation",
-  "description": "Automate Microsoft Excel on Windows through natural language. 25 tools with 225+ operations covering Power Query, DAX, PivotTables, Charts, VBA, Tables, Ranges, Slicers, and more via Excel's native COM API.",
-  "version": "1.0.0",
-  "author": {
-    "name": "Stefan Broenner",
-    "url": "https://github.com/sbroenne"
-  },
-  "homepage": "https://github.com/sbroenne/mcp-server-excel",
-  "keywords": [
-    "excel",
-    "spreadsheet",
-    "automation",
-    "mcp",
-    "power-query",
-    "dax",
-    "pivottable",
-    "charts",
-    "vba",
-    "com-interop",
-    "windows"
-  ],
-  "license": "MIT",
-  "repository": "https://github.com/sbroenne/mcp-server-excel",
-  "source": {
-    "source": "github",
-    "repo": "sbroenne/mcp-server-excel",
-    "path": ".github/plugins/excel-automation"
-  }
-}
+```powershell
+copilot plugin install excel-mcp@sbroenne/mcp-server-excel-plugins
 ```
 
-### Step 3: Build and Validate
+Best for: Claude Desktop, Copilot chat, conversational interfaces.
 
-```bash
-npm install
-npm run build
-npm run plugin:validate
+### Excel CLI Plugin
+
+Provides the CLI tool bundled with skill guidance for coding agents:
+
+```powershell
+copilot plugin install excel-cli@sbroenne/mcp-server-excel-plugins
+pwsh -File "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\bin\install-global.ps1"
 ```
 
-### Step 4: Submit PR
+Best for: CI/CD, scripts, token-efficient coding agents.
 
-Submit a PR to the `staged` branch (not `main`) of `github/awesome-copilot` with:
+## Release Cycle
 
-- **Title**: `Add Excel Automation plugin (MCP Server for Excel)`
-- **Description**: See [PR Description Template](#pr-description-template) below
+Both plugins are republished automatically after each source repo release:
 
-> **Important**: All PRs to awesome-copilot must target the `staged` branch.
+1. **Source release** → `.github/workflows/release.yml` builds all components
+2. **Plugin publish** → `.github/workflows/publish-plugins.yml` syncs to marketplace repo
+3. **Marketplace sync** → GitHub Copilot CLI discovers both plugins
 
-## PR Description Template
-
-```markdown
-## Add Excel Automation Plugin
-
-### What This Plugin Provides
-
-**Excel Automation** — Automate Microsoft Excel on Windows through natural language using the [Excel MCP Server](https://github.com/sbroenne/mcp-server-excel).
-
-**25 tools with 225+ operations** covering:
-- Power Query (M code import, evaluate, refresh)
-- Data Model / DAX (measures, relationships)
-- PivotTables (create, fields, calculated items)
-- Charts (create, configure, series, trendlines)
-- Tables (create, filter, sort, structured references)
-- Ranges (values, formulas, formatting, validation)
-- VBA (modules, macro execution)
-- Slicers, Named Ranges, Connections, and more
-
-### Plugin Type
-External plugin — source hosted at [sbroenne/mcp-server-excel](https://github.com/sbroenne/mcp-server-excel).
-
-### What's Included
-- **Agent**: `excel-automation` — Excel automation expert agent
-- **Skill**: `excel-mcp` — Comprehensive MCP Server skill with workflow guidance
-
-### Prerequisites
-- Windows with Microsoft Excel 2016+
-- .NET 10 SDK
-- Install: `dotnet tool install --global Sbroenne.ExcelMcp.McpServer`
-
-### Testing
-- Plugin structure validated with `npm run plugin:validate`
-- MCP Server is published on NuGet and actively maintained
-- Tool behavior validated with real LLM workflows using [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering)
-
-### Related Links
-- Repository: https://github.com/sbroenne/mcp-server-excel
-- NuGet: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer
-- VS Code Extension: https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp
-```
-
-## Contributor Recognition
-
-After the PR is merged, request contributor recognition by commenting:
-
-```markdown
-@all-contributors add @sbroenne for plugins, agents
-```
+See [Plugin Publishing Workflow Setup](../workflows/docs/publish-plugins-setup.md) for maintainer details.
 
 ## Maintenance
 
-When the plugin needs updates:
+Updates to plugins are handled automatically:
 
-1. Update files in `.github/plugins/excel-automation/` in this repository
-2. If only content changes (agent/skill updates), no PR to awesome-copilot needed — external plugins are fetched from source
-3. If metadata changes (name, description, keywords), update the `plugins/external.json` entry in awesome-copilot
+1. **Skill updates** → Modify `skills/excel-mcp/` or `skills/excel-cli/` in this repo
+2. **Plugin templates** → Update `.github/plugins/excel-{mcp,cli}/` overlays
+3. **Sync to marketplace** → Next release runs `publish-plugins.yml` to update both plugins
+4. **No awesome-copilot PR needed** — Plugins are fetched from the published marketplace repo
 
-## Alternative: Standalone Agent Contribution
+This approach keeps plugin distribution simple — users always see the latest version from the marketplace, and maintainers only need to manage one source repo and one published repo.
 
-If the external plugin approach is not accepted, we can alternatively contribute just the agent file directly to awesome-copilot:
+## Related Documentation
 
-1. Copy `excel-automation.agent.md` to `agents/` in awesome-copilot
-2. Add the MCP server reference in the agents README table
-3. Submit PR targeting `staged` branch
-
-This is simpler but doesn't include the skill, and the agent file would need to be maintained in both repositories.
+- [Plugin Publishing Workflow](../workflows/docs/publish-plugins-setup.md) — Maintainer guide for plugin release process
+- [Release Strategy](RELEASE-STRATEGY.md) — Unified release flow for all components
+- [Installation Guide](INSTALLATION.md) — User installation instructions for all clients

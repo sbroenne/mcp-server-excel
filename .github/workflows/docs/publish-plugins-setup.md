@@ -1,16 +1,25 @@
-# Phase 3: Plugin Publishing Workflow Setup
+# Phase 3: GitHub Copilot Plugin Publishing
 
 ## Overview
 
-The `publish-plugins.yml` workflow automates synchronization of agent plugin artifacts from the source repository (`sbroenne/mcp-server-excel`) to the published repository (`sbroenne/mcp-server-excel-plugins`).
+ExcelMcp plugins are published to the official GitHub Copilot CLI marketplace via a separate published marketplace repository. This document explains the maintainer-side workflow for automatic plugin republishing.
 
-**Key Design:** Copies validated Phase 1/2 plugin structure, injects version, refreshes skills content.
+**Architecture:**
+- **Source repo** (`sbroenne/mcp-server-excel`) — Development, releases, skill inputs, and plugin overlays
+- **Published repo** (`sbroenne/mcp-server-excel-plugins`) — Official marketplace artifacts
+- **Two plugins:** `excel-mcp` (MCP Server + skill) and `excel-cli` (CLI + skill)
+- **Auto-sync:** `.github/workflows/publish-plugins.yml` copies templates after each release
 
-**Trigger:** After successful completion of the "Release All Components" workflow, with a manual `workflow_dispatch` re-sync entry point reserved for repair/replay runs
-**Actions:** Builds plugin bundles from validated templates, updates versions, commits to published repo, creates tags
-**Authentication:** Requires a repository secret `PLUGINS_REPO_TOKEN` (a PAT or app token with write access to the published repo)
+**Trigger:** After "Release All Components" workflow completes successfully, the publish workflow automatically syncs plugin artifacts to the marketplace.
 
-**Scope note:** This workflow publishes plugin artifacts and version metadata. Client-specific installation UX is separate. The workflow summary currently includes verified GitHub Copilot CLI install examples; other plugin-capable clients (for example VS Code agent plugins or Claude plugin systems) have their own discovery and installation behavior.
+**User Impact:** GitHub Copilot CLI users can install both plugins via `copilot plugin install`.
+
+**Key Design:**
+- Validated plugin structure lives in the published repo, not the source repo
+- Source repo stores overlay content in `.github/plugins/` (not installable plugin roots)
+- Version and skills are injected during the publish workflow, not maintained separately
+
+See [GitHub Copilot Plugin Distribution](../../docs/AWESOME-COPILOT-PROPOSAL.md) for the user-facing documentation.
 
 ## What can be automated from this environment?
 
@@ -86,13 +95,16 @@ If you've already created a GitHub App for other purposes:
 3. **Clone Repos** — Clones BOTH source and published repos
 4. **Build Plugins** — Runs `scripts/Build-Plugins.ps1` which:
     - Copies validated plugin structure from `../mcp-server-excel-plugins/plugins/`
+    - Applies source-owned overlays from `.github/plugins/` (overlay content only)
     - Updates `plugin.json` version and `version.txt`
+    - Bundles `excelcli.exe` and companion publish output into `plugins/excel-cli/bin/`
     - Refreshes skills content from source repo (`skills/excel-mcp`, `skills/excel-cli`)
     - Refreshes shared references from source repo (`skills/shared/*.md`)
-5. **Published-Repo Guards** — Rejects downgrade or tag/version mismatch publishes before mutating the published repo
-6. **Sync to Published Repo** — Only commits and pushes when the guarded sync path says publication is needed
-7. **Create or Repair Tag** — Tags the published repo with the same version (for example `v1.2.3`) when the tag is missing
-8. **Summary** — Generates workflow summary with the publish/skip decision and GitHub Copilot CLI install examples for changed published artifacts
+5. **Migrate Marketplace Layout** — Rewrites the published repo into the canonical marketplace layout by applying the source-owned root overlay, writing `.github/plugin/marketplace.json`, and removing any legacy root `marketplace.json`
+6. **Published-Repo Guards** — Rejects downgrade or tag/version mismatch publishes before mutating the published repo
+7. **Sync to Published Repo** — Only commits and pushes when the guarded sync path says publication is needed
+8. **Create or Repair Tag** — Tags the published repo with the same version (for example `v1.2.3`) when the tag is missing
+9. **Summary** — Generates workflow summary with the publish/skip decision and GitHub Copilot CLI install examples for changed published artifacts
 
 ### Version Extraction Strategy
 
@@ -111,6 +123,7 @@ If you've already created a GitHub App for other purposes:
 
 - Published-side sync rejects downgrade attempts.
 - Manual repair/replay runs must keep the requested tag/version aligned with the incoming plugin manifest/version metadata.
+- The sync step now rewrites the published repo to the canonical marketplace layout on every needed publish, so legacy root-manifest state is repaired automatically.
 - Result: maintainers can re-sync safely without accidentally stamping the wrong release tag onto plugin artifacts.
 
 ### Concurrency Control
@@ -128,7 +141,7 @@ If you've already created a GitHub App for other purposes:
 
 ## Testing the Workflow
 
-### Test After GitHub App Setup
+### Test After Token Setup
 
 1. **Trigger a test release** (or wait for next real release):
    ```powershell
@@ -146,12 +159,13 @@ If you've already created a GitHub App for other purposes:
    ```
 
 3. **Verify published repo updated**:
-    ```powershell
-    cd ../mcp-server-excel-plugins
-    git pull
-    git log -1  # Should see commit from the GitHub App bot user
-    git tag     # Should see new version tag
-    ```
+     ```powershell
+     cd ../mcp-server-excel-plugins
+     git pull
+     git log -1  # Should see the latest publish commit
+     git tag     # Should see new version tag
+     Test-Path .github\plugin\marketplace.json  # Should be True after migration
+     ```
 
 ### Manual Re-Sync
 
@@ -182,7 +196,7 @@ Keep the requested release tag aligned with the plugin manifest/version the work
 
 **Workflow fails with a version/tag guard message:**
 - Confirm the requested `release_tag` exists in the source repo and matches the plugin manifest/version being synced
-- Check `marketplace.json` and existing tags in `sbroenne/mcp-server-excel-plugins`
+- Check `.github/plugin/marketplace.json` (or the legacy root `marketplace.json` if the published repo has not been migrated yet) and existing tags in `sbroenne/mcp-server-excel-plugins`
 - Downgrade attempts and inconsistent "tag exists but version differs" states are intentionally blocked
 
 **Build step fails:**
@@ -197,6 +211,7 @@ Keep the requested release tag aligned with the plugin manifest/version the work
 |------|---------|----------|
 | `publish-plugins.yml` | Workflow definition | `.github/workflows/` (source repo) |
 | `Build-Plugins.ps1` | Plugin build script | `scripts/` (source repo) |
+| `Sync-PublishedPluginRepo.ps1` | Canonical published-repo sync script | `scripts/` (source repo) |
 | This document | Setup instructions | `.github/workflows/docs/` (source repo) |
 
 ---
@@ -207,28 +222,31 @@ Keep the requested release tag aligned with the plugin manifest/version the work
 
 If you change the plugin structure (add/remove files, change manifest schema):
 1. Update `Build-Plugins.ps1` to reflect new structure
-2. Test locally: `./scripts/Build-Plugins.ps1 -Version 0.0.0`
-3. Commit changes to source repo
-4. Workflow will use updated script on next release
+2. If the change affects plugin-owned helper files or published-repo root content, update the matching source overlay under `.github/plugins/`
+3. Test locally: `./scripts/Build-Plugins.ps1 -Version 0.0.0`
+4. Commit changes to source repo
+5. Workflow will use updated script on next release
 
 ### Changing Published Repo Name
 
 If you rename `mcp-server-excel-plugins`:
 1. Update `PUBLISHED_REPO` env var in `publish-plugins.yml`
 2. Rotate or update `PLUGINS_REPO_TOKEN` secret if needed
-3. Update `repository.url` in plugin.json templates in `Build-Plugins.ps1`
+3. Update the published-repo metadata owned here (for example `.github/plugins/marketplace-repo/README.md`) so the next sync rewrites the target repo correctly
 
 ### Debugging Build Issues
 
-Run the build script locally to test:
+Run the build + sync scripts locally to test:
 ```powershell
 # From source repo root
 ./scripts/Build-Plugins.ps1 -Version 1.2.3
+./scripts/Sync-PublishedPluginRepo.ps1 -PublishedRepoDir ..\mcp-server-excel-plugins -BuiltPluginsDir .\plugins -Version 1.2.3
 
 # Verify output
 ls plugins/
 ls plugins/excel-mcp/
 ls plugins/excel-cli/
+Test-Path ..\mcp-server-excel-plugins\.github\plugin\marketplace.json
 ```
 
 ---
@@ -262,6 +280,7 @@ TAG=$(gh api repos/.../git/matching-refs/tags/v --jq ".[] | select(.object.sha =
 - Plugin structure → From `../mcp-server-excel-plugins/plugins/` (validated Phase 1/2 implementations)
 - Skills → From source repo `skills/excel-mcp`, `skills/excel-cli` (always fresh)
 - Shared refs → From source repo `skills/shared/*.md` (always fresh)
+- Marketplace ownership → Stays in the published repo; the source repo contributes overlays and automation, not a local marketplace manifest
 
 **What gets updated:**
 - `plugin.json` version field
@@ -276,6 +295,7 @@ TAG=$(gh api repos/.../git/matching-refs/tags/v --jq ".[] | select(.object.sha =
 
 **Published repo** (`mcp-server-excel-plugins`):
 - Distribution only (lightweight marketplace)
+- Canonical Copilot CLI marketplace manifest lives at `.github/plugin/marketplace.json`
 - No build dependencies (just JSON, Markdown, PowerShell scripts)
 - Clean separation: users don't clone 200MB source repo to get plugins
 
@@ -300,4 +320,4 @@ The published repo is NOT a submodule of the source repo. Instead:
 ---
 
 **Status:** Implementation complete, pending token setup and first-run validation
-**Next Steps:** User must configure repository secret `PLUGINS_REPO_TOKEN` in `sbroenne/mcp-server-excel`, then validate both the automatic release-follow-on path and the manual `workflow_dispatch` re-sync path
+**Next Steps:** User must configure repository secret `PLUGINS_REPO_TOKEN` in `sbroenne/mcp-server-excel`, then validate both the automatic release-follow-on path and the manual `workflow_dispatch` re-sync path. The next successful sync will also migrate the published repo to the canonical marketplace manifest path/layout.

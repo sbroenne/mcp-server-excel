@@ -84,11 +84,39 @@ excel-cli/
     └── worksheet.md
 ```
 
-## CLI Installation
+## CLI Tool Installation
 
-Install the CLI tool via NuGet:
+The **GitHub Copilot `excel-cli` plugin** now bundles the self-contained `excelcli.exe` deliverable (no .NET runtime required for that install path).
+
+### Via GitHub Copilot Plugin
+
+If you install `excel-cli` through the GitHub Copilot plugin marketplace, the plugin ships the actual CLI in its `bin\` folder. Run the bundled helper once to expose it on PATH:
+
 ```powershell
-Download excelcli.exe from https://github.com/sbroenne/mcp-server-excel/releases/latest
+pwsh -ExecutionPolicy Bypass -File "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\bin\install-global.ps1"
+```
+
+### Via Skill Package
+
+Plain skill-only installs still need `excelcli` available separately on PATH (for example via the standalone ZIP or the NuGet tool below).
+
+If you reinstall the plugin to a different location, re-run `install-global.ps1` so the shim points at the current bundled binary.
+
+### Manual Download (Standalone)
+
+For other environments, download the standalone CLI:
+```powershell
+# Download from releases
+$url = "https://github.com/sbroenne/mcp-server-excel/releases/latest/download/ExcelMcp-CLI-latest-windows.zip"
+Invoke-WebRequest -Uri $url -OutFile ExcelMcp-CLI.zip
+Expand-Archive -Path ExcelMcp-CLI.zip -DestinationPath $env:ProgramFiles\ExcelMcp
+```
+
+### Via NuGet Package Manager (Secondary)
+
+Requires .NET 10 Runtime or SDK:
+```powershell
+dotnet tool install --global Sbroenne.ExcelMcp.CLI
 ```
 
 Verify installation:

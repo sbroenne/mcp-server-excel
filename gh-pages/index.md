@@ -167,15 +167,21 @@ ExcelMcp is available as two distributable GitHub Copilot plugins published thro
 copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 
 # Install one or both plugins with Copilot CLI
-copilot plugin install excel-mcp@mcp-server-excel
-copilot plugin install excel-cli@mcp-server-excel
+copilot plugin install excel-mcp@mcp-server-excel-plugins
+copilot plugin install excel-cli@mcp-server-excel-plugins   # Bundles excelcli.exe
 ```
 
 - **`excel-mcp`** — Best for conversational Excel workflows through the MCP server
-- **`excel-cli`** — Best for token-efficient scripting and coding-agent workflows
+- **`excel-cli`** — Best for token-efficient scripting and coding-agent workflows with bundled self-contained `excelcli.exe`
 - Install **either one or both** depending on how you work
 
-These are **GitHub Copilot marketplace packages**. The commands above are the documented Copilot CLI install path. VS Code also supports agent plugins in preview, and Claude has its own plugin system, but those surfaces use their own enablement and installation flows. The published marketplace repo is refreshed automatically after each ExcelMcp release by a follow-on workflow that uses a stored cross-repo PAT scoped to that repo. That publish path is sync-gated, blocks downgrade/tag mismatches, and still keeps a manual maintainer re-sync path for repair/replay scenarios.
+These are **GitHub Copilot marketplace packages**. The commands above are the documented Copilot CLI install path. VS Code also supports agent plugins in preview, and Claude has its own plugin system, but those surfaces use their own enablement and installation flows. The published marketplace repo is refreshed automatically after each ExcelMcp release by a follow-on workflow that uses a stored cross-repo PAT scoped to that repo. That publish path is sync-gated, blocks downgrade/tag mismatches, and still keeps a manual maintainer re-sync path for repair/replay scenarios. The published repo is the marketplace; this source repo only owns the release inputs and overlay files used to build those published plugin directories.
+
+After installing `excel-cli`, run the bundled one-time helper to expose the plugin-shipped CLI on PATH:
+
+```powershell
+pwsh -ExecutionPolicy Bypass -File "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\bin\install-global.ps1"
+```
 
 **Manual Installation:**
 ```powershell

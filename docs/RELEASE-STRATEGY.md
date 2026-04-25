@@ -23,7 +23,10 @@ All ExcelMcp components are released together with a single version tag:
 
 When you run the release workflow, all components are released together:
 
-1. **CLI** → Standalone self-contained exe (`excelcli.exe`) + ZIP [primary] + NuGet pack [secondary]
+1. **CLI** → Standalone self-contained exe (`excelcli.exe`) shipped as:
+   - ZIP file (primary distribution)
+   - NuGet package (secondary distribution)
+   - **Bundled inside the `excel-cli` GitHub Copilot plugin** (published by `publish-plugins.yml`)
 2. **MCP Server** → Standalone self-contained exe (`mcp-excel.exe`) + ZIP [primary] + NuGet pack [secondary]
 3. **VS Code Extension** → Self-contained VSIX (bundles both exes + skills) → VS Code Marketplace
 4. **MCPB** → Claude Desktop bundle (`.mcpb` file)
@@ -39,11 +42,12 @@ When you run the release workflow, all components are released together:
 |----------|--------|--------------|
 | `ExcelMcp-MCP-Server-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `mcp-excel.exe`) |
 | `ExcelMcp-CLI-{version}-windows.zip` | ZIP | GitHub Release (primary — contains `excelcli.exe`) |
-| `excelmcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace (~68-70 MB, self-contained) |
-| `excel-mcp-{version}.mcpb` | MCPB | GitHub Release |
-| `excel-skills-v{version}.zip` | ZIP | GitHub Release |
-| `Sbroenne.ExcelMcp.McpServer.{version}.nupkg` | NuGet | NuGet.org (secondary — requires .NET 10 runtime) |
-| `Sbroenne.ExcelMcp.CLI.{version}.nupkg` | NuGet | NuGet.org (secondary — requires .NET 10 runtime) |
+| `Sbroenne.ExcelMcp.CLI.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `excelcli.exe`, requires .NET 10 runtime) |
+| `Sbroenne.ExcelMcp.McpServer.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `mcp-excel.exe`, requires .NET 10 runtime) |
+| `excel-skills-v{version}.zip` | ZIP | GitHub Release (contains `excel-cli` + `excel-mcp` skills) |
+| `excel-skills-v{version}.tgz` | npm | npm registry (same skills, npm-packable format) |
+| `excelmcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace (~68-70 MB, self-contained with both exes + skills) |
+| `excel-mcp-{version}.mcpb` | MCPB | GitHub Release (Claude Desktop bundle, self-contained) |
 
 ## Release Process
 
@@ -99,7 +103,7 @@ The main release workflow runs automatically (9 jobs), then the plugin publish w
 7. **publish-mcp-registry** (10-30 min) → Waits for NuGet propagation, updates MCP Registry
 8. **publish** → Publishes to NuGet.org, VS Code Marketplace, and npm
 9. **create-release** → Creates GitHub Release with all artifacts, then creates auto-PR to update CHANGELOG
-10. **publish-plugins.yml** (follow-on workflow) → Sync-gated republish of `excel-mcp` and `excel-cli` to `sbroenne/mcp-server-excel-plugins` when plugin-facing install artifacts changed
+10. **publish-plugins.yml** (follow-on workflow) → Sync-gated republish of `excel-mcp` and `excel-cli` to `sbroenne/mcp-server-excel-plugins`, including the bundled self-contained `excelcli.exe` inside the `excel-cli` plugin when plugin-facing install artifacts changed
 
 ### 4. Verify Release
 
@@ -116,21 +120,23 @@ After workflow completes:
 
 **Workflow**: `.github/workflows/publish-plugins.yml`
 **Trigger**: Runs automatically after `release.yml` completes successfully, with a manual `workflow_dispatch` re-sync path for existing source release tags
-**Published Repo**: `sbroenne/mcp-server-excel-plugins` (published plugin artifact repo)
+**Published Repo**: `sbroenne/mcp-server-excel-plugins` (the actual Copilot CLI marketplace repo)
 
 The `publish-plugins.yml` workflow automatically publishes updated plugins when the release workflow completes:
 
 1. **Extracts version** from the release tag created by `release.yml`
 2. **Runs a source-side sync gate** and skips the downstream publish when no plugin-published source files changed since the previous release tag
 3. **Builds plugins** via `scripts/Build-Plugins.ps1`:
-    - Copies validated plugin structure from the published repo
+    - Copies validated plugin structure from the published marketplace repo
+    - Applies source-owned plugin overlays from `.github/plugins/` (overlay content only; not standalone plugin roots)
     - Updates version in plugin.json and version.txt
+    - Bundles the self-contained CLI publish output into `plugins/excel-cli/bin/`
     - Refreshes skill content (always uses latest source)
-4. **Checks published-repo guards** before mutation:
-   - Rejects explicit tag/version mismatches
-   - Rejects downgrade publishes
-   - Skips automatic duplicate publishes when the published repo already has the same version and tag
-5. **Publishes plugin artifacts** by committing and tagging the published repo when needed
+4. **Checks published-repo guards** before mutation, reading the current published plugin version from the canonical marketplace manifest when present (or the legacy root manifest before migration):
+    - Rejects explicit tag/version mismatches
+    - Rejects downgrade publishes
+    - Skips automatic duplicate publishes when the published repo already has the same version and tag
+5. **Publishes plugin artifacts** by committing and tagging the published repo when needed, rewriting the repo to the canonical marketplace layout (`.github/plugin/marketplace.json`) and removing the legacy root `marketplace.json`
 
 Maintainers can also replay plugin publication for an existing release tag without cutting a new release:
 
@@ -150,12 +156,13 @@ gh workflow run publish-plugins.yml -f release_tag=v1.2.3
 
 **Surface note:**
 - The release automation publishes plugin bundles (manifest, skills, agents, hooks, MCP config, helper scripts) to the published repo.
+- The published repo is the marketplace; this source repo only owns inputs, overlays, and automation.
 - Those artifacts can be relevant across multiple plugin-capable clients, but marketplace registration, discovery, and installation UX remain client-specific.
 - The current workflow and docs only claim a verified GitHub Copilot install flow; they do **not** claim automatic publication into VS Code or Claude-specific plugin marketplaces.
 
 **Hardening note:**
 - Automatic publication now passes through a source-side sync gate so unchanged plugin install surfaces do not produce redundant downstream publishes.
-- The published-side sync path rejects downgrade attempts and keeps explicit repair/replay runs honest by requiring tag/version alignment.
+- The published-side sync path rejects downgrade attempts, rewrites the published repo to the canonical `.github/plugin/marketplace.json` layout, and keeps explicit repair/replay runs honest by requiring tag/version alignment.
 - Maintainers still have a manual `workflow_dispatch` re-sync entry point when a repair or replay is needed.
 
 For detailed setup instructions and troubleshooting, see [Phase 3 Plugin Publishing Setup](../.github/workflows/docs/publish-plugins-setup.md).

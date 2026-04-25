@@ -28,15 +28,35 @@ Complete installation instructions for the ExcelMcp MCP Server and CLI tool.
 Use this order to avoid setup confusion:
 
 1. **Choose one primary setup path**:
-   - VS Code Extension (Copilot users)
-   - Claude Desktop MCPB
-   - Manual MCP setup (all other MCP clients)
-   - GitHub Copilot plugins (Copilot plugin surfaces)
-2. **Validate MCP setup** (run the quick test prompt in Step 4 of manual setup, or test in your client after extension/MCPB install)
-3. **Optional:** install CLI (`excelcli`) for scripting/RPA
-4. **Optional:** install agent skills for non-extension environments
+   - **VS Code Extension** (GitHub Copilot users) — auto-configures everything
+   - **Claude Desktop MCPB** — one-click MCP installation
+   - **GitHub Copilot Plugins** (Copilot CLI users) — marketplace installation
+   - **Manual MCP setup** (other MCP clients like Cursor, Windsurf)
+2. **Validate MCP setup** (run the quick test prompt in Step 4 of manual setup, or test in your client after extension/MCPB/plugin install)
+3. **Optional:** install CLI (`excelcli`) for scripting/RPA (auto-included with Copilot CLI plugins)
+4. **Optional:** install agent skills separately for non-extension environments
 
-### VS Code Extension (Easiest - One-Click Setup)
+### GitHub Copilot Plugins (Easiest for Copilot CLI Users)
+
+**Best for:** GitHub Copilot CLI users who want plugin marketplace installation
+
+ExcelMcp is published as two complementary plugins in the GitHub Copilot plugin marketplace:
+
+**Excel MCP** (25 tools with 230 operations for conversational AI):
+```powershell
+copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
+copilot plugin install excel-mcp@sbroenne/mcp-server-excel-plugins
+```
+
+**Excel CLI** (Skill + bundled CLI for coding agents):
+```powershell
+copilot plugin install excel-cli@sbroenne/mcp-server-excel-plugins
+pwsh -File "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\bin\install-global.ps1"
+```
+
+Both plugins are maintained in [`sbroenne/mcp-server-excel-plugins`](https://github.com/sbroenne/mcp-server-excel-plugins) and auto-updated after each release.
+
+---
 
 **Best for:** GitHub Copilot users, beginners, anyone wanting automatic configuration
 
@@ -264,38 +284,42 @@ This opens Excel visibly so you can see every change in real-time - great for de
 
 **Best for:** Scripting, RPA, CI/CD pipelines, automation without AI
 
-### Download CLI
+The `excelcli.exe` tool is already included when you install the **excel-cli GitHub Copilot plugin** or the VS Code extension. Plain skill-only installs still need the CLI available separately.
+
+### If Not Already Installed Via Plugin or VS Code Extension
+
+Download and extract the standalone CLI:
 
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 2. Download **`ExcelMcp-CLI-{version}-windows.zip`**
-3. Extract the ZIP to a permanent location (e.g., `C:\Tools\ExcelMcp\`)
+3. Extract to a permanent location (e.g., `C:\Tools\ExcelMcp\`)
 
 ```powershell
-# Example extraction
 Expand-Archive "ExcelMcp-CLI-1.x.x-windows.zip" -DestinationPath "C:\Tools\ExcelMcp"
 ```
 
-The ZIP contains `excelcli.exe` — a fully self-contained executable (no .NET runtime needed).
-
 ### Add CLI to PATH
 
-If you followed Step 2 of the MCP Server setup and added `C:\Tools\ExcelMcp\` to your PATH, `excelcli` is already available.
+```powershell
+$toolsDir = "C:\Tools\ExcelMcp"
+$userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+if ($userPath -notlike "*$toolsDir*") {
+    [Environment]::SetEnvironmentVariable("PATH", "$userPath;$toolsDir", "User")
+    Write-Host "Added $toolsDir to user PATH. Restart your terminal to apply."
+}
+```
 
 ### Quick Test
 
 ```powershell
-# Verify CLI is available
 excelcli --version
+excelcli --help
 
-# Session-based workflow (keeps Excel open between commands)
-excelcli -q session open test.xlsx                   # Returns session ID
-excelcli -q sheet list --session <session-id>        # List worksheets
-excelcli -q session close --session <session-id> --save
+# Test with a session
+excelcli -q session open test.xlsx
+excelcli -q session list
+excelcli -q session close --session <id>
 ```
-
-> **💡 Tip:** Use `-q` (quiet mode) to suppress banner and get JSON output only - perfect for scripting and automation.
-
-**CLI Documentation:** [CLI Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)
 
 ---
 
@@ -318,8 +342,18 @@ This is the documented install flow for the published marketplace repo:
 copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 
 # Install one or both plugins
-copilot plugin install excel-mcp@mcp-server-excel
-copilot plugin install excel-cli@mcp-server-excel
+copilot plugin install excel-mcp@mcp-server-excel-plugins
+copilot plugin install excel-cli@mcp-server-excel-plugins
+```
+
+### One-time post-install steps
+
+- **`excel-mcp`** — follow the plugin README if you want to merge the bundled MCP config into your user-level Copilot config.
+- **`excel-cli`** — the plugin now ships a self-contained `excelcli.exe` deliverable (no .NET runtime required). Run the bundled helper once to expose it on PATH:
+
+```powershell
+pwsh -ExecutionPolicy Bypass -File "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\bin\install-global.ps1"
+excelcli --version
 ```
 
 ### Other supported plugin surfaces
@@ -329,7 +363,9 @@ copilot plugin install excel-cli@mcp-server-excel
 
 > **Important:** The commands above are the **GitHub Copilot CLI** install commands for the published marketplace repo `sbroenne/mcp-server-excel-plugins`. Do not assume the same commands apply to VS Code or Claude. Use the surface-specific docs for those environments.
 
-The plugins are republished automatically after every successful ExcelMcp release by a follow-up workflow that uses a stored cross-repo PAT scoped to the published marketplace repo. That publish path is sync-gated (so unchanged plugin-facing releases do not force a republish), keeps downgrade/tag mismatch guards in place, and retains a manual maintainer re-sync path for repair/replay scenarios. If a fresh GitHub release is visible but the plugin marketplace is still catching up, wait for the follow-up **Publish Plugins** workflow to finish.
+> **Source-layout note:** This source repo is not itself a Copilot CLI marketplace. The `.github/plugins/` folders are source-owned overlays that the publish workflow copies into the published marketplace repo.
+
+The plugins are republished automatically after every successful ExcelMcp release by a follow-up workflow that uses a stored cross-repo PAT scoped to the published marketplace repo. That publish path is sync-gated (so unchanged plugin-facing releases do not force a republish), keeps downgrade/tag mismatch guards in place, stages the self-contained `excelcli.exe` publish output into the `excel-cli` plugin, and retains a manual maintainer re-sync path for repair/replay scenarios. If a fresh GitHub release is visible but the plugin marketplace is still catching up, wait for the follow-up **Publish Plugins** workflow to finish.
 
 ---
 

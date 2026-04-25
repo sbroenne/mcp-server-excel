@@ -1,6 +1,6 @@
 name: Publish Plugins
 
-# Phase 3: Publish agent plugin artifacts to sbroenne/mcp-server-excel-plugins
+# Phase 3: Publish Copilot CLI plugin artifacts to sbroenne/mcp-server-excel-plugins
 #
 # TRIGGER: After successful release workflow completion
 # - Avoids binary race by waiting for GitHub Release to exist
@@ -8,8 +8,14 @@ name: Publish Plugins
 #
 # WHAT IT DOES:
 # 1. Builds both plugin bundles (excel-mcp, excel-cli) from source
-# 2. Updates version.txt to match the release version
-# 3. Pushes published plugin artifacts to sbroenne/mcp-server-excel-plugins
+# 2. Stages the self-contained excelcli publish output into the excel-cli plugin
+# 3. Updates version.txt to match the release version
+# 4. Pushes published plugin artifacts to sbroenne/mcp-server-excel-plugins
+# 5. Rewrites the published repo to the canonical marketplace layout (.github/plugin/marketplace.json, no legacy root manifest)
+#
+# NOTE:
+# - sbroenne/mcp-server-excel-plugins is the actual Copilot CLI marketplace repo
+# - this source repo is NOT a marketplace; .github/plugins/ only contains source-owned overlays copied into the published plugins
 #
 # AUTHENTICATION:
 # - Requires repository secret PLUGINS_REPO_TOKEN (PAT or app token)
@@ -178,7 +184,7 @@ jobs:
             exit 0
           fi
 
-          mapfile -t CHANGED_FILES < <(git diff --name-only "$PREVIOUS_TAG" "$CURRENT_TAG" -- scripts/Build-Plugins.ps1 skills/excel-cli skills/excel-mcp skills/shared)
+          mapfile -t CHANGED_FILES < <(git diff --name-only "$PREVIOUS_TAG" "$CURRENT_TAG" -- .github/plugins .github/workflows/publish-plugins.yml scripts/Build-Plugins.ps1 scripts/Sync-PublishedPluginRepo.ps1 skills/excel-cli skills/excel-mcp skills/shared)
 
           if [ "${#CHANGED_FILES[@]}" -eq 0 ]; then
             REASON="No plugin-published source files changed between $PREVIOUS_TAG and $CURRENT_TAG; skipping downstream publish."
@@ -238,6 +244,24 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Publish self-contained CLI for plugin bundling
+        run: |
+          $VERSION = "${{ needs.get-version.outputs.version }}"
+          dotnet publish source\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:PublishTrimmed=false `
+            -p:PublishReadyToRun=false `
+            -p:Version=$VERSION `
+            -p:AssemblyVersion=$VERSION.0 `
+            -p:FileVersion=$VERSION.0 `
+            -p:NuGetAudit=false `
+            --output source\plugin-cli-publish
+        shell: pwsh
+
       - name: Build plugins from validated templates
         run: |
           $VERSION = "${{ needs.get-version.outputs.version }}"
@@ -246,7 +270,7 @@ jobs:
           # Build script copies from ../mcp-server-excel-plugins/plugins/
           # We checked out published repo at ./published, so adjust path
           cd source
-          & .\scripts\Build-Plugins.ps1 -Version $VERSION -PluginTemplateDir "..\published\plugins"
+          & .\scripts\Build-Plugins.ps1 -Version $VERSION -PluginTemplateDir "..\published\plugins" -CliPublishDir ".\plugin-cli-publish"
         shell: pwsh
 
       - name: Upload excel-mcp plugin artifact
@@ -276,13 +300,18 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: excel-mcp-plugin
-          path: excel-mcp
+          path: built-plugins/excel-mcp
 
       - name: Download excel-cli plugin
         uses: actions/download-artifact@v4
         with:
           name: excel-cli-plugin
-          path: excel-cli
+          path: built-plugins/excel-cli
+
+      - name: Checkout source repo
+        uses: actions/checkout@v4
+        with:
+          path: source-repo
 
       - name: Checkout published repo
         uses: actions/checkout@v4
@@ -317,9 +346,27 @@ jobs:
             exit 1
           fi
 
-          CURRENT_PUBLISHED_VERSION=$(jq -r '.version // empty' published-repo/marketplace.json)
+          MANIFEST_MODE=""
+          MARKETPLACE_MANIFEST=""
+          if [ -f published-repo/.github/plugin/marketplace.json ]; then
+            MANIFEST_MODE="canonical"
+            MARKETPLACE_MANIFEST="published-repo/.github/plugin/marketplace.json"
+          elif [ -f published-repo/marketplace.json ]; then
+            MANIFEST_MODE="legacy"
+            MARKETPLACE_MANIFEST="published-repo/marketplace.json"
+          else
+            echo "::error::No marketplace manifest found in published repo. Expected .github/plugin/marketplace.json (canonical) or marketplace.json (legacy)."
+            exit 1
+          fi
+
+          if [ "$MANIFEST_MODE" = "canonical" ]; then
+            CURRENT_PUBLISHED_VERSION=$(jq -r '[.plugins[].version] | unique | if length == 1 then .[0] else empty end' "$MARKETPLACE_MANIFEST")
+          else
+            CURRENT_PUBLISHED_VERSION=$(jq -r '.version // empty' "$MARKETPLACE_MANIFEST")
+          fi
+
           if [ -z "$CURRENT_PUBLISHED_VERSION" ]; then
-            echo "::error::published-repo/marketplace.json is missing a version."
+            echo "::error::$MARKETPLACE_MANIFEST is missing a resolvable published plugin version."
             exit 1
           fi
 
@@ -329,16 +376,22 @@ jobs:
           fi
 
           for plugin in excel-mcp excel-cli; do
-            ARTIFACT_VERSION=$(jq -r '.version // empty' "$plugin/plugin.json")
+            ARTIFACT_VERSION=$(jq -r '.version // empty' "built-plugins/$plugin/plugin.json")
             if [ "$ARTIFACT_VERSION" != "$VERSION" ]; then
-              echo "::error::$plugin/plugin.json resolved version '$ARTIFACT_VERSION' but expected '$VERSION'."
+              echo "::error::built-plugins/$plugin/plugin.json resolved version '$ARTIFACT_VERSION' but expected '$VERSION'."
               exit 1
             fi
           done
 
-          MCP_VERSION_TXT=$(tr -d '\r\n' < excel-mcp/version.txt)
+          MCP_VERSION_TXT=$(tr -d '\r\n' < built-plugins/excel-mcp/version.txt)
           if [ "$MCP_VERSION_TXT" != "$VERSION" ]; then
-            echo "::error::excel-mcp/version.txt resolved version '$MCP_VERSION_TXT' but expected '$VERSION'."
+            echo "::error::built-plugins/excel-mcp/version.txt resolved version '$MCP_VERSION_TXT' but expected '$VERSION'."
+            exit 1
+          fi
+
+          CLI_VERSION_TXT=$(tr -d '\r\n' < built-plugins/excel-cli/version.txt)
+          if [ "$CLI_VERSION_TXT" != "$VERSION" ]; then
+            echo "::error::built-plugins/excel-cli/version.txt resolved version '$CLI_VERSION_TXT' but expected '$VERSION'."
             exit 1
           fi
 
@@ -353,7 +406,7 @@ jobs:
           fi
 
           if [ "$TAG_EXISTS" = true ] && [ "$CURRENT_PUBLISHED_VERSION" != "$VERSION" ]; then
-            echo "::error::Published repo already contains tag $TAG but marketplace.json reports version $CURRENT_PUBLISHED_VERSION. Refusing to publish into inconsistent state."
+            echo "::error::Published repo already contains tag $TAG but ${MARKETPLACE_MANIFEST#published-repo/} reports version $CURRENT_PUBLISHED_VERSION. Refusing to publish into inconsistent state."
             exit 1
           fi
 
@@ -372,6 +425,8 @@ jobs:
           fi
 
           echo "current_published_version=$CURRENT_PUBLISHED_VERSION" >> "$GITHUB_OUTPUT"
+          echo "marketplace_manifest=$MARKETPLACE_MANIFEST" >> "$GITHUB_OUTPUT"
+          echo "manifest_mode=$MANIFEST_MODE" >> "$GITHUB_OUTPUT"
           echo "tag_exists=$TAG_EXISTS" >> "$GITHUB_OUTPUT"
           echo "sync_mode=$SYNC_MODE" >> "$GITHUB_OUTPUT"
           echo "reason=$REASON" >> "$GITHUB_OUTPUT"
@@ -382,6 +437,8 @@ jobs:
             echo "- Requested tag: $TAG"
             echo "- Requested version: $VERSION"
             echo "- Trigger mode: $TRIGGER_MODE"
+            echo "- Manifest mode: $MANIFEST_MODE"
+            echo "- Marketplace manifest: ${MARKETPLACE_MANIFEST#published-repo/}"
             echo "- Published repo version: $CURRENT_PUBLISHED_VERSION"
             echo "- Published tag exists: $TAG_EXISTS"
             echo "- Decision: $REASON"
@@ -390,36 +447,27 @@ jobs:
       - name: Sync plugins to published repo
         id: sync
         if: steps.guard.outputs.sync_mode != 'skip'
+        shell: pwsh
         run: |
-          VERSION="${{ needs.get-version.outputs.version }}"
-          TAG="${{ needs.get-version.outputs.tag }}"
+          $version = "${{ needs.get-version.outputs.version }}"
+          $tag = "${{ needs.get-version.outputs.tag }}"
 
-          echo "Syncing plugins for version $VERSION (tag: $TAG)"
+          Write-Host "Syncing plugins for version $version (tag: $tag)"
 
-          cd published-repo
+          & ./source-repo/scripts/Sync-PublishedPluginRepo.ps1 `
+            -PublishedRepoDir ./published-repo `
+            -BuiltPluginsDir ./built-plugins `
+            -Version $version
 
-          # Clean and recreate plugin directories
-          rm -rf plugins/excel-mcp plugins/excel-cli
-          mkdir -p plugins/excel-mcp plugins/excel-cli
+          git -C published-repo add -A
 
-          # Copy plugin artifacts
-          cp -r ../excel-mcp/* plugins/excel-mcp/
-          cp -r ../excel-cli/* plugins/excel-cli/
-
-          # Update marketplace.json version
-          jq --arg ver "$VERSION" '.version = $ver' marketplace.json > marketplace.json.tmp
-          mv marketplace.json.tmp marketplace.json
-
-          # Stage all changes
-          git add plugins/ marketplace.json
-
-          # Check if there are any changes
-          if git diff --staged --quiet; then
-            echo "No changes to commit (plugins already up to date)"
-            echo "has_changes=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_changes=true" >> "$GITHUB_OUTPUT"
-          fi
+          if (git -C published-repo diff --staged --quiet) {
+            Write-Host "No changes to commit (plugins already up to date)"
+            "has_changes=false" >> $env:GITHUB_OUTPUT
+          }
+          else {
+            "has_changes=true" >> $env:GITHUB_OUTPUT
+          }
 
       - name: Commit and push changes
         if: steps.guard.outputs.sync_mode != 'skip' && steps.sync.outputs.has_changes == 'true'
@@ -437,7 +485,7 @@ jobs:
           git commit \
             -m "Release $TAG" \
             -m "Published plugins synchronized from sbroenne/mcp-server-excel release $TAG" \
-            -m "excel-mcp plugin updated to v$VERSION; excel-cli plugin updated to v$VERSION; marketplace.json version updated to $VERSION" \
+            -m "excel-mcp plugin updated to v$VERSION; excel-cli plugin updated to v$VERSION; canonical marketplace manifest rewritten at .github/plugin/marketplace.json" \
             -m "Source: ${{ github.server_url }}/${{ github.repository }}/releases/tag/$TAG"
 
           # Push to main
@@ -476,6 +524,7 @@ jobs:
             echo "**Tag:** $TAG" >> $GITHUB_STEP_SUMMARY
             echo "**Repository:** [${{ env.PUBLISHED_REPO }}](${{ env.PUBLISHED_REPO_URL }})" >> $GITHUB_STEP_SUMMARY
             echo "**Mode:** $SYNC_MODE" >> $GITHUB_STEP_SUMMARY
+            echo "**Marketplace manifest:** \`.github/plugin/marketplace.json\`" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### Published Plugins" >> $GITHUB_STEP_SUMMARY
             echo "- ✅ excel-mcp" >> $GITHUB_STEP_SUMMARY
@@ -487,10 +536,10 @@ jobs:
             echo "copilot plugin marketplace add ${{ env.PUBLISHED_REPO }}" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "# Install MCP plugin" >> $GITHUB_STEP_SUMMARY
-            echo "copilot plugin install excel-mcp@mcp-server-excel" >> $GITHUB_STEP_SUMMARY
+            echo "copilot plugin install excel-mcp@mcp-server-excel-plugins" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "# OR install CLI plugin" >> $GITHUB_STEP_SUMMARY
-            echo "copilot plugin install excel-cli@mcp-server-excel" >> $GITHUB_STEP_SUMMARY
+            echo "copilot plugin install excel-cli@mcp-server-excel-plugins" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "These published plugin artifacts may also be relevant to other plugin-capable clients, but their installation UX and marketplace wiring are client-specific and are not configured by this workflow." >> $GITHUB_STEP_SUMMARY
