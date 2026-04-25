@@ -47,6 +47,48 @@
 - Updated publish-plugins-setup.md with simpler token options (PAT + app token)
 - Aligned RELEASE-STRATEGY.md, INSTALLATION.md, README.md, gh-pages/index.md
 
+**Coordination Result:** Completed. Both docs updated; token-based auth ready for production.
+
+---
+
+## Current Session: Plugin README Quality Investigation (2026-04-24)
+
+**Requested by:** Stefan Brönner  
+**Query:** "the plugin readmes are horrible!! did you ever check them?"
+
+### Task
+1. Trace how published plugin README gets produced ✅
+2. Identify source files controlling README content ✅
+3. State whether publish pipeline validates README quality ✅
+4. Note any low-risk fixes without implementing ✅
+
+### Investigation Results
+
+**README Content Flow:**
+- Published templates created Phase 1 (82 lines for excel-cli, 183 for excel-mcp)
+- Source overlays intentionally minimal (53-line redirect)
+- Build-Plugins.ps1 copies published template, then applies overlay → overwrites with thin wrapper
+- Result: Users see 53-line redirect instead of full 82-line Phase 1 content
+
+**Quality Issues Found:**
+- Markdown linting violations (missing blank lines after headers)
+- Link rot (references outdated docs structure)
+- No validation in publish pipeline (pre-commit has 14 gates, zero for README)
+- Content fragmentation (Phase 1 docs in published repo don't sync back to source)
+
+**Publish Pipeline Validation:**
+- ✅ Validates: manifest structure, version consistency, binary paths
+- ❌ Validates: README Markdown format, link validity, content completeness
+
+**Recommendation:** Option A+B
+1. Sync Phase 1 README content into source overlays (`.github/plugins/excel-cli/README.md`, etc.)
+2. Add `check-plugin-readmes.ps1` to pre-commit gate for linting + link validation + consistency checks
+
+**Decision Document:** `.squad/decisions/inbox/kelso-plugin-readme-trace.md`
+
+### Coordination
+No cross-team coordination needed for this phase. Investigation complete; ready for Stefan to decide on implementation.
+
 **Coordination Result:**
 - ✅ Decisions recorded and merged to decisions.md
 - ✅ Orchestration logs created
@@ -55,6 +97,58 @@
 **Related:** `.squad/decisions.md` → 2026-04-24T14:06:40Z entry
 
 ## Learnings
+
+### 2026-04-25: Plugin README validation prevents stub content from shipping
+
+**Context:** User reported "the plugin readmes are horrible!!" after discovering thin README overlays were overwriting rich published templates during build.
+
+**Investigation findings:**
+- Source overlays in `.github/plugins/*/README.md` were thin redirect wrappers (53 lines)
+- Build-Plugins.ps1 copied published templates, then applied overlays → overwrote with thin content
+- No validation in pre-commit pipeline caught this before shipping
+
+**Solution implemented:**
+- Created `check-plugin-readmes.ps1` following existing script patterns
+- Validation checks: minimum 40 lines, required sections (title, Prerequisites, Installation)
+- Integrated as pre-commit gate #14 (now 15 total gates)
+- Skips marketplace-repo README (repo-level docs, not plugin docs)
+
+**Key pattern:**
+- Use existing repo validation pattern: standalone script + pre-commit integration
+- Match style of other validators (check-com-leaks.ps1, check-success-flag.ps1)
+- Pragmatic thresholds: 40 lines catches stub content, 3 required sections catches missing docs
+- Filter out non-plugin READMEs (marketplace repo README is different purpose)
+
+**Outcome:**
+- Low-risk gate catches incomplete overlays before commit
+- Compatible with Trejo's richer README content work
+- Follows established script patterns (easy to maintain)
+- Pre-commit validation now: 15 gates (branch check + 14 quality checks)
+
+### 2026-04-25: Patch Release Preparation — Release Automation Verified Operationally Ready
+
+**Task:** Determine exact steps for patch release after PR merge, verify manual/automatic flow, identify version bump surface, check plugin publish dependency.
+
+**Finding:** Release automation is **fully automatic** with no manual steps required beyond workflow trigger.
+
+**Key Verifications:**
+- Release workflow is `workflow_dispatch` (user-triggered via GitHub Actions UI) — select `patch` bump, run
+- All 10 jobs run in sequence; total time 30–60 minutes
+- Plugin publish (`publish-plugins.yml`) runs **automatically** via `workflow_run` trigger after release succeeds
+- Version sourcing: workflow calculates v1.8.45 from v1.8.44 tag, overrides all `.csproj` via `-p:Version=` flag
+- No manual version edits required
+- GitHub Release, NuGet packages, VS Code Marketplace, MCP Registry all auto-publish
+- Plugin republish to `sbroenne/mcp-server-excel-plugins` auto-gates on plugin surface changes (skips if no install-facing changes)
+
+**Output Artifact:** Comprehensive operator-ready checklist at `.squad/decisions/inbox/kelso-prepare-patch-release.md` with:
+- Pre-release validation steps (CHANGELOG under [Unreleased] already populated)
+- Release workflow execution steps (GitHub Actions UI + parameter selection)
+- Post-release validation checklist (GitHub Release, NuGet, VS Code, published plugins)
+- Risk register + mitigations (6 risks, all Low/Medium with controls)
+- FAQ for common operator questions
+- Manual replay command for plugin republish if needed
+
+**Action:** PR merge → GitHub Actions workflow dispatch with `patch` → automatic cascade completion 30–60 min later.
 
 ### 2026-04-25: Retiring a legacy distribution surface needs one end-to-end pass
 
@@ -546,3 +640,15 @@ Final decision record merged to \.squad/decisions.md\ (deduped).
 - Hardened `publish-plugins.yml` with a source-side sync gate so automatic follow-on runs only publish when the plugin install surface changed since the previous release tag.
 - Added published-repo downgrade, duplicate, and tag/version consistency guards before sync.
 - Kept a manual `workflow_dispatch` replay path that targets an existing source `release_tag` for recovery without cutting a fresh release.
+
+## Learnings
+
+### 2026-04-25: @vscode/vsce Downgrade Assessment (Kelso)
+
+- **Context:** Dependabot flagged @vscode/vsce 3.7.1 → 2.25.0 downgrade due to unresolvable uuid@^8.3.0 in the 3.x line (via @azure/identity → @azure/msal-node chain).
+- **Finding:** The downgrade is safe and permanent, not temporary. vsce 2.25.0 has feature parity for this repo's release workflow (only uses \
+pm run package\ / \sce package\). The 3.x line added @azure/identity for interactive PAT entry (keytar), which is unnecessary for CI/CD where token auth is already env-var-based.
+- **Benefit:** Removes 2,397 unnecessary transitive dependencies from node_modules (security surface reduction).
+- **Decision:** Keep the downgrade permanently. No need to wait for Azure SDK patches or switch to vsce 3.x.
+- **Pattern:** Documented 'dependabot-tooling-downgrade' skill in .squad/skills/ for future reference.
+
