@@ -9,6 +9,7 @@
 ## Learnings
 
 <!-- Append learnings below -->
+- 2026-04-25: In GitHub Actions PowerShell steps, handling an expected native exit code is a two-part fix: capture the code with `PSNativeCommandUseErrorActionPreference = $false`, then clear `$LASTEXITCODE` before the step ends if that non-zero code was expected. Otherwise the step can still fail even after your script branches correctly.
 - 2026-04-25: In GitHub Actions PowerShell steps, `git diff --quiet` is not safe as a bare `if (...)` condition when a diff is expected. Treat exit code `1` as data, not failure: temporarily disable `PSNativeCommandUseErrorActionPreference`, capture `$LASTEXITCODE`, then branch on `0` (no changes) vs `1` (changes present).
 - 2026-04-25: A failed Dependabot security update on `vscode-extension` can be a real repo issue without a usable upstream patch path. In this case `@vscode/vsce` 3.x pulled `@azure/msal-node -> uuid@^8.3.0`, so the practical fix was to validate Dependabot's suggested `@vscode/vsce` 2.25.0 downgrade, then confirm `npm audit` and the exact `npm run package` release path still pass before merging.
 - 2026-04-25: `publish-plugins.yml` must resolve source release tags from a fetched git checkout (`git tag --points-at workflow_run.head_sha`), not from the REST `matching-refs` payload. Release tags here are annotated, so `.object.sha` is the tag object SHA, not the released commit SHA; the old lookup caused the follow-on publish workflow to fail immediately after a successful release.
