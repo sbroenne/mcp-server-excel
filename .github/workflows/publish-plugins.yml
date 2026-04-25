@@ -490,6 +490,10 @@ jobs:
             $PSNativeCommandUseErrorActionPreference = $previousNativeCommandPreference
           }
 
+          if ($stagedDiffExitCode -eq 1) {
+            $global:LASTEXITCODE = 0
+          }
+
           if ($stagedDiffExitCode -eq 0) {
             Write-Host "No changes to commit (plugins already up to date)"
             "has_changes=false" >> $env:GITHUB_OUTPUT
