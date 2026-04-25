@@ -15,8 +15,9 @@ Use this when a Dependabot or `npm audit` failure comes from a dev-only packagin
 1. Confirm the failing dependency chain from the Dependabot or audit logs before changing anything.
 2. Check whether Dependabot's suggested replacement version actually removes the vulnerable transitive stack.
 3. Prefer a real dependency change over ignoring the alert when the downgraded tool still supports the repo's required workflow.
-4. Validate the exact release command after the change, not just `npm install` or `npm audit`.
-5. Keep the fix surgical: update the dependency, refresh the lockfile, and verify the packaging path.
+4. If you later need to roll the downgrade back, restore the exact historical lockfile and validate from a clean `npm ci`; a generic `npm install` can drift transitive packages and create fake packaging regressions.
+5. Validate the exact release command after the change, not just `npm install` or `npm audit`.
+6. Keep the fix surgical: update the dependency, refresh or restore the lockfile intentionally, and verify the packaging path.
 
 ## Examples
 
