@@ -6,6 +6,141 @@
 
 ---
 
+### 2026-04-26T09:10:46Z: User Directive — Upgrade Dependencies to Latest ✅
+
+**By:** Stefan Broenner (via Copilot CLI)  
+**Status:** ✅ CAPTURED
+
+**Directive:** Upgrade dependencies to the latest versions; version pins are not intentional policy.
+
+---
+
+### 2026-04-26T10:08:47Z: User Directive — Prefer Latest Versions ✅
+
+**By:** Stefan Broenner (via Copilot CLI)  
+**Status:** ✅ CAPTURED
+
+**Directive:** Prefer latest dependency versions; user wants latest even when current repo state makes older versions temporarily safer.
+
+---
+
+### 2026-04-26T06:18:27Z: Issue #585 Status Check — Do NOT Re-Open ✅
+
+**By:** Cheritto (Platform Dev)  
+**Status:** ✅ DOCUMENTED
+
+**Decision:** Do not make new product-code changes for issue #585 on the current branch.
+
+**Why:**
+- The exact focused regression buckets for the bug are already present and pass at current HEAD:
+  - `RangeFormatIssue585RegressionTests` (MCP)
+  - `RangeFormatIssue585CliParityTests` (CLI)
+- Current MCP and CLI flows both accept the issue payload and persist the expected formatting.
+- The branch already contains transport/error-envelope hardening.
+
+**Implication:** Treat #585 as already fixed on this branch unless a new repro is captured against the current build.
+
+---
+
+### 2026-04-26T06:18:27Z: Issue #607 Schema Regression Coverage — MCP Layer ✅
+
+**By:** Nate (Tester)  
+**Status:** ✅ IMPLEMENTED
+
+**Decision:** Cover the Gemini enum bug at the **published MCP schema surface**, not with per-tool hand checks.
+
+**Why:**
+- The report names many tools and multiple enum-bearing properties (`action`, `scope`, `mode`)
+- `Client.ListToolsAsync()` exposes the exact schema clients consume
+- Recursive schema walk catches blank enum sentinels anywhere in the root schema tree
+
+**Applied shape:**
+1. One MCP integration test walks every discovered tool schema and fails on blank or non-string enum members
+2. One focused follow-up assertion checks `calculation_mode.mode` and `calculation_mode.scope` remain optional without `""` sentinels
+
+**Current blocker:** Test execution blocked by pre-existing clean-build failure in generated MCP tool signatures (`CS1737: Optional parameters must appear after all required parameters`).
+
+---
+
+### 2026-04-26T06:18:27Z: Issue #607 Fix Strategy — Generator-Side Enum Handling ✅
+
+**By:** Cheritto (Platform Dev)  
+**Status:** ✅ DOCUMENTED
+
+**Decision:** Fix the Gemini schema break in the MCP generator layer by removing nullable enum parameters from published tool signatures.
+
+**Why:**
+- Bad enum sentinel originates from MCP SDK's schema generation for nullable enum parameters
+- CLI parity preserved more closely when optional action-specific parameters stay string-shaped
+- Keeping `action` as only required enum preserves discoverability
+
+**Applied shape:**
+1. Generated MCP tools now publish `action` as required enum
+2. Other optional enum-like parameters emitted as optional strings
+3. Direct enum parameters parsed locally with kebab/snake-case normalization
+4. `[FromString]` enum parameters stay raw strings, rely on service-side parsing
+5. Regression coverage walks all discovered tools, verifies enum arrays contain only non-empty strings
+
+---
+
+### 2026-04-26T06:18:27Z: Dependency Upgrade Validation — Lock-Aware Matrix ✅
+
+**By:** Nate (Tester)  
+**Status:** ✅ COMPLETED
+
+**Decision:** Use a **lock-aware smallest credible matrix** to validate dependencies:
+
+1. `dotnet build-server shutdown`
+2. `dotnet build Sbroenne.ExcelMcp.sln -c Release -p:NuGetAudit=false -nodeReuse:false`
+3. CLI/MCP test matrix
+4. `npm run package` for VS Code extension
+
+**Why:** Parallel and default-node-reuse attempts produced false negatives from file-lock contention. With build-server shutdown and `-nodeReuse:false`, matrix exposed real product/package blockers.
+
+**Findings:**
+- NuGet: no further available updates post-manifest-bump
+- Manifests updated: `global.json` → `10.0.203`, central packages bumped, VS Code engine `1.116.0`, TypeScript `6.0.3`
+- `@vscode/vsce` still behind (`2.25.0` vs wanted `2.32.0` / latest `3.9.1`)
+- Release build: **FAILED** (compile error `CS0122` in `ActionValidatorTests`)
+- CLI/MCP tests: blocked by generated file issues
+- VS Code extension: **PASSED** (`npm run package` → `excel-mcp-1.6.9.vsix`)
+
+---
+
+### 2026-04-26T06:18:27Z: Dependency Upgrade Sweep — Latest Compatible Versions ✅
+
+**By:** Cheritto (Platform Dev)  
+**Status:** ✅ COMPLETED
+
+**Decision:** Upgrade to latest compatible and releasable versions with two intentional holdbacks:
+
+1. **Keep `Microsoft.ApplicationInsights.WorkerService` + `Microsoft.ApplicationInsights` at `2.23.0`**
+   - `3.1.0` is breaking OpenTelemetry rewrite
+   - Restores vulnerable `OpenTelemetry.Api 1.15.1` under NU1902-as-error policy
+
+2. **Keep `@vscode/vsce` at `^2.25.0`**
+   - `2.32.0` and `3.9.1` reopen `@azure/identity → @azure/msal-node → uuid` audit chain
+   - `2.25.0` is newest version that's both releasable and `npm audit` clean
+
+**Upgrades Applied:**
+- `global.json` → `.NET SDK 10.0.203`
+- Central .NET: Spectre `0.54.0` → `0.55.2`, Microsoft.Extensions `10.0.5` → `10.0.7`, System.Text.Json `10.0.5` → `10.0.7`, NET.Test.Sdk `18.3.0` → `18.4.0`, NetAnalyzers `10.0.201` → `10.0.203`, Scriban `7.0.6` → `7.1.0`
+- VS Code extension: @types/node `25.5.0` → `25.6.0`, @types/vscode `1.110.0` → `1.116.0`, typescript `6.0.2` → `6.0.3`, engines.vscode `1.110.0` → `1.116.0`
+
+**Compatibility Fixes:**
+- Spectre.Console.Cli `0.55.x`: command Execute/ExecuteAsync now `protected`; CLI implementations updated
+- CLI unit test for ListActionsCommand now uses reflection (override no longer public)
+- ExcelMcp.ComInterop.csproj: Release XML docs preserved for downstream builds
+
+**Validation:**
+- ✅ `dotnet build Sbroenne.ExcelMcp.sln -c Release`
+- ✅ VS Code: `npm install`, `npm audit`, `npm run package`
+- ✅ `scripts\check-cli-coverage.ps1`
+- ✅ `scripts\check-mcp-core-implementations.ps1`
+- ✅ Focused test outcomes vs baseline: MCP improved from 11 failing → 2 failing, CLI improved from 5 failing → 4 failing
+
+---
+
 ### 2026-04-26T06:18:27Z: PR #616 Documentation Update Workflow — COMPLETE ✅
 
 **By:** Cheritto (Platform Dev)  
