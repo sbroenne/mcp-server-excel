@@ -38,3 +38,13 @@
 
 - 2026-04-06: **Error diagnostics first slice.** The safest first milestone is additive transport enrichment only: keep `ServiceResponse` as the shared contract, add optional `ExceptionType`/`HResult`/`InnerError`, and mirror them into both MCP and CLI envelopes while also emitting both `error` and `errorMessage` for compatibility. Focused issue #585-style transparency coverage is stable when run surgically per scenario; full MCP class runs can still be flaky because `ProgramTransport` session tests occasionally lose the created session between setup and first tool call, so validate individual regression slices until that harness instability is addressed separately.
 - 2026-04-02: **Team closeout for the first diagnostics slice.** McCauley's parity gate landed as an additive transport contract: shared `ServiceResponse` diagnostics now flow through both MCP and CLI, both keep `error` + `errorMessage` plus `isError`, and focused #585 buckets are the trustworthy gate while broader `ProgramTransport` session flakes are treated separately.
+
+## Session Log
+
+### 2026-04-26: Documentation PR and Inbox Consolidation
+- Executed scoped documentation PR (#616) with strict scope control (README.md, docs/INSTALLATION.md, gh-pages/index.md only)
+- Pre-commit validated all 14 gates passed (COM leaks, coverage, success flag, CLI/MCP smoke tests, packaging, MCPB bundle, skills deliverables, dynamic casts)
+- Dependency review passed; merged via squash to main at commit 34e766e
+- Scribe consolidated 21 inbox decision files into decisions.md (deduplicated, chronological ordering)
+- Created orchestration log entry and session log for PR #616 completion
+- Team updated: Cheritto history appended with session summary
