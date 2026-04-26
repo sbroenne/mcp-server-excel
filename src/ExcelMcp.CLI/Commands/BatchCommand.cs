@@ -32,7 +32,7 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         public bool StopOnError { get; init; }
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         // Read commands from file or stdin
         List<BatchEntry> commands;

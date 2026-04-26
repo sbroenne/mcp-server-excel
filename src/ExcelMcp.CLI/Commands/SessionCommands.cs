@@ -12,7 +12,7 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 
 internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.Settings>
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(settings.FilePath))
         {
@@ -60,7 +60,7 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
 
 internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Settings>
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(settings.FilePath))
         {
@@ -108,7 +108,7 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
 
 internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseCommand.Settings>
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(settings.SessionId))
         {
@@ -150,7 +150,7 @@ internal sealed class SessionListCommand : AsyncCommand
 {
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(2);
 
-    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
         using var client = new ServiceClient(pipeName, connectTimeout: CommandTimeout, requestTimeout: CommandTimeout);
@@ -179,7 +179,7 @@ internal sealed class SessionListCommand : AsyncCommand
 
 internal sealed class SessionSaveCommand : AsyncCommand<SessionSaveCommand.Settings>
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(settings.SessionId))
         {

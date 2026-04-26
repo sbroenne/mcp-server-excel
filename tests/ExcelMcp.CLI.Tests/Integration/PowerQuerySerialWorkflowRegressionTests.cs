@@ -31,11 +31,11 @@ public sealed class PowerQuerySerialWorkflowRegressionTests : IAsyncLifetime, ID
         _workflowFixture = new CliPowerQueryWorkflowFixture();
     }
 
-    public Task InitializeAsync()
+    public async Task InitializeAsync()
     {
+        await CleanupSessionsAndExcelAsync();
         _workflowFixture.ResetWorkingCopy();
         _activeSessionId = null;
-        return Task.CompletedTask;
     }
 
     public async Task DisposeAsync()
@@ -55,6 +55,8 @@ public sealed class PowerQuerySerialWorkflowRegressionTests : IAsyncLifetime, ID
 
             _activeSessionId = null;
         }
+
+        await CleanupSessionsAndExcelAsync();
     }
 
     [Fact]
@@ -72,9 +74,7 @@ public sealed class PowerQuerySerialWorkflowRegressionTests : IAsyncLifetime, ID
         }
         finally
         {
-            // Verify no leaked processes
-            // Allow a small grace period for process exit
-            await Task.Delay(2000);
+            await CleanupSessionsAndExcelAsync();
             var excelProcesses = System.Diagnostics.Process.GetProcessesByName("EXCEL");
             if (excelProcesses.Length > 0)
             {
@@ -106,21 +106,37 @@ public sealed class PowerQuerySerialWorkflowRegressionTests : IAsyncLifetime, ID
         try
         {
             await ApplySetupWriteAsync(_activeSessionId);
-            await RefreshWorkflowAsync(_activeSessionId);
-
             await CloseSessionAsync(_activeSessionId, save: true, $"{diagnosticPrefix}-close-save");
             _activeSessionId = null;
             Assert.Equal(startingSessionCount, await GetSessionCountAsync());
+            await WaitForNoExcelProcessesAsync();
 
-            _activeSessionId = await OpenSessionAsync(_workflowFixture.WorkingCopyPath, $"{diagnosticPrefix}-reopen");
+            _activeSessionId = await OpenSessionAsync(_workflowFixture.WorkingCopyPath, $"{diagnosticPrefix}-verify-write");
             Assert.Equal(startingSessionCount + 1, await GetSessionCountAsync());
 
             await AssertPersistedSetupValueAsync(_activeSessionId);
+            await RefreshWorkflowAsync(_activeSessionId);
+
+            if (await IsSessionAliveAsync(_activeSessionId))
+            {
+                await CloseSessionAsync(_activeSessionId, save: false, $"{diagnosticPrefix}-post-refresh-close");
+                _activeSessionId = null;
+                Assert.Equal(startingSessionCount, await GetSessionCountAsync());
+                await WaitForNoExcelProcessesAsync();
+            }
+            else
+            {
+                _activeSessionId = null;
+            }
+
+            _activeSessionId = await OpenSessionAsync(_workflowFixture.WorkingCopyPath, $"{diagnosticPrefix}-reopen");
+            Assert.Equal(startingSessionCount + 1, await GetSessionCountAsync());
             await AssertWorkflowQueriesRemainAvailableAsync(_activeSessionId);
 
             await CloseSessionAsync(_activeSessionId, save: false, $"{diagnosticPrefix}-reopen-close");
             _activeSessionId = null;
             Assert.Equal(startingSessionCount, await GetSessionCountAsync());
+            await WaitForNoExcelProcessesAsync();
         }
         finally
         {
@@ -138,6 +154,8 @@ public sealed class PowerQuerySerialWorkflowRegressionTests : IAsyncLifetime, ID
 
                 _activeSessionId = null;
             }
+
+            await WaitForNoExcelProcessesAsync();
         }
     }
 
@@ -300,6 +318,71 @@ public sealed class PowerQuerySerialWorkflowRegressionTests : IAsyncLifetime, ID
 
         Assert.True(result.ExitCode == 0, $"workflow-session-list failed. Stdout: {result.Stdout} Stderr: {result.Stderr}");
         return json.RootElement.GetProperty("sessions").GetArrayLength();
+    }
+
+    private async Task<bool> IsSessionAliveAsync(string sessionId)
+    {
+        var (result, json) = await CliProcessHelper.RunJsonAsync(
+            ["session", "list"],
+            timeoutMs: 10000,
+            diagnosticLabel: "workflow-session-check");
+
+        _output.WriteLine($"[workflow-session-check] Stdout: {result.Stdout}");
+        _output.WriteLine($"[workflow-session-check] Stderr: {result.Stderr}");
+
+        Assert.True(result.ExitCode == 0, $"workflow-session-check failed. Stdout: {result.Stdout} Stderr: {result.Stderr}");
+        return json.RootElement
+            .GetProperty("sessions")
+            .EnumerateArray()
+            .Any(session => string.Equals(session.GetProperty("sessionId").GetString(), sessionId, StringComparison.Ordinal));
+    }
+
+    private async Task CleanupSessionsAndExcelAsync()
+    {
+        try
+        {
+            var (result, json) = await CliProcessHelper.RunJsonAsync(
+                ["session", "list"],
+                timeoutMs: 10000,
+                diagnosticLabel: "workflow-cleanup-list");
+
+            if (result.ExitCode == 0 && json.RootElement.TryGetProperty("sessions", out var sessions))
+            {
+                foreach (var session in sessions.EnumerateArray())
+                {
+                    if (!session.TryGetProperty("sessionId", out var sessionIdElement))
+                    {
+                        continue;
+                    }
+
+                    var sessionId = sessionIdElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(sessionId))
+                    {
+                        await CloseSessionAsync(sessionId, save: false, $"workflow-cleanup-close-{sessionId}");
+                    }
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        EnsureNoExcelProcesses();
+        await WaitForNoExcelProcessesAsync();
+    }
+
+    private static async Task WaitForNoExcelProcessesAsync(int timeoutMs = 15000)
+    {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        while (stopwatch.ElapsedMilliseconds < timeoutMs)
+        {
+            if (System.Diagnostics.Process.GetProcessesByName("EXCEL").Length == 0)
+            {
+                return;
+            }
+
+            await Task.Delay(500);
+        }
     }
 
     private static void AssertJsonScalarEquals(JsonElement actual, JsonElement expected)

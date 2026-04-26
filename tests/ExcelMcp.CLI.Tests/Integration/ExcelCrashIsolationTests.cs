@@ -34,11 +34,11 @@ public sealed class ExcelCrashIsolationTests : IAsyncLifetime, IDisposable
         _workflowFixture = new CliPowerQueryWorkflowFixture();
     }
 
-    public Task InitializeAsync()
+    public async Task InitializeAsync()
     {
+        await CleanupSessionsAndExcelAsync();
         _workflowFixture.ResetWorkingCopy();
         _activeSessionId = null;
-        return Task.CompletedTask;
     }
 
     public async Task DisposeAsync()
@@ -57,6 +57,8 @@ public sealed class ExcelCrashIsolationTests : IAsyncLifetime, IDisposable
 
             _activeSessionId = null;
         }
+
+        await CleanupSessionsAndExcelAsync();
     }
 
     /// <summary>
@@ -121,6 +123,7 @@ public sealed class ExcelCrashIsolationTests : IAsyncLifetime, IDisposable
         // Close session
         await CloseSessionAsync(sessionId, save: false, "single-pass-close");
         _activeSessionId = null;
+        await WaitForNoExcelProcessesAsync();
 
         _output.WriteLine("=== EXPERIMENT 1 RESULT: Excel survived single pass ===");
     }
@@ -268,6 +271,7 @@ public sealed class ExcelCrashIsolationTests : IAsyncLifetime, IDisposable
             // Close session
             await CloseSessionAsync(sessionId, save: false, $"{prefix}-close");
             _activeSessionId = null;
+            await WaitForNoExcelProcessesAsync();
 
             _output.WriteLine($"--- {prefix} completed successfully ---");
         }
@@ -288,6 +292,8 @@ public sealed class ExcelCrashIsolationTests : IAsyncLifetime, IDisposable
 
                 _activeSessionId = null;
             }
+
+            await WaitForNoExcelProcessesAsync();
 
             throw;
         }
@@ -415,6 +421,54 @@ public sealed class ExcelCrashIsolationTests : IAsyncLifetime, IDisposable
         _output.WriteLine($"[{label}] Stderr: {result.Stderr}");
 
         Assert.True(result.ExitCode == 0, $"{label} failed: {result.Stdout} {result.Stderr}");
+    }
+
+    private async Task CleanupSessionsAndExcelAsync()
+    {
+        try
+        {
+            var (result, json) = await CliProcessHelper.RunJsonAsync(
+                ["session", "list"],
+                timeoutMs: 10000,
+                diagnosticLabel: "crash-cleanup-list");
+
+            if (result.ExitCode == 0 && json.RootElement.TryGetProperty("sessions", out var sessions))
+            {
+                foreach (var session in sessions.EnumerateArray())
+                {
+                    if (!session.TryGetProperty("sessionId", out var sessionIdElement))
+                    {
+                        continue;
+                    }
+
+                    var sessionId = sessionIdElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(sessionId))
+                    {
+                        await CloseSessionAsync(sessionId, save: false, $"crash-cleanup-close-{sessionId}");
+                    }
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        EnsureNoExcelProcesses();
+        await WaitForNoExcelProcessesAsync();
+    }
+
+    private static async Task WaitForNoExcelProcessesAsync(int timeoutMs = 15000)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        while (stopwatch.ElapsedMilliseconds < timeoutMs)
+        {
+            if (Process.GetProcessesByName("EXCEL").Length == 0)
+            {
+                return;
+            }
+
+            await Task.Delay(500);
+        }
     }
 
     private static void EnsureNoExcelProcesses()

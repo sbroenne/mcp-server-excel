@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 /// </summary>
 internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
 {
-    public override int Execute(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    protected override int Execute(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         // Session actions are hand-maintained (bootstrap operations, not generated)
         // All other commands use the generated ValidActionsByCommand mapping

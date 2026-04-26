@@ -3,12 +3,10 @@
 
 using System.IO.Pipelines;
 using Microsoft.ApplicationInsights;
-using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
-using Sbroenne.ExcelMcp.McpServer.Telemetry;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
 using Xunit.Abstractions;
@@ -99,15 +97,10 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         services.AddApplicationInsightsTelemetryWorkerService(options =>
         {
             options.ConnectionString = null;
-            options.EnableHeartbeat = false;
-            options.EnableAdaptiveSampling = false;
             options.EnableQuickPulseMetricStream = false;
             options.EnablePerformanceCounterCollectionModule = false;
-            options.EnableEventCounterCollectionModule = false;
             options.EnableDependencyTrackingTelemetryModule = false;
         });
-        services.AddSingleton<ITelemetryInitializer, ExcelMcpTelemetryInitializer>();
-
         // Add MCP server with tools (same as Program.cs) using stream transport for testing
         services
             .AddMcpServer(options =>
@@ -349,15 +342,10 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
 
         // Act - Verify telemetry services are available
         var telemetryClient = _serviceProvider.GetService<TelemetryClient>();
-        var telemetryInitializers = _serviceProvider.GetServices<ITelemetryInitializer>().ToList();
-
-        // Assert
         Assert.NotNull(telemetryClient);
-        Assert.Contains(telemetryInitializers, i => i is ExcelMcpTelemetryInitializer);
 
         output.WriteLine("✓ TelemetryClient registered");
-        output.WriteLine($"✓ Found {telemetryInitializers.Count} telemetry initializers");
-        output.WriteLine("✓ ExcelMcpTelemetryInitializer present");
+        output.WriteLine("✓ Telemetry client available through DI");
 
         output.WriteLine("\n✓ Telemetry services correctly registered in DI");
     }

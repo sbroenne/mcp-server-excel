@@ -334,11 +334,8 @@ public class Program
             ConnectionString = connectionString,
 
             // Disable features not needed for MCP server (reduces overhead)
-            EnableHeartbeat = true,  // Useful for monitoring server health
-            EnableAdaptiveSampling = true,  // Helps manage telemetry volume
             EnableQuickPulseMetricStream = false,  // Live Metrics not needed for CLI tool
             EnablePerformanceCounterCollectionModule = false,  // Perf counters not useful for short-lived CLI
-            EnableEventCounterCollectionModule = false,  // Event counters not needed
 
             // Disable dependency tracking for HTTP calls
             EnableDependencyTrackingTelemetryModule = false,
@@ -346,9 +343,8 @@ public class Program
 
         builder.Services.AddApplicationInsightsTelemetryWorkerService(aiOptions);
 
-        // Add custom telemetry initializer for User.Id and Session.Id
-        // This enables the Users and Sessions blades in Azure Portal
-        builder.Services.AddSingleton<Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer, ExcelMcpTelemetryInitializer>();
+        // Application Insights 3.x no longer exposes the classic telemetry initializer abstraction.
+        // ExcelMcpTelemetry enriches each telemetry item with user/session/version context before sending.
     }
 
     /// <summary>

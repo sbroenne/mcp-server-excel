@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -27,6 +28,7 @@ namespace Sbroenne.ExcelMcp.Service;
 public sealed class ExcelMcpService : IDisposable
 {
     private readonly SessionManager _sessionManager = new();
+    private readonly ConcurrentDictionary<string, byte> _knownSessionIds = new(StringComparer.Ordinal);
     private readonly CancellationTokenSource _shutdownCts = new();
     private readonly DateTime _startTime = DateTime.UtcNow;
     private string _pipeName = "";
@@ -343,6 +345,7 @@ public sealed class ExcelMcpService : IDisposable
                 ? TimeSpan.FromSeconds(args.TimeoutSeconds.Value)
                 : null;
             var sessionId = _sessionManager.CreateSessionForNewFile(fullPath, show: args.Show, operationTimeout: timeout, origin: SessionOrigin.CLI);
+            _knownSessionIds.TryAdd(sessionId, 0);
 
             return new ServiceResponse
             {
@@ -370,6 +373,7 @@ public sealed class ExcelMcpService : IDisposable
                 ? TimeSpan.FromSeconds(args.TimeoutSeconds.Value)
                 : null;
             var sessionId = _sessionManager.CreateSession(args.FilePath, show: args.Show, operationTimeout: timeout, origin: SessionOrigin.CLI);
+            _knownSessionIds.TryAdd(sessionId, 0);
             return new ServiceResponse
             {
                 Success = true,
@@ -392,9 +396,23 @@ public sealed class ExcelMcpService : IDisposable
         var args = ServiceRegistry.DeserializeArgs<SessionCloseArgs>(request.Args);
         var closed = _sessionManager.CloseSession(request.SessionId, save: args?.Save ?? false);
 
-        return closed
-            ? new ServiceResponse { Success = true }
-            : new ServiceResponse { Success = false, ErrorMessage = $"Session '{request.SessionId}' not found" };
+        if (closed)
+        {
+            return new ServiceResponse { Success = true };
+        }
+
+        if (_knownSessionIds.ContainsKey(request.SessionId))
+        {
+            return new ServiceResponse
+            {
+                Success = true,
+                Result = JsonSerializer.Serialize(
+                    new { success = true, sessionId = request.SessionId, message = "Session already closed." },
+                    ServiceProtocol.JsonOptions)
+            };
+        }
+
+        return new ServiceResponse { Success = false, ErrorMessage = $"Session '{request.SessionId}' not found" };
     }
 
     private ServiceResponse HandleSessionSave(ServiceRequest request)

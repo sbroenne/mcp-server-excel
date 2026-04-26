@@ -81,6 +81,74 @@ public sealed class RangeFormatIssue585RegressionTests : McpIntegrationTestBase
     }
 
     [Fact]
+    public async Task FormatRange_Issue585Payload_AppliesViaMcpProtocol_AfterReopeningWorkbook()
+    {
+        await CreateIssueSheetAsync();
+        await CloseTrackedSessionAsync(save: true);
+
+        _sessionId = await OpenWorkbookSessionAsync(_testExcelFile);
+
+        var formatJson = await CallToolAsync("range_format", new Dictionary<string, object?>
+        {
+            ["action"] = "format-range",
+            ["session_id"] = _sessionId,
+            ["sheet_name"] = IssueSheetName,
+            ["range_address"] = "A1:J1",
+            ["bold"] = true,
+            ["fill_color"] = "#1F4E79",
+            ["font_color"] = "#FFFFFF"
+        });
+        AssertSuccess(formatJson, "range_format.format-range issue-585 reopen");
+
+        await CloseTrackedSessionAsync(save: true);
+
+        using var batch = ExcelSession.BeginBatch(_testExcelFile);
+        var a1 = ReadCellFormatting(batch, IssueSheetName, "A1");
+        var j1 = ReadCellFormatting(batch, IssueSheetName, "J1");
+
+        Assert.Equal(new CellFormattingState(true, IssueFillColor, WhiteFontColor), a1);
+        Assert.Equal(new CellFormattingState(true, IssueFillColor, WhiteFontColor), j1);
+    }
+
+    [Fact]
+    public async Task FormatRange_Issue585Payload_WithExplicitNullOptionals_AppliesViaMcpProtocol()
+    {
+        await CreateIssueSheetAsync();
+
+        var formatJson = await CallToolAsync("range_format", new Dictionary<string, object?>
+        {
+            ["action"] = "format-range",
+            ["session_id"] = _sessionId,
+            ["sheet_name"] = IssueSheetName,
+            ["range_address"] = "A1:J1",
+            ["font_name"] = null,
+            ["font_size"] = null,
+            ["bold"] = true,
+            ["italic"] = null,
+            ["underline"] = null,
+            ["font_color"] = "#FFFFFF",
+            ["fill_color"] = "#1F4E79",
+            ["border_style"] = null,
+            ["border_color"] = null,
+            ["border_weight"] = null,
+            ["horizontal_alignment"] = null,
+            ["vertical_alignment"] = null,
+            ["wrap_text"] = null,
+            ["orientation"] = null
+        });
+        AssertSuccess(formatJson, "range_format.format-range issue-585 explicit-nulls");
+
+        await CloseTrackedSessionAsync(save: true);
+
+        using var batch = ExcelSession.BeginBatch(_testExcelFile);
+        var a1 = ReadCellFormatting(batch, IssueSheetName, "A1");
+        var j1 = ReadCellFormatting(batch, IssueSheetName, "J1");
+
+        Assert.Equal(new CellFormattingState(true, IssueFillColor, WhiteFontColor), a1);
+        Assert.Equal(new CellFormattingState(true, IssueFillColor, WhiteFontColor), j1);
+    }
+
+    [Fact]
     public async Task FormatRange_InvalidColor_ReturnsTransparentFailureEnvelopeViaMcpProtocol()
     {
         await CreateIssueSheetAsync();
@@ -144,6 +212,23 @@ public sealed class RangeFormatIssue585RegressionTests : McpIntegrationTestBase
     private async Task CreateIssueSheetAsync()
     {
         await CreateWorksheetAsync(_sessionId!, IssueSheetName);
+    }
+
+    private async Task<string> OpenWorkbookSessionAsync(string workbookPath)
+    {
+        var openJson = await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "open",
+            ["path"] = workbookPath
+        });
+
+        AssertSetupSuccess(openJson, $"file.open ({Path.GetFileName(workbookPath)})");
+
+        using var openDoc = ParseJsonResult(openJson, $"file.open ({Path.GetFileName(workbookPath)})");
+        var sessionId = openDoc.RootElement.GetProperty("session_id").GetString();
+        TrackSession(sessionId);
+        Assert.False(string.IsNullOrWhiteSpace(sessionId));
+        return sessionId!;
     }
 
     private async Task CloseTrackedSessionAsync(bool save)

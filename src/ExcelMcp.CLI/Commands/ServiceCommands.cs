@@ -16,7 +16,7 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 /// </summary>
 internal sealed class ServiceStartCommand : AsyncCommand
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         try
         {
@@ -41,7 +41,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
     private static readonly TimeSpan ShutdownWaitTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan ShutdownPollInterval = TimeSpan.FromMilliseconds(250);
 
-    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
         try
@@ -174,7 +174,7 @@ internal sealed class ServiceStatusCommand : AsyncCommand
 {
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(2);
 
-    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
         try

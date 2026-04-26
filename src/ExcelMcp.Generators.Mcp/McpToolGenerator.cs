@@ -11,7 +11,8 @@ namespace Sbroenne.ExcelMcp.Generators.Mcp;
 /// [McpServerToolType] classes with properly typed parameters.
 ///
 /// Key features:
-/// - [FromString] enum parameters become typed C# enums (not strings) for proper JSON schema
+/// - Tool action stays a typed enum for discoverable required actions
+/// - Optional [FromString] enum parameters stay strings to avoid nullable-enum schema sentinels
 /// - TimeSpan parameters become int (seconds) for JSON compatibility
 /// - FileOrValue parameters generate dual parameters (value + file path)
 /// - XML docs from Core interfaces become MCP tool descriptions
@@ -216,8 +217,8 @@ public class McpToolGenerator : IIncrementalGenerator
         sb.Append($"    public static string {methodName}(");
         sb.AppendLine();
 
-        // Action parameter (nullable to prevent SDK-level exception on missing param)
-        sb.AppendLine($"        [Description(\"The action to perform\"), DefaultValue(null)] {enumTypeName}? action,");
+        // Keep action as a required enum so schema consumers get a strict enum without nullable sentinels.
+        sb.AppendLine($"        [Description(\"The action to perform\")] {enumTypeName} action,");
 
         // Session parameter (if required)
         if (!info.NoSession)
@@ -227,7 +228,9 @@ public class McpToolGenerator : IIncrementalGenerator
             sb.AppendLine();
         }
 
-        // Exposed parameters with [Description] and [DefaultValue]
+        // Exposed parameters are always optional at the MCP tool surface because each action
+        // uses a different subset. Emit C# optional defaults instead of [DefaultValue] attributes
+        // so nullable schema parameters stay optional without SDK-inserted enum sentinels.
         for (int i = 0; i < mcpParams.Count; i++)
         {
             var p = mcpParams[i];
@@ -235,11 +238,11 @@ public class McpToolGenerator : IIncrementalGenerator
             if (!string.IsNullOrEmpty(p.Description))
             {
                 var desc = EscapeStringLiteral(p.Description);
-                sb.Append($"        [Description(\"{desc}\"), DefaultValue({defaultExpr})] {p.McpTypeName} {p.Name}");
+                sb.Append($"        [Description(\"{desc}\")] {p.McpTypeName} {p.Name} = {defaultExpr}");
             }
             else
             {
-                sb.Append($"        [DefaultValue({defaultExpr})] {p.McpTypeName} {p.Name}");
+                sb.Append($"        {p.McpTypeName} {p.Name} = {defaultExpr}");
             }
             sb.Append(",");
             sb.AppendLine();
@@ -248,7 +251,7 @@ public class McpToolGenerator : IIncrementalGenerator
         // DI-injected progress parameter (no [Description] — resolved from RequestServiceProvider)
         if (hasProgress)
         {
-            sb.AppendLine("        IProgress<ProgressNotificationValue> progress,");
+            sb.AppendLine("        IProgress<ProgressNotificationValue> progress = default!,");
         }
         sb.AppendLine("        CancellationToken cancellationToken = default");
         sb.AppendLine("    )");
@@ -268,11 +271,6 @@ public class McpToolGenerator : IIncrementalGenerator
         var registryName = info.CategoryPascal;
         var toolName = info.McpToolName;
 
-        // Null check: action is nullable to prevent SDK-level exception when param is missing.
-        // Return a helpful error so the LLM can retry with the correct action.
-        sb.AppendLine($"        if (action == null)");
-        sb.AppendLine($"            return ExcelToolsBase.MissingActionError(\"{toolName}\");");
-        sb.AppendLine();
         var hasPreProcessing = false;
         foreach (var p in mcpParams)
         {
@@ -303,9 +301,9 @@ public class McpToolGenerator : IIncrementalGenerator
 
         sb.AppendLine($"{indent}return ExcelToolsBase.ExecuteToolAction(");
         sb.AppendLine($"{indent}    \"{toolName}\",");
-        sb.AppendLine($"{indent}    ServiceRegistry.{registryName}.ToActionString(action.Value),");
+        sb.AppendLine($"{indent}    ServiceRegistry.{registryName}.ToActionString(action),");
         sb.AppendLine($"{indent}    () => ServiceRegistry.{registryName}.RouteAction(");
-        sb.AppendLine($"{indent}        action.Value,");
+        sb.AppendLine($"{indent}        action,");
 
         if (!info.NoSession)
         {
@@ -343,7 +341,7 @@ public class McpToolGenerator : IIncrementalGenerator
 
     /// <summary>
     /// Builds MCP parameter descriptors from the exposed parameters.
-    /// Handles type conversions: FromString enum → typed enum, TimeSpan → int seconds, etc.
+    /// Handles type conversions: optional FromString enums stay strings, TimeSpan → int seconds, etc.
     /// </summary>
     private static List<McpParameter> BuildMcpParameters(ServiceInfo info, List<ExposedParameter> exposedParams)
     {
@@ -365,19 +363,43 @@ public class McpToolGenerator : IIncrementalGenerator
         {
             paramInfoByName.TryGetValue(ep.Name, out var pInfo);
             var snakeName = StringHelper.ToSnakeCase(ep.Name);
+            var defaultExpr = GetDefaultExpression(ep.TypeName, pInfo);
 
             // Determine MCP type and conversion
-            if (pInfo != null && pInfo.IsFromString && pInfo.IsEnum && pInfo.EnumTypeName != null)
+            if (pInfo != null && pInfo.IsEnum && pInfo.EnumTypeName != null)
             {
-                // [FromString] enum → use typed enum in MCP, convert via .ToString() for RouteAction
-                result.Add(new McpParameter(
-                    name: snakeName,
-                    mcpTypeName: $"{pInfo.EnumTypeName}?",
-                    routeActionParamName: ep.Name,
-                    routeActionValue: $"{snakeName}?.ToString()",
-                    description: ep.DescriptionWithRequired,
-                    defaultExpression: "null",
-                    preProcessingCode: null));
+                if (pInfo.IsFromString)
+                {
+                    // IMPORTANT: keep optional [FromString] enums as strings in MCP.
+                    // The MCP SDK emits a nullable sentinel in enum schemas for nullable enum parameters,
+                    // which strict clients (for example Gemini) reject. ServiceRegistry already parses the
+                    // raw string into the enum, so this preserves behavior and CLI/MCP parity.
+                    result.Add(new McpParameter(
+                        name: snakeName,
+                        mcpTypeName: "string?",
+                        routeActionParamName: ep.Name,
+                        routeActionValue: snakeName,
+                        description: ep.DescriptionWithRequired,
+                        defaultExpression: "null",
+                        preProcessingCode: null));
+                }
+                else
+                {
+                    var localVarName = $"_{ep.Name}Parsed";
+                    var parseExpression = $"System.Enum.TryParse<{pInfo.EnumTypeName}>({snakeName}?.Replace(\"-\", string.Empty).Replace(\"_\", string.Empty), ignoreCase: true, out var parsed{StringHelper.ToPascalCase(ep.Name)}) ? parsed{StringHelper.ToPascalCase(ep.Name)} : default";
+                    var preProcessingCode = defaultExpr == "null"
+                        ? $"var {localVarName} = !string.IsNullOrEmpty({snakeName}) ? ({pInfo.EnumTypeName}?)({parseExpression}) : null;"
+                        : $"var {localVarName} = !string.IsNullOrEmpty({snakeName}) ? {parseExpression} : {defaultExpr};";
+
+                    result.Add(new McpParameter(
+                        name: snakeName,
+                        mcpTypeName: "string?",
+                        routeActionParamName: ep.Name,
+                        routeActionValue: localVarName,
+                        description: ep.DescriptionWithRequired,
+                        defaultExpression: "null",
+                        preProcessingCode: preProcessingCode));
+                }
             }
             else if (ep.TypeName.Contains("TimeSpan"))
             {
@@ -418,7 +440,6 @@ public class McpToolGenerator : IIncrementalGenerator
             else
             {
                 // Direct passthrough — type matches between MCP and RouteAction
-                var defaultExpr = GetDefaultExpression(ep.TypeName, pInfo);
                 var mcpType = ep.TypeName;
 
                 // All exposed params are optional in MCP (not all actions use every param).
