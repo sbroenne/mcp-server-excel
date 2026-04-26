@@ -151,7 +151,29 @@ public class ExcelFileToolTests(ITestOutputHelper output)
 
             if (File.Exists(tempPath))
             {
-                File.Delete(tempPath);
+                try
+                {
+                    for (int i = 0; i < 10; i++)
+                    {
+                        try
+                        {
+                            File.Delete(tempPath);
+                            break;
+                        }
+                        catch (IOException) when (i < 9)
+                        {
+                            Thread.Sleep(500);
+                        }
+                        catch (UnauthorizedAccessException) when (i < 9)
+                        {
+                            Thread.Sleep(500);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Best-effort cleanup for a unique temp file created by this test.
+                }
             }
         }
     }

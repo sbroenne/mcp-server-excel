@@ -4,7 +4,9 @@
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using System.Globalization;
 using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.Channel;
 using Microsoft.ApplicationInsights.DataContracts;
 
 namespace Sbroenne.ExcelMcp.McpServer.Telemetry;
@@ -18,7 +20,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Telemetry;
 /// - TrackRequest: Performance metrics (duration, response codes for Performance blade)
 /// - TrackException: Unhandled exceptions (for Failures blade)
 ///
-/// User/Session context is set by ExcelMcpTelemetryInitializer on all telemetry items.
+/// User/Session context is applied directly to each telemetry item before sending.
 /// View data in Azure Portal: Logs blade with Kusto queries on customEvents/requests tables.
 /// </summary>
 public static class ExcelMcpTelemetry
@@ -57,18 +59,18 @@ public static class ExcelMcpTelemetry
 
     /// <summary>
     /// Tracks the start of an MCP server session.
-    /// Uses TrackEvent directly - ITelemetryInitializer sets user/session context.
+    /// Uses an EventTelemetry instance so user/session/version context can be applied explicitly.
     /// This ensures Users/Sessions blades have data even if no tools are invoked.
     /// </summary>
     private static void TrackSessionStart()
     {
         if (_telemetryClient == null) return;
 
-        _telemetryClient.TrackEvent("SessionStart", new Dictionary<string, string>
-        {
-            ["SessionId"] = SessionId,
-            ["AppVersion"] = GetVersion()
-        });
+        var telemetry = new EventTelemetry("SessionStart");
+        telemetry.Properties["SessionId"] = SessionId;
+        telemetry.Properties["AppVersion"] = GetVersion();
+        ApplyContext(telemetry);
+        _telemetryClient.TrackEvent(telemetry);
     }
 
     /// <summary>
@@ -139,13 +141,16 @@ public static class ExcelMcpTelemetry
             properties["FileSessionId"] = HashFilePath(excelPath);
         }
 
-        var metrics = new Dictionary<string, double>
-        {
-            ["DurationMs"] = durationMs
-        };
-
         // Track as customEvent for analytics (tool usage, parameters, success/failure)
-        _telemetryClient.TrackEvent(operationName, properties, metrics);
+        var eventTelemetry = new EventTelemetry(operationName);
+        foreach (var property in properties)
+        {
+            eventTelemetry.Properties[property.Key] = property.Value;
+        }
+        eventTelemetry.Properties["DurationMs"] = durationMs.ToString(CultureInfo.InvariantCulture);
+
+        ApplyContext(eventTelemetry);
+        _telemetryClient.TrackEvent(eventTelemetry);
 
         // Track as request for Performance blade, Failures blade, Smart Detection
         var request = new RequestTelemetry
@@ -163,6 +168,7 @@ public static class ExcelMcpTelemetry
             request.Properties[prop.Key] = prop.Value;
         }
 
+        ApplyContext(request);
         _telemetryClient.TrackRequest(request);
     }
 
@@ -180,12 +186,12 @@ public static class ExcelMcpTelemetry
         var (type, _, _) = SensitiveDataRedactor.RedactException(exception);
 
         // Track as exception in Application Insights (for Failures blade)
-        _telemetryClient.TrackException(exception, new Dictionary<string, string>
-        {
-            ["Source"] = source,
-            ["ExceptionType"] = type,
-            ["AppVersion"] = GetVersion()
-        });
+        var telemetry = new ExceptionTelemetry(exception);
+        telemetry.Properties["Source"] = source;
+        telemetry.Properties["ExceptionType"] = type;
+        telemetry.Properties["AppVersion"] = GetVersion();
+        ApplyContext(telemetry);
+        _telemetryClient.TrackException(telemetry);
     }
 
     /// <summary>
@@ -234,6 +240,15 @@ public static class ExcelMcpTelemetry
         var bytes = Encoding.UTF8.GetBytes(filePath.ToLowerInvariant());
         var hash = SHA256.HashData(bytes);
         return Convert.ToHexString(hash)[..12].ToLowerInvariant();
+    }
+
+    private static void ApplyContext(ITelemetry telemetry)
+    {
+        telemetry.Context.User.Id ??= UserId;
+        telemetry.Context.Session.Id ??= SessionId;
+        telemetry.Context.Cloud.RoleName ??= "ExcelMcp.McpServer";
+        telemetry.Context.Cloud.RoleInstance = $"instance-{UserId[..8]}";
+        telemetry.Context.Component.Version = GetVersion();
     }
 }
 

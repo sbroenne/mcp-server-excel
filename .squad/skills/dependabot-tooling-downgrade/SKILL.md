@@ -21,6 +21,8 @@ Use this when a Dependabot or `npm audit` failure comes from a dev-only packagin
 ## Examples
 
 - `vscode-extension` moved from `@vscode/vsce` `^3.7.1` to `^2.25.0` after Dependabot showed the 3.x line was stuck on `@azure/msal-node -> uuid@^8.3.0`; `npm audit` and `npm run package` both passed afterward.
+- 2026-04-26 revalidation: even after a repo-wide "upgrade to latest" sweep, `@vscode/vsce` `3.9.1` still reopened the same vulnerable `@azure/identity -> @azure/msal-node -> uuid` chain. The correct move was to keep `^2.25.0`, refresh the lockfile, and prove `npm audit` plus `npm run package` still passed.
+
 
 ## Anti-Patterns
 

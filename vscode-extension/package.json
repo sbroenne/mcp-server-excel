@@ -15,7 +15,7 @@
   "homepage": "https://excelmcpserver.dev/",
   "license": "MIT",
   "engines": {
-    "vscode": "^1.110.0"
+    "vscode": "^1.116.0"
   },
   "os": [
     "win32"
@@ -76,9 +76,12 @@
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
-    "@types/vscode": "^1.110.0",
-    "@vscode/vsce": "^2.25.0",
-    "typescript": "^6.0.2"
+    "@types/node": "^25.6.0",
+    "@types/vscode": "^1.116.0",
+    "@vscode/vsce": "^3.9.1",
+    "typescript": "^6.0.3"
+  },
+  "overrides": {
+    "uuid": "^14.0.0"
   }
 }

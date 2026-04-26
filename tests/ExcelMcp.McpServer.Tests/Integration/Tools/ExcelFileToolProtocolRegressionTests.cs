@@ -87,6 +87,7 @@ public sealed class ExcelFileToolProtocolRegressionTests : McpIntegrationTestBas
         TrackSession(sessionId);
 
         await CloseSessionAsync(sessionId, save: false);
+        await Task.Delay(TimeSpan.FromSeconds(2));
     }
 
     [Fact]

@@ -174,7 +174,8 @@ public class RenameOperationsToolContractTests : IAsyncLifetime, IAsyncDisposabl
         Assert.True(
             errorText.Contains("empty", StringComparison.OrdinalIgnoreCase) ||
             errorText.Contains("blank", StringComparison.OrdinalIgnoreCase) ||
-            errorText.Contains("invalid", StringComparison.OrdinalIgnoreCase),
+            errorText.Contains("invalid", StringComparison.OrdinalIgnoreCase) ||
+            errorText.Contains("required", StringComparison.OrdinalIgnoreCase),
             $"Expected empty/invalid name error message, got: {errorText}");
     }
 

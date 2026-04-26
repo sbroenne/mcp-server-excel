@@ -69,7 +69,10 @@ public sealed class ActionValidatorTests
             new FakeRemainingArguments(),
             "actions",
             null);
-        var output = CaptureOutput(() => command.Execute(context, settings, CancellationToken.None));
+        var executeMethod = typeof(ListActionsCommand).GetMethod(
+            "Execute",
+            BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var output = CaptureOutput(() => (int)executeMethod.Invoke(command, [context, settings, CancellationToken.None])!);
         using var document = JsonDocument.Parse(output);
 
         Assert.True(document.RootElement.GetProperty("success").GetBoolean());

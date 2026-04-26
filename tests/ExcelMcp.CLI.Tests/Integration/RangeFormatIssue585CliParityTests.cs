@@ -76,6 +76,74 @@ public sealed class RangeFormatIssue585CliParityTests : IDisposable
     }
 
     [Fact]
+    public async Task RangeFormat_FormatRange_Issue585Payload_SucceedsViaCli_AfterReopeningWorkbook()
+    {
+        var (createResult, createJson) = await CliProcessHelper.RunJsonAsync(
+            $"session create \"{_testFile}\"",
+            timeoutMs: 60000,
+            diagnosticLabel: "session create for reopened rangeformat parity");
+        Assert.Equal(0, createResult.ExitCode);
+
+        var initialSessionId = createJson.RootElement.GetProperty("sessionId").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(initialSessionId));
+
+        try
+        {
+            var createSheetResult = await CliProcessHelper.RunAsync(
+                $"sheet create --session {initialSessionId} --sheet-name \"Toutes les transactions\"",
+                timeoutMs: 60000,
+                diagnosticLabel: "sheet create before reopened rangeformat parity");
+            Assert.Equal(0, createSheetResult.ExitCode);
+        }
+        finally
+        {
+            await CliProcessHelper.RunAsync(
+                $"session close --session {initialSessionId} --save true",
+                timeoutMs: 60000,
+                diagnosticLabel: "session close before reopened rangeformat parity");
+        }
+
+        var (openResult, openJson) = await CliProcessHelper.RunJsonAsync(
+            $"session open \"{_testFile}\"",
+            timeoutMs: 60000,
+            diagnosticLabel: "session open for reopened rangeformat parity");
+        Assert.Equal(0, openResult.ExitCode);
+
+        var reopenedSessionId = openJson.RootElement.GetProperty("sessionId").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(reopenedSessionId));
+
+        try
+        {
+            var formatResult = await CliProcessHelper.RunAsync(
+                $"rangeformat format-range --session {reopenedSessionId} --sheet-name \"Toutes les transactions\" --range-address A1:J1 --bold true --fill-color \"#1F4E79\" --font-color \"#FFFFFF\"",
+                timeoutMs: 60000,
+                diagnosticLabel: "reopened rangeformat format-range issue585 payload");
+
+            _output.WriteLine($"CLI stdout: {formatResult.Stdout}");
+            _output.WriteLine($"CLI stderr: {formatResult.Stderr}");
+
+            Assert.Equal(0, formatResult.ExitCode);
+
+            using var formatJson = JsonDocument.Parse(formatResult.Stdout);
+            Assert.True(formatJson.RootElement.GetProperty("success").GetBoolean(), "CLI rangeformat should succeed for the issue #585 payload after reopening.");
+        }
+        finally
+        {
+            await CliProcessHelper.RunAsync(
+                $"session close --session {reopenedSessionId} --save true",
+                timeoutMs: 60000,
+                diagnosticLabel: "session close after reopened rangeformat parity");
+        }
+
+        using var batch = ExcelSession.BeginBatch(_testFile);
+        var a1 = ReadCellFormatting(batch, "Toutes les transactions", "A1");
+        var j1 = ReadCellFormatting(batch, "Toutes les transactions", "J1");
+
+        Assert.Equal(new CellFormattingState(true, IssueFillColor, WhiteFontColor), a1);
+        Assert.Equal(new CellFormattingState(true, IssueFillColor, WhiteFontColor), j1);
+    }
+
+    [Fact]
     public async Task RangeFormat_FormatRange_InvalidColor_ReturnsTransparentFailureEnvelopeViaCli()
     {
         var (openResult, openJson) = await CliProcessHelper.RunJsonAsync(
