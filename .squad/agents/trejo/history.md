@@ -18,6 +18,13 @@
 
 ## Recent Work
 
+### 2026-04-27: GitHub Pages Hero Update — Plugin Install Path — REVIEW COMPLETE ✅
+- Created branch: `feature/gh-pages-hero-plugin-install-fix`
+- Updated `gh-pages/index.md` hero section with quick-install guidance for GitHub Copilot plugin
+- Committed changes: `b2e9ad3`
+- **McCauley Review (Lead):** Verdict ACCEPTED — Separate `Copilot CLI Plugin` card improves discoverability; keeping `VS Code / GitHub Copilot` on first card is acceptable and non-blocking.
+- **Status:** Ready for merge. Session log: `.squad/log/2026-04-27T05-36-42Z-gh-pages-review-verdict.md`
+
 ### 2026-04-27: GitHub Pages Hero Update — Plugin Install Path
 - Created branch: `feature/gh-pages-hero-plugin-install-fix`
 - Updated `gh-pages/index.md` hero section with quick-install guidance for GitHub Copilot plugin

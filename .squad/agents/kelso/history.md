@@ -111,18 +111,18 @@ No cross-team coordination needed for this phase. Investigation complete; ready 
 - Created `check-plugin-readmes.ps1` following existing script patterns
 - Validation checks: minimum 40 lines, required sections (title, Prerequisites, Installation)
 - Integrated as pre-commit gate #14 (now 15 total gates)
-- Skips marketplace-repo README (repo-level docs, not plugin docs)
-
-**Key pattern:**
-- Use existing repo validation pattern: standalone script + pre-commit integration
-- Match style of other validators (check-com-leaks.ps1, check-success-flag.ps1)
-- Pragmatic thresholds: 40 lines catches stub content, 3 required sections catches missing docs
-- Filter out non-plugin READMEs (marketplace repo README is different purpose)
 
 **Outcome:**
 - Low-risk gate catches incomplete overlays before commit
-- Compatible with Trejo's richer README content work
 - Follows established script patterns (easy to maintain)
+
+---
+
+## Archive
+
+Early-stage learnings (pre-2026-04-20) on plugin architecture phases, platform coordination, and packaging patterns archived to maintain readability. Key context: Kelso owns Copilot CLI plugin packaging, coordinating with Trejo (docs), Cheritto (platform), McCauley (architecture).
+
+Early archive topics: Phase -1 spike findings, Phase 0 scaffold (published repo structure), Phase 1 agent decision (removed placeholder), Phase 3 release automation, infrastructure audit, plugin README investigation trace.
 - Pre-commit validation now: 15 gates (branch check + 14 quality checks)
 
 ### 2026-04-25: Patch Release Preparation — Release Automation Verified Operationally Ready

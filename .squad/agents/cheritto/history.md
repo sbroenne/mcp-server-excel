@@ -9,12 +9,21 @@
 ## Learnings
 
 <!-- Append learnings below -->
+- 2026-04-27: **Branch Cleanup + Docs Update Session Complete.** Cheritto cleaned stale local/remote branches. Trejo created and reviewed `feature/gh-pages-hero-plugin-install-fix` with McCauley (Lead). Review verdict: Separate `Copilot CLI Plugin` card resolves discoverability; keeping `VS Code / GitHub Copilot` on first card acceptable/non-blocking. Ready for merge. Cross-team cleanup coordination completed successfully.
+
 - 2026-04-27: Branch cleanup + dependency upgrade + docs audit workflow complete. Cheritto cleaned stale branches; Trejo updated gh-pages hero with plugin install path. Dependency upgrade validated (build/audit/packaging ✅, test fallout = expected debt). Chart count audit flagged parity discrepancy (29 vs 28 across docs) — awaiting verification. Power Query count audit found CLI README says 10, should be 12. Generator transparency and service architecture documentation gaps identified for next phase.
 - 2026-04-25: In GitHub Actions PowerShell steps, handling an expected native exit code is a two-part fix: capture the code with `PSNativeCommandUseErrorActionPreference = $false`, then clear `$LASTEXITCODE` before the step ends if that non-zero code was expected. Otherwise the step can still fail even after your script branches correctly.
 - 2026-04-25: In GitHub Actions PowerShell steps, `git diff --quiet` is not safe as a bare `if (...)` condition when a diff is expected. Treat exit code `1` as data, not failure: temporarily disable `PSNativeCommandUseErrorActionPreference`, capture `$LASTEXITCODE`, then branch on `0` (no changes) vs `1` (changes present).
 - 2026-04-25: A failed Dependabot security update on `vscode-extension` can be a real repo issue without a usable upstream patch path. In this case `@vscode/vsce` 3.x pulled `@azure/msal-node -> uuid@^8.3.0`, so the practical fix was to validate Dependabot's suggested `@vscode/vsce` 2.25.0 downgrade, then confirm `npm audit` and the exact `npm run package` release path still pass before merging.
 - 2026-04-25: `publish-plugins.yml` must resolve source release tags from a fetched git checkout (`git tag --points-at workflow_run.head_sha`), not from the REST `matching-refs` payload. Release tags here are annotated, so `.object.sha` is the tag object SHA, not the released commit SHA; the old lookup caused the follow-on publish workflow to fail immediately after a successful release.
 - 2026-04-25: The retired Azure runner workflow files were safe to delete once the docs stopped telling people to rename `.disabled` files back into service. Minimal cleanup was enough: remove the two disabled workflow files, update the workflow instructions, and reframe the Azure runner guide as historical infrastructure reference.
+
+## Archive
+
+Early-stage learnings (pre-2026-04-20) on bug triaging, architecture, and service patterns moved to `history-archive-2026-04-27.md` to maintain readability. Key context: Cheritto owns MCP/CLI parity verification, platform dev workflows, and cross-repo automation (publish-plugins.yml, release coordination). 
+
+Early archive topics: Bug 3/4/5 discoverability gaps, Claude Desktop MCPB artifact structure, issue #585 error diagnostics design, worksheet rename parity bug traces, pytest-skill-engineering migration phase 0, llm-tests refactoring patterns, error envelope parity (MCP vs CLI).
+
 - 2026-03-16: Bug 3 is already supported under `range.set-number-format`; the actual gap is that the formatting surface is split between `range` (display formats) and `range_format` (visual styling), and top-level feature tables currently hide that split.
 - 2026-03-16: Bug 5 is already supported under `range_format.auto-fit-columns` / `auto-fit-rows`; the main weakness is discoverability, not backend capability.
 - 2026-03-16: Bug 4 is a real surface gap. A `List<...>` batch request is consistent with existing patterns such as `IRangeEditCommands.Sort(... List<SortColumn> ...)`, so the likely risk is in API review and docs parity, not generator feasibility.

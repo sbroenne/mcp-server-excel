@@ -9,9 +9,17 @@
 ## Learnings
 
 <!-- Append learnings below -->
-- 2026-04-25: **Extended workflow audit — removal analysis complete.** 11 active workflows all KEEP (build-cli, build-mcp-server, codeql, dependency-review, stale, deploy-gh-pages, release all essential; publish-plugins new but critical for Copilot CLI marketplace). Two disabled workflows recommended for REMOVAL: deploy-azure-runner.yml.disabled (infrastructure undeployed 4 months, no active use) and integration-tests.yml.disabled (superseded by coverage audits in build pipeline). Removal plan: delete .disabled files, archive infrastructure context in .github/docs/INFRASTRUCTURE_DECISIONS.md, document in TESTING_STRATEGY.md. Risk: none — git history + documentation preserved. Recommendation: execute removal immediately (cleaner directory, no functional loss). Detailed report: .squad/decisions/inbox/mccauley-workflow-removal-recommendations.md
+- 2026-04-27: **GitHub Pages Hero Review — Verdict Accepted.** Reviewed McCauley's code review on branch `feature/gh-pages-hero-plugin-install-fix` (commit `b2e9ad3`). Verdict: Separate `Copilot CLI Plugin` card improves discoverability; keeping `VS Code / GitHub Copilot` on first card is acceptable and non-blocking. Ready for merge. Orchestration log: `.squad/orchestration-log/2026-04-27T05-36-42Z-mccauley.md`
 
-- 2026-04-25: **Workflow audit complete.** All 11 active workflows are current, properly ordered, and follow GitHub best practices. No deprecated action versions, missing permission scopes, or contradictory messaging. Release pipeline (release.yml + publish-plugins.yml) is well-architected for multi-component coordination. One publish-plugins failure (2026-04-24) traced to environmental cause (dirty branch state during parallel Phase work), not workflow defect. Monitoring: next publish-plugins run after release #82 for confirmation. PR gate opens for fix/workflow-warnings-and-cleanup branch; Cheritto changes must preserve job dependencies, coverage audits, release messaging. Detailed report: .squad/decisions/inbox/mccauley-workflow-audit-report.md
+- 2026-04-25: **Extended workflow audit — removal analysis complete.** 11 active workflows all KEEP (build-cli, build-mcp-server, codeql, dependency-review, stale, deploy-gh-pages, release all essential; publish-plugins new but critical for Copilot CLI marketplace). Two disabled workflows recommended for REMOVAL: deploy-azure-runner.yml.disabled and integration-tests.yml.disabled. Removal plan documented with minimal risk profile.
+
+- 2026-04-25: **Workflow audit complete.** All 11 active workflows are current, properly ordered, and follow GitHub best practices. Release pipeline (release.yml + publish-plugins.yml) is well-architected. One publish-plugins failure (2026-04-24) traced to environmental cause, not workflow defect.
+
+## Archive
+
+Early-stage learnings (pre-2026-04-20) on architectural reviews, bug investigations, and roster assessment archived to maintain readability. Key context: McCauley owns architecture gates, workflow audit, and cross-team decision coordination.
+
+Early archive topics: Squad roster staffing rationale, stability/serial workflow investigation, bug triage methodology (bugs 1-5 classification), ComInterop control test baseline, MCP/CLI parity contract gates, chart hardening assessment.
 
 - 2026-03-16: Treat reported `set-values` width failures above 13 columns as MCP/service/client-shape suspects first, not automatic Core defects; Core integration coverage already exercises `SetValues` on `A1:P1` successfully.
 - 2026-03-16: Split "missing formatting capability" reports into real product gaps versus discoverability gaps. `set-number-format` already exists on `range`, and `auto-fit-columns` already exists on `range_format`.
