@@ -35,6 +35,13 @@
 - Updated source and published-repo plugin docs to reflect the validated two-plugin distribution story and the honest local-testing blockers.
 - Kept counts aligned to the authoritative feature inventory and documented the release-asset dependency for first-time binary download.
 
+### 2026-04-27: PR Description Rewrite (Bootstrap Release)
+- Found PR #622 with weak internal-focused title ("Log Nate's bootstrap smoke regression...") and messy body mixing squad context with shipped features.
+- Rewrote title to user-focused: "Ship plugin bootstrap runtime wrappers and packaging validation".
+- Restructured body: clear summary + what's new + what changed (4 concrete changes) + validation checkmarks.
+- Stripped squad mechanics (session IDs, agent histories, merged decisions) — focused on shipped work only: bootstrap runtime, packaging validation, regression coverage.
+- Result: PR now tells the story of runtime auto-download, plugin-local freshness checks, build hardening, and test alignment.
+
 ## Learnings
 
 - **Docs layering:** Put sync-gate, version/tag guard, and manual replay details in maintainer docs first; keep user-facing docs to concise, accurate statements.
@@ -167,3 +174,10 @@
 - Misleading headings like "One-time post-install steps" should be replaced with descriptive labels ("After Installation") that match current behavior.
 - Three parallel plugin README surfaces (.github/plugins/excel-cli, .github/plugins/excel-mcp, gh-pages/_includes/installation.md) require synchronized rewording. Consider adding linting that flags wording inconsistencies between parallel install sections.
 
+
+### 2026-04-28: PR #605 Skills Review — Skill Quality Improvements
+- Reviewed PR from @rohan-tessl (Tessl skills optimization service) targeting 5 skills.
+- Found: Measurable quality gains (46%→90%, 51%→89%, 61%→94%), YAML frontmatter fixes, smart content refactoring.
+- Assessed external workflow tool (skill-review.yml) as low-risk, non-blocking feedback.
+- Verdict: **Improves skills, worth merging.**
+- Key insight: Moving 560-line CLI reference out of SKILL.md (800→202 lines) is safe, improves discovery, preserves content in references/.

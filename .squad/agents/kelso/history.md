@@ -698,3 +698,8 @@ pm run package\ / \sce package\). The 3.x line added @azure/identity for intera
 - Plugin wrappers can stay tiny: resolve/download in `download.ps1`, launch in `start-*.ps1`, and keep binaries out of the plugin repo by caching under `~/.copilot\plugin-runtime\mcp-server-excel\<plugin>`.
 - For CLI plugin UX, `install-global.ps1` should install shims to the wrapper, not to a cached `.exe`; otherwise first-run bootstrap and future release refreshes get bypassed.
 
+### 2026-04-27: Skill-local references must be copied after shared references
+
+- `scripts\Build-Plugins.ps1` refreshes generated plugin skills from source, so packaged skills cannot rely on references that only exist in the template repo.
+- Shared references from `skills\shared\*.md` are not enough for the CLI skill because `skills\excel-cli\SKILL.md` links to `./references/cli-commands.md`, which is generated under the skill-local `skills\excel-cli\references\` directory.
+- Packaging rule: copy skill-local reference files into the built plugin's skill `references\` folder after shared references so local files sit alongside shared docs without weakening bootstrap-only runtime stripping.
