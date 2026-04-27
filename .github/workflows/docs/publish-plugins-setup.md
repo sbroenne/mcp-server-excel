@@ -7,7 +7,7 @@ ExcelMcp plugins are published to the official GitHub Copilot CLI marketplace vi
 **Architecture:**
 - **Source repo** (`sbroenne/mcp-server-excel`) — Development, releases, skill inputs, and plugin overlays
 - **Published repo** (`sbroenne/mcp-server-excel-plugins`) — Official marketplace artifacts
-- **Two plugins:** `excel-mcp` (MCP Server + skill) and `excel-cli` (CLI + skill)
+- **Two plugins:** `excel-mcp` and `excel-cli`, both published as wrapper/bootstrap bundles plus skills
 - **Auto-sync:** `.github/workflows/publish-plugins.yml` copies templates after each release
 
 **Trigger:** After "Release All Components" workflow completes successfully, the publish workflow automatically syncs plugin artifacts to the marketplace.
@@ -94,12 +94,13 @@ If you've already created a GitHub App for other purposes:
 2. **Source-Side Sync Gate** — Skips downstream publish when the plugin-published source surface did not change since the previous release tag
 3. **Clone Repos** — Clones BOTH source and published repos
 4. **Build Plugins** — Runs `scripts/Build-Plugins.ps1` which:
-    - Copies validated plugin structure from `../mcp-server-excel-plugins/plugins/`
-    - Applies source-owned overlays from `.github/plugins/` (overlay content only)
-    - Updates `plugin.json` version and `version.txt`
-    - Bundles `excelcli.exe` and companion publish output into `plugins/excel-cli/bin/`
-    - Refreshes skills content from source repo (`skills/excel-mcp`, `skills/excel-cli`)
-    - Refreshes shared references from source repo (`skills/shared/*.md`)
+     - Copies validated plugin structure from `../mcp-server-excel-plugins/plugins/`
+     - Strips committed `.exe`/`.dll` runtime payloads so the published repo stays wrapper/bootstrap-only
+     - Applies source-owned overlays from `.github/plugins/` (overlay content only)
+     - Updates `plugin.json` version and `version.txt`
+     - Preserves plugin-local `bin/` wrapper/download assets and runtime-bootstrap metadata
+     - Refreshes skills content from source repo (`skills/excel-mcp`, `skills/excel-cli`)
+     - Refreshes shared references from source repo (`skills/shared/*.md`)
 5. **Migrate Marketplace Layout** — Rewrites the published repo into the canonical marketplace layout by applying the source-owned root overlay, writing `.github/plugin/marketplace.json`, and removing any legacy root `marketplace.json`
 6. **Published-Repo Guards** — Rejects downgrade or tag/version mismatch publishes before mutating the published repo
 7. **Sync to Published Repo** — Only commits and pushes when the guarded sync path says publication is needed
@@ -264,16 +265,17 @@ The workflow uses `workflow_run` trigger with `head_sha` version extraction:
 **Version extraction logic:**
 ```yaml
 HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
-TAG=$(gh api repos/.../git/matching-refs/tags/v --jq ".[] | select(.object.sha == \"$HEAD_SHA\") | .ref" ...)
+git fetch --force --tags origin
+TAG=$(git tag --points-at "$HEAD_SHA" --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$' | head -n1)
 ```
 
 ### Why copy from validated templates?
 
 **Build-Plugins.ps1 strategy:** COPY Phase 1/2 validated plugin structure, don't regenerate.
 
-- ✅ **Preserves validated implementations** — Phase 1/2 created working bin scripts, READMEs, configs
+- ✅ **Preserves validated implementations** — Phase 1/2 created working plugin layouts, READMEs, configs
 - ✅ **Prevents regression** — Regenerating would introduce drift and stale content
-- ✅ **Build script's job** — Version injection + skill refresh, NOT plugin authoring
+- ✅ **Build script's job** — Wrapper/bootstrap packaging + version injection + skill refresh, NOT plugin authoring
 - ❌ Old (incorrect) approach: Hand-authoring plugin content in build script
 
 **What gets copied:**
@@ -281,10 +283,18 @@ TAG=$(gh api repos/.../git/matching-refs/tags/v --jq ".[] | select(.object.sha =
 - Skills → From source repo `skills/excel-mcp`, `skills/excel-cli` (always fresh)
 - Shared refs → From source repo `skills/shared/*.md` (always fresh)
 - Marketplace ownership → Stays in the published repo; the source repo contributes overlays and automation, not a local marketplace manifest
+- Runtime bootstrap metadata → `version.txt` + plugin-local helper scripts in `bin/`
 
 **What gets updated:**
 - `plugin.json` version field
-- `version.txt` (for MCP plugin download script)
+- `version.txt` (release-tag metadata consumed by plugin-local bootstrap logic)
+
+### Runtime Bootstrap Packaging Rules
+
+- Published plugins ship **wrapper/download logic and metadata only**.
+- Self-contained Windows runtimes stay in the main repo GitHub Releases and are fetched by the plugin on first invocation.
+- `publish-plugins.yml` now validates that built plugin artifacts do **not** contain committed `.exe`, `.dll`, `.deps.json`, or `.runtimeconfig.json` payloads.
+- Overlay copy helpers now include hidden files, so source-owned dotfiles such as `.mcp.json` continue to flow through the publish path.
 
 ### Why two repos?
 

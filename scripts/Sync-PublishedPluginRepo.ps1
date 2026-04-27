@@ -6,6 +6,10 @@
     Copies built plugin artifacts into the published marketplace repo, applies any
     source-owned root overlay content, writes the canonical marketplace manifest to
     .github/plugin/marketplace.json, and removes the legacy root marketplace.json.
+
+    The published repo is wrapper/bootstrap-only. Self-contained Windows runtimes
+    remain in the main repo GitHub Releases and are acquired by plugin-local
+    bootstrap logic on first invocation.
 #>
 param(
     [Parameter(Mandatory = $true)]
@@ -34,7 +38,7 @@ function Copy-DirectoryFiles {
         [string]$DestinationDir
     )
 
-    Get-ChildItem -Path $SourceDir -Recurse -File | ForEach-Object {
+    Get-ChildItem -Path $SourceDir -Recurse -File -Force | ForEach-Object {
         $relativePath = $_.FullName.Substring($SourceDir.Length).TrimStart('\', '/')
         $destinationPath = Join-Path $DestinationDir $relativePath
         $destinationParent = Split-Path -Parent $destinationPath

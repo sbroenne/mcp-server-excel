@@ -144,6 +144,49 @@ function Generate-CliReference {
         }
     }
 
+    $Content += "## Common Pitfalls"
+    $Content += ""
+    $Content += "### --values-file Must Be an Existing File"
+    $Content += ""
+    $Content += "`--values-file` expects a path to an **existing** JSON or CSV file on disk. Do NOT pass inline JSON as the value - the CLI will look for a file at that path and fail with `"File not found`". If you don't have a file, use `--values` with inline JSON instead."
+    $Content += ""
+    $Content += "### --timeout Must Be Greater Than Zero"
+    $Content += ""
+    $Content += "When using `--timeout`, the value must be a positive integer (seconds). `--timeout 0` is invalid and will error. Omit `--timeout` entirely to use the default (300 seconds for most operations)."
+    $Content += ""
+    $Content += "### Power Query Operations Are Slow"
+    $Content += ""
+    $Content += "`powerquery create`, `powerquery refresh`, and `powerquery evaluate` may take 30+ seconds depending on data volume. Either omit `--timeout` (uses 5-minute default) or set a generous value like `--timeout 120`."
+    $Content += ""
+    $Content += "### JSON Values Format"
+    $Content += ""
+    $Content += "`--values` takes a 2D JSON array wrapped in single quotes:"
+    $Content += '```powershell'
+    $Content += "# CORRECT: 2D array with single-quote wrapper"
+    $Content += "--values '[[`"Name`",`"Age`"],[`"Alice`",30],[`"Bob`",25]]'"
+    $Content += ""
+    $Content += "# WRONG: Not a 2D array"
+    $Content += "--values '[`"Alice`",30]'"
+    $Content += ""
+    $Content += "# WRONG: Object instead of array"
+    $Content += "--values '{`"Name`":`"Alice`",`"Age`":30}'"
+    $Content += '```'
+    $Content += ""
+    $Content += "### List Parameters Use JSON Arrays"
+    $Content += ""
+    $Content += "Parameters that accept lists (for example, `--selected-items` for slicers) require JSON array format:"
+    $Content += '```powershell'
+    $Content += "# CORRECT: JSON array with single-quote wrapper"
+    $Content += "--selected-items '[`"West`",`"East`"]'"
+    $Content += ""
+    $Content += "# CORRECT: Clear selection"
+    $Content += "--selected-items '[]'"
+    $Content += ""
+    $Content += "# WRONG: Comma-separated string (not valid)"
+    $Content += "--selected-items `"West,East`""
+    $Content += '```'
+    $Content += ""
+
     # Write the file
     $Content -join "`n" | Set-Content -Path $OutputFile -Encoding UTF8 -NoNewline
     Write-Host "  Generated: cli-commands.md" -ForegroundColor Green

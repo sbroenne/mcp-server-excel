@@ -1,10 +1,12 @@
 ---
 name: excel-mcp
 description: >
-  Automate Microsoft Excel on Windows via COM interop. Use when creating, reading,
-  or modifying Excel workbooks. Supports Power Query (M code), Data Model (DAX measures),
-  PivotTables, Tables, Ranges, Charts, Slicers, Formatting, VBA macros, connections, and calculation mode control.
-  Triggers: Excel, spreadsheet, workbook, xlsx, Power Query, DAX, PivotTable, VBA.
+  Excel MCP Server skill for Windows workbook automation. Use when an assistant
+  needs rich MCP tools to create, inspect, modify, format, or analyze Excel files.
+  Supports Power Query (M), Data Model/DAX, PivotTables, Tables, Ranges, Charts,
+  Slicers, formatting, screenshots, VBA macros, connections, and calculation mode.
+  Triggers: Excel, spreadsheet, workbook, xlsx, xlsm, Power Query, DAX, PivotTable,
+  chart, dashboard, VBA, MCP.
 ---
 
 # Excel MCP Server Skill
@@ -145,19 +147,6 @@ Error responses include actionable hints:
 }
 ```
 
-### Rule 10: Use Calculation Mode for Bulk Write Performance
-
-When writing many values/formulas (10+ cells), use `calculation_mode` to avoid recalculating after every write:
-
-```
-1. calculation_mode(action: 'set-mode', mode: 'manual')  → Disable auto-recalc
-2. Perform data writes (range set-values, set-formulas)
-3. calculation_mode(action: 'calculate', scope: 'workbook')  → Recalculate once at end
-4. calculation_mode(action: 'set-mode', mode: 'automatic')  → Restore default
-```
-
-**When NOT needed:** Reading formulas, small edits (1-10 cells), or when you need immediate calculation results.
-
 ## Tool Selection Quick Reference
 
 | Task | Tool | Key Action |
@@ -187,6 +176,8 @@ See `references/` for detailed guidance:
 - [Dashboard and report best practices](./references/dashboard.md)
 - [Data Model/DAX specifics](./references/datamodel.md)
 - [DMV query reference for Data Model analysis](./references/dmv-reference.md)
+- [Excel agent mode and advanced automation](./references/excel_agent_mode.md)
+- [Gotchas and known limits](./references/gotchas.md)
 - [Power Query M code syntax reference](./references/m-code-syntax.md)
 - [PivotTable operations](./references/pivottable.md)
 - [Power Query specifics](./references/powerquery.md)
@@ -194,4 +185,5 @@ See `references/` for detailed guidance:
 - [Screenshot and visual verification](./references/screenshot.md)
 - [Slicer operations](./references/slicer.md)
 - [Table operations](./references/table.md)
+- [Window and visibility operations](./references/window.md)
 - [Worksheet operations](./references/worksheet.md)
