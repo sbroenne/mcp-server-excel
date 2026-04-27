@@ -1,21 +1,11 @@
 # Excel CLI References
 
-This folder contains behavioral guidance and quirks documentation for the Excel CLI.
+This folder contains the generated command/action/flag reference for the Excel CLI.
 
-**Note for developers:** Run `dotnet build -c Release` to generate SKILL.md and copy shared content from `skills/shared/` to this folder.
+**Note for developers:** Run `dotnet build src\ExcelMcp.CLI\ExcelMcp.CLI.csproj -c Release` to generate SKILL.md. Run `scripts\Build-AgentSkills.ps1 -PopulateReferences` to regenerate `cli-commands.md` from the built CLI help output.
 
-**Note for users:** When distributed as a skill package, this folder is pre-populated with all necessary reference files.
+**Note for users:** When distributed as a skill package, this folder includes the exact CLI command reference generated from `excelcli --help`.
 
-## Contents (populated by build)
+## Contents
 
-- `behavioral-rules.md` - Core execution rules
-- `anti-patterns.md` - Common mistakes to avoid  
-- `workflows.md` - Production workflow patterns
-- `powerquery.md` - Power Query quirks
-- `datamodel.md` - Data Model/DAX quirks
-- `table.md` - Table operations
-- `range.md` - Range operations
-- `worksheet.md` - Worksheet operations
-- `chart.md` - Chart operations
-- `slicer.md` - Slicer operations
-- `conditionalformat.md` - Conditional formatting
+- `cli-commands.md` - Auto-generated command groups, actions, parameters, and common pitfalls

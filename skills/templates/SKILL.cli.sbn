@@ -174,9 +174,11 @@ excelcli -q batch --input commands.json
 
 **Full reference:** See [CLI command reference and common pitfalls](./references/cli-commands.md), or run `excelcli <command> --help` for live help from the installed runtime.
 
+**Syntax rule:** CLI commands use `excelcli -q <command> <action> --session <id> --kebab-case-flags ...`. Do not use MCP call syntax such as `range(action: ...)`, snake_case parameters, or underscore tool names. The CLI command names remove MCP underscores: `calculation_mode` becomes `calculationmode`, `range_format` becomes `rangeformat`, `chart_config` becomes `chartconfig`, and `data_model` becomes `datamodel`.
+
 Available command groups:
 
-{{ for cmd in clicommands }}`{{ cmd.name }}`{{ if !for.last }}, {{ end }}{{ end }}
+`session`, `batch`, `service`, {{ for cmd in clicommands }}`{{ cmd.name }}`{{ if !for.last }}, {{ end }}{{ end }}
 
 ## Common Pitfalls
 
@@ -190,22 +192,4 @@ See [CLI command reference and common pitfalls](./references/cli-commands.md#com
 
 ## Reference Documentation
 
-- [Core execution rules and LLM guidelines](./references/behavioral-rules.md)
-- [Common mistakes to avoid](./references/anti-patterns.md)
-- [Gotchas & known limits](./references/gotchas.md)
-- [Data Model constraints and patterns](./references/workflows.md)
-- [Charts, positioning, and formatting](./references/chart.md)
-- [Conditional formatting operations](./references/conditionalformat.md)
-- [Dashboard and report best practices](./references/dashboard.md)
-- [Data Model/DAX specifics](./references/datamodel.md)
-- [DMV query reference for Data Model analysis](./references/dmv-reference.md)
-- [Excel agent mode and advanced automation](./references/excel_agent_mode.md)
-- [Power Query M code syntax reference](./references/m-code-syntax.md)
-- [PivotTable operations](./references/pivottable.md)
-- [Power Query specifics](./references/powerquery.md)
-- [Range operations and number formats](./references/range.md)
-- [Screenshot and visual verification](./references/screenshot.md)
-- [Slicer operations](./references/slicer.md)
-- [Table operations](./references/table.md)
-- [Window and visibility operations](./references/window.md)
-- [Worksheet operations](./references/worksheet.md)
+- [CLI command reference and common pitfalls](./references/cli-commands.md)

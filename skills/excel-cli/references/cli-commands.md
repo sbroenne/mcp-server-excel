@@ -197,7 +197,7 @@ Diagnostic commands for testing CLI/MCP infrastructure without Excel. These comm
 
 ### namedrange
 
-Named ranges for formulas/parameters. CREATE/UPDATE: value is cell reference (e.g., 'Sheet1!$A$1'). WRITE: value is data to store. TIP: range(rangeAddress=namedRangeName) for bulk data read/write.
+Named ranges for formulas/parameters. CREATE/UPDATE: value is cell reference (e.g., 'Sheet1!$A$1'). WRITE: value is data to store. TIP: use `range get-values` or `range set-values` with the named range as `--range-address` for bulk data read/write.
 
 **Actions:** `list`, `write`, `read`, `update`, `create`, `delete`
 

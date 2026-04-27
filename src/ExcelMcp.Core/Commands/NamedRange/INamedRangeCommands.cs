@@ -8,7 +8,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// Named ranges for formulas/parameters.
 /// CREATE/UPDATE: value is cell reference (e.g., 'Sheet1!$A$1').
 /// WRITE: value is data to store.
-/// TIP: range(rangeAddress=namedRangeName) for bulk data read/write.
+/// TIP: use range get-values/set-values with the named range as the range address for bulk data read/write.
 /// </summary>
 [ServiceCategory("namedrange", "NamedRange")]
 [McpTool("namedrange", Title = "Named Range Operations", Destructive = true, Category = "data",

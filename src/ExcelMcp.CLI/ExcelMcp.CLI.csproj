@@ -142,19 +142,4 @@
     <Message Text="Generated CLI Skill: $(SkillOutputPath)" Importance="high" />
   </Target>
 
-  <!-- Copy shared references to CLI skill folder after skill generation -->
-  <Target Name="CopyCliReferences" AfterTargets="GenerateCliSkill" Condition="'$(Configuration)' == 'Release'">
-    <PropertyGroup>
-      <SharedDir>$(MSBuildProjectDirectory)\..\..\skills\shared</SharedDir>
-      <RefsDir>$(MSBuildProjectDirectory)\..\..\skills\excel-cli\references</RefsDir>
-    </PropertyGroup>
-    <ItemGroup>
-      <!-- Copy ALL skill references from shared directory -->
-      <CliReferenceFiles Include="$(SharedDir)\*.md" />
-    </ItemGroup>
-    <MakeDir Directories="$(RefsDir)" Condition="!Exists('$(RefsDir)')" />
-    <Copy SourceFiles="@(CliReferenceFiles)" DestinationFolder="$(RefsDir)" SkipUnchangedFiles="true" />
-    <Message Text="Copied CLI references to $(RefsDir)" Importance="high" />
-  </Target>
-
 </Project>
