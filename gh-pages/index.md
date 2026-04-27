@@ -39,6 +39,10 @@ canonical_url: "https://excelmcpserver.dev/"
     <a href="https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp" class="button-link">Install Extension</a>
   </div>
   <div style="text-align: center;">
+    <p><strong>Copilot CLI Plugin</strong></p>
+    <a href="/installation/#copilot-cli-install-path" class="button-link">Plugin Marketplace</a>
+  </div>
+  <div style="text-align: center;">
     <p><strong>Claude Desktop</strong></p>
     <a href="https://github.com/sbroenne/mcp-server-excel/releases/latest" class="button-link">One-Click Install</a>
   </div>
