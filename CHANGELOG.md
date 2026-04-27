@@ -10,6 +10,8 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.8.52] - 2026-04-27
+
 ### Fixed
 
 - **CLI skill guidance now matches the actual CLI surface**: Removed MCP-style shared reference files from the `excel-cli` skill package so agents no longer see examples like `range_format(action: ...)` or underscore tool names when they should use `excelcli -q <command> <action> --kebab-case-flags`. The CLI skill now promotes `references/cli-commands.md` as the command/action/parameter source of truth, documents the real command-group naming convention, and packaging scripts no longer copy MCP shared references into the CLI skill. Added skill-generation regressions to keep the CLI references CLI-specific.
