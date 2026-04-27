@@ -1,10 +1,6 @@
 ---
 name: excel-mcp
-description: >
-  Automate Microsoft Excel on Windows via COM interop. Use when creating, reading,
-  or modifying Excel workbooks. Supports Power Query (M code), Data Model (DAX measures),
-  PivotTables, Tables, Ranges, Charts, Slicers, Formatting, VBA macros, connections, and calculation mode control.
-  Triggers: Excel, spreadsheet, workbook, xlsx, Power Query, DAX, PivotTable, VBA.
+description: "Automate Microsoft Excel on Windows via COM interop. Use when creating, reading, or modifying Excel workbooks. Supports Power Query (M code), Data Model (DAX measures), PivotTables, Tables, Ranges, Charts, Slicers, Formatting, VBA macros, connections, and calculation mode control. Triggers: Excel, spreadsheet, workbook, xlsx, Power Query, DAX, PivotTable, VBA."
 ---
 
 # Excel MCP Server Skill
@@ -144,19 +140,6 @@ Error responses include actionable hints:
   "suggestedNextActions": ["table(action: 'add-to-data-model', tableName: 'Sales')"]
 }
 ```
-
-### Rule 10: Use Calculation Mode for Bulk Write Performance
-
-When writing many values/formulas (10+ cells), use `calculation_mode` to avoid recalculating after every write:
-
-```
-1. calculation_mode(action: 'set-mode', mode: 'manual')  → Disable auto-recalc
-2. Perform data writes (range set-values, set-formulas)
-3. calculation_mode(action: 'calculate', scope: 'workbook')  → Recalculate once at end
-4. calculation_mode(action: 'set-mode', mode: 'automatic')  → Restore default
-```
-
-**When NOT needed:** Reading formulas, small edits (1-10 cells), or when you need immediate calculation results.
 
 ## Tool Selection Quick Reference
 

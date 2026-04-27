@@ -1,6 +1,6 @@
 ---
 name: "project-conventions"
-description: "Core conventions and patterns for ExcelMcp"
+description: "Enforce ExcelMcp coding conventions for .NET/C# COM interop development. Covers exception propagation through batch.Execute(), COM object cleanup, MCP schema discoverability, xUnit integration testing patterns, and bug triage workflows. Use when writing new commands, adding MCP tools, fixing bugs, running tests, or reviewing code in the ExcelMcp codebase. Triggers: convention, code style, testing, error handling, COM cleanup, MCP schema, triage, xUnit, dotnet test, batch API."
 ---
 
 ## Context
@@ -59,14 +59,6 @@ ALL dynamic COM objects must be released in `finally` blocks using `ComUtilities
 - When hardening diagnostics regressions, centralize failure-envelope assertions in the shared test harness so every regression checks the same contract: `success=false`, `isError=true`, `error == errorMessage`, expected `exceptionType`, and scenario-specific presence/absence of `errorCategory`, `hresult`, and `innerError`.
 - For CLI parity tests, assert exit code `1` on business-error paths (for example, missing sheet or invalid input). If the setup command itself returns non-JSON stdout, treat that as startup/harness noise and surface raw stdout/stderr in the helper exception instead of misclassifying it as a contract failure.
 
-### Bug Report Triage For Tests
-
-- Check the live tool surface before treating a report as a missing-feature bug; verify `ServiceAction` coverage and current MCP tool docs first.
-- Classify each report item before writing tests: regression in promised behavior, discoverability/documentation gap, or new feature request.
-- Regressions get exact failing workflow tests first at Core and MCP layers.
-- Existing capabilities with weak discoverability get positive end-to-end coverage before any API expansion.
-- New features get acceptance tests only after the public API shape is agreed.
-
 ### Code Style
 
 - Analyzer: `TreatWarningsAsErrors=true` with .NET analyzers
@@ -111,10 +103,16 @@ For real batching work, prefer existing list-of-objects patterns over ad hoc JSO
 
 ## Triage Pattern
 
-Before assigning a bug to Core, check three things in order:
+Before assigning a bug to Core or writing tests, follow this sequence:
 
-1. Existing integration coverage for the exact shape or a close analogue.
-2. Whether the capability already exists under a different tool or action name.
-3. Whether the failure is more likely in MCP/service argument binding, docs/skills discoverability, or true COM/Core behavior.
+1. Check existing integration coverage for the exact shape or a close analogue.
+2. Verify whether the capability already exists under a different tool or action name (`ServiceAction` coverage, current MCP tool docs).
+3. Determine if the failure is in MCP/service argument binding, docs/skills discoverability, or true COM/Core behavior.
+4. Classify each report item: regression in promised behavior, discoverability/documentation gap, or new feature request.
+
+**Then for tests:**
+- Regressions get exact failing workflow tests first at Core and MCP layers.
+- Existing capabilities with weak discoverability get positive end-to-end coverage before any API expansion.
+- New features get acceptance tests only after the public API shape is agreed.
 
 Use this especially for reports that claim a hard product limit or a missing feature. Wide-range failures and formatting gaps are often mis-triaged when tests or tool surfaces already cover the scenario elsewhere.
