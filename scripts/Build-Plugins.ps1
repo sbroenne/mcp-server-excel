@@ -255,15 +255,9 @@ $SourceSkillCli = Join-Path $SkillsDir "excel-cli\SKILL.md"
 $DestSkillCli = Join-Path $OutputCli "skills\excel-cli\SKILL.md"
 Copy-Item -Path $SourceSkillCli -Destination $DestSkillCli -Force
 
-Write-Host "  Refreshing shared references..." -ForegroundColor Cyan
 $RefsDir = Join-Path $OutputCli "skills\excel-cli\references"
 if (-not (Test-Path $RefsDir)) {
     New-Item -ItemType Directory -Path $RefsDir -Force | Out-Null
-}
-$SharedFiles = Get-ChildItem -Path $SharedDir -Filter "*.md"
-foreach ($file in $SharedFiles) {
-    Copy-Item -Path $file.FullName -Destination (Join-Path $RefsDir $file.Name) -Force
-    Write-Host "    ✓ $($file.Name)" -ForegroundColor DarkGray
 }
 
 Write-Host "  Refreshing excel-cli references..." -ForegroundColor Cyan

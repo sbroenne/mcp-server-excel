@@ -17,7 +17,7 @@ Modern coding agents increasingly favor CLI-based workflows:
 ```powershell
 # Token-efficient: No schema overhead
 excelcli -q session open C:\Data\Report.xlsx
-excelcli -q range set-values --session 1 --sheet Sheet1 --range A1 --values-json '[["Hello"]]'
+excelcli -q range set-values --session 1 --sheet-name Sheet1 --range-address A1 --values '[["Hello"]]'
 excelcli -q session close --session 1 --save
 ```
 
@@ -49,7 +49,7 @@ Extract to your AI assistant's skills directory:
 | **Goose** | `.goose/skills/excel-cli/` |
 
 Or use npx:
-```bash
+```powershell
 # Interactive - prompts to select excel-cli, excel-mcp, or both
 npx skills add sbroenne/mcp-server-excel
 
@@ -63,25 +63,8 @@ npx skills add sbroenne/mcp-server-excel --skill excel-cli
 excel-cli/
 ├── SKILL.md           # Main skill definition with CLI command guidance
 ├── README.md          # This file
-└── references/        # Detailed domain-specific guidance
-    ├── anti-patterns.md
-    ├── behavioral-rules.md
-    ├── chart.md
-    ├── conditionalformat.md
-    ├── dashboard.md
-    ├── datamodel.md
-    ├── dmv-reference.md
-    ├── excel_agent_mode.md
-    ├── gotchas.md
-    ├── m-code-syntax.md
-    ├── pivottable.md
-    ├── powerquery.md
-    ├── range.md
-    ├── screenshot.md
-    ├── slicer.md
-    ├── table.md
-    ├── window.md
-    └── worksheet.md
+└── references/        # Exact CLI command/action/flag reference
+    └── cli-commands.md
 ```
 
 ## CLI Tool Installation

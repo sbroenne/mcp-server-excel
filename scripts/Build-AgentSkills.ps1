@@ -8,8 +8,9 @@
     - CLAUDE.md: Claude Code project instructions
     - .cursorrules: Cursor project rules
 
-    Shared behavioral guidance from skills/shared/ is automatically copied
-    to both excel-mcp/references/ and excel-cli/references/ during packaging.
+    MCP shared behavioral guidance from skills/shared/ is automatically copied
+    to excel-mcp/references/ during packaging. The excel-cli skill uses its
+    generated references/cli-commands.md file as the CLI-specific source of truth.
 
     Users install with: npx skills add sbroenne/mcp-server-excel
 
@@ -20,7 +21,7 @@
     Override version from skills/excel-mcp/VERSION
 
 .PARAMETER PopulateReferences
-    Copy shared references to skill folders for local development (without packaging).
+    Copy MCP shared references and regenerate CLI command reference files for local development (without packaging).
 
 .EXAMPLE
     ./Build-AgentSkills.ps1
@@ -206,13 +207,11 @@ function Copy-SharedReferences {
         New-Item -ItemType Directory -Path $RefsDir -Force | Out-Null
     }
 
-    # Define which files each skill needs (based on SKILL.md @references/)
+    # Define which files each skill needs (based on SKILL.md references)
     $SkillReferences = @{
         "excel-cli" = @(
-            "behavioral-rules.md"
-            "anti-patterns.md"
-            "workflows.md"
-            # cli-commands.md is generated dynamically by Generate-CliReference
+            # cli-commands.md is generated dynamically by Generate-CliReference.
+            # Do not copy MCP-style shared references into the CLI skill.
         )
         "excel-mcp" = @(
             "behavioral-rules.md"
@@ -230,9 +229,14 @@ function Copy-SharedReferences {
     }
 
     # Get the list of files for this skill
+    if (-not $SkillReferences.ContainsKey($SkillName)) {
+        Write-Warning "Unknown skill: $SkillName"
+        return
+    }
+
     $FilesToCopy = $SkillReferences[$SkillName]
-    if (-not $FilesToCopy) {
-        Write-Warning "No reference files defined for skill: $SkillName"
+    if ($FilesToCopy.Count -eq 0) {
+        Write-Host "  No shared references copied to $SkillName/references/" -ForegroundColor DarkGray
         return
     }
 

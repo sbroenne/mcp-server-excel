@@ -12,6 +12,7 @@ public class SkillMdQualityTests
 {
     private static readonly string SkillsFolder = Path.Combine(
         AppContext.BaseDirectory, "skills");
+    private static readonly string[] ExpectedCliReferenceFiles = ["cli-commands.md", "README.md"];
 
     [Fact]
     [Trait("Category", "Unit")]
@@ -117,8 +118,42 @@ public class SkillMdQualityTests
         var content = File.ReadAllText(skillPath);
 
         Assert.Contains("./references/cli-commands.md", content);
+        Assert.Contains("excelcli -q <command> <action>", content);
         Assert.DoesNotContain("### calculationmode", content);
         Assert.DoesNotContain("| Parameter | Description |", content);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    [Trait("Feature", "SkillGeneration")]
+    public void CliSkill_DoesNotLinkMcpStyleDomainReferences()
+    {
+        var skillPath = Path.Combine(SkillsFolder, "excel-cli", "SKILL.md");
+        var content = File.ReadAllText(skillPath);
+
+        Assert.DoesNotContain("./references/range.md", content);
+        Assert.DoesNotContain("./references/chart.md", content);
+        Assert.DoesNotContain("./references/powerquery.md", content);
+        Assert.DoesNotContain("./references/worksheet.md", content);
+        Assert.DoesNotContain("./references/behavioral-rules.md", content);
+        Assert.DoesNotContain("./references/anti-patterns.md", content);
+        Assert.DoesNotContain("./references/workflows.md", content);
+        Assert.DoesNotContain("range_format(action:", content);
+        Assert.DoesNotContain("chart_config(", content);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    [Trait("Feature", "SkillGeneration")]
+    public void CliReferences_OnlyContainCliSpecificFiles()
+    {
+        var referencesPath = Path.Combine(SkillsFolder, "excel-cli", "references");
+        var fileNames = Directory.GetFiles(referencesPath, "*.md")
+            .Select(path => Path.GetFileName(path)!)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Assert.Equal(ExpectedCliReferenceFiles, fileNames);
     }
 
     [Fact]
