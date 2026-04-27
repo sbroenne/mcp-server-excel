@@ -35,6 +35,13 @@
 - Updated source and published-repo plugin docs to reflect the validated two-plugin distribution story and the honest local-testing blockers.
 - Kept counts aligned to the authoritative feature inventory and documented the release-asset dependency for first-time binary download.
 
+### 2026-04-27: PR Description Rewrite (Bootstrap Release)
+- Found PR #622 with weak internal-focused title ("Log Nate's bootstrap smoke regression...") and messy body mixing squad context with shipped features.
+- Rewrote title to user-focused: "Ship plugin bootstrap runtime wrappers and packaging validation".
+- Restructured body: clear summary + what's new + what changed (4 concrete changes) + validation checkmarks.
+- Stripped squad mechanics (session IDs, agent histories, merged decisions) — focused on shipped work only: bootstrap runtime, packaging validation, regression coverage.
+- Result: PR now tells the story of runtime auto-download, plugin-local freshness checks, build hardening, and test alignment.
+
 ## Learnings
 
 - **Docs layering:** Put sync-gate, version/tag guard, and manual replay details in maintainer docs first; keep user-facing docs to concise, accurate statements.
@@ -121,3 +128,56 @@
 - Legacy package cleanup requires auditing multiple doc surfaces: installation docs, package READMEs, release strategy, skills overviews, and platform-specific docs (gh-pages).
 - When distribution models change, track both positive statements (what IS published) and negative statements (what IS NOT published) — silence about removed channels can confuse users.
 - Deprecation messages in legacy package directories should guide users to the exact new method (GitHub Copilot plugins with marketplace URLs + npx skills add example).
+
+---
+
+## 2026-04-25: Plugin Install Docs Cleanup
+
+**By:** Trejo (Docs Lead)
+
+**Task:** Clean user-facing plugin install wording across all installation surfaces; remove maintainer-internal workflow details (PAT, sync gates, downgrade guards, repair/replay mechanics); replace misleading headings; keep user notes short and accurate about the published plugin marketplace repo (`sbroenne/mcp-server-excel-plugins`).
+
+**Work Completed:**
+
+✅ **README.md** — Plugin marketplace section reworded (lines 145-147):
+- Removed 4-sentence paragraph about source-repo overlay files and sync gates
+- Removed description of "cross-repo token scoped to published marketplace repo"
+- Removed "downgrade/tag mismatches blocked" and "manual maintainer re-sync path for repair/replay" details (purely internal)
+- Replaced with: "The published repo [...] hosts the GitHub Copilot plugin marketplace. Plugins are republished automatically after each ExcelMcp release, though you may need to wait a few moments for the update to appear in the marketplace."
+- Added note: "These commands are specific to GitHub Copilot CLI. VS Code and Claude have their own plugin systems with separate installation flows."
+
+✅ **docs/INSTALLATION.md** — Plugin section reworded (lines 337-356):
+- Renamed section from "### Copilot CLI install path" → "### Copilot CLI Plugin Installation" (clearer, less technical)
+- Renamed "### One-time post-install steps" → "**After Installation:**" (matches current behavior, no "one-time" misconception)
+- Consolidated install+post-install into single logical block for clarity
+- Removed entire "Other supported plugin surfaces" section and replaced with single short note
+- Removed "Source-layout note" paragraph (source-repo overlay files — purely internal)
+- Removed "That publish path is sync-gated..." paragraph (PAT, downgrade guards, repair/replay — purely internal)
+- Kept: "Plugins are published automatically after each ExcelMcp release, though you may need to wait a few moments for the update to appear in the marketplace."
+
+✅ **gh-pages/_includes/installation.md** — Already cleaned (from previous pass)
+✅ **.github/plugins/excel-cli/README.md** — Already cleaned (from previous pass)
+✅ **.github/plugins/excel-mcp/README.md** — Already cleaned (from previous pass)
+
+**Decision Recorded:** `.squad/decisions/inbox/trejo-plugin-docs-cleanup.md`
+
+**Risk Analysis:**
+- 🟢 **ZERO RISK** — Changes are documentation-only. No code, workflow, or behavior modified.
+- ✅ Install commands are unchanged and tested
+- ✅ Marketplace repo name preserved throughout (users may need to reference it)
+- ✅ Wording now matches user-facing guidance tone (concise, accurate, honest)
+
+**Learnings for Future Work:**
+- User docs should describe WHAT users do, not WHY internal workflows exist. Remove "workflow dispatch" talk, "sync-gate" mechanics, PAT/token details, "downgrade/tag mismatch guards," and "(one-time)" modifiers unless they directly affect user experience.
+- Keep marketplace repo name visible when users interact with marketplace. Hiding it behind "published repo" creates support friction.
+- Plugin install docs and feature docs are separate problems. Keep plugin install docs SHORT. Relegate workflow mechanics to maintainer docs (e.g., `docs/RELEASE-STRATEGY.md`).
+- Misleading headings like "One-time post-install steps" should be replaced with descriptive labels ("After Installation") that match current behavior.
+- Three parallel plugin README surfaces (.github/plugins/excel-cli, .github/plugins/excel-mcp, gh-pages/_includes/installation.md) require synchronized rewording. Consider adding linting that flags wording inconsistencies between parallel install sections.
+
+
+### 2026-04-28: PR #605 Skills Review — Skill Quality Improvements
+- Reviewed PR from @rohan-tessl (Tessl skills optimization service) targeting 5 skills.
+- Found: Measurable quality gains (46%→90%, 51%→89%, 61%→94%), YAML frontmatter fixes, smart content refactoring.
+- Assessed external workflow tool (skill-review.yml) as low-risk, non-blocking feedback.
+- Verdict: **Improves skills, worth merging.**
+- Key insight: Moving 560-line CLI reference out of SKILL.md (800→202 lines) is safe, improves discovery, preserves content in references/.

@@ -9,7 +9,9 @@
 ## Learnings
 
 <!-- Append learnings below -->
-- 2026-04-25: **Extended workflow audit — removal analysis complete.** 11 active workflows all KEEP (build-cli, build-mcp-server, codeql, dependency-review, stale, deploy-gh-pages, release all essential; publish-plugins new but critical for Copilot CLI marketplace). Two disabled workflows recommended for REMOVAL: deploy-azure-runner.yml.disabled (infrastructure undeployed 4 months, no active use) and integration-tests.yml.disabled (superseded by coverage audits in build pipeline). Removal plan: delete .disabled files, archive infrastructure context in .github/docs/INFRASTRUCTURE_DECISIONS.md, document in TESTING_STRATEGY.md. Risk: none — git history + documentation preserved. Recommendation: execute removal immediately (cleaner directory, no functional loss). Detailed report: .squad/decisions/inbox/mccauley-workflow-removal-recommendations.md
+- 2026-04-27: **Push and PR workflow completed.** Switched gh auth from EMU account (stbrnner_microsoft) to personal account (sbroenne) per repo requirement. Pushed feature/gh-pages-cli-plugin-install (post-merge logging commit 22ad69a). PR #620 already merged; created new PR #622 for Scribe logging of Nate's bootstrap smoke regression work. PR captures runtime bootstrap test additions, fixture alignment to current shipped surface, and team orchestration logs. Status: Open, ready for review.
+
+- 2026-04-25: **Extended workflow audit — removal analysis complete.**11 active workflows all KEEP (build-cli, build-mcp-server, codeql, dependency-review, stale, deploy-gh-pages, release all essential; publish-plugins new but critical for Copilot CLI marketplace). Two disabled workflows recommended for REMOVAL: deploy-azure-runner.yml.disabled (infrastructure undeployed 4 months, no active use) and integration-tests.yml.disabled (superseded by coverage audits in build pipeline). Removal plan: delete .disabled files, archive infrastructure context in .github/docs/INFRASTRUCTURE_DECISIONS.md, document in TESTING_STRATEGY.md. Risk: none — git history + documentation preserved. Recommendation: execute removal immediately (cleaner directory, no functional loss). Detailed report: .squad/decisions/inbox/mccauley-workflow-removal-recommendations.md
 
 - 2026-04-25: **Workflow audit complete.** All 11 active workflows are current, properly ordered, and follow GitHub best practices. No deprecated action versions, missing permission scopes, or contradictory messaging. Release pipeline (release.yml + publish-plugins.yml) is well-architected for multi-component coordination. One publish-plugins failure (2026-04-24) traced to environmental cause (dirty branch state during parallel Phase work), not workflow defect. Monitoring: next publish-plugins run after release #82 for confirmation. PR gate opens for fix/workflow-warnings-and-cleanup branch; Cheritto changes must preserve job dependencies, coverage audits, release messaging. Detailed report: .squad/decisions/inbox/mccauley-workflow-audit-report.md
 
@@ -46,6 +48,34 @@
 **Agent Decision Already Made:**
 - Phase 1 placeholder agent: REMOVED entirely (no value add, spec doesn't require agents)
 - Rationale: Skills already comprehensive; agent without clear scope is worse than nothing
+
+---
+
+## 2026-04-21: PR #605 Review — Skill Optimization (EXTERNAL CONTRIB)
+
+**Status:** ❌ DO NOT MERGE AS-IS  
+**Author:** rohan-tessl (Tessl external contributor)  
+**Scope:** Skill score improvements (internal + public), GitHub Action for auto-scoring
+
+**Verdict:** Two blocking issues:
+
+1. **Unvetted Workflow Automation** — PR adds `.github/workflows/skill-review.yml` (new CI/CD gate via external Tessl action) without test run on fork. Requires dry-run verification before shipping.
+
+2. **Unapproved Internal Skills Edits** — PR rewrites `.squad/skills/project-conventions`, `error-transport-context`, `precommit-release-gates` without team review. These describe OUR conventions; only Stefan should approve rewrites.
+
+**What's Good:**
+- ✅ Public skills (`excel-cli`, `excel-mcp`) cleanup is solid: duplication removal, format fixes, no functional impact
+- ✅ Internal skills content IS clearer (better "Use when" clauses, concrete examples, structured workflows)
+- ✅ Auto-scoring concept is sound — continuous visibility into skill quality is valuable
+
+**Recommendation:** Split the PR:
+1. **Accept:** Public skills cleanup (exe-cli, excel-mcp) — safe, pure refactor
+2. **Revert:** Internal skills rewrites — deferred to Stefan for explicit sign-off
+3. **Test First:** Workflow action on fork branch, verify output, THEN merge
+
+**Reasoning:** Too much moving at once. Public cleanup can go immediately. Internal conventions need Stefan's voice. Workflow automation needs validation before shipping to main.
+
+**Decision:** BLOCK until splits executed. Do not approve as monolithic PR.
 - Can add later if multi-step workflow orchestration justifies it
 
 **No Architectural Gate Needed:** All phases completed with your earlier approval. Kelso is ready to create GitHub issue + PR on `feature/copilot-cli-plugins` branch.

@@ -12,7 +12,7 @@ All ExcelMcp components are released together with a single version tag:
 | **CLI** | Standalone exe ZIP | NuGet (.NET tool) | `excelcli.exe` — no .NET runtime required |
 | **VS Code Extension** | VSIX + Marketplace | — | Self-contained — bundles MCP Server + CLI + skills |
 | **MCPB** | Claude Desktop bundle | — | Self-contained one-click installation |
-| **GitHub Copilot Plugins** | Published plugin marketplace | — | `excel-mcp` and `excel-cli` plugins with MCP config and skills |
+| **GitHub Copilot Plugins** | Published plugin marketplace | — | `excel-mcp` and `excel-cli` plugins with wrapper/bootstrap assets that fetch the latest runtime on first use |
 | **Agent Skills** | GitHub Release ZIP | Direct skill extraction | Reusable skill packages for AI coding assistants (`npx skills add`) |
 
 ## Unified Release Workflow
@@ -31,7 +31,7 @@ When you run the release workflow, all components are released together:
 3. **VS Code Extension** → Self-contained VSIX (bundles both exes + skills) → VS Code Marketplace
 4. **MCPB** → Claude Desktop bundle (`.mcpb` file)
 5. **Agent Skills** → ZIP package for AI coding assistants
-6. **GitHub Copilot Plugins** → Republished to the GitHub Copilot plugin marketplace repo via `publish-plugins.yml` (see [Phase 3 Plugin Publishing](../.github/workflows/docs/publish-plugins-setup.md))
+6. **GitHub Copilot Plugins** → Republished to the GitHub Copilot plugin marketplace repo via `publish-plugins.yml` with wrapper/bootstrap assets only; the plugins fetch the newest self-contained Windows runtime from the main release on first use (see [Phase 3 Plugin Publishing](../.github/workflows/docs/publish-plugins-setup.md))
 7. **NuGet** → Both packages published to NuGet.org (secondary channel)
 8. **MCP Registry** → Updated after NuGet propagation
 9. **GitHub Release** → Created with all artifacts + auto-PR to update CHANGELOG
@@ -128,8 +128,8 @@ The `publish-plugins.yml` workflow automatically publishes updated plugins when 
 3. **Builds plugins** via `scripts/Build-Plugins.ps1`:
     - Copies validated plugin structure from the published marketplace repo
     - Applies source-owned plugin overlays from `.github/plugins/` (overlay content only; not standalone plugin roots)
-    - Updates version in plugin.json and version.txt
-    - Keeps `excel-cli` as a skill-only plugin; standalone CLI distribution remains the release ZIP/NuGet tool
+    - Strips committed runtime payloads from plugin bundles so the published repo stays wrapper/bootstrap-only
+    - Updates version in plugin.json and version.txt for release-tag metadata, while runtime bootstrap still targets the newest GitHub Release at invocation time
     - Refreshes skill content (always uses latest source)
 4. **Checks published-repo guards** before mutation, reading the current published plugin version from the canonical marketplace manifest when present (or the legacy root manifest before migration):
     - Rejects explicit tag/version mismatches
@@ -155,6 +155,7 @@ gh workflow run publish-plugins.yml -f release_tag=v1.2.3
 
 **Surface note:**
 - The release automation publishes plugin bundles (manifest, skills, agents, hooks, MCP config, helper scripts) to the published repo.
+- Those bundles intentionally exclude self-contained runtime binaries; plugin-local wrapper/download logic retrieves the newest Windows release asset on first use and re-checks freshness at most once per chat session.
 - The published repo is the marketplace; this source repo only owns inputs, overlays, and automation.
 - Those artifacts can be relevant across multiple plugin-capable clients, but marketplace registration, discovery, and installation UX remain client-specific.
 - The current workflow and docs only claim a verified GitHub Copilot install flow; they do **not** claim automatic publication into VS Code or Claude-specific plugin marketplaces.

@@ -125,32 +125,25 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 
 **⚡ CLI Commands:** Generated automatically from Core service definitions using Roslyn source generators. All 22 command categories maintain exact 1:1 parity with MCP tools through shared code generation. See [code generation docs](docs/DEVELOPMENT.md#-cli-command-code-generation) for details.
 
-### 📦 GitHub Copilot Plugins (Alternative Installation)
+### 📦 GitHub Copilot Plugins
 
-ExcelMcp is available as two distributable **GitHub Copilot plugins** published through the GitHub Copilot plugin marketplace:
+ExcelMcp is available as two **GitHub Copilot CLI plugins** in the Copilot plugin marketplace:
 
 ```powershell
 # Register the plugin marketplace (one-time)
 copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 
-# Install one or both plugins with Copilot CLI
-copilot plugin install excel-mcp@mcp-server-excel-plugins   # For conversational AI
-copilot plugin install excel-cli@mcp-server-excel-plugins   # For scripting / coding agents
+# Install one or both plugins
+copilot plugin install excel-mcp@mcp-server-excel-plugins      # For conversational AI
+copilot plugin install excel-cli@mcp-server-excel-plugins      # For scripting / coding agents
 ```
 
-- **`excel-mcp`** — MCP-server-centric workflows
-- **`excel-cli`** — token-efficient CLI workflow guidance; install `excelcli` separately from the release ZIP or NuGet tool
-- Install **either plugin or both**, depending on your agent surface and workflow
+- **`excel-mcp`** — MCP server for conversational workflows
+- **`excel-cli`** — Skill for coding agents (install `excelcli` separately if you want the CLI tool)
 
-The published repo [`sbroenne/mcp-server-excel-plugins`](https://github.com/sbroenne/mcp-server-excel-plugins) is the actual Copilot CLI marketplace. This source repo is **not** itself a marketplace; `.github/plugins/` only contains source-owned overlay files that the publish workflow copies into the published plugin directories.
+**Note:** After each release, there may be a short delay before plugins appear in the marketplace. You may need to wait a few moments for updates to sync.
 
-These are **GitHub Copilot marketplace packages**, not a generic cross-tool install command. The commands above are the documented Copilot CLI install path. VS Code also supports agent plugins in preview, and Claude has its own plugin system, but those surfaces have their own installation and enablement flows.
-
-These plugins are republished automatically after each successful ExcelMcp release by a follow-on workflow that uses a stored cross-repo token scoped to the published marketplace repo. That publish path is sync-gated (no downstream republish when plugin-facing install artifacts did not change), keeps downgrade/tag mismatches blocked, and still exposes a manual maintainer re-sync path for repair/replay scenarios.
-
-The `excel-cli` plugin is skill-only. Install `excelcli` separately from the standalone ZIP or NuGet tool when you need the command on PATH.
-
-**📖 [Plugin Installation Guide →](docs/INSTALLATION.md#github-copilot-plugins-alternative-installation)** | **[Published Marketplace Repo →](https://github.com/sbroenne/mcp-server-excel-plugins)** | **[VS Code Agent Plugins →](https://code.visualstudio.com/docs/copilot/customization/agent-plugins)** | **[Claude Plugins Reference →](https://code.claude.com/docs/en/plugins-reference)**
+📖 [Full Installation Guide →](docs/INSTALLATION.md)
 
 <details>
 <summary>📊 Benchmark Results (same task, same model)</summary>
@@ -234,9 +227,6 @@ The AI will display the Excel window so you can watch every operation happen liv
 **License:** MIT License - see [LICENSE](LICENSE) file
 
 **Privacy:** See [PRIVACY.md](PRIVACY.md) for our privacy policy
-
-**Releasing:** See [RELEASE-STRATEGY.md](docs/RELEASE-STRATEGY.md) for the unified release workflow (MCP Server, CLI, VS Code Extension, MCPB, Agent Skills, and GitHub Copilot plugins, including the cross-repo PAT-backed plugin republish flow)
-
 **Contributing:** See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines
 
 **Built With:** This entire project was developed using GitHub Copilot AI assistance - mainly with Claude but lately with Auto-mode.

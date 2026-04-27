@@ -7,20 +7,26 @@
 
     COPY STRATEGY (not generate):
     1. Copy validated plugin structure from the published marketplace repo (../mcp-server-excel-plugins/plugins/)
-    2. Update version in plugin.json and version.txt
+    2. Strip any committed runtime payloads from plugin bin/ roots
     3. Apply source-owned plugin overlays from .github/plugins/ (overlay content only, not standalone plugin roots)
-    4. Refresh skills content from source repo
-    5. Refresh shared references from source repo
+    4. Update runtime-bootstrap metadata in plugin.json and version.txt
+    5. Refresh skills content from source repo
+    6. Refresh shared references from source repo
 
     WHY COPY NOT GENERATE:
-    - Phase 1/2 created validated bin scripts, READMEs, configs
+    - Phase 1/2 created validated plugin layouts, READMEs, configs
     - Regenerating would introduce drift and regressions
-    - Build script's job: version injection + source-owned overlays + skill refresh, not plugin authoring
+    - Build script's job: wrapper/bootstrap packaging + version injection + skill refresh, not plugin authoring
+
+    RUNTIME BOOTSTRAP MODEL:
+    - Published plugins ship wrapper/download logic and metadata only
+    - Self-contained Windows runtimes are downloaded from the latest GitHub release on first use
+    - No committed .exe/.dll runtime payloads should survive into the published plugin repo
 
     OUTPUT:
     plugins/
-      excel-mcp/     → Full MCP plugin (copied structure + updated version + fresh skills)
-      excel-cli/     → Full CLI plugin (copied structure + updated version + fresh skills)
+      excel-mcp/     → MCP plugin (wrapper/bootstrap assets + updated version + fresh skills)
+      excel-cli/     → CLI plugin (wrapper/bootstrap assets + updated version + fresh skills)
 
 .PARAMETER Version
     Plugin version. If not specified, reads from skills/excel-mcp/VERSION file.
@@ -86,7 +92,7 @@ function Copy-DirectoryFiles {
         [string]$DestinationDir
     )
 
-    Get-ChildItem -Path $SourceDir -Recurse -File | ForEach-Object {
+    Get-ChildItem -Path $SourceDir -Recurse -File -Force | ForEach-Object {
         $relativePath = $_.FullName.Substring($SourceDir.Length).TrimStart('\')
         $destinationPath = Join-Path $DestinationDir $relativePath
         $destinationParent = Split-Path -Parent $destinationPath
@@ -97,6 +103,44 @@ function Copy-DirectoryFiles {
 
         Copy-Item -Path $_.FullName -Destination $destinationPath -Force
     }
+}
+
+function Remove-PackagedRuntimePayload {
+    param(
+        [string]$PluginName,
+        [string]$PluginDir
+    )
+
+    $pluginBinDir = Join-Path $PluginDir "bin"
+    if (-not (Test-Path $pluginBinDir)) {
+        return
+    }
+
+    $runtimePayload = Get-ChildItem -Path $pluginBinDir -Recurse -Force -File | Where-Object {
+        $_.Extension -in @(".exe", ".dll", ".pdb") -or
+        $_.Name.EndsWith(".deps.json", [System.StringComparison]::OrdinalIgnoreCase) -or
+        $_.Name.EndsWith(".runtimeconfig.json", [System.StringComparison]::OrdinalIgnoreCase)
+    }
+
+    foreach ($file in $runtimePayload) {
+        Write-Host "  Removing committed runtime payload from ${PluginName}: $($file.FullName)" -ForegroundColor DarkYellow
+        Remove-Item -Path $file.FullName -Force
+    }
+}
+
+function Update-PluginManifest {
+    param(
+        [string]$PluginJsonPath,
+        [string]$Version,
+        [string]$DisplayName,
+        [string]$Description
+    )
+
+    $pluginJson = Get-Content $PluginJsonPath -Raw | ConvertFrom-Json
+    $pluginJson.version = $Version
+    $pluginJson.displayName = $DisplayName
+    $pluginJson.description = $Description
+    $pluginJson | ConvertTo-Json -Depth 10 | Set-Content $PluginJsonPath -Encoding UTF8
 }
 
 function Apply-PluginOverlay {
@@ -144,12 +188,15 @@ Write-Host "  Copying validated plugin structure..." -ForegroundColor Cyan
 Copy-Item -Path $TemplateMcp -Destination $OutputMcp -Recurse -Force
 
 Apply-PluginOverlay -PluginName "excel-mcp" -DestinationDir $OutputMcp
+Remove-PackagedRuntimePayload -PluginName "excel-mcp" -PluginDir $OutputMcp
 
 Write-Host "  Updating plugin.json version to $Version..." -ForegroundColor Cyan
 $PluginJsonPath = Join-Path $OutputMcp "plugin.json"
-$pluginJson = Get-Content $PluginJsonPath -Raw | ConvertFrom-Json
-$pluginJson.version = $Version
-$pluginJson | ConvertTo-Json -Depth 10 | Set-Content $PluginJsonPath -Encoding UTF8
+Update-PluginManifest `
+    -PluginJsonPath $PluginJsonPath `
+    -Version $Version `
+    -DisplayName "Excel MCP Plugin" `
+    -Description "Windows-only Excel automation plugin that bootstraps the latest ExcelMcp MCP runtime on first use."
 
 Write-Host "  Updating version.txt to $Version..." -ForegroundColor Cyan
 Set-Content -Path (Join-Path $OutputMcp "version.txt") -Value $Version -Encoding UTF8 -NoNewline
@@ -190,12 +237,15 @@ Write-Host "  Copying validated plugin structure..." -ForegroundColor Cyan
 Copy-Item -Path $TemplateCli -Destination $OutputCli -Recurse -Force
 
 Apply-PluginOverlay -PluginName "excel-cli" -DestinationDir $OutputCli
+Remove-PackagedRuntimePayload -PluginName "excel-cli" -PluginDir $OutputCli
 
 Write-Host "  Updating plugin.json version to $Version..." -ForegroundColor Cyan
 $PluginJsonPath = Join-Path $OutputCli "plugin.json"
-$pluginJson = Get-Content $PluginJsonPath -Raw | ConvertFrom-Json
-$pluginJson.version = $Version
-$pluginJson | ConvertTo-Json -Depth 10 | Set-Content $PluginJsonPath -Encoding UTF8
+Update-PluginManifest `
+    -PluginJsonPath $PluginJsonPath `
+    -Version $Version `
+    -DisplayName "Excel CLI Plugin" `
+    -Description "Windows-only Excel automation plugin that bootstraps the latest excelcli runtime on first use."
 
 Write-Host "  Updating version.txt to $Version..." -ForegroundColor Cyan
 Set-Content -Path (Join-Path $OutputCli "version.txt") -Value $Version -Encoding UTF8 -NoNewline
@@ -216,6 +266,14 @@ foreach ($file in $SharedFiles) {
     Write-Host "    ✓ $($file.Name)" -ForegroundColor DarkGray
 }
 
+Write-Host "  Refreshing excel-cli references..." -ForegroundColor Cyan
+$CliReferencesDir = Join-Path $SkillsDir "excel-cli\references"
+$CliReferenceFiles = Get-ChildItem -Path $CliReferencesDir -Filter "*.md"
+foreach ($file in $CliReferenceFiles) {
+    Copy-Item -Path $file.FullName -Destination (Join-Path $RefsDir $file.Name) -Force
+    Write-Host "    ✓ $($file.Name)" -ForegroundColor DarkGray
+}
+
 Write-Host "✅ excel-cli plugin built" -ForegroundColor Green
 
 # =============================================================================
@@ -227,8 +285,8 @@ Write-Host "Version: $Version"
 Write-Host "Output:  $OutputDir"
 Write-Host ""
 Write-Host "Plugins:" -ForegroundColor Cyan
-Write-Host "  ✓ excel-mcp (MCP Server + Skill)" -ForegroundColor Green
-Write-Host "  ✓ excel-cli (CLI Skill only; install excelcli separately)" -ForegroundColor Green
+Write-Host '  [ok] excel-mcp - bootstrap assets and skill' -ForegroundColor Green
+Write-Host '  [ok] excel-cli - bootstrap assets and skill' -ForegroundColor Green
 Write-Host ""
 Write-Host "Test locally:" -ForegroundColor Yellow
 Write-Host "  copilot plugin install $OutputDir\excel-mcp"

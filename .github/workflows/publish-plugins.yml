@@ -8,7 +8,7 @@ name: Publish Plugins
 #
 # WHAT IT DOES:
 # 1. Builds both plugin bundles (excel-mcp, excel-cli) from source
-# 2. Stages the self-contained excelcli publish output into the excel-cli plugin
+# 2. Validates that published plugins contain wrapper/bootstrap assets, not bundled runtimes
 # 3. Updates version.txt to match the release version
 # 4. Pushes published plugin artifacts to sbroenne/mcp-server-excel-plugins
 # 5. Rewrites the published repo to the canonical marketplace layout (.github/plugin/marketplace.json, no legacy root manifest)
@@ -271,6 +271,37 @@ jobs:
           cd source
           & .\scripts\Build-Plugins.ps1 -Version $VERSION -PluginTemplateDir "..\published\plugins"
         shell: pwsh
+
+      - name: Validate wrapper-only plugin payloads
+        shell: pwsh
+        run: |
+          $blockedNames = @(".exe", ".dll", ".pdb")
+          $pluginRoots = @(
+            @{ Name = "excel-mcp"; Path = "source\plugins\excel-mcp" },
+            @{ Name = "excel-cli"; Path = "source\plugins\excel-cli" }
+          )
+
+          foreach ($plugin in $pluginRoots) {
+            $pluginPath = $plugin.Path
+            $pluginName = $plugin.Name
+
+            if (-not (Test-Path $pluginPath)) {
+              throw "Built plugin directory not found: $pluginPath"
+            }
+
+            $runtimePayload = Get-ChildItem -Path $pluginPath -Recurse -Force -File | Where-Object {
+              $_.Extension -in $blockedNames -or
+              $_.Name.EndsWith(".deps.json", [System.StringComparison]::OrdinalIgnoreCase) -or
+              $_.Name.EndsWith(".runtimeconfig.json", [System.StringComparison]::OrdinalIgnoreCase)
+            }
+
+            if ($runtimePayload.Count -gt 0) {
+              $payloadList = ($runtimePayload | ForEach-Object { $_.FullName }) -join [Environment]::NewLine
+              throw "Published plugin '$pluginName' still contains committed runtime payload(s):`n$payloadList"
+            }
+
+            Write-Host "Validated wrapper/bootstrap-only payload for $pluginName" -ForegroundColor Green
+          }
 
       - name: Upload excel-mcp plugin artifact
         uses: actions/upload-artifact@v4
@@ -544,23 +575,25 @@ jobs:
             echo "**Mode:** $SYNC_MODE" >> $GITHUB_STEP_SUMMARY
             echo "**Marketplace manifest:** \`.github/plugin/marketplace.json\`" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Published Plugins" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ excel-mcp" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ excel-cli" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Copilot CLI Installation Examples" >> $GITHUB_STEP_SUMMARY
+             echo "### Published Plugins" >> $GITHUB_STEP_SUMMARY
+             echo "- ✅ excel-mcp (wrapper/bootstrap assets only)" >> $GITHUB_STEP_SUMMARY
+             echo "- ✅ excel-cli (wrapper/bootstrap assets only)" >> $GITHUB_STEP_SUMMARY
+             echo "" >> $GITHUB_STEP_SUMMARY
+             echo "### Copilot CLI Installation Examples" >> $GITHUB_STEP_SUMMARY
             echo '```powershell' >> $GITHUB_STEP_SUMMARY
             echo "# Register marketplace (one-time)" >> $GITHUB_STEP_SUMMARY
             echo "copilot plugin marketplace add ${{ env.PUBLISHED_REPO }}" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "# Install MCP plugin" >> $GITHUB_STEP_SUMMARY
             echo "copilot plugin install excel-mcp@mcp-server-excel-plugins" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "# OR install CLI plugin" >> $GITHUB_STEP_SUMMARY
-            echo "copilot plugin install excel-cli@mcp-server-excel-plugins" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "These published plugin artifacts may also be relevant to other plugin-capable clients, but their installation UX and marketplace wiring are client-specific and are not configured by this workflow." >> $GITHUB_STEP_SUMMARY
+             echo "" >> $GITHUB_STEP_SUMMARY
+             echo "# OR install CLI plugin" >> $GITHUB_STEP_SUMMARY
+             echo "copilot plugin install excel-cli@mcp-server-excel-plugins" >> $GITHUB_STEP_SUMMARY
+             echo '```' >> $GITHUB_STEP_SUMMARY
+             echo "" >> $GITHUB_STEP_SUMMARY
+             echo "Both published plugins bootstrap the newest self-contained Windows runtime from the main GitHub Releases feed on first use." >> $GITHUB_STEP_SUMMARY
+             echo "" >> $GITHUB_STEP_SUMMARY
+             echo "These published plugin artifacts may also be relevant to other plugin-capable clients, but their installation UX and marketplace wiring are client-specific and are not configured by this workflow." >> $GITHUB_STEP_SUMMARY
           else
             echo "## ℹ️ Plugin Publish Already In Sync" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY

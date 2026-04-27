@@ -2,7 +2,7 @@
 
 **Model Context Protocol server for natural language Excel automation**
 
-This plugin provides the `excel-mcp` skill and MCP server for GitHub Copilot. Use natural language to automate Power Query, DAX measures, PivotTables, Tables, Charts, VBA macros, and more through Windows Excel COM API.
+This plugin provides the `excel-mcp` skill and a plugin-local MCP bootstrap for GitHub Copilot. Use natural language to automate Power Query, DAX measures, PivotTables, Tables, Charts, VBA macros, and more through Windows Excel COM API.
 
 **Best for:** Conversational AI workflows (GitHub Copilot Chat, Claude Desktop, Cursor) where rich tool schemas and persistent connections matter more than token efficiency.
 
@@ -24,18 +24,30 @@ Install the [Excel MCP VS Code extension](https://marketplace.visualstudio.com/i
 ### Option 2: Plugin Marketplace
 
 ```powershell
-# Register the plugin marketplace (one-time)
 copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
-
-# Install the MCP plugin
 copilot plugin install excel-mcp@mcp-server-excel-plugins
 ```
 
 ### Option 3: Manual Installation
 
-1. Download `ExcelMcp-MCP-Server-{version}-windows.zip` from [Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. Extract `mcp-excel.exe` to a permanent location
-3. Add to your MCP client configuration (see [Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md))
+1. Install the plugin
+2. Let the plugin bootstrap the latest self-contained `mcp-excel.exe` on first use
+3. Or add the standalone binary to your MCP client configuration manually (see [Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md))
+
+### Runtime Bootstrap
+
+The plugin does **not** rely on a bundled `mcp-excel.exe`. Its `.mcp.json` launches a PowerShell wrapper that:
+
+- checks GitHub Releases for the newest `ExcelMcp-MCP-Server-*-windows.zip`
+- downloads and caches the latest self-contained Windows server on first invocation
+- re-checks freshness at most once per Copilot chat session
+
+If you want the server registered globally in `~/.copilot/mcp-config.json`, run:
+
+```powershell
+pwsh -ExecutionPolicy Bypass -File `
+  "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-mcp\bin\install-global.ps1"
+```
 
 ---
 
@@ -126,6 +138,7 @@ Unlike third-party libraries that manipulate `.xlsx` files (risking corruption),
 - 📊 Build complex DAX measures with AI guidance
 - 📋 Automate repetitive data transformations and formatting
 - 👀 **Show Excel Mode** — Watch changes live as AI works
+- 🚀 **First-Run Bootstrap** — Auto-download the newest self-contained MCP runtime when the plugin is first invoked
 
 ### Automatic Code Formatting
 
