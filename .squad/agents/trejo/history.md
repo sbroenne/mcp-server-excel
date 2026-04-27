@@ -18,6 +18,12 @@
 
 ## Recent Work
 
+### 2026-04-27: GitHub Pages Hero Update — Plugin Install Path
+- Created branch: `feature/gh-pages-hero-plugin-install-fix`
+- Updated `gh-pages/index.md` hero section with quick-install guidance for GitHub Copilot plugin
+- Committed changes: `b2e9ad3`
+- Ready for merge; cross-team branch cleanup by Cheritto completed beforehand
+
 ### 2026-04-24: Publish Workflow Hardening Docs Sync
 - Aligned maintainer docs with the hardened `publish-plugins.yml` flow: source-side sync gate, published-repo downgrade/tag-version guards, and manual `workflow_dispatch` replay via an existing `release_tag`.
 - Kept user-facing wording to one accurate promise: plugin republishing is automatic but guarded, and install instructions remain client-specific.

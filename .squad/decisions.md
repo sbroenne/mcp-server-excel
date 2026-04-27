@@ -6,6 +6,103 @@
 
 ---
 
+### 2026-04-26T10:15:07Z: User Directive — Use Latest Dependency Versions ✅
+
+**By:** Stefan Broenner (via Copilot CLI)  
+**Status:** ✅ CAPTURED
+
+**Directive:** Upgrade dependencies to the latest versions. Version pins are not intentional policy. Land latest versions, then fix the fallout; do not hold back Microsoft.ApplicationInsights* or @vscode/vsce because they are inconvenient.
+
+---
+
+### 2026-04-26T10:30:00Z: Chart Count Discrepancy — Docs Parity Verification ⚠️
+
+**By:** Cheritto (Platform Dev)  
+**Status:** AWAITING VERIFICATION
+
+**Issue:** Staged docs changes reduce Chart operations from 29→28 in README.md and MCP README, but FEATURES.md shows 28→29 (opposite direction).
+
+**Actual Implementation:** IChartCommands (8 methods) + IChartConfigCommands (21 methods) = **29 total**.
+
+**Recommendation:** Path A — Trust the Code. Keep README/MCP at 29 (no change), accept FEATURES.md change (28→29). All docs then align to actual implementation count.
+
+**Next Step:** Verify root cause before merge (did a chart operation get removed?). Trejo or code review to clarify intention.
+
+---
+
+### 2026-04-27T05:34:10Z: Cheritto & Trejo Branch Cleanup + Docs Update ✅
+
+**By:** Cheritto & Trejo (Platform Dev + Docs Lead)  
+**Status:** ✅ COMPLETE
+
+**Outcome:**
+- Cheritto: Cleaned stale local/remote branches; preserved active branches
+- Trejo: Created `feature/gh-pages-hero-plugin-install-fix` branch, updated homepage hero with plugin install guidance, committed `b2e9ad3`
+- Ready for merge after review
+
+---
+
+### 2026-04-27: Dependency Upgrade Fallout Validation ✅
+
+**By:** Cheritto (via Stefan's directive) + Nate (Tester)  
+**Status:** ✅ VALIDATED
+
+**Summary:**
+- **Build:** ✅ Release build succeeds
+- **Coverage audits:** ✅ CLI + MCP coverage tools pass
+- **Test results:**
+  - CLI: 75/79 passed (4 failing integration tests — expected debt/stability defects)
+  - MCP: 133/134 passed (1 failing contract test — real regression)
+- **npm audit:** ✅ 0 vulnerabilities
+- **VSIX packaging:** ✅ Successful
+
+**Classification:**
+- 5 failing tests = regression queue created by forced-latest move
+- Not blocking; treat as cleanup work
+- Build/audit/packaging healthy
+
+---
+
+### 2026-04-25T17:30Z: FEATURES.md Summary Table — Canonical Operation Counts ✅
+
+**By:** Trejo (Docs Lead)  
+**Status:** ✅ ESTABLISHED
+
+**Decision:** FEATURES.md "Total Operations Summary" table (line 435–455) is authoritative source for operation counts.
+
+**Application:** When counts disagree, check summary table first, update section headers to match, cascade to README files.
+
+**Files Updated:**
+- ✅ FEATURES.md (section headers aligned)
+- ✅ README.md
+- ✅ src/ExcelMcp.McpServer/README.md
+- ✅ src/ExcelMcp.CLI/README.md (PowerQuery: 10→12)
+- ✅ vscode-extension/README.md
+
+---
+
+### 2026-04-27: Doc Audit Findings — Platform Parity Review 📋
+
+**By:** Cheritto (Platform Dev)  
+**Status:** AUDIT COMPLETE (read-only)
+
+**Key Findings:**
+
+**Priority 1 (Before Next Commit):**
+1. **Power Query ops:** CLI README says 10, should be 12. Fix line 133.
+2. **Chart ops:** Verify if 28 or 29, update README lines 38 & 72 accordingly.
+3. **Generator transparency:** Add 2–3 sentences to ExcelTools.cs explaining [McpServerToolType] registration.
+
+**Priority 2 (This Week):**
+- Update MCP Server README with service bridge architecture
+- Add explanation of generator role to docs
+
+**Priority 3 (Nice-to-Have):**
+- Clarify token efficiency claim
+- Create small architecture diagram
+
+---
+
 ### 2026-04-26T09:10:46Z: User Directive — Upgrade Dependencies to Latest ✅
 
 **By:** Stefan Broenner (via Copilot CLI)  
