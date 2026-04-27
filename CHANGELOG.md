@@ -10,6 +10,8 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.8.51] - 2026-04-27
+
 ### Fixed
 
 - **Screenshot capture now works reliably for non-active sheets and offscreen ranges** (#563, #583): `screenshot capture-range` and `capture-sheet` could export mostly blank images when the target content lived offscreen or on a non-active sheet. The capture path now normalizes minimized Excel windows, scrolls/selects the target range before `CopyPicture`, retries paste operations, and creates the temporary export chart at an onscreen origin so Excel exports the actual captured content instead of a white artifact. Added focused regressions for repeated offscreen captures plus direct non-active-sheet and offscreen-range image-content validation.
