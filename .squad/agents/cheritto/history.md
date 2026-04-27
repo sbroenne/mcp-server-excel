@@ -9,6 +9,8 @@
 ## Learnings
 
 <!-- Append learnings below -->
+- 2026-04-27: Plugin publish wiring must actively strip committed runtime payloads (`.exe`, `.dll`, `.deps.json`, `.runtimeconfig.json`) after copying marketplace templates. That keeps `mcp-server-excel-plugins` wrapper/bootstrap-only even if an older published template repo still contains runtime files.
+- 2026-04-27: Source-owned overlay copy helpers for plugin publishing need `Get-ChildItem -Force`; otherwise hidden bootstrap assets such as dotfiles can silently drop out of the published plugin bundle.
 - 2026-04-25: The published Copilot marketplace repo cannot accept the self-contained `excelcli.exe` bundle once it crosses GitHub's file-size limit (observed at ~175 MB, rejected with `GH001`). The durable fix is to keep `excel-cli` as a skill-only plugin and leave CLI binary distribution to the main GitHub release ZIP / NuGet channels.
 - 2026-04-25: In GitHub Actions PowerShell steps, handling an expected native exit code is a two-part fix: capture the code with `PSNativeCommandUseErrorActionPreference = $false`, then clear `$LASTEXITCODE` before the step ends if that non-zero code was expected. Otherwise the step can still fail even after your script branches correctly.
 - 2026-04-25: In GitHub Actions PowerShell steps, `git diff --quiet` is not safe as a bare `if (...)` condition when a diff is expected. Treat exit code `1` as data, not failure: temporarily disable `PSNativeCommandUseErrorActionPreference`, capture `$LASTEXITCODE`, then branch on `0` (no changes) vs `1` (changes present).

@@ -4,6 +4,40 @@
 
 > Archived earlier decisions moved to .squad\decisions\archive\2026-03-16-to-2026-04-23.md on 2026-04-24 to keep this file readable.
 
+### 2026-04-27T08:42:18Z: Nate — Bootstrap Test Regression & Expectations Alignment ✅
+
+**By:** Nate (Tester)  
+**Status:** ✅ COMPLETED
+
+**Decision:** Add script-smoke regression for scripts\Build-Plugins.ps1 and align stale bootstrap test expectations to current shipped surface.
+
+**Applied Shape:**
+1. Smoke test in PluginBootstrapBuildTests asserts Build-Plugins.ps1 exits with code 0 and prints final ASCII summary
+2. Updated synthetic bootstrap fixture to mirror current shipped names:
+   - in\download.ps1
+   - in\install-global.ps1
+   - no packaged ootstrap-state.json (legacy)
+3. All 13 tests in PluginBootstrapBuildTests pass
+4. Direct script invocation validated clean
+
+**Why:** Real regression was PowerShell parse failure in closing summary lines, not file-copy logic. Old fixture masked drift by expecting legacy overlay names (download-mcp.ps1, download-cli.ps1) no longer in shipped bootstrap surface.
+
+---
+
+### 2026-04-27T08:42:18Z: Nate — Bootstrap Test Coverage (Documented)
+
+**By:** Nate (Tester)  
+**Status:** ✅ DOCUMENTED
+
+**Coverage Scope:** 	ests/ExcelMcp.SkillGeneration.Tests is the focused regression surface for Copilot plugin runtime bootstrap.
+
+**Why:** Runtime bootstrap lives in PowerShell overlay assets (.github/plugins/**) + packaging scripts, not in Excel COM code. Script-level integration tests sandbox USERPROFILE, mock GitHub/download calls, and verify first-run/session-refresh without mutating dev machine.
+
+**Implemented:** First-run auto-download, latest-release selection, same-session caching, stale-binary refresh, failure messaging, packaging/sync smoke.
+
+**Precise Gap:** Mocked ZIP contents stop at download.ps1 validation; doesn't execute real xcelcli.exe or mcp-excel.exe. End-to-end launch smoke depends on published release assets.
+
+---
 ---
 
 ### 2026-04-26T09:10:46Z: User Directive — Upgrade Dependencies to Latest ✅
@@ -416,3 +450,4 @@ px skills add (still valid for non-plugin agents)
 ## Archived Decisions
 
 > See .squad/decisions/archive/2026-03-16-to-2026-04-23.md for earlier team decisions, user directives, and planning sessions.
+

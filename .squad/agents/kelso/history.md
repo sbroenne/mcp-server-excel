@@ -652,3 +652,49 @@ pm run package\ / \sce package\). The 3.x line added @azure/identity for intera
 - **Decision:** Keep the downgrade permanently. No need to wait for Azure SDK patches or switch to vsce 3.x.
 - **Pattern:** Documented 'dependabot-tooling-downgrade' skill in .squad/skills/ for future reference.
 
+
+### 2026-04-25: User-Facing Plugin Docs — Maintainer-Internal Details Removed
+
+**Task:** McCauley requested revision of Trejo's rejected plugin installation docs. Remove maintainer-internal wording about PAT sync gates, downgrade guards, manual re-sync, overlay/source-layout details. Keep only short, truthful user-facing guidance.
+
+**Context:** Trejo's revision was rejected because it leaked maintainer implementation details into user-facing docs. The core truth that should remain: published marketplace repo is `sbroenne/mcp-server-excel-plugins`; there may be a short delay before marketplace catches up after release.
+
+**Changes Made:**
+
+1. **README.md (line 128–146):** Plugin installation section simplified
+   - ❌ Removed maintainer-internal phrasing about auto-republish and internal publish workflow
+   - ✅ Kept simple install commands, plugin names, user-friendly note about marketplace sync delay
+
+2. **docs/INSTALLATION.md (line 39–58):** GitHub Copilot Plugins section rewritten
+   - ❌ Removed long paragraph about internal maintenance and auto-update process
+   - ✅ Added missing "VS Code Extension" heading (was orphaned)
+   - ✅ Kept clean install command blocks, plugin descriptions
+
+3. **gh-pages/_includes/installation.md (line 300–328):** Plugin section condensed
+   - ❌ Removed maintainer-internal messaging about published repo workflows
+   - ✅ Kept simple install commands, note that plugins "may take a few moments to appear"
+   - ✅ Simplified other surfaces section to just links (no process detail)
+
+4. **Plugin README files** (.github/plugins/excel-cli/README.md, excel-mcp/README.md): No changes needed
+   - Trejo's wording already clean, user-facing, no maintainer details
+
+**Principle Applied:**
+
+- Keep truthful user-facing **outcome:** "Plugin install available; may take a few moments to sync"
+- Remove implementation **detail:** PAT tokens, cross-repo sync gates, downgrade guards, overlay workflows, manual re-sync procedures
+- Scope separation: User docs describe WHAT they do; developer/ops docs describe HOW maintainers publish
+
+**Result:**
+
+- ✅ Plugin installation sections now concise (3–4 sentences per platform)
+- ✅ Installation commands unchanged (still work)
+- ✅ Sync-delay note preserved (truthful, user-actionable)
+- ✅ All maintainer-internal references removed
+- ✅ Plugin README files remain clean (no edit needed)
+
+### 2026-04-27: Runtime bootstrap can key freshness to `COPILOT_AGENT_SESSION_ID`
+
+- Copilot CLI exposes `COPILOT_AGENT_SESSION_ID` to plugin-launched PowerShell scripts, which is good enough to enforce "check GitHub Releases at most once per chat session" without guessing TTLs.
+- Plugin wrappers can stay tiny: resolve/download in `download.ps1`, launch in `start-*.ps1`, and keep binaries out of the plugin repo by caching under `~/.copilot\plugin-runtime\mcp-server-excel\<plugin>`.
+- For CLI plugin UX, `install-global.ps1` should install shims to the wrapper, not to a cached `.exe`; otherwise first-run bootstrap and future release refreshes get bypassed.
+

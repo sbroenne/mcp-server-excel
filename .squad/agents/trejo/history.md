@@ -121,3 +121,49 @@
 - Legacy package cleanup requires auditing multiple doc surfaces: installation docs, package READMEs, release strategy, skills overviews, and platform-specific docs (gh-pages).
 - When distribution models change, track both positive statements (what IS published) and negative statements (what IS NOT published) — silence about removed channels can confuse users.
 - Deprecation messages in legacy package directories should guide users to the exact new method (GitHub Copilot plugins with marketplace URLs + npx skills add example).
+
+---
+
+## 2026-04-25: Plugin Install Docs Cleanup
+
+**By:** Trejo (Docs Lead)
+
+**Task:** Clean user-facing plugin install wording across all installation surfaces; remove maintainer-internal workflow details (PAT, sync gates, downgrade guards, repair/replay mechanics); replace misleading headings; keep user notes short and accurate about the published plugin marketplace repo (`sbroenne/mcp-server-excel-plugins`).
+
+**Work Completed:**
+
+✅ **README.md** — Plugin marketplace section reworded (lines 145-147):
+- Removed 4-sentence paragraph about source-repo overlay files and sync gates
+- Removed description of "cross-repo token scoped to published marketplace repo"
+- Removed "downgrade/tag mismatches blocked" and "manual maintainer re-sync path for repair/replay" details (purely internal)
+- Replaced with: "The published repo [...] hosts the GitHub Copilot plugin marketplace. Plugins are republished automatically after each ExcelMcp release, though you may need to wait a few moments for the update to appear in the marketplace."
+- Added note: "These commands are specific to GitHub Copilot CLI. VS Code and Claude have their own plugin systems with separate installation flows."
+
+✅ **docs/INSTALLATION.md** — Plugin section reworded (lines 337-356):
+- Renamed section from "### Copilot CLI install path" → "### Copilot CLI Plugin Installation" (clearer, less technical)
+- Renamed "### One-time post-install steps" → "**After Installation:**" (matches current behavior, no "one-time" misconception)
+- Consolidated install+post-install into single logical block for clarity
+- Removed entire "Other supported plugin surfaces" section and replaced with single short note
+- Removed "Source-layout note" paragraph (source-repo overlay files — purely internal)
+- Removed "That publish path is sync-gated..." paragraph (PAT, downgrade guards, repair/replay — purely internal)
+- Kept: "Plugins are published automatically after each ExcelMcp release, though you may need to wait a few moments for the update to appear in the marketplace."
+
+✅ **gh-pages/_includes/installation.md** — Already cleaned (from previous pass)
+✅ **.github/plugins/excel-cli/README.md** — Already cleaned (from previous pass)
+✅ **.github/plugins/excel-mcp/README.md** — Already cleaned (from previous pass)
+
+**Decision Recorded:** `.squad/decisions/inbox/trejo-plugin-docs-cleanup.md`
+
+**Risk Analysis:**
+- 🟢 **ZERO RISK** — Changes are documentation-only. No code, workflow, or behavior modified.
+- ✅ Install commands are unchanged and tested
+- ✅ Marketplace repo name preserved throughout (users may need to reference it)
+- ✅ Wording now matches user-facing guidance tone (concise, accurate, honest)
+
+**Learnings for Future Work:**
+- User docs should describe WHAT users do, not WHY internal workflows exist. Remove "workflow dispatch" talk, "sync-gate" mechanics, PAT/token details, "downgrade/tag mismatch guards," and "(one-time)" modifiers unless they directly affect user experience.
+- Keep marketplace repo name visible when users interact with marketplace. Hiding it behind "published repo" creates support friction.
+- Plugin install docs and feature docs are separate problems. Keep plugin install docs SHORT. Relegate workflow mechanics to maintainer docs (e.g., `docs/RELEASE-STRATEGY.md`).
+- Misleading headings like "One-time post-install steps" should be replaced with descriptive labels ("After Installation") that match current behavior.
+- Three parallel plugin README surfaces (.github/plugins/excel-cli, .github/plugins/excel-mcp, gh-pages/_includes/installation.md) require synchronized rewording. Consider adding linting that flags wording inconsistencies between parallel install sections.
+
