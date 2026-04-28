@@ -12,7 +12,7 @@ namespace Sbroenne.ExcelMcp.McpServer;
 
 /// <summary>
 /// ExcelMCP Model Context Protocol (MCP) Server.
-/// Provides resource-based tools for AI assistants to automate Excel operations.
+/// Provides domain-focused tools for AI assistants to automate Excel operations.
 /// </summary>
 public class Program
 {

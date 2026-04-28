@@ -148,7 +148,7 @@ public async Task<OperationResult> ComplexAsync(IExcelBatch batch, string param)
 
 ---
 
-## MCP Server Resource-Based Tools
+## MCP Server Domain-Based Tools
 
 **In-Process Architecture**: MCP Server hosts ExcelMcpService fully in-process with direct method calls (no pipe).
 ServiceBridge holds the service reference and calls ProcessAsync() directly.
@@ -228,7 +228,7 @@ SavePassword = false  // Never export credentials by default
 1. **WithExcel() for everything** - See excel-com-interop.instructions.md
 2. **Release intermediate objects** - Prevents Excel hanging
 3. **Batch/Session for MCP** - Multiple operations in single session
-4. **Resource-based tools** - 22 tools, not 33+ operations
+4. **Domain-based tools** - focused tools, not one tool per operation
 5. **DRY utilities** - Share common patterns
 6. **Security defaults** - Never expose credentials
 7. **Bulk operations** - Minimize COM round-trips
