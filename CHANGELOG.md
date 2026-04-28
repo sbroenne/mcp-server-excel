@@ -10,6 +10,8 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.8.54] - 2026-04-28
+
 ### Fixed
 
 - **Reverted CLI daemon auto-start retry behavior** (#627): Removed the retry loop and wrapped cancellation/error-message changes from the previous `excelcli` daemon startup update, restoring the single-start behavior while preserving the existing daemon readiness checks.
