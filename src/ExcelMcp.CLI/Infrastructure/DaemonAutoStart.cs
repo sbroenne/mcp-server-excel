@@ -16,6 +16,8 @@ internal static class DaemonAutoStart
     internal static readonly TimeSpan StartupReadyConnectTimeout = TimeSpan.FromSeconds(1);
     internal static readonly TimeSpan StartupReadyRetryInterval = TimeSpan.FromMilliseconds(250);
     internal static readonly TimeSpan StartupReadyTimeout = TimeSpan.FromSeconds(10);
+    internal static readonly int StartupMaxAttempts = 2; // one retry after the first attempt
+    internal static readonly TimeSpan StartupRetryDelay = TimeSpan.FromSeconds(1);
 
     /// <summary>
     /// Gets the pipe name for the CLI daemon (supports env var override for testing).
@@ -74,11 +76,43 @@ internal static class DaemonAutoStart
             // Daemon exited while we waited — start a replacement.
         }
 
-        // No daemon running — start it
-        await StartDaemonAsync(pipeName, cancellationToken);
+        // No daemon running — start it.
+        // Retry on fast-exit failures (daemon exited before becoming ready), which
+        // handles transient issues such as security software scanning the binary on first
+        // launch.  TimeoutException (daemon started but took too long to become responsive)
+        // is not retried — that reflects a persistent condition and should surface immediately.
+        for (var attempt = 0; attempt < StartupMaxAttempts; attempt++)
+        {
+            if (attempt > 0)
+                await Task.Delay(StartupRetryDelay, cancellationToken);
 
-        // Return new client connected to the now-running daemon
-        return new ServiceClient(pipeName);
+            var isLastAttempt = attempt == StartupMaxAttempts - 1;
+            try
+            {
+                await StartDaemonAsync(pipeName, cancellationToken);
+
+                // Return new client connected to the now-running daemon
+                return new ServiceClient(pipeName);
+            }
+            catch (TimeoutException)
+            {
+                throw; // Timeout is not transient — surface immediately without retry
+            }
+            catch (InvalidOperationException ex) when (isLastAttempt)
+            {
+                throw new InvalidOperationException(
+                    $"{ex.Message} (daemon startup failed after {StartupMaxAttempts} attempt(s); " +
+                    "run 'excelcli service stop' to clear any stale state, then retry)",
+                    ex);
+            }
+            catch (InvalidOperationException)
+            {
+                // Transient fast-exit on a non-final attempt — wait StartupRetryDelay then retry
+            }
+        }
+
+        // Unreachable: the last-attempt catch always rethrows.
+        throw new System.Diagnostics.UnreachableException();
     }
 
     /// <summary>
@@ -151,6 +185,10 @@ internal static class DaemonAutoStart
                     return;
                 }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw; // Don't wrap cancellation — let it propagate to the caller
         }
         catch (Exception ex)
         {
