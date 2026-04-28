@@ -12,6 +12,8 @@ This changelog covers all components:
 
 ### Fixed
 
+- **Reverted CLI daemon auto-start retry behavior** (#627): Removed the retry loop and wrapped cancellation/error-message changes from the previous `excelcli` daemon startup update, restoring the single-start behavior while preserving the existing daemon readiness checks.
+
 - **Data Model MSOLAP class-registration diagnostics now identify the provider Excel uses** (#624): `datamodel.evaluate` and `datamodel.execute-dmv` previously mapped every `0x80040154` from Excel's Data Model ADO connection to a generic "MSOLAP is not installed" message. The error now reports the specific provider parsed from `ModelConnection.ADOConnection.ConnectionString`, redacts connection-string credentials, and explains that Excel's COM provider selection is not affected by copying ADOMD/MSOLAP DLLs beside the server executable.
 
 - **CLI skill guidance now matches the actual CLI surface**: Removed MCP-style shared reference files from the `excel-cli` skill package so agents no longer see examples like `range_format(action: ...)` or underscore tool names when they should use `excelcli -q <command> <action> --kebab-case-flags`. The CLI skill now promotes `references/cli-commands.md` as the command/action/parameter source of truth, documents the real command-group naming convention, and packaging scripts no longer copy MCP shared references into the CLI skill. Added skill-generation regressions to keep the CLI references CLI-specific.
