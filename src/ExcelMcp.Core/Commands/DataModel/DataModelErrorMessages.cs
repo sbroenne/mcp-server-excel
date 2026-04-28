@@ -47,17 +47,37 @@ public static class DataModelErrorMessages
     }
 
     /// <summary>
-    /// Error message when MSOLAP provider is not installed (Class not registered).
+    /// Error message when Excel's Data Model ADO connection reports MSOLAP class registration failure.
+    /// </summary>
+    internal static string MsolapClassNotRegistered(DataModelAdoDiagnostics? diagnostics)
+    {
+        var provider = string.IsNullOrWhiteSpace(diagnostics?.ProviderName)
+            ? "the MSOLAP provider referenced by Excel"
+            : $"provider '{diagnostics.ProviderName}'";
+
+        var message = "DAX/DMV query execution failed because the Excel Data Model ADO connection reported that " +
+                      $"the COM class is not registered for {provider}. " +
+                      "This can happen when the specific MSOLAP provider version in Excel's ADO connection is not registered, " +
+                      "even if another MSOLAP ProgID is installed. Install or repair the Microsoft Analysis Services OLE DB Provider " +
+                      "or Power BI Desktop, then restart Excel. Excel uses the provider in ModelConnection.ADOConnection.ConnectionString; " +
+                      "copying ADOMD/MSOLAP DLLs next to the server executable does not override that COM provider selection.";
+
+        var sanitizedConnectionString = DataModelAdoDiagnostics.SanitizeConnectionString(diagnostics?.ConnectionString);
+        if (!string.IsNullOrWhiteSpace(sanitizedConnectionString))
+        {
+            message += $"\nExcel Data Model ADO connection: {sanitizedConnectionString}";
+        }
+
+        return message;
+    }
+
+    /// <summary>
+    /// Error message when MSOLAP provider is not installed or the provider class is not registered.
     /// This occurs when trying to execute DAX queries via ADOConnection.
     /// </summary>
     public static string MsolapProviderNotInstalled()
     {
-        return "DAX query execution requires the Microsoft Analysis Services OLE DB Provider (MSOLAP), which is not installed. " +
-               "To fix this, install one of the following:\n" +
-               "  1. Power BI Desktop (recommended - includes MSOLAP): https://powerbi.microsoft.com/desktop\n" +
-               "  2. Microsoft OLE DB Driver for Analysis Services: https://learn.microsoft.com/analysis-services/client-libraries\n" +
-               "  3. SQL Server Analysis Services (SSAS) client tools\n" +
-               "After installation, restart Excel and try again.";
+        return MsolapClassNotRegistered(null);
     }
 
     /// <summary>
