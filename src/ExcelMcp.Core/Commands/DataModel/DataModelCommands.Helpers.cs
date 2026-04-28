@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Microsoft.CSharp.RuntimeBinder;
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.Core.DataModel;
 using Sbroenne.ExcelMcp.Core.Models;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -11,6 +12,33 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 public partial class DataModelCommands
 {
+    private static DataModelAdoDiagnostics CollectAdoDiagnostics(dynamic? adoConnection)
+    {
+        if (adoConnection == null)
+        {
+            return new DataModelAdoDiagnostics();
+        }
+
+        var connectionString = TryGetAdoConnectionString(adoConnection);
+        return new DataModelAdoDiagnostics
+        {
+            ConnectionString = connectionString,
+            ProviderName = DataModelAdoDiagnostics.ExtractProviderName(connectionString)
+        };
+    }
+
+    private static string? TryGetAdoConnectionString(dynamic adoConnection)
+    {
+        try
+        {
+            return adoConnection.ConnectionString?.ToString();
+        }
+        catch (Exception ex) when (ex is COMException or RuntimeBinderException)
+        {
+            return null;
+        }
+    }
+
     /// <summary>
     /// Gets all measure names from the Data Model
     /// </summary>

@@ -69,6 +69,8 @@ public partial class DataModelCommands
                     throw new InvalidOperationException("No ADOConnection available - cannot execute DAX query");
                 }
 
+                var adoDiagnostics = CollectAdoDiagnostics(adoConnection);
+
                 // Execute the DAX EVALUATE query directly via ADO
                 // Wrap in try-catch to provide helpful error message when MSOLAP is missing
                 try
@@ -78,8 +80,8 @@ public partial class DataModelCommands
                 catch (COMException ex) when (ex.HResult == unchecked((int)0x80040154))
                 {
                     // REGDB_E_CLASSNOTREG (0x80040154) = "Class not registered"
-                    // This occurs when MSOLAP provider is not installed
-                    throw new InvalidOperationException(DataModelErrorMessages.MsolapProviderNotInstalled(), ex);
+                    // This occurs when the specific MSOLAP provider in the ADO connection is not registered.
+                    throw new InvalidOperationException(DataModelErrorMessages.MsolapClassNotRegistered(adoDiagnostics), ex);
                 }
 
                 // Get field (column) information
