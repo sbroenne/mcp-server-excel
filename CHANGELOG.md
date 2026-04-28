@@ -10,6 +10,8 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.8.53] - 2026-04-28
+
 ### Fixed
 
 - **Data Model MSOLAP class-registration diagnostics now identify the provider Excel uses** (#624): `datamodel.evaluate` and `datamodel.execute-dmv` previously mapped every `0x80040154` from Excel's Data Model ADO connection to a generic "MSOLAP is not installed" message. The error now reports the specific provider parsed from `ModelConnection.ADOConnection.ConnectionString`, redacts connection-string credentials, and explains that Excel's COM provider selection is not affected by copying ADOMD/MSOLAP DLLs beside the server executable.
