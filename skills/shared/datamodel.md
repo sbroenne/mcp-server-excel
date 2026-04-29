@@ -64,16 +64,16 @@ datamodel(evaluate, daxQuery="...")               # Returns NEW values!
 | External file (CSV, etc.) | powerquery with loadDestination='data-model' |
 | Database/web source | powerquery with loadDestination='data-model' |
 
-**Automatic DAX Formatting**:
+**DAX Formatting**:
 
-DAX formulas are automatically formatted on WRITE operations only (create-measure, update-measure) using the official Dax.Formatter library (SQLBI). Read operations (list-measures, read) return raw DAX as stored in Excel. Formatting adds ~100-500ms network latency per write operation but ensures consistent, professional code formatting. If formatting fails (network issues, API errors), the original DAX is saved unchanged - operations never fail due to formatting.
+DAX formulas are preserved exactly by default on WRITE operations (create-measure, update-measure), subject to Excel locale separator translation. Set `formatDax=true` only with explicit user consent; it sends DAX to daxformatter.com. Remote formatting adds ~100-500ms network latency per write operation. If formatting fails (network issues, API errors), the original DAX is saved unchanged - operations never fail due to formatting.
 
 **Action disambiguation**:
 
 - list-tables: List all tables currently in the Data Model
 - list-measures: List all DAX measures (returns raw DAX from Excel)
-- create-measure: Create a new DAX measure (DAX auto-formatted before saving)
-- update-measure: Modify existing measure's formula/format/description (DAX auto-formatted before saving)
+- create-measure: Create a new DAX measure (DAX preserved by default; `formatDax=true` opts into remote formatting)
+- update-measure: Modify existing measure's formula/format/description (DAX preserved by default; `formatDax=true` opts into remote formatting)
 - delete-measure: Remove a measure
 - delete-table: Remove table AND ALL its measures (DESTRUCTIVE!)
 - read-info: Get Data Model metadata (culture, compatibility level)

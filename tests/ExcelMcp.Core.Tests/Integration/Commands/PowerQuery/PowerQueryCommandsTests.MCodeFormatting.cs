@@ -7,11 +7,9 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.PowerQuery;
 
 /// <summary>
-/// Integration tests for M-code formatting feature.
-/// Tests verify that M code (Power Query) is automatically formatted on write operations.
-/// Write operations (Create, Update) format M code via powerqueryformatter.com API.
-/// Read operations (List, View) return M code as stored in the workbook.
-/// Note: Formatting may add newlines and spacing, but these tests focus on content preservation.
+/// Integration tests for M-code formatting behavior.
+/// Tests verify that write operations preserve M code exactly by default.
+/// Remote formatting requires explicit opt-in on Create and Update.
 /// </summary>
 [Trait("Layer", "Core")]
 [Trait("Category", "Integration")]
@@ -31,12 +29,10 @@ public class PowerQueryCommandsTests_MCodeFormatting : IClassFixture<PowerQueryT
     }
 
     /// <summary>
-    /// Tests that Create preserves M code content.
-    /// Verifies that the query can be created and the M code is stored correctly.
-    /// Formatting may add newlines/spacing, but core content should be preserved.
+    /// Tests that Create preserves M code exactly by default.
     /// </summary>
     [Fact]
-    public void Create_WithUnformattedMCode_PreservesContent()
+    public void Create_WithUnformattedMCode_PreservesExactInputByDefault()
     {
         var testFile = _fixture.CreateTestFile();
         var queryName = $"Test_CreateFormatted_{Guid.NewGuid():N}"[..30];
@@ -46,28 +42,21 @@ public class PowerQueryCommandsTests_MCodeFormatting : IClassFixture<PowerQueryT
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        // Create query (should format automatically)
+        // Create query without remote formatting opt-in
         _powerQueryCommands.Create(batch, queryName, unformattedMCode, PowerQueryLoadMode.ConnectionOnly);
 
         // Retrieve and verify
         var viewResult = _powerQueryCommands.View(batch, queryName);
         Assert.True(viewResult.Success, $"View failed: {viewResult.ErrorMessage}");
 
-        // The formatted version should contain the core function names
-        // (formatting may add whitespace/newlines but preserves content)
-        Assert.Contains("let", viewResult.MCode, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Excel.CurrentWorkbook", viewResult.MCode, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Table.SelectRows", viewResult.MCode, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("in", viewResult.MCode, StringComparison.OrdinalIgnoreCase);
-        Assert.NotEmpty(viewResult.MCode);
+        Assert.Equal(unformattedMCode, viewResult.MCode);
     }
 
     /// <summary>
-    /// Tests that Update preserves M code content.
-    /// Verifies that the query can be updated and the M code is stored correctly.
+    /// Tests that Update preserves M code exactly by default.
     /// </summary>
     [Fact]
-    public void Update_WithUnformattedMCode_PreservesContent()
+    public void Update_WithUnformattedMCode_PreservesExactInputByDefault()
     {
         var testFile = _fixture.CreateTestFile();
         var queryName = $"Test_UpdateFormatted_{Guid.NewGuid():N}"[..30];
@@ -85,22 +74,18 @@ in
         // Create query
         _powerQueryCommands.Create(batch, queryName, originalMCode, PowerQueryLoadMode.ConnectionOnly);
 
-        // Update with unformatted M code (should format automatically)
+        // Update without remote formatting opt-in
         _powerQueryCommands.Update(batch, queryName, unformattedUpdate, refresh: false);
 
         // Retrieve and verify
         var viewResult = _powerQueryCommands.View(batch, queryName);
         Assert.True(viewResult.Success, $"View failed: {viewResult.ErrorMessage}");
 
-        // The formatted version should contain the core function names
-        Assert.Contains("#table", viewResult.MCode);
-        Assert.Contains("Table.SelectRows", viewResult.MCode);
-        Assert.NotEmpty(viewResult.MCode);
+        Assert.Equal(unformattedUpdate, viewResult.MCode);
     }
 
     /// <summary>
-    /// Tests that pre-formatted M code is preserved/enhanced by the formatter.
-    /// Verifies that already-formatted code doesn't break.
+    /// Tests that pre-formatted M code is preserved exactly by default.
     /// </summary>
     [Fact]
     public void Create_WithPreformattedMCode_PreservesReadability()
@@ -129,12 +114,7 @@ in
         var viewResult = _powerQueryCommands.View(batch, queryName);
         Assert.True(viewResult.Success, $"View failed: {viewResult.ErrorMessage}");
 
-        // Should still contain the structure (formatting shouldn't break it)
-        Assert.Contains("#table", viewResult.MCode);
-        Assert.Contains("ProductID", viewResult.MCode);
-        Assert.Contains("let", viewResult.MCode, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("in", viewResult.MCode, StringComparison.OrdinalIgnoreCase);
-        Assert.NotEmpty(viewResult.MCode);
+        Assert.Equal(preformattedMCode, viewResult.MCode);
     }
 
     /// <summary>
@@ -159,7 +139,7 @@ in
     }
 
     /// <summary>
-    /// Tests that View returns M code as stored (formatter applied on write).
+    /// Tests that View returns M code as stored.
     /// Verifies that read operations don't re-format.
     /// </summary>
     [Fact]
@@ -232,19 +212,14 @@ in
 
         using var batch = ExcelSession.BeginBatch(testFile);
 
-        // Create query (should format automatically)
+        // Create query without remote formatting opt-in
         _powerQueryCommands.Create(batch, queryName, complexMCode, PowerQueryLoadMode.ConnectionOnly);
 
         // Retrieve and verify
         var viewResult = _powerQueryCommands.View(batch, queryName);
         Assert.True(viewResult.Success, $"View failed: {viewResult.ErrorMessage}");
 
-        // Verify all steps are present
-        Assert.Contains("#table", viewResult.MCode);
-        Assert.Contains("Table.SelectRows", viewResult.MCode);
-        Assert.Contains("Table.TransformColumnTypes", viewResult.MCode);
-        Assert.Contains("Table.AddColumn", viewResult.MCode);
-        Assert.NotEmpty(viewResult.MCode);
+        Assert.Equal(complexMCode, viewResult.MCode);
 
         // Verify the query can still be viewed without errors (formatting didn't corrupt it)
         var verifyResult = _powerQueryCommands.View(batch, queryName);
@@ -274,23 +249,14 @@ in
 
         var afterCreate = _powerQueryCommands.View(batch, queryName);
         Assert.True(afterCreate.Success);
-        Assert.NotEmpty(afterCreate.MCode);
+        Assert.Equal(createMCode, afterCreate.MCode);
 
         // Update query
         _powerQueryCommands.Update(batch, queryName, updateMCode, refresh: false);
 
         var afterUpdate = _powerQueryCommands.View(batch, queryName);
         Assert.True(afterUpdate.Success);
-        Assert.NotEmpty(afterUpdate.MCode);
-
-        // New content should be present
-        Assert.Contains("a", afterUpdate.MCode);
-        Assert.Contains("b", afterUpdate.MCode);
-        Assert.Contains("c", afterUpdate.MCode);
-
-        // Old unique values should be replaced (x=1, y=2)
-        Assert.DoesNotContain("x = 1", afterUpdate.MCode);
-        Assert.DoesNotContain("y = 2", afterUpdate.MCode);
+        Assert.Equal(updateMCode, afterUpdate.MCode);
     }
 }
 

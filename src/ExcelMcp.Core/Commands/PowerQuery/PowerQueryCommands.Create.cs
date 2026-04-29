@@ -13,7 +13,7 @@ public partial class PowerQueryCommands
 {
     /// <summary>
     /// Creates new Power Query from M code with specified load destination.
-    /// M code is automatically formatted using the powerqueryformatter.com API before saving.
+    /// M code is preserved exactly by default. Remote formatting is only used when explicitly requested.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="queryName">Name for the new query</param>
@@ -29,7 +29,8 @@ public partial class PowerQueryCommands
         string mCode,
         PowerQueryLoadMode loadMode = PowerQueryLoadMode.LoadToTable,
         string? targetSheet = null,
-        string? targetCellAddress = null)
+        string? targetCellAddress = null,
+        bool formatMCode = false)
     {
         // Validate inputs
         if (string.IsNullOrWhiteSpace(queryName))
@@ -42,10 +43,9 @@ public partial class PowerQueryCommands
             throw new ArgumentException("M code cannot be empty", nameof(mCode));
         }
 
-        // Format M code before saving (outside batch.Execute for async operation)
-        // Formatting is done synchronously to maintain method signature compatibility
-        // Falls back to original if formatting fails
-        string formattedMCode = MCodeFormatter.FormatAsync(mCode).GetAwaiter().GetResult();
+        string mCodeToSave = formatMCode
+            ? MCodeFormatter.FormatAsync(mCode).GetAwaiter().GetResult()
+            : mCode;
 
         // Resolve target sheet name (default to query name)
         if (loadMode == PowerQueryLoadMode.LoadToTable || loadMode == PowerQueryLoadMode.LoadToBoth)
@@ -74,8 +74,7 @@ public partial class PowerQueryCommands
                 }
 
                 // Step 1: Create the query (always creates in ConnectionOnly mode initially)
-                // Uses formatted M code for better readability
-                query = queries.Add(queryName, formattedMCode);
+                query = queries.Add(queryName, mCodeToSave);
 
                 // Step 2: Apply load destination based on mode
                 var result = new PowerQueryCreateResult

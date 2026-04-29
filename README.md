@@ -32,7 +32,7 @@
 **25 specialized tools with 230 operations:**
 
 - 🔄 **Power Query** (1 tool, 12 ops) - Atomic workflows, M code management, load destinations
-- 📊 **Data Model/DAX** (2 tools, 19 ops) - Measures with auto-formatted DAX, relationships, model structure
+- 📊 **Data Model/DAX** (2 tools, 19 ops) - Measures, relationships, model structure
 - 🎨 **Excel Tables** (2 tools, 27 ops) - Lifecycle, filtering, sorting, structured references
 - 📈 **PivotTables** (3 tools, 30 ops) - Creation, fields, aggregations, calculated members/fields
 - 📉 **Charts** (2 tools, 29 ops) - Create, configure, series, formatting, data labels, trendlines

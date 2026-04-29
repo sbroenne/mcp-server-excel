@@ -22,13 +22,16 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// DESTINATIONS: 'worksheet' (default), 'data-model' (for DAX), 'both', 'connection-only'.
 /// Use 'data-model' to load to Power Pivot, then use datamodel to create DAX measures.
 ///
+/// M-CODE: Preserved exactly by default. Set formatMCode=true only with explicit user consent;
+/// it sends M code to powerqueryformatter.com.
+///
 /// TARGET CELL: targetCellAddress places tables without clearing sheet.
 /// TIMEOUT: 30 min auto-timeout for refresh and load-to. For quick queries, use timeout=60 or similar.
 /// timeout=0 or omitted uses the 30 min default.
 /// </summary>
 [ServiceCategory("powerquery", "PowerQuery")]
 [McpTool("powerquery", Title = "Power Query Operations", Destructive = true, Category = "query",
-    Description = "Power Query M code and data loading. TEST-FIRST WORKFLOW: 1. evaluate (test M code without persisting) 2. create/update (store validated query) 3. refresh/load-to (load data to destination). IF CREATE FAILS: Use evaluate for detailed M engine error. DATETIME: Always include Table.TransformColumnTypes() for explicit column types. DESTINATIONS: worksheet (default), data-model (for DAX), both, connection-only. M-CODE: Auto-formatted via powerqueryformatter.com. TARGET CELL: targetCellAddress places tables without clearing sheet. TIMEOUT: 30 min auto-timeout for refresh and load-to. For quick queries, use timeout=60. timeout=0 or omitted uses the 30 min default.")]
+    Description = "Power Query M code and data loading. TEST-FIRST WORKFLOW: 1. evaluate (test M code without persisting) 2. create/update (store validated query) 3. refresh/load-to (load data to destination). IF CREATE FAILS: Use evaluate for detailed M engine error. DATETIME: Always include Table.TransformColumnTypes() for explicit column types. DESTINATIONS: worksheet (default), data-model (for DAX), both, connection-only. M-CODE: Preserved exactly by default. Set formatMCode=true only with user consent; it sends M code to powerqueryformatter.com. TARGET CELL: targetCellAddress places tables without clearing sheet. TIMEOUT: 30 min auto-timeout for refresh and load-to. For quick queries, use timeout=60. timeout=0 or omitted uses the 30 min default.")]
 public interface IPowerQueryCommands
 {
     /// <summary>
@@ -82,6 +85,7 @@ public interface IPowerQueryCommands
     /// <param name="loadMode">Load destination mode</param>
     /// <param name="targetSheet">Target worksheet name (required for LoadToTable and LoadToBoth; defaults to query name when omitted)</param>
     /// <param name="targetCellAddress">Optional target cell address for worksheet loads (e.g., "B5"). Required when loading to an existing worksheet with other data.</param>
+    /// <param name="formatMCode">Whether to send M code to the remote powerqueryformatter.com service before saving. Defaults to false to preserve privacy.</param>
     /// <exception cref="InvalidOperationException">Thrown when query cannot be created, M code is invalid, or load operation fails</exception>
     OperationResult Create(
         IExcelBatch batch,
@@ -89,7 +93,8 @@ public interface IPowerQueryCommands
         [RequiredParameter][FileOrValue] string mCode,
         [FromString("loadDestination")] PowerQueryLoadMode loadMode = PowerQueryLoadMode.LoadToTable,
         string? targetSheet = null,
-        string? targetCellAddress = null);
+        string? targetCellAddress = null,
+        bool formatMCode = false);
 
     /// <summary>
     /// Updates M code. Optionally refreshes loaded data.
@@ -98,8 +103,9 @@ public interface IPowerQueryCommands
     /// <param name="queryName">Name of the query to update</param>
     /// <param name="mCode">Raw M code (inline string)</param>
     /// <param name="refresh">Whether to refresh data after update (default: true)</param>
+    /// <param name="formatMCode">Whether to send M code to the remote powerqueryformatter.com service before saving. Defaults to false to preserve privacy.</param>
     /// <exception cref="InvalidOperationException">Thrown when the query is not found, M code is invalid, or refresh fails</exception>
-    OperationResult Update(IExcelBatch batch, [RequiredParameter] string queryName, [RequiredParameter][FileOrValue] string mCode, bool refresh = true);
+    OperationResult Update(IExcelBatch batch, [RequiredParameter] string queryName, [RequiredParameter][FileOrValue] string mCode, bool refresh = true, bool formatMCode = false);
 
     /// <summary>
     /// Atomically sets load destination and refreshes data

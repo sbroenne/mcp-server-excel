@@ -4,8 +4,8 @@ using System.Text.Json.Serialization;
 namespace Sbroenne.ExcelMcp.ComInterop.Formatting;
 
 /// <summary>
-/// Formats Power Query M code using the powerqueryformatter.com API.
-/// Provides automatic pretty-printing with proper indentation and line breaks.
+/// Formats Power Query M code using the remote powerqueryformatter.com API.
+/// Call only after explicit user consent because the M code is sent to the service.
 /// </summary>
 /// <remarks>
 /// <para><b>Design Principles:</b></para>
@@ -46,7 +46,7 @@ public static class MCodeFormatter
     };
 
     /// <summary>
-    /// Formats Power Query M code using the powerqueryformatter.com API.
+    /// Formats Power Query M code using the remote powerqueryformatter.com API.
     /// </summary>
     /// <param name="mCode">The M code to format</param>
     /// <param name="cancellationToken">Cancellation token for the HTTP request</param>

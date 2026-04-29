@@ -18,7 +18,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 ///
 /// DAX MEASURES:
 /// - Create with DAX formulas like 'SUM(Sales[Amount])'
-/// - DAX formulas are auto-formatted on CREATE/UPDATE via Dax.Formatter (SQLBI)
+/// - DAX formulas are preserved exactly by default
+/// - Set formatDax=true only with user consent; it sends formulas to daxformatter.com
 /// - Read operations return raw DAX as stored
 ///
 /// DAX EVALUATE QUERIES:
@@ -35,7 +36,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 [ServiceCategory("datamodel", "DataModel")]
 [McpTool("datamodel", Title = "Data Model Operations", Destructive = true, Category = "analysis",
-    Description = "Data Model (Power Pivot) - DAX measures and table management. CRITICAL: Worksheet tables and Data Model are separate! After table(append), MUST call datamodel(refresh) to sync. Power Query refresh auto-syncs. DAX MEASURES: Create with formulas like SUM(Sales[Amount]), auto-formatted via daxformatter.com. DAX EVALUATE: Execute queries (SUMMARIZE, FILTER, CALCULATETABLE, TOPN). DMV QUERIES: SELECT * FROM $SYSTEM.SchemaRowset for metadata. DAX FILE INPUT: daxFormulaFile/daxQueryFile for complex multi-line DAX. TIMEOUT: 2 min. Use datamodel_relationship for relationships, table for add-to-datamodel.")]
+    Description = "Data Model (Power Pivot) - DAX measures and table management. CRITICAL: Worksheet tables and Data Model are separate! After table(append), MUST call datamodel(refresh) to sync. Power Query refresh auto-syncs. DAX MEASURES: Create with formulas like SUM(Sales[Amount]); DAX is preserved exactly by default. Set formatDax=true only with user consent; it sends formulas to daxformatter.com. DAX EVALUATE: Execute queries (SUMMARIZE, FILTER, CALCULATETABLE, TOPN). DMV QUERIES: SELECT * FROM $SYSTEM.SchemaRowset for metadata. DAX FILE INPUT: daxFormulaFile/daxQueryFile for complex multi-line DAX. TIMEOUT: 2 min. Use datamodel_relationship for relationships, table for add-to-datamodel.")]
 public interface IDataModelCommands
 {
     /// <summary>
@@ -139,15 +140,16 @@ public interface IDataModelCommands
 
     /// <summary>
     /// Creates a new DAX measure in the Data Model.
-    /// DAX formula is automatically formatted with proper indentation before saving.
+    /// DAX formula is preserved exactly by default.
     /// Uses Excel COM API: ModelMeasures.Add method (Office 2016+)
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Name of the table to add the measure to</param>
     /// <param name="measureName">Name of the new measure</param>
-    /// <param name="daxFormula">DAX formula for the measure (will be auto-formatted)</param>
+    /// <param name="daxFormula">DAX formula for the measure</param>
     /// <param name="formatType">Optional: Format type (Currency, Decimal, Percentage, General)</param>
     /// <param name="description">Optional: Description of the measure</param>
+    /// <param name="formatDax">Whether to send the DAX formula to the remote daxformatter.com service before saving. Defaults to false to preserve privacy.</param>
     /// <exception cref="ArgumentException">Thrown when parameters are invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when table not found or creation fails</exception>
     [ServiceAction("create-measure")]
@@ -157,18 +159,20 @@ public interface IDataModelCommands
         [RequiredParameter] string measureName,
         [RequiredParameter, FileOrValue] string daxFormula,
         string? formatType = null,
-        string? description = null);
+        string? description = null,
+        bool formatDax = false);
 
     /// <summary>
     /// Updates an existing DAX measure in the Data Model.
-    /// DAX formula is automatically formatted with proper indentation before saving.
+    /// DAX formula is preserved exactly by default.
     /// Uses Excel COM API: ModelMeasure properties (Formula, Description, FormatInformation - all Read/Write)
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="measureName">Name of the measure to update</param>
-    /// <param name="daxFormula">Optional: New DAX formula (null to keep existing, will be auto-formatted if provided)</param>
+    /// <param name="daxFormula">Optional: New DAX formula (null to keep existing)</param>
     /// <param name="formatType">Optional: New format type (null to keep existing)</param>
     /// <param name="description">Optional: New description (null to keep existing)</param>
+    /// <param name="formatDax">Whether to send the DAX formula to the remote daxformatter.com service before saving. Defaults to false to preserve privacy.</param>
     /// <exception cref="ArgumentException">Thrown when measureName is invalid or all parameters are null</exception>
     /// <exception cref="InvalidOperationException">Thrown when measure not found or update fails</exception>
     [ServiceAction("update-measure")]
@@ -177,7 +181,8 @@ public interface IDataModelCommands
         [RequiredParameter] string measureName,
         [FileOrValue] string? daxFormula = null,
         string? formatType = null,
-        string? description = null);
+        string? description = null,
+        bool formatDax = false);
 
     /// <summary>
     /// Executes a DAX EVALUATE query against the Data Model and returns the results.

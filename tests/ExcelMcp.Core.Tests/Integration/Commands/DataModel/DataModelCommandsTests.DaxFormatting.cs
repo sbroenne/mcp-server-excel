@@ -6,10 +6,9 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.DataModel;
 
 /// <summary>
-/// Integration tests for DAX formatting feature.
-/// Tests verify that DAX formulas are automatically formatted on write operations.
-/// Write operations (CreateMeasure, UpdateMeasure) format DAX via daxformatter.com API.
-/// Read operations (ListMeasures, Read) return raw DAX as stored in the Data Model.
+/// Integration tests for DAX formatting behavior.
+/// Tests verify that DAX formulas are preserved exactly by default.
+/// Remote formatting requires explicit opt-in on CreateMeasure and UpdateMeasure.
 /// </summary>
 [Collection("DataModel")]
 [Trait("Layer", "Core")]
@@ -68,11 +67,10 @@ public class DataModelCommandsTests_DaxFormatting
     }
 
     /// <summary>
-    /// Tests that CreateMeasure formats DAX before saving to Excel.
-    /// Verifies that the measure can be created and retrieved successfully.
+    /// Tests that CreateMeasure preserves DAX exactly by default.
     /// </summary>
     [Fact]
-    public async Task CreateMeasure_WithUnformattedDax_SavesFormattedVersion()
+    public async Task CreateMeasure_WithUnformattedDax_PreservesExactInputByDefault()
     {
         var measureName = $"Test_CreateFormatted_{Guid.NewGuid():N}";
         // Unformatted DAX (single line, no spaces around operators)
@@ -80,26 +78,20 @@ public class DataModelCommandsTests_DaxFormatting
 
         using var batch = ExcelSession.BeginBatch(_dataModelFile);
 
-        // Create measure (should format automatically)
+        // Create measure without remote formatting opt-in
         _ = _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, unformattedDax);
 
         // Retrieve and verify
         var viewResult = await _dataModelCommands.Read(batch, measureName);
         Assert.True(viewResult.Success, $"Read failed: {viewResult.ErrorMessage}");
-        Assert.Contains("CALCULATE", viewResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("SUM", viewResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
-
-        // The formatted version might have newlines or extra spaces
-        // but should still contain the core function names
-        Assert.NotEmpty(viewResult.DaxFormula);
+        Assert.Equal(unformattedDax, NormalizeDaxListSeparators(viewResult.DaxFormula));
     }
 
     /// <summary>
-    /// Tests that UpdateMeasure formats DAX before saving to Excel.
-    /// Verifies that the measure can be updated and retrieved successfully.
+    /// Tests that UpdateMeasure preserves DAX exactly by default.
     /// </summary>
     [Fact]
-    public async Task UpdateMeasure_WithUnformattedDax_SavesFormattedVersion()
+    public async Task UpdateMeasure_WithUnformattedDax_PreservesExactInputByDefault()
     {
         var measureName = $"Test_UpdateFormatted_{Guid.NewGuid():N}";
         var originalFormula = "SUM(SalesTable[Amount])";
@@ -111,17 +103,13 @@ public class DataModelCommandsTests_DaxFormatting
         // Create measure
         _ = _dataModelCommands.CreateMeasure(batch, "SalesTable", measureName, originalFormula);
 
-        // Update with unformatted DAX (should format automatically)
+        // Update without remote formatting opt-in
         _ = _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: unformattedUpdate);
 
         // Retrieve and verify
         var viewResult = await _dataModelCommands.Read(batch, measureName);
         Assert.True(viewResult.Success, $"Read failed: {viewResult.ErrorMessage}");
-        Assert.Contains("CALCULATE", viewResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("AVERAGE", viewResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
-
-        // Should NOT contain SUM (since we updated the formula)
-        Assert.DoesNotContain("SUM", viewResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(unformattedUpdate, NormalizeDaxListSeparators(viewResult.DaxFormula));
     }
 
     /// <summary>
@@ -179,6 +167,11 @@ public class DataModelCommandsTests_DaxFormatting
         Assert.True(viewResult.Success, $"Read failed: {viewResult.ErrorMessage}");
         Assert.Equal(newDescription, viewResult.Description);
         Assert.Contains("SUM", viewResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeDaxListSeparators(string daxFormula)
+    {
+        return daxFormula.Replace(';', ',');
     }
 }
 

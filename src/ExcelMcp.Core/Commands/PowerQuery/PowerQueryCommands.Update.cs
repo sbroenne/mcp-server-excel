@@ -14,7 +14,7 @@ public partial class PowerQueryCommands
 {
     /// <summary>
     /// Update Power Query M code. Preserves load configuration (worksheet/data model).
-    /// M code is automatically formatted using the powerqueryformatter.com API before saving.
+    /// M code is preserved exactly by default. Remote formatting is only used when explicitly requested.
     /// - Worksheet queries: Uses QueryTable.Refresh(false) for synchronous refresh with column propagation
     /// - Data Model queries: Uses connection.Refresh() to update the Data Model
     /// </summary>
@@ -24,7 +24,7 @@ public partial class PowerQueryCommands
     /// <param name="refresh">Whether to refresh data after update (default: true)</param>
     /// <exception cref="ArgumentException">Thrown when queryName or mCode is invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when query not found or update fails</exception>
-    public OperationResult Update(IExcelBatch batch, string queryName, string mCode, bool refresh = true)
+    public OperationResult Update(IExcelBatch batch, string queryName, string mCode, bool refresh = true, bool formatMCode = false)
     {
         if (!ValidateQueryName(queryName, out string? validationError))
         {
@@ -36,10 +36,9 @@ public partial class PowerQueryCommands
             throw new ArgumentException("M code cannot be empty", nameof(mCode));
         }
 
-        // Format M code before saving (outside batch.Execute for async operation)
-        // Formatting is done synchronously to maintain method signature compatibility
-        // Falls back to original if formatting fails
-        string formattedMCode = MCodeFormatter.FormatAsync(mCode).GetAwaiter().GetResult();
+        string mCodeToSave = formatMCode
+            ? MCodeFormatter.FormatAsync(mCode).GetAwaiter().GetResult()
+            : mCode;
 
         return batch.Execute((ctx, ct) =>
         {
@@ -76,10 +75,10 @@ public partial class PowerQueryCommands
                     throw new InvalidOperationException($"Query '{queryName}' not found.");
                 }
 
-                // STEP 2: Update the M code with formatted version
+                // STEP 2: Update the M code
                 // Note: 0x800A03EC error can occur in certain workbook states (see Issue #323)
                 // Retry doesn't help - it's a workbook state issue, not transient
-                query.Formula = formattedMCode;
+                query.Formula = mCodeToSave;
 
                 // STEP 3: Refresh if requested using the same COM-safe helper as Refresh().
                 // This keeps Update aligned with the message-filter and cancellation behavior

@@ -28,8 +28,8 @@
 **Atomic Operations** - Single-call workflows:
 - **List:** List all Power Query queries in workbook
 - **View:** View the M code of a Power Query
-- **Create:** Import + load in one operation (atomic workflow) with automatic formatting
-- **Update:** Update M code with automatic formatting and auto-refresh
+- **Create:** Import + load in one operation (atomic workflow), preserving M code by default
+- **Update:** Update M code, preserving M code by default, with optional auto-refresh
 - **Rename:** Rename a Power Query (trim + case-insensitive uniqueness check)
 - **Refresh:** Refresh a Power Query with timeout detection
 - **Refresh All:** Batch refresh all queries in workbook
@@ -39,7 +39,7 @@
 - **Delete:** Remove Power Query from workbook
 - **Evaluate:** Execute M code directly and return results (without creating a permanent query)
 
-**Automatic M-Code Formatting:** M code is automatically formatted on write operations (Create, Update) using the powerqueryformatter.com API (by mogularGmbH, MIT License). Read operations return M code as stored in Excel. Formatting adds ~100-500ms network latency but dramatically improves readability with proper indentation, spacing, and line breaks. Graceful fallback returns original M code if formatting fails.
+**M-Code Formatting:** M code is preserved exactly by default. Create and Update can opt in to remote formatting with `formatMCode=true`, which sends M code to powerqueryformatter.com and adds network latency. If remote formatting fails, the original M code is saved unchanged.
 
 ---
 
@@ -51,8 +51,8 @@
 - **List Columns:** List columns for a table
 - **List Measures:** List all DAX measures with formula previews
 - **Read Info:** Get comprehensive model information
-- **Create Measure:** Create new DAX measure with automatic formatting (format types: Currency, Percentage, Decimal, General)
-- **Update Measure:** Modify existing measure with automatic formatting
+- **Create Measure:** Create new DAX measure, preserving DAX by default (format types: Currency, Percentage, Decimal, General)
+- **Update Measure:** Modify existing measure, preserving DAX by default
 - **Delete Measure:** Remove measure from model
 - **Delete Table:** Remove table from Data Model
 - **List Relationships:** View all table relationships
@@ -65,7 +65,7 @@
 - **Evaluate:** Execute DAX EVALUATE queries and return tabular results (for ad-hoc analysis)
 - **Execute DMV:** Execute SQL-like DMV (Dynamic Management View) queries for metadata discovery
 
-**Automatic DAX Formatting:** DAX formulas are automatically formatted on write operations (CreateMeasure, UpdateMeasure) using the official Dax.Formatter library (SQLBI). Read operations return raw DAX as stored in Excel. Formatting adds ~100-500ms network latency but dramatically improves readability. Graceful fallback returns original DAX if formatting fails.
+**DAX Formatting:** DAX formulas are preserved exactly by default, subject to Excel locale separator translation. CreateMeasure and UpdateMeasure can opt in to remote formatting with `formatDax=true`, which sends DAX to daxformatter.com and adds network latency. If remote formatting fails, the original DAX is saved unchanged.
 
 **Note:** DAX calculated columns not supported - use Excel UI for calculated columns
 

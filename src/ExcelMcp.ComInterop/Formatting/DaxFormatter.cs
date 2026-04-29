@@ -3,14 +3,14 @@ using Dax.Formatter;
 namespace Sbroenne.ExcelMcp.ComInterop.Formatting;
 
 /// <summary>
-/// Formats DAX (Data Analysis Expressions) code using the official Dax.Formatter library.
-/// Provides automatic pretty-printing with proper indentation and line breaks.
+/// Formats DAX (Data Analysis Expressions) code using the remote Dax.Formatter service.
+/// Call only after explicit user consent because the DAX formula is sent to daxformatter.com.
 /// </summary>
 /// <remarks>
 /// <para><b>Design Principles:</b></para>
 /// <list type="bullet">
 /// <item>Never throws exceptions - returns original DAX on any failure</item>
-/// <item>Uses official Dax.Formatter NuGet package (by SQLBI)</item>
+/// <item>Uses official Dax.Formatter NuGet package (by SQLBI), which invokes a remote service</item>
 /// <item>Gracefully handles network failures, API errors, and rate limiting</item>
 /// <item>Formatting is best-effort - original DAX is always preserved if formatting fails</item>
 /// </list>
@@ -33,7 +33,7 @@ public static class DaxFormatter
     private static readonly DaxFormatterClient _formatterClient = new();
 
     /// <summary>
-    /// Formats DAX code using the official Dax.Formatter library.
+    /// Formats DAX code using the remote Dax.Formatter service.
     /// </summary>
     /// <param name="daxCode">The DAX code to format</param>
     /// <param name="cancellationToken">Cancellation token for the HTTP request</param>

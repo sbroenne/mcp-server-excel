@@ -12,6 +12,8 @@ This changelog covers all components:
 
 ### Fixed
 
+- **Remote DAX and M formatting is now explicit opt-in** (#601): `powerquery create/update` and `datamodel create-measure/update-measure` no longer send formulas to remote formatter services by default. M code and DAX formulas are preserved as provided (with Excel locale separator translation for DAX), and callers must set `formatMCode=true` or `formatDax=true` to opt in to remote formatting via powerqueryformatter.com or daxformatter.com.
+
 - **CLI daemon startup stability**: Hardened `excelcli` daemon startup against stale named mutex handles and simultaneous `service start` calls. Startup is now serialized with a process-wide semaphore, daemon liveness checks ignore unowned/abandoned mutexes, and the daemon can take over stale mutex handles instead of exiting as a duplicate instance. Added ServiceDaemon regressions for stale mutex recovery and concurrent start requests, plus a parallel multi-file CLI E2E workflow that exercises independent workbook sessions through the same daemon.
 
 - **Reverted CLI daemon auto-start retry behavior** (#627): Removed the retry loop and wrapped cancellation/error-message changes from the previous `excelcli` daemon startup update, restoring the single-start behavior while preserving the existing daemon readiness checks.
