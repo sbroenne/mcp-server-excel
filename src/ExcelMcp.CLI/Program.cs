@@ -284,12 +284,25 @@ internal sealed class Program
         // If another daemon is already running for this pipe/user, exit immediately
         // instead of creating a duplicate process with a duplicate tray icon.
         var mutexName = DaemonAutoStart.GetDaemonMutexName(pipeName);
-        var daemonMutex = new Mutex(initiallyOwned: true, mutexName, out bool createdNew);
+        var daemonMutex = new Mutex(initiallyOwned: true, mutexName, out var createdNew);
+        var ownsDaemonMutex = createdNew;
         if (!createdNew)
         {
-            // Another daemon is already running — exit silently.
-            daemonMutex.Dispose();
-            return 0;
+            try
+            {
+                ownsDaemonMutex = daemonMutex.WaitOne(TimeSpan.Zero);
+            }
+            catch (AbandonedMutexException)
+            {
+                ownsDaemonMutex = true;
+            }
+
+            if (!ownsDaemonMutex)
+            {
+                // Another daemon is already running — exit silently.
+                daemonMutex.Dispose();
+                return 0;
+            }
         }
         DaemonProcessTracker.RegisterCurrentProcess(pipeName);
 
@@ -336,8 +349,9 @@ internal sealed class Program
         {
             DaemonProcessTracker.Clear(pipeName);
 
-            // Release the daemon mutex so a new daemon can start if needed
-            daemonMutex.ReleaseMutex();
+            // Release the daemon mutex so a new daemon can start if needed.
+            if (ownsDaemonMutex)
+                daemonMutex.ReleaseMutex();
             daemonMutex.Dispose();
         }
     }

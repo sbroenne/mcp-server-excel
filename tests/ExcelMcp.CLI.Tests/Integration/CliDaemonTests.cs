@@ -118,6 +118,75 @@ public sealed class CliDaemonTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ServiceStart_WhenDaemonMutexExistsButIsNotOwned_StartsDaemon()
+    {
+        var mutexName = DaemonAutoStart.GetDaemonMutexName(_testPipeName);
+        using var staleMutex = new Mutex(initiallyOwned: false, mutexName, out var createdNew);
+        Assert.True(createdNew, "Test pipe should not have a pre-existing daemon mutex");
+
+        var result = await CliProcessHelper.RunAsync("service start", timeoutMs: 15000, environmentVariables: TestEnv);
+        _output.WriteLine($"Start response: {result.Stdout}");
+        _output.WriteLine($"Start stderr: {result.Stderr}");
+
+        using var startJson = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(startJson.RootElement.GetProperty("success").GetBoolean());
+
+        var (statusResult, statusJson) = await CliProcessHelper.RunJsonAsync("service status", environmentVariables: TestEnv);
+        Assert.Equal(0, statusResult.ExitCode);
+        Assert.True(statusJson.RootElement.GetProperty("running").GetBoolean());
+
+        var processId = statusJson.RootElement.GetProperty("processId").GetInt32();
+        _daemonProcess = Process.GetProcessById(processId);
+    }
+
+    [Fact]
+    public async Task ServiceStart_WhenStartupMutexIsAbandoned_StartsDaemon()
+    {
+        using var abandonedStartupMutex = CreateAbandonedMutex(DaemonAutoStart.GetDaemonStartupLockName(_testPipeName));
+
+        var result = await CliProcessHelper.RunAsync("service start", timeoutMs: 15000, environmentVariables: TestEnv);
+        _output.WriteLine($"Start response: {result.Stdout}");
+        _output.WriteLine($"Start stderr: {result.Stderr}");
+
+        using var startJson = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(startJson.RootElement.GetProperty("success").GetBoolean());
+
+        var (statusResult, statusJson) = await CliProcessHelper.RunJsonAsync("service status", environmentVariables: TestEnv);
+        Assert.Equal(0, statusResult.ExitCode);
+        Assert.True(statusJson.RootElement.GetProperty("running").GetBoolean());
+
+        var processId = statusJson.RootElement.GetProperty("processId").GetInt32();
+        _daemonProcess = Process.GetProcessById(processId);
+    }
+
+    [Fact]
+    public async Task ServiceStart_ConcurrentStartRequests_LeaveSingleResponsiveDaemon()
+    {
+        var startTasks = Enumerable.Range(0, 5)
+            .Select(_ => CliProcessHelper.RunAsync("service start", timeoutMs: 20000, environmentVariables: TestEnv))
+            .ToArray();
+
+        var results = await Task.WhenAll(startTasks);
+        foreach (var result in results)
+        {
+            _output.WriteLine($"Concurrent start response: {result.Stdout}");
+            _output.WriteLine($"Concurrent start stderr: {result.Stderr}");
+            Assert.Equal(0, result.ExitCode);
+            using var json = JsonDocument.Parse(result.Stdout);
+            Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        }
+
+        var (statusResult, statusJson) = await CliProcessHelper.RunJsonAsync("service status", environmentVariables: TestEnv);
+        Assert.Equal(0, statusResult.ExitCode);
+        Assert.True(statusJson.RootElement.GetProperty("running").GetBoolean());
+
+        var processId = statusJson.RootElement.GetProperty("processId").GetInt32();
+        _daemonProcess = Process.GetProcessById(processId);
+    }
+
+    [Fact]
     public async Task ServiceStatus_WhenDaemonAcceptsConnectionButNeverReplies_FailsQuicklyWithTimeoutError()
     {
         await using var stalledDaemon = new StalledPipeServer(_testPipeName, _output);
@@ -327,6 +396,38 @@ public sealed class CliDaemonTests : IAsyncLifetime
         var process = new Process { StartInfo = startInfo };
         process.Start();
         return process;
+    }
+
+    private static Mutex CreateAbandonedMutex(string mutexName)
+    {
+        Mutex? mutex = null;
+        Exception? threadException = null;
+        using var acquired = new ManualResetEventSlim(false);
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                mutex = new Mutex(initiallyOwned: false, mutexName, out _);
+                mutex.WaitOne();
+                acquired.Set();
+            }
+            catch (Exception ex)
+            {
+                threadException = ex;
+                acquired.Set();
+            }
+        })
+        {
+            IsBackground = true,
+            Name = $"AbandonedMutex-{mutexName}"
+        };
+
+        thread.Start();
+        Assert.True(acquired.Wait(TimeSpan.FromSeconds(5)), $"Test mutex '{mutexName}' was not acquired");
+        Assert.True(thread.Join(TimeSpan.FromSeconds(5)), $"Test thread for mutex '{mutexName}' did not exit");
+        Assert.Null(threadException);
+
+        return mutex ?? throw new InvalidOperationException($"Test mutex '{mutexName}' was not created.");
     }
 
     private static Process StartMutexHoldingProcess(string mutexName)
