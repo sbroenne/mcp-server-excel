@@ -12,6 +12,8 @@ This changelog covers all components:
 
 ### Fixed
 
+- **CLI daemon startup stability**: Hardened `excelcli` daemon startup against stale named mutex handles and simultaneous `service start` calls. Startup is now serialized with a process-wide semaphore, daemon liveness checks ignore unowned/abandoned mutexes, and the daemon can take over stale mutex handles instead of exiting as a duplicate instance. Added ServiceDaemon regressions for stale mutex recovery and concurrent start requests, plus a parallel multi-file CLI E2E workflow that exercises independent workbook sessions through the same daemon.
+
 - **Reverted CLI daemon auto-start retry behavior** (#627): Removed the retry loop and wrapped cancellation/error-message changes from the previous `excelcli` daemon startup update, restoring the single-start behavior while preserving the existing daemon readiness checks.
 
 - **Data Model MSOLAP class-registration diagnostics now identify the provider Excel uses** (#624): `datamodel.evaluate` and `datamodel.execute-dmv` previously mapped every `0x80040154` from Excel's Data Model ADO connection to a generic "MSOLAP is not installed" message. The error now reports the specific provider parsed from `ModelConnection.ADOConnection.ConnectionString`, redacts connection-string credentials, and explains that Excel's COM provider selection is not affected by copying ADOMD/MSOLAP DLLs beside the server executable.

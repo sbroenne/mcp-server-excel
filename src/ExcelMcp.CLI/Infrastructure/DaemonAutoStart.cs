@@ -16,6 +16,7 @@ internal static class DaemonAutoStart
     internal static readonly TimeSpan StartupReadyConnectTimeout = TimeSpan.FromSeconds(1);
     internal static readonly TimeSpan StartupReadyRetryInterval = TimeSpan.FromMilliseconds(250);
     internal static readonly TimeSpan StartupReadyTimeout = TimeSpan.FromSeconds(10);
+    internal static readonly TimeSpan StartupLockTimeout = TimeSpan.FromSeconds(5);
 
     /// <summary>
     /// Gets the pipe name for the CLI daemon (supports env var override for testing).
@@ -74,8 +75,14 @@ internal static class DaemonAutoStart
             // Daemon exited while we waited — start a replacement.
         }
 
-        // No daemon running — start it
-        await StartDaemonAsync(pipeName, cancellationToken);
+        if (!await TryStartDaemonWithStartupLockAsync(pipeName, cancellationToken))
+        {
+            if (await WaitForResponsiveDaemonAsync(pipeName, StartupReadyTimeout, cancellationToken))
+                return new ServiceClient(pipeName);
+
+            throw new TimeoutException(
+                $"Daemon startup is already in progress but did not become ready within {FormatDuration(StartupReadyTimeout)}.");
+        }
 
         // Return new client connected to the now-running daemon
         return new ServiceClient(pipeName);
@@ -87,12 +94,26 @@ internal static class DaemonAutoStart
     /// </summary>
     internal static bool IsDaemonMutexHeld(string pipeName)
     {
+        Mutex? mutex = null;
         try
         {
             // OpenExisting succeeds if any process has this named mutex open.
             // The daemon opens it with initiallyOwned:true and holds it for its entire lifetime.
-            using var mutex = Mutex.OpenExisting(GetDaemonMutexName(pipeName));
+            mutex = Mutex.OpenExisting(GetDaemonMutexName(pipeName));
+            if (mutex.WaitOne(TimeSpan.Zero))
+            {
+                mutex.ReleaseMutex();
+                DaemonProcessTracker.Clear(pipeName);
+                return false;
+            }
+
             return true;
+        }
+        catch (AbandonedMutexException)
+        {
+            try { mutex?.ReleaseMutex(); } catch (ApplicationException) { }
+            DaemonProcessTracker.Clear(pipeName);
+            return false;
         }
         catch (WaitHandleCannotBeOpenedException)
         {
@@ -102,6 +123,10 @@ internal static class DaemonAutoStart
         {
             return false; // Access denied or other error — assume not running
         }
+        finally
+        {
+            mutex?.Dispose();
+        }
     }
 
     /// <summary>
@@ -110,6 +135,63 @@ internal static class DaemonAutoStart
     /// </summary>
     internal static string GetDaemonMutexName(string pipeName) =>
         $"ExcelMcpCli_{pipeName}";
+
+    internal static string GetDaemonStartupLockName(string pipeName) =>
+        $"{GetDaemonMutexName(pipeName)}_startup";
+
+    private static Task<bool> TryStartDaemonWithStartupLockAsync(string pipeName, CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            using var startupMutex = new Mutex(initiallyOwned: false, GetDaemonStartupLockName(pipeName), out _);
+            var startupLockAcquired = false;
+            try
+            {
+                try
+                {
+                    startupLockAcquired = startupMutex.WaitOne(StartupLockTimeout);
+                }
+                catch (AbandonedMutexException)
+                {
+                    startupLockAcquired = true;
+                }
+
+                if (!startupLockAcquired)
+                    return false;
+
+                // Another CLI process may have started the daemon while this process waited.
+                if (PingAsync(pipeName, InitialPingTimeout, cancellationToken).GetAwaiter().GetResult())
+                    return true;
+
+                // No daemon running — start it.
+                StartDaemonAsync(pipeName, cancellationToken).GetAwaiter().GetResult();
+                return true;
+            }
+            finally
+            {
+                if (startupLockAcquired)
+                    startupMutex.ReleaseMutex();
+            }
+        }, cancellationToken);
+    }
+
+    private static async Task<bool> WaitForResponsiveDaemonAsync(string pipeName, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        var waitUntil = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < waitUntil)
+        {
+            await Task.Delay(StartupReadyRetryInterval, cancellationToken);
+
+            var remaining = waitUntil - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+                break;
+
+            if (await PingAsync(pipeName, Min(remaining, StartupReadyConnectTimeout), cancellationToken))
+                return true;
+        }
+
+        return false;
+    }
 
     private static async Task StartDaemonAsync(string pipeName, CancellationToken cancellationToken)
     {
