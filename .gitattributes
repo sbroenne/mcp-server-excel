@@ -1,5 +1,6 @@
-# Set default behavior to automatically normalize line endings
-* text=auto
+# Set default behavior to automatically normalize line endings.
+# Keep repository text files as LF by default; Windows scripts are pinned to CRLF below.
+* text=auto eol=lf
 
 # C# source files
 *.cs text diff=csharp
