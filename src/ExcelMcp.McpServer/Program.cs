@@ -1,5 +1,6 @@
 using System.IO.Pipelines;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.WorkerService;
 using Microsoft.Extensions.Configuration;
@@ -256,6 +257,15 @@ public class Program
 
         var runToken = testShutdownCts?.Token ?? CancellationToken.None;
 
+        // Monitor stdin pipe — when parent process dies without clean MCP close,
+        // detect the broken pipe and shut down gracefully to release COM handles.
+        Timer? stdinMonitor = null;
+        if (testInputPipe == null)
+        {
+            stdinMonitor = StdinPipeMonitor.Start(
+                host.Services.GetRequiredService<IHostApplicationLifetime>());
+        }
+
         try
         {
             await host.RunAsync(runToken);
@@ -281,6 +291,8 @@ public class Program
 #pragma warning restore CA1031
         finally
         {
+            stdinMonitor?.Dispose();
+
             // CRITICAL: Auto-save all sessions and clean up Excel processes on shutdown.
             // Without this, MCP client disconnect or process exit silently discards all unsaved work.
             if (testTransportGeneration == 0)
@@ -478,6 +490,37 @@ public class Program
             Console.WriteLine($"Update available: {currentVersion} -> {latestVersion}");
             Console.WriteLine("Download: https://github.com/sbroenne/mcp-server-excel/releases/latest");
         }
+    }
+}
+
+/// <summary>
+/// Detects when the parent process dies by polling the stdin pipe handle.
+/// When the pipe breaks (parent exited), triggers graceful host shutdown
+/// so COM handles are released and the process doesn't orphan.
+/// </summary>
+internal static class StdinPipeMonitor
+{
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool PeekNamedPipe(
+        IntPtr hNamedPipe, IntPtr lpBuffer, uint nBufferSize,
+        IntPtr lpBytesRead, out uint lpTotalBytesAvail,
+        out uint lpBytesLeftThisMessage);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr GetStdHandle(int nStdHandle);
+
+    private const int StdInputHandle = -10;
+
+    public static Timer Start(IHostApplicationLifetime lifetime)
+    {
+        var handle = GetStdHandle(StdInputHandle);
+        return new Timer(_ =>
+        {
+            uint avail;
+            uint left;
+            if (!PeekNamedPipe(handle, IntPtr.Zero, 0, IntPtr.Zero, out avail, out left))
+                lifetime.StopApplication();
+        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
     }
 }
 

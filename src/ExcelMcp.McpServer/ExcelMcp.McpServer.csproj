@@ -20,7 +20,7 @@
     <!-- Version inherited from Directory.Build.props; overridden by CI via -p:Version -->
 
     <!-- NuGet Package Configuration (secondary distribution — primary is standalone exe) -->
-    <PackageId>Sbroenne.ExcelMcp.McpServer</PackageId>
+    <PackageId>HurleySk.ExcelMcp.McpServer</PackageId>
     <!-- Note: McpServer type is added via _AddMcpServerPackageType target below
          because .NET 8 SDK unconditionally sets PackageType=DotnetTool when PackAsTool=true -->
     <Title>MCP Server for Excel</Title>
