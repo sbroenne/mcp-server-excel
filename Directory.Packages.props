@@ -29,6 +29,8 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
     <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.7" />
     <PackageVersion Include="StreamJsonRpc" Version="2.24.84" />
+    <!-- Security override: StreamJsonRpc 2.24.84 transitively pins vulnerable Nerdbank.MessagePack 1.0.2 -->
+    <PackageVersion Include="Nerdbank.MessagePack" Version="1.1.62" />
     <PackageVersion Include="System.Text.Json" Version="10.0.7" />
     <!-- MCP SDK - Latest stable preview -->
     <PackageVersion Include="ModelContextProtocol" Version="1.2.0" />
