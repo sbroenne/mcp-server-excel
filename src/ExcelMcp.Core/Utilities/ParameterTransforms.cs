@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
@@ -316,5 +317,32 @@ public static class ParameterTransforms
     {
         RequireNotEmpty(value, parameterName, actionName);
         return value!;
+    }
+
+    /// <summary>
+    /// Parses a timeout value supplied via CLI.
+    /// Plain numeric values are interpreted as seconds; TimeSpan-formatted values are preserved.
+    /// Returns null for null/empty input.
+    /// </summary>
+    /// <param name="value">Timeout text from CLI</param>
+    /// <param name="parameterName">Parameter name for error messages</param>
+    /// <returns>Parsed timeout or null</returns>
+    /// <exception cref="FormatException">Thrown when the timeout cannot be parsed</exception>
+    public static TimeSpan? ParseTimeSpanOrSeconds(string? value, string parameterName = "timeout")
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))
+            return TimeSpan.FromSeconds(seconds);
+
+        if (TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var parsed)
+            || TimeSpan.TryParse(value, CultureInfo.CurrentCulture, out parsed))
+        {
+            return parsed;
+        }
+
+        throw new FormatException(
+            $"Invalid {parameterName} value '{value}'. Use seconds (for example 600) or TimeSpan format (for example 00:10:00).");
     }
 }

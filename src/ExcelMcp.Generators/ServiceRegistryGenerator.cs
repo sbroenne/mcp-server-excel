@@ -416,6 +416,10 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 var nonNullableType = p.TypeName.TrimEnd('?');
                 sb.AppendLine($"                {p.Name}: !string.IsNullOrWhiteSpace(settings.{StringHelper.ToPascalCase(p.Name)}) ? ServiceRegistry.DeserializeList<{nonNullableType}>(settings.{StringHelper.ToPascalCase(p.Name)}) : null{comma}");
             }
+            else if (IsTimeSpanType(p.TypeName))
+            {
+                sb.AppendLine($"                {p.Name}: Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.ParseTimeSpanOrSeconds(settings.{StringHelper.ToPascalCase(p.Name)}, \"{p.Name}\"){comma}");
+            }
             else
             {
                 sb.AppendLine($"                {p.Name}: settings.{StringHelper.ToPascalCase(p.Name)}{comma}");
@@ -450,6 +454,11 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
     {
         return !IsNestedCollectionType(typeName) &&
                typeName.IndexOf("List<", StringComparison.Ordinal) >= 0;
+    }
+
+    private static bool IsTimeSpanType(string typeName)
+    {
+        return typeName.IndexOf("TimeSpan", StringComparison.Ordinal) >= 0;
     }
 
     /// <summary>
@@ -507,9 +516,11 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             // raw JSON. LLMs pass JSON arrays instead of repeated CLI flags.
             // Deserialized back to the original type in RouteFromSettings.
             var isCollectionForJson = IsNestedCollectionType(p.TypeName) || IsSimpleListType(p.TypeName);
-            var cliTypeName = isCollectionForJson ? "string?" : p.TypeName;
+            var cliTypeName = isCollectionForJson || IsTimeSpanType(p.TypeName) ? "string?" : p.TypeName;
             if (isCollectionForJson && !escapedDescription.Contains("JSON"))
                 escapedDescription += " (JSON format)";
+            if (IsTimeSpanType(p.TypeName) && escapedDescription.IndexOf("seconds", StringComparison.OrdinalIgnoreCase) < 0)
+                escapedDescription += " Accepts seconds (e.g. 600) or TimeSpan format (e.g. 00:10:00).";
 
             // Add short aliases for backward compatibility with pre-generator CLI parameter names
             var shortAlias = GetShortAlias(p.Name);
