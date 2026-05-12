@@ -10,6 +10,8 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.8.58] - 2026-05-12
+
 ### Fixed
 
 - **PivotTable numeric value fields with currency formatting no longer get misclassified as text** (#635): `pivottable_field list-fields` and `add-value-field` now use Excel's PivotField data type metadata before falling back to sampled PivotItem captions, so formatted numeric table columns such as `Amount` can be summed correctly instead of being rejected as Text-only fields.
