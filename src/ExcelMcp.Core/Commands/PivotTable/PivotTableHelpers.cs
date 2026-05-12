@@ -120,6 +120,12 @@ internal static class PivotTableHelpers
     /// <returns>Data type string: "Date", "Number", "Boolean", "Text", or "Unknown"</returns>
     public static string DetectFieldDataType(dynamic field)
     {
+        string? fieldDataType = TryDetectFromPivotFieldDataType(field);
+        if (fieldDataType != null)
+        {
+            return fieldDataType;
+        }
+
         dynamic? pivotItems = null;
         try
         {
@@ -166,6 +172,25 @@ internal static class PivotTableHelpers
         finally
         {
             ComUtilities.Release(ref pivotItems);
+        }
+    }
+
+    private static string? TryDetectFromPivotFieldDataType(dynamic field)
+    {
+        try
+        {
+            int dataType = Convert.ToInt32(field.DataType);
+            return dataType switch
+            {
+                XlPivotFieldDataType.xlDate => "Date",
+                XlPivotFieldDataType.xlNumber => "Number",
+                XlPivotFieldDataType.xlText => "Text",
+                _ => null
+            };
+        }
+        catch (System.Runtime.InteropServices.COMException)
+        {
+            return null;
         }
     }
 
