@@ -254,7 +254,7 @@ public interface IRangeFormatCommands
     OperationResult UnmergeCells(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
-    /// Checks if range contains merged cells.
+    /// Checks if range contains merged cells and returns distinct merge areas.
     /// Excel COM: Range.MergeCells
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
