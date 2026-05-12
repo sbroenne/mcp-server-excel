@@ -12,6 +12,8 @@ This changelog covers all components:
 
 ### Fixed
 
+- **MCP Server stdio logging no longer corrupts JSON-RPC stdout** (#636): Console logging is now configured so all log levels are routed to stderr, keeping stdout reserved exclusively for MCP JSON-RPC frames even if logging configuration is overridden. CLI diagnostics and non-result errors now follow the same stdout-safe convention, keeping stdout reserved for command results and JSON payloads.
+
 - **Dependency freshness refresh across .NET and VS Code extension toolchain**: Updated central package pins for stale transitive .NET dependencies (including MessagePack 3.1.4 and netstandard support packages) and refreshed VS Code extension type dependencies (`@types/node`, `@types/vscode`) with regenerated lockfile so dependency audits report fully up-to-date packages.
 
 - **CLI timeout parameter parsing now correctly interprets numeric values as seconds** (#640): The `--timeout` parameter for commands like `datamodel refresh` incorrectly parsed numeric values (e.g., `--timeout 600`) as days instead of seconds. Numeric timeouts are now interpreted as seconds, while TimeSpan format (e.g., `00:10:00`) is still supported. This fix applies to all timeout parameters across data model, power query, and connection refresh operations.

@@ -156,16 +156,7 @@ public class Program
             .AddEnvironmentVariables()
             .AddCommandLine(args);
 
-        // For stdio transport: Clear console logging to avoid polluting stderr with info messages.
-        // The MCP client interprets stderr output as errors/warnings, so we only log Warning+
-        // to stderr for debugging purposes. The MCP SDK handles protocol-level logging.
-        builder.Logging.ClearProviders();
-        builder.Logging.AddConsole(consoleLogOptions =>
-        {
-            // Only log Warning and above to stderr - Info/Debug would appear as errors in MCP clients
-            consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Warning;
-        });
-        builder.Logging.SetMinimumLevel(LogLevel.Warning);
+        ConfigureStdioLogging(builder.Logging);
 
         // Configure Application Insights
         ConfigureTelemetry(builder);
@@ -292,6 +283,18 @@ public class Program
                 ServiceBridge.ServiceBridge.DisposeIfOwnedBy(testTransportGeneration);
             }
         }
+    }
+
+    internal static void ConfigureStdioLogging(ILoggingBuilder logging)
+    {
+        // MCP stdio reserves stdout exclusively for JSON-RPC frames. Route every
+        // possible console log level to stderr so config overrides cannot corrupt stdout.
+        logging.ClearProviders();
+        logging.AddConsole(consoleLogOptions =>
+        {
+            consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
+        });
+        logging.SetMinimumLevel(LogLevel.Warning);
     }
 
     /// <summary>

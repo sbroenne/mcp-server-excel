@@ -35,7 +35,7 @@ internal sealed class Program
         if (filteredArgs.Length == 0)
         {
             if (showBanner) RenderHeader();
-            AnsiConsole.MarkupLine("[dim]No command supplied. Use [green]--help[/] for usage examples.[/]");
+            WriteDiagnosticMarkupLine("[dim]No command supplied. Use [green]--help[/] for usage examples.[/]");
             return 0;
         }
 
@@ -78,7 +78,7 @@ internal sealed class Program
                     return;
                 }
 
-                AnsiConsole.MarkupLine($"[red]Unhandled error:[/] {ex.Message.EscapeMarkup()}");
+                WriteDiagnosticMarkupLine($"[red]Unhandled error:[/] {ex.Message.EscapeMarkup()}");
             });
 
             // Service lifecycle commands
@@ -132,7 +132,7 @@ internal sealed class Program
                 return CliErrorOutput.WriteException(ex);
             }
 
-            AnsiConsole.MarkupLine($"[red]Command error:[/] {ex.Message.EscapeMarkup()}");
+            WriteDiagnosticMarkupLine($"[red]Command error:[/] {ex.Message.EscapeMarkup()}");
             return 1;
         }
         catch (Exception ex)
@@ -142,10 +142,11 @@ internal sealed class Program
                 return CliErrorOutput.WriteException(ex);
             }
 
-            AnsiConsole.MarkupLine($"[red]Fatal error:[/] {ex.Message.EscapeMarkup()}");
-            if (AnsiConsole.Profile.Capabilities.Ansi)
+            WriteDiagnosticMarkupLine($"[red]Fatal error:[/] {ex.Message.EscapeMarkup()}");
+            var errorConsole = CreateErrorConsole();
+            if (errorConsole.Profile.Capabilities.Ansi)
             {
-                AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
+                errorConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
             }
             return 1;
         }
@@ -217,7 +218,7 @@ internal sealed class Program
         // regardless of whether stdout is piped, redirected, or captured
         // (Console.IsOutputRedirected is false in VS Code integrated terminal
         // even when capturing with $result = excelcli ...).
-        var err = AnsiConsole.Create(new AnsiConsoleSettings { Out = new AnsiConsoleOutput(Console.Error) });
+        var err = CreateErrorConsole();
         err.Write(new FigletText("Excel CLI").Color(Spectre.Console.Color.Blue));
         err.MarkupLine("[dim]Excel automation powered by ExcelMcp Core[/]");
         err.MarkupLine("[yellow]Workflow:[/] [green]session open <file>[/] → run commands with [green]--session <id>[/] → [green]session close --save[/].");
@@ -251,6 +252,16 @@ internal sealed class Program
         }
 
         return 0;
+    }
+
+    internal static void WriteDiagnosticMarkupLine(string markup)
+    {
+        CreateErrorConsole().MarkupLine(markup);
+    }
+
+    private static IAnsiConsole CreateErrorConsole()
+    {
+        return AnsiConsole.Create(new AnsiConsoleSettings { Out = new AnsiConsoleOutput(Console.Error) });
     }
 
     private static string GetCurrentVersion()
