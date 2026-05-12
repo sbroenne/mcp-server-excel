@@ -83,6 +83,9 @@ public static class ExcelShutdownService
                 unchecked((int)0x800AC472) =>
                     $"Cannot save '{fileName}'. " +
                     "The file is locked for editing by another user or process.",
+                ResiliencePipelines.RPC_E_DISCONNECTED =>
+                    $"Cannot save '{fileName}'. Excel disconnected from automation before the save completed. " +
+                    "The session is no longer usable; reopen the workbook and verify whether changes were saved.",
                 _ => $"Failed to save workbook '{fileName}': {ex.Message}"
             };
 
@@ -160,9 +163,19 @@ public static class ExcelShutdownService
                     }
                     catch (COMException ex)
                     {
-                        logger.LogWarning(ex,
-                            "Failed to close workbook {FileName} (HResult: 0x{HResult:X8}) - continuing with cleanup",
-                            fileName, ex.HResult);
+                        if (ex.HResult == ResiliencePipelines.RPC_E_DISCONNECTED)
+                        {
+                            logger.LogWarning(ex,
+                                "Workbook COM proxy disconnected while closing {FileName} (HResult: 0x{HResult:X8}) - continuing with cleanup",
+                                fileName, ex.HResult);
+                        }
+                        else
+                        {
+                            logger.LogWarning(ex,
+                                "Failed to close workbook {FileName} (HResult: 0x{HResult:X8}) - continuing with cleanup",
+                                fileName, ex.HResult);
+                        }
+
                         break; // Non-transient error, move on
                     }
                     catch (MissingMemberException ex)
@@ -245,6 +258,13 @@ public static class ExcelShutdownService
                         $"[DIAG-QUIT-RPC-FAILED] Excel RPC connection FAILED (0x800706BE) for {fileName}. Excel is unreachable - this is a FATAL error that cannot be retried. Proceeding with forced COM cleanup. Excel process should be force-killed by caller.");
                     lastException = ex;
                     // Don't retry - RPC connection is dead, Excel is gone
+                }
+                catch (COMException ex) when (ex.HResult == ResiliencePipelines.RPC_E_DISCONNECTED)
+                {
+                    logger.LogWarning(ex,
+                        "Excel COM proxy was disconnected while calling Quit for {FileName} - proceeding with COM cleanup",
+                        fileName);
+                    lastException = ex;
                 }
                 catch (COMException ex)
                 {

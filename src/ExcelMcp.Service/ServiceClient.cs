@@ -97,7 +97,7 @@ public sealed class ServiceClient : IDisposable
                 Command = request.Command,
                 SessionId = request.SessionId,
                 ErrorCategory = "ServiceUnavailable",
-                ErrorMessage = "Connection to service lost. Is it running?",
+                ErrorMessage = "Connection to service lost while waiting for a response. The daemon may have exited or restarted; run 'excelcli service status' or 'excelcli service stop' and retry.",
                 ExceptionType = nameof(ConnectionLostException)
             };
         }

@@ -34,6 +34,12 @@ public static class ResiliencePipelines
     public const int RPC_S_SERVER_UNAVAILABLE = unchecked((int)0x800706BA);     // -2147023174
 
     /// <summary>
+    /// RPC_E_DISCONNECTED - COM proxy disconnected from Excel.
+    /// FATAL ERROR - Session must be cleaned up.
+    /// </summary>
+    public const int RPC_E_DISCONNECTED = unchecked((int)0x80010108);            // -2147417848
+
+    /// <summary>
     /// CO_E_SERVER_EXEC_FAILURE - COM class factory failed to start the server (Excel).
     /// Transient during session creation when system resources are constrained.
     /// </summary>
@@ -132,6 +138,7 @@ public static class ResiliencePipelines
                 ShouldHandle = new PredicateBuilder().Handle<COMException>(ex =>
                     ex.HResult != RPC_E_CALL_FAILED &&
                     ex.HResult != RPC_S_SERVER_UNAVAILABLE &&
+                    ex.HResult != RPC_E_DISCONNECTED &&
                     (ex.HResult == RPC_E_SERVERCALL_RETRYLATER ||
                      ex.HResult == RPC_E_CALL_REJECTED ||
                      config.AdditionalHResults.Contains(ex.HResult))),

@@ -12,6 +12,8 @@ This changelog covers all components:
 
 ### Fixed
 
+- **Intermittent session loss and daemon startup failures during Excel automation** (#645): Excel COM disconnects such as `RPC_E_DISCONNECTED` are now classified as fatal session loss, dead sessions are cleaned up consistently during save/close and service dispatch, and `excelcli` daemon startup/connection-loss messages provide clearer recovery guidance. Screenshot capture is also hardened with additional window activation, `CopyPicture` fallback modes, and range-copy fallback when Excel's rendering clipboard path is temporarily unavailable.
+
 - **PivotTable numeric value fields with currency formatting no longer get misclassified as text** (#635): `pivottable_field list-fields` and `add-value-field` now use Excel's PivotField data type metadata before falling back to sampled PivotItem captions, so formatted numeric table columns such as `Amount` can be summed correctly instead of being rejected as Text-only fields.
 
 - **MCP Server stdio logging no longer corrupts JSON-RPC stdout** (#636): Console logging is now configured so all log levels are routed to stderr, keeping stdout reserved exclusively for MCP JSON-RPC frames even if logging configuration is overridden. CLI diagnostics and non-result errors now follow the same stdout-safe convention, keeping stdout reserved for command results and JSON payloads.

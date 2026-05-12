@@ -219,6 +219,20 @@ internal static class DaemonAutoStart
                 await Task.Delay(StartupReadyRetryInterval, cancellationToken);
                 if (daemonProcess.HasExited)
                 {
+                    if (daemonProcess.ExitCode == 0)
+                    {
+                        if (await WaitForResponsiveDaemonAsync(pipeName, waitUntil - DateTime.UtcNow, cancellationToken))
+                        {
+                            GC.KeepAlive(daemonProcess);
+                            return;
+                        }
+
+                        throw new InvalidOperationException(
+                            "Daemon process exited cleanly before becoming ready, but no responsive daemon was found. " +
+                            "This usually means a stale startup race or a daemon that shut down immediately. " +
+                            "Run 'excelcli service stop' and retry.");
+                    }
+
                     throw new InvalidOperationException(
                         $"Daemon process exited before becoming ready (exit code {daemonProcess.ExitCode}).");
                 }
