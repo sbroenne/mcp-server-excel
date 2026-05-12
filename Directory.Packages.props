@@ -49,7 +49,18 @@
     <PackageVersion Include="StreamJsonRpc" Version="2.24.84" />
     <!-- Security override: StreamJsonRpc 2.24.84 transitively pins vulnerable Nerdbank.MessagePack 1.0.2 -->
     <PackageVersion Include="Nerdbank.MessagePack" Version="1.1.62" />
+    <PackageVersion Include="MessagePack" Version="3.1.4" />
+    <PackageVersion Include="MessagePack.Annotations" Version="3.1.4" />
+    <PackageVersion Include="Microsoft.NETCore.Platforms" Version="7.0.4" />
     <PackageVersion Include="System.ClientModel" Version="1.11.0" />
+    <PackageVersion Include="System.Buffers" Version="4.6.1" />
+    <PackageVersion Include="System.Collections.Immutable" Version="10.0.7" />
+    <PackageVersion Include="System.Memory" Version="4.6.3" />
+    <PackageVersion Include="System.Numerics.Vectors" Version="4.6.1" />
+    <PackageVersion Include="System.Reflection.Metadata" Version="10.0.7" />
+    <PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
+    <PackageVersion Include="System.Text.Encoding.CodePages" Version="10.0.7" />
+    <PackageVersion Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
     <PackageVersion Include="System.Memory.Data" Version="10.0.7" />
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.7" />
     <PackageVersion Include="System.Text.Json" Version="10.0.7" />
