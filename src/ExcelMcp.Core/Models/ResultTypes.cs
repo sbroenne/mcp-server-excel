@@ -2402,6 +2402,11 @@ public class RangeMergeInfoResult : ResultBase
     /// Whether the range contains merged cells
     /// </summary>
     public bool IsMerged { get; set; }
+
+    /// <summary>
+    /// Distinct merged ranges contained in the queried range
+    /// </summary>
+    public IReadOnlyList<string> MergedRanges { get; set; } = [];
 }
 
 /// <summary>

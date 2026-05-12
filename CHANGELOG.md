@@ -12,6 +12,8 @@ This changelog covers all components:
 
 ### Fixed
 
+- **Range merge info no longer fails on multiple separate merged regions** (#647): `range_format get-merge-info` now handles Excel's `DBNull`/Variant Null response from `Range.MergeCells` when a queried range contains heterogeneous merge state, and returns distinct `mergedRanges` for merge areas contained in the range.
+
 - **Intermittent session loss and daemon startup failures during Excel automation** (#645): Excel COM disconnects such as `RPC_E_DISCONNECTED` are now classified as fatal session loss, dead sessions are cleaned up consistently during save/close and service dispatch, and `excelcli` daemon startup/connection-loss messages provide clearer recovery guidance. Screenshot capture is also hardened with additional window activation, `CopyPicture` fallback modes, and range-copy fallback when Excel's rendering clipboard path is temporarily unavailable.
 
 - **PivotTable numeric value fields with currency formatting no longer get misclassified as text** (#635): `pivottable_field list-fields` and `add-value-field` now use Excel's PivotField data type metadata before falling back to sampled PivotItem captions, so formatted numeric table columns such as `Amount` can be summed correctly instead of being rejected as Text-only fields.

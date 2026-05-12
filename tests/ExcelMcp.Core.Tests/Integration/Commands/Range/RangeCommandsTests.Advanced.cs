@@ -258,6 +258,54 @@ public partial class RangeCommandsTests
         Assert.Equal("https://example.com/", hyperlink.Address); // Excel normalizes URLs by adding trailing slash
         Assert.Contains("Example", hyperlink.DisplayText);
     }
+
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void GetMergeInfo_RangeSpanningMultipleMergedRegions_ReturnsMergedRanges()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _commands.MergeCells(batch, sheetName, "B4:F4");
+        _commands.MergeCells(batch, sheetName, "G4:K4");
+        _commands.MergeCells(batch, sheetName, "L4:P4");
+
+        var result = _commands.GetMergeInfo(batch, sheetName, "A4:P4");
+
+        Assert.True(result.Success, $"GetMergeInfo failed: {result.ErrorMessage}");
+        Assert.True(result.IsMerged);
+        Assert.Equal(["$B$4:$F$4", "$G$4:$K$4", "$L$4:$P$4"], result.MergedRanges);
+    }
+
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void GetMergeInfo_PartiallyMergedRange_ReturnsContainedMergedRange()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _commands.MergeCells(batch, sheetName, "B4:F4");
+
+        var result = _commands.GetMergeInfo(batch, sheetName, "B4:G4");
+
+        Assert.True(result.Success, $"GetMergeInfo failed: {result.ErrorMessage}");
+        Assert.True(result.IsMerged);
+        Assert.Equal(["$B$4:$F$4"], result.MergedRanges);
+    }
+
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void GetMergeInfo_UnmergedRange_ReturnsFalseAndNoMergedRanges()
+    {
+        using var batch = ExcelSession.BeginBatch(_fixture.TestFilePath);
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        var result = _commands.GetMergeInfo(batch, sheetName, "A1:D4");
+
+        Assert.True(result.Success, $"GetMergeInfo failed: {result.ErrorMessage}");
+        Assert.False(result.IsMerged);
+        Assert.Empty(result.MergedRanges);
+    }
 }
 
 
