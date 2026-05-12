@@ -1,4 +1,6 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
@@ -56,6 +58,113 @@ public partial class PivotTableCommandsTests
         Assert.True(result.Success, $"AddValueField failed: {result.ErrorMessage}");
         Assert.Equal("Sales", result.FieldName);
         Assert.Equal(PivotFieldArea.Value, result.Area);
+    }
+
+    [Fact]
+    [Trait("Speed", "Medium")]
+    [Trait("Category", "Regular")]
+    public void AddValueField_FromTableNumericColumn_AllowsSumAggregation()
+    {
+        // Arrange
+        var testFile = _olapFixture.CreateTestFile(nameof(AddValueField_FromTableNumericColumn_AllowsSumAggregation));
+
+        using var batch = ExcelSession.BeginBatch(testFile);
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            try
+            {
+                sheet = ctx.Book.Worksheets[1];
+                sheet.Name = "SalesData";
+
+                sheet.Range["A1"].Value2 = "Date";
+                sheet.Range["B1"].Value2 = "Region";
+                sheet.Range["C1"].Value2 = "Product";
+                sheet.Range["D1"].Value2 = "Amount";
+
+                sheet.Range["A2"].Value2 = new DateTime(2026, 1, 1);
+                sheet.Range["B2"].Value2 = "North";
+                sheet.Range["C2"].Value2 = "Widget";
+                sheet.Range["D2"].Value2 = 100;
+
+                sheet.Range["A3"].Value2 = new DateTime(2026, 1, 2);
+                sheet.Range["B3"].Value2 = "South";
+                sheet.Range["C3"].Value2 = "Widget";
+                sheet.Range["D3"].Value2 = 150;
+
+                sheet.Range["A4"].Value2 = new DateTime(2026, 1, 3);
+                sheet.Range["B4"].Value2 = "North";
+                sheet.Range["C4"].Value2 = "Gadget";
+                sheet.Range["D4"].Value2 = 200;
+
+                sheet.Range["A5"].Value2 = new DateTime(2026, 1, 4);
+                sheet.Range["B5"].Value2 = "West";
+                sheet.Range["C5"].Value2 = "Widget";
+                sheet.Range["D5"].Value2 = 75;
+
+                sheet.Range["A6"].Value2 = new DateTime(2026, 1, 5);
+                sheet.Range["B6"].Value2 = "East";
+                sheet.Range["C6"].Value2 = "Gadget";
+                sheet.Range["D6"].Value2 = 125;
+
+                sheet.Range["A7"].Value2 = new DateTime(2026, 1, 6);
+                sheet.Range["B7"].Value2 = "North";
+                sheet.Range["C7"].Value2 = "Widget";
+                sheet.Range["D7"].Value2 = 90;
+
+                sheet.Range["A8"].Value2 = new DateTime(2026, 1, 7);
+                sheet.Range["B8"].Value2 = "South";
+                sheet.Range["C8"].Value2 = "Gadget";
+                sheet.Range["D8"].Value2 = 60;
+
+                sheet.Range["A9"].Value2 = new DateTime(2026, 1, 8);
+                sheet.Range["B9"].Value2 = "West";
+                sheet.Range["C9"].Value2 = "Widget";
+                sheet.Range["D9"].Value2 = 110;
+
+                sheet.Range["A10"].Value2 = new DateTime(2026, 1, 9);
+                sheet.Range["B10"].Value2 = "East";
+                sheet.Range["C10"].Value2 = "Gadget";
+                sheet.Range["D10"].Value2 = 80;
+
+                sheet.Range["A11"].Value2 = new DateTime(2026, 1, 10);
+                sheet.Range["B11"].Value2 = "North";
+                sheet.Range["C11"].Value2 = "Gadget";
+                sheet.Range["D11"].Value2 = 130;
+
+                sheet.Range["A2:A11"].NumberFormat = "m/d/yyyy";
+                sheet.Range["D2:D11"].NumberFormat = "$#,##0.00";
+
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref sheet);
+            }
+        });
+
+        var tableCommands = new TableCommands();
+        tableCommands.Create(batch, "SalesData", "tblSales", "A1:D11", true, TableStylePresets.Medium2);
+
+        var createResult = _pivotCommands.CreateFromTable(
+            batch, "tblSales", "SalesData", "F1", "TestPivot");
+        Assert.True(createResult.Success, $"CreateFromTable failed: {createResult.ErrorMessage}");
+
+        // Act
+        var fieldsResult = _pivotCommands.ListFields(batch, "TestPivot");
+        var addResult = _pivotCommands.AddValueField(
+            batch, "TestPivot", "Amount", AggregationFunction.Sum, "Total Amount");
+
+        // Assert
+        Assert.True(fieldsResult.Success, $"ListFields failed: {fieldsResult.ErrorMessage}");
+        var amountField = Assert.Single(fieldsResult.Fields, field => field.Name == "Amount");
+        Assert.Equal("Number", amountField.DataType);
+
+        Assert.True(addResult.Success, $"AddValueField failed: {addResult.ErrorMessage}");
+        Assert.Equal("Amount", addResult.FieldName);
+        Assert.Equal(PivotFieldArea.Value, addResult.Area);
+        Assert.Equal(AggregationFunction.Sum, addResult.Function);
+        Assert.Equal("Number", addResult.DataType);
     }
     /// <inheritdoc/>
 

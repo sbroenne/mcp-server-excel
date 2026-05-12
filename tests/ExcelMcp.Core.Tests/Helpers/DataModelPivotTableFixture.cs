@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
@@ -28,6 +29,8 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 public class DataModelPivotTableFixture : IAsyncLifetime
 {
     private readonly string _tempDir;
+    private readonly object _salesDataTemplateLock = new();
+    private string? _salesDataTemplatePath;
 
     /// <summary>
     /// Temp directory for test files (auto-cleaned on disposal)
@@ -444,6 +447,81 @@ public class DataModelPivotTableFixture : IAsyncLifetime
         var sessionId = manager.CreateSessionForNewFile(filePath, show: false);
         manager.CloseSession(sessionId, save: true);
         return filePath;
+    }
+
+    /// <summary>
+    /// Creates a unique copy of the standard PivotTable sales-data workbook.
+    /// </summary>
+    public string CreateSalesDataTestFile([CallerMemberName] string testName = "")
+    {
+        var templatePath = EnsureSalesDataTemplate();
+        var fileName = $"{testName}_{Guid.NewGuid():N}.xlsx";
+        var filePath = Path.Join(_tempDir, fileName);
+        File.Copy(templatePath, filePath);
+        return filePath;
+    }
+
+    private string EnsureSalesDataTemplate()
+    {
+        if (_salesDataTemplatePath != null)
+        {
+            return _salesDataTemplatePath;
+        }
+
+        lock (_salesDataTemplateLock)
+        {
+            if (_salesDataTemplatePath != null)
+            {
+                return _salesDataTemplatePath;
+            }
+
+            var templatePath = Path.Join(_tempDir, "SalesDataTemplate.xlsx");
+            CreateSalesDataTemplate(templatePath);
+            _salesDataTemplatePath = templatePath;
+            return templatePath;
+        }
+    }
+
+    private static void CreateSalesDataTemplate(string templatePath)
+    {
+        using (var manager = new SessionManager())
+        {
+            var sessionId = manager.CreateSessionForNewFile(templatePath, show: false);
+            manager.CloseSession(sessionId, save: true);
+        }
+
+        using var batch = ExcelSession.BeginBatch(templatePath);
+        var rangeCommands = new RangeCommands();
+        rangeCommands.SetValues(
+            batch,
+            "Sheet1",
+            "A1:D6",
+            [
+                ["Region", "Product", "Sales", "Date"],
+                ["North", "Widget", 100, new DateTime(2025, 1, 15)],
+                ["North", "Widget", 150, new DateTime(2025, 1, 20)],
+                ["South", "Gadget", 200, new DateTime(2025, 2, 10)],
+                ["North", "Gadget", 75, new DateTime(2025, 2, 15)],
+                ["South", "Widget", 125, new DateTime(2025, 3, 5)]
+            ]);
+
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            try
+            {
+                sheet = ctx.Book.Worksheets["Sheet1"];
+                sheet.Name = "SalesData";
+                sheet.Range["D2:D6"].NumberFormat = "m/d/yyyy";
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref sheet);
+            }
+        });
+
+        batch.Save();
     }
 
     public Task DisposeAsync()

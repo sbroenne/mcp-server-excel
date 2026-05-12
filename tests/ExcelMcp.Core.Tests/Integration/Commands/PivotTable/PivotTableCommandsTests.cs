@@ -43,61 +43,10 @@ public partial class PivotTableCommandsTests
     }
 
     /// <summary>
-    /// Helper to create unique test file with sales data for pivot table tests.
+    /// Helper to create a unique copy of the shared sales-data template for pivot table tests.
     /// Used when tests need unique files for specific scenarios.
     /// </summary>
-    private string CreateTestFileWithData(string testName)
-    {
-        var testFile = _olapFixture.CreateTestFile(testName);
-
-        using var batch = ExcelSession.BeginBatch(testFile);
-
-        batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[1];
-            sheet.Name = "SalesData";
-
-            sheet.Range["A1"].Value2 = "Region";
-            sheet.Range["B1"].Value2 = "Product";
-            sheet.Range["C1"].Value2 = "Sales";
-            sheet.Range["D1"].Value2 = "Date";
-
-            sheet.Range["A2"].Value2 = "North";
-            sheet.Range["B2"].Value2 = "Widget";
-            sheet.Range["C2"].Value2 = 100;
-            sheet.Range["D2"].Value2 = new DateTime(2025, 1, 15);
-
-            sheet.Range["A3"].Value2 = "North";
-            sheet.Range["B3"].Value2 = "Widget";
-            sheet.Range["C3"].Value2 = 150;
-            sheet.Range["D3"].Value2 = new DateTime(2025, 1, 20);
-
-            sheet.Range["A4"].Value2 = "South";
-            sheet.Range["B4"].Value2 = "Gadget";
-            sheet.Range["C4"].Value2 = 200;
-            sheet.Range["D4"].Value2 = new DateTime(2025, 2, 10);
-
-            sheet.Range["A5"].Value2 = "North";
-            sheet.Range["B5"].Value2 = "Gadget";
-            sheet.Range["C5"].Value2 = 75;
-            sheet.Range["D5"].Value2 = new DateTime(2025, 2, 15);
-
-            sheet.Range["A6"].Value2 = "South";
-            sheet.Range["B6"].Value2 = "Widget";
-            sheet.Range["C6"].Value2 = 125;
-            sheet.Range["D6"].Value2 = new DateTime(2025, 3, 5);
-
-            // CRITICAL: Format Date column with date format so PivotTable recognizes dates
-            // Without this, dates are stored as serial numbers (45672) and Excel won't group them
-            sheet.Range["D2:D6"].NumberFormat = "m/d/yyyy";
-
-            return 0;
-        });
-
-        batch.Save();
-
-        return testFile;
-    }
+    private string CreateTestFileWithData(string testName) => _olapFixture.CreateSalesDataTestFile(testName);
 
     /// <summary>
     /// Explicit test that validates the fixture creation results.
