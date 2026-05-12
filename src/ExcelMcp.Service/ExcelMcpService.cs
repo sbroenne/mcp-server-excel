@@ -394,7 +394,19 @@ public sealed class ExcelMcpService : IDisposable
         }
 
         var args = ServiceRegistry.DeserializeArgs<SessionCloseArgs>(request.Args);
-        var closed = _sessionManager.CloseSession(request.SessionId, save: args?.Save ?? false);
+        var shouldSave = args?.Save ?? false;
+        bool closed;
+        try
+        {
+            closed = _sessionManager.CloseSession(request.SessionId, save: shouldSave);
+        }
+        catch (Exception ex) when (IsFatalExcelDisconnect(ex))
+        {
+            CleanupDeadSession(request.SessionId);
+            return CreateExcelDisconnectedResponse(request.SessionId, ex, shouldSave
+                ? "Excel disconnected while saving before close. Session has been cleaned up; reopen the workbook and verify whether the save completed."
+                : "Excel disconnected while closing. Session has been cleaned up; reopen the workbook with a new session.");
+        }
 
         if (closed)
         {
@@ -428,8 +440,17 @@ public sealed class ExcelMcpService : IDisposable
             return sessionError;
         }
 
-        batch!.Save();
-        return new ServiceResponse { Success = true };
+        try
+        {
+            batch!.Save();
+            return new ServiceResponse { Success = true };
+        }
+        catch (Exception ex) when (IsFatalExcelDisconnect(ex))
+        {
+            CleanupDeadSession(request.SessionId);
+            return CreateExcelDisconnectedResponse(request.SessionId, ex,
+                "Excel disconnected while saving. Session has been cleaned up; reopen the workbook and verify whether the save completed.");
+        }
     }
 
     private ServiceResponse HandleSessionList()
@@ -722,17 +743,11 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (COMException ex) when (
             ex.HResult == ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE ||
-            ex.HResult == ResiliencePipelines.RPC_E_CALL_FAILED)
+            ex.HResult == ResiliencePipelines.RPC_E_CALL_FAILED ||
+            ex.HResult == ResiliencePipelines.RPC_E_DISCONNECTED)
         {
             // Excel process died during the operation — clean up the dead session
-            try
-            {
-                _sessionManager.CloseSession(sessionId, save: false, force: true);
-            }
-            catch (Exception cleanupEx)
-            {
-                System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
-            }
+            CleanupDeadSession(sessionId);
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
@@ -748,14 +763,7 @@ public sealed class ExcelMcpService : IDisposable
             ex.Message.Contains("process", StringComparison.OrdinalIgnoreCase))
         {
             // Excel process detected as dead before COM call (ExcelBatch pre-check)
-            try
-            {
-                _sessionManager.CloseSession(sessionId, save: false, force: true);
-            }
-            catch (Exception cleanupEx)
-            {
-                System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
-            }
+            CleanupDeadSession(sessionId);
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
@@ -767,22 +775,79 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (Exception ex)
         {
+            if (IsFatalExcelDisconnect(ex))
+            {
+                CleanupDeadSession(sessionId);
+                return Task.FromResult(CreateExcelDisconnectedResponse(sessionId, ex,
+                    $"Excel process for session '{sessionId}' disconnected during the operation. Session has been cleaned up. Please reopen the file with a new session."));
+            }
+
             // Check if Excel died with a non-COM exception — clean up dead session
             if (batch != null && !batch.IsExcelProcessAlive())
             {
-                try
-                {
-                    _sessionManager.CloseSession(sessionId, save: false, force: true);
-                }
-                catch (Exception cleanupEx)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Dead session cleanup failed for {sessionId}: {cleanupEx.Message}");
-                }
+                CleanupDeadSession(sessionId);
             }
 
             return Task.FromResult(CreateErrorResponse(ex));
         }
     }
+
+    private void CleanupDeadSession(string sessionId)
+    {
+        try
+        {
+            _sessionManager.CloseSession(sessionId, save: false, force: true);
+        }
+        catch (Exception cleanupEx)
+        {
+            System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
+        }
+    }
+
+    private static ServiceResponse CreateExcelDisconnectedResponse(string sessionId, Exception ex, string message)
+    {
+        return new ServiceResponse
+        {
+            Success = false,
+            SessionId = sessionId,
+            ErrorCategory = "ExcelProcessDied",
+            ErrorMessage = message,
+            ExceptionType = ex.GetType().Name,
+            HResult = TryGetFatalComHResult(ex) is { } hresult ? $"0x{hresult:X8}" : null,
+            InnerError = ex.InnerException?.Message
+        };
+    }
+
+    private static bool IsFatalExcelDisconnect(Exception ex) => TryGetFatalComHResult(ex).HasValue;
+
+    private static int? TryGetFatalComHResult(Exception ex)
+    {
+        for (var current = ex; current != null; current = current.InnerException!)
+        {
+            if (current is COMException comEx &&
+                (IsFatalComHResult(comEx.HResult) || IsFatalComHResult(comEx.ErrorCode)))
+            {
+                return IsFatalComHResult(comEx.HResult) ? comEx.HResult : comEx.ErrorCode;
+            }
+
+            if (current.Message.Contains("disconnected", StringComparison.OrdinalIgnoreCase))
+            {
+                return ResiliencePipelines.RPC_E_DISCONNECTED;
+            }
+
+            if (current.Message.Contains("RPC server is unavailable", StringComparison.OrdinalIgnoreCase))
+            {
+                return ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsFatalComHResult(int hresult) =>
+        hresult == ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE ||
+        hresult == ResiliencePipelines.RPC_E_CALL_FAILED ||
+        hresult == ResiliencePipelines.RPC_E_DISCONNECTED;
 
     private static ServiceResponse AttachRequestContext(ServiceRequest request, ServiceResponse response)
     {

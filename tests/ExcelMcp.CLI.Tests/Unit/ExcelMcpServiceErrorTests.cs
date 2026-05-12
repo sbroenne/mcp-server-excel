@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Service;
@@ -165,6 +167,46 @@ public sealed class ExcelMcpServiceErrorTests
         Assert.Equal(1, batch.SaveCalls);
     }
 
+    [Fact]
+    public async Task ProcessAsync_SessionCloseSaveAfterRpcDisconnected_CleansSessionAndReturnsActionableError()
+    {
+        using var service = new ExcelMcpService();
+        var batch = new FakeBatch
+        {
+#pragma warning disable CA2201
+            SaveException = new InvalidOperationException(
+                "Failed to save workbook 'book.xlsx': The object invoked has disconnected from its clients.",
+                new COMException("The object invoked has disconnected from its clients.", unchecked((int)0x80010108))),
+#pragma warning restore CA2201
+            IsAliveAfterSaveException = false
+        };
+        const string sessionId = "disconnected-close-save";
+
+        RegisterSession(service, sessionId, batch);
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "session.close",
+            SessionId = sessionId,
+            Args = JsonSerializer.Serialize(new { save = true }, ServiceProtocol.JsonOptions)
+        });
+
+        Assert.False(response.Success);
+        Assert.True(
+            response.ErrorCategory == "ExcelProcessDied",
+            $"Expected ExcelProcessDied but got '{response.ErrorCategory}'. Message: {response.ErrorMessage}");
+        Assert.NotNull(response.ErrorMessage);
+        Assert.Contains("disconnected", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Session has been cleaned up", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1, batch.SaveCalls);
+        Assert.Equal(1, batch.DisposeCalls);
+
+        var listResponse = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+        Assert.True(listResponse.Success);
+        Assert.NotNull(listResponse.Result);
+        Assert.DoesNotContain(sessionId, listResponse.Result, StringComparison.Ordinal);
+    }
+
     private static void RegisterSession(ExcelMcpService service, string sessionId, FakeBatch batch)
     {
         var sessionManager = GetPrivateField<SessionManager>(service, "_sessionManager");
@@ -199,8 +241,12 @@ public sealed class ExcelMcpServiceErrorTests
         public Microsoft.Extensions.Logging.ILogger Logger { get; } = NullLogger.Instance;
         public IReadOnlyDictionary<string, Excel.Workbook> Workbooks { get; } = new Dictionary<string, Excel.Workbook>();
         public bool HasTimedOutOperation { get; init; }
+        public bool IsAlive { get; private set; } = true;
+        public bool IsAliveAfterSaveException { get; init; } = true;
+        public Exception? SaveException { get; init; }
         public int ExecuteCalls { get; private set; }
         public int SaveCalls { get; private set; }
+        public int DisposeCalls { get; private set; }
         public int? ExcelProcessId => 1234;
         public TimeSpan OperationTimeout => TimeSpan.FromSeconds(5);
 
@@ -221,12 +267,18 @@ public sealed class ExcelMcpServiceErrorTests
         public void Save(CancellationToken cancellationToken = default)
         {
             SaveCalls++;
+            if (SaveException != null)
+            {
+                IsAlive = IsAliveAfterSaveException;
+                throw SaveException;
+            }
         }
 
-        public bool IsExcelProcessAlive() => true;
+        public bool IsExcelProcessAlive() => IsAlive;
 
         public void Dispose()
         {
+            DisposeCalls++;
         }
     }
 }

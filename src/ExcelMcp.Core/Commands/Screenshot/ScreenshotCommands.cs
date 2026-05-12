@@ -11,9 +11,12 @@ public class ScreenshotCommands : IScreenshotCommands
 {
     // Excel COM constants
     private const int XlScreen = 1;      // xlScreen - required for CopyPicture to render correctly
+    private const int XlPrinter = 2;     // xlPrinter - fallback when xlScreen rendering is unavailable
     private const int XlPicture = -4147; // xlPicture - more reliable than xlBitmap for range capture
+    private const int XlBitmap = 2;      // xlBitmap - fallback when xlPicture fails
     private const int XlNormal = -4143;  // xlNormal
     private const int XlMinimized = -4140; // xlMinimized
+    private const int SwRestore = 9;
 
     // CopyPicture retry configuration
     // After Save or large operations, Excel rendering can take several seconds.
@@ -152,6 +155,7 @@ public class ScreenshotCommands : IScreenshotCommands
                 Thread.Sleep(500);
             }
 
+            BringExcelToForeground(app);
             PrepareRangeForCapture(app, sheet, range);
 
             // Get range dimensions for the chart
@@ -192,7 +196,7 @@ public class ScreenshotCommands : IScreenshotCommands
             // Copy range as picture (with retry — CopyPicture is clipboard-dependent
             // and intermittently fails when Excel is still rendering after chart/table operations)
             try { app.CutCopyMode = false; } catch (COMException) { }
-            CopyPictureWithRetry(range);
+            CopyPictureWithRetry(app, sheet, range);
             Thread.Sleep(250);
 
             // Create a temporary ChartObject to paste into and export
@@ -268,20 +272,64 @@ public class ScreenshotCommands : IScreenshotCommands
     /// intermittently fails with COMException when Excel is busy rendering
     /// (e.g., after chart/table operations). Retries with increasing delay.
     /// </summary>
-    private static void CopyPictureWithRetry(dynamic range)
+    private static void CopyPictureWithRetry(dynamic app, dynamic sheet, dynamic range)
     {
+        COMException? lastException = null;
+        (int Appearance, int Format)[] modes =
+        [
+            (XlScreen, XlPicture),
+            (XlPrinter, XlPicture),
+            (XlScreen, XlBitmap),
+            (XlPrinter, XlBitmap)
+        ];
+
+        for (int attempt = 0; attempt < CopyPictureMaxRetries; attempt++)
+        {
+            foreach (var mode in modes)
+            {
+                try
+                {
+                    try { app.CutCopyMode = false; } catch (COMException) { }
+                    range.CopyPicture(mode.Appearance, mode.Format);
+                    return;
+                }
+                catch (COMException ex)
+                {
+                    lastException = ex;
+                }
+            }
+
+            if (attempt < CopyPictureMaxRetries - 1)
+            {
+                Thread.Sleep(CopyPictureRetryDelayMs * (attempt + 1));
+                PrepareRangeForCapture(app, sheet, range);
+            }
+        }
+
         for (int attempt = 0; attempt < CopyPictureMaxRetries; attempt++)
         {
             try
             {
-                range.CopyPicture(XlScreen, XlPicture);
+                try { app.CutCopyMode = false; } catch (COMException) { }
+                range.Copy();
                 return;
             }
-            catch (COMException) when (attempt < CopyPictureMaxRetries - 1)
+            catch (COMException ex)
             {
-                Thread.Sleep(CopyPictureRetryDelayMs * (attempt + 1));
+                lastException = ex;
+                if (attempt < CopyPictureMaxRetries - 1)
+                {
+                    Thread.Sleep(CopyPictureRetryDelayMs * (attempt + 1));
+                    PrepareRangeForCapture(app, sheet, range);
+                }
             }
         }
+
+        throw new InvalidOperationException(
+            $"Excel could not capture the range after {CopyPictureMaxRetries} attempts because CopyPicture and the range copy fallback kept failing. " +
+            "Excel may still be rendering, busy, minimized, or unable to access the clipboard. " +
+            "Retry the screenshot after the workbook finishes refreshing, or capture a smaller range.",
+            lastException);
     }
 
     private static void PrepareRangeForCapture(dynamic app, dynamic sheet, dynamic range)
@@ -291,6 +339,7 @@ public class ScreenshotCommands : IScreenshotCommands
 
         try
         {
+            BringExcelToForeground(app);
             try { sheet.Activate(); } catch (COMException) { }
 
             try
@@ -321,6 +370,30 @@ public class ScreenshotCommands : IScreenshotCommands
         }
     }
 
+    private static void BringExcelToForeground(dynamic app)
+    {
+        try
+        {
+            IntPtr hwnd = new(Convert.ToInt64(app.Hwnd));
+            if (hwnd != IntPtr.Zero)
+            {
+                ShowWindow(hwnd, SwRestore);
+                SetForegroundWindow(hwnd);
+                Thread.Sleep(250);
+            }
+        }
+        catch (COMException) { }
+        catch (InvalidCastException) { }
+        catch (FormatException) { }
+        catch (OverflowException) { }
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
     private static void PastePictureWithRetry(dynamic app, dynamic sheet, dynamic range, dynamic chart)
     {
         for (int attempt = 0; attempt < CopyPictureMaxRetries; attempt++)
@@ -339,7 +412,7 @@ public class ScreenshotCommands : IScreenshotCommands
                 Thread.Sleep(CopyPictureRetryDelayMs * (attempt + 1));
                 PrepareRangeForCapture(app, sheet, range);
                 try { app.CutCopyMode = false; } catch (COMException) { }
-                CopyPictureWithRetry(range);
+                CopyPictureWithRetry(app, sheet, range);
             }
         }
     }
