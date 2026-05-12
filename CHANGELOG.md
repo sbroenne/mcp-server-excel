@@ -10,6 +10,8 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.8.59] - 2026-05-12
+
 ### Fixed
 
 - **Range merge info no longer fails on multiple separate merged regions** (#647): `range_format get-merge-info` now handles Excel's `DBNull`/Variant Null response from `Range.MergeCells` when a queried range contains heterogeneous merge state, and returns distinct `mergedRanges` for merge areas contained in the range.
