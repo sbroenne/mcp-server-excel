@@ -12,6 +12,8 @@ This changelog covers all components:
 
 ### Fixed
 
+- **Dependency freshness refresh across .NET and VS Code extension toolchain**: Updated central package pins for stale transitive .NET dependencies (including MessagePack 3.1.4 and netstandard support packages) and refreshed VS Code extension type dependencies (`@types/node`, `@types/vscode`) with regenerated lockfile so dependency audits report fully up-to-date packages.
+
 - **CLI timeout parameter parsing now correctly interprets numeric values as seconds** (#640): The `--timeout` parameter for commands like `datamodel refresh` incorrectly parsed numeric values (e.g., `--timeout 600`) as days instead of seconds. Numeric timeouts are now interpreted as seconds, while TimeSpan format (e.g., `00:10:00`) is still supported. This fix applies to all timeout parameters across data model, power query, and connection refresh operations.
 
 - **Remote DAX and M formatting is now explicit opt-in** (#601): `powerquery create/update` and `datamodel create-measure/update-measure` no longer send formulas to remote formatter services by default. M code and DAX formulas are preserved as provided (with Excel locale separator translation for DAX), and callers must set `formatMCode=true` or `formatDax=true` to opt in to remote formatting via powerqueryformatter.com or daxformatter.com.
