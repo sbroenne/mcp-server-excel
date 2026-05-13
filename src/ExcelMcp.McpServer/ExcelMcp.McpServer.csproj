@@ -38,7 +38,7 @@
          Standalone exe builds in CI use separate publish args: -r win-x64 -p:SelfContained=true -->
     <PublishSelfContained>false</PublishSelfContained>
     <PublishTrimmed>false</PublishTrimmed>
-    <!-- RuntimeIdentifier removed for portable NuGet deployment -->
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
 
     <!-- Package Validation -->
     <EnablePackageValidation>true</EnablePackageValidation>

@@ -75,17 +75,42 @@ internal static class DaemonAutoStart
             // Daemon exited while we waited — start a replacement.
         }
 
-        if (!await TryStartDaemonWithStartupLockAsync(pipeName, cancellationToken))
+        for (var attempt = 1; attempt <= 2; attempt++)
         {
-            if (await WaitForResponsiveDaemonAsync(pipeName, StartupReadyTimeout, cancellationToken))
-                return new ServiceClient(pipeName);
+            try
+            {
+                if (!await TryStartDaemonWithStartupLockAsync(pipeName, cancellationToken))
+                {
+                    if (await WaitForResponsiveDaemonAsync(pipeName, StartupReadyTimeout, cancellationToken))
+                        return new ServiceClient(pipeName);
 
-            throw new TimeoutException(
-                $"Daemon startup is already in progress but did not become ready within {FormatDuration(StartupReadyTimeout)}.");
+                    throw new TimeoutException(
+                        $"Daemon startup is already in progress but did not become ready within {FormatDuration(StartupReadyTimeout)}.");
+                }
+            }
+            catch (InvalidOperationException) when (attempt == 1 && !IsDaemonMutexHeld(pipeName))
+            {
+                DaemonProcessTracker.Clear(pipeName);
+                await Task.Delay(StartupReadyRetryInterval, cancellationToken);
+                continue;
+            }
+
+            if (await PingAsync(pipeName, StartupReadyConnectTimeout, cancellationToken))
+            {
+                return new ServiceClient(pipeName);
+            }
+
+            if (attempt == 1 && !IsDaemonMutexHeld(pipeName))
+            {
+                DaemonProcessTracker.Clear(pipeName);
+                await Task.Delay(StartupReadyRetryInterval, cancellationToken);
+                continue;
+            }
+
+            break;
         }
 
-        // Return new client connected to the now-running daemon
-        return new ServiceClient(pipeName);
+        throw new TimeoutException($"Daemon started but not responding within {FormatDuration(StartupReadyTimeout)}.");
     }
 
     /// <summary>

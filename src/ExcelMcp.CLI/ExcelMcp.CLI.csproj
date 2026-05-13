@@ -35,6 +35,7 @@
     <!-- .NET Tool Configuration -->
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>excelcli</ToolCommandName>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
 
     <!-- Package Validation -->
     <EnablePackageValidation>true</EnablePackageValidation>

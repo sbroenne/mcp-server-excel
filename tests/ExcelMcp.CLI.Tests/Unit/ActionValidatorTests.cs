@@ -11,6 +11,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Feature", "ActionValidation")]
 [Trait("Speed", "Fast")]
+[Collection("ConsoleOutput")]
 public sealed class ActionValidatorTests
 {
     public static IEnumerable<object[]> ActionEnumTypes =>
