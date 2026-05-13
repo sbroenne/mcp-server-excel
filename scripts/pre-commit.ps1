@@ -34,6 +34,7 @@
 $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent $PSScriptRoot
 $preCommitArtifactsDir = Join-Path $rootDir "artifacts\pre-commit"
+$nugetConfigPath = Join-Path $rootDir "NuGet.Config"
 $version = $null
 
 function Invoke-ValidationStep {
@@ -80,6 +81,10 @@ function Reset-Directory {
     New-Item -ItemType Directory -Path $Path -Force | Out-Null
 }
 
+function Stop-DotNetBuildServers {
+    dotnet build-server shutdown *> $null
+}
+
 # CRITICAL: Check branch FIRST - never commit directly to main (Rule 6)
 Write-Host "Checking current branch..." -ForegroundColor Cyan
 $currentBranch = git branch --show-current
@@ -124,6 +129,8 @@ if ($killedProcesses.Count -gt 0) {
 else {
     Write-Host "   No stale processes found" -ForegroundColor Gray
 }
+
+Stop-DotNetBuildServers
 
 Write-Host "Process cleanup done" -ForegroundColor Green
 Write-Host ""
@@ -241,7 +248,7 @@ Invoke-ValidationStep `
     -Action {
         Push-Location $rootDir
         try {
-            dotnet build Sbroenne.ExcelMcp.sln --configuration Release -p:NuGetAudit=false --verbosity minimal
+            dotnet build Sbroenne.ExcelMcp.sln --configuration Release --configfile $nugetConfigPath -p:NuGetAudit=false --verbosity minimal
         }
         finally {
             Pop-Location
@@ -351,10 +358,12 @@ Invoke-ValidationStep `
         Reset-Directory -Path $cliPublishDir
         Reset-Directory -Path $cliReleaseDir
 
+        Stop-DotNetBuildServers
+
         Push-Location $rootDir
         try {
-            dotnet pack src\ExcelMcp.CLI\ExcelMcp.CLI.csproj --configuration Release --no-build --output $cliNupkgDir -p:Version=$version -p:NuGetAudit=false
-            dotnet publish src\ExcelMcp.CLI\ExcelMcp.CLI.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:Version=$version -p:NuGetAudit=false --output $cliPublishDir
+            dotnet pack src\ExcelMcp.CLI\ExcelMcp.CLI.csproj --configuration Release --no-build --no-restore --output $cliNupkgDir -p:Version=$version -p:NuGetAudit=false
+            dotnet publish src\ExcelMcp.CLI\ExcelMcp.CLI.csproj --configuration Release --no-restore --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:Version=$version -p:NuGetAudit=false --output $cliPublishDir
 
             Copy-Item (Join-Path $cliPublishDir "excelcli.exe") $cliReleaseDir
             Copy-Item "README.md" $cliReleaseDir
@@ -393,10 +402,12 @@ Invoke-ValidationStep `
         Reset-Directory -Path $mcpPublishDir
         Reset-Directory -Path $mcpReleaseDir
 
+        Stop-DotNetBuildServers
+
         Push-Location $rootDir
         try {
-            dotnet pack src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj --configuration Release --no-build --output $mcpNupkgDir -p:Version=$version -p:NuGetAudit=false
-            dotnet publish src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:Version=$version -p:NuGetAudit=false --output $mcpPublishDir
+            dotnet pack src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj --configuration Release --no-build --no-restore --output $mcpNupkgDir -p:Version=$version -p:NuGetAudit=false
+            dotnet publish src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj --configuration Release --no-restore --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:Version=$version -p:NuGetAudit=false --output $mcpPublishDir
 
             $publishedExe = Join-Path $mcpPublishDir "Sbroenne.ExcelMcp.McpServer.exe"
             $renamedExe = Join-Path $mcpPublishDir "mcp-excel.exe"

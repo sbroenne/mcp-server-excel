@@ -1,5 +1,5 @@
 {
   "version": 1,
   "teamRoot": ".",
-  "defaultModel": "gpt-5.4"
+  "defaultModel": "gpt-5.5"
 }

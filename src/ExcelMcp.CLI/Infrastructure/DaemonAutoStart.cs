@@ -16,7 +16,7 @@ internal static class DaemonAutoStart
     internal static readonly TimeSpan StartupReadyConnectTimeout = TimeSpan.FromSeconds(1);
     internal static readonly TimeSpan StartupReadyRetryInterval = TimeSpan.FromMilliseconds(250);
     internal static readonly TimeSpan StartupReadyTimeout = TimeSpan.FromSeconds(10);
-    internal static readonly TimeSpan StartupLockTimeout = TimeSpan.FromSeconds(5);
+    internal static readonly TimeSpan StartupLockTimeout = StartupReadyTimeout + TimeSpan.FromSeconds(1);
 
     /// <summary>
     /// Gets the pipe name for the CLI daemon (supports env var override for testing).
@@ -84,8 +84,12 @@ internal static class DaemonAutoStart
                 $"Daemon startup is already in progress but did not become ready within {FormatDuration(StartupReadyTimeout)}.");
         }
 
-        // Return new client connected to the now-running daemon
-        return new ServiceClient(pipeName);
+        if (await PingAsync(pipeName, StartupReadyConnectTimeout, cancellationToken))
+        {
+            return new ServiceClient(pipeName);
+        }
+
+        throw new TimeoutException($"Daemon started but not responding within {FormatDuration(StartupReadyTimeout)}.");
     }
 
     /// <summary>

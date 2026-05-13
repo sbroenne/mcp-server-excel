@@ -103,12 +103,18 @@ public sealed class SessionManager : IDisposable
     private readonly ConcurrentDictionary<string, string> _activeFilePaths = new();
     private readonly ConcurrentDictionary<string, string> _sessionFilePaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, int> _activeOperationCounts = new();
+    private readonly ConcurrentDictionary<string, object> _sessionLocks = new();
+    private readonly ConcurrentDictionary<string, byte> _closingSessions = new();
+    private readonly ConcurrentDictionary<string, string> _teardownFailures = new();
     private readonly ConcurrentDictionary<string, bool> _showExcelFlags = new();
     private readonly ConcurrentDictionary<string, SessionOrigin> _sessionOrigins = new();
     private readonly ConcurrentDictionary<string, DateTime> _sessionCreatedAt = new();
     private readonly Polly.ResiliencePipeline _sessionCreationPipeline = ResiliencePipelines.CreateSessionCreationPipeline();
     private readonly ILogger<SessionManager> _logger;
     private bool _disposed;
+
+    private object GetSessionLock(string sessionId) =>
+        _sessionLocks.GetOrAdd(sessionId, static _ => new object());
 
     /// <summary>
     /// Creates a new SessionManager with optional logging.
@@ -315,20 +321,24 @@ public sealed class SessionManager : IDisposable
             return null;
         }
 
-        if (!_activeSessions.TryGetValue(sessionId, out var batch))
+        var sessionLock = GetSessionLock(sessionId);
+        lock (sessionLock)
         {
-            return null;
-        }
+            if (!_activeSessions.TryGetValue(sessionId, out var batch))
+            {
+                return null;
+            }
 
-        // Check if Excel process is still alive
-        if (!batch.IsExcelProcessAlive())
-        {
-            _logger?.LogWarning("Session {SessionId} has dead Excel process, auto-cleaning up", sessionId);
-            CleanupDeadSession(sessionId, batch);
-            return null;
-        }
+            // Check if Excel process is still alive
+            if (!batch.IsExcelProcessAlive())
+            {
+                _logger?.LogWarning("Session {SessionId} has dead Excel process, auto-cleaning up", sessionId);
+                CleanupDeadSession(sessionId, batch);
+                return null;
+            }
 
-        return batch;
+            return batch;
+        }
     }
 
     /// <summary>
@@ -337,10 +347,23 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     private void CleanupDeadSession(string sessionId, IExcelBatch batch)
     {
-        // Remove from active sessions
+        RemoveSessionTracking(sessionId, removeSessionLock: true);
+
+        // Dispose the batch (best effort - process is already dead)
+        try
+        {
+            batch.Dispose();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Error disposing dead session {SessionId} (expected - process is dead)", sessionId);
+        }
+    }
+
+    private void RemoveSessionTracking(string sessionId, bool removeSessionLock)
+    {
         _activeSessions.TryRemove(sessionId, out _);
 
-        // Remove file path metadata so it can be opened again
         if (_sessionFilePaths.TryRemove(sessionId, out var normalizedPath))
         {
             _activeFilePaths.TryRemove(normalizedPath, out _);
@@ -354,22 +377,16 @@ public sealed class SessionManager : IDisposable
             }
         }
 
-        // Clean up operation tracking data
         _activeOperationCounts.TryRemove(sessionId, out _);
+        _closingSessions.TryRemove(sessionId, out _);
         _showExcelFlags.TryRemove(sessionId, out _);
-
-        // Clean up session origin tracking data
         _sessionOrigins.TryRemove(sessionId, out _);
         _sessionCreatedAt.TryRemove(sessionId, out _);
+        _teardownFailures.TryRemove(sessionId, out _);
 
-        // Dispose the batch (best effort - process is already dead)
-        try
+        if (removeSessionLock)
         {
-            batch.Dispose();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogDebug(ex, "Error disposing dead session {SessionId} (expected - process is dead)", sessionId);
+            _sessionLocks.TryRemove(sessionId, out _);
         }
     }
 
@@ -380,8 +397,72 @@ public sealed class SessionManager : IDisposable
     /// <param name="sessionId">Session ID</param>
     public void BeginOperation(string sessionId)
     {
-        if (string.IsNullOrWhiteSpace(sessionId)) return;
-        _activeOperationCounts.AddOrUpdate(sessionId, 1, (_, count) => count + 1);
+        if (!TryBeginOperation(sessionId, out _, out var errorMessage))
+        {
+            throw new InvalidOperationException(errorMessage);
+        }
+    }
+
+    /// <summary>
+    /// Atomically validates a session and marks one operation as active.
+    /// </summary>
+    public bool TryBeginOperation(
+        string sessionId,
+        [NotNullWhen(true)] out IExcelBatch? batch,
+        [NotNullWhen(false)] out string? errorMessage)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        batch = null;
+
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            errorMessage = "sessionId is required";
+            return false;
+        }
+
+        var sessionLock = GetSessionLock(sessionId);
+        lock (sessionLock)
+        {
+            if (_teardownFailures.TryGetValue(sessionId, out var teardownFailure))
+            {
+                errorMessage = $"Session '{sessionId}' is quarantined after a failed close: {teardownFailure}";
+                return false;
+            }
+
+            if (_closingSessions.ContainsKey(sessionId))
+            {
+                errorMessage = $"Session '{sessionId}' is closing";
+                return false;
+            }
+
+            if (!_activeSessions.TryGetValue(sessionId, out batch))
+            {
+                errorMessage = $"Session '{sessionId}' not found";
+                return false;
+            }
+
+            if (batch.HasTimedOutOperation)
+            {
+                errorMessage = $"A previous operation on session '{sessionId}' timed out or was cancelled. " +
+                               "Please close the session and reopen the workbook before retrying.";
+                batch = null;
+                return false;
+            }
+
+            if (!batch.IsExcelProcessAlive())
+            {
+                _logger?.LogWarning("Session {SessionId} has dead Excel process, auto-cleaning up", sessionId);
+                CleanupDeadSession(sessionId, batch);
+                batch = null;
+                errorMessage = $"Excel process for session '{sessionId}' has died. Session has been closed. Please create a new session.";
+                return false;
+            }
+
+            _activeOperationCounts.AddOrUpdate(sessionId, 1, (_, count) => count + 1);
+            errorMessage = null;
+            return true;
+        }
     }
 
     /// <summary>
@@ -392,7 +473,18 @@ public sealed class SessionManager : IDisposable
     public void EndOperation(string sessionId)
     {
         if (string.IsNullOrWhiteSpace(sessionId)) return;
-        _activeOperationCounts.AddOrUpdate(sessionId, 0, (_, count) => Math.Max(0, count - 1));
+        var sessionLock = GetSessionLock(sessionId);
+        lock (sessionLock)
+        {
+            while (_activeOperationCounts.TryGetValue(sessionId, out var count))
+            {
+                var next = Math.Max(0, count - 1);
+                if (_activeOperationCounts.TryUpdate(sessionId, next, count))
+                {
+                    return;
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -482,23 +574,35 @@ public sealed class SessionManager : IDisposable
             return false;
         }
 
-        // Check for running operations (unless force is true)
-        if (!force)
+        var sessionLock = GetSessionLock(sessionId);
+        IExcelBatch batch;
+        lock (sessionLock)
         {
-            var activeOps = GetActiveOperationCount(sessionId);
-            if (activeOps > 0)
+            // Check for running operations (unless force is true)
+            if (!force)
             {
-                throw new InvalidOperationException(
-                    $"Cannot close session '{sessionId}': {activeOps} operation(s) still running. " +
-                    "Wait for all operations to complete before closing, or use force=true to close anyway.");
+                var activeOps = GetActiveOperationCount(sessionId);
+                if (activeOps > 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Cannot close session '{sessionId}': {activeOps} operation(s) still running. " +
+                        "Wait for all operations to complete before closing, or use force=true to close anyway.");
+                }
             }
+
+            if (!_activeSessions.TryGetValue(sessionId, out batch!))
+            {
+                return false;
+            }
+
+            _closingSessions[sessionId] = 0;
         }
 
-        // Save first if requested (blocks until complete)
-        if (save)
+        var closeSucceeded = false;
+        try
         {
-            var batch = GetSession(sessionId);
-            if (batch != null)
+            // Save first if requested (blocks until complete)
+            if (save)
             {
                 try
                 {
@@ -509,56 +613,44 @@ public sealed class SessionManager : IDisposable
                     throw new InvalidOperationException($"Failed to save session '{sessionId}' before closing: {ex.Message}", ex);
                 }
             }
-        }
 
-        // Then close
-        return CloseSessionSync(sessionId);
+            CloseSessionSync(sessionId, batch);
+            closeSucceeded = true;
+            return true;
+        }
+        finally
+        {
+            if (!closeSucceeded)
+            {
+                _closingSessions.TryRemove(sessionId, out _);
+            }
+        }
     }
 
-    private bool CloseSessionSync(string sessionId)
+    private void CloseSessionSync(string sessionId, IExcelBatch batch)
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {
-            return false;
+            return;
         }
-
-        if (!_activeSessions.TryRemove(sessionId, out var batch))
-        {
-            return false;
-        }
-
-        // Remove file path metadata so it can be opened again
-        if (_sessionFilePaths.TryRemove(sessionId, out var normalizedPath))
-        {
-            _activeFilePaths.TryRemove(normalizedPath, out _);
-        }
-        else
-        {
-            var filePathEntry = _activeFilePaths.FirstOrDefault(kvp => kvp.Value == sessionId);
-            if (!filePathEntry.Equals(default(KeyValuePair<string, string>)))
-            {
-                _activeFilePaths.TryRemove(filePathEntry.Key, out _);
-            }
-        }
-
-        // Clean up operation tracking data
-        _activeOperationCounts.TryRemove(sessionId, out _);
-        _showExcelFlags.TryRemove(sessionId, out _);
-
-        // Clean up session origin tracking data
-        _sessionOrigins.TryRemove(sessionId, out _);
-        _sessionCreatedAt.TryRemove(sessionId, out _);
 
         try
         {
             batch.Dispose();
-            return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Best-effort — session is already removed from dictionary
-            return true;
+            _teardownFailures[sessionId] = ex.Message;
+            throw new InvalidOperationException($"Failed to dispose session '{sessionId}': {ex.Message}", ex);
         }
+
+        var sessionLock = GetSessionLock(sessionId);
+        lock (sessionLock)
+        {
+            RemoveSessionTracking(sessionId, removeSessionLock: false);
+        }
+
+        _sessionLocks.TryRemove(sessionId, out _);
     }
 
     /// <summary>
@@ -576,17 +668,21 @@ public sealed class SessionManager : IDisposable
     public bool IsSessionAlive(string sessionId)
     {
         if (string.IsNullOrWhiteSpace(sessionId)) return false;
-        if (!_activeSessions.TryGetValue(sessionId, out var batch)) return false;
-
-        if (batch.IsExcelProcessAlive())
+        var sessionLock = GetSessionLock(sessionId);
+        lock (sessionLock)
         {
-            return true;
-        }
+            if (!_activeSessions.TryGetValue(sessionId, out var batch)) return false;
 
-        // Auto-cleanup dead session
-        _logger?.LogWarning("Session {SessionId} has dead Excel process, auto-cleaning up during IsSessionAlive check", sessionId);
-        CleanupDeadSession(sessionId, batch);
-        return false;
+            if (batch.IsExcelProcessAlive())
+            {
+                return true;
+            }
+
+            // Auto-cleanup dead session
+            _logger?.LogWarning("Session {SessionId} has dead Excel process, auto-cleaning up during IsSessionAlive check", sessionId);
+            CleanupDeadSession(sessionId, batch);
+            return false;
+        }
     }
 
     /// <summary>

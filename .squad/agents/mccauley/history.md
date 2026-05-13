@@ -49,6 +49,10 @@
 - Phase 1 placeholder agent: REMOVED entirely (no value add, spec doesn't require agents)
 - Rationale: Skills already comprehensive; agent without clear scope is worse than nothing
 
+- 2026-05-13: **Daemon Lifecycle Review Coordination.** Coordinated four-agent daemon review (Hanna COM, Nate test, Cheritto lead, Scribe logging). Synthesized findings into team decision: daemon is structurally unsound at lifecycle boundaries. Current startup retry is mitigation, not fix. **Key issues:** Startup treats "spawned" as "ready" (false-positive coordination), shutdown is not request-safe (RPC replies can be cut off), session close reports success even on Excel teardown failure, operation tracking exists but is dead in production. **Priority framework:** P0 (startup readiness + shutdown request-safety), P1 (session close truthfulness + operation tracking), P2 (diagnostics + graceful/force-stop separation). **Decision:** Pause PR #651. Initiate P0 hardening with deterministic focused tests, no retry-only fixes. Real fix requires redesign at daemon orchestration layer, not tuning at retry/timeout level.
+
+- 2026-05-13: **Daemon Rescue Gate After 45-Minute Stall.** Treat a 45-minute silent validation worker as stalled; stop waiting and split rescue ownership. Cheritto is eligible for the current product rescue because Hanna explicitly named Cheritto as the next reviser after the later review gate, and the earlier Cheritto rejection had already been independently revised by Shiherlis. Nate owns validation isolation. Acceptance is narrow: reproduce/fix the default-pipe close/save/status/reopen timeout, rerun focused `ServiceDaemon` CLI coverage, rerun ComInterop OnDemand because `SessionManager` changed, run Release build plus COM/success audits, and require Hanna COM review before McCauley final approval.
+
 ---
 
 ## 2026-04-21: PR #605 Review — Skill Optimization (EXTERNAL CONTRIB)
@@ -139,3 +143,13 @@
 
 - 2026-04-25: **WORKFLOW AUDIT COMPLETE — NO ACTION REQUIRED.** Inventory audit found 11 active workflows (all current) + 2 intentionally disabled Azure workflows (properly documented). Zero stale workflows detected. publish-plugins.yml showed 1 failure (2026-04-24) due to environmental cause (dirty branch during Phase 2/3 plugin work), not workflow defect. Recommendation: monitor next publish run post-release #82. Conclusion: Workflow suite is lean and healthy; release + plugin pipelines fully coordinated; no cleanup needed.
 
+
+## Daemon Rescue Session Finalization (2026-05-13T09:13:35Z)
+
+Session: Inbox consolidation, orchestration logging, agent history sync
+Status: ✅ APPROVED — All gates passed
+
+- Decisions.md consolidated (9 inbox entries merged, 1 archived)
+- Team orchestration logs created
+- Session ready for production deployment
+- Residual risk (prompts) accepted and documented

@@ -6,6 +6,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Trait("Category", "Unit")]
 [Trait("Feature", "ProgramOutput")]
 [Trait("Speed", "Fast")]
+[Collection("ConsoleOutput")]
 public sealed class ProgramOutputRoutingTests
 {
     [Fact]

@@ -24,9 +24,9 @@ jobs:
           # Fail the build if vulnerabilities are found
           fail-on-severity: moderate
           
-          # Fail if GPL/AGPL/LGPL licenses detected (stricter than MIT)
+          # Fail if GPL/AGPL/LGPL licenses detected; allow common permissive/OSI-approved licenses
           license-check: true
-          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, LicenseRef-scancode-generic-cla, BlueOak-1.0.0, CC0-1.0
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, 0BSD, LicenseRef-scancode-generic-cla, BlueOak-1.0.0, CC0-1.0, MPL-2.0
           
           # Comment on PR with summary
           comment-summary-in-pr: always
