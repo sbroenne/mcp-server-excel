@@ -283,8 +283,9 @@ internal sealed class ExcelBatch : IExcelBatch
                             _shutdownCts.Token.ThrowIfCancellationRequested();
                             wb = isIrm
                                 // ReadOnly=true prevents "exclusive access required" errors on IRM-encrypted files
-                                ? (Excel.Workbook)tempExcel.Workbooks.Open(normalizedPath, ReadOnly: true)
-                                : (Excel.Workbook)tempExcel.Workbooks.Open(path);
+                                ? (Excel.Workbook)tempExcel.Workbooks.Open(normalizedPath, UpdateLinks: 0, ReadOnly: true, IgnoreReadOnlyRecommended: true, Notify: false, AddToMru: false)
+                                // Explicitly suppress link/update/read-only prompts so rapid reopen cycles fail fast instead of blocking hidden Excel.
+                                : (Excel.Workbook)tempExcel.Workbooks.Open(normalizedPath, UpdateLinks: 0, ReadOnly: false, IgnoreReadOnlyRecommended: true, Notify: false, AddToMru: false);
                         }
                         catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
                         {

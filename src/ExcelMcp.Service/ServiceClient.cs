@@ -1,3 +1,4 @@
+using System.IO.Pipes;
 using Sbroenne.ExcelMcp.Service.Rpc;
 using StreamJsonRpc;
 
@@ -44,8 +45,22 @@ public sealed class ServiceClient : IDisposable
             try
             {
                 using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                using var disconnectMonitorCts = CancellationTokenSource.CreateLinkedTokenSource(requestCts.Token);
                 requestCts.CancelAfter(_requestTimeout);
-                return await proxy.ProcessCommandAsync(request).WaitAsync(requestCts.Token);
+
+                var callTask = proxy.ProcessCommandAsync(request);
+                var disconnectTask = WaitForPipeDisconnectAsync(pipe, disconnectMonitorCts.Token);
+                var completed = await Task.WhenAny(callTask, disconnectTask);
+                if (completed == disconnectTask
+                    && disconnectTask.IsCompletedSuccessfully
+                    && disconnectTask.Result
+                    && !callTask.IsCompleted)
+                {
+                    return CreateConnectionLostResponse(request);
+                }
+
+                await disconnectMonitorCts.CancelAsync();
+                return await callTask.WaitAsync(requestCts.Token);
             }
             finally
             {
@@ -91,15 +106,7 @@ public sealed class ServiceClient : IDisposable
         }
         catch (ConnectionLostException)
         {
-            return new ServiceResponse
-            {
-                Success = false,
-                Command = request.Command,
-                SessionId = request.SessionId,
-                ErrorCategory = "ServiceUnavailable",
-                ErrorMessage = "Connection to service lost while waiting for a response. The daemon may have exited or restarted; run 'excelcli service status' or 'excelcli service stop' and retry.",
-                ExceptionType = nameof(ConnectionLostException)
-            };
+            return CreateConnectionLostResponse(request);
         }
         catch (IOException ex) when (ex.Message.Contains("pipe"))
         {
@@ -113,6 +120,45 @@ public sealed class ServiceClient : IDisposable
                 ExceptionType = nameof(IOException)
             };
         }
+    }
+
+    private static async Task<bool> WaitForPipeDisconnectAsync(Stream pipe, CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                if (pipe is PipeStream pipeStream && !pipeStream.IsConnected)
+                {
+                    return true;
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(250), cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Caller completed or request timed out; this is not a disconnect signal.
+        }
+        catch (ObjectDisposedException)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static ServiceResponse CreateConnectionLostResponse(ServiceRequest request)
+    {
+        return new ServiceResponse
+        {
+            Success = false,
+            Command = request.Command,
+            SessionId = request.SessionId,
+            ErrorCategory = "ServiceUnavailable",
+            ErrorMessage = "Connection to service lost while waiting for a response. The daemon may have exited or restarted; run 'excelcli service status' or 'excelcli service stop' and retry.",
+            ExceptionType = nameof(ConnectionLostException)
+        };
     }
 
     /// <summary>

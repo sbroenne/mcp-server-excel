@@ -673,7 +673,324 @@ This PR delivers measurable, user-facing skill quality improvements across 5 ski
 
 ---
 
+### 2026-05-13T08:07:06+02:00: Hanna — Daemon COM Review Summary
+
+**By:** Hanna (COM Interop)  
+**Date:** 2026-05-13  
+**Status:** OBSERVATIONS LOGGED
+
+**Key Findings:**
+
+1. **Operation Tracking Not Wired** - Service-layer `SessionManager.BeginOperation/EndOperation` exist but session-bound service dispatch paths do not call them. Session close is not protected against concurrent in-flight work at daemon boundary.
+
+2. **Shutdown Not Request-Safe** - `service.shutdown` returns success and cancels accept loop, but daemon can exit after `RunAsync` completes without awaiting active RPC tasks. Shutdown orchestration and RPC delivery are separate concerns; startup retry does not address this.
+
+3. **COM Execution Sound** - ExcelBatch correctly centralizes on dedicated STA threads. Main reliability risks are service orchestration, close-result truthfulness, and transport observability.
+
+---
+
+### 2026-05-13T08:07:06+02:00: Cheritto — Daemon Lifecycle Review Synthesis
+
+**By:** Cheritto (Platform Dev)  
+**Date:** 2026-05-13  
+**Status:** RECOMMENDATION — PAUSE PR #651
+
+**Decision:** Treat daemon as structurally unsound at lifecycle seams. Pause PR #651 for daemon hardening. Current startup retry is mitigation, not fix.
+
+**Root Issues:**
+- Startup treats "spawned" as close to ready; duplicate starters and early clean exits create false-positive coordination
+- Shutdown not request-safe; RPC replies can be cut off while daemon exits
+- Session close reports success even when Excel teardown fails
+- Operation tracking exists but is dead in production
+
+**Priority:**
+1. **P0** — Make startup readiness real and shutdown request-safe
+2. **P1** — Make session close truthful and wire operation tracking
+3. **P2** — Improve diagnostics, split graceful/force-stop
+
+**Validation Standard:**
+- No retry-only fixes
+- Deterministic focused daemon tests (startup, close, reopen, shutdown, stale recovery)
+- Smoke script minimal, common path only
+
+---
+
+### 2026-05-13T08:07:06+02:00: Nate — Daemon Integration Test Review
+
+**By:** Nate (Tester)  
+**Date:** 2026-05-13  
+**Status:** FINDINGS LOGGED
+
+**Key Observations:**
+
+1. **CLI Integration Is Daemon-Light** - Most CLI integration files use in-process `ServiceFixture` (`[Collection("Service")]`), bypassing real `excelcli service run`, daemon startup readiness, idle shutdown, and tracked-process recovery. Many "CLI" tests validate wiring, not real daemon lifecycle.
+
+2. **Real-Daemon Path Flakes** - Strongest reproducible failures in real-daemon path, not in-process:
+   - `scripts\Test-CliWorkflow.ps1` failed reopen with `ConnectionLostException` after close/save on default pipe
+   - `ParallelCliWorkflowTests` timed out on `workflow-1-reopen` after 30s on unique pipe
+   - `CliDaemonTests` pass (mostly pipe/mutex behavior without Excel work)
+
+3. **Weak Diagnostics** - `Test-CliWorkflow.ps1` uses shared default pipe, does not stop/reset daemon first, does not capture daemon artifacts. `CliProcessHelper` throws timeout without preserving partial stdout/stderr or tracker state.
+
+---
+
+### 2026-05-10T08:07:49+02:00: User Directive — No .NET Downgrade
+
+**By:** Stefan Broenner (via Copilot CLI)  
+**Date:** 2026-05-10  
+**Status:** ✅ CAPTURED
+
+**Directive:** We absolutely do NOT downgrade .NET.
+
+**Implication:** Version pins are intentional. Team maintains latest-compatible posture only.
+
+---
+
 ## Archived Decisions
 
 > See .squad/decisions/archive/2026-03-16-to-2026-04-23.md for earlier team decisions, user directives, and planning sessions.
+
+
+
+
+## MERGED ENTRIES (2026-05-13 11:44):
+## MERGED FROM INBOX: cheritto-daemon-fix.md
+# Cheritto daemon lifecycle fix
+
+## Decision
+
+Fix daemon lifecycle at the product boundary instead of adding test-script retries or more daemon start retries.
+
+## Implemented
+
+- Startup coordination now holds the startup mutex through the readiness check and returns only after a real ping succeeds or a clear startup failure occurs.
+- Pipe-server shutdown now stops accepting new clients and drains tracked in-flight connection tasks before `RunAsync` completes.
+- `service.shutdown` schedules accept-loop cancellation after returning its response so the stop command can receive acknowledgement before the daemon exits.
+- Session-bound service operations now call `BeginOperation`/`EndOperation` in `WithSessionAsync`.
+- `SessionManager.CloseSession` now surfaces disposal failures instead of reporting close success after Excel teardown fails.
+
+## Rationale
+
+The review identified lifecycle root causes at daemon startup, shutdown, and session close boundaries. Treating spawned process state as readiness, cancelling the accept loop from inside the shutdown RPC, and masking teardown failures all made the daemon look healthier than it was. The fix makes readiness, shutdown drain, and close success reflect actual product state.
+
+## Coordination
+
+Nate should focus tests on concurrent auto-start readiness, shutdown acknowledgement under an active RPC connection, and close failure truthfulness. Hanna should review whether the close-failure surfacing changes any expected COM teardown cleanup semantics.
+
+
+## MERGED FROM INBOX: hanna-daemon-fix-review.md
+# Hanna daemon fix review
+
+Verdict: REJECT
+
+Reason: the daemon shutdown drain can fault before ExcelMcpService.Dispose runs, and session close still unregisters a session before COM disposal succeeds. Both can leave COM/Excel cleanup in an unsafe or unretryable state.
+
+Required reviser: Cheritto should revise the service/session teardown code; Nate should add regression tests for shutdown with open sessions and teardown failures.
+
+
+## MERGED FROM INBOX: hanna-daemon-teardown-second-review.md
+# Hanna — Daemon Teardown Second Review
+
+**Timestamp:** 2026-05-13T08:25:15.171+02:00  
+**Reviewer:** Hanna (COM Interop Expert)  
+**Verdict:** REJECT
+
+## Decision
+
+The revised implementation resolves the main code-level rejection items: service disposal now runs from finally paths, session close disposes before unregistering, and operation begin is atomic with session lookup under a per-session lock.
+
+The remaining blocker is test coverage. The previously requested teardown-failure/quarantine regression and a real close-during-in-flight race regression are still not present. The new CLI lifecycle tests cover repeated close/reopen and cold concurrent daemon startup, but not the two mandatory failure/race cases.
+
+## Required Next Owner
+
+Use a different reviser for the next pass. Recommended owner: Cheritto for implementation/test wiring, with Nate adding focused regression coverage.
+
+
+## MERGED FROM INBOX: hanna-final-daemon-session-review.md
+# Hanna final daemon session review
+
+Timestamp: 2026-05-13T11:13:35.764+02:00
+
+Reviewer: Hanna (COM Interop Expert)
+
+Verdict: APPROVED
+
+## Decision
+
+The revised daemon/session diff is acceptable for PR #651 from the COM/session mandatory review gate.
+
+Verified:
+
+- `SessionManager.TryBeginOperation` validates the session and increments active-operation count under the per-session lock, closing the previous race between lookup and close.
+- `SessionManager.CloseSession` sets the closing marker under lock, then performs save/dispose outside that lock so COM shutdown cannot deadlock other session-state readers; new operations are rejected while closing.
+- Teardown quarantine is preserved: failed dispose leaves the session registered, records the failure, blocks later operations, and does not falsely report "already closed".
+- `ExcelBatch.Workbooks.Open` options match Microsoft `Workbooks.Open` documentation for suppressing link, read-only-recommended, notification-list, and MRU prompts.
+- `ExcelMcpService` delays shutdown cancellation until after the shutdown RPC response and drains active connection tasks before RunAsync exits.
+- `ServiceClient` treats pipe disconnect as service-unavailable instead of leaving callers waiting on a lost daemon pipe.
+
+## Residual accepted risk
+
+Microsoft documents that password-protected or write-reserved workbooks can still prompt when `Password` or `WriteResPassword` are omitted. This review accepts that risk because the revised hunk did not claim to handle protected workbooks and should not embed credentials.
+
+## Before commit
+
+No additional COM/session code changes are required by Hanna. The user still needs to approve any commit/push and check current PR review comments before merging.
+
+
+## MERGED FROM INBOX: mccauley-daemon-rescue-gate.md
+# McCauley — Daemon Rescue Gate
+
+**Timestamp:** 2026-05-13T10:24:59+02:00  
+**Verdict:** CONTINUE WITH CHERITTO + NATE
+
+## Lockout Decision
+
+Using Cheritto for the current product rescue does **not** violate reviewer rejection lockout.
+
+The earlier Cheritto daemon artifact was rejected, then independently revised by Shiherlis. Hanna's later teardown review explicitly named Cheritto as the next reviser, with Nate adding focused regression coverage. The current failure is a validation rescue around the remaining default-pipe reopen timeout, not permission for Cheritto to self-revise his original rejected artifact.
+
+If this pass is rejected, the next product reviser must be someone other than Cheritto; Shiherlis is not a viable replacement while stalled. Eligible replacement: Hanna for COM/session teardown code, or a new spawned lifecycle specialist if Hanna declines implementation ownership.
+
+## Architecture Decision
+
+The current direction is architecturally sound and is no longer just retry tuning:
+
+- Startup readiness is based on a successful ping, not process spawn.
+- The startup mutex spans the readiness window so concurrent starters coordinate on a real daemon.
+- Shutdown is response-safe enough to return the RPC reply before cancellation and drains active connection tasks before `RunAsync` completes.
+- Session operations now atomically validate-and-begin under session tracking.
+- Close is truthful: failed teardown keeps the session registered/quarantined instead of reporting already closed.
+
+Do **not** reopen broad architecture unless the focused default-pipe failure proves one of those invariants is still false.
+
+## Minimum Acceptance Gate
+
+All commands must run with explicit tool/terminal timeouts.
+
+1. Focused failing scenario:
+   ```powershell
+   dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj --filter "FullyQualifiedName~CliDaemonLifecycleRegressionTests.DefaultPipe_RepeatedCloseSaveStatusReopen_KeepsDaemonResponsiveAndSessionless" --logger "console;verbosity=minimal"
+   ```
+2. Focused service close regressions:
+   ```powershell
+   dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj --filter "FullyQualifiedName~SessionCloseRegressionTests" --logger "console;verbosity=minimal"
+   ```
+3. Full focused daemon slice:
+   ```powershell
+   dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj --filter "Feature=ServiceDaemon" --logger "console;verbosity=minimal"
+   ```
+4. Mandatory session/batch validation because `SessionManager` changed:
+   ```powershell
+   dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj --filter "RunType=OnDemand" --logger "console;verbosity=minimal"
+   ```
+5. Release build and audits:
+   ```powershell
+   dotnet build Sbroenne.ExcelMcp.sln -c Release -p:NuGetAudit=false -nodeReuse:false
+   scripts\check-com-leaks.ps1
+   scripts\check-success-flag.ps1
+   ```
+6. If the default-pipe failure was originally seen via smoke workflow, rerun:
+   ```powershell
+   scripts\Test-CliWorkflow.ps1
+   ```
+7. Hanna must re-review COM/session teardown semantics before McCauley final approval.
+
+
+
+## MERGED FROM INBOX: mccauley-final-daemon-gate.md
+# McCauley Final Daemon Gate
+
+**Date:** 2026-05-13T08:25:15+02:00
+**Verdict:** APPROVE
+
+## Review Summary
+
+The daemon fix is architecturally coherent and addresses the reviewed root causes without appearing overfit:
+
+- Startup readiness now waits for an actually responsive daemon and handles clean early exits as failures.
+- Shutdown is deferred until after the shutdown response and active RPC tasks are drained/disposed.
+- Session close is truthful: disposal failures return failure and quarantine the session instead of reporting success/already-closed.
+- Operation tracking is wired through session-bound service dispatch and save, with close blocked while operations are active.
+
+## Findings
+
+No blocking findings.
+
+## Required Validation Before Commit
+
+```powershell
+dotnet build Sbroenne.ExcelMcp.sln -c Release -p:NuGetAudit=false -nodeReuse:false
+dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj --filter "Feature=ServiceDaemon" --logger "console;verbosity=minimal"
+dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj --filter "RunType=OnDemand" --logger "console;verbosity=minimal"
+scripts\check-com-leaks.ps1
+scripts\check-success-flag.ps1
+```
+
+
+## MERGED FROM INBOX: nate-blocking-daemon-regressions.md
+# Nate — Blocking Daemon Regression Tests
+
+## Context
+Hanna's second review rejected the branch because two blocking lifecycle regressions lacked tests: failed session teardown/quarantine behavior and close-during-in-flight busy behavior.
+
+## Added Coverage
+- `SessionClose_WhenDisposeFails_QuarantinesSessionAndRetryDoesNotReportAlreadyClosed`
+  - Exercises real `ExcelMcpService` + `SessionManager` with a throwing test batch.
+  - Proves failed `Dispose` leaves the session listed/quarantined.
+  - Proves retry does not return the misleading "Session already closed" response.
+- `SessionClose_DuringInFlightOperation_ReturnsBusyAndKeepsSessionUsable`
+  - Exercises real `ExcelMcpService` + `SessionManager` active-operation tracking with a deterministic blocking save.
+  - Proves close returns the running-operation/busy error while operation count is active.
+  - Proves the session remains usable after the in-flight operation completes and then closes normally.
+
+## Validation
+- Individual teardown/quarantine regression: passed.
+- Individual in-flight close regression: passed.
+- Full CLI `Feature=ServiceDaemon` slice: passed, 19/19.
+
+## Remaining Gap
+The in-flight coverage deliberately avoids sleeps and product hooks. It is deterministic in-process service coverage rather than a real named-pipe daemon operation blocked inside Excel COM. A true real-daemon long-running-operation test still needs an env-gated product hook or another deterministic non-sleep trigger.
+
+
+## MERGED FROM INBOX: nate-daemon-regressions.md
+# Nate daemon lifecycle regression notes
+
+## Decision
+
+Keep daemon lifecycle race coverage in focused CLI integration tests, not in `scripts\Test-CliWorkflow.ps1`.
+
+## Rationale
+
+- The smoke script should stay simple and user-workflow-shaped.
+- Races around close/save, reopen, cold auto-start, named pipes, mutexes, and process tracking need deterministic assertions and rich failure diagnostics.
+- The new tests use real `excelcli.exe` subprocesses and real daemon pipes, avoiding the in-process `ServiceFixture` blind spot.
+
+## Shutdown while request in-flight
+
+I did not add this regression yet because there is no deterministic test hook for holding a daemon request mid-flight without relying on timing or very slow Excel operations.
+
+Minimal product hook request for Cheritto:
+- Add a test-only diagnostic command behind an explicit environment gate, for example `diag.block-until-cancelled`.
+- It should run through the real daemon RPC path, increment active operation state, block until either shutdown/cancellation arrives or a caller-supplied timeout expires, then return a structured result.
+- With that hook, the CLI test can start the blocking request, call `service stop`, and assert the daemon exits cleanly, the client gets a structured cancellation/service-unavailable result, and no session/tracker state is left behind.
+
+
+## MERGED FROM INBOX: shiherlis-daemon-teardown-revision.md
+# Shiherlis — Daemon Teardown Revision
+
+## Decision
+
+Use per-session locks in `SessionManager` to make operation start and close mutually exclusive at the session boundary, and keep sessions registered until `IExcelBatch.Dispose()` succeeds.
+
+## Applied Shape
+
+1. `TryBeginOperation` validates the session, checks timeout/dead-process/quarantine state, and increments the active operation count in one lock.
+2. `CloseSession` takes the same per-session lock, blocks normal close while operations are active, saves under the lock when requested, then disposes before metadata removal.
+3. Dispose failures leave the session registered and record a teardown-failed quarantine message. Normal operations are blocked; a later close retry can attempt teardown again.
+4. Daemon connection drain observes per-connection faults so service disposal still runs.
+
+## Why
+
+This preserves truthfulness during failed COM teardown: a session is not marked closed until Excel cleanup actually completes. It also closes the lookup-to-begin race where a request could acquire a batch after close validation but before operation tracking.
+
 

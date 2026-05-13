@@ -16,7 +16,7 @@ internal static class DaemonAutoStart
     internal static readonly TimeSpan StartupReadyConnectTimeout = TimeSpan.FromSeconds(1);
     internal static readonly TimeSpan StartupReadyRetryInterval = TimeSpan.FromMilliseconds(250);
     internal static readonly TimeSpan StartupReadyTimeout = TimeSpan.FromSeconds(10);
-    internal static readonly TimeSpan StartupLockTimeout = TimeSpan.FromSeconds(5);
+    internal static readonly TimeSpan StartupLockTimeout = StartupReadyTimeout + TimeSpan.FromSeconds(1);
 
     /// <summary>
     /// Gets the pipe name for the CLI daemon (supports env var override for testing).
@@ -75,39 +75,18 @@ internal static class DaemonAutoStart
             // Daemon exited while we waited — start a replacement.
         }
 
-        for (var attempt = 1; attempt <= 2; attempt++)
+        if (!await TryStartDaemonWithStartupLockAsync(pipeName, cancellationToken))
         {
-            try
-            {
-                if (!await TryStartDaemonWithStartupLockAsync(pipeName, cancellationToken))
-                {
-                    if (await WaitForResponsiveDaemonAsync(pipeName, StartupReadyTimeout, cancellationToken))
-                        return new ServiceClient(pipeName);
-
-                    throw new TimeoutException(
-                        $"Daemon startup is already in progress but did not become ready within {FormatDuration(StartupReadyTimeout)}.");
-                }
-            }
-            catch (InvalidOperationException) when (attempt == 1 && !IsDaemonMutexHeld(pipeName))
-            {
-                DaemonProcessTracker.Clear(pipeName);
-                await Task.Delay(StartupReadyRetryInterval, cancellationToken);
-                continue;
-            }
-
-            if (await PingAsync(pipeName, StartupReadyConnectTimeout, cancellationToken))
-            {
+            if (await WaitForResponsiveDaemonAsync(pipeName, StartupReadyTimeout, cancellationToken))
                 return new ServiceClient(pipeName);
-            }
 
-            if (attempt == 1 && !IsDaemonMutexHeld(pipeName))
-            {
-                DaemonProcessTracker.Clear(pipeName);
-                await Task.Delay(StartupReadyRetryInterval, cancellationToken);
-                continue;
-            }
+            throw new TimeoutException(
+                $"Daemon startup is already in progress but did not become ready within {FormatDuration(StartupReadyTimeout)}.");
+        }
 
-            break;
+        if (await PingAsync(pipeName, StartupReadyConnectTimeout, cancellationToken))
+        {
+            return new ServiceClient(pipeName);
         }
 
         throw new TimeoutException($"Daemon started but not responding within {FormatDuration(StartupReadyTimeout)}.");

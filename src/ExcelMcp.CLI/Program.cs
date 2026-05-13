@@ -317,14 +317,26 @@ internal sealed class Program
         }
         DaemonProcessTracker.RegisterCurrentProcess(pipeName);
 
+        Service.ExcelMcpService? service = null;
         try
         {
-            var service = new Service.ExcelMcpService();
+            service = new Service.ExcelMcpService();
 
             // Capture the UI synchronization context after Application starts
             SynchronizationContext? uiContext = null;
 
-            // Start pipe server on background thread with 10-minute idle timeout
+            // Run WinForms message loop with tray icon on main thread
+            using var tray = new CliServiceTray(service.SessionManager, () =>
+            {
+                service.RequestShutdown();
+                Application.ExitThread();
+            });
+
+            uiContext = SynchronizationContext.Current;
+
+            // Start accepting RPC only after daemon host initialization succeeds.
+            // Otherwise auto-start clients can observe a successful ping from a pipe
+            // server whose owning WinForms/tray host is still able to fail and exit.
             var serviceTask = Task.Run(() => service.RunAsync(pipeName, idleTimeout: TimeSpan.FromMinutes(10)));
 
             // When service shuts down (idle timeout or remote shutdown), exit the WinForms loop
@@ -340,24 +352,28 @@ internal sealed class Program
                 }
             }, TaskScheduler.Default);
 
-            // Run WinForms message loop with tray icon on main thread
-            using var tray = new CliServiceTray(service.SessionManager, () =>
-            {
-                service.RequestShutdown();
-                Application.ExitThread();
-            });
-
-            uiContext = SynchronizationContext.Current;
             Application.Run();
 
-            // Wait for service to finish
-            serviceTask.Wait(TimeSpan.FromSeconds(5));
-            service.Dispose();
-
-            return 0;
+            try
+            {
+                // Wait for service to finish
+                serviceTask.GetAwaiter().GetResult();
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                WriteDiagnosticMarkupLine($"[red]Service error:[/] {ex.Message.EscapeMarkup()}");
+                return 1;
+            }
+            finally
+            {
+                service.Dispose();
+                service = null;
+            }
         }
         finally
         {
+            service?.Dispose();
             DaemonProcessTracker.Clear(pipeName);
 
             // Release the daemon mutex so a new daemon can start if needed.
