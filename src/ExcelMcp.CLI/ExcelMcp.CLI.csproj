@@ -35,7 +35,10 @@
     <!-- .NET Tool Configuration -->
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>excelcli</ToolCommandName>
-    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <!-- IMPORTANT: Do NOT declare <RuntimeIdentifiers> here — combined with PackAsTool it forces
+         the pack flow to look for RID-qualified build output (bin/Release/net10.0-windows/win-x64/),
+         but `dotnet build` without a RID produces plain bin/Release/net10.0-windows/, breaking
+         `dotnet pack` with the no-build switch in CI. Standalone exe publish passes the RID on the command line. -->
 
     <!-- Package Validation -->
     <EnablePackageValidation>true</EnablePackageValidation>

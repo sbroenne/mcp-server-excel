@@ -235,3 +235,29 @@ Status: ✅ APPROVED — All gates passed
 - Team orchestration logs created
 - Session ready for production deployment
 - Residual risk (prompts) accepted and documented
+
+### 2026-05-13T12:25:30.995+02:00: Patch Release Dispatch v1.8.60 Attempt
+
+**By:** Trejo (Docs Lead)  
+**Requested by:** Stefan Broenner  
+**Run:** `release.yml` workflow_dispatch run `25794507981` on `main`  
+**Target:** Patch bump from `v1.8.59` to `v1.8.60`
+
+**Preflight:**
+- `gh auth status` active account verified as `sbroenne`.
+- Local `main` verified at `5cb51cf`, matching `origin/main`.
+- `CHANGELOG.md` `## [Unreleased]` verified with the CLI daemon/session lifecycle hardening entry present.
+
+**Outcome:** FAILED before tag/release creation.
+
+**Failed jobs:**
+- `MCP Server` → `Pack NuGet (secondary distribution)` failed.
+- `CLI` → `Pack CLI NuGet (secondary distribution)` failed.
+
+**Failure summary:**
+- `dotnet pack --no-build` for MCP Server and CLI could not find `net10.0-windows\win-x64` runtime-specific build outputs (`*.dll`, `*.runtimeconfig.json`, `*.xml`).
+- `Create Git Tag`, registry publishing, and GitHub Release jobs were skipped.
+- `gh release view v1.8.60` returned `release not found`.
+- `publish-plugins.yml` follow-on run `25794645356` was triggered by workflow_run but completed as `skipped`.
+
+**Follow-up needed:** Diagnose release workflow/package output mismatch before retrying; no retry was attempted.

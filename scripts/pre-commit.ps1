@@ -363,7 +363,7 @@ Invoke-ValidationStep `
         Push-Location $rootDir
         try {
             dotnet pack src\ExcelMcp.CLI\ExcelMcp.CLI.csproj --configuration Release --no-build --no-restore --output $cliNupkgDir -p:Version=$version -p:NuGetAudit=false
-            dotnet publish src\ExcelMcp.CLI\ExcelMcp.CLI.csproj --configuration Release --no-restore --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:Version=$version -p:NuGetAudit=false --output $cliPublishDir
+            dotnet publish src\ExcelMcp.CLI\ExcelMcp.CLI.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:Version=$version -p:NuGetAudit=false --output $cliPublishDir
 
             Copy-Item (Join-Path $cliPublishDir "excelcli.exe") $cliReleaseDir
             Copy-Item "README.md" $cliReleaseDir
@@ -407,7 +407,7 @@ Invoke-ValidationStep `
         Push-Location $rootDir
         try {
             dotnet pack src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj --configuration Release --no-build --no-restore --output $mcpNupkgDir -p:Version=$version -p:NuGetAudit=false
-            dotnet publish src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj --configuration Release --no-restore --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:Version=$version -p:NuGetAudit=false --output $mcpPublishDir
+            dotnet publish src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:Version=$version -p:NuGetAudit=false --output $mcpPublishDir
 
             $publishedExe = Join-Path $mcpPublishDir "Sbroenne.ExcelMcp.McpServer.exe"
             $renamedExe = Join-Path $mcpPublishDir "mcp-excel.exe"
