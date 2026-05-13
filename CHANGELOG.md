@@ -10,6 +10,8 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.8.61] - 2026-05-13
+
 ### Fixed
 
 - **Release workflow `dotnet pack` failure for CLI and MCP Server NuGet packages**: The dependency-update PR added `<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>` to both tool csproj files, which combined with `PackAsTool=true` routed `dotnet pack` through the RID-aware publish path and made it look for `bin/Release/net10.0-windows/win-x64/` outputs. The CI release workflow builds each project per-csproj without a runtime flag and writes plain `bin/Release/net10.0-windows/`, so pack failed with MSB3030. Removed the property from `ExcelMcp.CLI.csproj` and `ExcelMcp.McpServer.csproj` and documented why it must not be re-added; the standalone-exe publish step still passes the runtime on the command line.
