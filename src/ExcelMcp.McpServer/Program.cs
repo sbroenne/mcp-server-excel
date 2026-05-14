@@ -257,14 +257,9 @@ public class Program
 
         var runToken = testShutdownCts?.Token ?? CancellationToken.None;
 
-        // Monitor stdin pipe — when parent process dies without clean MCP close,
-        // detect the broken pipe and shut down gracefully to release COM handles.
-        Timer? stdinMonitor = null;
-        if (testInputPipe == null)
-        {
-            stdinMonitor = StdinPipeMonitor.Start(
-                host.Services.GetRequiredService<IHostApplicationLifetime>());
-        }
+        var stdinMonitor = testInputPipe == null
+            ? StdinPipeMonitor.Start(host.Services.GetRequiredService<IHostApplicationLifetime>())
+            : null;
 
         try
         {
@@ -494,9 +489,18 @@ public class Program
 }
 
 /// <summary>
-/// Detects when the parent process dies by polling the stdin pipe handle.
-/// When the pipe breaks (parent exited), triggers graceful host shutdown
-/// so COM handles are released and the process doesn't orphan.
+/// Monitors the stdin pipe to detect when the parent MCP client process exits.
+///
+/// Lifecycle: MCP stdio transport keeps this server alive via stdin/stdout pipes.
+/// When the parent process exits cleanly, the MCP SDK detects the closed pipe and
+/// shuts down the host. However, if the parent crashes or is killed (e.g., Task
+/// Manager, SIGKILL), the SDK may not notice. This monitor polls the stdin handle
+/// to detect the broken pipe and trigger graceful shutdown, ensuring COM handles
+/// are released and the Excel process is not orphaned.
+///
+/// Only activates when stdin is a named pipe (the normal stdio MCP transport case).
+/// Terminal, debugger, test harness, and file-redirection launches are left alone --
+/// they shut down through their own normal mechanisms.
 /// </summary>
 internal static class StdinPipeMonitor
 {
@@ -509,17 +513,36 @@ internal static class StdinPipeMonitor
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr GetStdHandle(int nStdHandle);
 
-    private const int StdInputHandle = -10;
+    [DllImport("kernel32.dll")]
+    private static extern uint GetFileType(IntPtr hFile);
 
-    public static Timer Start(IHostApplicationLifetime lifetime)
+    private const int StdInputHandle = -10;
+    private const uint FileTypePipe = 0x0003;
+    private const int ErrorBrokenPipe = 109;   // ERROR_BROKEN_PIPE
+    private const int ErrorNoData = 232;       // ERROR_NO_DATA (write end closed)
+
+    /// <summary>
+    /// Starts the stdin pipe monitor. Returns null if stdin is not a pipe
+    /// (terminal, debugger, file redirection) since those cases don't need
+    /// broken-pipe detection.
+    /// </summary>
+    public static Timer? Start(IHostApplicationLifetime lifetime)
     {
         var handle = GetStdHandle(StdInputHandle);
+        if (handle == IntPtr.Zero || handle == new IntPtr(-1))
+            return null;
+
+        if (GetFileType(handle) != FileTypePipe)
+            return null;
+
         return new Timer(_ =>
         {
-            uint avail;
-            uint left;
-            if (!PeekNamedPipe(handle, IntPtr.Zero, 0, IntPtr.Zero, out avail, out left))
-                lifetime.StopApplication();
+            if (!PeekNamedPipe(handle, IntPtr.Zero, 0, IntPtr.Zero, out _, out _))
+            {
+                var error = Marshal.GetLastWin32Error();
+                if (error is ErrorBrokenPipe or ErrorNoData)
+                    lifetime.StopApplication();
+            }
         }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
     }
 }
