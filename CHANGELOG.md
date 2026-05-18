@@ -10,6 +10,8 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.8.62] - 2026-05-18
+
 ### Fixed
 
 - **MCP `namedrange list` and `chart list` no longer return raw arrays or risk closing the session** (#653): Both list commands now return standard structured result envelopes with `success` and item collections, keep the active session usable after listing empty or populated workbooks, and normalize named range values to JSON-safe types before serialization.
