@@ -540,7 +540,9 @@ internal static class StdinPipeMonitor
 
         return new Timer(_ =>
         {
-            if (!PeekNamedPipe(handle, IntPtr.Zero, 0, IntPtr.Zero, out _, out _))
+            uint totalBytesAvailable;
+            uint bytesLeftThisMessage;
+            if (!PeekNamedPipe(handle, IntPtr.Zero, 0, IntPtr.Zero, out totalBytesAvailable, out bytesLeftThisMessage))
             {
                 var error = Marshal.GetLastWin32Error();
                 if (error is ErrorBrokenPipe or ErrorNoData)

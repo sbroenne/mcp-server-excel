@@ -148,6 +148,8 @@ public void TestMethod()
 
 **Golden Rule (Diagnose Before Coding):** No changes without a failing test first. Write a test that proves the bug exists, watch it fail, then fix it, then watch it pass. Diagnose root cause before writing any code — spent a full session implementing the wrong fix once (issue was daemon dying, but coded a UI fix + 4 tests, all reverted).
 
+**Bug Fix Pattern Search:** Every bug fix must include a same-pattern search across sibling tools, Core interfaces, generated MCP/CLI surfaces, and tests. Fix matching cases in the same PR or document why each similar case is not affected.
+
 **COM Fix Patterns (2026):**
 - `OleMessageFilter.MessagePending` must return `WAITDEFPROCESS` (1), not `WAITNOPROCESS` (2) — causes STA deadlock on re-entrant COM callbacks (e.g. conditional formatting on formula cells).
 - `OleMessageFilter.RetryRejectedCall` must retry `SERVERCALL_REJECTED` (dwRejectType=1) for 120s — enterprise auth dialogs cause repeated rejections.

@@ -54,7 +54,8 @@ public partial class NamedRangeCommandsTests
 
         // Assert - Verify the parameter was actually created
         var namedRanges = _parameterCommands.List(batch);
-        Assert.Contains(namedRanges, p => p.Name == paramName);
+        Assert.True(namedRanges.Success);
+        Assert.Contains(namedRanges.NamedRanges, p => p.Name == paramName);
     }
     /// <inheritdoc/>
 

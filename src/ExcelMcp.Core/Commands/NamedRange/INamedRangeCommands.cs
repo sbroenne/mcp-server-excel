@@ -18,10 +18,10 @@ public interface INamedRangeCommands
     /// <summary>
     /// Lists all named ranges in the workbook
     /// </summary>
-    /// <returns>List of named range information</returns>
+    /// <returns>Structured result containing the list of named range information</returns>
     /// <exception cref="InvalidOperationException">If workbook access fails</exception>
     [ServiceAction("list")]
-    List<NamedRangeInfo> List(IExcelBatch batch);
+    NamedRangeListResult List(IExcelBatch batch);
 
     /// <summary>
     /// Sets the value of a named range

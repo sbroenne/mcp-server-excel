@@ -34,7 +34,8 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
         var charts = _commands.List(batch);
 
         // Assert
-        Assert.Empty(charts);
+        Assert.True(charts.Success);
+        Assert.Empty(charts.Charts);
     }
 
     [Fact]
@@ -63,8 +64,9 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
 
         // Verify chart exists
         var charts = _commands.List(batch);
-        Assert.Single(charts);
-        Assert.Equal("TestChart", charts[0].Name);
+        Assert.True(charts.Success);
+        var chart = Assert.Single(charts.Charts);
+        Assert.Equal("TestChart", chart.Name);
     }
 
     [Fact]
@@ -128,8 +130,9 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
 
         // Verify chart exists
         var charts = _commands.List(batch);
-        Assert.Single(charts);
-        Assert.Equal("TableChart", charts[0].Name);
+        Assert.True(charts.Success);
+        var chart = Assert.Single(charts.Charts);
+        Assert.Equal("TableChart", chart.Name);
     }
 
     [Fact]
@@ -228,7 +231,8 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
 
         // Verify chart exists in list
         var charts = _commands.List(batch);
-        Assert.Contains(charts, c => c.Name == result.ChartName && c.IsPivotChart);
+        Assert.True(charts.Success);
+        Assert.Contains(charts.Charts, c => c.Name == result.ChartName && c.IsPivotChart);
     }
 
     [Fact]
@@ -359,15 +363,17 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
         _commands.CreateFromRange(batch, "Sheet1", "A1:B3", ChartType.Line, 50, 50);
 
         var chartsBefore = _commands.List(batch);
-        Assert.Single(chartsBefore);
-        string chartName = chartsBefore[0].Name;
+        Assert.True(chartsBefore.Success);
+        var chartBefore = Assert.Single(chartsBefore.Charts);
+        string chartName = chartBefore.Name;
 
         // Act
         _commands.Delete(batch, chartName);
 
         // Assert - Verify chart removed
         var chartsAfter = _commands.List(batch);
-        Assert.Empty(chartsAfter);
+        Assert.True(chartsAfter.Success);
+        Assert.Empty(chartsAfter.Charts);
     }
 
     [Fact]
@@ -404,10 +410,11 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
         var charts = _commands.List(batch);
 
         // Assert
-        Assert.Equal(3, charts.Count);
-        Assert.Contains(charts, c => c.Name == "Chart1" && c.ChartType == ChartType.ColumnClustered);
-        Assert.Contains(charts, c => c.Name == "Chart2" && c.ChartType == ChartType.Pie);
-        Assert.Contains(charts, c => c.Name == "Chart3" && c.ChartType == ChartType.Line);
+        Assert.True(charts.Success);
+        Assert.Equal(3, charts.Charts.Count);
+        Assert.Contains(charts.Charts, c => c.Name == "Chart1" && c.ChartType == ChartType.ColumnClustered);
+        Assert.Contains(charts.Charts, c => c.Name == "Chart2" && c.ChartType == ChartType.Pie);
+        Assert.Contains(charts.Charts, c => c.Name == "Chart3" && c.ChartType == ChartType.Line);
     }
 
     [Fact]
@@ -437,7 +444,8 @@ public partial class ChartCommandsTests : IClassFixture<ChartTestsFixture>
 
         // Verify all created
         var charts = _commands.List(batch);
-        Assert.Equal(chartTypes.Length, charts.Count);
+        Assert.True(charts.Success);
+        Assert.Equal(chartTypes.Length, charts.Charts.Count);
     }
 }
 

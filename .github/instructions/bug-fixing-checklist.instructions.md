@@ -4,16 +4,17 @@ applyTo: "**/*.cs,**/*.md"
 
 # Bug Fixing Checklist
 
-> **6-step process for comprehensive bug fixes**
+> **7-step process for comprehensive bug fixes**
 
 ## Process
 
 1. **Root Cause** - Trace flow from entry point to bug, identify what's missing/wrong/ignored
-2. **Fix Code** - Minimal changes at correct layer, maintain backwards compatibility
-3. **Add Tests** - Minimum 5-8 tests: regression + edge cases + backwards compat + MCP end-to-end
-4. **Update Docs** - Minimum 3 files: tool/method docs, user docs, SuggestedNextActions, LLM prompts
-5. **Verify Quality** - Build passes (0 warnings), all tests pass, no TODOs left
-6. **PR Description** - Bug summary, root cause, fix explanation, test coverage, docs updated
+2. **Same-Pattern Search** - Search sibling tools, Core interfaces, generated MCP/CLI surfaces, and tests for the same bug pattern
+3. **Fix Code** - Minimal changes at correct layer, maintain backwards compatibility
+4. **Add Tests** - Minimum 5-8 tests: regression + edge cases + backwards compat + MCP end-to-end
+5. **Update Docs** - Minimum 3 files: tool/method docs, user docs, SuggestedNextActions, LLM prompts
+6. **Verify Quality** - Build passes (0 warnings), all tests pass, no TODOs left
+7. **PR Description** - Bug summary, root cause, same-pattern search result, fix explanation, test coverage, docs updated
 
 ## Test Coverage Requirements
 
@@ -44,6 +45,7 @@ applyTo: "**/*.cs,**/*.md"
 
 **Before marking bug as fixed**:
 - [ ] Root cause documented
+- [ ] Same-pattern search completed; matching cases fixed or explicitly ruled out
 - [ ] Minimal code changes (surgical fix)
 - [ ] Parameters wired through all layers
 - [ ] 5-8 new tests added (Core + MCP)
@@ -64,6 +66,7 @@ applyTo: "**/*.cs,**/*.md"
 | Breaking changes | Make params optional, use defaults |
 | Parameter ignored | Trace from tool → implementation |
 | Symptoms fixed, not root cause | Understand WHY it broke |
+| Fixing one instance only | Search for the same pattern in sibling tools/layers and fix or document each match |
 | Incomplete PR | Document bug, fix, tests, docs updated |
 
 ## PR Description Template
@@ -77,6 +80,9 @@ Issue: #[number]
 
 ### Root Cause
 [Technical explanation]
+
+### Same-Pattern Search
+[Searches performed and matching cases fixed or ruled out]
 
 ### Solution
 **Files Changed:**

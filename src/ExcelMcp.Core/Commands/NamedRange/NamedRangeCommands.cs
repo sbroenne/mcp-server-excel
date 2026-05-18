@@ -9,21 +9,42 @@ public partial class NamedRangeCommands : INamedRangeCommands
     {
         var result = new List<List<object?>>();
 
-        // Excel arrays are 1-based, get the bounds
-        int rows = array2D.GetLength(0);
-        int cols = array2D.GetLength(1);
+        var rowLower = array2D.GetLowerBound(0);
+        var rowUpper = array2D.GetUpperBound(0);
+        var colLower = array2D.GetLowerBound(1);
+        var colUpper = array2D.GetUpperBound(1);
 
-        for (int row = 1; row <= rows; row++)
+        for (var row = rowLower; row <= rowUpper; row++)
         {
             var rowList = new List<object?>();
-            for (int col = 1; col <= cols; col++)
+            for (var col = colLower; col <= colUpper; col++)
             {
-                rowList.Add(array2D[row, col]);
+                rowList.Add(ConvertValueForJson(array2D[row, col]));
             }
             result.Add(rowList);
         }
 
         return result;
+    }
+
+    private static object? ConvertValueForJson(object? value)
+    {
+        if (value == null || value == DBNull.Value)
+        {
+            return null;
+        }
+
+        return value switch
+        {
+            string or bool or int or long or decimal => value,
+            DateTime dateTime => dateTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+            double doubleValue when double.IsNaN(doubleValue) || double.IsInfinity(doubleValue)
+                => doubleValue.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            float floatValue when float.IsNaN(floatValue) || float.IsInfinity(floatValue)
+                => floatValue.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            double or float => value,
+            _ => value.ToString()
+        };
     }
 }
 

@@ -65,7 +65,8 @@ public partial class ChartCommandsTests
 
         // Verify chart actually exists in workbook
         var charts = _commands.List(batch);
-        Assert.Contains(charts, c => c.Name == "BugRegression_NonFirstRow");
+        Assert.True(charts.Success);
+        Assert.Contains(charts.Charts, c => c.Name == "BugRegression_NonFirstRow");
     }
 
     /// <summary>
