@@ -371,8 +371,8 @@ in
             ["action"] = "list",
             ["session_id"] = sessionId
         });
-        // Chart List returns array directly
-        Assert.NotNull(listChartsResult);
+        AssertSuccess(listChartsResult, "List Charts");
+        Assert.Contains("DataChart", listChartsResult);
         _output.WriteLine("  ✓ chart: Create and List passed");
 
         // =====================================================================

@@ -12,16 +12,20 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class NamedRangeCommands
 {
     /// <inheritdoc />
-    public List<NamedRangeInfo> List(IExcelBatch batch)
+    public NamedRangeListResult List(IExcelBatch batch)
     {
+        var result = new NamedRangeListResult
+        {
+            FilePath = batch.WorkbookPath
+        };
+
         return batch.Execute((ctx, ct) =>
         {
-            var namedRanges = new List<NamedRangeInfo>();
             dynamic? namesCollection = null;
             try
             {
                 namesCollection = ctx.Book.Names;
-                int count = namesCollection.Count;
+                int count = Convert.ToInt32(namesCollection.Count);
 
                 for (int i = 1; i <= count; i++)
                 {
@@ -30,8 +34,8 @@ public partial class NamedRangeCommands
                     try
                     {
                         nameObj = namesCollection.Item(i);
-                        string name = nameObj.Name;
-                        string refersTo = nameObj.RefersTo ?? "";
+                        string name = nameObj.Name?.ToString() ?? string.Empty;
+                        string refersTo = nameObj.RefersTo?.ToString() ?? string.Empty;
 
                         // Try to get value
                         object? value = null;
@@ -49,7 +53,7 @@ public partial class NamedRangeCommands
                             }
                             else
                             {
-                                value = rawValue;
+                                value = ConvertValueForJson(rawValue);
                                 valueType = rawValue?.GetType().Name ?? "null";
                             }
                         }
@@ -59,7 +63,7 @@ public partial class NamedRangeCommands
                             // Continue with null value - this is expected for some named ranges
                         }
 
-                        namedRanges.Add(new NamedRangeInfo
+                        result.NamedRanges.Add(new NamedRangeInfo
                         {
                             Name = name,
                             RefersTo = refersTo,
@@ -79,7 +83,8 @@ public partial class NamedRangeCommands
                     }
                 }
 
-                return namedRanges;
+                result.Success = true;
+                return result;
             }
             finally
             {
@@ -168,8 +173,19 @@ public partial class NamedRangeCommands
 
                 string refersTo = nameObj.RefersTo?.ToString() ?? "";
                 refersToRange = nameObj.RefersToRange;
-                object? value = refersToRange?.Value2;
-                string valueType = value?.GetType().Name ?? "null";
+                object? rawValue = refersToRange?.Value2;
+                object? value;
+                string valueType;
+                if (rawValue is object[,] array2D)
+                {
+                    value = ConvertArrayToList(array2D);
+                    valueType = "Array";
+                }
+                else
+                {
+                    value = ConvertValueForJson(rawValue);
+                    valueType = rawValue?.GetType().Name ?? "null";
+                }
 
                 return new NamedRangeValue
                 {

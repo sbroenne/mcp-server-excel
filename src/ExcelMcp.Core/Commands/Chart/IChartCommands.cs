@@ -36,9 +36,9 @@ public interface IChartCommands
     /// Lists all charts in workbook (Regular and PivotCharts).
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <returns>List of charts with names, types, sheets, positions, data sources</returns>
+    /// <returns>Structured result with charts, names, types, sheets, positions, and data sources</returns>
     [ServiceAction("list")]
-    List<ChartInfo> List(IExcelBatch batch);
+    ChartListResult List(IExcelBatch batch);
 
     /// <summary>
     /// Gets complete chart configuration.

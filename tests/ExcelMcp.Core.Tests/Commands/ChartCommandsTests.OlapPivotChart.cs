@@ -63,7 +63,8 @@ public class ChartCommandsOlapTests
 
         // Verify chart exists in list
         var charts = _commands.List(batch);
-        Assert.Contains(charts, c => c.Name == result.ChartName);
+        Assert.True(charts.Success);
+        Assert.Contains(charts.Charts, c => c.Name == result.ChartName);
     }
 
     [Fact]
@@ -152,7 +153,8 @@ public class ChartCommandsOlapTests
 
         // Verify chart appears in list
         var charts = _commands.List(batch);
-        Assert.Contains(charts, c => c.Name == "OlapLineChart" && c.ChartType == ChartType.Line);
+        Assert.True(charts.Success);
+        Assert.Contains(charts.Charts, c => c.Name == "OlapLineChart" && c.ChartType == ChartType.Line);
     }
 
     [Fact]
@@ -183,7 +185,8 @@ public class ChartCommandsOlapTests
 
         // Verify chart exists
         var charts = _commands.List(batch);
-        Assert.Contains(charts, c => c.Name == "DisambiguationChart");
+        Assert.True(charts.Success);
+        Assert.Contains(charts.Charts, c => c.Name == "DisambiguationChart");
     }
 
     [Fact]

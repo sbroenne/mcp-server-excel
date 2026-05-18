@@ -23,6 +23,8 @@ public partial class NamedRangeCommandsTests
 
         // Assert - List should return without error
         Assert.NotNull(namedRanges);
+        Assert.True(namedRanges.Success);
+        Assert.NotNull(namedRanges.NamedRanges);
     }
     /// <inheritdoc/>
 
@@ -39,7 +41,8 @@ public partial class NamedRangeCommandsTests
 
         // Assert - Verify the parameter was actually created by listing parameters
         var namedRanges = _parameterCommands.List(batch);
-        Assert.Contains(namedRanges, p => p.Name == paramName);
+        Assert.True(namedRanges.Success);
+        Assert.Contains(namedRanges.NamedRanges, p => p.Name == paramName);
     }
     /// <inheritdoc/>
 
@@ -59,7 +62,8 @@ public partial class NamedRangeCommandsTests
 
         // Assert - Verify the parameter was actually deleted by checking it's not in the list
         var namedRanges = _parameterCommands.List(batch);
-        Assert.DoesNotContain(namedRanges, p => p.Name == paramName);
+        Assert.True(namedRanges.Success);
+        Assert.DoesNotContain(namedRanges.NamedRanges, p => p.Name == paramName);
     }
     /// <inheritdoc/>
 

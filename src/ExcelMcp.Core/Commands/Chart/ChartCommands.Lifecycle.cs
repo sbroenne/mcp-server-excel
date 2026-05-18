@@ -13,70 +13,82 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
     private readonly PivotChartStrategy _pivotStrategy = new();
 
     /// <inheritdoc />
-    public List<ChartInfo> List(IExcelBatch batch)
+    public ChartListResult List(IExcelBatch batch)
     {
+        var result = new ChartListResult
+        {
+            Action = "list",
+            FilePath = batch.WorkbookPath
+        };
+
         return batch.Execute((ctx, ct) =>
         {
-            var charts = new List<ChartInfo>();
-
-            dynamic worksheets = ctx.Book.Worksheets;
-            int wsCount = Convert.ToInt32(worksheets.Count);
-
-            for (int i = 1; i <= wsCount; i++)
+            dynamic? worksheets = null;
+            try
             {
-                dynamic? worksheet = null;
-                dynamic? shapes = null;
+                worksheets = ctx.Book.Worksheets;
+                int wsCount = Convert.ToInt32(worksheets.Count);
 
-                try
+                for (int i = 1; i <= wsCount; i++)
                 {
-                    worksheet = worksheets.Item(i);
-                    string sheetName = worksheet.Name?.ToString() ?? $"Sheet{i}";
-                    shapes = worksheet.Shapes;
-                    int shapeCount = Convert.ToInt32(shapes.Count);
+                    dynamic? worksheet = null;
+                    dynamic? shapes = null;
 
-                    for (int j = 1; j <= shapeCount; j++)
+                    try
                     {
-                        dynamic? shape = null;
-                        dynamic? chart = null;
+                        worksheet = worksheets.Item(i);
+                        string sheetName = worksheet.Name?.ToString() ?? $"Sheet{i}";
+                        shapes = worksheet.Shapes;
+                        int shapeCount = Convert.ToInt32(shapes.Count);
 
-                        try
+                        for (int j = 1; j <= shapeCount; j++)
                         {
-                            shape = shapes.Item(j);
+                            dynamic? shape = null;
+                            dynamic? chart = null;
 
-                            // Check if this is a chart (msoChart = 3)
-                            if (Convert.ToInt32(shape.Type) != 3)
+                            try
                             {
-                                continue;
-                            }
+                                shape = shapes.Item(j);
 
-                            chart = shape.Chart;
-                            string chartName = shape.Name?.ToString() ?? $"Chart{j}";
+                                // Check if this is a chart (msoChart = 3)
+                                if (Convert.ToInt32(shape.Type) != 3)
+                                {
+                                    continue;
+                                }
 
-                            // Determine strategy and get info
-                            IChartStrategy strategy = _pivotStrategy.CanHandle(chart) ? _pivotStrategy : _regularStrategy;
+                                chart = shape.Chart;
+                                string chartName = shape.Name?.ToString() ?? $"Chart{j}";
+
+                                // Determine strategy and get info
+                                IChartStrategy strategy = _pivotStrategy.CanHandle(chart) ? _pivotStrategy : _regularStrategy;
 #pragma warning disable CS8604 // CodeQL false positive: Both strategies implement IChartStrategy.GetInfo with dynamic parameters
-                            var chartInfo = strategy.GetInfo(chart, chartName, sheetName, shape);
+                                var chartInfo = strategy.GetInfo(chart, chartName, sheetName, shape);
 #pragma warning restore CS8604
 
-                            charts.Add(chartInfo);
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref chart!);
-                            ComUtilities.Release(ref shape!);
+                                result.Charts.Add(chartInfo);
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref chart!);
+                                ComUtilities.Release(ref shape!);
+                            }
                         }
                     }
+                    finally
+                    {
+                        ComUtilities.Release(ref shapes!);
+                        ComUtilities.Release(ref worksheet!);
+                    }
                 }
-                finally
-                {
-                    ComUtilities.Release(ref shapes!);
-                    ComUtilities.Release(ref worksheet!);
-                }
+
+                result.Success = true;
+
+                return result;
             }
-
-            ComUtilities.Release(ref worksheets!);
-
-            return charts;
+            finally
+            {
+                ComUtilities.Release(ref worksheets!);
+            }
         });
     }
 
