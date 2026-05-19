@@ -57,7 +57,7 @@ This specification defines a unified **Range API** that consolidates and replace
 
 **NamedRangeCommands** (Named ranges, separate concern):
 - ✅ Create, delete, update named range definitions
-- ✅ List all named ranges
+- ✅ List visible user-defined named ranges
 - ✅ Get/set single values (parameters)
 - ✅ Should remain separate (named range lifecycle management)
 - ⚠️ RangeCommands will ADD bulk read/write to named ranges (data operations)

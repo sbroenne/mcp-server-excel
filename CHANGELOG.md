@@ -12,7 +12,7 @@ This changelog covers all components:
 
 ### Fixed
 
-- **MCP `namedrange list` and `chart list` no longer return raw arrays or risk closing the session** (#653): Both list commands now return standard structured result envelopes with `success` and item collections, keep the active session usable after listing empty or populated workbooks, and normalize named range values to JSON-safe types before serialization.
+- **MCP `namedrange list` and `chart list` no longer return raw arrays or risk closing the session** (#653): Both list commands now return standard structured result envelopes with `success` and item collections, keep the active session usable after listing empty or populated workbooks, omit hidden/internal Excel names from `namedrange list`, cap large named-range value previews, and normalize returned named range values to JSON-safe types before serialization.
 
 - **Release workflow `dotnet pack` failure for CLI and MCP Server NuGet packages**: The dependency-update PR added `<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>` to both tool csproj files, which combined with `PackAsTool=true` routed `dotnet pack` through the RID-aware publish path and made it look for `bin/Release/net10.0-windows/win-x64/` outputs. The CI release workflow builds each project per-csproj without a runtime flag and writes plain `bin/Release/net10.0-windows/`, so pack failed with MSB3030. Removed the property from `ExcelMcp.CLI.csproj` and `ExcelMcp.McpServer.csproj` and documented why it must not be re-added; the standalone-exe publish step still passes the runtime on the command line.
 

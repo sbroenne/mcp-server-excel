@@ -142,6 +142,8 @@ Always convert tabular data to Excel Tables (ListObjects):
 - Layout areas with merged cells
 - Print-formatted reports with specific spacing
 
+**Named range listing:** `namedrange list` returns visible user-defined names. Hidden/internal Excel names are omitted, and large named ranges return metadata without a value preview; use `namedrange read` or `range get-values` when the actual value is needed.
+
 ### Report Results
 
 After completing operations, report:

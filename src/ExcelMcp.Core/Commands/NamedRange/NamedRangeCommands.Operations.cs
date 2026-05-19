@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Microsoft.CSharp.RuntimeBinder;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -11,6 +12,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 public partial class NamedRangeCommands
 {
+    private const long MaxListValuePreviewCellCount = 10_000;
+
     /// <inheritdoc />
     public NamedRangeListResult List(IExcelBatch batch)
     {
@@ -29,49 +32,45 @@ public partial class NamedRangeCommands
 
                 for (int i = 1; i <= count; i++)
                 {
+                    ct.ThrowIfCancellationRequested();
+
                     dynamic? nameObj = null;
                     dynamic? refersToRange = null;
                     try
                     {
                         nameObj = namesCollection.Item(i);
                         string name = nameObj.Name?.ToString() ?? string.Empty;
+
+                        if (ShouldSkipNameFromList(nameObj, name))
+                        {
+                            continue;
+                        }
+
                         string refersTo = nameObj.RefersTo?.ToString() ?? string.Empty;
 
-                        // Try to get value
-                        object? value = null;
-                        string valueType = "null";
-                        try
-                        {
-                            refersToRange = nameObj.RefersToRange;
-                            var rawValue = refersToRange?.Value2;
-
-                            // Convert 2D array to List<List<object?>> for JSON serialization
-                            if (rawValue is object[,] array2D)
-                            {
-                                value = ConvertArrayToList(array2D);
-                                valueType = "Array";
-                            }
-                            else
-                            {
-                                value = ConvertValueForJson(rawValue);
-                                valueType = rawValue?.GetType().Name ?? "null";
-                            }
-                        }
-                        catch (COMException)
-                        {
-                            // Named range may not have a valid RefersToRange (e.g., formula-based or external reference)
-                            // Continue with null value - this is expected for some named ranges
-                        }
-
-                        result.NamedRanges.Add(new NamedRangeInfo
+                        var info = new NamedRangeInfo
                         {
                             Name = name,
                             RefersTo = refersTo,
-                            Value = value,
-                            ValueType = valueType
-                        });
+                            ValueType = "null"
+                        };
+
+                        try
+                        {
+                            refersToRange = nameObj.RefersToRange;
+                            PopulateListValuePreview(refersToRange, info);
+                        }
+                        catch (Exception ex) when (IsRecoverableNamedRangeException(ex))
+                        {
+                            // Named range may not have a valid RefersToRange (e.g., formula-based or external reference)
+                            // Continue with metadata only - this is expected for some named ranges.
+                            info.ValueType = "Unavailable";
+                            info.ValueOmittedReason = ex.Message;
+                        }
+
+                        result.NamedRanges.Add(info);
                     }
-                    catch (COMException)
+                    catch (Exception ex) when (IsRecoverableNamedRangeException(ex))
                     {
                         // Skip corrupted or inaccessible named ranges - continue listing remaining
                         continue;
@@ -92,6 +91,102 @@ public partial class NamedRangeCommands
             }
         });
     }
+
+    private static bool ShouldSkipNameFromList(dynamic nameObj, string name)
+    {
+        if (IsHiddenName(nameObj))
+        {
+            return true;
+        }
+
+        return IsBuiltInName(name);
+    }
+
+    private static bool IsHiddenName(dynamic nameObj)
+    {
+        try
+        {
+            return !Convert.ToBoolean(nameObj.Visible);
+        }
+        catch (Exception ex) when (IsRecoverableNamedRangeException(ex))
+        {
+            return true;
+        }
+    }
+
+    private static bool IsBuiltInName(string name)
+    {
+        var localName = GetLocalName(name);
+        return localName.StartsWith("_xlnm.", StringComparison.OrdinalIgnoreCase)
+            || localName.Equals("_FilterDatabase", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string GetLocalName(string name)
+    {
+        var bangIndex = name.LastIndexOf('!');
+        return bangIndex >= 0 ? name[(bangIndex + 1)..].Trim('\'') : name;
+    }
+
+    private static void PopulateListValuePreview(dynamic refersToRange, NamedRangeInfo info)
+    {
+        var areaCount = GetAreaCount(refersToRange);
+        if (areaCount > 1)
+        {
+            info.ValueType = "MultiAreaRange";
+            info.ValueOmittedReason = "Named range resolves to multiple areas; list omits multi-area value previews.";
+            return;
+        }
+
+        var cellCount = GetCellCount(refersToRange);
+        info.CellCount = cellCount;
+
+        if (cellCount > MaxListValuePreviewCellCount)
+        {
+            info.ValueType = "RangeTooLarge";
+            info.ValueOmittedReason =
+                $"Named range contains {cellCount} cells, which exceeds the list preview limit of {MaxListValuePreviewCellCount}.";
+            return;
+        }
+
+        var rawValue = refersToRange?.Value2;
+
+        if (rawValue is object[,] array2D)
+        {
+            info.Value = ConvertArrayToList(array2D);
+            info.ValueType = "Array";
+        }
+        else
+        {
+            info.Value = ConvertValueForJson(rawValue);
+            info.ValueType = rawValue?.GetType().Name ?? "null";
+        }
+    }
+
+    private static int GetAreaCount(dynamic range)
+    {
+        dynamic? areas = null;
+        try
+        {
+            areas = range.Areas;
+            return Convert.ToInt32(areas.Count);
+        }
+        finally
+        {
+            ComUtilities.Release(ref areas);
+        }
+    }
+
+    private static long GetCellCount(dynamic range)
+    {
+        return Convert.ToInt64(range.CountLarge);
+    }
+
+    private static bool IsRecoverableNamedRangeException(Exception ex) =>
+        ex is COMException
+            or InvalidCastException
+            or RuntimeBinderException
+            or SafeArrayRankMismatchException
+            or SafeArrayTypeMismatchException;
 
     /// <inheritdoc />
     public OperationResult Write(IExcelBatch batch, string name, string value)

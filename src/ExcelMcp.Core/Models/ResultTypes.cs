@@ -618,6 +618,18 @@ public class NamedRangeInfo
     /// Type of the value
     /// </summary>
     public string ValueType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Number of cells referenced by the named range, when available
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? CellCount { get; set; }
+
+    /// <summary>
+    /// Reason the value preview was omitted, when the list operation skips value materialization
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ValueOmittedReason { get; set; }
 }
 
 /// <summary>
