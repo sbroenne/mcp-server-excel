@@ -337,7 +337,7 @@ Formatting split: use `range` for number display formats such as dates, currency
 
 ## 🏷️ Named Ranges (Parameters) (6 operations)
 
-- **List:** List visible user-defined named ranges with references; hidden/internal Excel names are omitted, and large ranges return metadata without materializing values
+- **List:** List visible user-defined named ranges with references; hidden/internal Excel names (including Power Query `ExternalData_*` and AutoFilter names) are omitted before value inspection, and large ranges return metadata without materializing values
 - **Read:** Get value of a named range
 - **Write:** Set value of a named range (ideal for parameter automation)
 - **Create:** Create new named range

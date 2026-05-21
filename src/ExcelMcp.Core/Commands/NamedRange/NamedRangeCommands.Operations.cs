@@ -1,4 +1,7 @@
+using System.IO.Compression;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using Microsoft.CSharp.RuntimeBinder;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -13,6 +16,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class NamedRangeCommands
 {
     private const long MaxListValuePreviewCellCount = 10_000;
+    private const long ExcelMaxRows = 1_048_576;
+    private const long ExcelMaxColumns = 16_384;
+
+    private sealed record WorkbookDefinedName(string Name, string RefersTo);
 
     /// <inheritdoc />
     public NamedRangeListResult List(IExcelBatch batch)
@@ -21,6 +28,12 @@ public partial class NamedRangeCommands
         {
             FilePath = batch.WorkbookPath
         };
+
+        var packageDefinedNames = TryReadVisibleDefinedNamesFromPackage(batch.WorkbookPath, out var hasHiddenOrInternalNames);
+        if (hasHiddenOrInternalNames && packageDefinedNames != null)
+        {
+            return ListFromWorkbookPackage(batch, result, packageDefinedNames);
+        }
 
         return batch.Execute((ctx, ct) =>
         {
@@ -92,6 +105,34 @@ public partial class NamedRangeCommands
         });
     }
 
+    private static NamedRangeListResult ListFromWorkbookPackage(
+        IExcelBatch batch,
+        NamedRangeListResult result,
+        List<WorkbookDefinedName> packageDefinedNames)
+    {
+        return batch.Execute((ctx, ct) =>
+        {
+            foreach (var definedName in packageDefinedNames)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                var info = new NamedRangeInfo
+                {
+                    Name = definedName.Name,
+                    RefersTo = definedName.RefersTo,
+                    ValueType = "Unavailable",
+                    ValueOmittedReason = "Value preview unavailable from workbook defined-name metadata."
+                };
+
+                PopulateListValuePreviewFromReference(ctx.Book, definedName.RefersTo, info);
+                result.NamedRanges.Add(info);
+            }
+
+            result.Success = true;
+            return result;
+        });
+    }
+
     private static bool ShouldSkipNameFromList(dynamic nameObj, string name)
     {
         if (IsHiddenName(nameObj))
@@ -125,6 +166,248 @@ public partial class NamedRangeCommands
     {
         var bangIndex = name.LastIndexOf('!');
         return bangIndex >= 0 ? name[(bangIndex + 1)..].Trim('\'') : name;
+    }
+
+    private static List<WorkbookDefinedName>? TryReadVisibleDefinedNamesFromPackage(
+        string workbookPath,
+        out bool hasHiddenOrInternalNames)
+    {
+        hasHiddenOrInternalNames = false;
+
+        if (string.IsNullOrWhiteSpace(workbookPath) || !File.Exists(workbookPath))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var stream = new FileStream(
+                workbookPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+            using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+            var workbookEntry = archive.GetEntry("xl/workbook.xml");
+            if (workbookEntry == null)
+            {
+                return null;
+            }
+
+            using var workbookStream = workbookEntry.Open();
+            var document = XDocument.Load(workbookStream);
+            var definedNames = document
+                .Descendants()
+                .Where(element => element.Name.LocalName == "definedName");
+
+            var visibleNames = new List<WorkbookDefinedName>();
+            foreach (var definedName in definedNames)
+            {
+                var name = definedName.Attribute("name")?.Value ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    continue;
+                }
+
+                if (IsTruthyOpenXmlBoolean(definedName.Attribute("hidden")?.Value) || IsBuiltInName(name))
+                {
+                    hasHiddenOrInternalNames = true;
+                    continue;
+                }
+
+                visibleNames.Add(new WorkbookDefinedName(name, definedName.Value));
+            }
+
+            return visibleNames;
+        }
+        catch (InvalidDataException)
+        {
+            return null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+        catch (System.Xml.XmlException)
+        {
+            return null;
+        }
+    }
+
+    private static bool IsTruthyOpenXmlBoolean(string? value)
+    {
+        return value != null
+            && (value.Equals("1", StringComparison.OrdinalIgnoreCase)
+                || value.Equals("true", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void PopulateListValuePreviewFromReference(dynamic workbook, string refersTo, NamedRangeInfo info)
+    {
+        if (!TrySplitRangeReference(refersTo, out var sheetName, out var rangeAddress))
+        {
+            return;
+        }
+
+        if (rangeAddress.Contains(',', StringComparison.Ordinal))
+        {
+            info.ValueType = "MultiAreaRange";
+            info.ValueOmittedReason = "Named range resolves to multiple areas; list omits multi-area value previews.";
+            return;
+        }
+
+        if (TryGetCellCountFromAddress(rangeAddress, out var cellCount))
+        {
+            info.CellCount = cellCount;
+            if (cellCount > MaxListValuePreviewCellCount)
+            {
+                info.ValueType = "RangeTooLarge";
+                info.ValueOmittedReason =
+                    $"Named range contains {cellCount} cells, which exceeds the list preview limit of {MaxListValuePreviewCellCount}.";
+                return;
+            }
+        }
+
+        dynamic? sheet = null;
+        dynamic? range = null;
+        try
+        {
+            sheet = ComUtilities.FindSheet(workbook, sheetName);
+            if (sheet == null)
+            {
+                return;
+            }
+
+            range = sheet.Range[rangeAddress];
+            PopulateListValuePreview(range, info);
+        }
+        catch (Exception ex) when (IsRecoverableNamedRangeException(ex))
+        {
+            info.ValueType = "Unavailable";
+            info.ValueOmittedReason = ex.Message;
+        }
+        finally
+        {
+            ComUtilities.Release(ref range);
+            ComUtilities.Release(ref sheet);
+        }
+    }
+
+    private static bool TrySplitRangeReference(string refersTo, out string sheetName, out string rangeAddress)
+    {
+        sheetName = string.Empty;
+        rangeAddress = string.Empty;
+
+        var reference = refersTo.Trim();
+        if (reference.StartsWith('='))
+        {
+            reference = reference[1..];
+        }
+
+        if (reference.Contains('[', StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var bangIndex = reference.LastIndexOf('!');
+        if (bangIndex <= 0 || bangIndex == reference.Length - 1)
+        {
+            return false;
+        }
+
+        sheetName = reference[..bangIndex].Trim();
+        if (sheetName.Length >= 2 && sheetName[0] == '\'' && sheetName[^1] == '\'')
+        {
+            sheetName = sheetName[1..^1].Replace("''", "'", StringComparison.Ordinal);
+        }
+
+        rangeAddress = reference[(bangIndex + 1)..].Trim();
+        return sheetName.Length > 0 && rangeAddress.Length > 0;
+    }
+
+    private static bool TryGetCellCountFromAddress(string rangeAddress, out long cellCount)
+    {
+        cellCount = 0;
+        var address = rangeAddress.Replace("$", string.Empty, StringComparison.Ordinal).Trim();
+
+        var cellMatch = Regex.Match(
+            address,
+            @"^(?<col1>[A-Za-z]{1,3})(?<row1>\d+)(:(?<col2>[A-Za-z]{1,3})(?<row2>\d+))?$",
+            RegexOptions.CultureInvariant);
+        if (cellMatch.Success)
+        {
+            var col1 = ColumnNameToNumber(cellMatch.Groups["col1"].Value);
+            var row1 = long.Parse(cellMatch.Groups["row1"].Value, System.Globalization.CultureInfo.InvariantCulture);
+            var col2 = cellMatch.Groups["col2"].Success ? ColumnNameToNumber(cellMatch.Groups["col2"].Value) : col1;
+            var row2 = cellMatch.Groups["row2"].Success
+                ? long.Parse(cellMatch.Groups["row2"].Value, System.Globalization.CultureInfo.InvariantCulture)
+                : row1;
+
+            cellCount = (Math.Abs(row2 - row1) + 1) * (Math.Abs(col2 - col1) + 1);
+            return true;
+        }
+
+        var columnMatch = Regex.Match(
+            address,
+            @"^(?<col1>[A-Za-z]{1,3}):(?<col2>[A-Za-z]{1,3})$",
+            RegexOptions.CultureInvariant);
+        if (columnMatch.Success)
+        {
+            var col1 = ColumnNameToNumber(columnMatch.Groups["col1"].Value);
+            var col2 = ColumnNameToNumber(columnMatch.Groups["col2"].Value);
+            cellCount = (Math.Abs(col2 - col1) + 1) * ExcelMaxRows;
+            return true;
+        }
+
+        var rowMatch = Regex.Match(
+            address,
+            @"^(?<row1>\d+):(?<row2>\d+)$",
+            RegexOptions.CultureInvariant);
+        if (rowMatch.Success)
+        {
+            var row1 = long.Parse(rowMatch.Groups["row1"].Value, System.Globalization.CultureInfo.InvariantCulture);
+            var row2 = long.Parse(rowMatch.Groups["row2"].Value, System.Globalization.CultureInfo.InvariantCulture);
+            cellCount = (Math.Abs(row2 - row1) + 1) * ExcelMaxColumns;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static long ColumnNameToNumber(string columnName)
+    {
+        long number = 0;
+        foreach (var character in columnName.ToUpperInvariant())
+        {
+            number = (number * 26) + character - 'A' + 1;
+        }
+
+        return number;
+    }
+
+    private static Excel.Name? FindNameByKey(dynamic workbook, string name)
+    {
+        dynamic? names = null;
+        Excel.Name? nameObj = null;
+        try
+        {
+            names = workbook.Names;
+            nameObj = (Excel.Name)names.Item(name);
+            var result = nameObj;
+            nameObj = null;
+            return result;
+        }
+        catch (Exception ex) when (IsRecoverableNamedRangeException(ex))
+        {
+            return null;
+        }
+        finally
+        {
+            ComUtilities.Release(ref nameObj);
+            ComUtilities.Release(ref names);
+        }
     }
 
     private static void PopulateListValuePreview(dynamic refersToRange, NamedRangeInfo info)
@@ -200,7 +483,7 @@ public partial class NamedRangeCommands
 
             try
             {
-                nameObj = ComUtilities.FindName(ctx.Book, name);
+                nameObj = FindNameByKey(ctx.Book, name);
                 if (nameObj == null)
                 {
                     throw new InvalidOperationException($"Named range '{name}' not found.");
@@ -260,7 +543,7 @@ public partial class NamedRangeCommands
             dynamic? refersToRange = null;
             try
             {
-                nameObj = ComUtilities.FindName(ctx.Book, name);
+                nameObj = FindNameByKey(ctx.Book, name);
                 if (nameObj == null)
                 {
                     throw new InvalidOperationException($"Named range '{name}' not found.");
@@ -319,7 +602,7 @@ public partial class NamedRangeCommands
             try
             {
                 // Check if parameter already exists
-                existing = ComUtilities.FindName(ctx.Book, name);
+                existing = FindNameByKey(ctx.Book, name);
                 if (existing != null)
                 {
                     throw new InvalidOperationException($"Named range '{name}' already exists");
@@ -362,7 +645,7 @@ public partial class NamedRangeCommands
             Excel.Name? nameObj = null;
             try
             {
-                nameObj = ComUtilities.FindName(ctx.Book, name);
+                nameObj = FindNameByKey(ctx.Book, name);
                 if (nameObj == null)
                 {
                     throw new InvalidOperationException($"Named range '{name}' not found.");
@@ -393,7 +676,7 @@ public partial class NamedRangeCommands
             Excel.Name? nameObj = null;
             try
             {
-                nameObj = ComUtilities.FindName(ctx.Book, name);
+                nameObj = FindNameByKey(ctx.Book, name);
                 if (nameObj == null)
                 {
                     throw new InvalidOperationException($"Named range '{name}' not found.");

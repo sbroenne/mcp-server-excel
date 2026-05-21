@@ -181,6 +181,42 @@ public sealed class NamedRangeToolProtocolRegressionTests : McpIntegrationTestBa
         await CloseSessionAsync(sessionId, save: false);
     }
 
+    [Fact]
+    public async Task NamedRangeList_MultipleLargeHiddenExternalDataNames_ReturnsVisibleNames_AndSessionRemainsUsable()
+    {
+        var workbookPath = Path.Join(_tempDir, $"HiddenExternalData_{Guid.NewGuid():N}.xlsx");
+        var name = $"CsvFolder_{Guid.NewGuid():N}";
+        CreateWorkbookWithHiddenExternalDataNames(workbookPath, name);
+        var sessionId = await OpenWorkbookSessionAsync(workbookPath);
+
+        var listResult = await CallToolAsync("namedrange", new Dictionary<string, object?>
+        {
+            ["action"] = "list",
+            ["session_id"] = sessionId
+        }, TimeSpan.FromSeconds(30));
+
+        using (var listJson = JsonDocument.Parse(listResult))
+        {
+            var root = listJson.RootElement;
+            Assert.True(root.GetProperty("success").GetBoolean(), $"namedrange list failed: {listResult}");
+            var namedRanges = root.GetProperty("namedRanges").EnumerateArray().ToList();
+            var listedRange = Assert.Single(namedRanges);
+            Assert.Equal(name, listedRange.GetProperty("name").GetString());
+            Assert.DoesNotContain(
+                namedRanges,
+                range => range.GetProperty("name").GetString()?.Contains("ExternalData_1", StringComparison.OrdinalIgnoreCase) == true);
+        }
+
+        var worksheetListResult = await CallToolAsync("worksheet", new Dictionary<string, object?>
+        {
+            ["action"] = "list",
+            ["session_id"] = sessionId
+        }, TimeSpan.FromSeconds(30));
+        AssertSuccess(worksheetListResult, "worksheet list after namedrange list");
+
+        await CloseSessionAsync(sessionId, save: false);
+    }
+
     private async Task<string> OpenWorkbookSessionAsync(string workbookPath)
     {
         var openJson = await CallToolAsync("file", new Dictionary<string, object?>
@@ -240,6 +276,57 @@ public sealed class NamedRangeToolProtocolRegressionTests : McpIntegrationTestBa
                 {
                     ComUtilities.Release(ref nameObj);
                     ComUtilities.Release(ref names);
+                }
+            });
+        });
+    }
+
+    private static void CreateWorkbookWithHiddenExternalDataNames(string workbookPath, string visibleName)
+    {
+        CreateWorkbook(workbookPath, batch =>
+        {
+            batch.Execute((ctx, ct) =>
+            {
+                dynamic? sheets = null;
+                dynamic? usersSheet = null;
+                dynamic? notificationsSheet = null;
+                dynamic? sheet1 = null;
+                dynamic? visibleRange = null;
+                dynamic? names = null;
+                dynamic? visibleNameObj = null;
+                dynamic? usersExternalDataName = null;
+                dynamic? notificationsExternalDataName = null;
+                try
+                {
+                    sheets = ctx.Book.Worksheets;
+                    usersSheet = sheets.Add();
+                    usersSheet.Name = "Users";
+                    notificationsSheet = sheets.Add();
+                    notificationsSheet.Name = "Notifications";
+
+                    sheet1 = ctx.Book.Worksheets["Sheet1"];
+                    visibleRange = sheet1.Range["$B$4"];
+                    visibleRange.Value2 = "C:\\Data";
+
+                    names = ctx.Book.Names;
+                    visibleNameObj = names.Add(visibleName, "=Sheet1!$B$4");
+                    usersExternalDataName = names.Add("Users!ExternalData_1", "=Users!$A$6:$AH$19132");
+                    usersExternalDataName.Visible = false;
+                    notificationsExternalDataName = names.Add("Notifications!ExternalData_1", "=Notifications!$A$6:$P$28365");
+                    notificationsExternalDataName.Visible = false;
+                    return 0;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref notificationsExternalDataName);
+                    ComUtilities.Release(ref usersExternalDataName);
+                    ComUtilities.Release(ref visibleNameObj);
+                    ComUtilities.Release(ref names);
+                    ComUtilities.Release(ref visibleRange);
+                    ComUtilities.Release(ref sheet1);
+                    ComUtilities.Release(ref notificationsSheet);
+                    ComUtilities.Release(ref usersSheet);
+                    ComUtilities.Release(ref sheets);
                 }
             });
         });

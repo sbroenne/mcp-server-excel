@@ -10,6 +10,10 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### Fixed
+
+- **MCP `namedrange list` avoids hidden Power Query `ExternalData_1` crash paths** (#653): Workbooks with hidden/internal defined names are now listed from workbook package metadata first, so large hidden Power Query and AutoFilter names are skipped before their COM `Name` objects or backing ranges are touched. Visible user-defined names still return references and safe value previews, and large visible ranges continue to return metadata instead of materialized values.
+
 ## [1.8.63] - 2026-05-20
 
 ### Fixed
