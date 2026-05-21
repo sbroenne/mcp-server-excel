@@ -6,18 +6,18 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
 /// Named ranges for formulas/parameters.
-/// LIST: returns visible user-defined names; hidden/internal Excel names are omitted, and large ranges return metadata without materializing values.
+/// LIST: returns visible user-defined names; hidden/internal Excel names are omitted before value inspection, and large ranges return metadata without materializing values.
 /// CREATE/UPDATE: value is cell reference (e.g., 'Sheet1!$A$1').
 /// WRITE: value is data to store.
 /// TIP: use range get-values/set-values with the named range as the range address for bulk data read/write.
 /// </summary>
 [ServiceCategory("namedrange", "NamedRange")]
 [McpTool("namedrange", Title = "Named Range Operations", Destructive = true, Category = "data",
-    Description = "Named ranges for formulas/parameters. LIST returns visible user-defined names; hidden/internal Excel names are omitted, and large ranges return metadata without materializing values. CREATE/UPDATE: value is cell reference (e.g., Sheet1!$A$1). WRITE: value is data to store in the named range. TIP: Use range(rangeAddress=namedRangeName) for bulk data operations.")]
+    Description = "Named ranges for formulas/parameters. LIST returns visible user-defined names; hidden/internal Excel names are omitted before value inspection, and large ranges return metadata without materializing values. CREATE/UPDATE: value is cell reference (e.g., Sheet1!$A$1). WRITE: value is data to store in the named range. TIP: Use range(rangeAddress=namedRangeName) for bulk data operations.")]
 public interface INamedRangeCommands
 {
     /// <summary>
-    /// Lists visible user-defined named ranges in the workbook. Hidden Excel internal names are omitted.
+    /// Lists visible user-defined named ranges in the workbook. Hidden Excel internal names are omitted before value inspection.
     /// Large ranges return metadata without materializing values.
     /// </summary>
     /// <returns>Structured result containing the list of named range information</returns>
