@@ -86,8 +86,8 @@ public static class ExcelMcpTelemetry
         try
         {
             // Flush with timeout to avoid hanging on shutdown
-            // 5 seconds is typically sufficient for small batches
-            _telemetryClient.FlushAsync(CancellationToken.None).Wait(TimeSpan.FromSeconds(5));
+            // 2 seconds is sufficient; longer waits risk stalling on DNS/network failures
+            _telemetryClient.FlushAsync(CancellationToken.None).Wait(TimeSpan.FromSeconds(2));
         }
         catch (Exception)
         {
