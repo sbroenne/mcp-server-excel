@@ -21,7 +21,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
       enableLogAccessUsingOnlyResourcePermissions: true
     }
     workspaceCapping: {
-      dailyQuotaGb: -1 // No cap
+      dailyQuotaGb: 2 // Cap at 2 GB/day to prevent runaway costs
     }
     publicNetworkAccessForIngestion: 'Enabled'
     publicNetworkAccessForQuery: 'Enabled'
