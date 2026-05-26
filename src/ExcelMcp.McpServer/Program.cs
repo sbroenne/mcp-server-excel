@@ -524,8 +524,8 @@ internal static class StdinPipeMonitor
 
     private const int StdInputHandle = -10;
     private const uint FileTypePipe = 0x0003;
-    private const int ErrorBrokenPipe = 109;   // ERROR_BROKEN_PIPE
-    private const int ErrorNoData = 232;       // ERROR_NO_DATA (write end closed)
+    internal const int ErrorBrokenPipe = 109;   // ERROR_BROKEN_PIPE
+    internal const int ErrorNoData = 232;       // ERROR_NO_DATA (write end closed)
 
     /// <summary>
     /// Starts the stdin pipe monitor. Returns null if stdin is not a pipe
@@ -541,17 +541,22 @@ internal static class StdinPipeMonitor
         if (GetFileType(handle) != FileTypePipe)
             return null;
 
+        return StartCore(lifetime, handle);
+    }
+
+    internal static Timer StartCore(IHostApplicationLifetime lifetime, IntPtr pipeHandle,
+        TimeSpan? pollInterval = null)
+    {
+        var interval = pollInterval ?? TimeSpan.FromSeconds(5);
         return new Timer(_ =>
         {
-            uint totalBytesAvailable;
-            uint bytesLeftThisMessage;
-            if (!PeekNamedPipe(handle, IntPtr.Zero, 0, IntPtr.Zero, out totalBytesAvailable, out bytesLeftThisMessage))
+            if (!PeekNamedPipe(pipeHandle, IntPtr.Zero, 0, IntPtr.Zero, out uint _, out uint _))
             {
                 var error = Marshal.GetLastWin32Error();
                 if (error is ErrorBrokenPipe or ErrorNoData)
                     lifetime.StopApplication();
             }
-        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+        }, null, interval, interval);
     }
 }
 
