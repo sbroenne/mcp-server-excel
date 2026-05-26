@@ -346,9 +346,6 @@ public class Program
             // Disable features not needed for MCP server (reduces overhead and AppMetrics ingestion)
             EnableQuickPulseMetricStream = false,  // Live Metrics not needed for CLI tool
             EnablePerformanceCounterCollectionModule = false,  // Perf counters not useful for short-lived CLI
-            EnableEventCounterCollectionModule = false,  // .NET runtime counters not needed
-            EnableHeartbeat = false,  // Heartbeat metrics not needed for short-lived CLI
-            EnableAdaptiveSampling = false,  // We send low volume; sampling not needed
 
             // Disable dependency tracking for HTTP calls
             EnableDependencyTrackingTelemetryModule = false,
@@ -559,6 +556,5 @@ internal static class StdinPipeMonitor
         }, null, interval, interval);
     }
 }
-
 
 
