@@ -27,7 +27,7 @@ public partial class DataModelCommands
             return batch.Execute((ctx, ct) =>
             {
                 Excel.Model? model = null;
-                Excel.ModelMeasure? measure = null;
+                dynamic? measure = null;
                 try
                 {
                     // Check if workbook has Data Model
@@ -215,8 +215,8 @@ public partial class DataModelCommands
             {
                 Excel.Model? model = null;
                 Excel.ModelTable? table = null;
-                Excel.ModelMeasures? measures = null;
-                Excel.ModelMeasure? newMeasure = null;
+                dynamic? measures = null;
+                dynamic? newMeasure = null;
                 object? formatObject = null;
                 try
                 {
@@ -236,7 +236,7 @@ public partial class DataModelCommands
                     }
 
                     // Check if measure already exists
-                    Excel.ModelMeasure? existingMeasure = FindModelMeasure(model!, measureName);
+                    dynamic? existingMeasure = FindModelMeasure(model!, measureName);
                     if (existingMeasure != null)
                     {
                         ComUtilities.Release(ref existingMeasure);
@@ -251,7 +251,8 @@ public partial class DataModelCommands
 
                     // Get ModelMeasures collection from MODEL (not from table!)
                     // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
-                    measures = model!.ModelMeasures;
+                    dynamic modelDynamic = model!;
+                    measures = modelDynamic.ModelMeasures;
 
                     // Get format object - ALWAYS returns a valid format object (never null)
                     // Fixed: Always provide format object to avoid failures on reopened Data Model files
@@ -302,7 +303,7 @@ public partial class DataModelCommands
             return batch.Execute((ctx, ct) =>
             {
                 Excel.Model? model = null;
-                Excel.ModelMeasure? measure = null;
+                dynamic? measure = null;
                 object? formatObject = null;
                 try
                 {
@@ -524,6 +525,4 @@ public partial class DataModelCommands
         return _dataModelPipeline.Execute(func);
     }
 }
-
-
 

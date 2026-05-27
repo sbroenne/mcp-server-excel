@@ -36,6 +36,7 @@ public static class ComDiagnostics
 
         // Probe registry for Office installation details
         report.OfficeRegistration = ProbeOfficeRegistration();
+        PopulateExcelTypeLibRegistration(report);
 
         return report;
     }
@@ -51,6 +52,11 @@ public static class ComDiagnostics
         sb.Append("  CLSID: ").AppendLine(report.ResolvedClsid ?? "(null)");
         sb.Append("  PIA interface: ").AppendLine(report.PiaInterfaceGuid);
         sb.Append("  PIA assembly: ").Append(report.PiaAssemblyName ?? "(null)").Append(' ').AppendLine(report.PiaAssemblyVersion ?? "");
+        if (!string.IsNullOrWhiteSpace(report.ExcelTypeLibPrimaryInteropAssemblyName))
+        {
+            sb.Append("  Registered Excel PIA: ").AppendLine(report.ExcelTypeLibPrimaryInteropAssemblyName);
+        }
+
         sb.Append("  Process arch: ").Append(report.ProcessArchitecture)
           .Append(", OS arch: ").AppendLine(report.OsArchitecture);
 
@@ -107,6 +113,33 @@ public static class ComDiagnostics
 
         return null;
     }
+
+    private static void PopulateExcelTypeLibRegistration(ComDiagnosticReport report)
+    {
+        try
+        {
+            using var interfaceTypeLibKey = Registry.ClassesRoot.OpenSubKey(
+                @"Interface\{000208D5-0000-0000-C000-000000000046}\TypeLib");
+            var typeLibId = interfaceTypeLibKey?.GetValue(null)?.ToString();
+            var typeLibVersion = interfaceTypeLibKey?.GetValue("Version")?.ToString();
+
+            report.ExcelTypeLibId = typeLibId;
+            report.ExcelTypeLibVersion = typeLibVersion;
+
+            if (string.IsNullOrWhiteSpace(typeLibId) || string.IsNullOrWhiteSpace(typeLibVersion))
+            {
+                return;
+            }
+
+            using var typeLibKey = Registry.ClassesRoot.OpenSubKey($@"TypeLib\{typeLibId}\{typeLibVersion}");
+            report.ExcelTypeLibPrimaryInteropAssemblyName =
+                typeLibKey?.GetValue("PrimaryInteropAssemblyName")?.ToString();
+        }
+        catch
+        {
+            // Registry access may fail; diagnostics should never hide the original COM failure.
+        }
+    }
 }
 
 /// <summary>
@@ -140,6 +173,15 @@ public sealed class ComDiagnosticReport
 
     /// <summary>Office installation details from registry.</summary>
     public string? OfficeRegistration { get; set; }
+
+    /// <summary>Excel Application interface TypeLib id from registry.</summary>
+    public string? ExcelTypeLibId { get; set; }
+
+    /// <summary>Excel Application interface TypeLib version from registry.</summary>
+    public string? ExcelTypeLibVersion { get; set; }
+
+    /// <summary>Registered primary interop assembly name for the Excel TypeLib.</summary>
+    public string? ExcelTypeLibPrimaryInteropAssemblyName { get; set; }
 
     /// <summary>When the report was collected.</summary>
     public DateTime CollectedAtUtc { get; set; }

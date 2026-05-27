@@ -49,7 +49,7 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
         public string FilePath { get; init; } = string.Empty;
 
         [CommandOption("--timeout <SECONDS>")]
-        [Description("Session timeout in seconds")]
+        [Description("Session open/create and operation timeout in seconds (default: 120)")]
         public int? TimeoutSeconds { get; init; }
 
         [CommandOption("--show")]
@@ -97,7 +97,7 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
         public string FilePath { get; init; } = string.Empty;
 
         [CommandOption("--timeout <SECONDS>")]
-        [Description("Session timeout in seconds")]
+        [Description("Session open and operation timeout in seconds (default: 120)")]
         public int? TimeoutSeconds { get; init; }
 
         [CommandOption("--show")]
@@ -211,6 +211,5 @@ internal sealed class SessionSaveCommand : AsyncCommand<SessionSaveCommand.Setti
         public string SessionId { get; init; } = string.Empty;
     }
 }
-
 
 

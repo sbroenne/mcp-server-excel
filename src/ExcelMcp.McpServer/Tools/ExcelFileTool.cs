@@ -23,9 +23,9 @@ public static partial class ExcelFileTool
     /// IMPORTANT: Before closing, check 'list' action - wait for canClose=true (no active operations).
     /// If show=true was used, confirm with user before closing visible Excel windows.
     ///
-    /// TIMEOUT: Each operation has a 5-min default timeout. Use timeoutSeconds to customize
-    /// for long-running operations (data refresh, large queries). Operations timing out
-    /// trigger aggressive cleanup and may leave Excel in inconsistent state.
+    /// TIMEOUT: Open/create default to 120 seconds. Use timeout_seconds to customize
+    /// slow workbook startup or prompt-heavy files. Operations timing out trigger
+    /// aggressive cleanup and may leave Excel in inconsistent state.
     ///
     /// IRM/AIP FILES: Files protected with Azure Information Protection are detected automatically.
     /// They are opened as read-only with Excel forced visible for credential authentication.
@@ -36,7 +36,7 @@ public static partial class ExcelFileTool
     /// <param name="session_id">Session ID returned from 'open' or 'create'. Required for: close. Used by all other tools.</param>
     /// <param name="save">Whether to save changes when closing. Default: false (discard changes)</param>
     /// <param name="show">Whether to make Excel window visible. Default: false (hidden automation)</param>
-    /// <param name="timeout_seconds">Maximum time in seconds for any operation in this session. Default: 300 (5 min). Range: 10-3600. Used for: open, create</param>
+    /// <param name="timeout_seconds">Maximum time in seconds for opening/creating the session and for operations in this session. Default: 120. Range: 10-3600. Used for: open, create</param>
     [McpServerTool(Name = "file", Title = "File Operations", Destructive = true)]
     [McpMeta("category", "session")]
     [McpMeta("requiresSession", false)]
@@ -46,7 +46,7 @@ public static partial class ExcelFileTool
         [DefaultValue(null)] string? session_id,
         [DefaultValue(false)] bool save,
         [DefaultValue(false)] bool show,
-        [DefaultValue(300)] int timeout_seconds,
+        [DefaultValue(120)] int timeout_seconds,
         CancellationToken cancellationToken = default)
     {
         using var cancellationScope = ExcelToolsBase.PushCancellationToken(cancellationToken);
@@ -386,7 +386,6 @@ public static partial class ExcelFileTool
         }, ExcelToolsBase.JsonOptions);
     }
 }
-
 
 
 

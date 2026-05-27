@@ -165,7 +165,8 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
     ///
     /// The original polling loop had up to 10ms latency (wait for next poll cycle).
     /// The fix using WaitToReadAsync wakes the channel reader immediately when a writer
-    /// posts work. This test verifies sub-5ms wake latency.
+    /// posts work. This test verifies low wake latency while allowing for the
+    /// fixed COM guard overhead that Execute applies around every operation.
     /// </summary>
     [Fact]
     public void MessagePump_WhenWorkArrives_WakesWithLowLatency()
@@ -203,7 +204,10 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
 
         // Calculate statistics
         var sortedLatencies = latencies.OrderBy(x => x).ToList();
-        var median = sortedLatencies[sortedLatencies.Count / 2];
+        var middle = sortedLatencies.Count / 2;
+        var median = sortedLatencies.Count % 2 == 0
+            ? (sortedLatencies[middle - 1] + sortedLatencies[middle]) / 2.0
+            : sortedLatencies[middle];
         var p95 = sortedLatencies[(int)(sortedLatencies.Count * 0.95)];
         var max = sortedLatencies.Last();
 
@@ -212,16 +216,16 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
         _output.WriteLine($"  P95:    {p95:F2}ms");
         _output.WriteLine($"  Max:    {max:F2}ms");
 
-        // Assert — median latency should be well under 5ms.
-        // The original 10ms polling loop would show median ~5ms (0-10ms uniform).
-        // WaitToReadAsync wakes instantly, so median should be <2ms typically.
-        // Using 5ms threshold for reliability across different machines.
-        Assert.True(median < 5.0,
+        // Assert — median latency should stay below the old polling loop's effective cost.
+        // This measures full Execute() round-trip, including ExcelWriteGuard COM calls.
+        // The old 10ms polling loop added ~5ms median wait on top of that fixed cost.
+        const double maxMedianLatencyMs = 8.0;
+        Assert.True(median < maxMedianLatencyMs,
             $"REGRESSION: Message pump has high wake latency! Median: {median:F2}ms. " +
-            $"Expected <5ms. Original polling had ~5ms median (0-10ms uniform distribution). " +
-            "If median is ~5ms, the message pump may have reverted to polling.");
+            $"Expected <{maxMedianLatencyMs:F0}ms. Original polling added ~5ms median delay (0-10ms uniform distribution) on top of Execute overhead. " +
+            "If the median approaches the old polling delay plus Execute overhead, the message pump may have reverted to polling.");
 
-        _output.WriteLine($"✓ Message pump wakes instantly — median latency: {median:F2}ms (threshold: <5ms)");
+        _output.WriteLine($"✓ Message pump wakes quickly — median latency: {median:F2}ms (threshold: <{maxMedianLatencyMs:F0}ms)");
     }
 
     /// <summary>
@@ -230,10 +234,10 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
     /// When Dispose() cancels the shutdown token, WaitToReadAsync throws
     /// OperationCanceledException. If work items were written to the channel between
     /// the last TryRead and the cancellation, they must still be processed — otherwise
-    /// the caller's TaskCompletionSource never completes and they hang for 5 minutes.
+    /// the caller's TaskCompletionSource never completes and they hang until the operation timeout.
     ///
     /// This test posts work and immediately disposes, verifying the work completes
-    /// promptly (not after the 5-minute operation timeout).
+    /// promptly (not after the operation timeout).
     /// </summary>
     [Fact]
     public void Dispose_WithPendingWork_DrainsBeforeExiting()
@@ -299,12 +303,12 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
         _output.WriteLine($"Execute result: {result}");
         _output.WriteLine($"Execute error: {executionError?.GetType().Name ?? "none"}");
 
-        // Assert — the execute thread must finish within 30s, not hang for 5 minutes.
+        // Assert — the execute thread must finish within 30s, not hang until the operation timeout.
         // If the drain logic is broken, the TCS would never complete and we'd time out.
         Assert.True(waitResult,
             "REGRESSION: Execute thread hung after Dispose! The message pump shutdown " +
             "did not drain pending work items. Without drain, callers wait for the " +
-            "5-minute operation timeout.");
+            "operation timeout.");
 
         // If it completed successfully, verify the result
         if (result == 42)

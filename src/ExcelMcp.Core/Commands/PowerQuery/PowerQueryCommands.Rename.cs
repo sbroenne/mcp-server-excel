@@ -1,7 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
-using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -36,11 +35,12 @@ public partial class PowerQueryCommands
                 return result;
             }
 
-            Excel.Queries? queries = null;
-            Excel.WorkbookQuery? targetQuery = null;
+            dynamic? queries = null;
+            dynamic? targetQuery = null;
             try
             {
-                queries = ctx.Book.Queries;
+                // PIA gap: Workbook.Queries is not exposed by the 15.x Excel PIA package registered by Office Click-to-Run.
+                queries = ((dynamic)ctx.Book).Queries;
 
                 // Find target query (case-sensitive exact match first)
                 targetQuery = ComUtilities.FindQuery(ctx.Book, result.NormalizedOldName);
@@ -90,5 +90,3 @@ public partial class PowerQueryCommands
         });
     }
 }
-
-

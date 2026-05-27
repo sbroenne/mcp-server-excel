@@ -126,7 +126,7 @@ public partial class DataModelCommands
                 string pqName = connectionName["Query - ".Length..];
 
                 // Find and rename the underlying Power Query
-                Excel.WorkbookQuery? targetQuery = null;
+                dynamic? targetQuery = null;
                 dynamic? oleDbConnection = null;
                 try
                 {
@@ -263,5 +263,4 @@ public partial class DataModelCommands
         });
     }
 }
-
 

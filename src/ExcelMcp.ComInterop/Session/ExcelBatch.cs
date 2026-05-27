@@ -68,7 +68,7 @@ internal sealed class ExcelBatch : IExcelBatch
     /// <param name="workbookPaths">Paths to Excel workbooks. First path is the primary workbook.</param>
     /// <param name="logger">Optional logger for diagnostic output. If null, uses NullLogger (no output).</param>
     /// <param name="show">Whether to show the Excel window (default: false for background automation).</param>
-    /// <param name="operationTimeout">Timeout for individual operations. Default: 5 minutes.</param>
+    /// <param name="operationTimeout">Timeout for startup and individual operations. Default: 120 seconds.</param>
     public ExcelBatch(string[] workbookPaths, ILogger<ExcelBatch>? logger = null, bool show = false, TimeSpan? operationTimeout = null)
         : this(workbookPaths, logger, show, createNewFile: false, isMacroEnabled: false, operationTimeout: operationTimeout)
     {
@@ -82,7 +82,7 @@ internal sealed class ExcelBatch : IExcelBatch
     /// <param name="isMacroEnabled">Whether to create .xlsm (macro-enabled) format.</param>
     /// <param name="logger">Optional logger for diagnostic output.</param>
     /// <param name="show">Whether to show the Excel window.</param>
-    /// <param name="operationTimeout">Timeout for individual operations. Default: 5 minutes.</param>
+    /// <param name="operationTimeout">Timeout for startup and individual operations. Default: 120 seconds.</param>
     /// <returns>ExcelBatch instance with the new workbook open.</returns>
     internal static ExcelBatch CreateNewWorkbook(string filePath, bool isMacroEnabled, ILogger<ExcelBatch>? logger = null, bool show = false, TimeSpan? operationTimeout = null)
     {
@@ -362,7 +362,7 @@ internal sealed class ExcelBatch : IExcelBatch
                     {
                         // Shutdown requested via _shutdownCts.
                         // Drain any remaining work items so in-flight Execute() callers get their
-                        // results/exceptions promptly instead of waiting for the 5-minute timeout.
+                        // results/exceptions promptly instead of waiting for the operation timeout.
                         // This is safe: Excel COM objects are still alive (cleaned up in the finally
                         // block below), and Writer.Complete() prevents new items from arriving.
                         while (_workQueue.Reader.TryRead(out var remainingWork))
@@ -550,7 +550,9 @@ internal sealed class ExcelBatch : IExcelBatch
 
         return
             $"Excel startup timed out after {_operationTimeout.TotalSeconds} seconds while opening '{Path.GetFileName(_workbookPath)}'. " +
-            $"Excel may be blocked on an interactive dialog or unresponsive workbook open.{protectedWorkbookHint}";
+            "The workbook may be blocked on an interactive dialog, enterprise authentication, IRM/AIP prompt, external-link prompt, or an unresponsive open. " +
+            "Corrective action: retry the file open/create with a larger timeout_seconds value (CLI: --timeout <seconds>) if the workbook is just slow, " +
+            $"or retry with show=true (CLI: --show) so Excel is visible for prompts.{protectedWorkbookHint}";
     }
 
     private static string CreateIrmRequiresVisibleSessionMessage(string workbookPath)
@@ -723,7 +725,7 @@ internal sealed class ExcelBatch : IExcelBatch
         // When the caller provides a cancellation token (e.g., PowerQuery refresh with its own timeout),
         // respect it exclusively and don't layer the session _operationTimeout on top.
         // This prevents a double-cap where min(callerTimeout, sessionTimeout) is always the shorter one —
-        // which caused heavy Power Query refreshes (~8+ min) to always fail against the 5-min default.
+        // which caused heavy Power Query refreshes (~8+ min) to always fail against the session default.
         try
         {
             if (cancellationToken.CanBeCanceled)
@@ -1033,4 +1035,3 @@ internal sealed class ExcelBatch : IExcelBatch
     }
 
 }
-

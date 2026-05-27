@@ -246,7 +246,7 @@ public partial class ConnectionCommands
 
             try
             {
-                // PIA gap: WorkbookConnection.Refreshing not in Microsoft.Office.Interop.Excel v16 PIA
+                // PIA gap: WorkbookConnection.Refreshing is not in Microsoft.Office.Interop.Excel.
                 _ = ((dynamic)connection).Refreshing;
                 supportsRefreshing = true;
             }
@@ -266,7 +266,7 @@ public partial class ConnectionCommands
                     {
                         try
                         {
-                            // PIA gap: WorkbookConnection.Refreshing not in Microsoft.Office.Interop.Excel v16 PIA
+                            // PIA gap: WorkbookConnection.Refreshing is not in Microsoft.Office.Interop.Excel.
                             return ((dynamic)connection).Refreshing;
                         }
                         catch (COMException)
@@ -282,7 +282,7 @@ public partial class ConnectionCommands
                     {
                         try
                         {
-                            // PIA gap: WorkbookConnection.CancelRefresh not in Microsoft.Office.Interop.Excel v16 PIA
+                            // PIA gap: WorkbookConnection.CancelRefresh is not in Microsoft.Office.Interop.Excel.
                             ((dynamic)connection).CancelRefresh();
                         }
                         catch (COMException)

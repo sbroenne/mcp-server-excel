@@ -570,11 +570,11 @@ Control Excel window visibility, position, state, and status bar. Use to show/hi
 
 ### --timeout Must Be Greater Than Zero
 
-When using `--timeout`, the value must be a positive integer (seconds). `--timeout 0` is invalid and will error. Omit `--timeout` entirely to use the default (300 seconds for most operations).
+When using `--timeout`, the value must be a positive integer (seconds). `--timeout 0` is invalid and will error. Omit `--timeout` entirely to use the default (120 seconds for session open/create and most operations).
 
 ### Power Query Operations Are Slow
 
-`powerquery create`, `powerquery refresh`, and `powerquery evaluate` may take 30+ seconds depending on data volume. Either omit `--timeout` (uses 5-minute default) or set a generous value like `--timeout 120`.
+`powerquery create`, `powerquery refresh`, and `powerquery evaluate` may take 30+ seconds depending on data volume. Set a generous value like `--timeout 300` or higher when the data source is expected to be slow.
 
 ### JSON Values Format
 
@@ -606,4 +606,3 @@ Parameters that accept lists (e.g., `--selected-items` for slicers) require JSON
 # WRONG: Comma-separated string (not valid)
 --selected-items "West,East"
 ```
-

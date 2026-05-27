@@ -146,7 +146,7 @@ public partial class DataModelCommands
         result = batch.Execute((ctx, ct) =>
         {
             Excel.Model? model = null;
-            Excel.ModelMeasure? measure = null;
+            dynamic? measure = null;
             try
             {
                 // Check if workbook has Data Model
@@ -510,6 +510,5 @@ public partial class DataModelCommands
         }, timeoutCts.Token);
     }
 }
-
 
 
