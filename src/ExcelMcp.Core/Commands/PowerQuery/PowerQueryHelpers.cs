@@ -1,6 +1,4 @@
 using Sbroenne.ExcelMcp.ComInterop;
-using Excel = Microsoft.Office.Interop.Excel;
-
 namespace Sbroenne.ExcelMcp.Core.PowerQuery;
 
 /// <summary>
@@ -54,7 +52,7 @@ public static class PowerQueryHelpers
         }
 
         // Check if a query with this name exists
-        Excel.WorkbookQuery? query = null;
+        dynamic? query = null;
         try
         {
             query = ComUtilities.FindQuery(workbook, expectedQueryName);
@@ -212,5 +210,3 @@ public static class PowerQueryHelpers
         public bool RefreshImmediately { get; init; }
     }
 }
-
-

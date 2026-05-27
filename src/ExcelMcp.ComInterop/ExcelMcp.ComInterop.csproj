@@ -67,7 +67,8 @@
     <!-- Excel COM Interop PIA - EmbedInteropTypes=true embeds only used types at compile time,
          eliminating the runtime dependency on office.dll (Microsoft.Office.Core) which is not
          available to .NET Core's runtime loader even though it exists in the .NET Framework GAC.
-         COM type equivalence (GUID-based) ensures type identity works across assembly boundaries. -->
+         The 15.x PIA package matches the PrimaryInteropAssemblyName registered by modern
+         Microsoft 365 Click-to-Run installs for the Excel 16.0 type library. -->
     <PackageReference Include="Microsoft.Office.Interop.Excel">
       <EmbedInteropTypes>true</EmbedInteropTypes>
       <NoWarn>NU1701</NoWarn>
@@ -75,10 +76,10 @@
     <!-- office.dll (Microsoft.Office.Core): NOT referenced here.
          EmbedInteropTypes=true on Microsoft.Office.Interop.Excel embeds all statically-used
          Office Core types at compile time, so no runtime copy is needed.
-         The only dynamic access (AutomationSecurity) uses ((dynamic)(object)) cast to force
-         IDispatch binding, preventing any runtime load of office.dll.
+         AutomationSecurity uses ((dynamic)(object)) cast to force IDispatch binding,
+         preventing any runtime load of office.dll.
          Copying office.dll (GAC path is version-specific and machine-specific) previously caused
-         version mismatch crashes: hint path 15.0.0.0 vs runtime expectation 16.0.0.0. -->
+         version mismatch crashes. -->
     <PackageReference Include="Dax.Formatter" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Resilience" />

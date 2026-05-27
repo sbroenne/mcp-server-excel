@@ -61,4 +61,20 @@ public sealed class ComDiagnosticsTests
         Assert.NotNull(report.PiaAssemblyVersion);
         Assert.Contains("Interop", report.PiaAssemblyName);
     }
+
+    [Fact]
+    public void Collect_PiaAssemblyVersion_MatchesRegisteredExcelPrimaryInteropAssembly_WhenRegistered()
+    {
+        var report = ComDiagnostics.Collect();
+
+        if (string.IsNullOrWhiteSpace(report.ExcelTypeLibPrimaryInteropAssemblyName))
+        {
+            return;
+        }
+
+        var registeredPia = new System.Reflection.AssemblyName(report.ExcelTypeLibPrimaryInteropAssemblyName);
+        var loadedPia = new Version(report.PiaAssemblyVersion!);
+
+        Assert.Equal(registeredPia.Version?.Major, loadedPia.Major);
+    }
 }

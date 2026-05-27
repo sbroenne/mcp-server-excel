@@ -83,16 +83,17 @@ public static class ComUtilities
     /// CRITICAL: Caller is responsible for releasing the returned COM object.
     /// Use ComUtilities.Release(ref query) when done with the object.
     /// </remarks>
-    public static Excel.WorkbookQuery? FindQuery(Excel.Workbook workbook, string queryName)
+    public static dynamic? FindQuery(Excel.Workbook workbook, string queryName)
     {
-        Excel.Queries? queriesCollection = null;
+        dynamic? queriesCollection = null;
         try
         {
-            queriesCollection = workbook.Queries;
+            // PIA gap: Workbook.Queries is not exposed by the 15.x Excel PIA package registered by Office Click-to-Run.
+            queriesCollection = ((dynamic)workbook).Queries;
             int count = queriesCollection.Count;
             for (int i = 1; i <= count; i++)
             {
-                Excel.WorkbookQuery? query = null;
+                dynamic? query = null;
                 try
                 {
                     query = queriesCollection.Item(i);
@@ -392,5 +393,4 @@ public static class ComUtilities
     public static void KernelSleep(int milliseconds) =>
         Sleep((uint)Math.Max(0, milliseconds));
 }
-
 

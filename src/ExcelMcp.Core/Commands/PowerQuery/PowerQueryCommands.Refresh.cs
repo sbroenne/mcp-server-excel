@@ -2,7 +2,6 @@ using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
-using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -44,7 +43,7 @@ public partial class PowerQueryCommands
         {
             return batch.Execute((ctx, ct) =>
             {
-                Excel.WorkbookQuery? query = null;
+                dynamic? query = null;
                 try
                 {
                     query = ComUtilities.FindQuery(ctx.Book, queryName);
@@ -121,17 +120,18 @@ public partial class PowerQueryCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            Excel.Queries? queries = null;
+            dynamic? queries = null;
 
             try
             {
-                queries = ctx.Book.Queries;
+                // PIA gap: Workbook.Queries is not exposed by the 15.x Excel PIA package registered by Office Click-to-Run.
+                queries = ((dynamic)ctx.Book).Queries;
                 int totalQueries = queries.Count;
                 var errors = new List<string>();
 
                 for (int i = 1; i <= totalQueries; i++)
                 {
-                    Excel.WorkbookQuery? query = null;
+                    dynamic? query = null;
                     try
                     {
                         query = queries.Item(i);
@@ -223,6 +223,4 @@ public partial class PowerQueryCommands
         return null;
     }
 }
-
-
 

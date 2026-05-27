@@ -2,7 +2,6 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Formatting;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
-using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -58,15 +57,16 @@ public partial class PowerQueryCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            Excel.Queries? queries = null;
-            Excel.WorkbookQuery? query = null;
+            dynamic? queries = null;
+            dynamic? query = null;
 
             try
             {
-                queries = ctx.Book.Queries;
+                // PIA gap: Workbook.Queries is not exposed by the 15.x Excel PIA package registered by Office Click-to-Run.
+                queries = ((dynamic)ctx.Book).Queries;
 
                 // Check if query already exists
-                Excel.WorkbookQuery? existingQuery = FindQueryByName(queries, queryName);
+                dynamic? existingQuery = FindQueryByName(queries, queryName);
                 if (existingQuery != null)
                 {
                     ComUtilities.Release(ref existingQuery);
@@ -128,14 +128,14 @@ public partial class PowerQueryCommands
     /// Finds a query by name in the queries collection.
     /// Returns null if not found.
     /// </summary>
-    private static Excel.WorkbookQuery? FindQueryByName(Excel.Queries queriesCollection, string queryName)
+    private static dynamic? FindQueryByName(dynamic queriesCollection, string queryName)
     {
         try
         {
             int count = queriesCollection.Count;
             for (int i = 1; i <= count; i++)
             {
-                Excel.WorkbookQuery? query = null;
+                dynamic? query = null;
                 try
                 {
                     query = queriesCollection.Item(i);
@@ -163,5 +163,3 @@ public partial class PowerQueryCommands
         return null;
     }
 }
-
-

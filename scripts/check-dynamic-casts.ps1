@@ -109,9 +109,9 @@ Write-Host ""
 Write-Host "UNDOCUMENTED ((dynamic)) CASTS FOUND: $($violations.Count)" -ForegroundColor Red
 Write-Host ""
 Write-Host "Every ((dynamic)) cast must have a comment on the preceding line explaining why:" -ForegroundColor Yellow
-Write-Host "  // PIA gap: <type> not in Microsoft.Office.Interop.Excel v16 PIA because..." -ForegroundColor Gray
-Write-Host "  // TODO: <type> IS in PIA, migration tracked — left as dynamic temporarily" -ForegroundColor Gray
-Write-Host "  // Reason: <explanation>" -ForegroundColor Gray
+Write-Host '  // PIA gap: <type> not in the referenced Excel PIA because...' -ForegroundColor Gray
+Write-Host '  // TODO: <type> IS in PIA, migration tracked - left as dynamic temporarily' -ForegroundColor Gray
+Write-Host '  // Reason: <explanation>' -ForegroundColor Gray
 Write-Host ""
 
 foreach ($v in $violations) {

@@ -47,16 +47,17 @@ public partial class DataModelCommands
     private static List<string> GetModelMeasureNames(Excel.Model model)
     {
         var names = new List<string>();
-        Excel.ModelMeasures? measures = null;
+        dynamic? measures = null;
         try
         {
             // Get measures collection from MODEL (not from tables!)
             // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
-            measures = model.ModelMeasures;
+            dynamic modelDynamic = model;
+            measures = modelDynamic.ModelMeasures;
 
             for (int m = 1; m <= measures.Count; m++)
             {
-                Excel.ModelMeasure? measure = null;
+                dynamic? measure = null;
                 try
                 {
                     measure = measures.Item(m);
@@ -83,17 +84,18 @@ public partial class DataModelCommands
     /// <returns>Table name if found, null otherwise</returns>
     private static string? GetMeasureTableName(Excel.Model model, string measureName)
     {
-        Excel.ModelMeasures? measures = null;
+        dynamic? measures = null;
         try
         {
             // Get measures collection from MODEL (not from table!)
             // All measures are at model level with AssociatedTable property
             // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
-            measures = model.ModelMeasures;
+            dynamic modelDynamic = model;
+            measures = modelDynamic.ModelMeasures;
 
             for (int m = 1; m <= measures.Count; m++)
             {
-                Excel.ModelMeasure? measure = null;
+                dynamic? measure = null;
                 try
                 {
                     measure = measures.Item(m);
@@ -191,24 +193,27 @@ public partial class DataModelCommands
 
         if (string.IsNullOrEmpty(formatType) || formatType.Equals("General", StringComparison.OrdinalIgnoreCase))
         {
-            return model.ModelFormatGeneral;  // Default format
+            dynamic modelDynamic = model;
+            return modelDynamic.ModelFormatGeneral;  // Default format
         }
 
         try
         {
+            dynamic modelDynamic = model;
             return formatType.ToLowerInvariant() switch
             {
-                "currency" => (object)model.ModelFormatCurrency,
-                "decimal" => (object)model.ModelFormatDecimalNumber,
-                "percentage" => (object)model.ModelFormatPercentageNumber,
-                "wholenumber" => (object)model.ModelFormatWholeNumber,
-                _ => (object)model.ModelFormatGeneral  // Fallback to General for unknown types
+                "currency" => (object)modelDynamic.ModelFormatCurrency,
+                "decimal" => (object)modelDynamic.ModelFormatDecimalNumber,
+                "percentage" => (object)modelDynamic.ModelFormatPercentageNumber,
+                "wholenumber" => (object)modelDynamic.ModelFormatWholeNumber,
+                _ => (object)modelDynamic.ModelFormatGeneral  // Fallback to General for unknown types
             };
         }
         catch (Exception ex) when (ex is COMException or RuntimeBinderException)
         {
             // COM format object not available - use General as safe fallback
-            return model.ModelFormatGeneral;
+            dynamic modelDynamic = model;
+            return modelDynamic.ModelFormatGeneral;
         }
     }
 
@@ -401,20 +406,21 @@ public partial class DataModelCommands
     /// <summary>
     /// Finds a DAX measure by name in the Data Model
     /// </summary>
-    private static Excel.ModelMeasure? FindModelMeasure(Excel.Model model, string measureName)
+    private static dynamic? FindModelMeasure(Excel.Model model, string measureName)
     {
-        Excel.ModelMeasures? measures = null;
+        dynamic? measures = null;
         try
         {
             // Get measures collection from MODEL (not from table!)
             // All measures are at model level with AssociatedTable property
             // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
-            measures = model.ModelMeasures;
+            dynamic modelDynamic = model;
+            measures = modelDynamic.ModelMeasures;
             int count = measures.Count;
 
             for (int i = 1; i <= count; i++)
             {
-                Excel.ModelMeasure? measure = null;
+                dynamic? measure = null;
                 try
                 {
                     measure = measures.Item(i);
@@ -479,18 +485,19 @@ public partial class DataModelCommands
     /// <summary>
     /// Safely iterates through all measures in the Data Model
     /// </summary>
-    private static void ForEachMeasure(Excel.Model model, Action<Excel.ModelMeasure, int> action)
+    private static void ForEachMeasure(Excel.Model model, Action<dynamic, int> action)
     {
-        Excel.ModelMeasures? measures = null;
+        dynamic? measures = null;
         try
         {
             // Get measures collection from MODEL (not from table!)
-            measures = model.ModelMeasures;
+            dynamic modelDynamic = model;
+            measures = modelDynamic.ModelMeasures;
             int count = measures.Count;
 
             for (int i = 1; i <= count; i++)
             {
-                Excel.ModelMeasure? measure = null;
+                dynamic? measure = null;
                 try
                 {
                     measure = measures.Item(i);
@@ -539,5 +546,3 @@ public partial class DataModelCommands
         }
     }
 }
-
-
