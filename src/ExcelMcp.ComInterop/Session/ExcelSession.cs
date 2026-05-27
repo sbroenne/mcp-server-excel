@@ -58,7 +58,7 @@ public static class ExcelSession
     /// without incurring Excel startup/shutdown overhead.
     /// </summary>
     /// <param name="show">Whether to show the Excel window (default: false for background automation).</param>
-    /// <param name="operationTimeout">Maximum time for any single operation (default: 5 minutes).</param>
+    /// <param name="operationTimeout">Maximum time for startup and any single operation (default: 120 seconds).</param>
     /// <param name="filePaths">Paths to Excel files. First file is the primary workbook.</param>
     /// <returns>IExcelBatch for executing multiple operations</returns>
     [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
@@ -244,7 +244,6 @@ public static class ExcelSession
         thread.Join(TimeSpan.FromSeconds(10));
     }
 }
-
 
 
 

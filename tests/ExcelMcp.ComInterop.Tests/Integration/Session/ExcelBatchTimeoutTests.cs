@@ -69,6 +69,25 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
     }
 
     [Fact]
+    public void BeginBatch_DefaultOpenTimeout_Is120Seconds()
+    {
+        using var batch = ExcelSession.BeginBatch(_testFileCopy!);
+
+        Assert.Equal(TimeSpan.FromSeconds(120), batch.OperationTimeout);
+    }
+
+    [Fact]
+    public void BeginBatch_OpenTimeoutOverride_IsHonored()
+    {
+        using var batch = ExcelSession.BeginBatch(
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(45),
+            _testFileCopy!);
+
+        Assert.Equal(TimeSpan.FromSeconds(45), batch.OperationTimeout);
+    }
+
+    [Fact]
     public void BeginBatch_StartupOpenBlocks_ThrowsTimeoutExceptionInsteadOfHanging()
     {
         using var startupBlocked = new ManualResetEventSlim(false);
@@ -94,6 +113,8 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
                 "Startup hook was not reached before the timeout assertion.");
             Assert.Contains("startup timed out", ex.Message, StringComparison.OrdinalIgnoreCase);
             Assert.Contains(Path.GetFileName(_testFileCopy!), ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("timeout_seconds", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("show=true", ex.Message, StringComparison.OrdinalIgnoreCase);
             Assert.True(sw.Elapsed < TimeSpan.FromSeconds(30),
                 $"Startup timeout regression: BeginBatch took {sw.Elapsed.TotalSeconds:F1}s. Expected a bounded timeout, not a hang.");
         }

@@ -141,12 +141,11 @@ public interface IExcelBatch : IDisposable
     /// <summary>
     /// Gets the operation timeout for this batch.
     /// All Execute() calls will timeout after this duration.
-    /// Default is 5 minutes (from ComInteropConstants.DefaultOperationTimeout).
+    /// Default is 120 seconds (from ComInteropConstants.DefaultOperationTimeout).
     /// </summary>
     TimeSpan OperationTimeout { get; }
 
 }
-
 
 
 

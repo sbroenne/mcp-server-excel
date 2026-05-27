@@ -130,7 +130,7 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     /// <param name="filePath">Path to the Excel file to open</param>
     /// <param name="show">Whether to show the Excel window (default: false for background automation)</param>
-    /// <param name="operationTimeout">Maximum time for any operation in this session (default: 5 minutes)</param>
+    /// <param name="operationTimeout">Maximum time for startup and any operation in this session (default: 120 seconds)</param>
     /// <param name="origin">Which client is creating this session (CLI or MCP)</param>
     /// <returns>Unique session ID for this session</returns>
     /// <exception cref="FileNotFoundException">File does not exist</exception>
@@ -217,7 +217,7 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     /// <param name="filePath">Path for the new Excel file (.xlsx or .xlsm)</param>
     /// <param name="show">Whether to show the Excel window (default: false)</param>
-    /// <param name="operationTimeout">Maximum time for any operation in this session (default: 5 minutes)</param>
+    /// <param name="operationTimeout">Maximum time for startup and any operation in this session (default: 120 seconds)</param>
     /// <param name="origin">Which client is creating this session (CLI or MCP)</param>
     /// <returns>Unique session ID for this session</returns>
     /// <exception cref="InvalidOperationException">File already exists, or failed to create session</exception>
@@ -856,6 +856,5 @@ public sealed record CloseValidationResult(
     /// </summary>
     public bool CanClose => SessionExists && ActiveOperationCount == 0;
 }
-
 
 

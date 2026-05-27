@@ -952,6 +952,7 @@ public sealed class ExcelMcpService : IDisposable
         var errorCategory = ex switch
         {
             PowerQueryCommandException pqEx => pqEx.ErrorCategory,
+            TimeoutException => "Timeout",
             ArgumentException => "InvalidInput",
             COMException => "ComInterop",
             _ => null
