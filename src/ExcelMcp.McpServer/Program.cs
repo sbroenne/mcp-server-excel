@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 
 namespace Sbroenne.ExcelMcp.McpServer;
@@ -302,6 +303,7 @@ public class Program
             consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
         });
         logging.SetMinimumLevel(LogLevel.Warning);
+        logging.AddFilter<ConsoleLoggerProvider>("Microsoft.ApplicationInsights", LogLevel.Warning);
     }
 
     /// <summary>
@@ -556,5 +558,3 @@ internal static class StdinPipeMonitor
         }, null, interval, interval);
     }
 }
-
-
