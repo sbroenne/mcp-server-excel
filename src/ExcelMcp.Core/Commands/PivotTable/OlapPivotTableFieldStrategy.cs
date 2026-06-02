@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
@@ -1215,11 +1216,10 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// Get default format object from Data Model.
     /// Returns ModelFormatGeneral for standard numeric display.
     /// </summary>
-    private static dynamic GetDefaultFormatObject(dynamic model)
+    private static object GetDefaultFormatObject(Excel.Model model)
     {
         // Get default format - ModelFormatGeneral is always available
-        dynamic formats = model.ModelFormatGeneral;
-        return formats;
+        return model.ModelFormatGeneral;
     }
 
     /// <summary>
@@ -1258,7 +1258,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// Parse number format string and create appropriate ModelFormat object.
     /// Supports: currency, percentage, decimal, whole number, general.
     /// </summary>
-    private static dynamic? GetModelFormatObject(dynamic model, string numberFormat)
+    private static object? GetModelFormatObject(Excel.Model model, string numberFormat)
     {
         // Currency formats: $#,##0.00, $#,##0, etc.
         if (numberFormat.Contains('$'))
@@ -1572,6 +1572,4 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
     #endregion
 }
-
-
 

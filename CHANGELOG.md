@@ -10,13 +10,19 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### Changed
+
+- **Excel COM interop is PIA-first on the 16.x Excel PIA** (#559): Updated `Microsoft.Office.Interop.Excel` to 16.x and moved Power Query (`Workbook.Queries`, `WorkbookQuery`) plus Data Model measure/format APIs (`ModelMeasures`, `ModelMeasure`, `ModelFormat*`) back to strongly typed PIA access. Remaining `dynamic` usage is limited to APIs still outside the referenced Excel PIA or external Office/VBE object models.
+
+- **Dependency audit pin refreshed**: Updated the central `Nerdbank.MessagePack` security override to a non-vulnerable version so NuGet audit restore/build checks no longer fail on the prior pinned package.
+
 ### Fixed
 
 - **MCP Server stdio no longer emits Application Insights info noise during startup** (#559): Application Insights informational logs are now explicitly filtered out of the console provider so stdio clients no longer see lines such as `info: Microsoft.ApplicationInsights.TelemetryClient[0]` on stderr during MCP initialization. Warning and error logs still go to stderr, while stdout remains reserved for JSON-RPC frames.
 
 - **Session open/create timeouts are shorter and more actionable** (#559): The default Excel session startup/operation timeout is now 120 seconds instead of 5 minutes, while MCP `timeout_seconds` and CLI `--timeout` continue to override it for slow workbooks. Startup timeout errors now explicitly identify likely prompt/auth/IRM causes and tell agents to retry with a longer timeout or `show=true` / `--show`.
 
-- **Session startup `Specified cast is not valid` on Office Click-to-Run** (#559): ExcelMcp now compiles against the 15.x Excel PIA that Microsoft 365 Click-to-Run registers as the primary interop assembly for the Excel 16.0 type library, preserving the PIA-based architecture while avoiding startup casts that can fail on modern .NET when Office registry metadata points at `Microsoft.Office.Interop.Excel, Version=15.0.0.0`. COM diagnostics now also report the registered Excel TypeLib primary interop assembly for faster environment triage.
+- **Session startup diagnostics for `Specified cast is not valid` on Office Click-to-Run** (#559): COM diagnostics now report the registered Excel TypeLib primary interop assembly for faster environment triage.
 
 - **MCP `namedrange list` avoids hidden Power Query `ExternalData_1` crash paths** (#653): Workbooks with hidden/internal defined names are now listed from workbook package metadata first, so large hidden Power Query and AutoFilter names are skipped before their COM `Name` objects or backing ranges are touched. Visible user-defined names still return references and safe value previews, and large visible ranges continue to return metadata instead of materialized values.
 

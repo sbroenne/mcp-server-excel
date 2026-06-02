@@ -67,8 +67,8 @@
     <!-- Excel COM Interop PIA - EmbedInteropTypes=true embeds only used types at compile time,
          eliminating the runtime dependency on office.dll (Microsoft.Office.Core) which is not
          available to .NET Core's runtime loader even though it exists in the .NET Framework GAC.
-         The 15.x PIA package matches the PrimaryInteropAssemblyName registered by modern
-         Microsoft 365 Click-to-Run installs for the Excel 16.0 type library. -->
+         ExcelMcp references the 16.x Excel PIA so modern Excel surfaces such as
+         Workbook.Queries and ModelMeasures stay strongly typed. -->
     <PackageReference Include="Microsoft.Office.Interop.Excel">
       <EmbedInteropTypes>true</EmbedInteropTypes>
       <NoWarn>NU1701</NoWarn>

@@ -2,6 +2,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Formatting;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -41,18 +42,17 @@ public partial class PowerQueryCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? queries = null;
-            dynamic? query = null;
+            Excel.Queries? queries = null;
+            Excel.WorkbookQuery? query = null;
 
             try
             {
                 // STEP 1: Find the Power Query
-                // PIA gap: Workbook.Queries is not exposed by the 15.x Excel PIA package registered by Office Click-to-Run.
-                queries = ((dynamic)ctx.Book).Queries;
+                queries = ctx.Book.Queries;
                 query = null;
                 for (int i = 1; i <= queries.Count; i++)
                 {
-                    dynamic? q = null;
+                    Excel.WorkbookQuery? q = null;
                     try
                     {
                         q = queries.Item(i);

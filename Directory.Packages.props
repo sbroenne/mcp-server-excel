@@ -6,7 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Excel COM Interop PIA -->
-    <PackageVersion Include="Microsoft.Office.Interop.Excel" Version="15.0.4795.1001" />
+    <PackageVersion Include="Microsoft.Office.Interop.Excel" Version="16.0.18925.20022" />
     <!-- UI Framework -->
     <PackageVersion Include="Dax.Formatter" Version="1.2.0" />
     <PackageVersion Include="Spectre.Console" Version="0.55.2" />
@@ -48,7 +48,7 @@
     <PackageVersion Include="Polly.RateLimiting" Version="8.6.6" />
     <PackageVersion Include="StreamJsonRpc" Version="2.24.92" />
     <!-- Security override: StreamJsonRpc transitively pins vulnerable Nerdbank.MessagePack versions -->
-    <PackageVersion Include="Nerdbank.MessagePack" Version="1.1.62" />
+    <PackageVersion Include="Nerdbank.MessagePack" Version="1.2.4" />
     <PackageVersion Include="MessagePack" Version="3.1.4" />
     <PackageVersion Include="MessagePack.Annotations" Version="3.1.4" />
     <PackageVersion Include="Microsoft.NETCore.Platforms" Version="7.0.4" />

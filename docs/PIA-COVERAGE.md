@@ -10,36 +10,45 @@ This document tracks the status of `Microsoft.Office.Interop.Excel` type coverag
 |------|--------|
 | Core Excel types (`Workbook`, `Worksheet`, `Range`, etc.) | ✅ Fully typed |
 | Collections (`Sheets`, `Names`, `ListObjects`, etc.) | ✅ Fully typed |
-| Power Query (`Workbook.Queries`, `WorkbookQuery`) | ❌ True PIA gap in the 15.x package — use dynamic |
-| DataModel (`ModelTables`, `ModelRelationships`, etc.) | ✅ Mostly typed |
-| DataModel measures/formats (`ModelMeasures`, `ModelMeasure`, `ModelFormat*`) | ❌ True PIA gap in the 15.x package — use dynamic |
+| Power Query (`Workbook.Queries`, `WorkbookQuery`) | ✅ Typed via the 16.x Excel PIA |
+| DataModel (`ModelTables`, `ModelRelationships`, etc.) | ✅ Typed |
+| DataModel measures/formats (`ModelMeasures`, `ModelMeasure`, `ModelFormat*`) | ✅ Typed via the 16.x Excel PIA |
 | Connection sub-types (`OLEDBConnection`, `ODBCConnection`, `TextConnection`) | ✅ Migrated — callers use typed WorkbookConnection |
-| `ModelTableColumn.IsCalculatedColumn` | ❌ True PIA gap — property missing from the Excel PIA |
-| `ModelMeasure.FormatInformation` | ❌ Access through dynamic ModelMeasure in the 15.x package |
-| VBA (`VBProject`, `VBComponents`) | ❌ True PIA gap — in `Microsoft.Vbe.Interop` only |
-| `AutomationSecurity` | ❌ True PIA gap — in `Microsoft.Office.Core` (office.dll); use `((dynamic)(object))` cast |
-| WebConnection | ❌ True PIA gap — not in Excel PIA |
-| ADO types (ADODB.Connection, Recordset, Fields) | ❌ True PIA gap — in ADODB, not Excel PIA |
+| `ModelTableColumn.IsCalculatedColumn` | ⚠️ Still missing from the 16.x Excel PIA — dynamic debt |
+| `ModelMeasure.FormatInformation` | ⚠️ Typed as `object`; dynamic property probing remains for polymorphic `ModelFormat*` objects |
+| `WorkbookConnection.Refreshing` / `CancelRefresh` | ⚠️ Still missing from the 16.x Excel PIA — dynamic debt |
+| VBA (`VBProject`, `VBComponents`) | ⚠️ External VBE object model, not Excel PIA — dynamic debt until typed interop is added |
+| `AutomationSecurity` | ⚠️ Office shared type in `Microsoft.Office.Core` (office.dll); keep `((dynamic)(object))` cast unless typed Office interop is added safely |
+| WebConnection | ⚠️ Still missing from the 16.x Excel PIA — dynamic debt |
+| ADO types (ADODB.Connection, Recordset, Fields) | ⚠️ External ADODB object model, not Excel PIA — dynamic debt until typed interop is added |
 
 ---
 
-## True PIA Gaps
+## Remaining Dynamic Debt
 
-These APIs are **not** in `Microsoft.Office.Interop.Excel` and will remain `dynamic` permanently.
+ExcelMcp is PIA-first. Any `dynamic` usage is technical debt unless a compile probe proves the referenced Excel PIA lacks the API, or the API belongs to an external COM object model that is not currently referenced. Prefer adding typed interop coverage over spreading new `dynamic` calls.
 
 ### Power Query — `Workbook.Queries` / `WorkbookQuery`
 
-- **Runtime context**: Microsoft 365 Click-to-Run registers the Excel 16.0 type library with `Microsoft.Office.Interop.Excel, Version=15.0.0.0` as its primary interop assembly.
-- **Why not typed**: ExcelMcp intentionally references the 15.x Excel PIA package to match that registration and keep typed session startup reliable on modern .NET. The 15.x package does not expose `Workbook.Queries` or `WorkbookQuery`.
-- **Workaround**: Access Power Query objects through `((dynamic)workbook).Queries` and release returned COM objects with `ComUtilities.Release`.
-- **Affected files**: `ComUtilities.cs` and Power Query command files.
+- **Status**: Typed via `Microsoft.Office.Interop.Excel` 16.x.
+- **Affected files**: `ComUtilities.cs` and Power Query command files now use `Excel.Queries` and `Excel.WorkbookQuery`.
 
 ### DataModel measures/formats — `ModelMeasures` / `ModelMeasure` / `ModelFormat*`
 
-- **Runtime context**: Microsoft 365 Click-to-Run registers the Excel 16.0 type library with `Microsoft.Office.Interop.Excel, Version=15.0.0.0` as its primary interop assembly.
-- **Why not typed**: ExcelMcp intentionally references the 15.x Excel PIA package to match that registration. The 15.x package does not expose `ModelMeasures`, `ModelMeasure`, or model format properties such as `ModelFormatGeneral`.
-- **Workaround**: Keep the typed `Excel.Model` entry point, then access measure collections and format objects through dynamic dispatch. Release returned COM objects with `ComUtilities.Release`.
-- **Affected files**: `DataModelCommands.Helpers.cs`, `DataModelCommands.Read.cs`, `DataModelCommands.Write.cs`, and `DataModelCommands.RenameTable.cs`.
+- **Status**: Typed via `Microsoft.Office.Interop.Excel` 16.x.
+- **Affected files**: Data Model measure commands now use `Excel.ModelMeasures`, `Excel.ModelMeasure`, and typed `ModelFormat*` properties.
+
+### WorkbookConnection refresh status/cancel
+
+- **Why not typed yet**: `WorkbookConnection.Refreshing` and `WorkbookConnection.CancelRefresh` do not compile against `Microsoft.Office.Interop.Excel` 16.0.18925.20022.
+- **Current workaround**: Dynamic calls are isolated to connection refresh waiting/cancellation.
+- **Preferred future fix**: Add a typed interop surface or replace the behavior with a typed Excel API path.
+
+### ModelTableColumn.IsCalculatedColumn
+
+- **Why not typed yet**: `ModelTableColumn.IsCalculatedColumn` does not compile against `Microsoft.Office.Interop.Excel` 16.0.18925.20022.
+- **Current workaround**: Dynamic property access is isolated to Data Model table/column read paths.
+- **Preferred future fix**: Add typed interop coverage for the property.
 
 ### VBProject / VBComponents / VBComponent
 
@@ -64,9 +73,9 @@ These APIs are **not** in `Microsoft.Office.Interop.Excel` and will remain `dyna
 
 ---
 
-## TODO — Types IN the PIA, Migration Pending
+## Migrated Typed Surfaces
 
-These were incorrectly left as `dynamic` during the initial PIA migration due to a false negative from binary string search on the assembly. All have been confirmed by compile test.
+These were incorrectly left as `dynamic` during earlier PIA migration work due to false negatives from binary string search on the assembly. They are now typed or should remain typed.
 
 ### DataModel typed surfaces — `Excel.Model`, `Excel.ModelTables`, etc.
 
@@ -76,7 +85,7 @@ These were incorrectly left as `dynamic` during the initial PIA migration due to
   - `Excel.ModelRelationships`, `Excel.ModelRelationship`
   - `Excel.ModelTableColumns`, `Excel.ModelTableColumn`
 - **Affected files**: `DataModelCommands.Helpers.cs` and all DataModel command files
-- **Migration effort**: Medium — measure-specific APIs remain dynamic due to the 15.x PIA gap above
+- **Migration status**: Complete for table/relationship surfaces; measure-specific APIs are typed through the 16.x PIA.
 
 ### Connection Sub-Types — `Excel.OLEDBConnection`, `Excel.ODBCConnection`, `Excel.TextConnection`
 
@@ -87,7 +96,7 @@ These were incorrectly left as `dynamic` during the initial PIA migration due to
 
 ### ComUtilities Helpers — Return Types
 
-- `FindQuery(dynamic workbook, ...)` — both parameter and return type can be typed once Queries migration is done
+- `FindQuery(Excel.Workbook workbook, ...)` returns `Excel.WorkbookQuery?`
 - `FindConnection(dynamic workbook, ...)` — return type can be `Excel.WorkbookConnection?`
 - `FindSheet(...)` — return type can be `Excel.Worksheet?`
 - `FindName(...)` — return type can be `Excel.Name?`

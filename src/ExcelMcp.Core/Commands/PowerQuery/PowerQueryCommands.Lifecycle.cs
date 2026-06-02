@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -17,16 +18,15 @@ public partial class PowerQueryCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? queriesCollection = null;
+            Excel.Queries? queriesCollection = null;
             try
             {
-                // PIA gap: Workbook.Queries is not exposed by the 15.x Excel PIA package registered by Office Click-to-Run.
-                queriesCollection = ((dynamic)ctx.Book).Queries;
+                queriesCollection = ctx.Book.Queries;
                 int count = queriesCollection.Count;
 
                 for (int i = 1; i <= count; i++)
                 {
-                    dynamic? query = null;
+                    Excel.WorkbookQuery? query = null;
                     try
                     {
                         query = queriesCollection.Item(i);
@@ -227,7 +227,7 @@ public partial class PowerQueryCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? query = null;
+            Excel.WorkbookQuery? query = null;
             dynamic? worksheets = null;
             dynamic? connections = null;
             try
@@ -444,8 +444,8 @@ public partial class PowerQueryCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? query = null;
-            dynamic? queriesCollection = null;
+            Excel.WorkbookQuery? query = null;
+            Excel.Queries? queriesCollection = null;
             dynamic? worksheets = null;
 
             try
@@ -583,8 +583,7 @@ public partial class PowerQueryCommands
                     ComUtilities.Release(ref connections);
                 }
 
-                // PIA gap: Workbook.Queries is not exposed by the 15.x Excel PIA package registered by Office Click-to-Run.
-                queriesCollection = ((dynamic)ctx.Book).Queries;
+                queriesCollection = ctx.Book.Queries;
                 queriesCollection.Item(queryName).Delete();
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
@@ -622,7 +621,7 @@ public partial class PowerQueryCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? query = null;
+            Excel.WorkbookQuery? query = null;
 
             try
             {
@@ -785,4 +784,3 @@ public partial class PowerQueryCommands
         }
     }
 }
-

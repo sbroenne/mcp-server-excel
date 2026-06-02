@@ -8,7 +8,7 @@ applyTo: "src/ExcelMcp.Core/**/*.cs"
 
 ## Core Principles
 
-1. **Use Late Binding** - `dynamic` types with `Type.GetTypeFromProgID()`
+1. **PIA First** - Use strongly-typed `Microsoft.Office.Interop.Excel` APIs wherever the referenced PIA exposes them; keep `dynamic` only behind documented COM coverage gaps.
 2. **1-Based Indexing** - Excel collections start at 1, not 0
 3. **Exception Propagation** - Never wrap in try-catch, let batch.Execute() handle exceptions (see Exception Propagation section)
 4. **QueryTable Refresh REQUIRED** - `.Refresh(false)` synchronous for persistence
