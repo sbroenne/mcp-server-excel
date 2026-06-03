@@ -79,7 +79,7 @@
     "@types/node": "^25.9.1",
     "@types/vscode": "^1.118.0",
     "@vscode/vsce": "^3.9.1",
-    "oxlint": "^1.67.0",
+    "oxlint": "^1.68.0",
     "typescript": "^6.0.3"
   },
   "overrides": {

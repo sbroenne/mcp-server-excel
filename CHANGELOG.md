@@ -16,6 +16,8 @@ This changelog covers all components:
 
 - **Dependency audit pin refreshed**: Updated the central `Nerdbank.MessagePack` security override to a non-vulnerable version so NuGet audit restore/build checks no longer fail on the prior pinned package.
 
+- **Dependency freshness refresh**: Updated central .NET package pins for telemetry, identity, JSON-RPC, MessagePack, Azure client libraries, and build tooling, plus refreshed the VS Code extension linter.
+
 ### Fixed
 
 - **MCP Server stdio no longer emits Application Insights info noise during startup** (#559): Application Insights informational logs are now explicitly filtered out of the console provider so stdio clients no longer see lines such as `info: Microsoft.ApplicationInsights.TelemetryClient[0]` on stderr during MCP initialization. Warning and error logs still go to stderr, while stdout remains reserved for JSON-RPC frames.
