@@ -150,10 +150,15 @@ public partial class VbaCommands
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
-            catch (COMException comEx) when (comEx.Message.Contains("programmatic access", StringComparison.OrdinalIgnoreCase) ||
-                                             comEx.ErrorCode == unchecked((int)0x800A03EC))
+            catch (COMException comEx) when (IsVbaTrustError(comEx))
             {
                 throw new InvalidOperationException(VbaTrustErrorMessage, comEx);
+            }
+            catch (COMException comEx) when (comEx.ErrorCode == GenericOfficeAutomationError)
+            {
+                // Trust passed IsVbaTrustError, so this generic 0x800A03EC is a real,
+                // non-trust failure. Surface it with COM environment diagnostics (issue #671).
+                throw new InvalidOperationException(BuildGenericComErrorMessage(comEx), comEx);
             }
             finally
             {
