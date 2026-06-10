@@ -6,67 +6,69 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Excel COM Interop PIA -->
-    <PackageVersion Include="Microsoft.Office.Interop.Excel" Version="15.0.4795.1001" />
+    <PackageVersion Include="Microsoft.Office.Interop.Excel" Version="16.0.18925.20022" />
     <!-- UI Framework -->
     <PackageVersion Include="Dax.Formatter" Version="1.2.0" />
-    <PackageVersion Include="Spectre.Console" Version="0.55.2" />
+    <PackageVersion Include="Spectre.Console" Version="0.56.0" />
     <PackageVersion Include="Spectre.Console.Cli" Version="0.55.0" />
     <!-- Microsoft Extensions for MCP Server -->
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
     <!-- Application Insights Worker Service SDK for telemetry (Users, Sessions, Funnels, User Flows) -->
     <!-- Worker Service SDK provides proper DI integration, auto-collection modules, and host lifetime awareness -->
-    <PackageVersion Include="Microsoft.ApplicationInsights.WorkerService" Version="3.1.1" />
+    <PackageVersion Include="Microsoft.ApplicationInsights.WorkerService" Version="3.1.2" />
     <!-- Base SDK needed for tests that directly use TelemetryClient -->
-    <PackageVersion Include="Microsoft.ApplicationInsights" Version="3.1.1" />
+    <PackageVersion Include="Microsoft.ApplicationInsights" Version="3.1.2" />
     <PackageVersion Include="OpenTelemetry.Api" Version="1.15.3" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.SqlClient" Version="1.15.2" />
-    <PackageVersion Include="Azure.Core" Version="1.55.0" />
-    <PackageVersion Include="Microsoft.Extensions.Resilience" Version="10.6.0" />
-    <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.5.2" />
-    <PackageVersion Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Diagnostics" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Diagnostics.Abstractions" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Identity.Client" Version="4.84.0" />
-    <PackageVersion Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.84.0" />
-    <PackageVersion Include="Microsoft.IdentityModel.Abstractions" Version="8.18.0" />
+    <PackageVersion Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.8.1" />
+    <PackageVersion Include="Azure.Core" Version="1.59.0" />
+    <PackageVersion Include="Microsoft.Extensions.Resilience" Version="10.7.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.7.0" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.Abstractions" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.ObjectPool" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Identity.Client" Version="4.84.2" />
+    <PackageVersion Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.84.2" />
+    <PackageVersion Include="Microsoft.IdentityModel.Abstractions" Version="8.19.1" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageVersion Include="OpenTelemetry.PersistentStorage.Abstractions" Version="1.1.0" />
     <PackageVersion Include="OpenTelemetry.PersistentStorage.FileSystem" Version="1.1.0" />
     <PackageVersion Include="Polly.Core" Version="8.6.6" />
     <PackageVersion Include="Polly.Extensions" Version="8.6.6" />
     <PackageVersion Include="Polly.RateLimiting" Version="8.6.6" />
-    <PackageVersion Include="StreamJsonRpc" Version="2.24.92" />
+    <PackageVersion Include="StreamJsonRpc" Version="2.25.25" />
     <!-- Security override: StreamJsonRpc transitively pins vulnerable Nerdbank.MessagePack versions -->
-    <PackageVersion Include="Nerdbank.MessagePack" Version="1.1.62" />
-    <PackageVersion Include="MessagePack" Version="3.1.4" />
-    <PackageVersion Include="MessagePack.Annotations" Version="3.1.4" />
+    <PackageVersion Include="Nerdbank.MessagePack" Version="1.2.4" />
+    <PackageVersion Include="MessagePack" Version="3.1.7" />
+    <PackageVersion Include="MessagePack.Annotations" Version="3.1.7" />
+    <PackageVersion Include="Microsoft.NET.StringTools" Version="18.6.3" />
     <PackageVersion Include="Microsoft.NETCore.Platforms" Version="7.0.4" />
-    <PackageVersion Include="System.ClientModel" Version="1.11.0" />
+    <PackageVersion Include="System.ClientModel" Version="1.14.0" />
     <PackageVersion Include="System.Buffers" Version="4.6.1" />
-    <PackageVersion Include="System.Collections.Immutable" Version="10.0.8" />
+    <PackageVersion Include="System.Collections.Immutable" Version="10.0.9" />
     <PackageVersion Include="System.Memory" Version="4.6.3" />
     <PackageVersion Include="System.Numerics.Vectors" Version="4.6.1" />
-    <PackageVersion Include="System.Reflection.Metadata" Version="10.0.8" />
+    <PackageVersion Include="System.Reflection.Metadata" Version="10.0.9" />
     <PackageVersion Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
-    <PackageVersion Include="System.Text.Encoding.CodePages" Version="10.0.8" />
+    <PackageVersion Include="System.Text.Encoding.CodePages" Version="10.0.9" />
     <PackageVersion Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
-    <PackageVersion Include="System.Memory.Data" Version="10.0.8" />
-    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.8" />
-    <PackageVersion Include="System.Text.Json" Version="10.0.8" />
-    <PackageVersion Include="System.Threading.RateLimiting" Version="10.0.8" />
+    <PackageVersion Include="System.Memory.Data" Version="10.0.9" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.9" />
+    <PackageVersion Include="System.Text.Json" Version="10.0.9" />
+    <PackageVersion Include="System.Threading.RateLimiting" Version="10.0.9" />
     <!-- MCP SDK - Latest stable preview -->
-    <PackageVersion Include="ModelContextProtocol" Version="1.3.0" />
+    <PackageVersion Include="ModelContextProtocol" Version="1.4.0" />
     <!-- Testing Framework -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
     <PackageVersion Include="System.Net.Http" Version="4.3.5" />
@@ -79,9 +81,9 @@
     <!-- Code Analysis and Security -->
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.3.0" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.300" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.301" />
     <!-- Template Engine for Skill Generation -->
-    <PackageVersion Include="Scriban" Version="7.2.1" />
+    <PackageVersion Include="Scriban" Version="7.2.4" />
     <!-- MSBuild Task Development -->
     <PackageVersion Include="Microsoft.Build.Framework" Version="18.6.3" />
     <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="18.6.3" />

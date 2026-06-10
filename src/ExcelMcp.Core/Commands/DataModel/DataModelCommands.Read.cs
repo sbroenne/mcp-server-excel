@@ -146,7 +146,7 @@ public partial class DataModelCommands
         result = batch.Execute((ctx, ct) =>
         {
             Excel.Model? model = null;
-            dynamic? measure = null;
+            Excel.ModelMeasure? measure = null;
             try
             {
                 // Check if workbook has Data Model
@@ -179,7 +179,7 @@ public partial class DataModelCommands
                     formatInfo = measure.FormatInformation;
                     if (formatInfo != null)
                     {
-                        // PIA gap: ModelMeasure.FormatInformation returns object in PIA; cast to dynamic for runtime property probing in GetFormatInfo
+                        // Reason: FormatInformation returns polymorphic ModelFormat* COM objects; property probing remains dynamic.
                         result.FormatInfo = GetFormatInfo((dynamic)formatInfo);
                     }
                 }
@@ -510,5 +510,4 @@ public partial class DataModelCommands
         }, timeoutCts.Token);
     }
 }
-
 

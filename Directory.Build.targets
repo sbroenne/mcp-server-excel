@@ -1,0 +1,39 @@
+<Project>
+
+  <!--
+    Force genuine embedding of the Excel Primary Interop Assembly (PIA).
+
+    WHY THIS EXISTS:
+    The .NET SDK does NOT honor <EmbedInteropTypes>true</EmbedInteropTypes> metadata when the interop
+    assembly is supplied through a <PackageReference>. NuGet resolves Microsoft.Office.Interop.Excel as a
+    plain runtime asset (AssetType=runtime, CopyLocal=true), so the compiler receives it via /reference:
+    (a normal reference) instead of /link: (embed). The result is that the Excel types are NOT embedded and
+    the assembly takes a hard runtime dependency on office.dll (Microsoft.Office.Core) and
+    Microsoft.Vbe.Interop.dll, neither of which is deployed with a self-contained .NET app. Loading the Excel
+    interfaces at runtime then throws FileNotFoundException for 'office, Version=16.0.0.0'.
+
+    WHAT THIS DOES:
+    After ResolveAssemblyReferences computes the reference set, this target flips the Excel PIA reference to
+    EmbedInteropTypes=true so the compiler links (/link) the used interop types directly into THIS assembly.
+    The compiler embeds only the Excel interop types actually used (and any Office.Core types they require —
+    in practice zero, because AutomationSecurity is reached only via late-bound IDispatch). This removes the
+    runtime dependency on office.dll entirely, so no assembly-resolve shim is needed in prod or tests.
+
+    This applies uniformly to every project that resolves the Excel PIA (directly or transitively), keeping
+    embedding consistent across ComInterop, Core, McpServer, CLI, and the test projects.
+
+    See docs/PIA-COVERAGE.md.
+  -->
+  <Target Name="ForceEmbedExcelInteropTypes" AfterTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <ReferencePath Condition="'%(FileName)' == 'Microsoft.Office.Interop.Excel'">
+        <EmbedInteropTypes>true</EmbedInteropTypes>
+        <Private>false</Private>
+      </ReferencePath>
+      <!-- Embedded interop types are baked into this assembly; the PIA must NOT be copied to output. -->
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)"
+                               Condition="'%(FileName)' == 'Microsoft.Office.Interop.Excel'" />
+    </ItemGroup>
+  </Target>
+
+</Project>
