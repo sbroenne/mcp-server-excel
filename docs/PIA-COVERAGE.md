@@ -18,7 +18,7 @@ This document tracks the status of `Microsoft.Office.Interop.Excel` type coverag
 | `ModelMeasure.FormatInformation` | ⚠️ Typed as `object`; dynamic property probing remains for polymorphic `ModelFormat*` objects |
 | `WorkbookConnection.Refreshing` / `CancelRefresh` | ⚠️ Still missing from the 16.x Excel PIA — dynamic debt |
 | VBA (`VBProject`, `VBComponents`) | ⚠️ External VBE object model, not Excel PIA — dynamic debt until typed interop is added |
-| `AutomationSecurity` | ⚠️ Office shared type in `Microsoft.Office.Core` (office.dll); keep `((dynamic)(object))` cast unless typed Office interop is added safely |
+| `AutomationSecurity` | ⚠️ Office.Core enum (office.dll); accessed late-bound via `((dynamic)(object))` because Office.Core is not referenced. The embedded Excel PIA carries no office.dll dependency, so no resolver is needed |
 | WebConnection | ⚠️ Still missing from the 16.x Excel PIA — dynamic debt |
 | ADO types (ADODB.Connection, Recordset, Fields) | ⚠️ External ADODB object model, not Excel PIA — dynamic debt until typed interop is added |
 
@@ -59,11 +59,12 @@ ExcelMcp is PIA-first. Any `dynamic` usage is technical debt unless a compile pr
 
 ### MsoAutomationSecurity (= 3)
 
-- **Location in COM**: `Microsoft.Office.Core` (office.dll / `Microsoft.Office.Interop.Word` / `Microsoft.Office.Interop.PowerPoint` host DLLs)
-- **Why not available**: The `office.dll` shared types are injected via `[assembly: PrimaryInteropAssembly]` into host Office PIAs. They are not directly available as a standalone typed constant in the Excel PIA.
-- **Workaround**: Use the literal integer value `3` (= `msoAutomationSecurityForceDisable`) via `((dynamic)(object)tempExcel).AutomationSecurity = 3;`
-- **CRITICAL — cast to `(object)` first**: Casting a typed `Excel.Application` directly to `dynamic` retains COM type metadata; the DLR then tries to load `office.dll` to resolve `MsoAutomationSecurity`, causing a `FileNotFoundException` crash (`office, Version=16.0.0.0`). Casting to `(object)` first erases the static type and forces pure IDispatch binding, which never loads `office.dll`.
-- **Do NOT add a `<Reference>` to office.dll**: A GAC hint path is version-specific and machine-specific (15.0 vs 16.0 mismatch causes the same crash). `EmbedInteropTypes=true` + `(object)` cast is sufficient.
+- **Location in COM**: `Microsoft.Office.Core` (office.dll), a shared Office type library separate from the Excel PIA.
+- **Why not typed**: `MsoAutomationSecurity` is an enum in `Microsoft.Office.Core`. We do not reference or embed the Office.Core PIA, so the typed enum constant is not available in our build.
+- **Workaround**: Use the literal integer values (`1` = `msoAutomationSecurityLow`, `3` = `msoAutomationSecurityForceDisable`) via `((dynamic)(object)tempExcel).AutomationSecurity = ...;` — late-bound IDispatch access that exchanges a plain `int` with Excel and never touches an Office.Core type.
+- **The `(object)` cast keeps the call late-bound**: Casting a typed `Excel.Application` directly to `dynamic` would let the DLR resolve `AutomationSecurity` against the typed `MsoAutomationSecurity` signature, which would require an Office.Core reference. Casting to `(object)` first erases the static type and forces pure IDispatch binding, so no Office.Core type is needed.
+- **office.dll is NOT a runtime dependency**: The Excel PIA is embedded (`EmbedInteropTypes` via the repo-root `Directory.Build.targets`; the PackageReference is compile-only via `<ExcludeAssets>runtime</ExcludeAssets>`). Embedding bakes only the Excel interop types we actually use into our assemblies — none of which are Office.Core types — so the built assemblies carry **no** reference to `office.dll`. This is why no assembly resolver is required. (Previously the PIA was referenced but not embedded, so it dragged in a transitive `office v16.0.0.0` dependency that forced a runtime `office.dll` load; that is now gone.)
+- **Do NOT add a `<Reference>` to office.dll or a hand-rolled assembly resolver**: A GAC hint path is version- and machine-specific (15.0 vs 16.0 mismatch). Proper PIA embedding removes the office.dll dependency entirely, so neither is needed.
 - **Affected files**: `ExcelBatch.cs`
 
 ### WebConnection

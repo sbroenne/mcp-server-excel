@@ -78,12 +78,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Excel COM Interop PIA - EmbedInteropTypes=true embeds only used types at compile time,
-         eliminating the runtime dependency on office.dll (Microsoft.Office.Core) which is not
-         available to .NET Core's runtime loader even though it exists in the .NET Framework GAC.
-         COM type equivalence (GUID-based) ensures type identity works across assembly boundaries. -->
+    <!-- Excel COM Interop PIA. Embedding is forced by the ForceEmbedExcelInteropTypes target in
+         Directory.Build.targets (the SDK ignores <EmbedInteropTypes> metadata on a <PackageReference>).
+         <ExcludeAssets>runtime</ExcludeAssets> keeps the PIA compile-only so it is never copied to
+         output/publish or listed in deps.json. Result: the used Excel interop types are embedded and
+         there is NO runtime dependency on office.dll (Microsoft.Office.Core). See docs/PIA-COVERAGE.md. -->
     <PackageReference Include="Microsoft.Office.Interop.Excel">
-      <EmbedInteropTypes>true</EmbedInteropTypes>
+      <!-- EmbedInteropTypes is intentionally NOT set here: the SDK ignores it on a <PackageReference>.
+           Embedding is applied to the resolved reference by ForceEmbedExcelInteropTypes in Directory.Build.targets. -->
+      <ExcludeAssets>runtime</ExcludeAssets>
       <NoWarn>NU1701</NoWarn>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.ObjectPool" />

@@ -298,8 +298,14 @@ public static class ComUtilities
     /// Safely iterates through all columns in a model table with automatic COM cleanup
     /// </summary>
     /// <param name="table">Model table COM object</param>
-    /// <param name="action">Action to perform on each column (receives column and 1-based index)</param>
-    public static void ForEachColumn(Excel.ModelTable table, Action<Excel.ModelTableColumn, int> action)
+    /// <param name="action">Action to perform on each column (receives the column COM object and 1-based index)</param>
+    /// <remarks>
+    /// The column is passed as <see cref="object"/> rather than <c>Excel.ModelTableColumn</c> on purpose:
+    /// the Excel interop types are embedded (EmbedInteropTypes), and an embedded interop type cannot be used
+    /// as a generic type argument across assembly boundaries (compiler error CS1769). Callers access the
+    /// column late-bound, so an untyped object is sufficient.
+    /// </remarks>
+    public static void ForEachColumn(Excel.ModelTable table, Action<object, int> action)
     {
         Excel.ModelTableColumns? columns = null;
         try

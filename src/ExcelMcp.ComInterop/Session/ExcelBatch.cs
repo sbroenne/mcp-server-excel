@@ -211,10 +211,14 @@ internal sealed class ExcelBatch : IExcelBatch
                 // msoAutomationSecurityLow = 1
                 // msoAutomationSecurityForceDisable = 3
                 // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
-                // PIA gap: MsoAutomationSecurity is in office.dll (Microsoft.Office.Core) which is NOT bundled
-                // with the Excel PIA NuGet package. Casting tempExcel to (object) first forces pure IDispatch
-                // binding so the DLR never tries to load office.dll to resolve the MsoAutomationSecurity type.
-                // Without (object) cast: ((dynamic)Excel.Application) retains COM type metadata → office.dll load → crash.
+                // AutomationSecurity is typed as Office.MsoAutomationSecurity, an enum that lives in
+                // office.dll (Microsoft.Office.Core). We do NOT reference or embed the Office.Core PIA,
+                // so we access this property late-bound: ((dynamic)(object)) erases the static Excel type
+                // and forces pure IDispatch binding, exchanging a plain int with Excel. No office type is
+                // touched, so no office.dll reference is needed at compile or run time.
+                // NOTE: The Excel PIA itself is embedded (EmbedInteropTypes via Directory.Build.targets),
+                // so the assembly carries no runtime dependency on office.dll. This late-bound access is
+                // kept solely because the Office.Core enum type is not referenced anywhere in the build.
                 bool opensMacroEnabledWorkbook = _isMacroEnabled ||
                     _allWorkbookPaths.Any(path => string.Equals(Path.GetExtension(path), ".xlsm", StringComparison.OrdinalIgnoreCase));
                 ((dynamic)(object)tempExcel).AutomationSecurity = opensMacroEnabledWorkbook ? 1 : 3;
