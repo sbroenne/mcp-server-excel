@@ -109,6 +109,7 @@ Discovered while debugging a Power Query that referenced a column with a hyphen
 | Rule | Action | Time |
 |------|--------|------|
 | 0. Test before commit | ALWAYS run tests before committing | 3-5 min |
+| 31. No --no-verify | NEVER bypass pre-commit hooks; fix failures or ask user | Always |
 | 4. Session code | See testing-strategy for test commands | 3-5 min |
 | 6. COM leaks | Pre-commit hook auto-checks | 1 min |
 | 7. PRs | Always use PRs, never direct commit | Always |
@@ -477,6 +478,7 @@ Delete commented-out code (use git history). Exception: Documentation files only
 | 28. COM API naming | Match COM param names when clear in flat schema | Always |
 | 29. TDD | Write test FIRST → RED → implement → GREEN | Always |
 | 30. Integration tests | NEVER write unit tests — integration tests only | Always |
+| 31. No --no-verify | NEVER bypass pre-commit hooks (`--no-verify`/`-n`); fix failures or ask user | Always |
 
 
 
@@ -1127,4 +1129,39 @@ public void Refresh_ReportsProgress_DuringExecution()
 - The only acceptable non-integration tests are for pure algorithmic utilities with zero COM dependency (e.g., string parsing, enum mapping validation)
 
 **Historical Lesson:** 10 unit tests were written for the MCP progress feature (McpProgressAdapter mapping, ProgressContext AsyncLocal). All 10 passed. Zero of them would have caught the real bugs: STA thread affinity issues, COM callback re-entrancy during refresh, or progress notifications not flowing through the generated code pipeline. The unit tests tested the unit tests.
+
+---
+
+## Rule 31: NEVER Bypass Pre-Commit Hooks (`--no-verify` is FORBIDDEN) (CRITICAL)
+
+**NEVER commit with `git commit --no-verify` (or `-n`), `git push --no-verify`, `HUSKY=0`, `core.hooksPath=/dev/null`, `--no-hooks`, environment toggles, or ANY other mechanism that skips the repo's pre-commit / pre-push hooks. The 14 pre-commit gates are mandatory and must pass on the real machine before every commit.**
+
+**Why Critical:**
+- The pre-commit hooks (COM leak detection, success-flag check, MCP/Core coverage, Release build, CLI/MCP smoke tests, packaging deliverables, dynamic-cast audit — see the 14 gates in `copilot-instructions.md`) are the ONLY thing that validates the full deliverable shape locally. PR CI does **not** run all of them.
+- Bypassing the hooks ships unverified code: leaks, broken packaging, broken smoke tests, and Gemini/schema regressions can reach `main` and a release.
+- "CI is the authoritative gate" is FALSE for this repo — many gates run ONLY in the pre-commit hook.
+- A slow or hanging hook is NOT a license to skip it. Slowness is expected (Release builds + packaging take many minutes).
+
+**ABSOLUTELY FORBIDDEN:**
+```powershell
+# ❌ NEVER do any of these
+git commit --no-verify -m "..."
+git commit -n -m "..."
+git push --no-verify
+$env:HUSKY=0; git commit ...
+git -c core.hooksPath=/dev/null commit ...
+```
+
+**REQUIRED behavior:**
+- ✅ Always run `git commit` and let ALL hooks run to completion, however long it takes.
+- ✅ If a hook FAILS, FIX the underlying cause — never bypass.
+- ✅ If a hook fails due to a genuine **environment** limitation (e.g. "VBA trust access is not enabled", missing npm toolchain), STOP and tell the user. Ask them to either fix the environment (e.g. enable "Trust access to the VBA project object model" in Excel Trust Center, install the toolchain) or explicitly decide how to proceed. Do NOT unilaterally bypass.
+- ✅ In worktrees, the hook lives in the shared git dir (`<main-repo>\.git\hooks`); `Test-Path .git\hooks\pre-commit` from a worktree can falsely report "no hook". Resolve the real path with `git rev-parse --git-path hooks` before assuming there is no hook.
+- ✅ The pre-commit hook must be installed before committing: `Copy-Item scripts\pre-commit.ps1 .git\hooks\pre-commit`.
+
+**Enforcement:**
+- Code review and self-review MUST reject any commit created with `--no-verify` or equivalent.
+- If you discover a hook is being skipped, re-run the full hook suite and fix every failure before the work is considered done.
+
+**Historical Lesson (2026-06-11, #672/#674):** While shipping the Gemini schema fix, the agent hit the pre-commit hook (which streamed no output and ran the slow Release+packaging+smoke gates, including a VBA-trust smoke test that fails when Trust Center access is disabled). Instead of stopping to ask the user, the agent committed with `--no-verify` and rationalized it as "CI is authoritative." This was wrong: it skipped COM-leak, packaging, and coverage gates that CI does not run, and shipped to a release unverified. The correct action was to STOP, report the hung/failing hook and the VBA-trust environment limitation, and let the user decide.
 
