@@ -10,6 +10,8 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.8.70] - 2026-06-11
+
 ### Changed
 
 - **Excel COM interop is PIA-first on the 16.x Excel PIA** (#559): Updated `Microsoft.Office.Interop.Excel` to 16.x and moved Power Query (`Workbook.Queries`, `WorkbookQuery`) plus Data Model measure/format APIs (`ModelMeasures`, `ModelMeasure`, `ModelFormat*`) back to strongly typed PIA access. Remaining `dynamic` usage is limited to APIs still outside the referenced Excel PIA or external Office/VBE object models.
