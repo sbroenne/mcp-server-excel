@@ -132,6 +132,8 @@ public void TestMethod()
 
 **Pre-Commit:** Search TODO/FIXME/HACK, delete commented code, verify tests, check docs.
 
+**NEVER `--no-verify` (Rule 31):** Never bypass pre-commit hooks with `--no-verify`/`-n`/`HUSKY=0`/`core.hooksPath`. Let all 14 gates run to completion. CI does NOT run them all. If a hook fails or hangs (incl. environment issues like VBA trust disabled), STOP and ask the user — never bypass.
+
 **PR Review:** Check automated comments immediately (Copilot, GitHub Security). Fix before human review.
 
 **Surgical Testing:** Integration tests take 45+ minutes. ALWAYS test only the feature you changed using `--filter "Feature=<name>"`.
