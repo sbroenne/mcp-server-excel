@@ -217,7 +217,7 @@ public class Program
                     - Check visibility with window(action:'get-info') if unsure
                     """;
             })
-            .WithToolsFromAssembly()
+            .WithGeminiCompatibleToolsFromAssembly()
             .WithPromptsFromAssembly(); // Auto-discover prompts marked with [McpServerPromptType]
 
         if (testInputPipe != null && testOutputPipe != null)
