@@ -76,7 +76,7 @@
     "lint": "oxlint src -D correctness -D suspicious -D perf --deny-warnings"
   },
   "devDependencies": {
-    "@types/node": "^25.9.2",
+    "@types/node": "^26.0.1",
     "@types/vscode": "^1.118.0",
     "@vscode/vsce": "^3.9.2",
     "oxlint": "^1.69.0",
