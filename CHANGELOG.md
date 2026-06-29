@@ -10,6 +10,8 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+## [1.8.71] - 2026-06-29
+
 ### Changed
 
 - **Dependency freshness refresh (June 2026)**: Bumped centrally managed packages to their latest stable versions: Dax.Formatter (1.2.0 → 1.2.2), Spectre.Console (0.56.0 → 0.57.1; Spectre.Console.Cli stays at 0.55.0 — no newer stable), the OpenTelemetry family (1.15.x → 1.16.0: Api, Extensions.Hosting, Instrumentation.Http, Instrumentation.SqlClient), Microsoft.Identity.Client + Extensions.Msal (4.84.2 → 4.85.2), Polly.Core/Extensions/RateLimiting (8.6.6 → 8.7.0), StreamJsonRpc (2.25.25 → 2.25.29), Nerdbank.MessagePack security pin (1.2.4 → 1.2.30), Microsoft.NET.StringTools + Build.Framework + Build.Utilities.Core (18.6.3 → 18.7.1), Microsoft.NET.Test.Sdk (18.6.0 → 18.7.0), coverlet.collector (6.1.0 → 10.0.1), and Scriban (7.2.4 → 7.2.5). VS Code extension dev dependency @types/node bumped to ^26.0.1; npm install reports 0 vulnerabilities. Solution builds clean (0 warnings/0 errors) and extension compiles.
