@@ -10,6 +10,10 @@ This changelog covers all components:
 
 ## [Unreleased]
 
+### Added
+
+- **Python in Excel (`=PY()`) support** (#691): New `pythoninexcel` MCP tool / CLI category with two operations. `set-formula` writes a `=PY("code", returnType)` formula via `Range.Formula2` (returnType 0 = Excel Value, 1 = Python Object). `get-result` reads back the computed value, polling with a stability heuristic (minimum settle window + required consecutive matching reads on `Value2`) since the Python code executes asynchronously in a Microsoft-hosted cloud sandbox with no reliable "still computing" signal exposed via COM. Classification of errors vs. rich "Python Object" results is derived from the `returnType` parsed out of the formula text and from well-known Excel error codes — not from `Range.Text`, which was found to render unreliably in non-visible/headless Excel automation. If polling doesn't stabilize in time, `get-result` reports failure and asks the caller to retry rather than returning a possibly-stale value. Requires a licensed Microsoft 365 account with Python in Excel enabled and internet access; not available offline or with perpetual-license Excel.
+
 ### Changed
 
 - **Dependency freshness refresh (June 2026)**: Bumped centrally managed packages to their latest stable versions: Dax.Formatter (1.2.0 → 1.2.2), Spectre.Console (0.56.0 → 0.57.1; Spectre.Console.Cli stays at 0.55.0 — no newer stable), the OpenTelemetry family (1.15.x → 1.16.0: Api, Extensions.Hosting, Instrumentation.Http, Instrumentation.SqlClient), Microsoft.Identity.Client + Extensions.Msal (4.84.2 → 4.85.2), Polly.Core/Extensions/RateLimiting (8.6.6 → 8.7.0), StreamJsonRpc (2.25.25 → 2.25.29), Nerdbank.MessagePack security pin (1.2.4 → 1.2.30), Microsoft.NET.StringTools + Build.Framework + Build.Utilities.Core (18.6.3 → 18.7.1), Microsoft.NET.Test.Sdk (18.6.0 → 18.7.0), coverlet.collector (6.1.0 → 10.0.1), and Scriban (7.2.4 → 7.2.5). VS Code extension dev dependency @types/node bumped to ^26.0.1; npm install reports 0 vulnerabilities. Solution builds clean (0 warnings/0 errors) and extension compiles.

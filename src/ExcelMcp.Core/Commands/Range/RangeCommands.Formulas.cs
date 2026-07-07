@@ -120,9 +120,11 @@ public partial class RangeCommands
     }
 
     /// <summary>
-    /// Maps Excel error codes to human-readable error messages
+    /// Maps Excel error codes to human-readable error messages.
+    /// Internal (not private) so sibling feature areas (e.g. PythonInExcel) can reuse the same
+    /// mapping table instead of duplicating it - see Bug Fix Pattern Search rule.
     /// </summary>
-    private static string MapErrorCodeToMessage(int errorCode) =>
+    internal static string MapErrorCodeToMessage(int errorCode) =>
         errorCode switch
         {
             -2146826288 => "#NULL! - Invalid intersection of ranges",
@@ -131,6 +133,7 @@ public partial class RangeCommands
             -2146826246 => "#REF! - Invalid cell reference",
             -2146826252 => "#NUM! - Invalid numeric value",
             -2142019887 => "#N/A - Value not available",
+            -2146826233 => "#PYTHON! - Python code raised an error (syntax or runtime exception)",
             _ => $"#ERROR! - Unknown error code {errorCode}"
         };
 

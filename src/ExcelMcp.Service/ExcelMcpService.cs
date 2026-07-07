@@ -8,6 +8,7 @@ using Sbroenne.ExcelMcp.Core.Commands.Calculation;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.Core.Commands.Diag;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
+using Sbroenne.ExcelMcp.Core.Commands.PythonInExcel;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Service.Rpc;
 using StreamJsonRpc;
@@ -54,6 +55,7 @@ public sealed class ExcelMcpService : IDisposable
     private readonly ScreenshotCommands _screenshotCommands = new();
     private readonly DiagCommands _diagCommands = new();
     private readonly WindowCommands _windowCommands = new();
+    private readonly PythonInExcelCommands _pythonInExcelCommands = new();
 
     public ExcelMcpService()
     {
@@ -302,6 +304,9 @@ public sealed class ExcelMcpService : IDisposable
                     (a, batch) => ServiceRegistry.Screenshot.DispatchToCore(_screenshotCommands, a, batch, request.Args)),
                 "window" => await DispatchWindowAsync(action, request),
                 "diag" => DispatchSessionless(action, request),
+                "pythoninexcel" => await DispatchSimpleAsync<PythonInExcelAction>(action, request,
+                    ServiceRegistry.PythonInExcel.TryParseAction,
+                    (a, batch) => ServiceRegistry.PythonInExcel.DispatchToCore(_pythonInExcelCommands, a, batch, request.Args)),
                 _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown command category: {category}" }
             };
 

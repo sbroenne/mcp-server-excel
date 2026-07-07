@@ -10,7 +10,7 @@
 > **Primary distribution: Standalone executable** — Download `excelcli.exe` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
 > **Secondary distribution: NuGet .NET tool** — `dotnet tool install --global Sbroenne.ExcelMcp.CLI` (requires .NET 10 runtime).
 
-The CLI provides 17 command categories with 230 operations matching the MCP Server. Uses **64% fewer tokens** than MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 25 tool schemas into context.
+The CLI provides 18 command categories with 232 operations matching the MCP Server. Uses **64% fewer tokens** than MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 26 tool schemas into context.
 
 | Interface | Best For | Why |
 |-----------|----------|-----|
@@ -120,7 +120,7 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 
 ## 📋 Command Categories
 
-ExcelMcp.CLI provides **230 operations** across 17 command categories:
+ExcelMcp.CLI provides **232 operations** across 18 command categories:
 
 📚 **[Complete Feature Reference →](../../FEATURES.md)** - Full documentation with all operations
 
@@ -143,6 +143,7 @@ ExcelMcp.CLI provides **230 operations** across 17 command categories:
 | **Named Ranges** | 6 | `namedrange create`, `namedrange read`, `namedrange write`, `namedrange update` |
 | **VBA** | 6 | `vba list`, `vba import`, `vba run`, `vba update` |
 | **Calculation Mode** | 3 | `calculation get-mode`, `calculation set-mode`, `calculation calculate` |
+| **Python in Excel** | 2 | `pythoninexcel set-formula`, `pythoninexcel get-result` |
 | **Screenshot** | 2 | `screenshot capture`, `screenshot capture-sheet` |
 
 **Note:** CLI uses session commands for multi-operation workflows.
