@@ -33,12 +33,6 @@
   background: linear-gradient(135deg, var(--mcp-hero-bg-1), var(--mcp-hero-bg-2));
 }
 
-.mcp-hero__icon {
-  width: 56px;
-  height: 56px;
-  margin-bottom: 0.25rem;
-}
-
 .md-typeset .mcp-hero__title {
   margin: 0.1rem 0 0.3rem;
   font-size: 1.9rem;

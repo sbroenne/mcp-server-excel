@@ -152,17 +152,17 @@ dotnet test --filter "Category=Integration&RunType!=OnDemand"
 
 ### VBA Test Files
 
-All VBA tests are tagged with `[Trait("Feature", "VBA")]` or `[Trait("Feature", "VBATrust")]`:
+All VBA tests are tagged with `[Trait("Feature", "VBA")]`:
 
 ```
-tests/ExcelMcp.Core.Tests/Integration/Commands/Script/
-  - ScriptCommandsTests.cs
-  - ScriptCommandsTests.Lifecycle.cs
-  - VbaTrustDetectionTests.ScriptCommands.cs
-  - VbaTrustDetectionTests.cs
+tests/ExcelMcp.Core.Tests/Integration/Commands/Vba/
+  - VbaCommandsTests.cs
+  - VbaCommandsTests.Trust.cs
+  - VbaCommandsTests.Trust.ScriptCommands.cs
 
-tests/ExcelMcp.CLI.Tests/Integration/Commands/
-  - ScriptAndSetupCommandsTests.cs
+tests/ExcelMcp.CLI.Tests/Integration/
+  - VbaRunValidationCliTests.cs
+  - VbaRunCliTransportProofTests.cs
 ```
 
 ### VBA Trust Setup

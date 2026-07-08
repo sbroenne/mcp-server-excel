@@ -8,7 +8,7 @@
 
 **MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations - no Excel programming knowledge required. 
 
-**🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
+**⚡ Powered by the real Excel engine** - ExcelMcp drives the actual Excel application through its official COM API, so it does what file-parser tools can't: run live operations (refresh Power Query, recalculate, refresh PivotTables and the Data Model, evaluate DAX, run VBA and Python `=PY()`) and edit your existing workbooks with every formula, PivotTable, chart, macro and format left intact.
 
 **💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
 
@@ -30,6 +30,7 @@ The Excel MCP Server (excel-mcp) provides **26 specialized tools with 232 operat
 - 🏷️ **Named Ranges** (1 tool, 6 ops) - Parameters and configuration
 - 📁 **Files** (1 tool, 6 ops) - Session management, workbook creation, IRM/AIP-protected file support
 - 🎚️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
+- 🧮 **Calculation Mode** (1 tool, 3 ops) - Get/set calculation mode and trigger recalculation
 - 🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
 - 📸 **Screenshot** (1 tool, 2 ops) - Capture ranges/sheets as PNG for visual verification
 - 🪧 **Window Management** (1 tool, 9 ops) - Show/hide Excel, arrange, position, status bar feedback
@@ -93,7 +94,8 @@ This extension includes an **Agent Skill** following the [agentskills.io](https:
 
 **Copilot doesn't see Excel tools:**
 - Restart VS Code after installing the extension
-- ### Troubleshooting
+
+### Troubleshooting
 
 - Check Output panel → "Excel MCP Server" for connection status
 

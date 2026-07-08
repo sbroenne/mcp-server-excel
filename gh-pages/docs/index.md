@@ -11,11 +11,23 @@ hide:
   - toc
 ---
 
-!!! tip "100% safe — uses Excel's native COM API"
-    Zero risk of file corruption. Unlike third-party libraries that manipulate
-    `.xlsx` files directly, this project drives Excel's official COM API,
-    ensuring complete safety and compatibility. Watch Excel update in real time
-    as the AI works — just say *"Show me Excel while you work."*
+!!! success "Powered by the real Excel engine"
+    Excel MCP Server automates the **actual Excel application** through its
+    official COM API — the same engine Excel itself uses. That unlocks what
+    spreadsheets are really for:
+
+    - **Runs live Excel operations.** Refresh Power Query to pull and reshape
+      fresh data, recalculate with Excel's own engine, refresh PivotTables and
+      the Data Model, evaluate DAX, and run VBA or Python `=PY()` — the real,
+      *computed results* land right in your workbook.
+    - **Edits your existing files safely.** Excel opens and saves the workbook
+      itself, so every formula, PivotTable, chart, macro, the Data Model and all
+      your formatting stay exactly as they were.
+
+    Unlike file-parser tools that rewrite the raw `.xlsx` (openpyxl-based MCP
+    servers and Agent Skills, including Anthropic's `xlsx` skill), you're driving
+    Excel itself — nothing is re-serialized or approximated. Watch it live: just
+    say *"Show me Excel while you work."*
 
 <div class="mcp-video" markdown>
 [![Watch the Excel MCP Server intro video](https://img.youtube.com/vi/B6eIQ5BIbNc/maxresdefault.jpg){ width="560" }](https://youtu.be/B6eIQ5BIbNc)
@@ -139,7 +151,3 @@ workflow:
 | **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery and a persistent connection. Better for interactive, exploratory workflows. |
 
 [MCP Server docs](mcp-server.md){ .md-button } [CLI docs](cli.md){ .md-button }
-
-Curious how it works under the hood? Read the
-[architecture overview](architecture.md) — Windows COM automation, two equal
-entry points, one shared core.

@@ -127,7 +127,7 @@ excelcli -q session close --session <id> --save
 
 ## Key Features
 
-- **Zero Corruption Risk** — Uses Excel's native COM API (not file manipulation)
+- **Real Excel Engine** — Drives the actual Excel application via COM, so live operations run for real and existing workbooks stay intact
 - **Session Management** — Open once, run many operations, close cleanly
 - **Quiet Mode** (`-q`) — JSON output only, perfect for scripting
 - **Built-in Help** — `excelcli --help` and `excelcli <command> --help`

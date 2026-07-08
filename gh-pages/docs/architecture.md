@@ -11,8 +11,11 @@ keywords: "Excel MCP architecture, Excel COM automation, MCP server design, exce
 
 **Excel MCP Server uses Windows COM automation to control the actual Excel
 application — not just `.xlsx` files.** Because it drives Excel's official COM
-API (`Excel.Application`), there is zero risk of file corruption, and you can
-watch Excel update in real time as the AI works.
+API (`Excel.Application`), it can run live Excel operations — refresh Power
+Query, recalculate, refresh PivotTables and the Data Model, evaluate DAX, and run
+VBA or Python `=PY()` — and edit your existing workbooks with formulas,
+PivotTables, charts and macros left intact. You can watch Excel update in real
+time as the AI works.
 
 ## Two equal entry points
 

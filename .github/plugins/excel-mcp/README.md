@@ -120,16 +120,14 @@ pwsh -ExecutionPolicy Bypass -File `
 
 ## Key Features
 
-### Safe by Design
+### Powered by the Real Excel Engine
 
-**100% Safe — Uses Excel's Native COM API**
+ExcelMcp drives the **actual Excel application** through its official COM API — not a file parser. That means it can:
 
-Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees:
-
-- ✅ Zero risk of file corruption
-- ✅ Real-time changes visible in Excel
-- ✅ Native Excel validation and error handling
-- ✅ Full support for complex features (Power Query, DAX, VBA)
+- ✅ Run live operations — refresh Power Query, recalculate, refresh PivotTables and the Data Model, evaluate DAX, run VBA and Python `=PY()`
+- ✅ Edit existing workbooks safely — formulas, PivotTables, charts, macros and formatting stay intact
+- ✅ Show changes live in Excel as the AI works
+- ✅ Use native Excel validation and error handling
 
 ### AI-Powered Workflows
 

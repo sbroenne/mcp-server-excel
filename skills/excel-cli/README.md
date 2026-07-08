@@ -108,6 +108,6 @@ excelcli --help
 
 ## Related
 
-- [Excel MCP Skill](https://github.com/sbroenne/mcp-server-excel/releases) - For conversational AI (Claude Desktop, VS Code Chat)
+- [Excel MCP Skill](../excel-mcp/SKILL.md) - For conversational AI (Claude Desktop, VS Code Chat)
 - [Documentation](https://excelmcpserver.dev/)
 - [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)

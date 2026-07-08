@@ -111,7 +111,7 @@ Descriptions are kept in sync with the CLI source so the help output always refl
 - **Connection Management** - OLEDB, ODBC, Text, Web connections with testing
 
 ### 🛡️ Production Ready
-- **Zero Corruption Risk** - Uses Excel's native COM API (not file manipulation)
+- **Real Excel Engine** - Drives the actual Excel application via COM, so live operations (Power Query refresh, recalculation, DAX, VBA) run for real and existing workbooks stay intact
 - **Error Handling** - Comprehensive validation and helpful error messages
 - **CI/CD Integration** - Perfect for automated workflows and testing
 - **Windows Native** - Optimized for Windows Excel automation
@@ -381,10 +381,11 @@ foreach ($file in $files) {
 
 - name: Process Excel Files
   run: |
-    SESSION=$(excelcli session open data.xlsx | grep "Session ID:" | cut -d' ' -f3)
-    excelcli powerquery create --session $SESSION --query-name "Query1" --m-code-file queries/query1.pq
-    excelcli powerquery refresh --session $SESSION --query-name "Query1"
-    excelcli session close $SESSION --save
+    $session = (excelcli session open data.xlsx | Select-String "Session ID:").ToString().Split()[-1]
+    excelcli powerquery create --session $session --query-name "Query1" --m-code-file queries/query1.pq
+    excelcli powerquery refresh --session $session --query-name "Query1"
+    excelcli session close --session $session --save
+  shell: pwsh
 ```
 
 
