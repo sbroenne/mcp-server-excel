@@ -109,6 +109,11 @@ It works with any MCP-compatible AI assistant like GitHub Copilot, Claude Deskto
 <h3>🧪 LLM-Tested Quality</h3>
 <p>Tool behavior validated with real LLM workflows using <a href="https://github.com/sbroenne/pytest-skill-engineering">pytest-skill-engineering</a>. We test that LLMs correctly understand and use our tools.</p>
 </div>
+
+<div class="feature-card">
+<h3>🐍 Python in Excel</h3>
+<p>Write and run <code>=PY()</code> formulas that execute in Excel's cloud-based Python engine — process worksheet data with pandas, NumPy, and more, directly from your AI assistant.</p>
+</div>
 </div>
 
 <p><a href="/features/">See all 26 tools and 232 operations →</a></p>
