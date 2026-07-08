@@ -5,40 +5,48 @@
    --------------------------------------------------------------------------- */
 
 :root {
-  --mcp-hero-bg-1: #0f766e; /* teal 700 */
-  --mcp-hero-bg-2: #115e59; /* teal 800 */
+  /* Excel brand green — matches the product/logo and the pre-MkDocs site */
+  --md-primary-fg-color: #217346;
+  --md-primary-fg-color--light: #2a8c56;
+  --md-primary-fg-color--dark: #185c37;
+  --md-accent-fg-color: #107c41;
+
+  --mcp-hero-bg-1: #217346; /* Excel green */
+  --mcp-hero-bg-2: #33a85c; /* Excel green (lighter) */
+}
+
+/* Dark mode: lift the greens slightly for contrast on the slate background */
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #2a8c56;
+  --md-primary-fg-color--light: #33a85c;
+  --md-primary-fg-color--dark: #217346;
+  --md-accent-fg-color: #33a85c;
 }
 
 /* Marketing hero on the landing page */
 .mcp-hero {
   text-align: center;
-  padding: 3rem 1rem 2.5rem;
-  margin: -1.2rem 0 2rem;
+  padding: 1.1rem 1rem 1rem;
+  margin: -1.2rem 0 1.4rem;
   border-radius: 0.6rem;
   color: #ffffff;
   background: linear-gradient(135deg, var(--mcp-hero-bg-1), var(--mcp-hero-bg-2));
 }
 
-.mcp-hero__icon {
-  width: 96px;
-  height: 96px;
-  margin-bottom: 0.5rem;
-}
-
-.mcp-hero__title {
-  margin: 0.2rem 0 0.4rem;
-  font-size: 2.6rem;
+.md-typeset .mcp-hero__title {
+  margin: 0.1rem 0 0.3rem;
+  font-size: 1.9rem;
   font-weight: 700;
   line-height: 1.1;
   color: #ffffff;
 }
 
 .mcp-hero__subtitle {
-  max-width: 42rem;
-  margin: 0 auto 1.4rem;
-  font-size: 1.05rem;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.92);
+  max-width: 40rem;
+  margin: 0 auto 0.85rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.94);
 }
 
 .mcp-hero__actions {
@@ -46,7 +54,7 @@
   flex-wrap: wrap;
   gap: 0.6rem;
   justify-content: center;
-  margin-bottom: 1.4rem;
+  margin-bottom: 0.85rem;
 }
 
 /* Reuse Material buttons but adapt colors for the dark hero */
@@ -95,14 +103,22 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Grid cards: give the leading icon the accent color */
+/* Grid cards: give the leading icon the accent color and tighten spacing */
 .md-typeset .grid.cards .twemoji,
 .md-typeset .grid.cards svg {
   fill: var(--md-accent-fg-color);
 }
 
+.md-typeset .grid.cards > ul > li {
+  padding: 0.8rem 0.9rem;
+}
+
+.md-typeset .grid {
+  gap: 0.6rem;
+}
+
 @media screen and (max-width: 44.9375em) {
-  .mcp-hero__title {
-    font-size: 2rem;
+  .md-typeset .mcp-hero__title {
+    font-size: 1.6rem;
   }
 }

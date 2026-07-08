@@ -16,12 +16,12 @@ Two skill packages for different integration models:
 **GitHub Copilot Plugins (Recommended):**
 ```powershell
 copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
-copilot plugin install excel-mcp@sbroenne/mcp-server-excel-plugins
-copilot plugin install excel-cli@sbroenne/mcp-server-excel-plugins
+copilot plugin install excel-mcp@mcp-server-excel-plugins
+copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
 
 **Direct skill extraction (for agents without plugin support):**
-```bash
+```powershell
 # Via npx (interactive — select excel-cli, excel-mcp, or both)
 npx skills add sbroenne/mcp-server-excel
 

@@ -35,7 +35,7 @@ theme:
   name: material
   custom_dir: overrides
   language: en
-  logo: assets/images/icon.png
+  logo: assets/images/logo.png
   favicon: favicon.ico
   icon:
     repo: fontawesome/brands/github
@@ -46,15 +46,15 @@ theme:
         name: Switch to light mode
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: teal
-      accent: teal
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: teal
-      accent: teal
+      primary: custom
+      accent: custom
       toggle:
         icon: material/brightness-4
         name: Switch to system preference
@@ -83,12 +83,14 @@ nav:
   - Installation: installation.md
   - MCP Server: mcp-server.md
   - CLI: cli.md
-  - Agent Skills: skills.md
-  - Changelog: changelog.md
   - More:
+    - Agent Skills: skills.md
+    - Architecture: architecture.md
+    - Changelog: changelog.md
     - Contributing: contributing.md
     - Security: security.md
     - Privacy: privacy.md
+    - Related projects: related-projects.md
 
 markdown_extensions:
   - abbr
@@ -119,7 +121,11 @@ markdown_extensions:
       base_path:
         - docs
       check_paths: true
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.tasklist:

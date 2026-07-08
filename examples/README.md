@@ -13,14 +13,24 @@ The session mode demo shows how to use sessions for high-performance multi-opera
 
 ### Running the Demo
 
-**Linux/macOS/WSL:**
-```powershell
-./session-demo.sh
-```
+Run these commands from PowerShell on Windows:
 
-**Windows PowerShell:**
 ```powershell
-.\session-demo.ps1
+# 1. Create a new workbook and open a session (captures the session ID)
+$session = (excelcli session create test-session.xlsx | Select-String "Session ID:").ToString().Split()[-1]
+
+# 2. Perform multiple operations against the same Excel instance
+excelcli sheet create --session $session --sheet Sales
+excelcli sheet create --session $session --sheet Customers
+excelcli sheet create --session $session --sheet Products
+excelcli sheet list --session $session
+excelcli powerquery list --session $session
+
+# 3. List active sessions
+excelcli session list
+
+# 4. Save all changes and close the session
+excelcli session close --session $session --save
 ```
 
 ### What the Demo Does
@@ -44,11 +54,6 @@ Session mode is **75-90% faster** than running individual commands because:
 
 ### Cleanup
 
-```powershell
-rm test-session.xlsx
-```
-
-Or in PowerShell:
 ```powershell
 Remove-Item test-session.xlsx
 ```

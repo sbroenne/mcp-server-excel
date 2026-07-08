@@ -241,6 +241,6 @@ This removes VM, disks, network resources, and stops all charges.
 
 ---
 
-**Cost Estimate:** ~$30/month with auto-shutdown  
+**Cost Estimate:** ~$61/month (24/7 operation)  
 **Setup Time:** 5 min deploy + 30 min Excel install  
 **Maintenance:** ~15 min/month

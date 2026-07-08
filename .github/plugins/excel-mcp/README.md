@@ -81,7 +81,7 @@ pwsh -ExecutionPolicy Bypass -File `
 - **Session Management** (6 ops) — Create, open, close, list sessions
 - **IRM/AIP Support** — Auto-detects protected files, opens with Excel visible for authentication
 
-**Complete documentation:** [Full Feature Reference](https://sbroenne.github.io/mcp-server-excel/features/)
+**Complete documentation:** [Full Feature Reference](https://excelmcpserver.dev/features/)
 
 ---
 
@@ -120,16 +120,14 @@ pwsh -ExecutionPolicy Bypass -File `
 
 ## Key Features
 
-### Safe by Design
+### Powered by the Real Excel Engine
 
-**100% Safe — Uses Excel's Native COM API**
+ExcelMcp drives the **actual Excel application** through its official COM API — not a file parser. That means it can:
 
-Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees:
-
-- ✅ Zero risk of file corruption
-- ✅ Real-time changes visible in Excel
-- ✅ Native Excel validation and error handling
-- ✅ Full support for complex features (Power Query, DAX, VBA)
+- ✅ Run live operations — refresh Power Query, recalculate, refresh PivotTables and the Data Model, evaluate DAX, run VBA and Python `=PY()`
+- ✅ Edit existing workbooks safely — formulas, PivotTables, charts, macros and formatting stay intact
+- ✅ Show changes live in Excel as the AI works
+- ✅ Use native Excel validation and error handling
 
 ### AI-Powered Workflows
 
@@ -162,7 +160,7 @@ Unlike third-party libraries that manipulate `.xlsx` files (risking corruption),
 
 ## Resources
 
-- **Documentation:** [sbroenne.github.io/mcp-server-excel](https://sbroenne.github.io/mcp-server-excel/)
+- **Documentation:** [excelmcpserver.dev](https://excelmcpserver.dev/)
 - **Installation Guide:** [docs/INSTALLATION.md](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md)
 - **GitHub Repository:** [github.com/sbroenne/mcp-server-excel](https://github.com/sbroenne/mcp-server-excel)
 - **Issues:** [github.com/sbroenne/mcp-server-excel/issues](https://github.com/sbroenne/mcp-server-excel/issues)

@@ -55,8 +55,8 @@ Users install the two plugins directly from the GitHub Copilot CLI marketplace:
 copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 
 # Install both plugins (or install separately as needed)
-copilot plugin install excel-mcp@sbroenne/mcp-server-excel-plugins
-copilot plugin install excel-cli@sbroenne/mcp-server-excel-plugins
+copilot plugin install excel-mcp@mcp-server-excel-plugins
+copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
 
 ### Excel MCP Plugin
@@ -64,7 +64,7 @@ copilot plugin install excel-cli@sbroenne/mcp-server-excel-plugins
 Provides the full MCP Server with 25 tools (230 operations) for conversational AI:
 
 ```powershell
-copilot plugin install excel-mcp@sbroenne/mcp-server-excel-plugins
+copilot plugin install excel-mcp@mcp-server-excel-plugins
 ```
 
 Best for: Claude Desktop, Copilot chat, conversational interfaces.
@@ -74,7 +74,7 @@ Best for: Claude Desktop, Copilot chat, conversational interfaces.
 Provides the CLI tool bundled with skill guidance for coding agents:
 
 ```powershell
-copilot plugin install excel-cli@sbroenne/mcp-server-excel-plugins
+copilot plugin install excel-cli@mcp-server-excel-plugins
 pwsh -File "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\bin\install-global.ps1"
 ```
 

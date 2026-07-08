@@ -16,7 +16,7 @@
 
 **MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations (26 tools with 232 operations).
 
-**🛡️ 100% Safe - Uses Excel's Native COM API** - Zero risk of file corruption. Unlike third-party libraries that manipulate `.xlsx` files directly, this project uses Excel's official API ensuring complete safety and compatibility.
+**⚡ Powered by the real Excel engine** — ExcelMcp drives the actual Excel application through its official COM API, so it does what file-parser tools can't: run live operations (refresh Power Query, recalculate, refresh PivotTables and the Data Model, evaluate DAX, run VBA and Python `=PY()`) and edit your existing workbooks with every formula, PivotTable, chart, macro and format left intact.
 
 **💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
 
@@ -152,7 +152,7 @@ copilot plugin install excel-cli@mcp-server-excel-plugins      # For scripting /
 |--------|-----|------------|--------|
 | **Tokens** | ~59K | ~163K | 🏆 CLI (64% fewer) |
 
-**Key insight:** MCP sends 23 tool schemas to the LLM on each request (~100K+ tokens).
+**Key insight:** MCP sends 26 tool schemas to the LLM on each request (~100K+ tokens).
 
 </details>
 

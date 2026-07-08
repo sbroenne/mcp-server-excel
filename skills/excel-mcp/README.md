@@ -33,11 +33,11 @@ Extract to your AI assistant's skills directory:
 | **Windsurf** | `.windsurf/skills/excel-mcp/` |
 | **Gemini CLI** | `.gemini/skills/excel-mcp/` |
 | **Codex** | `.codex/skills/excel-mcp/` |
-| **And 36+ more** | Via `npx skills` |
 | **Goose** | `.goose/skills/excel-mcp/` |
+| **And 36+ more** | Via `npx skills` |
 
 Or use npx:
-```bash
+```powershell
 # Interactive - prompts to select excel-cli, excel-mcp, or both
 npx skills add sbroenne/mcp-server-excel
 
@@ -79,6 +79,6 @@ The skill works with the Excel MCP Server. See [Installation Guide](https://exce
 
 ## Related
 
-- [Excel CLI Skill](https://github.com/sbroenne/mcp-server-excel/releases) - For coding agents preferring CLI tools
+- [Excel CLI Skill](../excel-cli/SKILL.md) - For coding agents preferring CLI tools
 - [Documentation](https://excelmcpserver.dev/)
 - [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)

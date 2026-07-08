@@ -8,16 +8,10 @@
 
 {% block content %}
 <section class="mcp-hero">
-  <img
-    src="{{ 'assets/images/icon.png' | url }}"
-    alt="Excel MCP Server icon"
-    class="mcp-hero__icon"
-    width="96"
-    height="96">
-  <h1 class="mcp-hero__title">Excel MCP Server</h1>
+  <h1 class="mcp-hero__title">Automate real Excel with AI</h1>
   <p class="mcp-hero__subtitle">
-    Automate Excel with AI via GitHub Copilot, Claude and other MCP clients —
-    including Power Query, DAX, VBA, PowerPivot and Tables.
+    Drive Microsoft Excel with natural language from GitHub Copilot, Claude and
+    any MCP client — Power Query, DAX, VBA, PowerPivot, Tables and Python in Excel.
   </p>
   <div class="mcp-hero__actions">
     <a class="md-button md-button--primary" href="https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp">
@@ -25,9 +19,6 @@
     </a>
     <a class="md-button" href="{{ 'installation/' | url }}">
       All installation options
-    </a>
-    <a class="md-button" href="{{ 'features/' | url }}">
-      Explore features
     </a>
   </div>
   <p class="mcp-hero__badges">
@@ -39,5 +30,8 @@
   </p>
 </section>
 
-{{ super() }}
+<!-- Render the page body directly instead of the parent content block, so
+     Material does not inject a duplicate "Home" heading above the markdown
+     content. The hero above already provides the page's single h1. -->
+{{ page.content }}
 {% endblock %}

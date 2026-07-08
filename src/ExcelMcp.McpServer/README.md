@@ -10,11 +10,11 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 **Control Excel with Natural Language** through AI assistants like GitHub Copilot, Claude, and ChatGPT. This MCP server enables AI-powered Excel automation for Power Query, DAX measures, VBA macros, PivotTables, Charts, and more.
 
-➡️ **[Learn more and see examples](https://sbroenne.github.io/mcp-server-excel/)** 
+➡️ **[Learn more and see examples](https://excelmcpserver.dev/)** 
 
-**🛡️ 100% Safe - Uses Excel's Native COM API**
+**⚡ Powered by the Real Excel Engine**
 
-Unlike third-party libraries that manipulate `.xlsx` files (risking corruption), ExcelMcp uses **Excel's official COM automation API**. This guarantees zero risk of file corruption while you work interactively with live Excel files - see your changes happen in real-time.
+Unlike file-parser libraries that rewrite `.xlsx` files directly, ExcelMcp drives the **actual Excel application** through its official COM API. That means it can run live operations file-based tools can't — refresh Power Query, recalculate, refresh PivotTables and the Data Model, evaluate DAX, run VBA and Python `=PY()` — and edit your existing workbooks with formulas, PivotTables, charts, macros and formatting left intact. Watch it happen in real time.
 
 **🔗 In-Process Service Architecture** - The MCP Server hosts the ExcelMCP Service in-process and calls it directly (no pipe), for low-latency Excel automation. The CLI is an equal entry point that runs the same service as a background daemon.
 

@@ -84,7 +84,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 - **Window Management** (9 ops) — Show/hide Excel, positioning
 - **Diagnostics** (3 ops) — Health checks and troubleshooting
 
-**Complete documentation:** [Full Feature Reference](https://sbroenne.github.io/mcp-server-excel/features/)
+**Complete documentation:** [Full Feature Reference](https://excelmcpserver.dev/features/)
 
 ---
 
@@ -127,7 +127,7 @@ excelcli -q session close --session <id> --save
 
 ## Key Features
 
-- **Zero Corruption Risk** — Uses Excel's native COM API (not file manipulation)
+- **Real Excel Engine** — Drives the actual Excel application via COM, so live operations run for real and existing workbooks stay intact
 - **Session Management** — Open once, run many operations, close cleanly
 - **Quiet Mode** (`-q`) — JSON output only, perfect for scripting
 - **Built-in Help** — `excelcli --help` and `excelcli <command> --help`
@@ -138,6 +138,6 @@ excelcli -q session close --session <id> --save
 
 ## Support
 
-- **Documentation:** [sbroenne.github.io/mcp-server-excel](https://sbroenne.github.io/mcp-server-excel/)
+- **Documentation:** [excelmcpserver.dev](https://excelmcpserver.dev/)
 - **Issues:** [github.com/sbroenne/mcp-server-excel/issues](https://github.com/sbroenne/mcp-server-excel/issues)
 - **License:** MIT
