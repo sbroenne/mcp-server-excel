@@ -214,31 +214,39 @@ npx skills add sbroenne/mcp-server-excel --skill excel-mcp
 
 **ExcelMcp uses Windows COM automation to control the actual Excel application (not just .xlsx files).**
 
-Both the **MCP Server** and **CLI** communicate with a shared **ExcelMCP Service** that manages Excel sessions:
+The **MCP Server** and **CLI** are two equal, first-class entry points. Each hosts its own **ExcelMCP Service** that manages Excel sessions — the MCP Server runs it **in-process** (direct calls, no pipe), while the CLI uses a **background daemon** over a named pipe so sessions persist across CLI invocations:
 
 ```
-┌─────────────────────┐     ┌─────────────────────┐
-│   MCP Server        │     │   CLI (excelcli)    │
-│  (AI assistants)    │     │  (coding agents)    │
-└─────────┬───────────┘     └─────────┬───────────┘
-          │                           │
-          └──────────┬────────────────┘
-                     ▼
-          ┌─────────────────────────┐
-          │   ExcelMCP Service      │
-          │  (shared session mgmt)  │
-          └─────────┬───────────────┘
-                    ▼
-          ┌─────────────────────────┐
-          │   Excel COM API         │
-          │  (Excel.Application)    │
-          └─────────────────────────┘
+┌──────────────────────┐        ┌──────────────────────┐
+│  MCP Server          │        │  CLI (excelcli)      │
+│  (AI assistants)     │        │  (coding agents)     │
+└──────────┬───────────┘        └──────────┬───────────┘
+           │ in-process                     │ named pipe →
+           │ (direct calls)                 │ background daemon
+           ▼                                ▼
+┌──────────────────────┐        ┌──────────────────────┐
+│  ExcelMCP Service    │        │  ExcelMCP Service    │
+│  (session mgmt)      │        │  (daemon; sessions   │
+│                      │        │   persist across     │
+│                      │        │   CLI invocations)   │
+└──────────┬───────────┘        └──────────┬───────────┘
+           ▼                                ▼
+      Core Commands                    Core Commands
+           ▼                                ▼
+┌──────────────────────┐        ┌──────────────────────┐
+│  Excel COM API       │        │  Excel COM API       │
+│  (Excel.Application) │        │  (Excel.Application) │
+└──────────────────────┘        └──────────────────────┘
 ```
+
+Both entry points share the same Core Commands codebase, so every operation behaves identically. They are separate processes, though: each runs its own ExcelMCP Service and its own Excel instance, and they do **not** share live sessions with each other.
 
 **Key Benefits:**
-- ✅ **Shared Sessions** - CLI and MCP Server can access the same open workbooks
-- ✅ **Single Excel Instance** - No duplicate Excel processes or file locks
-- ✅ **System Tray UI** - Monitor active sessions via the ExcelMCP tray icon
+- ✅ **Two equal entry points** - Every operation works identically through the MCP Server and the CLI
+- ✅ **Persistent CLI sessions** - The CLI daemon keeps workbooks open across multiple `excelcli` calls, so scripts don't re-open files each time
+- ✅ **In-process MCP calls** - The MCP Server runs the service in-process (no pipe) for low-latency automation
+- ✅ **Real Excel automation** - Drives the actual Excel.Application via COM, not just file parsing
+- ✅ **System Tray UI** - The CLI daemon shows a tray icon to monitor and stop active sessions
 
 **💡 Tip: Watch Excel While AI Works**
 By default, Excel runs hidden for faster automation. To see changes in real-time, just ask:
@@ -275,7 +283,6 @@ Other projects by the author:
 - [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering) — LLM-powered testing framework for AI agents — validate that LLMs correctly understand and use your tools
 - [Windows MCP Server](https://windowsmcpserver.dev/) — AI-powered Windows automation via GitHub Copilot, Claude, and other MCP clients — including mouse, keyboard, windows, and screenshots
 - [OBS Studio MCP Server](https://github.com/sbroenne/mcp-server-obs) — AI-powered OBS Studio automation for recording, streaming, and window capture
-- [HeyGen MCP Server](https://github.com/sbroenne/heygen-mcp) — MCP server for HeyGen AI video generation
 - [RVToolsMerge](https://github.com/sbroenne/RvToolsMerge) — Merge and anonymize VMware RVTools exports.
 - [Azure Retail Prices Exporter](https://github.com/sbroenne/azureretailprices-exporter) — Daily automated Azure pricing data exports with FX rates
 - [AWS CUR Anonymize](https://github.com/sbroenne/aws-cur-anonymize) — Anonymize AWS Cost & Usage Reports for secure sharing

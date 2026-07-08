@@ -130,12 +130,12 @@ ExcelMcp.CLI provides **232 operations** across 18 command categories:
 |----------|-----------|----------|
 | **File & Session** | 6 | `session create`, `session open` (IRM/AIP auto-detected), `session close`, `session list` |
 | **Worksheets** | 16 | `sheet list`, `sheet create`, `sheet rename`, `sheet copy`, `sheet move`, `sheet copy-to-file` |
-| **Power Query** | 10 | `powerquery list`, `powerquery create`, `powerquery refresh`, `powerquery update` |
+| **Power Query** | 12 | `powerquery list`, `powerquery create`, `powerquery refresh`, `powerquery update` |
 | **Ranges** | 46 | `range get-values`, `range set-values`, `range copy`, `range find`, `range merge-cells` |
 | **Conditional Formatting** | 2 | `conditionalformat add-rule`, `conditionalformat clear-rules` |
 | **Excel Tables** | 27 | `table create`, `table apply-filter`, `table get-data`, `table sort`, `table add-column` |
-| **Charts** | 14 | `chart create-from-range`, `chart list`, `chart delete`, `chart move`, `chart fit-to-range` |
-| **Chart Config** | 14 | `chartconfig set-title`, `chartconfig add-series`, `chartconfig set-style`, `chartconfig data-labels` |
+| **Charts** | 8 | `chart create-from-range`, `chart list`, `chart delete`, `chart move`, `chart fit-to-range` |
+| **Chart Config** | 21 | `chartconfig set-title`, `chartconfig add-series`, `chartconfig set-style`, `chartconfig data-labels` |
 | **PivotTables** | 30 | `pivottable create-from-range`, `pivottable add-row-field`, `pivottable refresh` |
 | **Slicers** | 8 | `slicer create-slicer`, `slicer list-slicers`, `slicer set-slicer-selection` |
 | **Data Model** | 19 | `datamodel create-measure`, `datamodel create-relationship`, `datamodel evaluate` |
@@ -145,6 +145,7 @@ ExcelMcp.CLI provides **232 operations** across 18 command categories:
 | **Calculation Mode** | 3 | `calculation get-mode`, `calculation set-mode`, `calculation calculate` |
 | **Python in Excel** | 2 | `pythoninexcel set-formula`, `pythoninexcel get-result` |
 | **Screenshot** | 2 | `screenshot capture`, `screenshot capture-sheet` |
+| **Window Management** | 9 | `window show`, `window hide`, `window arrange`, `window get-state` |
 
 **Note:** CLI uses session commands for multi-operation workflows.
 

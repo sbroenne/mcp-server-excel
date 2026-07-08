@@ -11,6 +11,7 @@
     3. MCP-Core implementation audit - ensures every MCP action still has a Core implementation
     4. Success flag validation - ensures Success=true never paired with ErrorMessage (Rule 0)
     5. Release solution build - generates Release binaries and skill outputs used by downstream packaging
+    5b. Documentation count validation - ensures all docs report the code-derived tool/operation counts
     6. CLI workflow smoke test - validates end-to-end CLI functionality
     7. MCP Server smoke test - validates all MCP tools work correctly
     8. CLI release packaging - validates NuGet + standalone ZIP artifacts
@@ -286,6 +287,15 @@ catch {
     Write-Host "Error auto-staging SKILL.md files: $($_.Exception.Message)" -ForegroundColor Yellow
     Write-Host "   Continuing with remaining checks..." -ForegroundColor Gray
 }
+
+Invoke-ValidationStep `
+    -Heading "Validating documentation tool/operation counts..." `
+    -FailureSummary "Documentation count validation failed! A doc advertises a tool/operation count that does not match the code-derived canonical count." `
+    -SuccessSummary "Documentation count validation passed - all docs match the canonical counts" `
+    -Action {
+        $docCountScript = Join-Path $rootDir "scripts\check-doc-counts.ps1"
+        & $docCountScript
+    }
 
 Invoke-ValidationStep `
     -Heading "Running CLI workflow smoke test..." `
