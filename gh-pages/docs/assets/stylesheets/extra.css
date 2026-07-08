@@ -26,33 +26,33 @@
 /* Marketing hero on the landing page */
 .mcp-hero {
   text-align: center;
-  padding: 1.8rem 1rem 1.6rem;
-  margin: -1.2rem 0 1.6rem;
+  padding: 1.1rem 1rem 1rem;
+  margin: -1.2rem 0 1.4rem;
   border-radius: 0.6rem;
   color: #ffffff;
   background: linear-gradient(135deg, var(--mcp-hero-bg-1), var(--mcp-hero-bg-2));
 }
 
 .mcp-hero__icon {
-  width: 72px;
-  height: 72px;
-  margin-bottom: 0.4rem;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 0.25rem;
 }
 
-.mcp-hero__title {
-  margin: 0.1rem 0 0.35rem;
-  font-size: 2.1rem;
+.md-typeset .mcp-hero__title {
+  margin: 0.1rem 0 0.3rem;
+  font-size: 1.9rem;
   font-weight: 700;
   line-height: 1.1;
   color: #ffffff;
 }
 
 .mcp-hero__subtitle {
-  max-width: 42rem;
-  margin: 0 auto 1.1rem;
-  font-size: 1rem;
+  max-width: 40rem;
+  margin: 0 auto 0.85rem;
+  font-size: 0.95rem;
   line-height: 1.45;
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(255, 255, 255, 0.94);
 }
 
 .mcp-hero__actions {
@@ -60,7 +60,7 @@
   flex-wrap: wrap;
   gap: 0.6rem;
   justify-content: center;
-  margin-bottom: 1.1rem;
+  margin-bottom: 0.85rem;
 }
 
 /* Reuse Material buttons but adapt colors for the dark hero */
@@ -109,14 +109,22 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Grid cards: give the leading icon the accent color */
+/* Grid cards: give the leading icon the accent color and tighten spacing */
 .md-typeset .grid.cards .twemoji,
 .md-typeset .grid.cards svg {
   fill: var(--md-accent-fg-color);
 }
 
+.md-typeset .grid.cards > ul > li {
+  padding: 0.8rem 0.9rem;
+}
+
+.md-typeset .grid {
+  gap: 0.6rem;
+}
+
 @media screen and (max-width: 44.9375em) {
-  .mcp-hero__title {
-    font-size: 2rem;
+  .md-typeset .mcp-hero__title {
+    font-size: 1.6rem;
   }
 }
