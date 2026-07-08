@@ -123,7 +123,7 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 - **Skill only**: Install the `excel-cli` skill separately when your agent already has `excelcli` available on PATH
 - **MCP Server**: Download from releases or install VS Code Extension
 
-**⚡ CLI Commands:** Generated automatically from Core service definitions using Roslyn source generators. All 22 command categories maintain exact 1:1 parity with MCP tools through shared code generation. See [code generation docs](docs/DEVELOPMENT.md#-cli-command-code-generation) for details.
+**⚡ CLI Commands:** Generated automatically from Core service definitions using Roslyn source generators. All CLI commands maintain exact 1:1 parity with MCP tools through shared code generation. See [code generation docs](docs/DEVELOPMENT.md#-cli-command-code-generation) for details.
 
 ### 📦 GitHub Copilot Plugins
 

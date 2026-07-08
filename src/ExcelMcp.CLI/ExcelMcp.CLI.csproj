@@ -142,7 +142,10 @@
     <GenerateSkillFile
       TemplatePath="$(SkillTemplatePath)"
       OutputPath="$(SkillOutputPath)"
-      ManifestPath="$(SkillManifestPath)" />
+      ManifestPath="$(SkillManifestPath)"
+      ExcludeCommands="diag"
+      ExtraOperationCount="6"
+      ExtraToolCount="1" />
     <Message Text="Generated CLI Skill: $(SkillOutputPath)" Importance="high" />
   </Target>
 

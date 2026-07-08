@@ -158,7 +158,7 @@
 
 ---
 
-## 📉 Charts (28 operations)
+## 📉 Charts (29 operations)
 
 **Creation:**
 - Create from range
@@ -366,7 +366,7 @@ Formatting split: use `range` for number display formats such as dates, currency
 
 ---
 
-## �️ Slicers (8 operations)
+## 🔪 Slicers (8 operations)
 
 **PivotTable Slicers:**
 - **Create Slicer:** Add slicer for PivotTable field with optional position
@@ -387,7 +387,7 @@ Formatting split: use `range` for number display formats such as dates, currency
 
 ---
 
-## �🎨 Conditional Formatting (2 operations)
+## 🎨 Conditional Formatting (2 operations)
 
 - **Add Rule:** Create conditional formatting rules
   - Cell value comparisons (>, <, =, etc.)

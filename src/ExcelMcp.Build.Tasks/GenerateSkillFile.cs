@@ -12,6 +12,8 @@ public class GenerateSkillFile : Microsoft.Build.Utilities.Task
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
+    private static readonly char[] CommandSeparators = { ';', ',' };
+
     /// <summary>Path to the Scriban template file (.sbn)</summary>
     [Required]
     public string TemplatePath { get; set; } = "";
@@ -22,6 +24,25 @@ public class GenerateSkillFile : Microsoft.Build.Utilities.Task
 
     /// <summary>Path to the generated _SkillManifest.g.cs file containing JSON metadata</summary>
     public string? ManifestPath { get; set; }
+
+    /// <summary>
+    /// Semicolon-separated command names to EXCLUDE from the skill surface and counts
+    /// (e.g. "diag" — a CLI-only self-test that is not part of the user-facing surface).
+    /// </summary>
+    public string? ExcludeCommands { get; set; }
+
+    /// <summary>
+    /// Extra operations to ADD to the operation count for hand-written tools that are
+    /// not Core [ServiceCategory] classes and therefore absent from the manifest
+    /// (e.g. the file/session tool backed by FileAction). Default 0.
+    /// </summary>
+    public int ExtraOperationCount { get; set; }
+
+    /// <summary>
+    /// Extra tools to ADD to the tool count for hand-written tools absent from the
+    /// manifest (e.g. the file/session tool). Default 0.
+    /// </summary>
+    public int ExtraToolCount { get; set; }
 
     /// <summary>Executes the task to generate the skill file from the template.</summary>
     /// <returns>true if the task succeeded; otherwise, false.</returns>
@@ -106,9 +127,29 @@ public class GenerateSkillFile : Microsoft.Build.Utilities.Task
             var manifest = JsonSerializer.Deserialize<SkillManifest>(json!, JsonOptions);
             if (manifest != null)
             {
-                model.ToolCount = manifest.TotalCommands;
-                model.OperationCount = manifest.TotalOperations;
-                model.CliCommands = manifest.Commands?.Select(c => new CliCommand
+                var commands = manifest.Commands ?? new List<ManifestCommand>();
+
+                // Exclude CLI-only / non-user-facing commands (e.g. "diag") from the
+                // surface and counts so the skill reflects the real user-facing tools.
+                var excluded = (ExcludeCommands ?? string.Empty)
+                    .Split(CommandSeparators, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim())
+                    .Where(s => s.Length > 0)
+                    .ToList();
+                bool IsExcluded(string? name) =>
+                    name != null && excluded.Any(e => string.Equals(e, name, StringComparison.OrdinalIgnoreCase));
+
+                var excludedCommands = commands.Where(c => IsExcluded(c.Name)).ToList();
+                var includedCommands = commands.Where(c => !IsExcluded(c.Name)).ToList();
+
+                var excludedOps = excludedCommands.Sum(c => c.Actions?.Length ?? 0);
+
+                // Tool count = manifest total - excluded + hand-written extras (e.g. file tool).
+                model.ToolCount = manifest.TotalCommands - excludedCommands.Count + ExtraToolCount;
+                // Operation count = manifest total - excluded ops + hand-written extras (e.g. file ops).
+                model.OperationCount = manifest.TotalOperations - excludedOps + ExtraOperationCount;
+
+                model.CliCommands = includedCommands.Select(c => new CliCommand
                 {
                     Name = c.Name ?? "",
                     Description = c.Description ?? "",
@@ -120,7 +161,7 @@ public class GenerateSkillFile : Microsoft.Build.Utilities.Task
                     }).ToList() ?? new List<CliParameter>()
                 }).ToList();
 
-                Log.LogMessage(MessageImportance.Normal, $"Loaded manifest: {model.ToolCount} commands, {model.OperationCount} operations");
+                Log.LogMessage(MessageImportance.Normal, $"Loaded manifest: {model.ToolCount} commands, {model.OperationCount} operations (excluded: {excludedCommands.Count} cmds/{excludedOps} ops, extra: {ExtraToolCount} tools/{ExtraOperationCount} ops)");
             }
         }
         catch (JsonException ex)
