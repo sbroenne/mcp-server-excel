@@ -39,5 +39,8 @@
   </p>
 </section>
 
-{{ super() }}
+<!-- Render the page body directly instead of the parent content block, so
+     Material does not inject a duplicate "Home" heading above the markdown
+     content. The hero above already provides the page's single h1. -->
+{{ page.content }}
 {% endblock %}

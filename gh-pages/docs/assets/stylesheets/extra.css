@@ -5,29 +5,43 @@
    --------------------------------------------------------------------------- */
 
 :root {
-  --mcp-hero-bg-1: #0f766e; /* teal 700 */
-  --mcp-hero-bg-2: #115e59; /* teal 800 */
+  /* Excel brand green — matches the product/logo and the pre-MkDocs site */
+  --md-primary-fg-color: #217346;
+  --md-primary-fg-color--light: #2a8c56;
+  --md-primary-fg-color--dark: #185c37;
+  --md-accent-fg-color: #107c41;
+
+  --mcp-hero-bg-1: #217346; /* Excel green */
+  --mcp-hero-bg-2: #33a85c; /* Excel green (lighter) */
+}
+
+/* Dark mode: lift the greens slightly for contrast on the slate background */
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #2a8c56;
+  --md-primary-fg-color--light: #33a85c;
+  --md-primary-fg-color--dark: #217346;
+  --md-accent-fg-color: #33a85c;
 }
 
 /* Marketing hero on the landing page */
 .mcp-hero {
   text-align: center;
-  padding: 3rem 1rem 2.5rem;
-  margin: -1.2rem 0 2rem;
+  padding: 1.8rem 1rem 1.6rem;
+  margin: -1.2rem 0 1.6rem;
   border-radius: 0.6rem;
   color: #ffffff;
   background: linear-gradient(135deg, var(--mcp-hero-bg-1), var(--mcp-hero-bg-2));
 }
 
 .mcp-hero__icon {
-  width: 96px;
-  height: 96px;
-  margin-bottom: 0.5rem;
+  width: 72px;
+  height: 72px;
+  margin-bottom: 0.4rem;
 }
 
 .mcp-hero__title {
-  margin: 0.2rem 0 0.4rem;
-  font-size: 2.6rem;
+  margin: 0.1rem 0 0.35rem;
+  font-size: 2.1rem;
   font-weight: 700;
   line-height: 1.1;
   color: #ffffff;
@@ -35,9 +49,9 @@
 
 .mcp-hero__subtitle {
   max-width: 42rem;
-  margin: 0 auto 1.4rem;
-  font-size: 1.05rem;
-  line-height: 1.5;
+  margin: 0 auto 1.1rem;
+  font-size: 1rem;
+  line-height: 1.45;
   color: rgba(255, 255, 255, 0.92);
 }
 
@@ -46,7 +60,7 @@
   flex-wrap: wrap;
   gap: 0.6rem;
   justify-content: center;
-  margin-bottom: 1.4rem;
+  margin-bottom: 1.1rem;
 }
 
 /* Reuse Material buttons but adapt colors for the dark hero */
