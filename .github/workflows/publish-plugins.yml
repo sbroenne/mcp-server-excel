@@ -90,7 +90,7 @@ jobs:
       trigger_mode: ${{ steps.extract_version.outputs.trigger_mode }}
     steps:
       - name: Checkout source repo with tags
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -160,7 +160,7 @@ jobs:
       reason: ${{ steps.diff.outputs.reason }}
     steps:
       - name: Checkout source repo with tags
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -245,19 +245,19 @@ jobs:
     if: ${{ needs.detect-plugin-surface.outputs.should_publish == 'true' }}
     steps:
       - name: Checkout source repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: source
 
       - name: Checkout published repo (plugin templates)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ env.PUBLISHED_REPO }}
           token: ${{ secrets.PLUGINS_REPO_TOKEN }}
           path: published
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
@@ -304,14 +304,14 @@ jobs:
           }
 
       - name: Upload excel-mcp plugin artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: excel-mcp-plugin
           path: source/plugins/excel-mcp/
           retention-days: 1
 
       - name: Upload excel-cli plugin artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: excel-cli-plugin
           path: source/plugins/excel-cli/
@@ -327,24 +327,24 @@ jobs:
     if: ${{ needs.detect-plugin-surface.outputs.should_publish == 'true' }}
     steps:
       - name: Download excel-mcp plugin
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: excel-mcp-plugin
           path: built-plugins/excel-mcp
 
       - name: Download excel-cli plugin
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: excel-cli-plugin
           path: built-plugins/excel-cli
 
       - name: Checkout source repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: source-repo
 
       - name: Checkout published repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: ${{ env.PUBLISHED_REPO }}
           token: ${{ secrets.PLUGINS_REPO_TOKEN }}
