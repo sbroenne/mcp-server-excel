@@ -1,0 +1,4 @@
+# Python dependencies for building the Excel MCP Server documentation site.
+# Build locally with:  pip install -r requirements.txt && mkdocs build
+mkdocs-material==9.7.6
+mkdocs-minify-plugin==0.8.0

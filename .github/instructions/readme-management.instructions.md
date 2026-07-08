@@ -11,7 +11,7 @@ applyTo: "**/*.md,README.md,**/README.md,**/index.md"
 | `/README.md` | 250-300 | All users | Comprehensive reference |
 | `/src/ExcelMcp.McpServer/README.md` | 80-100 | .NET devs | Concise NuGet gateway |
 | `/vscode-extension/README.md` | 100-120 | VS Code users | User benefits focus |
-| `/gh-pages/index.md` | 450-5000 | All users | Comprehensive reference |
+| `/gh-pages/docs/index.md` | 450-5000 | All users | Comprehensive reference |
 
 ## Features.md
 
@@ -37,14 +37,14 @@ Sync counts across:
   - `/src/ExcelMcp.McpServer/README.md`
   - `/src/ExcelMcp.CLI/README.md`
   - `/vscode-extension/README.md`
-  - `/gh-pages/index.md`
+  - `/gh-pages/docs/index.md`
   - `/FEATURES.md`
 
 ### Operation Lists Must Be Complete
 
 **⚠️ IMPORTANT: Where operation lists are documented, they MUST match the actual code!**
 
-The `gh-pages/index.md` file contains detailed tables of all operations for each tool. When adding/removing operations:
+The `gh-pages/docs/index.md` file contains detailed tables of all operations for each tool. When adding/removing operations:
 
 1. **Verify section header count** matches actual operation count in code
 2. **Verify each operation is listed** in the table - no missing or extra entries
@@ -69,7 +69,7 @@ Before committing README changes:
 - [ ] Operation LISTS in tables match actual code (no missing/extra entries)
 - [ ] All READMEs updated (not just one)
 - [ ] FEATURES.md updated if applicable
-- [ ] gh-pages/index.md section headers match table row counts
+- [ ] gh-pages/docs/index.md section headers match table row counts
 
 ## Common Mistakes
 
@@ -98,63 +98,62 @@ The project uses a **centralized changelog** at `/CHANGELOG.md` covering all com
 
 **CRITICAL: All documentation in gh-pages should use LOCAL pages, NOT external GitHub links.**
 
-### Pattern: Jekyll Includes
+The site is built with **MkDocs Material** (see `gh-pages/mkdocs.yml`). It preserves a
+single-source-of-truth pipeline: canonical repo files (READMEs, FEATURES.md, etc.) are
+transformed at build time and pulled into thin wrapper pages — you never hand-copy content.
 
-gh-pages uses Jekyll includes to pull content from source READMEs:
+### Pattern: MkDocs hook + snippet include
+
+`gh-pages/hooks.py` runs on `on_pre_build` and generates `gh-pages/docs/_generated/*.md`
+from the canonical sources (stripping the H1/badges, demoting headings, and rewriting
+repo-relative links to site/GitHub URLs). Thin wrapper pages then embed the generated
+file via a `pymdownx.snippets` include:
 
 1. **Source file** (e.g., `src/ExcelMcp.McpServer/README.md`)
-2. **build.sh copies** to `_includes/mcp-server.md` (stripping H1, badges)
-3. **Page file** (e.g., `gh-pages/mcp-server.md`) uses Jekyll include
+2. **`hooks.py` generates** `docs/_generated/mcp-server.md` (H1/badges stripped, links rewritten)
+3. **Page file** (e.g., `gh-pages/docs/mcp-server.md`) includes it: `--8<-- "_generated/mcp-server.md"`
 4. **Result**: Local URL `/mcp-server/` instead of GitHub link
 
 ### Current Local Pages
 
 | URL | Source | Page File |
 |-----|--------|-----------|
-| `/features/` | `/FEATURES.md` | `gh-pages/features.md` |
-| `/installation/` | `/docs/INSTALLATION.md` | `gh-pages/installation.md` |
-| `/changelog/` | `/CHANGELOG.md` | `gh-pages/changelog.md` |
-| `/mcp-server/` | `/src/ExcelMcp.McpServer/README.md` | `gh-pages/mcp-server.md` |
-| `/cli/` | `/src/ExcelMcp.CLI/README.md` | `gh-pages/cli.md` |
-| `/skills/` | `/skills/README.md` | `gh-pages/skills.md` |
-| `/contributing/` | `/docs/CONTRIBUTING.md` | `gh-pages/contributing.md` |
+| `/features/` | `/FEATURES.md` | `gh-pages/docs/features.md` |
+| `/installation/` | `/docs/INSTALLATION.md` | `gh-pages/docs/installation.md` |
+| `/changelog/` | `/CHANGELOG.md` | `gh-pages/docs/changelog.md` |
+| `/mcp-server/` | `/src/ExcelMcp.McpServer/README.md` | `gh-pages/docs/mcp-server.md` |
+| `/cli/` | `/src/ExcelMcp.CLI/README.md` | `gh-pages/docs/cli.md` |
+| `/skills/` | `/skills/README.md` | `gh-pages/docs/skills.md` |
+| `/contributing/` | `/docs/CONTRIBUTING.md` | `gh-pages/docs/contributing.md` |
+| `/security/` | `/docs/SECURITY.md` | `gh-pages/docs/security.md` |
+| `/privacy/` | `/PRIVACY.md` | `gh-pages/docs/privacy.md` |
 
 ### Adding New Local Pages
 
-1. **Update `build.sh`** - Add awk command to copy source file to `_includes/`:
-   ```bash
-   awk '
-       BEGIN { inheader=0; headerdone=0 }
-       {
-           if (headerdone==0 && /^# /) { inheader=1; next }
-           if (inheader==1 && /^$/) { inheader=0; headerdone=1; next }
-           if (/^# /) { sub(/^# /, "## "); print; next }
-           print
-       }
-   ' "$ROOT_DIR/path/to/SOURCE.md" > "$SCRIPT_DIR/_includes/target.md"
-   ```
+1. **Update `gh-pages/hooks.py`** — add a `_write("target.md", "path/to/SOURCE.md", ...)`
+   call inside `on_pre_build` (reuse `_strip_header` for demote/strip behavior, or write a
+   verbatim copy for pages that keep their own H1).
 
-2. **Create page file** in `gh-pages/`:
+2. **Create page file** in `gh-pages/docs/` with SEO front matter and a snippet include:
    ```markdown
    ---
-   layout: default
-   title: "Page Title"
-   permalink: /url-path/
+   title: Page Title
+   description: One-sentence SEO description.
+   keywords: relevant, keywords
    ---
 
-   {% capture content %}{% include target.md %}{% endcapture %}
-   {{ content | markdownify }}
+   # Page Title
+
+   --8<-- "_generated/target.md"
    ```
 
-3. **Update `.gitignore`** - Add `_includes/target.md`
+3. **Add it to `nav:`** in `gh-pages/mkdocs.yml` so it appears in site navigation.
 
-4. **Update `_includes/README.md`** - Document new generated file
-
-5. **Update `index.md`** - Use local URL `/url-path/` instead of GitHub link
+4. **Update `index.md`** — use the local URL `/url-path/` instead of a GitHub link.
 
 ### Why Local Pages
 
 - **Consistent UX** - All docs served from same domain
-- **Single source of truth** - Content auto-synced from source files
+- **Single source of truth** - Content auto-synced from source files via `hooks.py`
 - **SEO** - Better for search engine indexing
-- **Offline docs** - Works with Jekyll serve locally
+- **Offline docs** - Works with `mkdocs serve` locally

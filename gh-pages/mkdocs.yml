@@ -1,0 +1,148 @@
+site_name: Excel MCP Server
+site_url: https://excelmcpserver.dev/
+site_description: >-
+  Control Microsoft Excel with natural language through AI assistants like
+  GitHub Copilot and Claude. Automate Power Query, DAX, VBA, PivotTables and more.
+site_author: Stefan Broenner
+copyright: Copyright &copy; 2024&ndash;2025 Stefan Broenner &mdash; MIT License
+
+repo_url: https://github.com/sbroenne/mcp-server-excel
+repo_name: sbroenne/mcp-server-excel
+edit_uri: edit/main/gh-pages/docs/
+
+docs_dir: docs
+site_dir: _site
+use_directory_urls: true
+
+# Raw generated includes live in docs/_generated/ and are pulled into the thin
+# wrapper pages via pymdownx.snippets. They must NOT be built as standalone
+# pages (snippets reads them straight from disk, independent of this exclusion).
+exclude_docs: |
+  _generated/
+
+# Many pulled-in source READMEs contain repo-relative links (e.g. ../../FEATURES.md)
+# that intentionally point at GitHub, not the site. Keep these as warnings, never
+# fatal, so the build stays green.
+validation:
+  omitted_files: warn
+  absolute_links: ignore
+  unrecognized_links: ignore
+  not_found: warn
+  nav:
+    omitted_files: ignore
+
+theme:
+  name: material
+  custom_dir: overrides
+  language: en
+  logo: assets/images/icon.png
+  favicon: favicon.ico
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+
+nav:
+  - Home: index.md
+  - Features: features.md
+  - Installation: installation.md
+  - MCP Server: mcp-server.md
+  - CLI: cli.md
+  - Agent Skills: skills.md
+  - Changelog: changelog.md
+  - More:
+    - Contributing: contributing.md
+    - Security: security.md
+    - Privacy: privacy.md
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      title: On this page
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets:
+      base_path:
+        - docs
+      check_paths: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+plugins:
+  - search
+  - minify:
+      minify_html: true
+
+extra_css:
+  - assets/stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/sbroenne/mcp-server-excel
+      name: GitHub repository
+    - icon: fontawesome/brands/youtube
+      link: https://www.youtube.com/channel/UCq1ojGTy4-aZz8_CmEPp2aw
+      name: YouTube channel
+  generator: false
+
+hooks:
+  - hooks.py
