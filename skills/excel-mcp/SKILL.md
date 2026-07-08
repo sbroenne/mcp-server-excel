@@ -11,7 +11,7 @@ description: >
 
 # Excel MCP Server Skill
 
-Provides 229 Excel operations via Model Context Protocol. The MCP Server forwards all requests to the shared ExcelMCP Service, enabling session sharing with CLI. Tools are auto-discovered - this documents quirks, workflows, and gotchas.
+Provides 229 Excel operations via Model Context Protocol. The MCP Server hosts the ExcelMCP Service in-process and calls it directly for low-latency Excel automation. Tools are auto-discovered - this documents quirks, workflows, and gotchas.
 
 ## Workflow Checklist
 
