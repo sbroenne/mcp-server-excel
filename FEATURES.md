@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**25 specialized tools with 230 operations for comprehensive Excel automation**
+**26 specialized tools with 232 operations for comprehensive Excel automation**
 
 ---
 
@@ -407,6 +407,18 @@ Formatting split: use `range` for number display formats such as dates, currency
 
 ---
 
+---
+
+## 🐍 Python in Excel (2 operations)
+
+**REQUIRES:** a real Excel session signed into a licensed Microsoft 365 account with Python in Excel enabled, plus internet access — the Python code executes in a Microsoft-hosted cloud sandbox, not locally. Not available offline or with perpetual-license Excel.
+
+- **Set Formula:** Writes a `=PY("<code>", returnType)` formula via `Range.Formula2`. `returnType` 0 = "Excel Value" (a plain value/array), 1 = "Python Object" (a rich data type card, e.g. a DataFrame). Must always be passed explicitly — omitting it causes a `#NAME?` error.
+- **Get Result:** Reads back the computed value, polling briefly since cloud execution is not instantaneous. **Best-effort:** Excel exposes no reliable "still computing" signal via COM, so a freshly written formula may read back as unconverged; if the poll doesn't stabilize in time, the call reports failure and asks the caller to retry rather than guessing at a stale value.
+- **Data binding:** reference live worksheet data inside the Python code with `xl("A1:A6")`, `xl("Sheet1!A1:A6")`, or a named range `xl("MyRange")` — works the same as if typed interactively.
+
+---
+
 ## 🪧 Window Management (9 operations)
 
 - **Show:** Makes Excel visible and brings it to the foreground
@@ -452,7 +464,8 @@ Formatting split: use `range` for number display formats such as dates, currency
 | Screenshot | 2 |
 | Calculation Mode | 3 |
 | Window Management | 9 |
-| **Total** | **230** |
+| Python in Excel | 2 |
+| **Total** | **232** |
 
 ---
 

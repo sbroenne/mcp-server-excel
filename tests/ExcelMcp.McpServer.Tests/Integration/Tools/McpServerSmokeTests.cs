@@ -129,7 +129,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
     public async Task SmokeTest_AllTools_E2EWorkflow()
     {
         _output.WriteLine("=== MCP SERVER E2E SMOKE TEST (SDK CLIENT) ===");
-        _output.WriteLine("Testing all 25 tools via MCP protocol with real Excel...\n");
+        _output.WriteLine("Testing all 26 tools via MCP protocol with real Excel...\n");
 
         // =====================================================================
         // STEP 1: CREATE AND OPEN SESSION
