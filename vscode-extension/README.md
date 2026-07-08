@@ -8,40 +8,36 @@
 
 **MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations - no Excel programming knowledge required. 
 
-**⚡ Powered by the real Excel engine** - ExcelMcp drives the actual Excel application through its official COM API, so it does what file-parser tools can't: run live operations (refresh Power Query, recalculate, refresh PivotTables and the Data Model, evaluate DAX, run VBA and Python `=PY()`) and edit your existing workbooks with every formula, PivotTable, chart, macro and format left intact.
+**⚡ Powered by the real Excel engine** - ExcelMcp automates the **actual Excel application** through its official COM API — the same engine Excel itself uses. That unlocks what spreadsheets are really for:
+
+- **Runs live Excel operations** - Refresh Power Query to pull and reshape fresh data, recalculate with Excel's own engine, refresh PivotTables and the Data Model, evaluate DAX, and run VBA or Python `=PY()` — the real, *computed results* land right in your workbook.
+- **Edits your existing files safely** - Excel opens and saves the workbook itself, so every formula, PivotTable, chart, macro, the Data Model and all your formatting stay exactly as they were.
+
+Other tools (openpyxl-based MCP servers and Agent Skills, including Anthropic's `xlsx` skill) read and rewrite the `.xlsx` file directly — which can quietly drop PivotTables, charts, and macros, and can't run Power Query, the Data Model, or DAX at all. Here, Excel does the work. Watch it live: just say *"Show me Excel while you work."*
 
 **💡 Interactive Development** - See results instantly in Excel. Create a query, run it, inspect the output, refine and repeat. Excel becomes your AI-powered workspace for rapid development and testing.
 
-**🧪 LLM-Tested Quality** - Tool behavior validated with real LLM workflows using [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering). We test that LLMs correctly understand and use our tools.
-
-## Features
+## Key features
 
 The Excel MCP Server (excel-mcp) provides **26 specialized tools with 232 operations** for comprehensive Excel automation:
 
-- 🔄 **Power Query** (1 tool, 12 ops) - Atomic workflows, M code management, load destinations
-- 📊 **Data Model/DAX** (2 tools, 19 ops) - Measures, relationships, model structure
-- 🎨 **Excel Tables** (2 tools, 27 ops) - Lifecycle, filtering, sorting, structured references
-- 📈 **PivotTables** (3 tools, 30 ops) - Creation, fields, aggregations, calculated members/fields
-- 📉 **Charts** (2 tools, 29 ops) - Create, configure, series, formatting, data labels, trendlines
-- 📝 **VBA** (1 tool, 6 ops) - Modules, execution, version control
-- 📋 **Ranges** (4 tools, 46 ops) - Values, formulas, formatting, validation, protection
-- 📄 **Worksheets** (2 tools, 16 ops) - Lifecycle, colors, visibility, cross-workbook moves
-- 🔌 **Connections** (1 tool, 9 ops) - OLEDB/ODBC management and refresh
-- 🏷️ **Named Ranges** (1 tool, 6 ops) - Parameters and configuration
-- 📁 **Files** (1 tool, 6 ops) - Session management, workbook creation, IRM/AIP-protected file support
-- 🎚️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
-- 🧮 **Calculation Mode** (1 tool, 3 ops) - Get/set calculation mode and trigger recalculation
-- 🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
-- 📸 **Screenshot** (1 tool, 2 ops) - Capture ranges/sheets as PNG for visual verification
-- 🪧 **Window Management** (1 tool, 9 ops) - Show/hide Excel, arrange, position, status bar feedback
+- 🔄 **Power Query & M code** - Create, edit and optimize M code. Import from files, databases and APIs. Refresh queries and manage load destinations.
+- 🧮 **Power Pivot & DAX** - Build Data Models, create DAX measures and manage table relationships. Full Power Pivot automation.
+- 📊 **PivotTables & charts** - Create PivotTables from ranges, tables or the Data Model. Build charts and PivotCharts with full formatting control.
+- 📋 **Tables & ranges** - Read/write data, formulas and formatting. Filter, sort and validate. Manage Excel Tables with structured references.
+- 📝 **VBA macros** - View, import, update and execute VBA code. Export modules for version control.
+- 📄 **Worksheets & connections** - Manage sheets, named ranges and data connections. Copy and move sheets between workbooks.
+- 👁️ **Agent mode** - Watch AI work in Excel in real time — side-by-side view, live status-bar feedback and smart window arrangement, like a pair programmer in a spreadsheet.
+- 🐍 **Python in Excel** - Write and run `=PY()` formulas that execute in Excel's cloud Python engine — process worksheet data with pandas, NumPy and more, from your AI assistant.
+- 🧪 **LLM-tested quality** - Tool behavior validated with real LLM workflows using [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering), so AI assistants reliably understand and use every operation.
 
-📚 **[Complete Feature Reference →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)**
+📚 **[See all 26 tools and 232 operations →](https://excelmcpserver.dev/features/)**
 
 ### Agent Skills (Bundled)
 
 This extension includes an **Agent Skill** following the [agentskills.io](https://agentskills.io) specification - providing domain-specific guidance for AI assistants:
 
-- **[excel-mcp](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-mcp/SKILL.md)** - MCP Server tool guidance
+- **[excel-mcp](https://excelmcpserver.dev/skills/)** - MCP Server tool guidance
 
 **VS Code setup:** Enable the preview setting `chat.useAgentSkills` to allow Copilot to load skills. Skills are registered via VS Code's `chatSkills` contribution point and managed automatically.
 
@@ -74,7 +70,7 @@ This extension includes an **Agent Skill** following the [agentskills.io](https:
 
 **That's it!** The extension includes a self-contained MCP server - no .NET runtime or SDK needed.
 
-➡️ **[Learn more and see examples](https://sbroenne.github.io/mcp-server-excel/)**
+➡️ **[Learn more and see examples](https://excelmcpserver.dev/)**
 
 ## Requirements
 
@@ -101,7 +97,7 @@ This extension includes an **Agent Skill** following the [agentskills.io](https:
 
 ## Documentation & Support
 
-- **[Complete Documentation](https://github.com/sbroenne/mcp-server-excel)** - Full guides and examples
+- **[Complete Documentation](https://excelmcpserver.dev/)** - Full guides and examples
 - **[Report Issues](https://github.com/sbroenne/mcp-server-excel/issues)** - Bug reports and feature requests
 
 ## License & Privacy

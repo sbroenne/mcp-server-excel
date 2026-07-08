@@ -84,7 +84,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 - **Window Management** (9 ops) — Show/hide Excel, positioning
 - **Diagnostics** (3 ops) — Health checks and troubleshooting
 
-**Complete documentation:** [Full Feature Reference](https://sbroenne.github.io/mcp-server-excel/features/)
+**Complete documentation:** [Full Feature Reference](https://excelmcpserver.dev/features/)
 
 ---
 
@@ -138,6 +138,6 @@ excelcli -q session close --session <id> --save
 
 ## Support
 
-- **Documentation:** [sbroenne.github.io/mcp-server-excel](https://sbroenne.github.io/mcp-server-excel/)
+- **Documentation:** [excelmcpserver.dev](https://excelmcpserver.dev/)
 - **Issues:** [github.com/sbroenne/mcp-server-excel/issues](https://github.com/sbroenne/mcp-server-excel/issues)
 - **License:** MIT

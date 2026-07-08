@@ -10,7 +10,7 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 **Control Excel with Natural Language** through AI assistants like GitHub Copilot, Claude, and ChatGPT. This MCP server enables AI-powered Excel automation for Power Query, DAX measures, VBA macros, PivotTables, Charts, and more.
 
-➡️ **[Learn more and see examples](https://sbroenne.github.io/mcp-server-excel/)** 
+➡️ **[Learn more and see examples](https://excelmcpserver.dev/)** 
 
 **⚡ Powered by the Real Excel Engine**
 

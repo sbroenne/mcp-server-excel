@@ -19,7 +19,7 @@ The CLI provides 18 command categories with 232 operations matching the MCP Serv
 
 Also perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
 
-➡️ **[Learn more and see examples](https://sbroenne.github.io/mcp-server-excel/)**
+➡️ **[Learn more and see examples](https://excelmcpserver.dev/)**
 
 ---
 

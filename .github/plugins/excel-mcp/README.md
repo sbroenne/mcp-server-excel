@@ -81,7 +81,7 @@ pwsh -ExecutionPolicy Bypass -File `
 - **Session Management** (6 ops) — Create, open, close, list sessions
 - **IRM/AIP Support** — Auto-detects protected files, opens with Excel visible for authentication
 
-**Complete documentation:** [Full Feature Reference](https://sbroenne.github.io/mcp-server-excel/features/)
+**Complete documentation:** [Full Feature Reference](https://excelmcpserver.dev/features/)
 
 ---
 
@@ -160,7 +160,7 @@ ExcelMcp drives the **actual Excel application** through its official COM API �
 
 ## Resources
 
-- **Documentation:** [sbroenne.github.io/mcp-server-excel](https://sbroenne.github.io/mcp-server-excel/)
+- **Documentation:** [excelmcpserver.dev](https://excelmcpserver.dev/)
 - **Installation Guide:** [docs/INSTALLATION.md](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md)
 - **GitHub Repository:** [github.com/sbroenne/mcp-server-excel](https://github.com/sbroenne/mcp-server-excel)
 - **Issues:** [github.com/sbroenne/mcp-server-excel/issues](https://github.com/sbroenne/mcp-server-excel/issues)

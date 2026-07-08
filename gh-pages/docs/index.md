@@ -24,9 +24,10 @@ hide:
       itself, so every formula, PivotTable, chart, macro, the Data Model and all
       your formatting stay exactly as they were.
 
-    Unlike file-parser tools that rewrite the raw `.xlsx` (openpyxl-based MCP
-    servers and Agent Skills, including Anthropic's `xlsx` skill), you're driving
-    Excel itself — nothing is re-serialized or approximated. Watch it live: just
+    Other tools (openpyxl-based MCP servers and Agent Skills, including
+    Anthropic's `xlsx` skill) read and rewrite the `.xlsx` file directly — which
+    can quietly drop PivotTables, charts, and macros, and can't run Power Query,
+    the Data Model, or DAX at all. Here, Excel does the work. Watch it live: just
     say *"Show me Excel while you work."*
 
 <div class="mcp-video" markdown>
