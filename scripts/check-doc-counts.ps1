@@ -166,9 +166,7 @@ $checks = @(
     @{ File = "src\ExcelMcp.CLI\README.md";             Pattern = '\*\*(?<o>\d+) operations\*\* across' }
     @{ File = "vscode-extension\README.md";             Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
     @{ File = "mcpb\README.md";                         Pattern = '(?<t>\d+) tools with (?<o>\d+) operations' }
-    @{ File = "gh-pages\index.md";                      Pattern = '(?<t>\d+) tools and (?<o>\d+) operations' }
-    @{ File = "gh-pages\features.md";                   Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
-    @{ File = "gh-pages\404.md";                        Pattern = '(?<t>\d+) tools and (?<o>\d+) operations' }
+    @{ File = "gh-pages\docs\index.md";                 Pattern = '(?<t>\d+) tools and (?<o>\d+) operations' }
     @{ File = ".github\plugins\excel-mcp\README.md";    Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
     @{ File = ".github\plugins\excel-cli\README.md";    Pattern = 'command categories with (?<o>\d+) operations' }
     @{ File = "skills\excel-mcp\SKILL.md";              Pattern = 'Provides (?<o>\d+) Excel operations' }

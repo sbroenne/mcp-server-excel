@@ -1,0 +1,108 @@
+/* ---------------------------------------------------------------------------
+   Excel MCP Server — custom styling on top of the Material theme.
+   Only the marketing homepage hero needs bespoke rules; everything else uses
+   Material's built-in components (grid cards, admonitions, tables, nav).
+   --------------------------------------------------------------------------- */
+
+:root {
+  --mcp-hero-bg-1: #0f766e; /* teal 700 */
+  --mcp-hero-bg-2: #115e59; /* teal 800 */
+}
+
+/* Marketing hero on the landing page */
+.mcp-hero {
+  text-align: center;
+  padding: 3rem 1rem 2.5rem;
+  margin: -1.2rem 0 2rem;
+  border-radius: 0.6rem;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--mcp-hero-bg-1), var(--mcp-hero-bg-2));
+}
+
+.mcp-hero__icon {
+  width: 96px;
+  height: 96px;
+  margin-bottom: 0.5rem;
+}
+
+.mcp-hero__title {
+  margin: 0.2rem 0 0.4rem;
+  font-size: 2.6rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #ffffff;
+}
+
+.mcp-hero__subtitle {
+  max-width: 42rem;
+  margin: 0 auto 1.4rem;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.mcp-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  margin-bottom: 1.4rem;
+}
+
+/* Reuse Material buttons but adapt colors for the dark hero */
+.mcp-hero__actions .md-button {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.mcp-hero__actions .md-button:hover {
+  background-color: #ffffff;
+  color: var(--mcp-hero-bg-2);
+  border-color: #ffffff;
+}
+
+.mcp-hero__actions .md-button--primary {
+  background-color: #ffffff;
+  color: var(--mcp-hero-bg-2);
+  border-color: #ffffff;
+}
+
+.mcp-hero__actions .md-button--primary:hover {
+  background-color: rgba(255, 255, 255, 0.85);
+  color: var(--mcp-hero-bg-2);
+}
+
+.mcp-hero__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+  margin: 0;
+}
+
+.mcp-hero__badges img {
+  height: 20px;
+}
+
+/* Centered intro video block */
+.mcp-video {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.mcp-video img {
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Grid cards: give the leading icon the accent color */
+.md-typeset .grid.cards .twemoji,
+.md-typeset .grid.cards svg {
+  fill: var(--md-accent-fg-color);
+}
+
+@media screen and (max-width: 44.9375em) {
+  .mcp-hero__title {
+    font-size: 2rem;
+  }
+}
