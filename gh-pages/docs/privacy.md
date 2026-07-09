@@ -3,4 +3,4 @@ description: Privacy policy for Excel MCP Server — how we handle your data, te
 keywords: "Excel MCP privacy, data protection, telemetry"
 ---
 
-{% include-markdown "../../PRIVACY.md" %}
+--8<-- "_generated/privacy.md"

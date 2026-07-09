@@ -6,9 +6,4 @@ keywords: "excelcli install, Excel CLI, Excel automation scripting, Excel RPA, E
 
 # Installing the CLI
 
-{%
-  include-markdown "../../docs/INSTALLATION-CLI.md"
-  start="<!--start-->"
-  end="<!--end-->"
-  heading-offset=1
-%}
+--8<-- "_generated/installation-cli.md"

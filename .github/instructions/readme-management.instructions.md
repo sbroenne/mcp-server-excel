@@ -75,11 +75,11 @@ Before committing README changes:
 
 ## CHANGELOG.md
 
-The project uses a **centralized changelog** at `/CHANGELOG.md` covering all components.
+The project uses a **centralized changelog** at `/CHANGELOG.md` covering all components. It is generated from [changesets](../../.changeset/README.md), not hand-edited — see `docs/RELEASE-STRATEGY.md#changelog-generation` and Rule 27.
 
 **When to update:**
-- Before creating a `v*` tag, ensure the version section exists in CHANGELOG.md
-- The release workflow extracts the specific version's changes for release notes
+- Add a changeset (`npx changeset`) with your PR, not by editing CHANGELOG.md directly
+- The release workflow (`scripts/Build-Changelog.ps1`) compiles pending changesets into a new version section and uses it verbatim for release notes
 - Uses standard Keep a Changelog format: `## [version] - YYYY-MM-DD`
 
 | Mistake | Fix |
@@ -91,7 +91,8 @@ The project uses a **centralized changelog** at `/CHANGELOG.md` covering all com
 | Overclaiming features | Use actual counts, not estimates |
 | Missing safety callout | Add COM API benefits |
 | Manual version updates | Let workflow handle it |
-| Missing CHANGELOG entry | Add before creating release tag |
+| Missing changeset | Add via `npx changeset` before merging (CI enforces this) |
+| Hand-editing CHANGELOG.md directly | Add a changeset fragment instead — it's compiled automatically |
 | External GitHub links in gh-pages | Use local pages (see gh-pages pattern below) |
 
 ## gh-pages Local Documentation Pattern

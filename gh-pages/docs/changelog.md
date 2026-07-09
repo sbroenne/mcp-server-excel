@@ -6,8 +6,4 @@ keywords: "Excel MCP changelog, release notes, version history, updates"
 
 # Changelog
 
-{%
-  include-markdown "../../CHANGELOG.md"
-  start="<!--start-->"
-  heading-offset=1
-%}
+--8<-- "_generated/changelog.md"

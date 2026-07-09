@@ -8,7 +8,6 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 [![NuGet](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.McpServer.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue.svg)](https://github.com/sbroenne/mcp-server-excel)
 
-<!--start-->
 **Control Excel with Natural Language** through AI assistants like GitHub Copilot, Claude, and ChatGPT. This MCP server enables AI-powered Excel automation for Power Query, DAX measures, VBA macros, PivotTables, Charts, and more.
 
 ➡️ **[Learn more and see examples](https://excelmcpserver.dev/)** 
@@ -94,8 +93,6 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 **"Put this data in A1: Name, Age / Alice, 30 / Bob, 25"**  
 → AI writes data directly to cells using natural delimiters you provide
-
-<!--end-->
 
 ---
 

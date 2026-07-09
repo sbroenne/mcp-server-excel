@@ -6,9 +6,4 @@ keywords: "Excel MCP install, VS Code extension, Claude Desktop MCP, MCP server 
 
 # Installing the MCP Server
 
-{%
-  include-markdown "../../docs/INSTALLATION-MCP-SERVER.md"
-  start="<!--start-->"
-  end="<!--end-->"
-  heading-offset=1
-%}
+--8<-- "_generated/installation-mcp-server.md"

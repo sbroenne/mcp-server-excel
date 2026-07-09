@@ -4,7 +4,6 @@
 
 ---
 
-<!--start-->
 ## 📁 File Operations (6 operations)
 
 - **List Sessions:** View all active Excel sessions
@@ -446,8 +445,6 @@ Formatting split: use `range` for number display formats such as dates, currency
 | Manage formulas | `range` (set-formulas) |
 | Format data | `range` / `range_format` (`format-range`, `format-ranges`, `validate-range`) |
 | Script automation | `vba` (run macro) |
-
-<!--end-->
 
 ---
 

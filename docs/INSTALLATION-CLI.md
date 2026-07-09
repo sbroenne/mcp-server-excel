@@ -1,6 +1,5 @@
 # Installing the CLI - ExcelMcp
 
-<!--start-->
 Installation instructions for the ExcelMcp **CLI** (`excelcli`) — the entry point for scripting, RPA, CI/CD pipelines, and coding agents that prefer a token-efficient single-tool interface. Looking for the MCP Server instead? See the [MCP Server Installation Guide](https://excelmcpserver.dev/installation-mcp-server/).
 
 ## System Requirements
@@ -213,8 +212,6 @@ Remove-Item "C:\Tools\ExcelMcp\excelcli.exe" -Force
 # NuGet (if installed via dotnet tool):
 dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 ```
-
-<!--end-->
 
 ---
 

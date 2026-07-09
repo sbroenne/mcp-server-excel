@@ -115,7 +115,7 @@ Discovered while debugging a Power Query that referenced a column with a hyphen
 | 7. PRs | Always use PRs, never direct commit | Always |
 | 24. Post-change sync | Verify ALL sync points (CLI, SKILLs, READMEs, counts) | 5-10 min |
 | 26. No confidential info | No customer/project names in commits/PRs/issues | Always |
-| 27. CHANGELOG | Update CHANGELOG.md before merging PRs | 2-5 min |
+| 27. Changeset | Add a changeset before merging PRs (see .changeset/README.md) | 2-5 min |
 | 28. COM API naming | Match COM param names when clear in flat schema | Always |
 
 **During PR Process:**
@@ -916,53 +916,49 @@ Select-String -Path "**/*.md" -Pattern '```bash' -Recurse
 
 ---
 
-## Rule 27: Update CHANGELOG Before Merging PRs (CRITICAL)
+## Rule 27: Add a Changeset Before Merging PRs (CRITICAL)
 
-**ALWAYS update CHANGELOG.md before merging any PR that adds features, fixes bugs, or makes breaking changes.**
+**ALWAYS add a changeset fragment before merging any PR that adds features, fixes bugs, or makes breaking changes. `CHANGELOG.md` is generated from these fragments — it is NOT hand-edited.**
 
-**Why Critical:** 
-- Users and LLMs rely on CHANGELOG to understand what changed
-- Release workflow extracts version notes from CHANGELOG
+**Why Critical:**
+- Users and LLMs rely on CHANGELOG.md (end-user facing) to understand what changed
+- The release workflow compiles pending changesets into the new version's CHANGELOG.md section and GitHub Release notes via `scripts/Build-Changelog.ps1`
 - Missing entries make releases incomplete and confusing
-- Git history is not a substitute for curated change documentation
+- Git history is not a substitute for curated, end-user-facing change documentation
+- Hand-editing a shared `## [Unreleased]` section caused real incidents: it went stale for months because the auto-rename PR silently failed to merge, leaving multiple already-released versions (v1.8.64–v1.9.0) mislabeled as "Unreleased" — changesets fixes this structurally by giving each PR its own fragment file instead of one contested shared section
 
-**What Requires CHANGELOG Entry:**
+**What Requires a Changeset:**
 - ✅ Bug fixes (with issue number)
 - ✅ New features or actions
 - ✅ Breaking changes
 - ✅ Significant behavior changes
-- ✅ New pre-commit checks or tooling
-- ❌ Internal refactoring (no user-visible change)
-- ❌ Documentation-only changes (unless significant)
-- ❌ Test-only changes
-
-**Format (Keep a Changelog):**
-```markdown
-## [Unreleased]
-
-### Added
-- **Feature Name** (#issue): Brief description
-
-### Fixed
-- **Bug Title** (#issue): Brief description
-  - ROOT CAUSE: What caused it
-  - FIX: How it was fixed
-
-### Changed
-- **Change Title**: Brief description
-```
+- ✅ New pre-commit checks or tooling that affects contributors
+- ❌ Internal refactoring (no user-visible change) — label PR `skip-changelog`
+- ❌ Documentation-only changes (unless significant) — label PR `skip-changelog`
+- ❌ Test-only / CI-only / dependency-bump changes — label PR `skip-changelog`
 
 **Process:**
-1. Before merging PR, check if changes need CHANGELOG entry
-2. Add entry under `## [Unreleased]` section
-3. Use appropriate category: Added, Fixed, Changed, Removed, Security
-4. Include issue/PR number for traceability
-5. Commit CHANGELOG update with the PR or as final commit before merge
+```powershell
+npx changeset
+# → pick a bump type (major/minor/patch — metadata only, doesn't set the real release version)
+# → write a short, end-user-facing summary (not implementation detail)
+# → commit the generated .changeset/<name>.md file with the PR
+```
+
+**Format (written by end users, for end users):**
+```md
+✅ Good:
+**Faster range reads** (#123): `range get-values` now batches COM calls,
+cutting read time for large ranges by roughly half.
+
+❌ Too technical:
+Refactored ComUtilities.ForEach to reduce Marshal.ReleaseComObject calls...
+```
 
 **Enforcement:**
-- Review CHANGELOG.md before every PR merge
-- Agent must ask: "Does this change need a CHANGELOG entry?"
-- Merging without CHANGELOG update for user-visible changes = bug
+- `.github/workflows/changeset-check.yml` fails the PR if no `.changeset/*.md` fragment was added and the PR lacks the `skip-changelog` label
+- Agent must ask: "Does this change need a changeset?" before opening/merging a PR
+- See `.changeset/README.md` and `docs/RELEASE-STRATEGY.md#changelog-generation` for the full workflow
 
 ---
 

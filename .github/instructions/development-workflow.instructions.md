@@ -23,7 +23,7 @@ All PRs are merged using **squash merge** (single commit to `main`). This keeps 
 
 1. **Create feature branch**: `git checkout -b feature/name`
 2. **Standards**: Zero warnings, tests pass, docs updated, security rules followed
-3. **PR Checklist**: Build passes, tests pass, docs updated, patterns followed
+4. **PR Checklist**: Build passes, tests pass, docs updated, patterns followed, changeset added (see Rule 27)
 4. **Check PR review comments**: After creating PR, retrieve automated review feedback and fix all issues
 5. **Versions**: Automated via release workflow - don't update manually
 
@@ -103,7 +103,7 @@ Quick reference:
 - MCPB → Claude Desktop bundle
 
 **Before Releasing:**
-1. Ensure all changes are documented under `## [Unreleased]` in `CHANGELOG.md`
+1. Nothing manual — changesets accumulate in `.changeset/` from individual PRs (see Rule 27); the release workflow compiles them into `CHANGELOG.md` automatically
 2. Go to Actions → Release All Components → Run workflow
 3. Select version bump type (patch/minor/major) or enter a custom version
 

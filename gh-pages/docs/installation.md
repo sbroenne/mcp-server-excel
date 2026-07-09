@@ -1,14 +1,9 @@
 ---
-title: Installation Overview
-description: Choose your installation path for Excel MCP Server (MCP Server for AI assistants) or excelcli (CLI for scripting, RPA, and CI/CD).
-keywords: "Excel MCP install, excelcli install, MCP server setup, Excel automation setup"
+title: Installation Guide
+description: Complete installation instructions for Excel MCP Server — VS Code extension, MCP Server, Claude Desktop, other MCP clients and the CLI tool.
+keywords: "Excel MCP install, VS Code extension, Claude Desktop MCP, MCP server setup, excelcli install"
 ---
 
-# Installation Overview
+# Installation Guide
 
-{%
-  include-markdown "../../docs/INSTALLATION.md"
-  start="<!--start-->"
-  end="<!--end-->"
-  heading-offset=1
-%}
+--8<-- "_generated/installation.md"

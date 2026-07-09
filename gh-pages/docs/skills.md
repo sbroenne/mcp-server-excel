@@ -6,8 +6,4 @@ keywords: "Excel agent skills, AI skills, Copilot skills, MCP skills, pytest-ski
 
 # Agent Skills
 
-{%
-  include-markdown "../../skills/README.md"
-  start="<!--start-->"
-  heading-offset=1
-%}
+--8<-- "_generated/skills.md"

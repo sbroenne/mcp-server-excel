@@ -3,4 +3,4 @@ description: How to contribute to Excel MCP Server development — guidelines fo
 keywords: "contribute Excel MCP, pull requests, development guidelines, open source"
 ---
 
-{% include-markdown "../../docs/CONTRIBUTING.md" %}
+--8<-- "_generated/contributing.md"

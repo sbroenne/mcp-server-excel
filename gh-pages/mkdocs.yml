@@ -14,9 +14,15 @@ docs_dir: docs
 site_dir: _site
 use_directory_urls: true
 
-# Wrapper pages under docs/ pull content directly from canonical repo sources
-# (README files, FEATURES.md, CHANGELOG.md, etc.) via the include-markdown
-# plugin below — no build-time generation step is needed.
+# Raw generated includes live in docs/_generated/ and are pulled into the thin
+# wrapper pages via pymdownx.snippets. They must NOT be built as standalone
+# pages (snippets reads them straight from disk, independent of this exclusion).
+exclude_docs: |
+  _generated/
+
+# Many pulled-in source READMEs contain repo-relative links (e.g. ../../FEATURES.md)
+# that intentionally point at GitHub, not the site. Keep these as warnings, never
+# fatal, so the build stays green.
 validation:
   omitted_files: warn
   absolute_links: ignore
@@ -114,6 +120,10 @@ markdown_extensions:
   - pymdownx.keys
   - pymdownx.mark
   - pymdownx.smartsymbols
+  - pymdownx.snippets:
+      base_path:
+        - docs
+      check_paths: true
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
@@ -129,9 +139,6 @@ plugins:
   - search
   - minify:
       minify_html: true
-  - include-markdown:
-      rewrite_relative_urls: false
-      heading_offset: 0
 
 extra_css:
   - assets/stylesheets/extra.css
@@ -145,3 +152,6 @@ extra:
       link: https://www.youtube.com/channel/UCq1ojGTy4-aZz8_CmEPp2aw
       name: YouTube channel
   generator: false
+
+hooks:
+  - hooks.py

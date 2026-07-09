@@ -12,6 +12,10 @@ Brief description of what this PR does.
 Closes #[issue number]
 Relates to #[issue number]
 
+## Changeset
+- [ ] Added a changeset (`npx changeset`) describing this change for end users — see `.changeset/README.md`
+- [ ] Not applicable (docs/tests/CI/dependency-only) — added `skip-changelog` label instead
+
 ## Changes Made
 - Change 1
 - Change 2

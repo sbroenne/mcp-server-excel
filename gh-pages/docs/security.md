@@ -3,4 +3,4 @@ description: Security policy for Excel MCP Server — how to report vulnerabilit
 keywords: "Excel MCP security, vulnerability reporting, security policy"
 ---
 
-{% include-markdown "../../SECURITY.md" %}
+--8<-- "_generated/security.md"

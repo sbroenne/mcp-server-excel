@@ -1,6 +1,5 @@
 # Installing the MCP Server - ExcelMcp
 
-<!--start-->
 Installation instructions for the ExcelMcp **MCP Server** — the entry point for AI assistants like GitHub Copilot, Claude Desktop, Cursor, and any other MCP client. Looking for the CLI instead? See the [CLI Installation Guide](https://excelmcpserver.dev/installation-cli/).
 
 ## System Requirements
@@ -383,8 +382,6 @@ Remove-Item "C:\Tools\ExcelMcp\mcp-excel.exe" -Force
 # NuGet (if installed via dotnet tool):
 dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
 ```
-
-<!--end-->
 
 ---
 

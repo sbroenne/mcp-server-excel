@@ -1,6 +1,5 @@
 # Excel MCP Server - Agent Skills
 
-<!--start-->
 Two skill packages for different integration models:
 
 | Skill | Component | Distribution | Best For |

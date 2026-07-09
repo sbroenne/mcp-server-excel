@@ -1,6 +1,5 @@
 # Installation Guide - ExcelMcp
 
-<!--start-->
 ExcelMcp ships two **equal entry points** — the **MCP Server** for AI assistants and the **CLI** for scripting, RPA, and CI/CD. Pick the guide that matches how you'll use it (or read both, they're independent):
 
 | Guide | Best For |
@@ -54,8 +53,6 @@ npx skills add sbroenne/mcp-server-excel --skill excel-cli --global
    - Cursor: `.cursor/skills/excel-cli/` or `.cursor/skills/excel-mcp/`
 
 **See:** [Agent Skills Documentation](https://excelmcpserver.dev/skills/)
-
-<!--end-->
 
 ---
 
