@@ -152,3 +152,8 @@ workflow:
 | **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery and a persistent connection. Better for interactive, exploratory workflows. |
 
 [MCP Server docs](mcp-server.md){ .md-button } [CLI docs](cli.md){ .md-button }
+
+!!! tip "Also building PowerPoint decks?"
+    Check out [PowerPoint MCP Server](https://powerpointmcpserver.dev/) — the
+    sister project to Excel MCP Server, bringing the same real-application
+    automation approach to PowerPoint.

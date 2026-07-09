@@ -248,6 +248,7 @@ The AI will display the Excel window so you can watch every operation happen liv
 
 Other projects by the author:
 
+- [PowerPoint MCP Server](https://powerpointmcpserver.dev/) — AI-powered PowerPoint automation via MCP, the sister project to this one
 - [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering) — LLM-powered testing framework for AI agents
 - [Windows MCP Server](https://windowsmcpserver.dev/) — AI-powered Windows automation via MCP
 - [OBS Studio MCP Server](https://github.com/sbroenne/mcp-server-obs) — AI-powered OBS Studio automation

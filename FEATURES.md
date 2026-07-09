@@ -445,14 +445,3 @@ Formatting split: use `range` for number display formats such as dates, currency
 | Manage formulas | `range` (set-formulas) |
 | Format data | `range` / `range_format` (`format-range`, `format-ranges`, `validate-range`) |
 | Script automation | `vba` (run macro) |
-
----
-
-## 📚 Documentation
-
-- **[Installation Guide](https://excelmcpserver.dev/installation/)** - Choose MCP Server or CLI setup
-- **[MCP Server Guide](https://excelmcpserver.dev/mcp-server/)** - Tool documentation and examples
-- **[CLI Guide](https://excelmcpserver.dev/cli/)** - Command-line reference
-- **[Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-mcp/SKILL.md)** - Cross-platform AI assistant guidance (agentskills.io)
-- **[Contributing](https://excelmcpserver.dev/contributing/)** - Development guidelines
-- **[Releases](https://github.com/sbroenne/mcp-server-excel/releases)** - Latest updates and features
