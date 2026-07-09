@@ -798,6 +798,9 @@ jobs:
           --title "chore: update CHANGELOG.md for v${VERSION} release" \
           --body "Automated post-release changelog update: compiles pending .changeset/*.md fragments into a new \`## [$VERSION]\` entry in CHANGELOG.md via \`scripts/Build-Changelog.ps1\`." \
           --label "documentation"
-      continue-on-error: true
+      # Intentionally NOT continue-on-error: a silently swallowed failure here
+      # (e.g. Actions lacking permission to create PRs) is exactly what caused
+      # several past releases to be missing their changelog commit-back PR.
+      # Let this step fail loudly so it gets noticed and fixed immediately.
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
