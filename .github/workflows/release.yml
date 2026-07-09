@@ -729,78 +729,33 @@ jobs:
         echo "Downloaded artifacts:"
         find artifacts -type f -name "*" | head -20
 
-    - name: Extract Changelog from [Unreleased]
-      id: changelog
-      run: |
-        CHANGELOG_FILE="CHANGELOG.md"
+    - name: Setup Node.js
+      uses: actions/setup-node@v5
+      with:
+        node-version: ${{ env.NODE_VERSION }}
 
-        if [ -f "$CHANGELOG_FILE" ]; then
-          # Extract content between ## [Unreleased] and the next ## [ section
-          CONTENT=$(awk '/^## \[Unreleased\]/,/^## \[/' "$CHANGELOG_FILE" | head -n -1 | tail -n +2)
-          if [ -n "$CONTENT" ]; then
-            echo "Found changelog under [Unreleased]"
-            echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-            echo "$CONTENT" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          else
-            echo "No content under [Unreleased]"
-            echo "CHANGELOG=See repository for details." >> $GITHUB_OUTPUT
-          fi
-        else
-          echo "CHANGELOG=See repository for details." >> $GITHUB_OUTPUT
-        fi
+    - name: Install changesets CLI
+      run: npm install --no-save --registry https://registry.npmjs.org/
+
+    - name: Compile changesets into CHANGELOG.md
+      id: changelog
+      shell: pwsh
+      run: |
+        $releaseDate = Get-Date -AsUTC -Format 'yyyy-MM-dd'
+        ./scripts/Build-Changelog.ps1 -Version "${{ env.VERSION }}" -Date $releaseDate
+
+    - name: Render Release Notes
+      shell: pwsh
+      run: |
+        $template = Get-Content -Raw '.github/release-notes-template.md'
+        $changelogBody = Get-Content -Raw release_notes_body.md
+        $notes = $template.Replace('{{VERSION}}', $env:VERSION).Replace('{{CHANGELOG}}', $changelogBody.Trim())
+        Set-Content -Path release_notes.md -Value $notes -NoNewline
 
     - name: Create Release
       run: |
         VERSION=${{ env.VERSION }}
         TAG=${{ needs.version.outputs.tag }}
-
-        # Build release notes
-        cat > release_notes.md << 'NOTES'
-        ## ExcelMcp ${{ env.VERSION }}
-
-        ### What's New
-        ${{ steps.changelog.outputs.CHANGELOG }}
-
-        ### Installation Options
-
-        **VS Code Extension** (Recommended)
-        - Search "ExcelMcp" in VS Code Marketplace and click Install
-        - Or download `excelmcp-${{ env.VERSION }}.vsix` below
-        - Self-contained: no .NET runtime or SDK required
-        - Includes both MCP Server and CLI (`excelcli`)
-        - Agent skills (excel-mcp + excel-cli) registered automatically via `chatSkills`
-
-        **Claude Desktop (MCPB)**
-        - Download `excel-mcp-${{ env.VERSION }}.mcpb` and double-click to install
-
-        **Standalone Executables** (Primary — no .NET runtime required)
-        - MCP Server: Download `ExcelMcp-MCP-Server-${{ env.VERSION }}-windows.zip`, extract `mcp-excel.exe`
-        - CLI: Download `ExcelMcp-CLI-${{ env.VERSION }}-windows.zip`, extract `excelcli.exe`
-        - Add the exe(s) to your PATH, then configure your MCP client with command `mcp-excel`
-
-        **NuGet (.NET Tool)** (Secondary — requires .NET 10 runtime)
-        ```powershell
-        dotnet tool install --global Sbroenne.ExcelMcp.McpServer
-        dotnet tool install --global Sbroenne.ExcelMcp.CLI
-        ```
-
-        **Agent Skills** (for AI coding assistants)
-        - VS Code Extension includes both skills automatically (excel-mcp + excel-cli)
-        - Install via Skills CLI: `npx skills add sbroenne/mcp-server-excel --skill excel-cli` or `--skill excel-mcp`
-        - Or download `excel-skills-v${{ env.VERSION }}.zip`
-
-        ### Requirements
-        - Windows OS
-        - Microsoft Excel 2016+
-        - No .NET runtime required for VS Code Extension, MCPB, or standalone executables
-        - .NET 10 Runtime required for NuGet (.NET tool) installation only
-
-        ### Documentation
-        - [Website](https://excelmcpserver.dev/)
-        - [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)
-        - [Changelog](https://github.com/sbroenne/mcp-server-excel/blob/main/CHANGELOG.md)
-        NOTES
 
         # Collect all artifacts
         ARTIFACTS=""
@@ -818,33 +773,27 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # Create a PR to update CHANGELOG.md since branch protection prevents direct push
-    - name: Update Changelog (rename Unreleased to version)
+    # Create a PR to commit the CHANGELOG.md/package.json changes produced by
+    # Build-Changelog.ps1 above (and the consumed .changeset/*.md deletions),
+    # since branch protection prevents direct push.
+    - name: Commit Changelog Update
       run: |
         VERSION=${{ env.VERSION }}
-        DATE=$(date +%Y-%m-%d)
         BRANCH="chore/changelog-v${VERSION}"
 
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
-        # Create branch from main
         git checkout -b "$BRANCH"
-
-        # Replace [Unreleased] with [version] - date, add fresh [Unreleased]
-        sed -i "s/^## \[Unreleased\]/## [$VERSION] - $DATE/" CHANGELOG.md
-        sed -i "/^## \[$VERSION\] - $DATE/i ## [Unreleased]\n" CHANGELOG.md
-
-        git add CHANGELOG.md
+        git add CHANGELOG.md package.json .changeset
         git commit -m "chore: update CHANGELOG.md for v${VERSION} release [skip ci]"
         git push origin "$BRANCH"
 
-        # Create PR
         gh pr create \
           --base main \
           --head "$BRANCH" \
           --title "chore: update CHANGELOG.md for v${VERSION} release" \
-          --body "Automated post-release changelog update: renames \`[Unreleased]\` to \`[$VERSION] - $DATE\` and adds a fresh \`[Unreleased]\` section." \
+          --body "Automated post-release changelog update: compiles pending .changeset/*.md fragments into a new \`## [$VERSION]\` entry in CHANGELOG.md via \`scripts/Build-Changelog.ps1\`." \
           --label "documentation"
       continue-on-error: true
       env:

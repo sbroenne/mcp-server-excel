@@ -1,0 +1,51 @@
+# Changeset Check Workflow
+#
+# Enforces that pull requests changing user-facing code include a changeset
+# fragment (.changeset/*.md) describing the change for CHANGELOG.md. See
+# .changeset/README.md for how to add one, and docs/RELEASE-STRATEGY.md for
+# how fragments are compiled into CHANGELOG.md at release time.
+#
+# PRs that don't need a changelog entry (docs-only, test-only, CI-only,
+# dependency bumps, internal refactors) should add the "skip-changelog" label
+# instead of a changeset.
+
+name: 'Changeset Check'
+
+on:
+  pull_request:
+    branches: ['main']
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  changeset-check:
+    name: Verify changeset present
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install changesets CLI
+        run: npm install --no-save --registry https://registry.npmjs.org/
+
+      - name: Check for a changeset
+        run: |
+          set +e
+          npx changeset status --since=origin/${{ github.event.pull_request.base.ref }}
+          STATUS=$?
+          set -e
+          if [ $STATUS -ne 0 ]; then
+            echo "::error::No changeset found for this PR. Run 'npx changeset' from the repo root and commit the generated .changeset/*.md file — see .changeset/README.md. If this PR doesn't need a changelog entry (docs/tests/CI/dependency-only), add the 'skip-changelog' label instead."
+            exit 1
+          fi

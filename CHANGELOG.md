@@ -3,43 +3,40 @@
 All notable changes to ExcelMcp will be documented in this file.
 
 This changelog covers all components:
+
 - **MCP Server** - Model Context Protocol server for AI assistants
 - **CLI** - Command-line interface for scripting and coding agents
 - **VS Code Extension** - One-click installation with bundled MCP Server
 - **MCPB** - Claude Desktop bundle for one-click installation
 
+Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
+
 ## [Unreleased]
+
+_No pending changes. New entries are added automatically from [changesets](.changeset/README.md) when a release is cut — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation)._
+
+## [1.9.0] - 2026-07-08
+
+> **Note:** Entries below were previously stuck under `[Unreleased]` for several releases (v1.8.64–v1.9.0) due to a broken auto-changelog step (see Release Strategy for the fix); they have already shipped and are consolidated here under the last version that included them.
 
 ### Added
 
-- **Python in Excel (`=PY()`) support** (#691): New `pythoninexcel` MCP tool / CLI category with two operations. `set-formula` writes a `=PY("code", returnType)` formula via `Range.Formula2` (returnType 0 = Excel Value, 1 = Python Object). `get-result` reads back the computed value, polling with a stability heuristic (minimum settle window + required consecutive matching reads on `Value2`) since the Python code executes asynchronously in a Microsoft-hosted cloud sandbox with no reliable "still computing" signal exposed via COM. Classification of errors vs. rich "Python Object" results is derived from the `returnType` parsed out of the formula text and from well-known Excel error codes — not from `Range.Text`, which was found to render unreliably in non-visible/headless Excel automation. If polling doesn't stabilize in time, `get-result` reports failure and asks the caller to retry rather than returning a possibly-stale value. Requires a licensed Microsoft 365 account with Python in Excel enabled and internet access; not available offline or with perpetual-license Excel.
+- **Python in Excel (`=PY()`) support** (#691): New `pythoninexcel` tool lets you write and read `=PY()` formulas — write Python code into a cell and read back its computed value. Requires a licensed Microsoft 365 account with Python in Excel enabled and internet access.
 
 ### Changed
 
-- **Dependency freshness refresh (June 2026)**: Bumped centrally managed packages to their latest stable versions: Dax.Formatter (1.2.0 → 1.2.2), Spectre.Console (0.56.0 → 0.57.1; Spectre.Console.Cli stays at 0.55.0 — no newer stable), the OpenTelemetry family (1.15.x → 1.16.0: Api, Extensions.Hosting, Instrumentation.Http, Instrumentation.SqlClient), Microsoft.Identity.Client + Extensions.Msal (4.84.2 → 4.85.2), Polly.Core/Extensions/RateLimiting (8.6.6 → 8.7.0), StreamJsonRpc (2.25.25 → 2.25.29), Nerdbank.MessagePack security pin (1.2.4 → 1.2.30), Microsoft.NET.StringTools + Build.Framework + Build.Utilities.Core (18.6.3 → 18.7.1), Microsoft.NET.Test.Sdk (18.6.0 → 18.7.0), coverlet.collector (6.1.0 → 10.0.1), and Scriban (7.2.4 → 7.2.5). VS Code extension dev dependency @types/node bumped to ^26.0.1; npm install reports 0 vulnerabilities. Solution builds clean (0 warnings/0 errors) and extension compiles.
-
-
-- **Excel COM interop is PIA-first on the 16.x Excel PIA** (#559): Updated `Microsoft.Office.Interop.Excel` to 16.x and moved Power Query (`Workbook.Queries`, `WorkbookQuery`) plus Data Model measure/format APIs (`ModelMeasures`, `ModelMeasure`, `ModelFormat*`) back to strongly typed PIA access. Remaining `dynamic` usage is limited to APIs still outside the referenced Excel PIA or external Office/VBE object models.
-
-- **Excel PIA is now genuinely embedded; the hand-rolled `office.dll` assembly resolver is removed** (#559): `EmbedInteropTypes=true` set as metadata on a `<PackageReference>` is silently ignored by the .NET SDK, so the Excel PIA was being *referenced* (not embedded). The built assemblies therefore carried a transitive dependency on `office v16.0.0.0`, which forced a runtime `office.dll` load and a `FileNotFoundException: office, Version=16.0.0.0` in any host without the hand-rolled resolver (e.g. test hosts with no `Main`). The fix forces real interop embedding via a repo-root `Directory.Build.targets` target (sets `EmbedInteropTypes` on the resolved reference path) and makes the PIA compile-only with `<ExcludeAssets>runtime</ExcludeAssets>`. Only the Excel interop types actually used are baked into `ExcelMcp.ComInterop`/`ExcelMcp.Core` — none of which are Office.Core types — so the assemblies no longer reference `office.dll` at all. Consequently `RegisterOfficeAssemblyResolver()`/`ResolveOfficeDll()` were deleted from the MCP Server and CLI startup paths, and no test-side resolver is needed; Core/ComInterop tests (which have no `Main`) now load and run without it. `AutomationSecurity` continues to be accessed late-bound via `((dynamic)(object))` because the Office.Core enum type is intentionally not referenced.
-
-- **Dependency audit pin refreshed**: Updated the central `Nerdbank.MessagePack` security override to a non-vulnerable version so NuGet audit restore/build checks no longer fail on the prior pinned package.
-
-- **Dependency freshness refresh**: Bumped all outdated centrally managed packages to their latest stable versions: Azure.Core (1.57.0 → 1.59.0), the `Microsoft.Extensions.*` / `System.*` 10.0.8 family → 10.0.9 (Hosting, Logging, Logging.Abstractions, Caching.Abstractions, Configuration, Configuration.Binder, DependencyInjection, Diagnostics, Diagnostics.Abstractions, ObjectPool, Options, Options.ConfigurationExtensions, Bcl.AsyncInterfaces, Collections.Immutable, Reflection.Metadata, Text.Encoding.CodePages, Memory.Data, Security.Cryptography.ProtectedData, Text.Json, Threading.RateLimiting), Microsoft.Extensions.AI.Abstractions and Microsoft.Extensions.Resilience (10.6.0 → 10.7.0), Microsoft.Identity.Client + Microsoft.Identity.Client.Extensions.Msal (4.84.1 → 4.84.2), MessagePack + MessagePack.Annotations (3.1.6 → 3.1.7), System.ClientModel (1.13.0 → 1.14.0), Scriban (7.2.3 → 7.2.4), Microsoft.CodeAnalysis.NetAnalyzers (10.0.300 → 10.0.301), ModelContextProtocol (1.3.0 → 1.4.0), and Spectre.Console (0.55.2 → 0.56.0; Spectre.Console.Cli stays at 0.55.0 as it has no 0.56.0 stable). Microsoft.Office.Interop.Excel stays at 16.0.18925.20022 (already latest). Refreshed the VS Code extension dev dependencies (@types/node, @vscode/vsce, oxlint) and regenerated its lockfile with 0 npm audit vulnerabilities.
+- **Excel automation now uses Microsoft's official 16.x interop assembly, fully embedded** (#559): Improves reliability and removes a class of "missing office.dll" startup failures on machines without the exact matching Office version installed.
+- Routine dependency updates across the .NET and VS Code extension toolchains to keep packages current and free of known vulnerabilities.
 
 ### Fixed
 
-- **Documentation tool/operation counts are now consistent and enforced (26 tools / 232 operations)**: Several docs had drifted apart on the advertised counts — the generated MCP `SKILL.md` said "229 operations" while README/FEATURES/gh-pages said "232", and `FEATURES.md`'s Charts section header said "28 operations" (chart 8 + chartconfig 21 = 29), making its section headers sum to 231 instead of 232. ROOT CAUSE: the generated skill manifest tallies the CLI/service surface (every Core `[ServiceCategory]`, which includes the CLI-only `diag` self-test but excludes the hand-written `file`/session tool), so the skill files under-reported the user-facing count by exactly `file`(6) − `diag`(3) = 3. FIX: (1) corrected the `FEATURES.md` Charts header to 29 and fixed two corrupted section-header emoji; (2) `GenerateSkillFile` now excludes CLI-only commands and adds hand-written tool operations (both skills report the true user-facing 232); (3) refreshed the stale per-category table in the CLI README (Power Query 10→12, Charts 14→8, Chart Config 14→21, added the missing Window Management row) so its 18 categories sum to 232, and removed a stale "22 command categories" claim in the root README. PREVENTION: added a new pre-commit gate (`scripts/check-doc-counts.ps1`) that derives the canonical tool/operation counts from code (skill manifest + `FileAction` enum, cross-checked against the real `[McpServerTool]` surface) and fails the commit if any user-facing doc, or the generated `SKILL.md`, advertises a mismatching count. This makes the count-drift class of bug impossible to reintroduce. Nullable parameters (e.g. the 2D-array `values`, `formulas`, `formats`, and table `rows` parameters typed as `List<List<object?>>?` / `List<List<string>>?`) were emitted using the JSON Schema 2020-12 union form `"type": ["array","null"]` at every structural level. Gemini only accepts a subset of the OpenAPI 3.0.3 Schema object, which requires a single scalar `type` plus a separate `nullable: true` field, so it rejected these tools with HTTP 400 (`field predicate failed: == Type.ARRAY`). The MCP Server now generates all tool schemas with `AIJsonSchemaTransformOptions.UseNullableKeyword = true`, converting unions to the OpenAPI-3.0 form (`type:"array"` + `nullable:true`) that Gemini accepts while remaining valid JSON Schema 2020-12 for other clients. A regression test walks every generated tool schema and fails if any `type` keyword is a union array.
-
-- **VBA commands no longer misreport generic COM errors as "VBA trust access is not enabled"** (#671): `vba(import)` (and `list`, `view`, `update`, `delete`) caught every `COMException` with HRESULT `0x800A03EC` and rethrew it as the trust error. `0x800A03EC` is the *generic* Office automation error ("Exception occurred"), reused for many unrelated failures, so a real COM failure raised while VBA trust was actually enabled was masked as a trust problem — sending users to re-check Trust Center settings that were already correct (reported on a Japanese Office Click-to-Run build where the COM message text also differs from the English "programmatic access"). The catch filters now use a shared `IsVbaTrustError` classifier that only treats `0x800A03EC` as a trust error when the registry confirms trust is actually disabled (locale-independent); otherwise the original failure is surfaced. A genuine (non-trust) `0x800A03EC` is now wrapped with COM environment diagnostics (Office channel/version, bitness, CLSID, registered PIA) so the real, still-unknown underlying cause can be triaged on the first re-run instead of being hidden. The English "programmatic access" message remains a fast path.
-
-- **MCP Server stdio no longer emits Application Insights info noise during startup** (#559): Application Insights informational logs are now explicitly filtered out of the console provider so stdio clients no longer see lines such as `info: Microsoft.ApplicationInsights.TelemetryClient[0]` on stderr during MCP initialization. Warning and error logs still go to stderr, while stdout remains reserved for JSON-RPC frames.
-
-- **Session open/create timeouts are shorter and more actionable** (#559): The default Excel session startup/operation timeout is now 120 seconds instead of 5 minutes, while MCP `timeout_seconds` and CLI `--timeout` continue to override it for slow workbooks. Startup timeout errors now explicitly identify likely prompt/auth/IRM causes and tell agents to retry with a longer timeout or `show=true` / `--show`.
-
-- **Session startup diagnostics for `Specified cast is not valid` on Office Click-to-Run** (#559): COM diagnostics now report the registered Excel TypeLib primary interop assembly for faster environment triage.
-
-- **MCP `namedrange list` avoids hidden Power Query `ExternalData_1` crash paths** (#653): Workbooks with hidden/internal defined names are now listed from workbook package metadata first, so large hidden Power Query and AutoFilter names are skipped before their COM `Name` objects or backing ranges are touched. Visible user-defined names still return references and safe value previews, and large visible ranges continue to return metadata instead of materialized values.
+- **MCP tool schemas now work with Gemini-based clients**: Optional array-type parameters (e.g. range values, formulas, table rows) were rejected by Gemini with an HTTP 400 error; schemas are now generated in a form all MCP clients accept.
+- **Documentation now consistently reports accurate tool/operation counts** (26 tools / 232 operations), with an automated check preventing future drift.
+- **VBA commands no longer misreport unrelated COM errors as "VBA trust access is not enabled"** (#671): the error is now only shown when trust is actually disabled; other failures surface with real diagnostics instead.
+- **MCP Server and CLI no longer emit stray log noise on startup** (#559) that could interfere with output parsing.
+- **Excel session startup timeouts are shorter (120s) and error messages more actionable** (#559), with clearer guidance when a prompt, sign-in dialog, or IRM policy is the likely cause.
+- **Better diagnostics for `Specified cast is not valid` startup errors** on Office Click-to-Run installs (#559).
+- **`namedrange list` no longer crashes on workbooks with hidden Power Query-generated names** (#653).
 
 ## [1.8.63] - 2026-05-20
 
@@ -202,6 +199,7 @@ This changelog covers all components:
 ### Added
 
 - **In-Process Service Architecture** (#454): MCP Server and CLI each host ExcelMCP Service in-process instead of sharing a separate service process
+
   - Eliminates service discovery failures (especially NuGet tool installs) and cross-process coordination
 
 - **Separate CLI NuGet Package** (#452): CLI published as `Sbroenne.ExcelMcp.CLI` alongside MCP Server
@@ -287,6 +285,7 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 ### Fixed
 
 - **CLI Banner Cleanup**: Removed PowerShell warning from startup banner
+
   - Guidance moved to skill documentation (Rule 2: Use File-Based Input)
   - CLI output is now cleaner and less cluttered
 
@@ -333,6 +332,7 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 ### Fixed
 
 - **Power Query Refresh Error Propagation** (#399): Fixed bug where `refresh` action returned `success: true` even when Power Query had formula errors
+
   - ROOT CAUSE: `Connection.Refresh()` silently swallows errors for worksheet queries (InModel=false)
   - FIX: Now uses `QueryTable.Refresh(false)` for worksheet queries which properly throws errors
   - Data Model queries (InModel=true) continue using `Connection.Refresh()` which does throw errors
@@ -346,6 +346,7 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 ### Added
 
 - **Power Query Evaluate** (#400): New `evaluate` action to execute M code directly and return results
+
   - Execute arbitrary M code without creating a permanent query
   - Returns tabular results (columns, rows) in JSON format
   - Automatically cleans up temporary query and worksheet
@@ -353,6 +354,7 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
   - Example: `excelcli powerquery evaluate --file data.xlsx --mcode "let Source = #table({\"Name\",...})"`
 
 - **MCP Power Query mCodeFile Parameter**: Read M code from file instead of inline string
+
   - New `mCodeFile` parameter on `powerquery` tool for `create`, `update`, `evaluate` actions
   - Avoids JSON escaping issues with complex M code containing special characters
   - File takes precedence if both `mCode` and `mCodeFile` provided
@@ -381,7 +383,9 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 ### Added
 
 #### CLI Redesign (Breaking Change)
+
 - **Complete CLI Rewrite** (#387): Redesigned CLI for coding agents and scripting - **NOT backwards compatible**
+
   - 14 unified command categories with 210 operations matching MCP Server
   - All commands now use `--session` parameter (was positional in some commands)
   - Comprehensive `--help` descriptions on all commands synced with MCP tool descriptions
@@ -390,11 +394,13 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
   - Exit code standardization (0=success, 1=error, 2=validation)
 
 - **Quiet Mode**: `-q`/`--quiet` flag suppresses banner for agent-friendly JSON-only output
+
   - Auto-detects piped/redirected stdout and suppresses banner automatically
 
 - **Version Check**: `excelcli version --check` queries NuGet to show if update available
 
 - **Session Close --save**: Single `--save` flag for atomic save-and-close workflow
+
   - Replaces separate save + close sequence for cleaner scripting
 
 - **CLI Action Coverage Pre-commit Check**: New `check-cli-action-coverage.ps1` script
@@ -402,13 +408,16 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
   - Prevents "action not handled" bugs from reaching production
   - Validates 210 operations across 21 CLI commands
 
-#### MCP Server Enhancements  
+#### MCP Server Enhancements
+
 - **Session Operation Timeout** (#388): Configurable timeout prevents infinite hangs
+
   - New `timeoutSeconds` parameter on `file(open)` and `file(create)` actions
   - Default: 300 seconds (5 minutes), configurable range: 10-3600 seconds
   - Applies to ALL operations within session; exceeding timeout throws `TimeoutException`
 
 - **Create Action** (#385): Renamed `create-and-open` to simpler `create` action
+
   - Single-action file creation and session opening
   - Performance: ~3.8 seconds (vs ~7-8 seconds with separate create+open)
 
@@ -416,7 +425,9 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
   - Keeps query definition intact while clearing worksheet/model data
 
 #### Testing & Quality
+
 - **LLM Integration Tests**: Comprehensive pytest-aitest test suite for CLI
+
   - 9 test scenarios covering all major Excel operations
   - Chart positioning, PivotTable layout, Power Query, slicers, tables, ranges
   - Financial report automation workflow tests
@@ -427,17 +438,21 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
   - `skills/shared/` - Shared workflows, anti-patterns, behavioral rules
 
 ### Fixed
+
 - **Calculated Field Bug**: Fixed PivotTable calculated field creation error
 - **COM Diagnostics**: Improved error reporting for COM object lifecycle issues
 
 ### Changed
+
 - CLI timeout option uses `--timeout <seconds>` (was `--timeout-seconds`)
 - All CLI commands now require explicit `--session` parameter
 
 ## [1.5.13] - 2025-01-24
 
 ### Added
+
 - **Chart Formatting** (#384): Enhanced chart formatting capabilities
+
   - **Data Labels**: Configure label position and visibility (showValue, showCategory, showPercentage, etc.)
   - **Axis Scale**: Get/set axis scale properties (min, max, units, auto-scale flags)
   - **Gridlines**: Control major/minor gridlines visibility on chart axes
@@ -454,20 +469,24 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 ## [1.5.11] - 2025-01-22
 
 ### Added
+
 - Added Agent Skill to all artifacts
 
 ### Changed
+
 - **MCPB Submission Compliance**: Bundle now includes LICENSE and CHANGELOG.md per Anthropic requirements
 - **Documentation Updates**: All READMEs updated with LLM-tested example prompts and accurate tool counts (22 tools, 194 operations)
 
 ## [1.5.8] - 2025-01-20
 
 ### Added
+
 - Now available as a Claude Desktop MCPB Extension
-  
+
 ## [1.5.6] - 2025-01-20
 
 ### Added
+
 - **PivotTable & Table Slicers** (#363): New `slicer` tool for interactive filtering
   - **PivotTable Slicers**: Create, list, filter, and delete slicers for PivotTable fields
   - **Table Slicers**: Create, list, filter, and delete slicers for Excel Table columns
@@ -476,6 +495,7 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 ## [1.5.5] - 2025-01-19
 
 ### Added
+
 - **DMV Query Execution** (#353): Query Data Model metadata using Dynamic Management Views
   - New `execute-dmv` action on `datamodel` tool
   - Query TMSCHEMA_MEASURES, TMSCHEMA_RELATIONSHIPS, DISCOVER_CALC_DEPENDENCY, etc.
@@ -483,6 +503,7 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 ## [1.5.4] - 2025-01-19
 
 ### Added
+
 - **DAX EVALUATE Query Execution** (#356): Execute DAX queries against the Data Model
   - New `evaluate` action on `datamodel` tool for ad-hoc DAX queries
 - **DAX-Backed Excel Tables** (#356): Create worksheet tables populated by DAX queries
@@ -491,6 +512,7 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 ## [1.5.0] - 2025-01-10
 
 ### Changed
+
 - **Tool Reorganization** (#341): Split 12 monolithic tools into 21 focused tools
   - 186 operations total, better organized for AI assistants
   - Ranges: 4 tools (range, range_edit, range_format, range_link)
@@ -501,25 +523,30 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
   - Worksheets: 2 tools (worksheet, worksheet_style)
 
 ### Added
+
 - **LLM Integration Testing** (#341): Real AI agent testing using [pytest-aitest](https://github.com/sbroenne/pytest-aitest)
 
 ### Changed
+
 - **.NET 10 Upgrade**: Requires .NET 10.0 instead of .NET 8.0
 
 ## [1.4.42] - 2025-12-15
 
 ### Added
+
 - **Power Query Rename** (#326, #327): New `rename` action for Power Query queries
 - **Data Model Table Rename** (#326, #327): New `rename-table` action for Data Model tables
 
 ## [1.4.41] - 2025-12-14
 
 ### Fixed
+
 - **Power Query Data Model Fix** (#324): Fixed "0x800A03EC" error when updating Power Query in workbooks with Data Model present
 
 ## [1.4.40] - 2025-12-14
 
 ### Changed
+
 - **MCP SDK Upgrade** (#301): Upgraded ModelContextProtocol SDK from 0.4.1-preview.1 to 0.5.0-preview.1
   - Proper `isError` signaling for tool execution failures
   - Deterministic exit codes (0 = success, 1 = fatal error)
@@ -527,70 +554,85 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 ## [1.4.37] - 2025-12-06
 
 ### Changed
+
 - **PivotTable Performance** (#286): Optimized `RefreshTable()` calls
 
 ### Added
+
 - **Data Model Members** (#288): Added support for Data Model table members
 
 ## [1.4.36] - 2025-12-06
 
 ### Changed
+
 - **Documentation Updates** (#290): Updated tool/operation counts
 
 ### Fixed
+
 - **SEO Fix** (#292): Fixed robots.txt sitemap URL
 
 ## [1.4.35] - 2025-12-05
 
 ### Added
+
 - **Data Model Relationships** (#278): Full support for creating, updating, and deleting relationships
 - **Custom Domain** (#276): excelmcpserver.dev
 
 ## [1.4.34] - 2025-12-05
 
 ### Fixed
+
 - **DAX Formula Locale Handling** (#281): DAX formulas now work on European locales
 
 ## [1.4.33] - 2025-12-04
 
 ### Changed
+
 - **Atomic Cross-File Worksheet Operations** (#273): New `copy-to-file` and `move-to-file` actions
 
 ## [1.4.32] - 2025-12-04
 
 ### Fixed
+
 - **OLAP PivotChart Creation** (#267): `CreateFromPivotTable` now works with OLAP/Data Model PivotTables
 - **Power Query LoadToBoth Detection** (#271): Fixed incorrect detection
 
 ## [1.4.31] - 2025-12-04
 
 ### Fixed
+
 - **Locale-Independent Number Formatting** (#263): Number and date formats now work on non-US locales
 
 ## [1.4.30] - 2025-12-03
 
 ### Fixed
+
 - **OLAP PivotTable AddValueField** (#261): Fixed errors when adding value fields to Data Model PivotTables
 
 ### Added
+
 - **Show Excel Mode**: Open with `showExcel: true` to watch AI changes live
 
 ## [1.4.28] - 2025-12-01
 
 ### Fixed
+
 - **VS Code Extension Display Name** (#257): Corrected MCP server display name
 
 ## [1.4.25] - 2025-12-01
 
 ### Changed
+
 - **89% Smaller Extension Size** (#250): Switched to framework-dependent deployment
 
 ## [1.4.24] - 2025-12-01
 
 ### Fixed
+
 - **Session Stability** (#245): Fixed Excel MCP Server stopping due to network errors
 
 ### Added
+
 - **PivotTable Grand Totals Control**: Show/hide row and column grand totals
 - **PivotTable Grouping**: Group dates by days/months/quarters/years
 - **PivotTable Calculated Fields**: Create calculated fields with formulas
@@ -600,33 +642,40 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 ## [1.4.0] - 2025-11-24
 
 ### Added
+
 - **Excel Table Get Data** (#234): New `get-data` action returns table rows
 
 ### Fixed
+
 - **Power Query Error Query Fix** (#236): Fixed spurious "Error Query" entries
 
 ## [1.3.0] - 2025-11-22
 
 ### Added
+
 - **Chart Operations** (#229): 15 new chart actions
 - **Connection Delete** (#226): New `delete` action
 - **OLAP PivotTable Measures** (#217): Auto-create DAX measures
 
 ### Changed
+
 - **PivotTable Enhancements** (#219, #220): Date/numeric grouping, calculated fields
 
 ## [1.2.0] - 2025-11-17
 
 ### Added
+
 - **Worksheet Reordering** (#186): New `move` action
 
 ### Fixed
+
 - **MCP Server Crash Fix** (#192): Fixed crashes with disconnected COM proxies
 - **Connection Create Fix** (#190): Fixed COM dispatch error
 
 ## [1.1.0] - 2025-11-10
 
 ### Fixed
+
 - **File Lock Fix** (#173): Fixed "file already open" errors
 - **LoadTo Silent Failure Fix** (#170): LoadTo now properly fails on duplicates
 - **Validation InputTitle/Message** (#167): Fixed empty values
@@ -636,6 +685,7 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 - **Power Query Persistence** (#42): Fixed load-to-data-model not persisting
 
 ### Added
+
 - **PivotTable Discovery** (#155): Improved LLM discoverability
 - **CLI Batch Support** (#152): Batch mode for bulk operations
 - **Timeout Support** (#131): Configurable timeouts for all tools
@@ -644,11 +694,13 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 - **PivotTable from Data Model** (#109): Create PivotTables from Power Pivot
 
 ### Changed
+
 - **Numeric Column Names** (#136): Column names can now be numeric
 
 ## [1.0.0] - 2025-10-29
 
 ### Added
+
 - Initial release of ExcelMcp
 - MCP Server with 11 tools and 100+ operations
 - CLI for command-line scripting
