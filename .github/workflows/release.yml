@@ -740,6 +740,9 @@ jobs:
     - name: Compile changesets into CHANGELOG.md
       id: changelog
       shell: pwsh
+      env:
+        # @changesets/changelog-github needs a token to look up PR/commit info for changelog entries.
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         $releaseDate = Get-Date -AsUTC -Format 'yyyy-MM-dd'
         ./scripts/Build-Changelog.ps1 -Version "${{ env.VERSION }}" -Date $releaseDate
