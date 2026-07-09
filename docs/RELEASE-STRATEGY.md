@@ -50,27 +50,24 @@ When you run the release workflow, all components are released together:
 
 ## Release Process
 
-### 1. Update Changelog
+### 1. Add a Changeset (every PR, not just before release)
 
-Before creating a release tag, ensure all changes are documented under `## [Unreleased]` in `CHANGELOG.md`:
+`CHANGELOG.md` is no longer hand-edited. Every PR that changes user-visible
+behavior adds a small **changeset fragment** describing the change, and a CI
+check (`.github/workflows/changeset-check.yml`) fails the PR if one is missing
+(unless the PR is labeled `skip-changelog`). See [`.changeset/README.md`](../.changeset/README.md)
+for the full guide and examples of good vs. too-technical entries.
 
-```markdown
-## [Unreleased]
-
-### Added
-- New feature description
-
-### Changed
-- Changed feature description
-
-### Fixed
-- Bug fix description
-
-## [1.5.6] - 2025-01-15
-...
+```powershell
+npx changeset
+# → pick a bump type (metadata only, doesn't drive the real release version)
+# → write a short, end-user-facing summary
+# → commit the generated .changeset/<name>.md with your PR
 ```
 
-> **Important:** Do NOT rename `[Unreleased]` to a version number manually. The release workflow extracts content from `[Unreleased]` for release notes, then creates an auto-PR to rename it to `[X.Y.Z] - date` and add a fresh `[Unreleased]` section.
+Nothing needs to happen "before creating a release tag" — fragments accumulate
+in `.changeset/` across PRs and are compiled automatically when the release
+workflow runs (see [Changelog Generation](#changelog-generation) below).
 
 ### 2. Run the Release Workflow
 
@@ -101,7 +98,7 @@ The main release workflow runs automatically (10 jobs), then the plugin publish 
 6. **create-tag** → Creates git tag (waits for all builds)
 7. **publish-mcp-registry** (10-30 min) → Waits for NuGet propagation, updates MCP Registry
 8. **publish** → Publishes to NuGet.org and VS Code Marketplace
-9. **create-release** → Creates GitHub Release with all artifacts, then creates auto-PR to update CHANGELOG
+9. **create-release** → Creates GitHub Release with all artifacts (release notes generated from compiled changesets), then creates auto-PR to commit the updated CHANGELOG.md
 10. **publish-plugins.yml** (follow-on workflow) → Sync-gated republish of `excel-mcp` and `excel-cli` to `sbroenne/mcp-server-excel-plugins` when plugin-facing install artifacts changed
 
 ### 4. Verify Release
@@ -113,7 +110,7 @@ After workflow completes:
 - [ ] VS Code Marketplace updated (verify self-contained extension works without .NET)
 - [ ] MCP Registry updated
 - [ ] `publish-plugins.yml` completed; if the sync gate detected plugin-facing changes, `sbroenne/mcp-server-excel-plugins` was updated
-- [ ] Auto-PR created for CHANGELOG rename (merge it to update `[Unreleased]` → `[X.Y.Z]`)
+- [ ] Auto-PR created and merged to persist the `CHANGELOG.md` / `package.json` / consumed `.changeset/*.md` updates generated during the release
 
 ### 5. Agent Plugin Publishing (Automatic)
 
@@ -200,30 +197,39 @@ During development, use placeholder version `1.0.0` in:
 
 The release workflow injects the correct version from the tag.
 
-## Changelog Format
+## Changelog Generation
 
-The root `CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/) format:
+`CHANGELOG.md` is **end-user facing** and generated from [changesets](https://github.com/changesets/changesets), not hand-edited. This replaced a manual `## [Unreleased]` section that repeatedly went stale — the auto-rename step below relied on a PR merge that didn't always happen, so several released versions (v1.8.64–v1.9.0) sat mislabeled as "Unreleased" for weeks. See the changeset fragments' own guide at [`.changeset/README.md`](../.changeset/README.md) for day-to-day usage.
+
+**How it works:**
+
+1. **Every PR** that changes user-visible behavior adds a small markdown fragment via `npx changeset` (from repo root), describing the change in 1-3 end-user-facing sentences. This is committed to `.changeset/<random-name>.md` alongside the PR.
+2. **CI enforces this** via `.github/workflows/changeset-check.yml`, which fails the PR if no fragment was added — unless the PR carries the `skip-changelog` label (docs/tests/CI/dependency-only changes).
+3. **At release time**, the `create-release` job in `release.yml` runs `scripts/Build-Changelog.ps1 -Version <version> -Date <date>`, which:
+   - Runs `npx changeset version` to consume every pending fragment, deleting them.
+   - Normalizes the tool's generated version header to this repo's `## [X.Y.Z] - YYYY-MM-DD` (Keep a Changelog) style.
+   - Extracts the new section verbatim into `release_notes_body.md`, used directly as the "What's New" body of the GitHub Release.
+4. **The updated `CHANGELOG.md`, `package.json` (a bookkeeping-only root manifest that hosts the changesets tool — never published to npm), and consumed `.changeset/*.md` deletions** are committed via the same auto-PR-to-`main` pattern used previously (branch protection requires a PR; the workflow step uses `continue-on-error: true`).
+
+Root `package.json` and `.changeset/config.json` (using `@changesets/changelog-github` for PR-linked entries) exist solely to drive this tooling — they have no bearing on the actual MCP Server / CLI / VS Code Extension / MCPB version, which remains fully controlled by the `version_bump` / `custom_version` workflow inputs as described above.
 
 ```markdown
 # Changelog
 
 ## [Unreleased]
 
-## [1.5.7] - 2025-01-21
+_No pending changes. New entries are added automatically from changesets when a release is cut._
 
-### Added
-- Feature description
+## [1.9.1] - 2025-01-21
 
-### Changed
-- Change description
+### Minor Changes
+- **Feature description** (#123): what changed and why it matters to users.
 
-### Fixed
-- Bug fix description
+### Patch Changes
+- **Bug fix description** (#124): what was broken and what's fixed now.
 ```
 
-The release workflow extracts content from `## [Unreleased]` for GitHub Release notes. After the release is created, an auto-PR renames `[Unreleased]` to `[X.Y.Z] - date` and adds a fresh `[Unreleased]` section.
-
-> **Why auto-PR instead of direct push?** Branch protection requires pull requests for all changes to `main`. The `github-actions[bot]` cannot be added to the bypass list in GitHub Rulesets, so the workflow creates a PR with `continue-on-error: true` to handle this gracefully.
+> **Why auto-PR instead of direct push?** Branch protection requires pull requests for all changes to `main`. The `github-actions[bot]` cannot be added to the bypass list in GitHub Rulesets, so the workflow creates a PR with `continue-on-error: true` to handle this gracefully. Unlike the old sed-based rename, a missed merge here only delays committing an already-published release's changelog — it can no longer mislabel released content as "Unreleased" since the section is always left empty going forward.
 
 ## Required Secrets and Variables
 
