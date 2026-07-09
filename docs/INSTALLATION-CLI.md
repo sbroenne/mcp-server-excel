@@ -20,7 +20,7 @@ Installation instructions for the ExcelMcp **CLI** (`excelcli`) — the entry po
 
 ## Quick Start (Recommended)
 
-The `excelcli.exe` tool is already included when you install the **excel-cli GitHub Copilot plugin** or the **VS Code extension**. Skip straight to [Quick Test](#quick-test) if you got it that way. Otherwise:
+The **excel-cli GitHub Copilot plugin** bootstraps `excelcli.exe` automatically on first use (downloads and caches the latest release — no separate install needed for plugin-driven flows). The **VS Code extension** does *not* include the CLI (it only bundles the MCP server); install the CLI separately if you need it for scripting. Otherwise:
 
 1. Download and extract the standalone CLI (below)
 2. Add it to your PATH

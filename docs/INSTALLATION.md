@@ -18,7 +18,7 @@ Both require **Windows OS** and **Microsoft Excel 2016+** — no .NET runtime ne
 
 **Best for:** Adding AI guidance to coding agents (Copilot, Cursor, Windsurf, Claude Code, Gemini, Codex, etc.)
 
-Skills are auto-installed by the VS Code extension. Plugins and skills are different things: plugins are packaged surface integrations, while skills are reusable AI guidance. For environments where you want skills directly, use the commands below:
+The VS Code extension auto-installs the `excel-mcp` skill only. Plugins and skills are different things: plugins are packaged surface integrations, while skills are reusable AI guidance. For the `excel-cli` skill, or for environments where you want skills directly, use the commands below:
 
 ```powershell
 # CLI skill (for coding agents - token-efficient workflows)

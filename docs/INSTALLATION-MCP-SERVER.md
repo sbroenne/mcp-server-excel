@@ -40,7 +40,7 @@ Use this order to avoid setup confusion:
    - Click **Install**
 
 2. **That's It!**
-   - Bundles self-contained MCP server and CLI (no .NET runtime needed)
+   - Bundles a self-contained MCP server (no .NET runtime needed) — the CLI is not included; install it separately if needed
    - Auto-configures GitHub Copilot
    - Registers the `excel-mcp` agent skill via `chatSkills`
    - Shows quick start guide on first launch
