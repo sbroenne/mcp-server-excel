@@ -1,0 +1,410 @@
+# Installing the MCP Server - ExcelMcp
+
+<!--start-->
+Installation instructions for the ExcelMcp **MCP Server** — the entry point for AI assistants like GitHub Copilot, Claude Desktop, Cursor, and any other MCP client. Looking for the CLI instead? See the [CLI Installation Guide](https://excelmcpserver.dev/installation-cli/).
+
+## System Requirements
+
+### Required
+- **Windows OS** (Windows 10 or later)
+- **Microsoft Excel 2016 or later** (Desktop version - Office 365, Professional Plus, or Standalone)
+
+> **.NET runtime is NOT required** for any installation method — all distributions are self-contained.
+
+### Optional (for specific features)
+- **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
+  - Easiest: Install [Power BI Desktop](https://powerbi.microsoft.com/desktop) (includes MSOLAP)
+  - Alternative: [Microsoft OLE DB Driver for Analysis Services](https://learn.microsoft.com/analysis-services/client-libraries)
+- **Node.js** - Only required for `npx` commands (`add-mcp` auto-configuration, agent skills). Install with `winget install OpenJS.NodeJS.LTS` or from [nodejs.org](https://nodejs.org/)
+
+---
+
+## Quick Start (Recommended)
+
+Use this order to avoid setup confusion:
+
+1. **Choose one primary setup path**:
+   - **VS Code Extension** (GitHub Copilot users) — auto-configures everything
+   - **Claude Desktop MCPB** — one-click MCP installation
+   - **GitHub Copilot Plugin** (Copilot CLI users) — marketplace installation
+   - **Manual MCP setup** (other MCP clients like Cursor, Windsurf)
+2. **Validate MCP setup** (run the quick test prompt in Step 4 of manual setup, or test in your client after extension/MCPB/plugin install)
+3. **Optional:** also install the [CLI](https://excelmcpserver.dev/installation-cli/) (`excelcli`) for scripting/RPA
+
+### VS Code Extension (Easiest - One-Click Setup)
+
+1. **Install the Extension**
+   - Open VS Code
+   - Press `Ctrl+Shift+X` (Extensions)
+   - Search for **"ExcelMcp"**
+   - Click **Install**
+
+2. **That's It!**
+   - Bundles self-contained MCP server and CLI (no .NET runtime needed)
+   - Auto-configures GitHub Copilot
+   - Registers the `excel-mcp` agent skill via `chatSkills`
+   - Shows quick start guide on first launch
+
+**Marketplace Link:** [Excel MCP VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)
+
+---
+
+### Claude Desktop (One-Click Install)
+
+**Best for:** Claude Desktop users who want the simplest installation
+
+1. Download `excel-mcp-{version}.mcpb` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+2. Double-click the `.mcpb` file (or drag-and-drop onto Claude Desktop)
+3. Restart Claude Desktop
+
+That's it! The MCPB bundle includes everything needed - no .NET installation required.
+
+---
+
+### GitHub Copilot Plugin
+
+**Best for:** GitHub Copilot CLI users who want plugin marketplace installation
+
+```powershell
+# Register the plugin marketplace (one-time)
+copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
+
+# Install the MCP Server plugin
+copilot plugin install excel-mcp@mcp-server-excel-plugins
+```
+
+**Note:** After each release, there may be a short delay before the plugin appears in the marketplace.
+
+---
+
+## Manual MCP Setup (All MCP Clients)
+
+**Best for:** Other MCP clients (Cursor, Windsurf, Cline, Claude Code, Codex), advanced users
+
+### Step 1: Download MCP Server
+
+1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+2. Download **`ExcelMcp-MCP-Server-{version}-windows.zip`**
+3. Extract the ZIP to a permanent location (e.g., `C:\Tools\ExcelMcp\`)
+
+```powershell
+# Example extraction
+Expand-Archive "ExcelMcp-MCP-Server-1.x.x-windows.zip" -DestinationPath "C:\Tools\ExcelMcp"
+```
+
+The ZIP contains `mcp-excel.exe` — a fully self-contained executable (no .NET runtime needed).
+
+### Step 2: Add to PATH (Recommended)
+
+To use `mcp-excel` as a command without specifying the full path:
+
+```powershell
+# Add to user PATH (persistent)
+$toolsDir = "C:\Tools\ExcelMcp"
+$userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+if ($userPath -notlike "*$toolsDir*") {
+    [Environment]::SetEnvironmentVariable("PATH", "$userPath;$toolsDir", "User")
+    Write-Host "Added $toolsDir to user PATH. Restart your terminal to apply."
+}
+```
+
+Or manually: **Settings → System → About → Advanced system settings → Environment Variables → User variables → Path → Edit → New** → add `C:\Tools\ExcelMcp`
+
+### Step 3: Configure Your MCP Client
+
+#### Option A: Auto-Configure All Agents (Recommended)
+
+Use [`add-mcp`](https://github.com/neondatabase/add-mcp) to configure all detected coding agents with a single command:
+
+```powershell
+npx add-mcp "mcp-excel" --name excel-mcp
+```
+
+This auto-detects and configures **Cursor, VS Code, Claude Code, Claude Desktop, Codex, Zed, Gemini CLI**, and more. Use flags to customize:
+
+```powershell
+# Configure specific agents only
+npx add-mcp "mcp-excel" --name excel-mcp -a cursor -a claude-code
+
+# Configure globally (user-wide, all projects)
+npx add-mcp "mcp-excel" --name excel-mcp -g
+
+# Non-interactive (skip prompts)
+npx add-mcp "mcp-excel" --name excel-mcp --all -y
+```
+
+> **Requires:** [Node.js](https://nodejs.org/) for `npx`. Install with `winget install OpenJS.NodeJS.LTS` if not already available. No permanent `add-mcp` installation needed — `npx` downloads, runs, and cleans up automatically.
+
+> **Note:** If `mcp-excel` is not on your PATH, use the full path instead: `npx add-mcp "C:\Tools\ExcelMcp\mcp-excel.exe" --name excel-mcp`
+
+#### Option B: Manual Configuration
+
+**Quick Start:** Ready-to-use config files for all clients are available in [`examples/mcp-configs/`](https://github.com/sbroenne/mcp-server-excel/tree/main/examples/mcp-configs/)
+
+**For GitHub Copilot (VS Code):**
+
+Create `.vscode/mcp.json` in your workspace:
+
+```json
+{
+  "servers": {
+    "excel-mcp": {
+      "command": "mcp-excel"
+    }
+  }
+}
+```
+
+> If `mcp-excel` is not on PATH, use the full path: `"command": "C:\\Tools\\ExcelMcp\\mcp-excel.exe"`
+
+**For GitHub Copilot (Visual Studio):**
+
+Create `.mcp.json` in your solution directory or `%USERPROFILE%\.mcp.json`:
+
+```json
+{
+  "servers": {
+    "excel-mcp": {
+      "command": "mcp-excel"
+    }
+  }
+}
+```
+
+**For Claude Desktop:**
+
+1. Locate config file: `%APPDATA%\Claude\claude_desktop_config.json`
+2. If file doesn't exist, create it with the content below
+3. If file exists, merge the `excel-mcp` entry into your existing `mcpServers` section
+
+```json
+{
+  "mcpServers": {
+    "excel-mcp": {
+      "command": "mcp-excel",
+      "args": [],
+      "env": {}
+    }
+  }
+}
+```
+
+4. Save and restart Claude Desktop
+
+**For Cursor:**
+
+1. Open Cursor Settings (Ctrl+,)
+2. Search for "MCP" in settings
+3. Click "Edit in settings.json" or create config at: `%APPDATA%\Cursor\User\globalStorage\mcp\mcp.json`
+4. Add this configuration:
+
+```json
+{
+  "mcpServers": {
+    "excel-mcp": {
+      "command": "mcp-excel",
+      "args": [],
+      "env": {}
+    }
+  }
+}
+```
+
+5. Save and restart Cursor
+
+**For Cline (VS Code Extension):**
+
+1. Install Cline extension in VS Code
+2. Open Cline panel and click the MCP settings gear icon
+3. Add this configuration:
+
+```json
+{
+  "mcpServers": {
+    "excel-mcp": {
+      "command": "mcp-excel",
+      "args": [],
+      "env": {}
+    }
+  }
+}
+```
+
+4. Save and restart VS Code
+
+**For Windsurf:**
+
+1. Open Windsurf Settings
+2. Navigate to MCP Servers configuration  
+3. Add this configuration:
+
+```json
+{
+  "mcpServers": {
+    "excel-mcp": {
+      "command": "mcp-excel",
+      "args": [],
+      "env": {}
+    }
+  }
+}
+```
+
+4. Save and restart Windsurf
+
+### Step 4: Validate MCP Setup
+
+Restart your MCP client, then ask:
+```
+Create an empty Excel file called "test.xlsx"
+```
+
+If it works, you're all set! 🎉
+
+**💡 Tip:** Want to watch the AI work? Ask:
+```
+Show me Excel while you work on test.xlsx
+```
+This opens Excel visibly so you can see every change in real-time - great for debugging and demos!
+
+---
+
+## Alternative: NuGet .NET Tool Installation (Secondary)
+
+**For users who prefer package managers or already have .NET installed**
+
+NuGet is a secondary distribution channel. It requires the **.NET 10 Runtime or SDK** to be installed.
+
+```powershell
+# Requires .NET 10 Runtime or SDK
+dotnet tool install --global Sbroenne.ExcelMcp.McpServer
+```
+
+After installation, configure your MCP client with `"command": "mcp-excel"` (same as standalone exe).
+
+**Update via NuGet:**
+```powershell
+dotnet tool update --global Sbroenne.ExcelMcp.McpServer
+```
+
+**Uninstall:**
+```powershell
+dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
+```
+
+> **Why NuGet is secondary:** The standalone exe distribution requires no .NET runtime, making it easier to install for most users. NuGet is available as an alternative for users who prefer package managers or already have .NET installed in their workflow.
+
+---
+
+## Updating the MCP Server
+
+### Check Current Version
+
+```powershell
+mcp-excel --version
+```
+
+### Update to New Version
+
+**Standalone exe (primary):**
+
+1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+2. Download the new ZIP: `ExcelMcp-MCP-Server-{version}-windows.zip`
+3. Extract and overwrite the existing files in your installation directory
+
+```powershell
+# Example update
+Expand-Archive "ExcelMcp-MCP-Server-1.x.x-windows.zip" -DestinationPath "C:\Tools\ExcelMcp" -Force
+```
+
+4. Restart your MCP client (VS Code, Claude Desktop, Cursor, etc.)
+
+**NuGet (secondary):**
+
+```powershell
+dotnet tool update --global Sbroenne.ExcelMcp.McpServer
+```
+
+### Check What's New
+
+Before updating, check the [changelog](https://excelmcpserver.dev/changelog/) or [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases).
+
+---
+
+## Troubleshooting
+
+### 1. "mcp-excel is not recognized as an internal or external command"
+
+**Solution:** `mcp-excel.exe` is not on your PATH.
+
+Either:
+- Add the directory containing `mcp-excel.exe` to your PATH (see Step 2 above)
+- Or use the full path in your MCP client config: `"command": "C:\\Tools\\ExcelMcp\\mcp-excel.exe"`
+
+### 2. MCP Server Not Responding
+
+**Check if the exe exists:**
+```powershell
+where.exe mcp-excel
+# Or with full path:
+Test-Path "C:\Tools\ExcelMcp\mcp-excel.exe"
+```
+
+**Verify it runs:**
+```powershell
+mcp-excel --version
+```
+
+### 3. "Workbook is locked" or "Cannot open file"
+
+**Solution:** Close all Excel windows before running ExcelMcp
+
+ExcelMcp requires exclusive access to workbooks (Excel COM limitation).
+
+### 4. MCP Server Still Running Old Version
+
+**Solution:** Fully restart your MCP client
+- Close VS Code completely (including terminal windows)
+- Close Claude Desktop completely
+- Reopen the application
+
+---
+
+## Uninstallation
+
+```powershell
+# Standalone exe: simply delete the extracted files
+Remove-Item "C:\Tools\ExcelMcp\mcp-excel.exe" -Force
+
+# Remove from PATH if you added it
+# Settings → System → About → Advanced system settings → Environment Variables
+# Edit PATH and remove the ExcelMcp directory
+
+# NuGet (if installed via dotnet tool):
+dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
+```
+
+<!--end-->
+
+---
+
+## Getting Help
+
+- **Documentation:** [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)
+- **Issues:** [GitHub Issues](https://github.com/sbroenne/mcp-server-excel/issues)
+- **Contributing:** [Contributing Guide](https://excelmcpserver.dev/contributing/)
+
+---
+
+## Next Steps
+
+After installation:
+
+1. **Learn the basics:** Try simple commands like creating worksheets, setting values
+2. **Explore features:** See the [Feature Reference](https://excelmcpserver.dev/features/) for the complete tool list
+3. **Read the guides:**
+   - [CLI Installation Guide](https://excelmcpserver.dev/installation-cli/) - for scripting, RPA, and CI/CD
+   - [Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-mcp/SKILL.md) - cross-platform AI guidance
+4. **Join the community:** Star the repo, report issues, contribute improvements
+
+**Happy automating! 🚀**

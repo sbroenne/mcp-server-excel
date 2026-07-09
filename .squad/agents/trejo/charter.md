@@ -48,9 +48,9 @@
 - Build: `dotnet build -c Release` generates SKILL.md and MCP prompts
 
 **gh-pages Local Documentation Pattern:**
-- Built with MkDocs Material; `gh-pages/hooks.py` generates `docs/_generated/*.md` from canonical sources (`build.sh`/Jekyll are gone)
+- Built with MkDocs Material; `gh-pages/mkdocs.yml` uses the `mkdocs-include-markdown-plugin` to pull content directly from canonical sources at build time (no `hooks.py`/generation script — `build.sh`/Jekyll are also gone)
 - All docs use LOCAL pages (`/features/`, `/installation/`), NOT external GitHub links
-- Adding new pages requires: add a `_write(...)` in `hooks.py`, create the wrapper page in `gh-pages/docs/`, add it to `nav:` in `mkdocs.yml`
+- Adding new pages requires: add `<!--start-->`/`<!--end-->` markers to the source file if needed, create the wrapper page in `gh-pages/docs/` with an `{% include-markdown %}` directive, add it to `nav:` in `mkdocs.yml`
 
 **Count Verification (CRITICAL):**
 ```powershell

@@ -24,9 +24,14 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 2. **Setup**:
    ```powershell
    git clone https://github.com/sbroenne/mcp-server-excel.git
-   cd ExcelMcp
+   cd mcp-server-excel
    dotnet restore
    dotnet build
+   ```
+
+3. **Test your setup** (surgical — don't run the full integration suite, it takes 45+ minutes):
+   ```powershell
+   dotnet test --filter "Feature=Sheet&RunType!=OnDemand"
    ```
 
 ## 🚨 **CRITICAL: Pull Request Workflow Required**
@@ -39,19 +44,15 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 
 1. **Create feature branch**: `git checkout -b feature/your-feature`
 2. **Make changes**: Code, tests, documentation
-3. **Push branch**: `git push origin feature/your-feature`
-4. **Create PR**: Use GitHub's PR template
-5. **Address review**: Make requested changes
-6. **Merge**: After approval and CI checks pass — **GitHub will squash commits automatically**
+3. **Run the pre-commit hook**: install it once with `Copy-Item scripts\pre-commit.ps1 .git\hooks\pre-commit`, then let it run on every commit — it enforces 14 automated gates (COM leak detection, MCP/CLI coverage parity, Release build, packaging deliverables, smoke tests, and more). Never bypass it with `--no-verify`.
+4. **Push branch**: `git push origin feature/your-feature`
+5. **Create PR**: Use GitHub's PR template
+6. **Address review**: Make requested changes, including any automated review comments (Copilot, GitHub Advanced Security)
+7. **Merge**: After approval and CI checks pass — **GitHub will squash commits automatically**
    - Verify the final commit message accurately describes the changes
    - After merge, your feature branch can be safely deleted
 
-📋 **Detailed workflow**: See [DEVELOPMENT.md](DEVELOPMENT.md) for complete instructions.
-
-3. **Test Your Setup**:
-   ```powershell
-   dotnet run -- pq-list "path/to/test.xlsx"
-   ```
+📋 **Detailed workflow**: See [DEVELOPMENT.md](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/DEVELOPMENT.md) for complete instructions.
 
 ## 📋 Development Guidelines
 
@@ -60,129 +61,109 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 - **C# 12** features encouraged (file-scoped namespaces, records, pattern matching)
 - **Nullable reference types** enabled - handle nulls properly
 - **No warnings** - project must build with zero warnings
-- **XML documentation** for public APIs
+- **XML documentation** for public APIs (these docs are extracted into MCP tool descriptions and shown to LLMs — keep them accurate)
 - **Consistent naming** - follow established patterns
 
-### Architecture Patterns
+### Architecture
+
+ExcelMcp has **two equal entry points** — an MCP Server and a CLI — sharing one Core layer:
+
+```
+MCP Server ──► In-process ExcelMcpService ──► Core Commands ──► Excel COM
+CLI ─────────► CLI Daemon (named pipe) ─────► Core Commands ──► Excel COM
+```
+
+- **`ExcelMcp.ComInterop`** - Reusable COM automation primitives (STA threading, session/batch management)
+- **`ExcelMcp.Core`** - Excel business logic (Power Query, VBA, worksheets, PivotTables, etc.)
+- **`ExcelMcp.Service`** - Excel session management and command routing
+- **`ExcelMcp.CLI`** - Command-line interface (session-based: `excelcli session open`, then operate on the session, then `excelcli session close --save`)
+- **`ExcelMcp.McpServer`** - Model Context Protocol tools for AI assistants
+- **`ExcelMcp.Generators*`** - Source generators that produce CLI commands and MCP tools directly from Core interfaces — you do **not** hand-write CLI verb registration or MCP tool schemas
 
 #### Command Pattern
-All commands follow this structure:
+
+Core Commands use the batch API and let exceptions propagate — never wrap `batch.Execute()` in a try-catch that returns an error result:
 
 ```csharp
-// Interface
-public interface IMyCommands
+public DataType MyOperation(IExcelBatch batch, string arg1)
 {
-    int MyOperation(string[] args);
-}
-
-// Implementation  
-public class MyCommands : IMyCommands
-{
-    public int MyOperation(string[] args)
+    return batch.Execute((ctx, ct) =>
     {
-        // Validation
-        if (!ValidateArgs(args, expectedCount, "usage string"))
-            return 1;
-            
-        // Excel automation using batch API
-        var task = Task.Run(async () =>
+        dynamic? item = null;
+        try
         {
-            await using var batch = await ExcelSession.BeginBatchAsync(filePath);
-            return batch.Execute((ctx, ct) =>
-            {
-                // Use ctx.Book for workbook access
-                // Your implementation
-                return 0; // Success
-            });
-        });
-        return task.GetAwaiter().GetResult();
-    }
+            item = ctx.Book.SomeObject;
+            // ... operation logic ...
+            return someData;
+        }
+        finally
+        {
+            ComUtilities.Release(ref item!); // COM cleanup only — no catch block here
+        }
+    });
+    // batch.Execute() catches exceptions via TaskCompletionSource and
+    // returns OperationResult { Success = false, ErrorMessage } automatically
 }
 ```
 
 #### Critical Rules
 
-1. **Always use batch API** - Never manage Excel lifecycle manually
+1. **Always use the batch API** - Never manage Excel lifecycle manually
 2. **Excel uses 1-based indexing** - `collection.Item(1)` is the first element
-3. **Use `QueryTables.Add()` not `ListObjects.Add()`** - For loading Power Query data
-4. **Escape user input** - Always use `.EscapeMarkup()` with Spectre.Console
-5. **Return 0 for success, 1+ for errors** - Consistent exit codes
+3. **Never suppress exceptions** with a catch block that returns `Success = false` — let `batch.Execute()` handle it
+4. **`Success = true` must never coexist with a non-empty `ErrorMessage`**
+5. **COM objects** are released only in `finally` blocks, never swallowed in empty `catch` blocks
 
 ### Excel COM Best Practices
 
-- **Late binding with dynamic types** - Use `Type.GetTypeFromProgID("Excel.Application")`
-- **Proper error handling** - Catch `COMException` and provide helpful messages
-- **Resource cleanup** - Batch API handles COM object lifecycle automatically
-- **Input validation** - Check file existence and argument counts early
+- **Late binding with dynamic types** for COM interop
+- **Proper error handling** - Catch `COMException` where specific handling is needed; otherwise let exceptions propagate
+- **Resource cleanup** - Batch API handles COM object lifecycle automatically; release ad-hoc `dynamic` COM objects yourself in `finally`
+- **Input validation** - Check file existence and argument validity early
 
 ### Testing
 
-Before submitting:
+ExcelMcp uses **integration tests only** — no unit tests, since COM interop bugs (STA threading, leaks, type conversion) only manifest against a real Excel instance. Follow TDD: write a failing test first, watch it fail, then implement.
 
-1. **Manual testing** with various Excel files
-2. **Verify Excel process cleanup** - No `excel.exe` should remain after 5 seconds
-3. **Test error conditions** - Missing files, invalid arguments, etc.
-4. **VBA script testing** - For script-related commands, test with real VBA macros
-5. **Cross-version compatibility** - Test with different Excel versions if possible
+```powershell
+# Surgical, feature-scoped testing (2-5 minutes) — always prefer this over the full suite
+dotnet test --filter "Feature=PowerQuery&RunType!=OnDemand"
 
-## 🔧 Adding New Commands
+# Full non-VBA suite (10-15 minutes) — only when you need broad confidence
+dotnet test --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust"
 
-### 1. Create Interface
-
-```csharp
-// Commands/INewCommands.cs
-namespace ExcelMcp.Commands;
-
-public interface INewCommands
-{
-    int NewOperation(string[] args);
-}
+# Session/batch changes require the slower OnDemand suite too
+dotnet test --filter "RunType=OnDemand"
 ```
 
-### 2. Implement Command Class
+Before submitting a PR:
 
-```csharp
-// Commands/NewCommands.cs
-using Spectre.Console;
+1. Tests pass for the feature(s) you changed
+2. Excel process cleanup verified - no `excel.exe` remains after tests finish
+3. Error conditions tested (missing files, invalid arguments, etc.)
+4. Build has zero warnings
+5. Pre-commit hook passes (all 14 gates)
 
-namespace ExcelMcp.Commands;
+## 🔧 Adding a New Operation
 
-public class NewCommands : INewCommands
-{
-    public int NewOperation(string[] args)
-    {
-        // Implementation following established patterns
-    }
-}
-```
+New operations are added to the **Core** interface/implementation; CLI commands and MCP tool schemas are then generated automatically — you don't hand-write CLI arg parsing or MCP tool registration.
 
-### 3. Register in Program.cs
-
-Add to the switch expression in `Main()`:
-
-```csharp
-return args[0] switch
-{
-    "new-operation" => newCommands.NewOperation(args),
-    // ... existing commands
-    _ => ShowHelp()
-};
-```
-
-### 4. Update Help Text
-
-Add your command to the help output in `ShowHelp()`.
+1. **Add the method to the relevant Core interface** (e.g. `Commands/Sheet/ISheetCommands.cs`), with XML doc comments (these become the MCP tool/parameter descriptions).
+2. **Implement it** in the corresponding partial class (e.g. `SheetCommands.Lifecycle.cs`), following the batch-API pattern above.
+3. **Build the solution** - the source generators (`ExcelMcp.Generators`, `ExcelMcp.Generators.CLI`) produce the CLI verb and MCP tool automatically from the interface.
+4. **Add integration tests** for the new operation (TDD: write them first).
+5. **Update `FEATURES.md`** with the new operation and its updated operation count — `scripts/check-doc-counts.ps1` enforces that documented counts match the code.
 
 ## 📝 Pull Request Process
 
 ### Before Submitting
 
 - [ ] Code builds with zero warnings
-- [ ] All existing commands still work
+- [ ] Feature-scoped tests pass (`dotnet test --filter "Feature=<name>&RunType!=OnDemand"`)
 - [ ] Excel processes clean up properly
-- [ ] Added appropriate error handling
-- [ ] Updated help text if needed
-- [ ] Tested with various Excel files
+- [ ] Added appropriate error handling (no suppressed exceptions)
+- [ ] Updated `FEATURES.md` / relevant docs if the operation count or behavior changed
+- [ ] Pre-commit hook passes locally
 
 ### PR Description Template
 
@@ -265,7 +246,7 @@ Great feature requests include:
 
 ## 📦 For Maintainers
 
-- [NuGet Publishing Guide](NUGET-GUIDE.md) - Complete guide for publishing all packages with OIDC trusted publishing
+- [NuGet Publishing Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/NUGET-GUIDE.md) - Complete guide for publishing all packages with OIDC trusted publishing
 
 ## 🏷️ Issue Labels
 

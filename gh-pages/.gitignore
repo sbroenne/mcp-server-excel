@@ -1,9 +1,6 @@
 # MkDocs build output
 _site/
 
-# Generated documentation pages (produced by hooks.py from canonical repo docs)
-docs/_generated/
-
 # Python
 __pycache__/
 .venv/

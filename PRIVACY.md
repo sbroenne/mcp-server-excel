@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated:** January 13, 2026
+**Last Updated:** July 9, 2026
 
 ## Overview
 
@@ -8,7 +8,9 @@ MCP Server for Excel ("ExcelMcp") is an open-source tool that enables AI assista
 
 ## Data Collection Summary
 
-ExcelMcp collects **limited, anonymous telemetry** to improve the software. Here's what we do and don't collect:
+**Telemetry applies to the MCP Server only.** The CLI (`excelcli`) and its background daemon send no telemetry of any kind — the code paths described below exist solely in `ExcelMcp.McpServer`.
+
+ExcelMcp's MCP Server collects **limited, anonymous telemetry** to improve the software. Here's what we do and don't collect:
 
 ### What We DO Collect (Anonymous Telemetry)
 
@@ -97,4 +99,4 @@ For questions about this privacy policy or the ExcelMcp project:
 
 ---
 
-**Summary:** ExcelMcp processes your Excel files locally on your machine. We collect anonymous usage telemetry (tool usage, performance, errors) to improve the software, but never collect your file contents, file names, or personal information.
+**Summary:** ExcelMcp processes your Excel files locally on your machine. The MCP Server component collects anonymous usage telemetry (tool usage, performance, errors) to improve the software, but never collects your file contents, file names, or personal information. The CLI sends no telemetry at all.

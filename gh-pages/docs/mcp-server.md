@@ -6,4 +6,9 @@ keywords: "Excel MCP server, Model Context Protocol, MCP tools, Claude Excel, VS
 
 # MCP Server Documentation
 
---8<-- "_generated/mcp-server.md"
+{%
+  include-markdown "../../src/ExcelMcp.McpServer/README.md"
+  start="<!--start-->"
+  end="<!--end-->"
+  heading-offset=1
+%}

@@ -199,7 +199,7 @@ Get-Content C:\WindowsAzure\Logs\Plugins\Microsoft.Compute.CustomScriptExtension
 - Network connectivity issues (check NSG rules)
 - GitHub rate limiting (wait and retry)
 
-**Fallback:** Use manual installation guide: [`docs/MANUAL_RUNNER_INSTALLATION.md`](../../docs/MANUAL_RUNNER_INSTALLATION.md)
+**Fallback:** Provision the runner VM manually via the Azure Portal or `az vm create`, then install the GitHub Actions runner following [GitHub's self-hosted runner docs](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/adding-self-hosted-runners).
 
 ### Azure Login failed
 

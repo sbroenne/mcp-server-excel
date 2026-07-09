@@ -24,7 +24,7 @@ The C# MCP SDK maps tool hints from [McpServerTool] attribute properties:
 - Destructive = true → annotations.destructiveHint = true
 - ReadOnly, Idempotent, OpenWorld map similarly
 
-All 22 tools in this repository set Destructive = true.
+Nearly all tools set Destructive = true, since Excel automation modifies live workbook state; read-only tools (e.g. `screenshot`) set Destructive = false.
 
 ## Submission Form Checklist
 Fill the Claude Directory submission form with:

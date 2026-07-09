@@ -6,4 +6,9 @@ keywords: "Excel MCP features, Power Query automation, DAX measures, VBA macros,
 
 # Complete Feature Reference
 
---8<-- "_generated/features.md"
+{%
+  include-markdown "../../FEATURES.md"
+  start="<!--start-->"
+  end="<!--end-->"
+  heading-offset=1
+%}

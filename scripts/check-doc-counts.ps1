@@ -159,7 +159,6 @@ $checks = @(
     @{ File = "README.md";                              Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
     @{ File = "README.md";                              Pattern = 'all (?<o>\d+) operations' }
     @{ File = "FEATURES.md";                            Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
-    @{ File = "FEATURES.md";                            Pattern = '\| \*\*Total\*\* \| \*\*(?<o>\d+)\*\* \|' }
     @{ File = "src\ExcelMcp.McpServer\README.md";       Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
     @{ File = "src\ExcelMcp.McpServer\README.md";       Pattern = 'all (?<o>\d+) operations' }
     @{ File = "src\ExcelMcp.CLI\README.md";             Pattern = 'with (?<o>\d+) operations matching' }

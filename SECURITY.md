@@ -2,13 +2,14 @@
 
 ## Supported Versions
 
-We actively support the following versions of ExcelMcp with security updates:
+ExcelMcp ships frequent releases (multiple per month). We only support the **latest published version** with security fixes — there are no parallel maintenance branches for older minor/patch releases:
 
-| Version | Supported          | Status |
-| ------- | ------------------ | ------ |
-| 1.7.x   | :white_check_mark: | Active |
-| 1.6.x   | :white_check_mark: | Active |
-| < 1.6   | :x:                | Unsupported |
+| Version              | Supported          |
+| --------------------- | ------------------ |
+| Latest release         | :white_check_mark: |
+| Any older release      | :x: Please upgrade  |
+
+Check the [Releases page](https://github.com/sbroenne/mcp-server-excel/releases) for the current latest version, and keep your installation up to date via the CLI's built-in auto-update, `npx skills`, the VS Code extension, or NuGet.
 
 ## Security Features
 
@@ -221,10 +222,10 @@ Subscribe to repository notifications to receive security alerts.
 | Version | Date | Security Changes |
 |---------|------|------------------|
 | 1.7.0   | 2026 | Named pipe security with Windows ACL user isolation |
-| 1.0.0   | 2024 | Initial security implementation with input validation |
+| 1.0.0   | 2025 | Initial security implementation with input validation |
 
 ---
 
-**Last Updated**: 2026-03-03
+**Last Updated**: 2026-07-09
 
 Thank you for helping keep ExcelMcp and its users safe!

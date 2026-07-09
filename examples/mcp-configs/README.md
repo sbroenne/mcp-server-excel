@@ -170,7 +170,7 @@ Create an Excel file called "test.xlsx"
 
 ### Still Having Issues?
 
-- Check the [main installation guide](../../docs/INSTALLATION.md)
+- Check the [MCP Server installation guide](../../docs/INSTALLATION-MCP-SERVER.md)
 - Report issues on [GitHub](https://github.com/sbroenne/mcp-server-excel/issues)
 
 ---
@@ -188,6 +188,6 @@ If you work with multiple workspaces, you can:
 ## Learn More
 
 - **[Main README](../../README.md)** - Feature overview and examples
-- **[Installation Guide](../../docs/INSTALLATION.md)** - Comprehensive setup instructions
+- **[MCP Server Installation Guide](../../docs/INSTALLATION-MCP-SERVER.md)** - Comprehensive setup instructions
 - **[MCP Server README](../../src/ExcelMcp.McpServer/README.md)** - Tool documentation
 - **[GitHub Repository](https://github.com/sbroenne/mcp-server-excel)** - Source code and issues
