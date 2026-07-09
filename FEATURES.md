@@ -25,7 +25,7 @@
 
 ## 🔄 Power Query & M Code (12 operations)
 
-**Atomic Operations** - Single-call workflows:
+All operations are single-call atomic workflows:
 - **List:** List all Power Query queries in workbook
 - **View:** View the M code of a Power Query
 - **Create:** Import + load in one operation (atomic workflow), preserving M code by default
@@ -74,147 +74,154 @@
 ## 🎨 Excel Tables (ListObjects) (27 operations)
 
 **Lifecycle:**
-- List, read, create, rename, resize, delete tables
+- **List:** List Excel Tables in a worksheet or workbook
+- **Read:** Get table structure (columns, range, style)
+- **Create:** Create a new Excel Table from a range
+- **Rename:** Rename an existing table
+- **Resize:** Resize table range to match new data bounds
+- **Delete:** Remove a table (keeps underlying cell data)
 
 **Styling & Formatting:**
-- Apply table styles
-- Toggle totals row
-- Set column totals
+- **Apply Style:** Apply a built-in table style
+- **Toggle Totals Row:** Show/hide the totals row
+- **Set Column Totals:** Configure per-column total function (Sum, Average, Count, etc.)
 
 **Data Operations:**
-- Append rows
-- Get table data (with optional visible-only filtering)
-- Add to Data Model
+- **Append Rows:** Add rows to the end of a table
+- **Get Table Data:** Read table data as a 2D array, with optional visible-only filtering
+- **Add to Data Model:** Load a table into the Power Pivot Data Model
 
 **DAX-Backed Tables:**
-- Create from DAX (create Excel Table populated by DAX EVALUATE query)
-- Update DAX (change the DAX query of an existing DAX-backed table)
-- Get DAX (retrieve DAX query info from a table)
+- **Create from DAX:** Create an Excel Table populated by a DAX EVALUATE query
+- **Update DAX:** Change the DAX query of an existing DAX-backed table
+- **Get DAX:** Retrieve the DAX query info from a table
 
 **Filter Operations:**
-- Apply filter (criteria)
-- Apply filter (values)
-- Clear filters
-- Get filter state
+- **Apply Filter (Criteria):** Filter a column using comparison criteria
+- **Apply Filter (Values):** Filter a column to a specific set of values
+- **Clear Filters:** Remove all active filters
+- **Get Filter State:** Read current filter criteria
 
 **Column Management:**
-- Add, remove, rename columns
+- **Add Column:** Insert a new column
+- **Remove Column:** Delete a column
+- **Rename Column:** Rename a column header
 
 **Structured References:**
-- Get structured reference (formula syntax for table columns/ranges)
+- **Get Structured Reference:** Get formula syntax for a table column or range
 
 **Sorting:**
-- Single-column sort
-- Multi-column sort (up to 3 levels)
+- **Sort (Single Column):** Sort by one column
+- **Sort (Multi-Column):** Sort by up to 3 columns/levels
 
 **Number Formatting:**
-- Get column number formats
-- Set column number formats
+- **Get Column Number Formats:** Read number formats applied to columns
+- **Set Column Number Formats:** Apply number formats to columns
 
 ---
 
 ## 📈 PivotTables (30 operations)
 
 **Creation:**
-- Create from range
-- Create from Excel Table
-- Create from Data Model
+- **Create from Range:** Build a PivotTable from a cell range
+- **Create from Excel Table:** Build a PivotTable from an Excel Table
+- **Create from Data Model:** Build an OLAP PivotTable from the Data Model
 
 **Field Management:**
-- List all fields (row, column, value, filter areas)
-- Add row field, column field, value field, filter field
-- Remove field
+- **List Fields:** List all fields across row, column, value, and filter areas
+- **Add Row Field / Column Field / Value Field / Filter Field:** Add a field to the given area
+- **Remove Field:** Remove a field from the PivotTable
 
 **Field Configuration:**
-- Set field aggregation function (Sum, Average, Count, Min, Max, etc.)
-- Set custom field name
-- Set field number format
-- Set field filter criteria
-- Sort field (ascending/descending)
+- **Set Field Function:** Set aggregation function (Sum, Average, Count, Min, Max, etc.)
+- **Set Field Name:** Set a custom display name for a field
+- **Set Field Number Format:** Apply a number format to a value field
+- **Set Field Filter:** Apply filter criteria to a field
+- **Sort Field:** Sort a field ascending/descending
 
 **Calculated Fields (Regular PivotTables):**
-- List calculated fields
-- Create calculated field
-- Delete calculated field
+- **List Calculated Fields:** List calculated fields on a regular PivotTable
+- **Create Calculated Field:** Add a calculated field
+- **Delete Calculated Field:** Remove a calculated field
 
 **Calculated Members (OLAP/Data Model PivotTables):**
-- List calculated members
-- Create calculated member
-- Delete calculated member
+- **List Calculated Members:** List calculated members on an OLAP PivotTable
+- **Create Calculated Member:** Add a calculated member
+- **Delete Calculated Member:** Remove a calculated member
 
 **Layout & Formatting:**
-- Set layout (table or outline)
-- Set subtotals display
-- Set grand totals display
+- **Set Layout:** Switch between table and outline layout
+- **Set Subtotals Display:** Show/hide subtotals
+- **Set Grand Totals Display:** Show/hide grand totals
 
 **Data Operations:**
-- Get PivotTable data as 2D array
-- Refresh PivotTable
+- **Get PivotTable Data:** Read PivotTable data as a 2D array
+- **Refresh:** Refresh the PivotTable from its source
 
 **Lifecycle:**
-- List PivotTables
-- Read PivotTable info
-- Delete PivotTable
+- **List:** List PivotTables in a worksheet or workbook
+- **Read:** Get PivotTable info
+- **Delete:** Remove a PivotTable
 
 ---
 
 ## 📉 Charts (29 operations)
 
 **Creation:**
-- Create from range
-- Create from PivotTable
+- **Create from Range:** Build a chart from a cell range
+- **Create from PivotTable:** Build a chart from a PivotTable
 
 **Series Management:**
-- Add series
-- Remove series
-- Update series data
+- **Add Series:** Add a data series to a chart
+- **Remove Series:** Remove a data series
+- **Update Series Data:** Change the data range for a series
 
 **Configuration:**
-- Set data source range
-- Set chart type
-- Show/hide legend
-- Set style
+- **Set Data Source:** Change the chart's source range
+- **Set Chart Type:** Change the chart type (bar, line, pie, etc.)
+- **Show/Hide Legend:** Toggle the legend
+- **Set Style:** Apply a built-in chart style
 
 **Formatting:**
-- Set chart title
-- Set axis title
-- Set axis number format
-- Get axis number format
+- **Set Chart Title:** Set or clear the chart title
+- **Set Axis Title:** Set or clear an axis title
+- **Set Axis Number Format:** Apply a number format to an axis
+- **Get Axis Number Format:** Read the current axis number format
 
 **Data Labels:**
-- Configure data labels (show values, percentages, category names, etc.)
-- Set label position (Center, InsideEnd, OutsideEnd, etc.)
-- Apply to all series or specific series
+- **Configure Data Labels:** Show values, percentages, category names, etc.
+- **Set Label Position:** Position labels (Center, InsideEnd, OutsideEnd, etc.)
+- **Apply to Series:** Apply label config to all series or a specific one
 
 **Axis Scale:**
-- Get axis scale settings
-- Set minimum/maximum scale
-- Set major/minor units
+- **Get Axis Scale:** Read current min/max/unit settings
+- **Set Min/Max Scale:** Set axis minimum/maximum
+- **Set Major/Minor Units:** Set axis tick unit spacing
 
 **Gridlines:**
-- Get gridlines configuration
-- Set major/minor gridlines visibility
+- **Get Gridlines Config:** Read current gridline visibility
+- **Set Gridlines:** Toggle major/minor gridline visibility
 
 **Series Formatting:**
-- Set marker style (Circle, Square, Diamond, Triangle, etc.)
-- Set marker size
-- Set marker colors
+- **Set Marker Style:** Set marker shape (Circle, Square, Diamond, Triangle, etc.)
+- **Set Marker Size:** Set marker size
+- **Set Marker Colors:** Set marker fill/line colors
 
 **Trendlines:**
-- Add trendline (Linear, Exponential, Logarithmic, Polynomial, Power, MovingAverage)
-- List trendlines on series
-- Delete trendline
-- Configure trendline (forecast forward/backward, display equation, display R²)
+- **Add Trendline:** Add a trendline (Linear, Exponential, Logarithmic, Polynomial, Power, MovingAverage)
+- **List Trendlines:** List trendlines on a series
+- **Delete Trendline:** Remove a trendline
+- **Configure Trendline:** Set forecast forward/backward, display equation, display R²
 
 **Placement & Positioning:**
-- Set chart placement (move/size with cells options)
-- Fit to range (position and size to match a range)
+- **Set Placement:** Move/resize a chart with cell-anchoring options
+- **Fit to Range:** Position and size a chart to match a range
 
 **Lifecycle:**
-- List charts
-- Read chart info
-- Move chart (to different worksheet or new sheet)
-- Delete chart
+- **List:** List charts in a worksheet or workbook
+- **Read:** Get chart info
+- **Move:** Move a chart to a different worksheet or a new sheet
+- **Delete:** Remove a chart
 
 ---
 
@@ -223,93 +230,84 @@
 Formatting split: use `range` for number display formats such as dates, currency, percentages, and text display. Use `range_format` for visual styling, validation, auto-fit, and size/layout changes.
 
 **Data Operations:**
-- Get values
-- Set values
-- Get formulas
-- Set formulas
-- Clear all
-- Clear contents
-- Clear formats
-- Copy
-- Copy values
-- Copy formulas
-- Insert cells
-- Delete cells
-- Insert rows
-- Delete rows
-- Insert columns
-- Delete columns
-- Find
-- Replace
-- Sort
+- **Get/Set Values:** Read or write cell values
+- **Get/Set Formulas:** Read or write formulas
+- **Clear All/Contents/Formats:** Clear a range's contents, formats, or both
+- **Copy / Copy Values / Copy Formulas:** Copy a range, or just its values/formulas
+- **Insert/Delete Cells:** Shift cells to insert or remove space
+- **Insert/Delete Rows:** Insert or delete entire rows
+- **Insert/Delete Columns:** Insert or delete entire columns
+- **Find:** Search a range for matching values
+- **Replace:** Find and replace values in a range
+- **Sort:** Sort a range by one or more columns
 
 **Discovery & Utilities:**
-- Get used range
-- Get current region
-- Get range info (address, dimensions)
+- **Get Used Range:** Get the worksheet's used range
+- **Get Current Region:** Get the contiguous data region around a cell
+- **Get Range Info:** Get a range's address and dimensions
 
 **Hyperlinks:**
-- Add hyperlink
-- Remove hyperlink
-- List hyperlinks
-- Get specific hyperlink
+- **Add Hyperlink:** Add a hyperlink to a cell
+- **Remove Hyperlink:** Remove a hyperlink
+- **List Hyperlinks:** List all hyperlinks in a range
+- **Get Hyperlink:** Get a specific hyperlink's target
 
 **Number Formatting (`range`):**
-- Get number formats (as 2D array)
-- Set number format (uniform)
-- Set number formats (individual)
+- **Get Number Formats:** Read number formats as a 2D array
+- **Set Number Format:** Apply one number format uniformly
+- **Set Number Formats:** Apply individual per-cell number formats
 
 **Visual Formatting (`range_format`):**
-- Get style
-- Set style (built-in Excel styles)
-- Format range (font, color, borders, alignment, orientation)
-- Format multiple ranges with one shared formatting payload
+- **Get Style:** Read the applied cell style
+- **Set Style:** Apply a built-in Excel style
+- **Format Range:** Set font, color, borders, alignment, orientation
+- **Format Ranges:** Apply one shared formatting payload to multiple ranges
 
 **Data Validation (`range_format`):**
-- Add validation rules (dropdowns, number/date/text rules)
-- Get validation info
-- Remove validation
+- **Add Validation:** Add dropdown, number/date/text validation rules
+- **Get Validation:** Read current validation info
+- **Remove Validation:** Remove validation rules
 
 **Merge Operations (`range_format`):**
-- Merge cells
-- Unmerge cells
-- Get merge info
+- **Merge Cells:** Merge a range into one cell
+- **Unmerge Cells:** Undo a merge
+- **Get Merge Info:** Read current merge state
 
 **Cell Protection:**
-- Set cell lock status
-- Get cell lock status
+- **Set Lock Status:** Lock/unlock cells (effective once the sheet is protected)
+- **Get Lock Status:** Read current cell lock status
 
 **Auto-Sizing (`range_format`):**
-- Auto-fit columns
-- Auto-fit rows
+- **Auto-Fit Columns:** Resize columns to fit content
+- **Auto-Fit Rows:** Resize rows to fit content
 
 ---
 
 ## 📄 Worksheets (16 operations)
 
 **Lifecycle:**
-- List worksheets
-- Create worksheet
-- Rename worksheet
-- Copy worksheet
-- Move worksheet
-- Delete worksheet
+- **List:** List worksheets in the workbook
+- **Create:** Add a new worksheet
+- **Rename:** Rename a worksheet
+- **Copy:** Copy a worksheet within the workbook
+- **Move:** Move a worksheet within the workbook
+- **Delete:** Remove a worksheet
 
 **Cross-Workbook Operations:**
-- Copy worksheet to file (atomic)
-- Move worksheet to file (atomic)
+- **Copy to File:** Copy a worksheet to another workbook (atomic)
+- **Move to File:** Move a worksheet to another workbook (atomic)
 
 **Tab Colors:**
-- Set tab color (RGB)
-- Get tab color
-- Clear tab color
+- **Set Tab Color:** Set a worksheet tab's RGB color
+- **Get Tab Color:** Read the current tab color
+- **Clear Tab Color:** Reset the tab to its default color
 
 **Visibility:**
-- Show worksheet
-- Hide worksheet
-- Very hide worksheet (hidden from UI)
-- Get visibility status
-- Set visibility status
+- **Show:** Make a worksheet visible
+- **Hide:** Hide a worksheet (still shown in the Unhide dialog)
+- **Very Hide:** Hide a worksheet from the Excel UI entirely
+- **Get Visibility:** Read the current visibility status
+- **Set Visibility:** Set visibility status directly
 
 ---
 
@@ -328,10 +326,10 @@ Formatting split: use `range` for number display formats such as dates, currency
 **Supported Types:**
 - OLEDB (requires Microsoft.ACE.OLEDB.16.0 or similar)
 - ODBC (requires ODBC driver installed)
-- Power Query connections (atomic redirect to powerquery)
+- Power Query connections (atomic redirect to `powerquery`)
 
 **Automatic Fallback:**
-- TEXT/WEB connections automatically redirect to powerquery for reliable imports
+- TEXT/WEB connections automatically redirect to `powerquery` for reliable imports
 
 ---
 
@@ -389,10 +387,7 @@ Formatting split: use `range` for number display formats such as dates, currency
 
 ## 🎨 Conditional Formatting (2 operations)
 
-- **Add Rule:** Create conditional formatting rules
-  - Cell value comparisons (>, <, =, etc.)
-  - Expression-based formulas (custom DAX/Excel formulas)
-  - Color scales, data bars, icons
+- **Add Rule:** Create a conditional formatting rule — cell value comparison (>, <, =, etc.), expression-based formula (custom DAX/Excel formula), or color scale/data bar/icon set
 - **Clear Rules:** Remove formatting from ranges
 
 ---
@@ -400,12 +395,7 @@ Formatting split: use `range` for number display formats such as dates, currency
 ## 📸 Screenshot (2 operations)
 
 - **Capture Range:** Capture a specific range as a PNG image
-- **Capture Sheet:** Capture the entire used area of a worksheet as a PNG image
-  - Uses Excel's built-in rendering (CopyPicture) — captures formatting, charts, conditional formatting
-  - MCP: Returns image directly as ImageContent (base64 PNG)
-  - CLI: Returns JSON with base64-encoded image data
-
----
+- **Capture Sheet:** Capture the entire used area of a worksheet as a PNG image, using Excel's built-in rendering (CopyPicture) — captures formatting, charts, and conditional formatting. MCP returns the image directly as `ImageContent` (base64 PNG); CLI returns JSON with base64-encoded image data.
 
 ---
 
@@ -413,23 +403,23 @@ Formatting split: use `range` for number display formats such as dates, currency
 
 **REQUIRES:** a real Excel session signed into a licensed Microsoft 365 account with Python in Excel enabled, plus internet access — the Python code executes in a Microsoft-hosted cloud sandbox, not locally. Not available offline or with perpetual-license Excel.
 
-- **Set Formula:** Writes a `=PY("<code>", returnType)` formula via `Range.Formula2`. `returnType` 0 = "Excel Value" (a plain value/array), 1 = "Python Object" (a rich data type card, e.g. a DataFrame). Must always be passed explicitly — omitting it causes a `#NAME?` error.
-- **Get Result:** Reads back the computed value, polling briefly since cloud execution is not instantaneous. **Best-effort:** Excel exposes no reliable "still computing" signal via COM, so a freshly written formula may read back as unconverged; if the poll doesn't stabilize in time, the call reports failure and asks the caller to retry rather than guessing at a stale value.
-- **Data binding:** reference live worksheet data inside the Python code with `xl("A1:A6")`, `xl("Sheet1!A1:A6")`, or a named range `xl("MyRange")` — works the same as if typed interactively.
+- **Set Formula:** Write a `=PY("<code>", returnType)` formula via `Range.Formula2`. `returnType` 0 = "Excel Value" (a plain value/array), 1 = "Python Object" (a rich data type card, e.g. a DataFrame). Must always be passed explicitly — omitting it causes a `#NAME?` error.
+- **Get Result:** Read back the computed value, polling briefly since cloud execution is not instantaneous. **Best-effort:** Excel exposes no reliable "still computing" signal via COM, so a freshly written formula may read back as unconverged; if the poll doesn't stabilize in time, the call reports failure and asks the caller to retry rather than guessing at a stale value.
+- **Data Binding:** Reference live worksheet data inside the Python code with `xl("A1:A6")`, `xl("Sheet1!A1:A6")`, or a named range `xl("MyRange")` — works the same as if typed interactively.
 
 ---
 
 ## 🪧 Window Management (9 operations)
 
-- **Show:** Makes Excel visible and brings it to the foreground
-- **Hide:** Hides the Excel window
-- **Bring to Front:** Brings Excel to the foreground without changing visibility
-- **Get Info:** Gets current window state (visibility, position, size, foreground status)
-- **Set State:** Sets window state to normal, minimized, or maximized
-- **Set Position:** Sets window position and size in points (left, top, width, height)
-- **Arrange:** Arranges Excel window using preset layouts
-- **Set Status Bar:** Displays custom text in Excel's status bar for real-time feedback
-- **Clear Status Bar:** Restores the default status bar text
+- **Show:** Make Excel visible and bring it to the foreground
+- **Hide:** Hide the Excel window
+- **Bring to Front:** Bring Excel to the foreground without changing visibility
+- **Get Info:** Get current window state (visibility, position, size, foreground status)
+- **Set State:** Set window state to normal, minimized, or maximized
+- **Set Position:** Set window position and size in points (left, top, width, height)
+- **Arrange:** Arrange the Excel window using preset layouts
+- **Set Status Bar:** Display custom text in Excel's status bar for real-time feedback
+- **Clear Status Bar:** Restore the default status bar text
 
 **Arrange Presets:**
 - `left-half` / `right-half` — Side-by-side with other applications
@@ -441,60 +431,6 @@ Formatting split: use `range` for number display formats such as dates, currency
 - Interactive "agent mode" where users watch Excel respond to AI commands in real-time
 - Side-by-side: Excel on one half, AI assistant on the other
 - Visibility changes are reflected in session metadata (session list shows updated state)
-
----
-
-## 📊 Total Operations Summary
-
-| Category | Operations |
-|----------|-----------|
-| File Operations | 6 |
-| Power Query | 12 |
-| Data Model/DAX | 19 |
-| Excel Tables | 27 |
-| PivotTables | 30 |
-| Charts | 29 |
-| Ranges | 46 |
-| Worksheets | 16 |
-| Connections | 9 |
-| Named Ranges | 6 |
-| VBA Macros | 6 |
-| Slicers | 8 |
-| Conditional Formatting | 2 |
-| Screenshot | 2 |
-| Calculation Mode | 3 |
-| Window Management | 9 |
-| Python in Excel | 2 |
-| **Total** | **232** |
-
----
-
-## 🚀 Key Capabilities
-
-**Data Transformation:**
-- Comprehensive Power Query M code management
-- Atomic import + load workflows
-- Calculated fields and members for analysis
-
-**Data Model:**
-- Full DAX measure lifecycle
-- Relationship management
-- Multi-table integration
-
-**Analysis & Visualization:**
-- PivotTable creation and configuration
-- Chart automation
-- Custom calculations
-
-**Automation:**
-- VBA macro execution and management
-- Named range parameter automation
-- Conditional formatting rules
-
-**Data Loading:**
-- Multiple connection type support
-- OLEDB/ODBC management
-- Power Query atomic workflows
 
 ---
 
@@ -514,9 +450,9 @@ Formatting split: use `range` for number display formats such as dates, currency
 
 ## 📚 Documentation
 
-- **[Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md)** - Setup for all AI assistants
-- **[MCP Server Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.McpServer/README.md)** - Tool documentation and examples
-- **[CLI Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** - Command-line reference
+- **[Installation Guide](https://excelmcpserver.dev/installation/)** - Choose MCP Server or CLI setup
+- **[MCP Server Guide](https://excelmcpserver.dev/mcp-server/)** - Tool documentation and examples
+- **[CLI Guide](https://excelmcpserver.dev/cli/)** - Command-line reference
 - **[Agent Skills](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-mcp/SKILL.md)** - Cross-platform AI assistant guidance (agentskills.io)
-- **[Contributing](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/CONTRIBUTING.md)** - Development guidelines
+- **[Contributing](https://excelmcpserver.dev/contributing/)** - Development guidelines
 - **[Releases](https://github.com/sbroenne/mcp-server-excel/releases)** - Latest updates and features

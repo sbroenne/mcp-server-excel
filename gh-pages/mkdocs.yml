@@ -4,7 +4,7 @@ site_description: >-
   Control Microsoft Excel with natural language through AI assistants like
   GitHub Copilot and Claude. Automate Power Query, DAX, VBA, PivotTables and more.
 site_author: Stefan Broenner
-copyright: Copyright &copy; 2024&ndash;2025 Stefan Broenner &mdash; MIT License
+copyright: Copyright &copy; 2025&ndash;2026 Stefan Broenner &mdash; MIT License
 
 repo_url: https://github.com/sbroenne/mcp-server-excel
 repo_name: sbroenne/mcp-server-excel
@@ -80,7 +80,10 @@ theme:
 nav:
   - Home: index.md
   - Features: features.md
-  - Installation: installation.md
+  - Installation:
+    - Overview: installation.md
+    - MCP Server: installation-mcp-server.md
+    - CLI: installation-cli.md
   - MCP Server: mcp-server.md
   - CLI: cli.md
   - More:

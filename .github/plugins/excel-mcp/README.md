@@ -32,7 +32,7 @@ copilot plugin install excel-mcp@mcp-server-excel-plugins
 
 1. Install the plugin
 2. Let the plugin bootstrap the latest self-contained `mcp-excel.exe` on first use
-3. Or add the standalone binary to your MCP client configuration manually (see [Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md))
+3. Or add the standalone binary to your MCP client configuration manually (see [MCP Server Installation Guide](https://excelmcpserver.dev/installation-mcp-server/))
 
 ### Runtime Bootstrap
 
@@ -73,6 +73,7 @@ pwsh -ExecutionPolicy Bypass -File `
 - **Conditional Formatting** (2 ops) — Add rules (cell value, expression), clear
 - **Named Ranges** (6 ops) — Create, update, delete named ranges
 - **Calculation Mode** (3 ops) — Get/set mode, trigger recalculation (performance optimization)
+- **Python in Excel** (2 ops) — Set/get `=PY()` formulas and results
 - **Screenshot** (2 ops) — Capture ranges/sheets as PNG for visual verification
 - **Window Management** (9 ops) — Show/hide Excel, arrange, position, status bar feedback
 
@@ -161,7 +162,7 @@ ExcelMcp drives the **actual Excel application** through its official COM API �
 ## Resources
 
 - **Documentation:** [excelmcpserver.dev](https://excelmcpserver.dev/)
-- **Installation Guide:** [docs/INSTALLATION.md](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md)
+- **Installation Guide:** [excelmcpserver.dev/installation-mcp-server](https://excelmcpserver.dev/installation-mcp-server/)
 - **GitHub Repository:** [github.com/sbroenne/mcp-server-excel](https://github.com/sbroenne/mcp-server-excel)
 - **Issues:** [github.com/sbroenne/mcp-server-excel/issues](https://github.com/sbroenne/mcp-server-excel/issues)
 - **License:** MIT

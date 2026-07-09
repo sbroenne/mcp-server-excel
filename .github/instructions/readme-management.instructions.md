@@ -103,17 +103,32 @@ The site is built with **MkDocs Material** (see `gh-pages/mkdocs.yml`). It prese
 single-source-of-truth pipeline: canonical repo files (READMEs, FEATURES.md, etc.) are
 transformed at build time and pulled into thin wrapper pages — you never hand-copy content.
 
-### Pattern: MkDocs hook + snippet include
+### Pattern: MkDocs `include-markdown` plugin
 
-`gh-pages/hooks.py` runs on `on_pre_build` and generates `gh-pages/docs/_generated/*.md`
-from the canonical sources (stripping the H1/badges, demoting headings, and rewriting
-repo-relative links to site/GitHub URLs). Thin wrapper pages then embed the generated
-file via a `pymdownx.snippets` include:
+Thin wrapper pages under `gh-pages/docs/` pull content directly from canonical repo
+sources using the `mkdocs-include-markdown-plugin`'s `{% include-markdown %}` directive
+— no build-time generation script, no gitignored intermediate files. The plugin supports
+`start`/`end` HTML-comment markers (to skip a source file's title/badges block) and
+`heading-offset` (to demote headings so the wrapper's own `# Title` stays the only H1):
 
-1. **Source file** (e.g., `src/ExcelMcp.McpServer/README.md`)
-2. **`hooks.py` generates** `docs/_generated/mcp-server.md` (H1/badges stripped, links rewritten)
-3. **Page file** (e.g., `gh-pages/docs/mcp-server.md`) includes it: `--8<-- "_generated/mcp-server.md"`
-4. **Result**: Local URL `/mcp-server/` instead of GitHub link
+1. **Source file** (e.g., `src/ExcelMcp.McpServer/README.md`) — has a `<!--start-->`
+   marker after its title/badge block, and an `<!--end-->` marker before any
+   package-specific footer (e.g. "Additional Resources") that would duplicate site nav.
+2. **Page file** (e.g., `gh-pages/docs/mcp-server.md`) includes it directly:
+   ```jinja
+   {%
+     include-markdown "../../src/ExcelMcp.McpServer/README.md"
+     start="<!--start-->"
+     end="<!--end-->"
+     heading-offset=1
+   %}
+   ```
+3. **Result**: Local URL `/mcp-server/` renders the source file's content with its own
+   H1 replaced by the wrapper's, and no duplicated footer nav.
+
+Pages that are meant to be **verbatim copies** (their own H1 becomes the page title —
+`contributing.md`, `security.md`, `privacy.md`) use the directive with no `start`/`end`/
+`heading-offset` at all — the whole source file is included as-is.
 
 ### Current Local Pages
 
@@ -121,21 +136,24 @@ file via a `pymdownx.snippets` include:
 |-----|--------|-----------|
 | `/features/` | `/FEATURES.md` | `gh-pages/docs/features.md` |
 | `/installation/` | `/docs/INSTALLATION.md` | `gh-pages/docs/installation.md` |
+| `/installation-mcp-server/` | `/docs/INSTALLATION-MCP-SERVER.md` | `gh-pages/docs/installation-mcp-server.md` |
+| `/installation-cli/` | `/docs/INSTALLATION-CLI.md` | `gh-pages/docs/installation-cli.md` |
 | `/changelog/` | `/CHANGELOG.md` | `gh-pages/docs/changelog.md` |
 | `/mcp-server/` | `/src/ExcelMcp.McpServer/README.md` | `gh-pages/docs/mcp-server.md` |
 | `/cli/` | `/src/ExcelMcp.CLI/README.md` | `gh-pages/docs/cli.md` |
 | `/skills/` | `/skills/README.md` | `gh-pages/docs/skills.md` |
 | `/contributing/` | `/docs/CONTRIBUTING.md` | `gh-pages/docs/contributing.md` |
-| `/security/` | `/docs/SECURITY.md` | `gh-pages/docs/security.md` |
+| `/security/` | `/SECURITY.md` | `gh-pages/docs/security.md` |
 | `/privacy/` | `/PRIVACY.md` | `gh-pages/docs/privacy.md` |
 
 ### Adding New Local Pages
 
-1. **Update `gh-pages/hooks.py`** — add a `_write("target.md", "path/to/SOURCE.md", ...)`
-   call inside `on_pre_build` (reuse `_strip_header` for demote/strip behavior, or write a
-   verbatim copy for pages that keep their own H1).
+1. **Add markers to the source file** (if it needs its title/badges stripped or a
+   footer excluded): a `<!--start-->` comment after the header block, and/or an
+   `<!--end-->` comment before any footer that duplicates site nav.
 
-2. **Create page file** in `gh-pages/docs/` with SEO front matter and a snippet include:
+2. **Create page file** in `gh-pages/docs/` with SEO front matter and an
+   `include-markdown` directive:
    ```markdown
    ---
    title: Page Title
@@ -145,7 +163,12 @@ file via a `pymdownx.snippets` include:
 
    # Page Title
 
-   --8<-- "_generated/target.md"
+   {%
+     include-markdown "../../path/to/SOURCE.md"
+     start="<!--start-->"
+     end="<!--end-->"
+     heading-offset=1
+   %}
    ```
 
 3. **Add it to `nav:`** in `gh-pages/mkdocs.yml` so it appears in site navigation.
@@ -155,6 +178,6 @@ file via a `pymdownx.snippets` include:
 ### Why Local Pages
 
 - **Consistent UX** - All docs served from same domain
-- **Single source of truth** - Content auto-synced from source files via `hooks.py`
+- **Single source of truth** - Content pulled directly from canonical source files at build time
 - **SEO** - Better for search engine indexing
 - **Offline docs** - Works with `mkdocs serve` locally

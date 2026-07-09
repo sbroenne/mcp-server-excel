@@ -19,7 +19,7 @@ ExcelMcp plugins are published to the official GitHub Copilot CLI marketplace vi
 - Source repo stores overlay content in `.github/plugins/` (not installable plugin roots)
 - Version and skills are injected during the publish workflow, not maintained separately
 
-See [GitHub Copilot Plugin Distribution](../../docs/AWESOME-COPILOT-PROPOSAL.md) for the user-facing documentation.
+See [GitHub Copilot Plugin Distribution](../../../docs/COPILOT-PLUGIN-DISTRIBUTION.md) for the user-facing documentation.
 
 ## What can be automated from this environment?
 

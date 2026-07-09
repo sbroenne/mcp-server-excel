@@ -259,7 +259,7 @@ dotnet build -c Release  # Generates SKILL.md, copies references, and generates 
 - NEVER create separate prompt files for content that belongs in `skills/shared/`
 
 **Install via npx:**
-```bash
+```powershell
 npx skills add sbroenne/mcp-server-excel --skill excel-cli   # Coding agents
 npx skills add sbroenne/mcp-server-excel --skill excel-mcp   # Conversational AI
 ```

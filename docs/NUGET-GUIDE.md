@@ -25,7 +25,7 @@ ExcelMcp publishes two NuGet packages (unified release):
 - **Package Type**: .NET Global Tool (executable)
 - **Purpose**: MCP server for AI assistant integration
 - **Tag Pattern**: `v*` (e.g., `v1.2.0`) - **unified with CLI**
-- **Workflow**: `.github/workflows/release-mcp-server.yml` (handles both packages)
+- **Workflow**: `.github/workflows/release.yml` (handles both packages)
 - **NuGet Page**: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer
 - **Installation**: `dotnet tool install --global Sbroenne.ExcelMcp.McpServer`
 
@@ -33,11 +33,11 @@ ExcelMcp publishes two NuGet packages (unified release):
 - **Package Type**: .NET Global Tool (executable)
 - **Purpose**: Command-line interface for Excel automation
 - **Tag Pattern**: `v*` (e.g., `v1.2.0`) - **unified with MCP Server**
-- **Workflow**: `.github/workflows/release-mcp-server.yml` (handles both packages)
+- **Workflow**: `.github/workflows/release.yml` (handles both packages)
 - **NuGet Page**: https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI
 - **Installation**: `dotnet tool install --global Sbroenne.ExcelMcp.CLI`
 
-**Note**: MCP Server and CLI are always released together with the same version number. Core and ComInterop libraries are internal dependencies and not separately published to NuGet.
+**Note**: MCP Server and CLI are always released together with the same version number, both from the single unified `release.yml` workflow. Core and ComInterop are internal library dependencies — they are **not** published to NuGet.
 
 ---
 
@@ -61,10 +61,10 @@ Trusted Publishing uses short-lived OIDC tokens instead of long-lived API keys f
 ```
 1. Git Tag Pushed (e.g., v1.2.2)
    ↓
-2. GitHub Actions Workflow Triggered (release-mcp-server.yml)
+2. GitHub Actions Workflow Triggered (release.yml)
    └─> Generates OIDC token with claims:
        • Repository: sbroenne/mcp-server-excel
-       • Workflow: release-mcp-server.yml
+       • Workflow: release.yml
        • Actor: (whoever triggered)
    ↓
 3. NuGet Login Action Exchanges OIDC Token
@@ -108,10 +108,10 @@ Trusted publishing requires packages to exist on NuGet.org before configuration.
 
 ```powershell
 # Build the package
-dotnet pack src/ExcelMcp.ComInterop/ExcelMcp.ComInterop.csproj -c Release -o ./nupkg
+dotnet pack src/ExcelMcp.CLI/ExcelMcp.CLI.csproj -c Release -o ./nupkg
 
 # Publish using your NuGet API key (first time only)
-dotnet nuget push ./nupkg/Sbroenne.ExcelMcp.ComInterop.1.0.0.nupkg \
+dotnet nuget push ./nupkg/Sbroenne.ExcelMcp.CLI.1.0.0.nupkg \
   --api-key YOUR_API_KEY \
   --source https://api.nuget.org/v3/index.json
 ```
@@ -128,27 +128,17 @@ dotnet nuget push ./nupkg/Sbroenne.ExcelMcp.ComInterop.1.0.0.nupkg \
 
 For **each package**, configure a trusted publisher:
 
-#### ComInterop Library
+#### MCP Server
 
-1. Go to: https://www.nuget.org/packages/Sbroenne.ExcelMcp.ComInterop/manage
+1. Go to: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer/manage
 2. Click "Trusted Publishers" tab → "Add Trusted Publisher"
 3. Select "GitHub Actions"
 4. Enter:
    - **Owner**: `sbroenne`
    - **Repository**: `mcp-server-excel`
-   - **Workflow**: `release-cominterop.yml`
+   - **Workflow**: `release.yml`
    - **Environment**: *(leave empty)*
 5. Click "Add"
-
-#### Core Library
-
-1. Go to: https://www.nuget.org/packages/Sbroenne.ExcelMcp.Core/manage
-2. Same steps, use workflow: `release-core.yml`
-
-#### MCP Server
-
-1. Go to: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer/manage
-2. Same steps, use workflow: `release.yml`
 
 #### CLI Tool
 
@@ -178,24 +168,13 @@ MCP Server + CLI (released together via release.yml workflow_dispatch)
 
 ### Standard Release Commands
 
-```powershell
-# Use the unified release workflow via GitHub Actions UI:
-# Actions → Release All Components → Run workflow
-# Select version bump type (patch/minor/major) or enter custom version
-```
-git tag cli-v1.1.0
-git push origin cli-v1.1.0
+Releases are triggered via the GitHub Actions UI, not by pushing package-specific tags:
 
-# 5. Monitor workflows
-# - Go to: https://github.com/sbroenne/mcp-server-excel/actions
-# - Watch release workflows run
-# - Verify NuGet publishing succeeds
-# - Verify GitHub releases created
-
-# 6. Verify packages on NuGet.org (wait 5-10 minutes for indexing)
-# - Check package pages for new versions
-# - Test installation
-```
+1. Go to **Actions → Release All Components → Run workflow**
+2. Select a version bump type (patch/minor/major) or enter a custom version
+3. Run the workflow — it builds, packs, and publishes both NuGet packages, creates the GitHub release, and tags the commit (e.g. `v1.2.2`)
+4. Monitor the run at https://github.com/sbroenne/mcp-server-excel/actions
+5. Verify packages on NuGet.org (wait 5-10 minutes for indexing) and test installation
 
 ### Quick Release (All Components with Single Tag)
 
@@ -217,21 +196,7 @@ All packages follow **Semantic Versioning (SemVer)**:
 
 ### Version Alignment Strategy
 
-**Core, MCP Server, and CLI use aligned versions:**
-- When Core updates to v1.2.0, both MCP Server and CLI should be v1.2.0
-- These packages are tightly coupled - MCP/CLI are wrappers around Core
-
-**ComInterop has independent versioning:**
-- ComInterop can have different versions (e.g., ComInterop v1.1.0, Core v1.2.0)
-- Update independently when only COM interop layer changes
-
-**Example version progression:**
-```
-Release 1: cominterop-v1.0.0, core-v1.0.0, mcp-v1.0.0, cli-v1.0.0
-Release 2: cominterop-v1.0.0, core-v1.1.0, mcp-v1.1.0, cli-v1.1.0  (Core + wrappers)
-Release 3: cominterop-v1.1.0, core-v1.1.0, mcp-v1.1.0, cli-v1.1.0  (Only ComInterop)
-Release 4: cominterop-v1.1.0, core-v1.2.0, mcp-v1.2.0, cli-v1.2.0  (Core + wrappers)
-```
+**MCP Server and CLI always share the same version number** — they are released together from the unified `release.yml` workflow and both are stamped with the tag's version (e.g. `v1.2.0`). Core and ComInterop are internal library dependencies built from the same commit; they are not independently versioned or published, so there is no cross-package version drift to manage.
 
 ---
 
@@ -240,9 +205,7 @@ Release 4: cominterop-v1.1.0, core-v1.2.0, mcp-v1.2.0, cli-v1.2.0  (Core + wrapp
 ### Build Packages Locally
 
 ```powershell
-# Build all packages
-dotnet pack src/ExcelMcp.ComInterop/ExcelMcp.ComInterop.csproj -c Release -o ./nupkg
-dotnet pack src/ExcelMcp.Core/ExcelMcp.Core.csproj -c Release -o ./nupkg
+# Build the published packages
 dotnet pack src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj -c Release -o ./nupkg
 dotnet pack src/ExcelMcp.CLI/ExcelMcp.CLI.csproj -c Release -o ./nupkg
 ```
@@ -264,7 +227,7 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 
 ```powershell
 # Extract package (NuGet packages are ZIP files)
-unzip -l ./nupkg/Sbroenne.ExcelMcp.Core.1.0.0.nupkg
+unzip -l ./nupkg/Sbroenne.ExcelMcp.CLI.1.0.0.nupkg
 
 # Verify:
 # - README.md is included
@@ -313,17 +276,6 @@ unzip -l ./nupkg/Sbroenne.ExcelMcp.Core.1.0.0.nupkg
 1. Check exact workflow filename in `.github/workflows/`
 2. Update trusted publisher configuration if needed
 3. Configuration is case-sensitive
-
-### Dependency Version Mismatch
-
-**Cause**: Dependent package references outdated version
-
-**Solution**:
-1. Release ComInterop first
-2. Wait 5-10 minutes for NuGet indexing
-3. Release Core (references latest ComInterop)
-4. Wait for indexing
-5. Release MCP Server/CLI (reference latest Core)
 
 ### Package Validation Errors
 
@@ -396,8 +348,6 @@ If you rename a workflow file:
 
 ### NuGet.org Package Pages
 
-- **ComInterop**: https://www.nuget.org/packages/Sbroenne.ExcelMcp.ComInterop
-- **Core**: https://www.nuget.org/packages/Sbroenne.ExcelMcp.Core
 - **MCP Server**: https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer
 - **CLI**: https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI
 
@@ -428,6 +378,6 @@ For issues with NuGet publishing:
 
 ---
 
-**Status**: ✅ All packages configured for trusted publishing  
-**Workflows**: Release workflows ready for all four packages  
+**Status**: ✅ Both packages configured for trusted publishing  
+**Workflows**: Unified `release.yml` publishes both packages together  
 **Security**: OIDC trusted publishing eliminates API key management

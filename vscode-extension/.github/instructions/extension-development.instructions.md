@@ -290,5 +290,5 @@ npx @vscode/vsce publish
 
 - **Main Extension Docs**: [vscode-extension/DEVELOPMENT.md](../../DEVELOPMENT.md)
 - **Marketplace Publishing**: [vscode-extension/MARKETPLACE-PUBLISHING.md](../../MARKETPLACE-PUBLISHING.md)
-- **Release Workflow**: [.github/workflows/release-vscode-extension.yml](../../../.github/workflows/release-vscode-extension.yml)
+- **Release Workflow**: [.github/workflows/release.yml](../../../.github/workflows/release.yml)
 - **VS Code Extension API**: https://code.visualstudio.com/api

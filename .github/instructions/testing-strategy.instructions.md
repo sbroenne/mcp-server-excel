@@ -9,7 +9,7 @@ applyTo: "tests/**/*.cs"
 **⚠️ CRITICAL: Always specify the test project explicitly to avoid running all test projects!**
 
 ### Core.Tests (Business Logic)
-```bash
+```powershell
 # Development (fast - excludes VBA and Screenshot)
 dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust&Feature!=Screenshot"
 
@@ -27,13 +27,13 @@ dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "Featu
 ```
 
 ### ComInterop.Tests (Session/Batch Infrastructure)
-```bash
+```powershell
 # Session/batch changes (MANDATORY - see CRITICAL-RULES.md Rule 3)
 dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj --filter "RunType=OnDemand"
 ```
 
 ### McpServer.Tests (End-to-End Tool Tests)
-```bash
+```powershell
 # All MCP tool tests
 dotnet test tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj
 
@@ -42,7 +42,7 @@ dotnet test tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj --fil
 ```
 
 ### CLI.Tests (Command-Line Interface)
-```bash
+```powershell
 # All CLI tests
 dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj
 
@@ -51,7 +51,7 @@ dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj --filter "FullyQu
 ```
 
 ### Run Specific Test by Name
-```bash
+```powershell
 # Use full project path + filter
 dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj --filter "FullyQualifiedName~TestMethodName"
 ```

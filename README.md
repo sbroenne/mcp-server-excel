@@ -103,7 +103,7 @@ Formatting split: number display formats use the `range` tool, while visual styl
 | **VS Code** | [Install Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) (one-click, recommended) |
 | **Claude Desktop** | Download `.mcpb` from [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest) |
 | **Any MCP Client** | Download `mcp-excel.exe` from [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest) and add to PATH |
-| **Details** | 📖 [Installation Guide](docs/INSTALLATION.md) |
+| **Details** | 📖 [MCP Server Installation Guide](docs/INSTALLATION-MCP-SERVER.md) |
 
 **⚠️ Important:** Close all Excel files before using. The server requires exclusive access to workbooks during automation.
 
@@ -119,9 +119,9 @@ This package provides both **CLI** and **MCP Server** interfaces. Choose based o
 
 **Installation:**
 - **CLI via Copilot plugin** (Recommended for Copilot CLI): Install the `excel-cli` plugin for skill guidance, then install `excelcli` separately
-- **CLI Standalone**: Download ZIP from [releases](https://github.com/sbroenne/mcp-server-excel/releases/latest) or install via NuGet
+- **CLI Standalone**: Download ZIP from [releases](https://github.com/sbroenne/mcp-server-excel/releases/latest) or install via NuGet — see [CLI Installation Guide](docs/INSTALLATION-CLI.md)
 - **Skill only**: Install the `excel-cli` skill separately when your agent already has `excelcli` available on PATH
-- **MCP Server**: Download from releases or install VS Code Extension
+- **MCP Server**: Download from releases or install VS Code Extension — see [MCP Server Installation Guide](docs/INSTALLATION-MCP-SERVER.md)
 
 **⚡ CLI Commands:** Generated automatically from Core service definitions using Roslyn source generators. All CLI commands maintain exact 1:1 parity with MCP tools through shared code generation. See [code generation docs](docs/DEVELOPMENT.md#-cli-command-code-generation) for details.
 

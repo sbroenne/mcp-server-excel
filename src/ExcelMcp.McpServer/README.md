@@ -57,32 +57,15 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 - ✅ Windsurf
 - ✅ Any MCP-compatible client
 
-📖 **Detailed setup instructions:** [Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md)
+📖 **Detailed setup instructions:** [MCP Server Installation Guide](https://excelmcpserver.dev/installation-mcp-server/)
 
 🎯 **Quick config examples:** [examples/mcp-configs/](https://github.com/sbroenne/mcp-server-excel/tree/main/examples/mcp-configs)
 
 ## 🛠️ What You Can Do
 
-**26 specialized tools with 232 operations:**
+**26 specialized tools with 232 operations** covering Power Query, Data Model/DAX, PivotTables, Excel Tables, Charts, VBA, Ranges, Worksheets, Connections, Named Ranges, File/Session management, Calculation Mode, Slicers, Conditional Formatting, Screenshots, and Window Management.
 
-- 🔄 **Power Query** (1 tool, 12 ops) - Atomic workflows, M code management, load destinations
-- 📊 **Data Model/DAX** (2 tools, 19 ops) - Measures, relationships, model structure
-- 🎨 **Excel Tables** (2 tools, 27 ops) - Lifecycle, filtering, sorting, structured references
-- 📈 **PivotTables** (3 tools, 30 ops) - Creation, fields, aggregations, calculated members/fields
-- 📉 **Charts** (2 tools, 29 ops) - Create, configure, series, formatting, data labels, trendlines
-- 📝 **VBA** (1 tool, 6 ops) - Modules, execution, version control
-- 📋 **Ranges** (4 tools, 46 ops) - Values, formulas, formatting, validation, protection
-- 📄 **Worksheets** (2 tools, 16 ops) - Lifecycle, colors, visibility, cross-workbook moves
-- 🔌 **Connections** (1 tool, 9 ops) - OLEDB/ODBC management and refresh
-- 🏷️ **Named Ranges** (1 tool, 6 ops) - Parameters and configuration
-- 📁 **Files** (1 tool, 6 ops) - Session management, workbook creation, IRM/AIP-protected file support
-- 🧮 **Calculation Mode** (1 tool, 3 ops) - Get/set calculation mode and trigger recalculation
-- 🎚️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
-- 🎨 **Conditional Formatting** (1 tool, 2 ops) - Rules and clearing
-- 📸 **Screenshot** (1 tool, 2 ops) - Capture ranges/sheets as PNG for visual verification
-- 🪧 **Window Management** (1 tool, 9 ops) - Show/hide Excel, arrange, position, status bar feedback
-
-📚 **[Complete Feature Reference →](../../FEATURES.md)** - Detailed documentation of all 232 operations
+📚 **[Complete Feature Reference →](https://excelmcpserver.dev/features/)** - Detailed documentation of all 232 operations, grouped by category
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot, Claude, or ChatGPT
@@ -116,9 +99,9 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 ## 📋 Additional Resources
 
 - **[GitHub Repository](https://github.com/sbroenne/mcp-server-excel)** - Source code, issues, discussions
-- **[Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION.md)** - Detailed setup for all platforms
+- **[MCP Server Installation Guide](https://excelmcpserver.dev/installation-mcp-server/)** - Detailed setup for all platforms
 - **[VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)** - One-click installation
-- **[CLI Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** - Comprehensive commands for RPA and CI/CD automation
+- **[CLI Documentation](https://excelmcpserver.dev/cli/)** - Comprehensive commands for RPA and CI/CD automation
 
 **License:** MIT  
 **Privacy:** [PRIVACY.md](https://github.com/sbroenne/mcp-server-excel/blob/main/PRIVACY.md)  

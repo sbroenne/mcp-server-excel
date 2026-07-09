@@ -6,7 +6,7 @@ This document outlines how the Excel MCP Server and Excel CLI are distributed as
 
 ExcelMcp is published as **two complementary plugins** in the GitHub Copilot plugin marketplace:
 
-- **`excel-mcp`** — MCP Server with 25 tools (230 operations) for conversational AI (Claude Desktop, Copilot chat)
+- **`excel-mcp`** — MCP Server with 26 tools (232 operations) for conversational AI (Claude Desktop, Copilot chat)
 - **`excel-cli`** — CLI-only skill for coding agents (token-efficient, `--help` discoverable)
 
 Both plugins are maintained in a separate published repository and auto-synced from this source repo.
@@ -31,20 +31,22 @@ Each plugin lives in `plugins/` at the published repo:
 ```
 plugins/excel-mcp/
 ├── plugin.json         # MCP Server + skill metadata
-├── .mcp.json           # MCP Server configuration
+├── .mcp.json           # Launches the bootstrap wrapper (no bundled executable)
 ├── version.txt         # Published version
-├── bin/                # MCP Server executable
+├── bin/                # Bootstrap wrapper scripts (install-global.ps1, launcher) — downloads/caches mcp-excel.exe from GitHub Releases on first use
 ├── agents/             # Optional agent definitions
 └── skills/             # Behavioral guidance (excel-mcp skill)
 
 plugins/excel-cli/
 ├── plugin.json         # CLI-only metadata
 ├── version.txt         # Published version
-├── bin/                # CLI executable (excelcli.exe)
+├── bin/                # Bootstrap wrapper scripts (install-global.ps1) — downloads/caches excelcli.exe from GitHub Releases on first use
 └── skills/             # Behavioral guidance (excel-cli skill)
 ```
 
 The skills reference is shared from this source repo (`skills/shared/*.md`).
+
+Both plugins publish **wrapper/bootstrap assets only** — no runtime binaries are bundled in the plugin package. On first use, each plugin downloads and caches the newest self-contained Windows runtime (`mcp-excel.exe` or `excelcli.exe`) from the main repo's GitHub Releases feed, then reuses it for the rest of the chat session. The publish workflow validates this wrapper/bootstrap-only payload before syncing to the marketplace repo.
 
 ## Installation
 
@@ -61,7 +63,7 @@ copilot plugin install excel-cli@mcp-server-excel-plugins
 
 ### Excel MCP Plugin
 
-Provides the full MCP Server with 25 tools (230 operations) for conversational AI:
+Provides the full MCP Server with 26 tools (232 operations) for conversational AI:
 
 ```powershell
 copilot plugin install excel-mcp@mcp-server-excel-plugins
@@ -71,7 +73,7 @@ Best for: Claude Desktop, Copilot chat, conversational interfaces.
 
 ### Excel CLI Plugin
 
-Provides the CLI tool bundled with skill guidance for coding agents:
+Provides the CLI bootstrap wrapper plus skill guidance for coding agents:
 
 ```powershell
 copilot plugin install excel-cli@mcp-server-excel-plugins
@@ -88,7 +90,7 @@ Both plugins are republished automatically after each source repo release:
 2. **Plugin publish** → `.github/workflows/publish-plugins.yml` syncs to marketplace repo
 3. **Marketplace sync** → GitHub Copilot CLI discovers both plugins
 
-See [Plugin Publishing Workflow Setup](../workflows/docs/publish-plugins-setup.md) for maintainer details.
+See [Plugin Publishing Workflow Setup](../.github/workflows/docs/publish-plugins-setup.md) for maintainer details.
 
 ## Maintenance
 
@@ -103,6 +105,6 @@ This approach keeps plugin distribution simple — users always see the latest v
 
 ## Related Documentation
 
-- [Plugin Publishing Workflow](../workflows/docs/publish-plugins-setup.md) — Maintainer guide for plugin release process
+- [Plugin Publishing Workflow](../.github/workflows/docs/publish-plugins-setup.md) — Maintainer guide for plugin release process
 - [Release Strategy](RELEASE-STRATEGY.md) — Unified release flow for all components
 - [Installation Guide](INSTALLATION.md) — User installation instructions for all clients

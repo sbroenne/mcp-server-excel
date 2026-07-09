@@ -4,8 +4,8 @@ Two skill packages for different integration models:
 
 | Skill | Component | Distribution | Best For |
 |-------|-----------|--------------|----------|
-| **[excel-cli](excel-cli/SKILL.md)** | CLI Tool (`excelcli.exe`) | Copilot plugin `excel-cli`, direct skill extraction | Coding agents - token-efficient, `--help` discoverable |
-| **[excel-mcp](excel-mcp/SKILL.md)** | MCP Server (`mcp-excel.exe`) | Copilot plugin `excel-mcp`, VS Code extension, MCPB, direct skill extraction | Conversational AI - rich tool schemas |
+| **[excel-cli](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-cli/SKILL.md)** | CLI Tool (`excelcli.exe`) | Copilot plugin `excel-cli`, direct skill extraction | Coding agents - token-efficient, `--help` discoverable |
+| **[excel-mcp](https://github.com/sbroenne/mcp-server-excel/blob/main/skills/excel-mcp/SKILL.md)** | MCP Server (`mcp-excel.exe`) | Copilot plugin `excel-mcp`, VS Code extension, MCPB, direct skill extraction | Conversational AI - rich tool schemas |
 
 **Shared guidance:** `skills/shared/*.md` — source of truth for both skills (auto-copied to each skill's `references/` folder)
 
@@ -30,8 +30,8 @@ npx skills add sbroenne/mcp-server-excel --skill excel-cli
 npx skills add sbroenne/mcp-server-excel --skill excel-mcp
 ```
 
-**Via VS Code Extension (auto-installs both):**
-Install the [Excel MCP VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)
+**Via VS Code Extension (auto-installs excel-mcp):**
+Install the [Excel MCP VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) — it registers the `excel-mcp` skill via `chatSkills`. For the `excel-cli` skill, use the plugin or `npx skills` methods above.
 
 ## Building
 

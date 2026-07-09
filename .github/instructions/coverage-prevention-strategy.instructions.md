@@ -118,14 +118,7 @@ Action Required:
   4. Add switch cases to appropriate MCP Tools
 ```
 
-**Fix**: Follow 8-step workflow above.
-
-**Emergency bypass** (use only for non-Core changes):
-```bash
-git commit --no-verify -m "Message"
-```
-
-⚠️ **Never use `--no-verify`** for Core Commands changes - fix the gaps instead!
+**Fix**: Follow 8-step workflow above. Never bypass the hook with `--no-verify` (see Rule 31) — if a gap is a false positive, fix the audit script or ask the user, don't skip the gate.
 
 ---
 

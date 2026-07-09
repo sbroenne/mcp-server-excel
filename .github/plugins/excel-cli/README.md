@@ -66,11 +66,12 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 **18 command categories with 232 operations** for comprehensive Excel automation:
 
-- **Power Query** (10 ops) — Create, update, refresh queries; M code management
+- **Power Query** (12 ops) — Create, update, refresh queries; M code management
 - **Data Model/DAX** (19 ops) — Measures, relationships, EVALUATE queries
 - **PivotTables** (30 ops) — Create, configure fields, calculated items/fields
 - **Excel Tables** (27 ops) — Lifecycle, filtering, sorting, DAX-backed tables
-- **Charts** (28 ops) — Create, configure, series, data labels, trendlines
+- **Charts** (8 ops) — Create, delete, move, fit-to-range
+- **Chart Config** (21 ops) — Series, titles, styles, data labels, trendlines
 - **Ranges** (46 ops) — Values, formulas, formatting, validation, protection
 - **Worksheets** (16 ops) — Create, rename, copy, move between workbooks
 - **VBA** (6 ops) — Module management and execution
@@ -79,10 +80,10 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 - **Slicers** (8 ops) — Interactive filtering for PivotTables and Tables
 - **Named Ranges** (6 ops) — Create, update, delete named ranges
 - **Calculation Mode** (3 ops) — Get/set mode, trigger recalculation
+- **Python in Excel** (2 ops) — Set/get Python formulas and results
 - **Screenshot** (2 ops) — Capture ranges/sheets as PNG
-- **File Operations** (6 ops) — Create, open, close, session management
+- **File & Session** (6 ops) — Create, open, close, session management
 - **Window Management** (9 ops) — Show/hide Excel, positioning
-- **Diagnostics** (3 ops) — Health checks and troubleshooting
 
 **Complete documentation:** [Full Feature Reference](https://excelmcpserver.dev/features/)
 
@@ -93,7 +94,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 | Interface | Best For | Token Efficiency |
 |-----------|----------|------------------|
 | **CLI** (`excelcli`) | Coding agents | **64% fewer tokens** — single tool + skill |
-| **MCP Server** | Conversational AI (Claude Desktop) | 25 tool schemas loaded into context |
+| **MCP Server** | Conversational AI (Claude Desktop) | 26 tool schemas loaded into context |
 
 **Use CLI when:** Your agent needs to script Excel operations without consuming context with large tool definitions.
 

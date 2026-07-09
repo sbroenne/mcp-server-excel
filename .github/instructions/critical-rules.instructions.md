@@ -315,7 +315,7 @@ Exception: Session management files (ExcelBatch.cs, ExcelSession.cs).
 **Never commit to `main`. Create feature branch → PR → CI/CD + review → merge.**
 
 **Enforcement:** Pre-commit hook blocks commits to main. If you're on main:
-```bash
+```powershell
 git stash                                    # Save changes
 git checkout -b feature/your-feature-name    # Create feature branch
 git stash pop                                # Restore changes
@@ -526,13 +526,13 @@ public static string ToActionString(this RangeAction action) => action switch
 **ALWAYS run tests ONLY for the specific code you modified. Integration tests take a very long time.**
 
 **Wrong:**
-```bash
+```powershell
 # ❌ NEVER: Runs ALL integration tests (10+ minutes)
 dotnet test --filter "Category=Integration&RunType!=OnDemand"
 ```
 
 **Correct:**
-```bash
+```powershell
 # ✅ CORRECT: Test only the feature you changed
 dotnet test --filter "Feature=PowerQuery&RunType!=OnDemand"  # PowerQuery changes only
 dotnet test --filter "Feature=Connection&RunType!=OnDemand"  # Connection changes only

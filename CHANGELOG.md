@@ -225,7 +225,7 @@ _No pending changes. New entries are added automatically from [changesets](.chan
 
 ### ⚠️ BREAKING CHANGES
 
-**See [BREAKING-CHANGES.md](docs/BREAKING-CHANGES.md) for complete migration guide.**
+**See [BREAKING-CHANGES.md](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/BREAKING-CHANGES.md) for complete migration guide.**
 LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CLI).
 
 - **Tool Names Simplified**: Removed `excel_` prefix from all 23 MCP tool names (e.g., `excel_range` → `range`, `excel_file` → `file`). Titles also shortened (e.g., `"Chart Operations"`). VS Code extension server name → `excel-mcp`.
@@ -384,7 +384,7 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 - **MCPB Skills Key** (#392): Removed unsupported 'skills' key from manifest
 - **Data Model MSOLAP Error** (#391): Better error message when MSOLAP provider is missing
 
-## [1.5.14] - 2025-02-01
+## [1.5.14] - 2026-02-01
 
 ### Added
 
@@ -453,7 +453,7 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 - CLI timeout option uses `--timeout <seconds>` (was `--timeout-seconds`)
 - All CLI commands now require explicit `--session` parameter
 
-## [1.5.13] - 2025-01-24
+## [1.5.13] - 2026-01-24
 
 ### Added
 
@@ -472,7 +472,7 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
   - **Configure Trendline**: Forward/backward forecasting, display equation and R² value
   - 4 new operations bringing total chart operations to 26
 
-## [1.5.11] - 2025-01-22
+## [1.5.11] - 2026-01-22
 
 ### Added
 
@@ -483,13 +483,12 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 - **MCPB Submission Compliance**: Bundle now includes LICENSE and CHANGELOG.md per Anthropic requirements
 - **Documentation Updates**: All READMEs updated with LLM-tested example prompts and accurate tool counts (22 tools, 194 operations)
 
-## [1.5.8] - 2025-01-20
+## [1.5.8] - 2026-01-20
 
 ### Added
 
 - Now available as a Claude Desktop MCPB Extension
-
-## [1.5.6] - 2025-01-20
+## [1.5.6] - 2026-01-20
 
 ### Added
 
@@ -498,7 +497,7 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
   - **Table Slicers**: Create, list, filter, and delete slicers for Excel Table columns
   - 8 new operations for interactive data filtering
 
-## [1.5.5] - 2025-01-19
+## [1.5.5] - 2026-01-19
 
 ### Added
 
@@ -506,7 +505,7 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
   - New `execute-dmv` action on `datamodel` tool
   - Query TMSCHEMA_MEASURES, TMSCHEMA_RELATIONSHIPS, DISCOVER_CALC_DEPENDENCY, etc.
 
-## [1.5.4] - 2025-01-19
+## [1.5.4] - 2026-01-19
 
 ### Added
 
@@ -515,7 +514,7 @@ LLMs pick up these changes automatically via `tools/list` (MCP) and `--help` (CL
 - **DAX-Backed Excel Tables** (#356): Create worksheet tables populated by DAX queries
   - New `create-from-dax`, `update-dax`, `get-dax` actions
 
-## [1.5.0] - 2025-01-10
+## [1.5.0] - 2026-01-10
 
 ### Changed
 

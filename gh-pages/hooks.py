@@ -34,8 +34,10 @@ SITE_PAGE_MAP = {
     "FEATURES.md": "/features/",
     "CHANGELOG.md": "/changelog/",
     "docs/INSTALLATION.md": "/installation/",
+    "docs/INSTALLATION-MCP-SERVER.md": "/installation-mcp-server/",
+    "docs/INSTALLATION-CLI.md": "/installation-cli/",
     "docs/CONTRIBUTING.md": "/contributing/",
-    "docs/SECURITY.md": "/security/",
+    "SECURITY.md": "/security/",
     "PRIVACY.md": "/privacy/",
     "src/ExcelMcp.McpServer/README.md": "/mcp-server/",
     "src/ExcelMcp.CLI/README.md": "/cli/",
@@ -182,6 +184,28 @@ def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
         ),
     )
 
+    # docs/INSTALLATION-MCP-SERVER.md -> installation-mcp-server (drop title + description line, demote H1)
+    _write(
+        "installation-mcp-server.md",
+        "docs/INSTALLATION-MCP-SERVER.md",
+        _strip_header(
+            _read("docs/INSTALLATION-MCP-SERVER.md"),
+            end_on_blank=True,
+            demote_h1=True,
+        ),
+    )
+
+    # docs/INSTALLATION-CLI.md -> installation-cli (drop title + description line, demote H1)
+    _write(
+        "installation-cli.md",
+        "docs/INSTALLATION-CLI.md",
+        _strip_header(
+            _read("docs/INSTALLATION-CLI.md"),
+            end_on_blank=True,
+            demote_h1=True,
+        ),
+    )
+
     # src/ExcelMcp.McpServer/README.md -> mcp-server (drop title, mcp-name, badges)
     _write(
         "mcp-server.md",
@@ -219,5 +243,5 @@ def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
 
     # Verbatim copies (these keep their own H1 as the page title).
     _write("contributing.md", "docs/CONTRIBUTING.md", _read("docs/CONTRIBUTING.md").strip() + "\n")
-    _write("security.md", "docs/SECURITY.md", _read("docs/SECURITY.md").strip() + "\n")
+    _write("security.md", "SECURITY.md", _read("SECURITY.md").strip() + "\n")
     _write("privacy.md", "PRIVACY.md", _read("PRIVACY.md").strip() + "\n")
