@@ -3,7 +3,7 @@ title: Related projects
 description: >-
   More open-source projects by Stefan Broenner — AI automation, testing and
   cloud tooling that complement Excel MCP Server.
-keywords: "Stefan Broenner projects, Windows MCP Server, OBS MCP Server, pytest-skill-engineering, RVToolsMerge"
+keywords: "Stefan Broenner projects, PowerPoint MCP Server, Windows MCP Server, OBS MCP Server, pytest-skill-engineering, RVToolsMerge"
 ---
 
 # Related projects
@@ -11,6 +11,15 @@ keywords: "Stefan Broenner projects, Windows MCP Server, OBS MCP Server, pytest-
 Other open-source projects by the author that pair well with Excel MCP Server:
 
 <div class="grid cards" markdown>
+
+-   :material-microsoft-powerpoint:{ .lg .middle } __PowerPoint MCP Server__
+
+    ---
+
+    AI-powered PowerPoint automation via MCP — the sister project to Excel
+    MCP Server, built the same way.
+
+    [:octicons-arrow-right-24: powerpointmcpserver.dev](https://powerpointmcpserver.dev/)
 
 -   :material-test-tube:{ .lg .middle } __pytest-skill-engineering__
 
