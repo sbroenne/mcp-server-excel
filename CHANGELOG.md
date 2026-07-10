@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.9.4] - 2026-07-10
+
+### Patch Changes
+
+- [#706](https://github.com/sbroenne/mcp-server-excel/pull/706) [`987b021`](https://github.com/sbroenne/mcp-server-excel/commit/987b021f36e7ff22d2b812f6b98570f69664f69a) Thanks [@sbroenne](https://github.com/sbroenne)! - Add a short "Also building PowerPoint decks?" tip right after the README's hero section, linking to PowerPoint MCP Server, mirroring the same repositioning done on the docs homepage.
+
+- [#702](https://github.com/sbroenne/mcp-server-excel/pull/702) [`08d2ec6`](https://github.com/sbroenne/mcp-server-excel/commit/08d2ec617123490fa4dad1d99da58d5a508e2a95) Thanks [@sbroenne](https://github.com/sbroenne)! - **Release automation hardening**: The post-release step that opens a PR to commit the compiled `CHANGELOG.md` no longer silently swallows failures. During the first live run of the new changesets-based release pipeline, this step failed (the repo didn't allow Actions to create pull requests) but was marked as a passing step, which is exactly the kind of silent failure the new pipeline was built to eliminate. The repo setting has been fixed and the step now fails the release run loudly if it can't create the PR.
+
+- [#709](https://github.com/sbroenne/mcp-server-excel/pull/709) [`1d8b3cd`](https://github.com/sbroenne/mcp-server-excel/commit/1d8b3cd2994e3033248e26fe983d1bb349918cbc) Thanks [@sbroenne](https://github.com/sbroenne)! - Fix JSON Schema array items format for Gemini API compatibility (#672)
+
+  Removes `nullable: true` from array nodes and adds explicit `type: string` fallback for C# `object` nodes. This prevents MCP clients from emitting missing types or union schemas that the strict Gemini API validator rejects.
+
+- [#705](https://github.com/sbroenne/mcp-server-excel/pull/705) [`bf54607`](https://github.com/sbroenne/mcp-server-excel/commit/bf5460797f517f72a31b4b3922dd08f7cbad508b) Thanks [@sbroenne](https://github.com/sbroenne)! - Move the "Also building PowerPoint decks?" sister-project tip on the docs homepage to appear directly under the hero section (success callout + intro video) instead of at the bottom of the page, and simplify its wording so it doesn't depend on the Key Features section that now follows it.
+
 ## [1.9.1] - 2026-07-09
 
 ### Patch Changes
