@@ -232,6 +232,12 @@ By default, Excel runs hidden for faster automation. To see changes in real-time
 
 The AI will display the Excel window so you can watch every operation happen live - great for learning or verifying changes!
 
+## ⭐ GitHub Star History
+
+[![GitHub stars over time for ExcelMcp](https://excelmcpserver.dev/assets/images/star-history.svg)](https://github.com/sbroenne/mcp-server-excel/stargazers)
+
+Updated daily from GitHub's stargazer data.
+
 ## 📋 Additional Information
 
 📚 **[CLI Guide →](src/ExcelMcp.CLI/README.md)** | **[CLI Skill for Agents →](skills/excel-cli/SKILL.md)** | **[MCP Server Guide →](src/ExcelMcp.McpServer/README.md)** | **[All Agent Skills →](skills/README.md)**

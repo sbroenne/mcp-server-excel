@@ -18,6 +18,9 @@ on:
       - 'src/ExcelMcp.CLI/README.md'
       - 'skills/README.md'
       - '.github/workflows/deploy-gh-pages.yml'
+      - 'scripts/Update-StarHistory.ps1'
+  schedule:
+    - cron: "17 3 * * *"
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
@@ -40,6 +43,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Generate star history chart
+        shell: pwsh
+        env:
+          STAR_HISTORY_TOKEN: ${{ github.token }}
+        run: >
+          ./scripts/Update-StarHistory.ps1
+          -Repository '${{ github.repository }}'
+          -Token $env:STAR_HISTORY_TOKEN
+          -OutputPath './gh-pages/docs/assets/images/star-history.svg'
 
       - name: Setup Python
         uses: actions/setup-python@v6
