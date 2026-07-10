@@ -156,3 +156,9 @@ workflow:
 | **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery and a persistent connection. Better for interactive, exploratory workflows. |
 
 [MCP Server docs](mcp-server.md){ .md-button } [CLI docs](cli.md){ .md-button }
+
+## GitHub star history
+
+![GitHub stars over time for ExcelMcp](assets/images/star-history.svg){ loading=lazy }
+
+Updated daily from GitHub's stargazer data.
