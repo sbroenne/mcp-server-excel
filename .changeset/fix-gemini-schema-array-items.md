@@ -1,5 +1,5 @@
 ---
-"Sbroenne.ExcelMcp.McpServer": patch
+"excelmcp": patch
 ---
 
 Fix JSON Schema array items format for Gemini API compatibility (#672)
