@@ -40,7 +40,7 @@ public sealed class ExcelFileToolProtocolRegressionTests : McpIntegrationTestBas
     public async Task FileOpen_FileLockedByAnotherProcess_ReturnsActionableError_AndNextOpenSucceeds()
     {
         var lockedFile = Path.Join(_tempDir, $"LockedOpen_{Guid.NewGuid():N}.xlsx");
-        ExcelSession.CreateNew<bool>(lockedFile, false, (ctx, ct) => true);
+        ExcelSession.CreateNew(lockedFile, false, (ctx, ct) => true);
 
         using (var fileLock = new FileStream(lockedFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
         {

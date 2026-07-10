@@ -576,11 +576,11 @@ in
 
         // Step 1: Create source file with a sheet (use CreateNew for new files)
         _output.WriteLine("  1. Creating source file...");
-        ExcelSession.CreateNew<bool>(sourceFile, false, (ctx, ct) => true);
+        ExcelSession.CreateNew(sourceFile, false, (ctx, ct) => true);
 
         // Step 2: Create target file (empty, will receive the copied sheet)
         _output.WriteLine("  2. Creating target file...");
-        ExcelSession.CreateNew<bool>(targetFile, false, (ctx, ct) => true);
+        ExcelSession.CreateNew(targetFile, false, (ctx, ct) => true);
 
         // Step 3: Call worksheet copy-to-file WITHOUT session_id (ATOMIC OPERATION)
         // This is the CRITICAL TEST: the tool should accept this call without a session_id parameter

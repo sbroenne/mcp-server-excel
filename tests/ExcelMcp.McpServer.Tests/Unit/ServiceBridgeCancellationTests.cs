@@ -1,8 +1,8 @@
-using Bridge = Sbroenne.ExcelMcp.McpServer.ServiceBridge.ServiceBridge;
 using Sbroenne.ExcelMcp.McpServer.ServiceBridge;
 using Sbroenne.ExcelMcp.McpServer.Tools;
 using Sbroenne.ExcelMcp.Service;
 using Xunit;
+using Bridge = Sbroenne.ExcelMcp.McpServer.ServiceBridge.ServiceBridge;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 
