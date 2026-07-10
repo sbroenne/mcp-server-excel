@@ -478,9 +478,15 @@ Invoke-ValidationStep `
     -SuccessSummary "VS Code extension package validation passed" `
     -Action {
         $extensionDir = Join-Path $rootDir "vscode-extension"
+        $packageLog = Join-Path $preCommitArtifactsDir "vscode-package.log"
         Push-Location $extensionDir
         try {
-            npm run package
+            & $env:ComSpec /d /s /c "npm run package > `"$packageLog`" 2>&1"
+            $packageExitCode = $LASTEXITCODE
+            if ($packageExitCode -ne 0) {
+                Get-Content -LiteralPath $packageLog
+                throw "npm run package failed with exit code $packageExitCode"
+            }
         }
         finally {
             Pop-Location
