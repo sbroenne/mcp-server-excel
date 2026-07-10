@@ -12,8 +12,8 @@
     4. Success flag validation - ensures Success=true never paired with ErrorMessage (Rule 0)
     5. Release solution build - generates Release binaries and skill outputs used by downstream packaging
     5b. Documentation count validation - ensures all docs report the code-derived tool/operation counts
-    6. CLI workflow smoke test - validates end-to-end CLI functionality
-    7. MCP Server smoke test - validates all MCP tools work correctly
+    6. CLI workflow smoke test - validates end-to-end CLI functionality (skipped for docs/changeset-only commits)
+    7. MCP Server smoke test - validates all MCP tools work correctly (skipped for docs/changeset-only commits)
     8. CLI release packaging - validates NuGet + standalone ZIP artifacts
     9. MCP Server release packaging - validates NuGet + standalone ZIP artifacts
     10. VS Code extension packaging - validates the VSIX release packaging path
@@ -85,6 +85,14 @@ function Reset-Directory {
 function Stop-DotNetBuildServers {
     dotnet build-server shutdown *> $null
 }
+
+# Determine whether this commit touches actual code (as opposed to docs/changeset-only
+# changes). Smoke tests exercise compiled binaries via real Excel COM automation and are
+# slow (minutes) - they add no value for pure documentation changes.
+$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))'
+$stagedFiles = git diff --cached --name-only 2>&1 | Where-Object { $_ }
+$codeChangedFiles = $stagedFiles | Where-Object { $_ -notmatch $docOnlyPattern }
+$hasCodeChanges = @($codeChangedFiles).Count -gt 0
 
 # CRITICAL: Check branch FIRST - never commit directly to main (Rule 6)
 Write-Host "Checking current branch..." -ForegroundColor Cyan
@@ -297,61 +305,71 @@ Invoke-ValidationStep `
         & $docCountScript
     }
 
-Invoke-ValidationStep `
-    -Heading "Running CLI workflow smoke test..." `
-    -FailureSummary "CLI workflow smoke test failed! This blocks the release deliverable gates because the CLI artifact itself is not healthy." `
-    -SuccessSummary "CLI workflow smoke test passed" `
-    -Action {
-        $cliWorkflowScript = Join-Path $rootDir "scripts\Test-CliWorkflow.ps1"
-        & $cliWorkflowScript
-    }
+if ($hasCodeChanges) {
+    Invoke-ValidationStep `
+        -Heading "Running CLI workflow smoke test..." `
+        -FailureSummary "CLI workflow smoke test failed! This blocks the release deliverable gates because the CLI artifact itself is not healthy." `
+        -SuccessSummary "CLI workflow smoke test passed" `
+        -Action {
+            $cliWorkflowScript = Join-Path $rootDir "scripts\Test-CliWorkflow.ps1"
+            & $cliWorkflowScript
+        }
+} else {
+    Write-Host ""
+    Write-Host "Skipping CLI workflow smoke test (no code changes detected - docs/changeset only)" -ForegroundColor Yellow
+}
 
 Write-Host ""
-Write-Host "Running MCP Server smoke test..." -ForegroundColor Cyan
 
-# Stop ExcelMCP Service before smoke test to prevent DLL locking
-& "$PSScriptRoot\Stop-ExcelMcpProcesses.ps1"
+if ($hasCodeChanges) {
+    Write-Host "Running MCP Server smoke test..." -ForegroundColor Cyan
 
-try {
-    # Run the smoke test - validates all MCP tools work correctly
-    $smokeTestFilter = "FullyQualifiedName~McpServerSmokeTests.SmokeTest_AllTools_E2EWorkflow"
+    # Stop ExcelMCP Service before smoke test to prevent DLL locking
+    & "$PSScriptRoot\Stop-ExcelMcpProcesses.ps1"
 
-    Write-Host "   dotnet test --filter `"$smokeTestFilter`"" -ForegroundColor Gray
+    try {
+        # Run the smoke test - validates all MCP tools work correctly
+        $smokeTestFilter = "FullyQualifiedName~McpServerSmokeTests.SmokeTest_AllTools_E2EWorkflow"
 
-    # Capture output to verify tests actually ran (dotnet test returns 0 even if no tests match!)
-    $testOutput = dotnet test --filter $smokeTestFilter --verbosity minimal 2>&1 | Out-String
-    $testExitCode = $LASTEXITCODE
+        Write-Host "   dotnet test --filter `"$smokeTestFilter`"" -ForegroundColor Gray
 
-    # Check if any tests actually passed (critical - filter typos cause silent failures!)
-    # Note: "No test matches" appears for projects without the test, so we check for "Passed"
-    if (-not ($testOutput -match "Passed!.*Passed:\s*[1-9]")) {
+        # Capture output to verify tests actually ran (dotnet test returns 0 even if no tests match!)
+        $testOutput = dotnet test --filter $smokeTestFilter --verbosity minimal 2>&1 | Out-String
+        $testExitCode = $LASTEXITCODE
+
+        # Check if any tests actually passed (critical - filter typos cause silent failures!)
+        # Note: "No test matches" appears for projects without the test, so we check for "Passed"
+        if (-not ($testOutput -match "Passed!.*Passed:\s*[1-9]")) {
+            Write-Host ""
+            Write-Host "CRITICAL: No smoke tests passed! Filter may have matched zero tests." -ForegroundColor Red
+            Write-Host "   Filter: $smokeTestFilter" -ForegroundColor Yellow
+            Write-Host "   This likely means the test was renamed or deleted." -ForegroundColor Yellow
+            Write-Host "   Verify the test exists: McpServerSmokeTests.SmokeTest_AllTools_E2EWorkflow" -ForegroundColor Yellow
+            Write-Host ""
+            Write-Host $testOutput -ForegroundColor Gray
+            exit 1
+        }
+
+        if ($testExitCode -ne 0) {
+            Write-Host ""
+            Write-Host "MCP Server smoke test failed! Core functionality is broken." -ForegroundColor Red
+            Write-Host "   This test validates all MCP tools work correctly." -ForegroundColor Red
+            Write-Host "   Fix the issues before committing." -ForegroundColor Red
+            Write-Host ""
+            Write-Host $testOutput -ForegroundColor Gray
+            exit 1
+        }
+
+        Write-Host "MCP Server smoke test passed - all tools functional" -ForegroundColor Green
+    }
+    catch {
         Write-Host ""
-        Write-Host "CRITICAL: No smoke tests passed! Filter may have matched zero tests." -ForegroundColor Red
-        Write-Host "   Filter: $smokeTestFilter" -ForegroundColor Yellow
-        Write-Host "   This likely means the test was renamed or deleted." -ForegroundColor Yellow
-        Write-Host "   Verify the test exists: McpServerSmokeTests.SmokeTest_AllTools_E2EWorkflow" -ForegroundColor Yellow
-        Write-Host ""
-        Write-Host $testOutput -ForegroundColor Gray
+        Write-Host "Error running smoke test: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "   Ensure Excel is installed and accessible." -ForegroundColor Yellow
         exit 1
     }
-
-    if ($testExitCode -ne 0) {
-        Write-Host ""
-        Write-Host "MCP Server smoke test failed! Core functionality is broken." -ForegroundColor Red
-        Write-Host "   This test validates all MCP tools work correctly." -ForegroundColor Red
-        Write-Host "   Fix the issues before committing." -ForegroundColor Red
-        Write-Host ""
-        Write-Host $testOutput -ForegroundColor Gray
-        exit 1
-    }
-
-    Write-Host "MCP Server smoke test passed - all tools functional" -ForegroundColor Green
-}
-catch {
-    Write-Host ""
-    Write-Host "Error running smoke test: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "   Ensure Excel is installed and accessible." -ForegroundColor Yellow
-    exit 1
+} else {
+    Write-Host "Skipping MCP Server smoke test (no code changes detected - docs/changeset only)" -ForegroundColor Yellow
 }
 
 Invoke-ValidationStep `
