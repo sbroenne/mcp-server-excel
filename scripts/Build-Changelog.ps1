@@ -90,18 +90,39 @@ finally {
     Pop-Location
 }
 
-# --- Step 3: isolate the newly-inserted section via suffix match against the
-# untouched body captured in Step 1.
+# --- Step 3: isolate the newly-inserted section using the first non-blank line
+# from the previous changelog body as an anchor. Changesets can normalize legacy
+# content while rewriting the file, so comparing the entire body byte-for-byte is
+# too strict. The final file is reassembled from the untouched snapshot below.
 $afterLines = Get-Content -LiteralPath $changelogPath
-$afterRest = ($afterLines | Select-Object -Skip 1) -join "`n"
+$anchorLine = $beforeLines |
+    Select-Object -Skip 1 |
+    Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+    Select-Object -First 1
 
-$idx = $afterRest.IndexOf($beforeBody, [System.StringComparison]::Ordinal)
-if ($idx -lt 0) {
-    throw "Could not locate the pre-existing CHANGELOG.md content after 'npx changeset version' ran. " +
-          "Aborting without writing changes to avoid corrupting the changelog. " +
-          "This usually means CHANGELOG.md's existing content was hand-edited in a way changesets doesn't expect."
+if ($null -eq $anchorLine) {
+    $newSection = (($afterLines | Select-Object -Skip 1) -join "`n").Trim("`r", "`n")
 }
-$newSection = $afterRest.Substring(0, $idx).Trim("`r", "`n")
+else {
+    $anchorIndexes = for ($i = 1; $i -lt $afterLines.Count; $i++) {
+        if ($afterLines[$i] -ceq $anchorLine) {
+            $i
+        }
+    }
+
+    if ($anchorIndexes.Count -ne 1) {
+        throw "Could not uniquely locate the pre-existing CHANGELOG.md anchor '$anchorLine' after " +
+              "'npx changeset version' ran. Aborting without writing changes to avoid corrupting the changelog."
+    }
+
+    $newSectionLines = if ($anchorIndexes[0] -gt 1) {
+        $afterLines[1..($anchorIndexes[0] - 1)]
+    }
+    else {
+        @()
+    }
+    $newSection = ($newSectionLines -join "`n").Trim("`r", "`n")
+}
 
 if ([string]::IsNullOrWhiteSpace($newSection)) {
     Write-Output 'No pending changesets found — nothing to add to the changelog.'
