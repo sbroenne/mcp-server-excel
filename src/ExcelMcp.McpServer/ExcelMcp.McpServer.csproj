@@ -226,7 +226,7 @@ System.IO.File.WriteAllText(OutputFile, sb.ToString());
     <ItemGroup>
       <Compile Include="$(SkillPromptsGenFile)" />
     </ItemGroup>
-    <Message Text="Generated $(SkillPromptsGenFile) from @(SkillSharedFiles->Count()) skill files" Importance="high" />
+    <Message Text="Generated $(SkillPromptsGenFile) from @(SkillSharedFiles-&gt;Count()) skill files" Importance="high" />
   </Target>
 
   <Target Name="GenerateTelemetryConfig" BeforeTargets="BeforeCompile;CoreCompile">
@@ -281,14 +281,10 @@ internal static class TelemetryConfig
     <ProjectReference Include="..\ExcelMcp.Service\ExcelMcp.Service.csproj" />
 
     <!-- MCP Tool Generator - generates [McpServerToolType] classes from Core [ServiceCategory] interfaces -->
-    <ProjectReference Include="..\ExcelMcp.Generators.Mcp\ExcelMcp.Generators.Mcp.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\ExcelMcp.Generators.Mcp\ExcelMcp.Generators.Mcp.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 
     <!-- Build.Tasks - ensures skill generator is built before AfterBuild target runs -->
-    <ProjectReference Include="..\ExcelMcp.Build.Tasks\ExcelMcp.Build.Tasks.csproj"
-                      ReferenceOutputAssembly="false"
-                      PrivateAssets="all" />
+    <ProjectReference Include="..\ExcelMcp.Build.Tasks\ExcelMcp.Build.Tasks.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>
 
   <!-- Allow test project to access internal members (e.g., McpProgressAdapter) -->
@@ -297,6 +293,7 @@ internal static class TelemetryConfig
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.AI" />
     <PackageReference Include="ModelContextProtocol" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
@@ -328,13 +325,10 @@ internal static class TelemetryConfig
   </ItemGroup>
 
   <!-- Import the Build.Tasks project to use GenerateSkillFile task -->
-  <UsingTask TaskName="Sbroenne.ExcelMcp.Build.Tasks.GenerateSkillFile"
-             AssemblyFile="$(MSBuildProjectDirectory)\..\ExcelMcp.Build.Tasks\bin\$(Configuration)\netstandard2.0\Sbroenne.ExcelMcp.Build.Tasks.dll" />
+  <UsingTask TaskName="Sbroenne.ExcelMcp.Build.Tasks.GenerateSkillFile" AssemblyFile="$(MSBuildProjectDirectory)\..\ExcelMcp.Build.Tasks\bin\$(Configuration)\netstandard2.0\Sbroenne.ExcelMcp.Build.Tasks.dll" />
 
   <!-- Generate MCP Skill file from template after build -->
-  <Target Name="GenerateMcpSkill" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'"
-          Inputs="$(MSBuildProjectDirectory)\..\..\skills\templates\SKILL.mcp.sbn;$(MSBuildProjectDirectory)\..\ExcelMcp.Core\obj\GeneratedFiles\ExcelMcp.Generators\Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator\_SkillManifest.g.cs"
-          Outputs="$(MSBuildProjectDirectory)\..\..\skills\excel-mcp\SKILL.md">
+  <Target Name="GenerateMcpSkill" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'" Inputs="$(MSBuildProjectDirectory)\..\..\skills\templates\SKILL.mcp.sbn;$(MSBuildProjectDirectory)\..\ExcelMcp.Core\obj\GeneratedFiles\ExcelMcp.Generators\Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator\_SkillManifest.g.cs" Outputs="$(MSBuildProjectDirectory)\..\..\skills\excel-mcp\SKILL.md">
     <PropertyGroup>
       <SkillTemplatePath>$(MSBuildProjectDirectory)\..\..\skills\templates\SKILL.mcp.sbn</SkillTemplatePath>
       <SkillOutputPath>$(MSBuildProjectDirectory)\..\..\skills\excel-mcp\SKILL.md</SkillOutputPath>
@@ -342,13 +336,7 @@ internal static class TelemetryConfig
       <SkillManifestPath>$(MSBuildProjectDirectory)\..\ExcelMcp.Core\obj\GeneratedFiles\ExcelMcp.Generators\Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator\_SkillManifest.g.cs</SkillManifestPath>
     </PropertyGroup>
     <Message Text="Generating MCP Skill from template..." Importance="high" />
-    <GenerateSkillFile
-      TemplatePath="$(SkillTemplatePath)"
-      OutputPath="$(SkillOutputPath)"
-      ManifestPath="$(SkillManifestPath)"
-      ExcludeCommands="diag"
-      ExtraOperationCount="6"
-      ExtraToolCount="1" />
+    <GenerateSkillFile TemplatePath="$(SkillTemplatePath)" OutputPath="$(SkillOutputPath)" ManifestPath="$(SkillManifestPath)" ExcludeCommands="diag" ExtraOperationCount="6" ExtraToolCount="1" />
     <Message Text="Generated MCP Skill: $(SkillOutputPath)" Importance="high" />
   </Target>
 

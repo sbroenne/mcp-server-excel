@@ -34,7 +34,7 @@ public sealed class GeminiSchemaCompatibilityTests : McpIntegrationTestBase
     }
 
     [Fact]
-    public async Task ListTools_AllToolSchemas_DoNotUseUnionTypeArrays()
+    public async Task ListTools_AllToolSchemas_MeetGeminiStrictConstraints()
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         Assert.NotEmpty(tools);
@@ -43,19 +43,18 @@ public sealed class GeminiSchemaCompatibilityTests : McpIntegrationTestBase
 
         foreach (var tool in tools)
         {
-            CollectUnionTypeViolations(tool.Name, tool.JsonSchema, "$", violations);
+            CollectViolations(tool.Name, tool.JsonSchema, "$", violations);
         }
 
-        Output.WriteLine($"Scanned {tools.Count} tools for Gemini-incompatible union 'type' arrays.");
+        Output.WriteLine($"Scanned {tools.Count} tools for Gemini-incompatible schema constructs.");
 
         Assert.True(
             violations.Count == 0,
-            "Gemini (OpenAPI 3.0 subset) rejects union 'type' arrays like [\"array\",\"null\"]. " +
-            "Nullability must use 'nullable: true' with a single scalar 'type'. Violations:" +
+            "Gemini (OpenAPI 3.0 subset) enforces strict schema rules. Violations:" +
             Environment.NewLine + string.Join(Environment.NewLine, violations));
     }
 
-    private static void CollectUnionTypeViolations(
+    private static void CollectViolations(
         string toolName,
         JsonElement node,
         string jsonPath,
@@ -64,14 +63,37 @@ public sealed class GeminiSchemaCompatibilityTests : McpIntegrationTestBase
         switch (node.ValueKind)
         {
             case JsonValueKind.Object:
-                if (node.TryGetProperty("type", out var typeProperty) && typeProperty.ValueKind == JsonValueKind.Array)
+                // Rule 1: No union types. type must be a string.
+                if (node.TryGetProperty("type", out var typeProperty))
                 {
-                    violations.Add($"{toolName} {jsonPath}.type = {typeProperty.GetRawText()}");
+                    if (typeProperty.ValueKind == JsonValueKind.Array)
+                    {
+                        violations.Add($"{toolName} {jsonPath}.type = {typeProperty.GetRawText()} (Must be scalar string)");
+                    }
+                }
+
+                // Rule 2: No `nullable: true` on array nodes. 
+                // Client translates this to `anyOf` which breaks Gemini's `items` predicate validator.
+                if (typeProperty.ValueKind == JsonValueKind.String && typeProperty.GetString() == "array")
+                {
+                    if (node.TryGetProperty("nullable", out var nullableProperty) && nullableProperty.GetBoolean())
+                    {
+                        violations.Add($"{toolName} {jsonPath} has both type:\"array\" and nullable:true (Gemini rejects due to anyOf translation)");
+                    }
+                }
+
+                // Rule 3: items schema must not be empty. It must have a type.
+                if (jsonPath.EndsWith(".items", StringComparison.Ordinal) || jsonPath.EndsWith("]items", StringComparison.Ordinal))
+                {
+                    if (!node.TryGetProperty("type", out _) && !node.TryGetProperty("anyOf", out _) && !node.TryGetProperty("enum", out _))
+                    {
+                        violations.Add($"{toolName} {jsonPath} is empty/untyped (Gemini requires explicit type on all items)");
+                    }
                 }
 
                 foreach (var property in node.EnumerateObject())
                 {
-                    CollectUnionTypeViolations(toolName, property.Value, $"{jsonPath}.{property.Name}", violations);
+                    CollectViolations(toolName, property.Value, $"{jsonPath}.{property.Name}", violations);
                 }
 
                 break;
@@ -80,7 +102,7 @@ public sealed class GeminiSchemaCompatibilityTests : McpIntegrationTestBase
                 var index = 0;
                 foreach (var item in node.EnumerateArray())
                 {
-                    CollectUnionTypeViolations(toolName, item, $"{jsonPath}[{index}]", violations);
+                    CollectViolations(toolName, item, $"{jsonPath}[{index}]", violations);
                     index++;
                 }
 
