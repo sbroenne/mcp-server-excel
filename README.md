@@ -27,6 +27,10 @@
 - ⚠️ **Excel Required** - Microsoft Excel 2016 or later must be installed
 - ⚠️ **Desktop Environment** - Controls actual Excel process (not for server-side processing)
 
+> [!TIP]
+> **Also building PowerPoint decks?** Check out [PowerPoint MCP Server](https://powerpointmcpserver.dev/) —
+> the sister project, built the same way.
+
 ## 🎯 What You Can Do
 
 **26 specialized tools with 232 operations:**
