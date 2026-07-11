@@ -16,11 +16,27 @@
   <meta name="keywords" content="{{ page.meta.keywords }}">
   {% endif %}
 
-  <!-- Social preview image fallback -->
-  {% set og_image = "https://excelmcpserver.dev/assets/images/icon.png" %}
+  <!-- Social preview image (1200x630 branded card) -->
+  {% set og_image = "https://excelmcpserver.dev/assets/images/og-card.png" %}
   <meta property="og:image" content="{{ og_image }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Excel MCP Server — automate real Excel with AI">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="{{ og_image }}">
+  <meta name="twitter:image:alt" content="Excel MCP Server — automate real Excel with AI">
+
+  <!-- Home page: advertise the intro video to social crawlers -->
+  {% if page and page.is_homepage %}
+  <meta property="og:video" content="https://www.youtube.com/embed/B6eIQ5BIbNc">
+  <meta property="og:video:secure_url" content="https://www.youtube.com/embed/B6eIQ5BIbNc">
+  <meta property="og:video:type" content="text/html">
+  <meta property="og:video:width" content="560">
+  <meta property="og:video:height" content="315">
+  <meta name="twitter:player" content="https://www.youtube.com/embed/B6eIQ5BIbNc">
+  <meta name="twitter:player:width" content="560">
+  <meta name="twitter:player:height" content="315">
+  {% endif %}
 
   <!-- Structured data: SoftwareApplication -->
   <script type="application/ld+json">
@@ -37,9 +53,17 @@
     },
     "description": "Control Microsoft Excel with natural language through AI assistants like GitHub Copilot and Claude. Automate Power Query, DAX, VBA, PivotTables, and more.",
     "url": "https://excelmcpserver.dev/",
+    "image": "https://excelmcpserver.dev/assets/images/icon.png",
     "programmingLanguage": "C#",
     "downloadUrl": "https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer/",
     "codeRepository": "https://github.com/sbroenne/mcp-server-excel",
+    "license": "https://opensource.org/licenses/MIT",
+    "sameAs": [
+      "https://github.com/sbroenne/mcp-server-excel",
+      "https://www.youtube.com/@sbroenne",
+      "https://www.nuget.org/packages/Sbroenne.ExcelMcp.McpServer/",
+      "https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp"
+    ],
     "keywords": "Excel, automation, MCP, AI, Power Query, DAX, VBA, PivotTables, GitHub Copilot, Claude",
     "author": {
       "@type": "Person",
@@ -55,4 +79,54 @@
     ]
   }
   </script>
+
+  <!-- Structured data: WebSite + Organization (publisher entity) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://excelmcpserver.dev/#website",
+        "name": "Excel MCP Server",
+        "url": "https://excelmcpserver.dev/",
+        "description": "Control Microsoft Excel with natural language through AI assistants like GitHub Copilot and Claude.",
+        "inLanguage": "en",
+        "publisher": { "@id": "https://excelmcpserver.dev/#author" }
+      },
+      {
+        "@type": "Person",
+        "@id": "https://excelmcpserver.dev/#author",
+        "name": "Stefan Broenner",
+        "url": "https://github.com/sbroenne",
+        "sameAs": [
+          "https://github.com/sbroenne",
+          "https://www.youtube.com/@sbroenne"
+        ]
+      }
+    ]
+  }
+  </script>
+
+  <!-- Structured data: BreadcrumbList (interior pages only) -->
+  {% if page and not page.is_homepage %}
+  {% set crumbs = [{"name": "Home", "url": "https://excelmcpserver.dev/"}] %}
+  {% for anc in page.ancestors | reverse %}
+    {% if anc.title and anc.canonical_url %}
+      {% set _ = crumbs.append({"name": anc.title, "url": anc.canonical_url}) %}
+    {% endif %}
+  {% endfor %}
+  {% set _ = crumbs.append({"name": page.title, "url": page.canonical_url}) %}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {%- for c in crumbs %}
+      { "@type": "ListItem", "position": {{ loop.index }}, "name": {{ c.name | tojson }}, "item": {{ c.url | tojson }} }{% if not loop.last %},{% endif %}
+      {%- endfor %}
+    ]
+  }
+  </script>
+  {% endif %}
 {% endblock %}

@@ -14,12 +14,41 @@ into the thin wrapper pages under ``docs/`` via the ``pymdownx.snippets``
 
 from __future__ import annotations
 
+import gzip
 import logging
 import posixpath
 import re
 from pathlib import Path
 
 log = logging.getLogger("mkdocs.hooks.generate")
+
+# Home-page intro video. MkDocs' built-in sitemap is a plain URL sitemap and has
+# no notion of embedded media, so we enrich the home page's <url> entry with a
+# Google video-sitemap <video:video> block in on_post_build. Keep these fields in
+# sync with the VideoObject JSON-LD in docs/index.md.
+VIDEO = {
+    "page_url": "https://excelmcpserver.dev/",
+    "thumbnail": "https://i.ytimg.com/vi/B6eIQ5BIbNc/maxresdefault.jpg",
+    "title": "Introducing MCP Server for Excel - AI Coding for Excel",
+    "description": (
+        "See Excel MCP Server drive the real Microsoft Excel application from an "
+        "AI assistant - Power Query, DAX, VBA, PivotTables and more."
+    ),
+    "player_loc": "https://www.youtube.com/embed/B6eIQ5BIbNc",
+    "duration": "62",
+    "publication_date": "2025-11-23T08:33:40-08:00",
+}
+
+_VIDEO_NS = "http://www.google.com/schemas/sitemap-video/1.1"
+
+
+def _xml_escape(text: str) -> str:
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
 
 # gh-pages/hooks.py -> gh-pages/ -> repo root
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -245,3 +274,67 @@ def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
     _write("contributing.md", "docs/CONTRIBUTING.md", _read("docs/CONTRIBUTING.md").strip() + "\n")
     _write("security.md", "SECURITY.md", _read("SECURITY.md").strip() + "\n")
     _write("privacy.md", "PRIVACY.md", _read("PRIVACY.md").strip() + "\n")
+
+
+def on_post_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
+    """Enrich the generated sitemap with a Google video-sitemap entry.
+
+    MkDocs writes a plain URL sitemap that cannot describe the home-page intro
+    video, so we add the ``video`` namespace to ``<urlset>`` and inject a
+    ``<video:video>`` block into the home page's ``<url>``. Both ``sitemap.xml``
+    and its gzipped twin are updated so Search Console reads the enriched copy.
+    """
+    site_dir = Path(config["site_dir"])
+    sitemap = site_dir / "sitemap.xml"
+    if not sitemap.is_file():
+        log.warning("sitemap.xml not found; skipping video-sitemap enrichment")
+        return
+
+    xml = sitemap.read_text(encoding="utf-8")
+
+    if 'xmlns:video=' not in xml:
+        xml = xml.replace(
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
+            f' xmlns:video="{_VIDEO_NS}">',
+            1,
+        )
+
+    video_block = (
+        "        <video:video>\n"
+        f"            <video:thumbnail_loc>{_xml_escape(VIDEO['thumbnail'])}</video:thumbnail_loc>\n"
+        f"            <video:title>{_xml_escape(VIDEO['title'])}</video:title>\n"
+        f"            <video:description>{_xml_escape(VIDEO['description'])}</video:description>\n"
+        f"            <video:player_loc>{_xml_escape(VIDEO['player_loc'])}</video:player_loc>\n"
+        f"            <video:duration>{VIDEO['duration']}</video:duration>\n"
+        f"            <video:publication_date>{VIDEO['publication_date']}</video:publication_date>\n"
+        "            <video:family_friendly>yes</video:family_friendly>\n"
+        "            <video:live>no</video:live>\n"
+        "        </video:video>\n"
+    )
+
+    # Insert the video block inside the home page's <url>...</url> element.
+    home_url = re.compile(
+        r"(<url>\s*<loc>"
+        + re.escape(VIDEO["page_url"])
+        + r"</loc>.*?)(</url>)",
+        re.DOTALL,
+    )
+    if "<video:video>" not in xml:
+        new_xml, count = home_url.subn(rf"\1{video_block}    \2", xml, count=1)
+        if count:
+            xml = new_xml
+        else:
+            log.warning(
+                "home page <url> not found in sitemap; video markup not added"
+            )
+
+    sitemap.write_text(xml, encoding="utf-8", newline="\n")
+
+    gz = site_dir / "sitemap.xml.gz"
+    if gz.exists():
+        # mtime=0 keeps the output reproducible, matching MkDocs' own gzip call.
+        with gzip.GzipFile(gz, "wb", mtime=0) as fh:
+            fh.write(xml.encode("utf-8"))
+
+    log.info("enriched sitemap.xml with home-page video markup")
