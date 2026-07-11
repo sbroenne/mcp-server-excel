@@ -798,6 +798,16 @@ jobs:
           --title "chore: update CHANGELOG.md for v${VERSION} release" \
           --body "Automated post-release changelog update: compiles pending .changeset/*.md fragments into a new \`## [$VERSION]\` entry in CHANGELOG.md via \`scripts/Build-Changelog.ps1\`." \
           --label "documentation"
+
+        # Merge the changelog PR automatically. Previously this PR was only
+        # *created*, never merged, so it silently piled up open until a
+        # maintainer happened to merge it by hand -- leaving several past
+        # releases with a stale/missing CHANGELOG on main. Prefer queued
+        # auto-merge (requires "Allow auto-merge" in repo settings); fall back
+        # to an immediate merge when auto-merge is disabled. The commit above
+        # uses [skip ci] so there are no required checks blocking the merge.
+        gh pr merge "$BRANCH" --squash --delete-branch --auto \
+          || gh pr merge "$BRANCH" --squash --delete-branch
       # Intentionally NOT continue-on-error: a silently swallowed failure here
       # (e.g. Actions lacking permission to create PRs) is exactly what caused
       # several past releases to be missing their changelog commit-back PR.
