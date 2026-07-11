@@ -10,15 +10,15 @@
     2. Coverage and naming audit - ensures 100% Core Commands are exposed via MCP Server with aligned action names
     3. MCP-Core implementation audit - ensures every MCP action still has a Core implementation
     4. Success flag validation - ensures Success=true never paired with ErrorMessage (Rule 0)
-    5. Release solution build - generates Release binaries and skill outputs used by downstream packaging
-    5b. Documentation count validation - ensures all docs report the code-derived tool/operation counts
+    5. Release solution build - generates Release binaries and skill outputs used by downstream packaging (skipped for docs-only commits)
+    5b. Documentation count validation - ensures all docs report the code-derived tool/operation counts (skipped for docs-only commits)
     6. CLI workflow smoke test - validates end-to-end CLI functionality (skipped for docs/changeset-only commits)
     7. MCP Server smoke test - validates all MCP tools work correctly (skipped for docs/changeset-only commits)
-    8. CLI release packaging - validates NuGet + standalone ZIP artifacts
-    9. MCP Server release packaging - validates NuGet + standalone ZIP artifacts
-    10. VS Code extension packaging - validates the VSIX release packaging path
-    11. MCPB bundle packaging - validates the Claude Desktop bundle artifact
-    12. Agent skills packaging - validates the ZIP deliverable
+    8. CLI release packaging - validates NuGet + standalone ZIP artifacts (skipped for docs-only commits)
+    9. MCP Server release packaging - validates NuGet + standalone ZIP artifacts (skipped for docs-only commits)
+    10. VS Code extension packaging - validates the VSIX release packaging path (skipped for docs-only commits)
+    11. MCPB bundle packaging - validates the Claude Desktop bundle artifact (skipped for docs-only commits)
+    12. Agent skills packaging - validates the ZIP deliverable (skipped for docs-only commits)
     13. Plugin README validation - ensures overlays are complete and not stub content
     14. Dynamic cast audit - ensures ((dynamic)) casts are documented
 
@@ -87,9 +87,12 @@ function Stop-DotNetBuildServers {
 }
 
 # Determine whether this commit touches actual code (as opposed to docs/changeset-only
-# changes). Smoke tests exercise compiled binaries via real Excel COM automation and are
-# slow (minutes) - they add no value for pure documentation changes.
-$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))'
+# changes). The Release build, smoke tests and release packaging gates all exercise
+# compiled binaries and are slow (minutes) - they add no value for pure documentation
+# changes, including edits to the gh-pages documentation website (its MkDocs config,
+# hooks, templates and image assets are all part of the docs site, not the shipped
+# product). Cheap source-level guards still run for every commit.
+$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^gh-pages/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))'
 $stagedFiles = git diff --cached --name-only 2>&1 | Where-Object { $_ }
 $codeChangedFiles = $stagedFiles | Where-Object { $_ -notmatch $docOnlyPattern }
 $hasCodeChanges = @($codeChangedFiles).Count -gt 0
@@ -249,6 +252,12 @@ catch {
 # Validation is handled by:
 # - Build-time generator errors if interfaces are malformed
 # - CLI workflow smoke test below (end-to-end validation)
+
+# Everything from the Release build through the packaging gates exercises compiled
+# binaries and release artifacts. For a docs-only commit (including gh-pages website
+# changes) there is no compiled surface to validate, so skip the whole block and keep
+# the commit fast. The cheap source-level guards above and below still run every time.
+if ($hasCodeChanges) {
 
 Invoke-ValidationStep `
     -Heading "Building Release solution..." `
@@ -536,6 +545,12 @@ Invoke-ValidationStep `
             Pop-Location
         }
     }
+
+}
+else {
+    Write-Host ""
+    Write-Host "Skipping Release build, smoke tests and all release packaging gates (docs-only commit - no compiled surface changed)" -ForegroundColor Yellow
+}
 
 Write-Host ""
 Write-Host "Validating plugin README overlays..." -ForegroundColor Cyan
