@@ -36,6 +36,25 @@ hide:
 ▶️ [Watch the intro video (1 min)](https://youtu.be/B6eIQ5BIbNc)
 </div>
 
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "VideoObject",
+  "name": "Introducing MCP Server for Excel - AI Coding for Excel",
+  "description": "See Excel MCP Server drive the real Microsoft Excel application from an AI assistant - Power Query, DAX, VBA, PivotTables and more.",
+  "thumbnailUrl": "https://i.ytimg.com/vi/B6eIQ5BIbNc/maxresdefault.jpg",
+  "uploadDate": "2025-11-23T08:33:40-08:00",
+  "duration": "PT1M2S",
+  "contentUrl": "https://www.youtube.com/watch?v=B6eIQ5BIbNc",
+  "embedUrl": "https://www.youtube.com/embed/B6eIQ5BIbNc",
+  "publisher": {
+    "@type": "Organization",
+    "name": "Excel MCP Server",
+    "url": "https://excelmcpserver.dev/"
+  }
+}
+</script>
+
 !!! tip "Also building PowerPoint decks?"
     Check out [PowerPoint MCP Server](https://powerpointmcpserver.dev/) — the
     sister project, built the same way.
