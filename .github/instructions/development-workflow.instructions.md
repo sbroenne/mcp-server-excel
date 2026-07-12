@@ -36,7 +36,9 @@ All PRs are merged using **squash merge** (single commit to `main`). This keeps 
 # ⚠️ IMPORTANT: for this public repo, gh CLI must be authenticated as a PERSONAL GitHub account.
 # Enterprise Managed User (EMU) accounts cannot access public repos via gh CLI.
 # Verify with: gh auth status
-# If needed, switch with: gh auth login --with-token (using a personal access token from a personal GitHub account)
+# If needed, select the personal account's token (Copilot CLI exposes it as an env var):
+#   $env:GH_TOKEN = $env:COPILOT_GH_ACCOUNT_github_2E_com_sbroenne   # then verify: gh api user --jq '.login'
+# (Admin ops — rulesets, disabling workflows, deleting runs — require this personal token, not the EMU account.)
 gh api repos/sbroenne/mcp-server-excel/pulls/PULL_NUMBER/comments --paginate
 
 # Or use the mcp_github tool if available
@@ -70,8 +72,7 @@ Quick reference:
 ## CI/CD Workflows
 
 **Automated on Pull Requests:**
-- `build-mcp-server.yml` - Builds MCP Server on code changes
-- `build-cli.yml` - Builds CLI on code changes
+- `ci.yml` (**CI Gate**) - Release build + Excel-free audit gates + Excel-free CLI/MCP build smoke (always runs on PRs to `main`, so it can be a required check). GitHub-hosted runners have no Excel, so Excel-dependent gates stay local-only in the pre-commit hook.
 - `codeql.yml` - Security analysis
 - `dependency-review.yml` - Dependency security scanning
 

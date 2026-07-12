@@ -5,7 +5,7 @@ name: "CodeQL Advanced Security"
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "main" ]
     paths:
       - 'src/**'
       - 'tests/**'

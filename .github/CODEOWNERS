@@ -1,0 +1,9 @@
+# Code owners for mcp-server-excel.
+# Used to auto-request reviews and route ownership. Not enforced as a required
+# review gate (single-maintainer repo — a PR author cannot approve their own
+# code-owner review).
+#
+# See: https://docs.github.com/articles/about-code-owners
+
+# Default owner for everything in the repo.
+*                       @sbroenne

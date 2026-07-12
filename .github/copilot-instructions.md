@@ -132,7 +132,7 @@ public void TestMethod()
 
 **Pre-Commit:** Search TODO/FIXME/HACK, delete commented code, verify tests, check docs.
 
-**NEVER `--no-verify` (Rule 31):** Never bypass pre-commit hooks with `--no-verify`/`-n`/`HUSKY=0`/`core.hooksPath`. Let all 14 gates run to completion. CI does NOT run them all. If a hook fails or hangs (incl. environment issues like VBA trust disabled), STOP and ask the user — never bypass.
+**NEVER `--no-verify` (Rule 31):** Never bypass pre-commit hooks with `--no-verify`/`-n`/`HUSKY=0`/`core.hooksPath`. Let all 14 gates run to completion. The `CI Gate` workflow (`.github/workflows/ci.yml`) enforces the **Excel-free** gates on every PR (Release build, COM-leak, success-flag, coverage/naming, MCP-Core, doc-counts, dynamic-cast, plugin-README), but the **Excel-dependent** gates (CLI workflow smoke, MCP smoke) and the packaging deliverables run **only** in pre-commit — so bypassing still ships those unverified. If a hook fails or hangs (incl. environment issues like VBA trust disabled), STOP and ask the user — never bypass.
 
 **PR Review:** Check automated comments immediately (Copilot, GitHub Security). Fix before human review.
 
@@ -229,7 +229,13 @@ uv run pytest -m aitest -v   # All LLM tests
 - Build MCP Server: `dotnet build src\ExcelMcp.McpServer -c Release`
 - GitHub auth for public-repo operations must use a personal GitHub account (not an EMU account) via `gh auth login --with-token` or a `GITHUB_TOKEN` from that account
 
-**GitHub auth rule for this repo:** When using `gh` against `sbroenne/mcp-server-excel` (issues, PRs, comments, merges), verify the authenticated account is a personal GitHub account. Enterprise Managed User accounts cannot create PRs or access some public-repo API paths here.
+**GitHub auth rule for this repo:** When using `gh` against `sbroenne/mcp-server-excel` (issues, PRs, comments, merges), verify the authenticated account is a personal GitHub account. Enterprise Managed User (EMU) accounts have **read-only** (`pull`) access here and cannot create PRs, edit rulesets, disable workflows, delete workflow runs, or access some public-repo API paths.
+
+**Selecting the personal token (admin operations):** The default `GH_TOKEN` may point at the EMU account (`admin:false, push:false`). Check with `gh api repos/sbroenne/mcp-server-excel --jq '.permissions'`. Copilot CLI exposes each authenticated account's token as an env var named `COPILOT_GH_ACCOUNT_github_2E_com_<login>` (e.g. `COPILOT_GH_ACCOUNT_github_2E_com_sbroenne` for the personal owner account). For admin/write work, set `$env:GH_TOKEN = $env:COPILOT_GH_ACCOUNT_github_2E_com_sbroenne` at the start of the command (it does not persist across `powershell` calls, so re-set it each call), then verify `gh api user --jq '.login'` returns `sbroenne`.
+
+**Managing "stale" registered workflows (Actions sidebar):** A workflow whose YAML file was deleted (e.g. `squad-ci.yml`) can linger as an "active" entry; it won't run, and it usually clears itself once its last run ages out. GitHub-managed *dynamic* workflows like `pages-build-deployment` cannot be disabled (`/disable` returns 422) — remove them by deleting all their runs (`DELETE /repos/.../actions/runs/{id}`), after which the sidebar entry disappears. When Pages is already `build_type: workflow`, `pages-build-deployment` will not regenerate.
+
+**Rulesets REST gotchas:** Update a ruleset with `PUT /repos/{owner}/{repo}/rulesets/{id}` (a `PATCH` returns 404) and send the **full** object (`name`, `target`, `enforcement`, `conditions`, `rules`, `bypass_actors`) — a partial body is rejected. Unknown rule parameters are **silently dropped**, so always re-GET and confirm the change persisted. To require automatic Copilot code review, add a rule of type `copilot_code_review` with parameters `review_on_push` and `review_draft_pull_requests` (it is a distinct rule type, NOT a `pull_request` parameter such as the non-existent `automatic_copilot_code_review_enabled`).
 
 **Structure:**
 - `test_mcp_*.py` - MCP Server workflows
