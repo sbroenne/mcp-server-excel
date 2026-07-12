@@ -136,7 +136,7 @@ hide:
 Ask your AI assistant in plain language — it drives Excel for you:
 
 <figure markdown="span">
-  ![A styled sales table, regional summary and column chart in the real Excel app, built by Excel MCP Server](assets/images/excel-demo-table-chart.png){ width="440" loading=lazy }
+  ![A styled sales table, regional summary and column chart in the real Excel app, built by Excel MCP Server](assets/images/excel-demo-table-chart.png){ width="820" loading=lazy }
   <figcaption>A styled Excel Table, a regional revenue summary and a column chart — created end-to-end in the real Excel application. No manual clicking, no rewriting the <code>.xlsx</code> file.</figcaption>
 </figure>
 
@@ -167,6 +167,15 @@ Ask your AI assistant in plain language — it drives Excel for you:
 
     The AI applies number formats, conditional styling, auto-fit and structured
     table styling.
+
+And because Excel MCP Server works with the real Excel application, modern
+features like **Python in Excel** work too — your AI assistant can write
+`=PY()` formulas that run pandas and NumPy directly on your worksheet data:
+
+<figure markdown="span">
+  ![The Excel formula bar showing a Python =PY() formula using pandas to sum a table column, next to the sales table and chart](assets/images/excel-demo-python.png){ width="820" loading=lazy }
+  <figcaption>A <code>=PY()</code> formula (note the green <strong>PY</strong> badge) running <code>pandas</code> against an Excel Table — Python in Excel, driven from your AI assistant.</figcaption>
+</figure>
 
 ## CLI or MCP Server?
 
