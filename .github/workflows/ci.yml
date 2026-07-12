@@ -44,9 +44,9 @@ jobs:
         run: dotnet restore Sbroenne.ExcelMcp.sln
 
       # Release build validates compilation and runs the source generators, so
-      # the audit scripts below see the generated CLI/MCP surface. Mirrors
-      # pre-commit gate 6 (NuGetAudit disabled here — the Dependency Review
-      # workflow owns vulnerability scanning).
+      # the audit scripts below see the generated CLI/MCP surface. Mirrors the
+      # pre-commit Release build gate (NuGetAudit disabled here — the Dependency
+      # Review workflow owns vulnerability scanning).
       - name: Build (Release)
         run: dotnet build Sbroenne.ExcelMcp.sln --configuration Release --no-restore -p:NuGetAudit=false
 
@@ -82,7 +82,7 @@ jobs:
           & scripts/check-doc-counts.ps1
           if ($LASTEXITCODE -ne 0) { throw "A doc advertises a tool/operation count that does not match the code-derived canonical count." }
 
-      - name: Dynamic cast audit (Rule 14)
+      - name: Dynamic cast audit (documented ((dynamic)) casts)
         shell: pwsh
         run: |
           & scripts/check-dynamic-casts.ps1
