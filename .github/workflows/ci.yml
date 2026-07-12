@@ -1,0 +1,139 @@
+# CI Gate — the single authoritative status check for pull requests.
+#
+# This job ALWAYS runs on every PR to `main` (no path filters), so it can be
+# safely marked as a required status check without the "required check never
+# runs on path-filtered PRs" deadlock.
+#
+# It ports the Excel-free pre-commit gates (scripts/pre-commit.ps1) into CI so
+# that the correctness checks are enforced server-side even if a contributor
+# bypasses the local hook (see Rule 31). The Excel-dependent gates — the CLI
+# workflow smoke test and the MCP smoke test — are intentionally NOT run here:
+# GitHub-hosted runners do not have Microsoft Excel installed, so those remain
+# local-only (pre-commit) and are covered by the integration test suite.
+
+name: CI Gate
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci-gate:
+    name: CI Gate
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore Sbroenne.ExcelMcp.sln
+
+      # Release build validates compilation and runs the source generators, so
+      # the audit scripts below see the generated CLI/MCP surface. Mirrors
+      # pre-commit gate 6 (NuGetAudit disabled here — the Dependency Review
+      # workflow owns vulnerability scanning).
+      - name: Build (Release)
+        run: dotnet build Sbroenne.ExcelMcp.sln --configuration Release --no-restore -p:NuGetAudit=false
+
+      # --- Excel-free correctness gates (ported from scripts/pre-commit.ps1) ---
+
+      - name: COM object leak check (Rule 5)
+        shell: pwsh
+        run: |
+          & scripts/check-com-leaks.ps1
+          if ($LASTEXITCODE -ne 0) { throw "COM object leaks detected. All dynamic COM objects must be released in finally blocks." }
+
+      - name: Core coverage + naming audit (Rule 24)
+        shell: pwsh
+        run: |
+          & scripts/audit-core-coverage.ps1 -CheckNaming -FailOnGaps
+          if ($LASTEXITCODE -ne 0) { throw "Coverage or naming gaps detected. Every Core method must be exposed via the MCP Server with a matching name." }
+
+      - name: MCP actions have Core implementations
+        shell: pwsh
+        run: |
+          & scripts/check-mcp-core-implementations.ps1
+          if ($LASTEXITCODE -ne 0) { throw "MCP enum actions without a matching Core Command implementation were found." }
+
+      - name: Success flag check (Rule 1)
+        shell: pwsh
+        run: |
+          & scripts/check-success-flag.ps1
+          if ($LASTEXITCODE -ne 0) { throw "Success flag violations detected (Success=true with an ErrorMessage set)." }
+
+      - name: Documentation tool/operation counts
+        shell: pwsh
+        run: |
+          & scripts/check-doc-counts.ps1
+          if ($LASTEXITCODE -ne 0) { throw "A doc advertises a tool/operation count that does not match the code-derived canonical count." }
+
+      - name: Dynamic cast audit (Rule 14)
+        shell: pwsh
+        run: |
+          & scripts/check-dynamic-casts.ps1
+          if ($LASTEXITCODE -ne 0) { throw "Undocumented ((dynamic)) casts detected. Each cast needs a justification comment." }
+
+      - name: Plugin README check
+        shell: pwsh
+        run: |
+          & scripts/check-plugin-readmes.ps1
+          if ($LASTEXITCODE -ne 0) { throw "Plugin README validation failed." }
+
+      # --- Excel-free build smoke checks (absorbed from the old Build CLI /
+      #     Build MCP Server workflows) ---
+
+      - name: Verify CLI build + help (no Excel required)
+        shell: pwsh
+        run: |
+          $exe = "src/ExcelMcp.CLI/bin/Release/net10.0-windows/excelcli.exe"
+          if (-not (Test-Path $exe)) { throw "excelcli.exe not found at $exe" }
+          $help = & $exe --help 2>&1
+          if ($LASTEXITCODE -ne 0) { throw "excelcli --help failed with exit code $LASTEXITCODE" }
+          Write-Host "excelcli --help OK"
+
+      - name: Verify MCP Server build
+        shell: pwsh
+        run: |
+          $exe = "src/ExcelMcp.McpServer/bin/Release/net10.0-windows/Sbroenne.ExcelMcp.McpServer.exe"
+          if (-not (Test-Path $exe)) { throw "MCP Server exe not found at $exe" }
+          if (-not (Test-Path "src/ExcelMcp.McpServer/bin/Release/net10.0-windows/.mcp/server.json")) {
+            Write-Warning "MCP server.json configuration not found"
+          }
+          Write-Host "MCP Server build OK"
+
+      - name: Integration tests note
+        shell: pwsh
+        run: |
+          Write-Host "Integration, CLI workflow, and MCP smoke tests require Microsoft Excel and are NOT run in CI."
+          Write-Host "They run locally via scripts/pre-commit.ps1 and 'dotnet test' on a machine with Excel."
+
+      - name: Upload CLI build artifacts
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: ExcelMcp-CLI-${{ github.sha }}
+          path: src/ExcelMcp.CLI/bin/Release/net10.0-windows/
+          if-no-files-found: error
+
+      - name: Upload MCP Server build artifacts
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: ExcelMcp-MCP-Server-${{ github.sha }}
+          path: src/ExcelMcp.McpServer/bin/Release/net10.0-windows/
+          if-no-files-found: error
