@@ -72,8 +72,7 @@ Quick reference:
 ## CI/CD Workflows
 
 **Automated on Pull Requests:**
-- `build-mcp-server.yml` - Builds MCP Server on code changes
-- `build-cli.yml` - Builds CLI on code changes
+- `ci.yml` (**CI Gate**) - Release build + Excel-free audit gates + Excel-free CLI/MCP build smoke (always runs on PRs to `main`, so it can be a required check). GitHub-hosted runners have no Excel, so Excel-dependent gates stay local-only in the pre-commit hook.
 - `codeql.yml` - Security analysis
 - `dependency-review.yml` - Dependency security scanning
 
