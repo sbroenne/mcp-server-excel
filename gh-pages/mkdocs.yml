@@ -88,6 +88,7 @@ nav:
   - CLI: cli.md
   - More:
     - Agent Skills: skills.md
+    - Troubleshooting & FAQ: troubleshooting.md
     - Architecture: architecture.md
     - Changelog: changelog.md
     - Contributing: contributing.md
