@@ -65,10 +65,6 @@ Drives the **actual Excel application** via COM — not a file-format parser —
 
 ---
 
-## 🤝 Related Tools & Support
-
----
-
 ## 📖 Complete Documentation
 
 - **[GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)** - Download latest standalone exe (primary)
@@ -101,7 +97,8 @@ where.exe excelcli
 
 ```powershell
 # Error: "Programmatic access to Visual Basic Project is not trusted"
-# Solution: Enable VBA trust (see VBA Operations Setup above)
+# Solution: In Excel, enable File → Options → Trust Center → Trust Center Settings
+#           → Macro Settings → "Trust access to the VBA project object model"
 ```
 
 ### Permission Issues
@@ -173,11 +170,7 @@ These tests open actual workbooks, issue `session open/list/close`, and call `ex
 
 ## 🤝 Related Tools
 
-- **[ExcelMcp MCP Server](https://github.com/sbroenne/mcp-server-excel/releases/latest)** - MCP server for AI assistant integration (`mcp-excel.exe`)
-- **[Excel MCP VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)** - One-click Excel automation in VS Code
->>>>>>> 08d2ec617123490fa4dad1d99da58d5a508e2a95
-
-- **[MCP Server](https://excelmcpserver.dev/mcp-server/)** - For conversational AI (Claude Desktop, VS Code Chat)
+- **[MCP Server](https://excelmcpserver.dev/mcp-server/)** - For conversational AI (Claude Desktop, VS Code Chat) — distributed as `mcp-excel.exe`
 - **[VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)** - One-click Excel automation in VS Code
 - **Issues & Discussions**: [GitHub](https://github.com/sbroenne/mcp-server-excel)
 - **Full docs**: [excelmcpserver.dev](https://excelmcpserver.dev/)

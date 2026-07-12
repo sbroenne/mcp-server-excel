@@ -32,23 +32,3 @@ npx skills add sbroenne/mcp-server-excel --skill excel-mcp
 
 **Via VS Code Extension (auto-installs excel-mcp):**
 Install the [Excel MCP VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) — it registers the `excel-mcp` skill via `chatSkills`. For the `excel-cli` skill, use the plugin or `npx skills` methods above.
-
-## Building
-
-```powershell
-dotnet build -c Release
-```
-
-Generates `SKILL.md` and copies `shared/` references into each skill's `references/` folder.
-
-## Structure
-
-```
-skills/
-├── shared/          # Shared behavioral guidance (source of truth)
-├── excel-mcp/       # MCP Server skill (SKILL.md + references/)
-├── excel-cli/       # CLI skill (SKILL.md + references/)
-├── templates/       # Scriban templates for SKILL.md generation
-├── CLAUDE.md        # Claude Code project instructions
-└── .cursorrules     # Cursor-specific rules
-```
