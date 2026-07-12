@@ -135,6 +135,11 @@ hide:
 
 Ask your AI assistant in plain language — it drives Excel for you:
 
+<figure markdown="span">
+  ![A styled sales table, regional summary and column chart in the real Excel app, built by Excel MCP Server](assets/images/excel-demo-table-chart.png){ width="440" loading=lazy }
+  <figcaption>A styled Excel Table, a regional revenue summary and a column chart — created end-to-end in the real Excel application. No manual clicking, no rewriting the <code>.xlsx</code> file.</figcaption>
+</figure>
+
 !!! example "📝 Create &amp; populate data"
     **You:** "Create a new Excel file with a table for tracking sales — include
     Date, Product, Quantity, Unit Price and Total with sample data and formulas."
