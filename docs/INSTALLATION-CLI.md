@@ -149,18 +149,18 @@ Before updating, check the [changelog](https://excelmcpserver.dev/changelog/) or
 ### Command Not Found After Installation
 
 ```powershell
-## Check excelcli.exe location
+# Check excelcli.exe location
 where.exe excelcli
 
-## If not found, ensure the directory containing excelcli.exe is in your PATH
-## The default location after extraction might be: C:\Tools\ExcelMcp\
+# If not found, ensure the directory containing excelcli.exe is in your PATH
+# The default location after extraction might be: C:\Tools\ExcelMcp\
 ```
 
 ### Excel Not Found
 
 ```powershell
-## Error: "Microsoft Excel is not installed"
-## Solution: Install Microsoft Excel (any version 2016+)
+# Error: "Microsoft Excel is not installed"
+# Solution: Install Microsoft Excel (any version 2016+)
 ```
 
 ### VBA Access Denied
@@ -197,8 +197,8 @@ excelcli session close --session 1 --save
 ### Permission Issues
 
 ```powershell
-## Run PowerShell/CMD as Administrator if you encounter permission errors
-## excelcli.exe is a standalone exe - no installation needed
+# Run PowerShell/CMD as Administrator if you encounter permission errors
+# excelcli.exe is a standalone exe - no installation needed
 ```
 
 ---
