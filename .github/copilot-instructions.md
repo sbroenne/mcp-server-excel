@@ -241,6 +241,12 @@ uv run pytest -m aitest -v   # All LLM tests
 
 **Copilot-review auto-merge gotcha (IMPORTANT):** With the `copilot_code_review` rule active, a PR stays `mergeStateStatus: BLOCKED` — even when every status check is green and no human approval is required — until **Copilot's review comment threads are resolved**. This holds independently of the `pull_request` rule's `required_review_thread_resolution` setting. So the solo auto-merge flow is: address each Copilot comment in code → **reply and resolve the thread** (`resolveReviewThread` GraphQL mutation) → auto-merge then completes on its own. Before resolving, verify any Copilot claim rather than dismissing it (Rule 23); e.g. Copilot's "`contents: read` breaks `actions/upload-artifact`" was a false positive — that action uploads via `ACTIONS_RUNTIME_TOKEN`, not `GITHUB_TOKEN` scopes, and the upload steps concluded `success` with artifacts produced.
 
+**Sister projects (share this repo's architecture and PR/CI conventions):** This repo has two sibling repos under `sbroenne`, both Windows-only C# **MCP Server & CLI** tools that automate a host application via COM interop with the same layering (ComInterop → Core → Service → CLI + MCP Server), source generators, `scripts/pre-commit.ps1` gate model, and the solo PR/CI enforcement described above:
+- **`sbroenne/mcp-server-powerpoint`** — PowerPoint automation via the PowerPoint COM API. CI-in-the-cloud constraint mirrors this repo but for **PowerPoint** (GitHub-hosted runners have no Microsoft PowerPoint, so only PowerPoint-free gates run in CI).
+- **`sbroenne/mcp-windows`** — the Windows MCP server: drives Windows applications through the Windows UI Automation API. Its cloud-CI constraint is the lack of an interactive desktop/UIA session on GitHub-hosted runners rather than a specific Office app.
+
+When applying fixes/conventions here, consider whether the sibling repos need the same change (and vice versa). Use the same personal-token + auto-merge flow for all three.
+
 **Structure:**
 - `test_mcp_*.py` - MCP Server workflows
 - `test_cli_*.py` - CLI workflows
