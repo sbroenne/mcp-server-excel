@@ -4,6 +4,22 @@
 
 ---
 
+**New to Excel MCP Server?** You don't need to learn these operations — your AI
+assistant picks the right tool for what you ask in plain language. This page is
+the full reference. The tools most people reach for first:
+
+- **`powerquery`** — import and reshape data from files, databases, and APIs
+- **`range` / `range_format`** — read and write cell values, formulas, and formatting
+- **`pivottable`** — summarize and analyze data
+- **`chart`** — visualize results
+- **`datamodel`** — build a Power Pivot model with DAX measures
+- **`vba`** — run macros and scripted automation
+
+Every tool below lists its operations grouped by category. Use the **"On this
+page"** menu to jump to a specific tool.
+
+---
+
 ## 📁 File Operations (6 operations)
 
 Open, create, and close Excel workbooks. Every other tool works on a session opened here.

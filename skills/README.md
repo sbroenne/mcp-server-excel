@@ -1,6 +1,14 @@
 # Excel MCP Server - Agent Skills
 
-Two skill packages for different integration models:
+**Skills teach your AI assistant how to use Excel MCP Server well.** A skill is a
+small package of guidance and examples that your coding agent (GitHub Copilot,
+Cursor, Windsurf, Claude Code, and others) loads automatically — so it knows the
+right workflow, the correct parameters, and the common gotchas without you
+having to spell them out each time. Installing a skill makes the assistant
+noticeably more reliable at driving Excel.
+
+There are two packages — pick the one that matches how you connect to Excel (or
+install both):
 
 | Skill | Component | Distribution | Best For |
 |-------|-----------|--------------|----------|

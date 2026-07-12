@@ -10,7 +10,7 @@
 > **Primary distribution: Standalone executable** — Download `excelcli.exe` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
 > **Secondary distribution: NuGet .NET tool** — `dotnet tool install --global Sbroenne.ExcelMcp.CLI` (requires .NET 10 runtime).
 
-The CLI provides 18 command categories with 232 operations matching the MCP Server. Uses **64% fewer tokens** than MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 26 tool schemas into context.
+The CLI provides the **same 232 operations** as the MCP Server, grouped into 18 command categories (the MCP Server exposes those same operations as 26 tools — same capabilities, packaged differently for each entry point). It uses **64% fewer tokens** than the MCP Server because it wraps all operations in a single tool with skill-based guidance instead of loading 26 tool schemas into context.
 
 | Interface | Best For | Why |
 |-----------|----------|-----|
