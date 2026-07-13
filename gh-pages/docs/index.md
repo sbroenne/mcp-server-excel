@@ -173,8 +173,8 @@ features like **Python in Excel** work too — your AI assistant can write
 `=PY()` formulas that run pandas and NumPy directly on your worksheet data:
 
 <figure markdown="span">
-  ![The Excel formula bar showing a Python =PY() formula using pandas to sum a table column, next to the sales table and chart](assets/images/excel-demo-python.png){ width="820" loading=lazy }
-  <figcaption>A <code>=PY()</code> formula (note the green <strong>PY</strong> badge) running <code>pandas</code> against an Excel Table — Python in Excel, driven from your AI assistant.</figcaption>
+  ![Close-up of the Excel ribbon Python group and the formula bar showing a =PY() formula that uses pandas to sum a table column](assets/images/excel-demo-python.png){ width="820" loading=lazy }
+  <figcaption>The formula bar with a <code>=PY()</code> formula (note the green <strong>PY</strong> badge) and Excel's <strong>Python</strong> ribbon group — summing the <code>SalesData</code> table with <code>pandas</code>, driven from your AI assistant.</figcaption>
 </figure>
 
 ## CLI or MCP Server?
