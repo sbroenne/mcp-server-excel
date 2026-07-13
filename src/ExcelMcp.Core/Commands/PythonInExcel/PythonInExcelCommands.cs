@@ -62,7 +62,7 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
     }
 
     /// <inheritdoc />
-    public PythonInExcelResult GetResult(IExcelBatch batch, string sheetName, string rangeAddress, int maxWaitSeconds = 15)
+    public PythonInExcelResult GetResult(IExcelBatch batch, string sheetName, string rangeAddress, int maxWaitSeconds = 30)
     {
         var result = new PythonInExcelResult
         {
@@ -94,24 +94,33 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                     return result;
                 }
 
-                // The Python code executes in a Microsoft-hosted cloud sandbox, not locally. There is
-                // no reliable "still computing" signal exposed via COM: Excel's local calculation
-                // engine considers itself done as soon as it dispatches the async call, so the cell
-                // shows a stale/default placeholder (e.g. plain "0", or even a transient error-shaped
-                // Value2) before the real cloud result ever arrives - and that placeholder can remain
-                // "stable" (identical across repeated reads) for a long time, indistinguishable from a
-                // genuinely converged result using only Value2/Text. A minimum settle window plus a
-                // longer stable-sample streak reduce (but cannot fully eliminate) false positives - this
-                // is a best-effort heuristic, not a guarantee. Classification below only trusts the
-                // final read once `stable` is true; if the deadline is reached without ever observing
-                // the required run of matching reads, GetResult reports failure and asks the caller to
-                // retry rather than guessing at an unconverged value.
-                // NOTE: Application.Wait() was tried as a message-pumping alternative to Thread.Sleep()
-                // (in case the cloud callback needs Excel's message queue pumped to be delivered) but it
-                // hung indefinitely in this non-visible automation context, so Thread.Sleep() is used.
-                const int MinSettleSeconds = 10;
-                const int RequiredStableSamples = 4;
-                const int PollIntervalMs = 2000;
+                // Completion detection uses Excel's calculation state plus a per-cell #BUSY! guard -
+                // NOT a value-stability guess.
+                //
+                // Ground truth (verified empirically against current Excel, both visible and headless):
+                // while the Microsoft-hosted cloud Python sandbox is still computing, the cell reads back
+                // as the #BUSY! placeholder (Range.Value2 == -2146826237) and Application.CalculationState
+                // is xlPending/xlCalculating. The moment the real result arrives, Value2 flips to the
+                // computed value (or an error code such as #PYTHON!) and CalculationState returns to
+                // xlDone. So the cell is "done" precisely when CalculationState == xlDone AND it no longer
+                // reads #BUSY!. This is deterministic and does not lock onto a stale placeholder the way
+                // the previous value-stability heuristic could.
+                //
+                // We deliberately do NOT call CalculateFullRebuild() on every poll: re-dispatching the
+                // async PY call repeatedly can keep the cell perpetually #BUSY! and prevent convergence.
+                // Instead we nudge calculation once (in case the workbook is in manual-calc mode) and then
+                // just observe. Thread.Sleep() is used to wait between reads - Application.Wait() was tried
+                // previously but hung indefinitely in the non-visible automation context.
+
+                // #BUSY! - the cloud Python call is still in flight (not a real error).
+                const int BusyErrorCode = -2146826237;
+                // XlCalculationState.xlDone (calculation complete).
+                const int XlDone = 0;
+                const int PollIntervalMs = 500;
+                // Consecutive non-busy reads that let us trust the result even if the workbook's
+                // application-level CalculationState is held pending by OTHER async cells (e.g. a Power
+                // Query or a second PY cell). This keeps convergence dependent primarily on THIS cell.
+                const int RequiredNonBusyReads = 3;
 
                 // Well-known Excel error code for #PYTHON! (Python code raised an error), used only to
                 // look up the canonical human-readable message via MapErrorCodeToMessage. Detection of
@@ -120,47 +129,53 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                 // a reliable discriminator on its own) - see the returnType-based classification below.
                 const int PythonErrorCode = -2146826233;
 
+                // Nudge calculation once so a manual-calc workbook actually dispatches the async PY call.
+                // Harmless if calculation is automatic or already running.
+                try
+                {
+                    ctx.App.Calculate();
+                }
+                catch (System.Runtime.InteropServices.COMException)
+                {
+                    // Application is busy calculating - the nudge is best-effort, so ignore and poll.
+                }
+
                 object? value = null;
                 string text = string.Empty;
-                object? previousValue = null;
-                int consecutiveMatches = 0;
-                bool stable = false;
+                int nonBusyReads = 0;
+                bool converged = false;
 
-                var startTime = DateTime.UtcNow;
-                var deadline = startTime.AddSeconds(Math.Max(MinSettleSeconds + 1, maxWaitSeconds));
+                var deadline = DateTime.UtcNow.AddSeconds(Math.Max(1, maxWaitSeconds));
                 do
                 {
-                    ctx.App.CalculateFullRebuild();
                     value = range.Value2;
                     text = range.Text?.ToString() ?? string.Empty;
+                    int calcState = (int)ctx.App.CalculationState;
 
-                    bool isTransient = Array.IndexOf(TransientMarkers, text) >= 0;
-                    // Match on Value2 only - range.Text has been observed to render inconsistently
-                    // (e.g. sometimes blank, sometimes a formatted error string) even while Value2
-                    // itself has already converged to a stable value/error code.
-                    bool matchesPrevious = previousValue != null && Equals(previousValue, value);
+                    bool cellBusy = (value is int busyCode && busyCode == BusyErrorCode)
+                        || Array.IndexOf(TransientMarkers, text) >= 0;
 
-                    consecutiveMatches = isTransient ? 0 : matchesPrevious ? consecutiveMatches + 1 : 1;
+                    nonBusyReads = cellBusy ? 0 : nonBusyReads + 1;
 
-                    bool minTimeElapsed = (DateTime.UtcNow - startTime).TotalSeconds >= MinSettleSeconds;
-                    if (!isTransient && consecutiveMatches >= RequiredStableSamples && minTimeElapsed)
+                    // Done when this cell is no longer #BUSY! and either the application has finished
+                    // calculating or the cell has read a settled (non-busy) value across several
+                    // consecutive polls (guards against unrelated pending async cells).
+                    if (!cellBusy && (calcState == XlDone || nonBusyReads >= RequiredNonBusyReads))
                     {
-                        stable = true;
+                        converged = true;
                         break;
                     }
 
-                    previousValue = value;
                     Thread.Sleep(PollIntervalMs);
                 }
                 while (DateTime.UtcNow < deadline);
 
-                if (!stable)
+                if (!converged)
                 {
-                    // Never observed the required run of matching reads - the last read cannot be
-                    // trusted as the converged Python result (it may be a stale/default placeholder,
-                    // or an in-flight transient error code). Report failure rather than guessing.
+                    // Still #BUSY! at the deadline - the cloud backend has not returned yet (often a
+                    // cold-start delay). Report rather than guessing at an unconverged placeholder.
                     result.Success = false;
-                    result.ErrorMessage = $"Python in Excel result did not stabilize within {maxWaitSeconds}s and may not reflect the completed cloud computation. Try get-result again, or increase maxWaitSeconds.";
+                    result.ErrorMessage = $"Python in Excel result did not finish within {maxWaitSeconds}s (the cell still reads as #BUSY!). The Microsoft-hosted Python backend may be under cold-start load - call get-result again, or increase maxWaitSeconds.";
                     return result;
                 }
 
