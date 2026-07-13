@@ -57,10 +57,11 @@ public class PythonInExcelCommandsTests : IClassFixture<PythonInExcelTestsFixtur
 
     /// <summary>
     /// Calls GetResult repeatedly until <paramref name="isAcceptable"/> is satisfied or the retry
-    /// budget is exhausted. Core's completion-detection heuristic is intentionally best-effort (see
-    /// PythonInExcelCommands.GetResult remarks) - there is no COM-level signal that can definitively
-    /// distinguish a converged cloud result from a stale placeholder, so a single read can flakily
-    /// under-wait. Retrying here mirrors the documented "call get-result again" guidance for callers.
+    /// budget is exhausted. Completion detection is now deterministic (CalculationState + a per-cell
+    /// #BUSY! guard - see PythonInExcelCommands.GetResult), so a single call normally converges; this
+    /// wrapper only adds defensive headroom for extreme cold-start delays that exceed the deadline.
+    /// The dedicated <see cref="SetFormula_ThenSingleGetResult_ConvergesWithoutRetry"/> test asserts
+    /// the no-retry path directly.
     /// </summary>
     private PythonInExcelResult GetResultWithRetry(
         IExcelBatch batch,
@@ -97,6 +98,37 @@ public class PythonInExcelCommandsTests : IClassFixture<PythonInExcelTestsFixtur
         var setResult = _rangeCommands.SetValues(batch, "Sheet1", sourceRange, values);
         Assert.True(setResult.Success, setResult.ErrorMessage);
         return sourceRange;
+    }
+
+    /// <summary>
+    /// Regression test for the completion-detection flakiness fix: a single GetResult call (no retry
+    /// loop) must reliably return the converged cloud value rather than a stale/#BUSY! placeholder.
+    /// Before the fix, GetResult used a value-stability heuristic that could return before the cloud
+    /// result arrived; it now waits deterministically on Application.CalculationState + a per-cell
+    /// #BUSY! guard, so one call is enough.
+    /// </summary>
+    [Fact]
+    public void SetFormula_ThenSingleGetResult_ConvergesWithoutRetry()
+    {
+        // Arrange
+        using var batch = BeginBatch();
+        int startRow = _fixture.GetUniqueRowBlockStart();
+        string sourceRange = WriteSourceData(batch, startRow); // 5,15,25,35,45 => sum 125
+        string targetCell = $"D{startRow}";
+        string code = $"xl('{sourceRange}').sum()";
+
+        var setResult = _pythonCommands.SetFormula(batch, "Sheet1", targetCell, code, returnType: 0);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+
+        // Act - a SINGLE GetResult call, deliberately NOT wrapped in GetResultWithRetry.
+        var getResult = _pythonCommands.GetResult(batch, "Sheet1", targetCell, DefaultMaxWaitSeconds);
+
+        // Assert - must be the real converged result, never a #BUSY! placeholder or premature read.
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.False(getResult.IsPythonError);
+        Assert.False(getResult.IsPythonObject);
+        Assert.NotNull(getResult.Value);
+        Assert.Equal(125d, Convert.ToDouble(getResult.Value, System.Globalization.CultureInfo.InvariantCulture));
     }
 
     /// <inheritdoc/>
