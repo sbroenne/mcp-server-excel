@@ -144,16 +144,25 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                 string text = string.Empty;
                 int nonBusyReads = 0;
                 bool converged = false;
+                // Last state observed by the poll loop, used to build an accurate timeout diagnostic
+                // instead of hard-coding a "#BUSY!" assumption (the cell can also stall on #CONNECT! or
+                // #BLOCKED!, or read a settled value while the application is still calculating).
+                int calcState = XlDone;
+                string lastMarker = string.Empty;
 
                 var deadline = DateTime.UtcNow.AddSeconds(Math.Max(1, maxWaitSeconds));
                 do
                 {
                     value = range.Value2;
                     text = range.Text?.ToString() ?? string.Empty;
-                    int calcState = (int)ctx.App.CalculationState;
+                    calcState = (int)ctx.App.CalculationState;
 
+                    int markerIndex = Array.IndexOf(TransientMarkers, text);
                     bool cellBusy = (value is int busyCode && busyCode == BusyErrorCode)
-                        || Array.IndexOf(TransientMarkers, text) >= 0;
+                        || markerIndex >= 0;
+                    lastMarker = value is int c && c == BusyErrorCode ? "#BUSY!"
+                        : markerIndex >= 0 ? TransientMarkers[markerIndex]
+                        : string.Empty;
 
                     nonBusyReads = cellBusy ? 0 : nonBusyReads + 1;
 
@@ -172,10 +181,17 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
 
                 if (!converged)
                 {
-                    // Still #BUSY! at the deadline - the cloud backend has not returned yet (often a
-                    // cold-start delay). Report rather than guessing at an unconverged placeholder.
+                    // Deadline reached without a settled result. Report exactly what was last observed
+                    // (the transient marker if any, plus the application calculation state) so callers
+                    // can distinguish a cold-start #BUSY! stall from a #CONNECT!/#BLOCKED! condition or a
+                    // still-pending calculation, rather than always blaming #BUSY!.
+                    string observed = lastMarker.Length > 0
+                        ? $"the cell still reads as {lastMarker}"
+                        : calcState != XlDone
+                            ? "the workbook is still calculating"
+                            : "the result did not settle";
                     result.Success = false;
-                    result.ErrorMessage = $"Python in Excel result did not finish within {maxWaitSeconds}s (the cell still reads as #BUSY!). The Microsoft-hosted Python backend may be under cold-start load - call get-result again, or increase maxWaitSeconds.";
+                    result.ErrorMessage = $"Python in Excel result did not finish within {maxWaitSeconds}s ({observed}). The Microsoft-hosted Python backend may be under cold-start load - call get-result again, or increase maxWaitSeconds.";
                     return result;
                 }
 
