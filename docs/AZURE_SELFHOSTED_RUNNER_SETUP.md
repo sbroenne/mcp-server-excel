@@ -27,8 +27,10 @@ client dev/test rights.
 - GitHub authenticates to Azure using OIDC; there is no Azure client secret.
 - The OIDC service principal has `Contributor` only on `rg-excel-runner`.
 - RDP port 3389 accepts traffic only from `rdpSourceAddressPrefix`.
-- The GitHub runner service runs as the same local Windows account that activates
-  Office, so Excel sees the correct user profile and license.
+- The GitHub runner starts in the interactive `azureuser` console session so Excel
+  window and clipboard operations have a real desktop.
+- Microsoft Sysinternals Autologon stores the Windows password as an LSA secret;
+  administrators on the VM can still retrieve it.
 - This runner belongs only to this repository. Do not expose it to workflows from
   untrusted forks.
 
@@ -90,21 +92,23 @@ window. Supply the local account that activated Office:
 .\setup-runner.ps1 `
   -GithubRepoUrl "https://github.com/sbroenne/mcp-server-excel" `
   -GithubRunnerToken $runnerToken `
-  -WindowsServiceAccount ".\azureuser" `
-  -WindowsServicePassword "<vm-admin-password>"
+  -WindowsAccount ".\azureuser" `
+  -WindowsPassword "<vm-admin-password>"
 ```
 
 The script:
 
 1. Installs .NET 10 if necessary.
 2. Installs Git for Windows and PowerShell 7 if necessary.
-3. Creates the Windows service-profile Desktop folders required by Office COM.
-4. Resolves and installs the latest GitHub Actions runner release.
-5. Registers labels `self-hosted`, `Windows`, `X64`, and `excel`.
-6. Installs the runner as an automatic Windows service under `azureuser`.
+3. Sets the system and `azureuser` locale to `en-US` for deterministic Excel formats.
+4. Creates the Windows service-profile Desktop folders required by Office COM.
+5. Resolves and installs the latest GitHub Actions runner release.
+6. Registers labels `self-hosted`, `Windows`, `X64`, and `excel`.
+7. Configures secure automatic logon with Microsoft Sysinternals Autologon.
+8. Starts `run.cmd` at interactive user logon instead of as a Windows service.
 
-The registration token and Windows password are not written to
-`C:\runner-setup.log`.
+The registration token and Windows password are not written to `C:\runner-setup.log`.
+Reboot after setup so the locale, automatic logon, and interactive runner activate.
 
 ## Configure GitHub OIDC
 

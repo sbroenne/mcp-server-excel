@@ -1,6 +1,7 @@
 # Installs the GitHub Actions runner on the Azure Excel VM.
-# Run as Administrator after the VM is provisioned. The registration token is
-# short-lived and is never written to the setup log.
+# Run as Administrator after the VM is provisioned. Excel window automation
+# requires an interactive desktop, so the runner starts after secure auto-logon
+# instead of running in Windows service session 0.
 
 param(
     [Parameter(Mandatory = $true)]
@@ -10,10 +11,10 @@ param(
     [string]$GithubRunnerToken,
 
     [Parameter(Mandatory = $true)]
-    [string]$WindowsServiceAccount,
+    [string]$WindowsAccount,
 
     [Parameter(Mandatory = $true)]
-    [string]$WindowsServicePassword,
+    [string]$WindowsPassword,
 
     [string]$RunnerName = "azure-excel-runner"
 )
@@ -124,46 +125,144 @@ try {
     New-Item -Path $runnerDir -ItemType Directory -Force | Out-Null
     Set-Location $runnerDir
 
-    if (Test-Path (Join-Path $runnerDir ".runner")) {
-        Write-SetupLog "Runner is already configured; restarting its service."
-        $service = Get-Service -Name "actions.runner.*" -ErrorAction Stop
-        Set-Service -Name $service.Name -StartupType Automatic
-        Restart-Service -Name $service.Name -Force
-        exit 0
+    if (-not (Test-Path (Join-Path $runnerDir ".runner"))) {
+        Write-SetupLog "Resolving the latest GitHub Actions runner release."
+        $release = Invoke-RestMethod `
+            -Uri "https://api.github.com/repos/actions/runner/releases/latest" `
+            -Headers @{ "User-Agent" = "ExcelMcp-Runner-Setup" }
+        $runnerVersion = $release.tag_name.TrimStart("v")
+        $runnerArchive = Join-Path $runnerDir "actions-runner.zip"
+        $runnerUri = "https://github.com/actions/runner/releases/download/v$runnerVersion/actions-runner-win-x64-$runnerVersion.zip"
+
+        Write-SetupLog "Installing GitHub Actions runner v$runnerVersion."
+        Invoke-WebRequest -Uri $runnerUri -OutFile $runnerArchive -UseBasicParsing
+        Expand-Archive -Path $runnerArchive -DestinationPath $runnerDir -Force
+        Remove-Item $runnerArchive -Force
+
+        & .\config.cmd `
+            --url $GithubRepoUrl `
+            --token $GithubRunnerToken `
+            --name $RunnerName `
+            --labels "excel" `
+            --runnergroup "Default" `
+            --work "_work" `
+            --unattended `
+            --replace
+        if ($LASTEXITCODE -ne 0) {
+            throw "Runner configuration failed with exit code $LASTEXITCODE."
+        }
+    }
+    else {
+        Write-SetupLog "Runner is already registered."
     }
 
-    Write-SetupLog "Resolving the latest GitHub Actions runner release."
-    $release = Invoke-RestMethod `
-        -Uri "https://api.github.com/repos/actions/runner/releases/latest" `
-        -Headers @{ "User-Agent" = "ExcelMcp-Runner-Setup" }
-    $runnerVersion = $release.tag_name.TrimStart("v")
-    $runnerArchive = Join-Path $runnerDir "actions-runner.zip"
-    $runnerUri = "https://github.com/actions/runner/releases/download/v$runnerVersion/actions-runner-win-x64-$runnerVersion.zip"
+    $accountParts = $WindowsAccount -split "\\", 2
+    $accountDomain = if ($accountParts.Count -eq 2 -and $accountParts[0] -ne ".") {
+        $accountParts[0]
+    }
+    else {
+        $env:COMPUTERNAME
+    }
+    $accountUser = if ($accountParts.Count -eq 2) { $accountParts[1] } else { $accountParts[0] }
+    $qualifiedAccount = "$accountDomain\$accountUser"
 
-    Write-SetupLog "Installing GitHub Actions runner v$runnerVersion."
-    Invoke-WebRequest -Uri $runnerUri -OutFile $runnerArchive -UseBasicParsing
-    Expand-Archive -Path $runnerArchive -DestinationPath $runnerDir -Force
-    Remove-Item $runnerArchive -Force
+    Write-SetupLog "Configuring en-US locale for $qualifiedAccount."
+    Set-WinSystemLocale -SystemLocale "en-US"
+    $localeMarker = "C:\runner-locale-configured.txt"
+    $localeTaskName = "ExcelMcp-Configure-Locale"
+    $localeScript = @'
+Set-Culture -CultureInfo "en-US"
+Set-WinUserLanguageList -LanguageList "en-US" -Force
+Set-WinHomeLocation -GeoId 244
+Set-Content -Path "C:\runner-locale-configured.txt" -Value "configured"
+'@
+    $localeEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($localeScript))
+    Remove-Item $localeMarker -Force -ErrorAction SilentlyContinue
+    Unregister-ScheduledTask -TaskName $localeTaskName -Confirm:$false -ErrorAction SilentlyContinue
+    $localeAction = New-ScheduledTaskAction `
+        -Execute "powershell.exe" `
+        -Argument "-NoProfile -NonInteractive -EncodedCommand $localeEncoded"
+    Register-ScheduledTask `
+        -TaskName $localeTaskName `
+        -Action $localeAction `
+        -User $qualifiedAccount `
+        -Password $WindowsPassword `
+        -RunLevel Highest `
+        -Force | Out-Null
+    Start-ScheduledTask -TaskName $localeTaskName
+    $localeDeadline = (Get-Date).AddMinutes(2)
+    while (-not (Test-Path $localeMarker) -and (Get-Date) -lt $localeDeadline) {
+        Start-Sleep -Seconds 2
+    }
+    Unregister-ScheduledTask -TaskName $localeTaskName -Confirm:$false
+    if (-not (Test-Path $localeMarker)) {
+        throw "Timed out configuring the runner user's locale."
+    }
 
-    & .\config.cmd `
-        --url $GithubRepoUrl `
-        --token $GithubRunnerToken `
-        --name $RunnerName `
-        --labels "excel" `
-        --runnergroup "Default" `
-        --work "_work" `
-        --runasservice `
-        --windowslogonaccount $WindowsServiceAccount `
-        --windowslogonpassword $WindowsServicePassword `
-        --unattended `
-        --replace
+    Write-SetupLog "Configuring secure automatic logon for $qualifiedAccount."
+    $toolsDir = "C:\ProgramData\ExcelMcp"
+    $autologonExe = Join-Path $toolsDir "Autologon64.exe"
+    if (-not (Test-Path $autologonExe)) {
+        $autologonArchive = Join-Path $env:TEMP "Autologon.zip"
+        $autologonExtract = Join-Path $env:TEMP "Autologon"
+        Invoke-WebRequest `
+            -Uri "https://download.sysinternals.com/files/AutoLogon.zip" `
+            -OutFile $autologonArchive `
+            -UseBasicParsing
+        Remove-Item $autologonExtract -Recurse -Force -ErrorAction SilentlyContinue
+        Expand-Archive -Path $autologonArchive -DestinationPath $autologonExtract -Force
+        New-Item -Path $toolsDir -ItemType Directory -Force | Out-Null
+        Copy-Item (Join-Path $autologonExtract "Autologon64.exe") $autologonExe -Force
+        Remove-Item $autologonArchive -Force
+        Remove-Item $autologonExtract -Recurse -Force
+    }
+    & $autologonExe $accountUser $accountDomain $WindowsPassword "/accepteula"
     if ($LASTEXITCODE -ne 0) {
-        throw "Runner configuration failed with exit code $LASTEXITCODE."
+        throw "Sysinternals Autologon configuration failed with exit code $LASTEXITCODE."
     }
 
-    $service = Get-Service -Name "actions.runner.*" -ErrorAction Stop
-    Set-Service -Name $service.Name -StartupType Automatic
-    Write-SetupLog "Runner service $($service.Name) is $($service.Status)."
+    $localUser = Get-LocalUser -Name $accountUser
+    $localUser | Set-LocalUser -PasswordNeverExpires $true
+
+    $runnerService = Get-Service -Name "actions.runner.*" -ErrorAction SilentlyContinue
+    if ($runnerService) {
+        Write-SetupLog "Removing the non-interactive runner service."
+        if ($runnerService.Status -ne "Stopped") {
+            Stop-Service -Name $runnerService.Name -Force
+        }
+        & sc.exe delete $runnerService.Name | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to remove runner service $($runnerService.Name)."
+        }
+    }
+    Remove-Item (Join-Path $runnerDir ".service") -Force -ErrorAction SilentlyContinue
+
+    Write-SetupLog "Registering the interactive runner startup task."
+    $runnerTaskName = "ExcelMcp-GitHub-Runner"
+    Unregister-ScheduledTask -TaskName $runnerTaskName -Confirm:$false -ErrorAction SilentlyContinue
+    $runnerAction = New-ScheduledTaskAction `
+        -Execute "cmd.exe" `
+        -Argument "/c `"`"$runnerDir\run.cmd`"`"" `
+        -WorkingDirectory $runnerDir
+    $runnerTrigger = New-ScheduledTaskTrigger -AtLogOn -User $qualifiedAccount
+    $runnerPrincipal = New-ScheduledTaskPrincipal `
+        -UserId $qualifiedAccount `
+        -LogonType Interactive `
+        -RunLevel Highest
+    $runnerSettings = New-ScheduledTaskSettingsSet `
+        -StartWhenAvailable `
+        -RestartCount 3 `
+        -RestartInterval (New-TimeSpan -Minutes 1) `
+        -ExecutionTimeLimit ([TimeSpan]::Zero)
+    Register-ScheduledTask `
+        -TaskName $runnerTaskName `
+        -Action $runnerAction `
+        -Trigger $runnerTrigger `
+        -Principal $runnerPrincipal `
+        -Settings $runnerSettings `
+        -Force | Out-Null
+
+    Write-SetupLog "Interactive runner configured. Reboot to activate auto-logon."
 }
 catch {
     Write-SetupLog "Setup failed: $($_.Exception.Message)"
