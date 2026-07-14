@@ -97,9 +97,10 @@ window. Supply the local account that activated Office:
 The script:
 
 1. Installs .NET 10 if necessary.
-2. Resolves and installs the latest GitHub Actions runner release.
-3. Registers labels `self-hosted`, `Windows`, `X64`, and `excel`.
-4. Installs the runner as an automatic Windows service under `azureuser`.
+2. Installs Git for Windows and PowerShell 7 if necessary.
+3. Resolves and installs the latest GitHub Actions runner release.
+4. Registers labels `self-hosted`, `Windows`, `X64`, and `excel`.
+5. Installs the runner as an automatic Windows service under `azureuser`.
 
 The registration token and Windows password are not written to
 `C:\runner-setup.log`.

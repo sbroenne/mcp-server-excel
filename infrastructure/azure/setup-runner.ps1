@@ -81,6 +81,35 @@ try {
             ";" + [Environment]::GetEnvironmentVariable("Path", "User")
     }
 
+    $pwshExe = Join-Path $env:ProgramFiles "PowerShell\7\pwsh.exe"
+    if (-not (Test-Path $pwshExe)) {
+        Write-SetupLog "Installing PowerShell 7."
+        $pwshRelease = Invoke-RestMethod `
+            -Uri "https://api.github.com/repos/PowerShell/PowerShell/releases/latest" `
+            -Headers @{ "User-Agent" = "ExcelMcp-Runner-Setup" }
+        $pwshInstallerAsset = $pwshRelease.assets |
+            Where-Object { $_.name -match "^PowerShell-.*-win-x64\.msi$" } |
+            Select-Object -First 1
+        if (-not $pwshInstallerAsset) {
+            throw "Could not locate the PowerShell 7 x64 MSI."
+        }
+
+        $pwshInstaller = Join-Path $env:TEMP "powershell-7.msi"
+        Invoke-WebRequest `
+            -Uri $pwshInstallerAsset.browser_download_url `
+            -OutFile $pwshInstaller `
+            -UseBasicParsing
+        Start-Process `
+            -FilePath "msiexec.exe" `
+            -ArgumentList "/i", "`"$pwshInstaller`"", "/qn", "/norestart", "ADD_PATH=1" `
+            -Wait `
+            -NoNewWindow
+        Remove-Item $pwshInstaller -Force
+        if (-not (Test-Path $pwshExe)) {
+            throw "PowerShell 7 installation did not create $pwshExe."
+        }
+    }
+
     New-Item -Path $runnerDir -ItemType Directory -Force | Out-Null
     Set-Location $runnerDir
 
