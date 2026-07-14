@@ -76,10 +76,10 @@ Quick reference:
 - `codeql.yml` - Security analysis
 - `dependency-review.yml` - Dependency security scanning
 
-**Removed Legacy Workflows:**
-- Self-hosted Azure runner deployment and Excel integration-test workflows were retired when the Azure runner was undeployed.
-
-**Note:** Integration tests are currently not run in GitHub Actions. See `docs/AZURE_SELFHOSTED_RUNNER_SETUP.md` only as historical infrastructure reference if self-hosted Excel CI is ever rebuilt.
+**Excel Integration Tests:**
+- `integration-tests.yml` starts the cost-optimized Azure runner, runs the real Excel integration suite, and deallocates the VM.
+- It runs nightly and by manual dispatch. The VM has a three-hour auto-shutdown watchdog in case workflow cleanup cannot run.
+- See `docs/AZURE_SELFHOSTED_RUNNER_SETUP.md` for provisioning and maintenance.
 
 ## Workflow Config Updates
 
