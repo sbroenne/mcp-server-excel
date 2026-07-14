@@ -52,7 +52,8 @@ public sealed class ProgramTelemetryMetricsTests
         timeInQueue.Record(7.8);
         keptMetric.Add(1);
 
-        provider.ForceFlush();
+        var flushed = provider.ForceFlush();
+        Assert.True(flushed, "ForceFlush should succeed; a false result would make the metric assertions below misleading.");
 
         var exportedNames = exportedMetrics.Select(m => m.Name).ToList();
 

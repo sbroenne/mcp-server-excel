@@ -367,7 +367,7 @@ public class Program
     /// Names of the noisy .NET built-in HttpClient meter instruments that ExcelMcp.McpServer never
     /// consumes. See <see cref="ConfigureTelemetry"/> for why these must be dropped explicitly.
     /// </summary>
-    internal static readonly string[] DroppedHttpClientMetricNames =
+    private static readonly string[] DroppedHttpClientMetricNames =
     [
         "http.client.open_connections",
         "http.client.active_requests",
