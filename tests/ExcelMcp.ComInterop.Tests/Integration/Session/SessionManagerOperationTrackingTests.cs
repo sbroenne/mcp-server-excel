@@ -137,13 +137,16 @@ public class SessionManagerOperationTrackingTests : IDisposable
     }
 
     [Fact]
-    public void BeginEndOperation_NullSessionId_DoesNotThrow()
+    public void BeginOperation_NullOrEmptySessionId_Throws_AndEndOperationDoesNotThrow()
     {
         using var manager = new SessionManager();
 
-        // Should not throw
-        manager.BeginOperation(null!);
-        manager.BeginOperation("");
+        var nullException = Assert.Throws<InvalidOperationException>(() => manager.BeginOperation(null!));
+        var emptyException = Assert.Throws<InvalidOperationException>(() => manager.BeginOperation(""));
+
+        Assert.Equal("sessionId is required", nullException.Message);
+        Assert.Equal("sessionId is required", emptyException.Message);
+
         manager.EndOperation(null!);
         manager.EndOperation("");
     }
@@ -372,7 +375,6 @@ public class SessionManagerOperationTrackingTests : IDisposable
 
     #endregion
 }
-
 
 
 

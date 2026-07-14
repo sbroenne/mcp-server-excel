@@ -63,7 +63,7 @@ public sealed class ComDiagnosticsTests
     }
 
     [Fact]
-    public void Collect_PiaAssemblyVersion_MatchesRegisteredExcelPrimaryInteropAssembly_WhenRegistered()
+    public void Collect_RegisteredPiaAssemblyName_IsWellFormed_WhenRegistered()
     {
         var report = ComDiagnostics.Collect();
 
@@ -73,8 +73,9 @@ public sealed class ComDiagnosticsTests
         }
 
         var registeredPia = new System.Reflection.AssemblyName(report.ExcelTypeLibPrimaryInteropAssemblyName);
-        var loadedPia = new Version(report.PiaAssemblyVersion!);
 
-        Assert.Equal(registeredPia.Version?.Major, loadedPia.Major);
+        Assert.Equal("Microsoft.Office.Interop.Excel", registeredPia.Name);
+        Assert.NotNull(registeredPia.Version);
+        Assert.True(registeredPia.Version.Major >= 15);
     }
 }

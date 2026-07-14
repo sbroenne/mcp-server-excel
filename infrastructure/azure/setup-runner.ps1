@@ -110,6 +110,17 @@ try {
         }
     }
 
+    # Office desktop applications require these folders when launched from a
+    # Windows service session. Without them, Excel starts but workbook open/save
+    # calls fail with COM error 0x800A03EC.
+    Write-SetupLog "Ensuring Office service-profile Desktop folders exist."
+    @(
+        "$env:WINDIR\System32\config\systemprofile\Desktop",
+        "$env:WINDIR\SysWOW64\config\systemprofile\Desktop"
+    ) | ForEach-Object {
+        New-Item -Path $_ -ItemType Directory -Force | Out-Null
+    }
+
     New-Item -Path $runnerDir -ItemType Directory -Force | Out-Null
     Set-Location $runnerDir
 
