@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
+using OpenTelemetry.Metrics;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 
 namespace Sbroenne.ExcelMcp.McpServer;
@@ -349,8 +350,43 @@ public class Program
 
         builder.Services.AddApplicationInsightsTelemetryWorkerService(aiOptions);
 
+        // AddApplicationInsightsTelemetryWorkerService() unconditionally subscribes to the .NET 8+
+        // built-in "System.Net.Http" meter (via UseApplicationInsightsTelemetry -> AddHttpClientMetrics),
+        // with no opt-out exposed on ApplicationInsightsServiceOptions. ExcelMcp.McpServer makes at most
+        // one lightweight HttpClient call per process (NuGetVersionChecker), so these connection-pool
+        // gauges/histograms are pure noise - they were driving ~96% of billed AppMetrics ingestion.
+        // ConfigureOpenTelemetryMeterProvider appends to the same MeterProviderBuilder already
+        // registered above, so this reliably drops the instruments regardless of registration order.
+        builder.Services.ConfigureOpenTelemetryMeterProvider(ConfigureDroppedHttpClientMetrics);
+
         // Application Insights 3.x no longer exposes the classic telemetry initializer abstraction.
         // ExcelMcpTelemetry enriches each telemetry item with user/session/version context before sending.
+    }
+
+    /// <summary>
+    /// Names of the noisy .NET built-in HttpClient meter instruments that ExcelMcp.McpServer never
+    /// consumes. See <see cref="ConfigureTelemetry"/> for why these must be dropped explicitly.
+    /// </summary>
+    internal static readonly string[] DroppedHttpClientMetricNames =
+    [
+        "http.client.open_connections",
+        "http.client.active_requests",
+        "http.client.connection.duration",
+        "http.client.request.time_in_queue",
+        "http.client.request.duration",
+    ];
+
+    /// <summary>
+    /// Adds metric Views that drop the noisy HttpClient instruments before export/aggregation.
+    /// Exposed internally (rather than inlined) so it can be exercised directly in unit tests
+    /// without needing a full Application Insights host pipeline.
+    /// </summary>
+    internal static void ConfigureDroppedHttpClientMetrics(MeterProviderBuilder metrics)
+    {
+        foreach (var name in DroppedHttpClientMetricNames)
+        {
+            metrics.AddView(name, MetricStreamConfiguration.Drop);
+        }
     }
 
     /// <summary>
