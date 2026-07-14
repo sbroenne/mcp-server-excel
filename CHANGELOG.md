@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.9.5] - 2026-07-14
+
+### Patch Changes
+
+- [#713](https://github.com/sbroenne/mcp-server-excel/pull/713) [`25473ac`](https://github.com/sbroenne/mcp-server-excel/commit/25473ac5d166b16a17be6176888793e0915e57d7) Thanks [@github-actions](https://github.com/apps/github-actions)! - **Release automation: auto-merge the changelog PR.** The post-release step that opens the `chore/changelog-vX` PR now also merges it (queued auto-merge, falling back to an immediate squash merge). Previously the PR was only created and left open until a maintainer merged it by hand, which caused several releases to sit with a stale/missing CHANGELOG on `main`.
+
+- [#714](https://github.com/sbroenne/mcp-server-excel/pull/714) [`7cad2f4`](https://github.com/sbroenne/mcp-server-excel/commit/7cad2f479d78d5410288c666feaba0a21d4a978d) Thanks [@sbroenne](https://github.com/sbroenne)! - **Faster commits for docs-only changes.** The pre-commit hook now treats the `gh-pages/` documentation website as docs and skips the Release build, smoke tests and all release-packaging gates when a commit touches only documentation (Markdown, `docs/`, `gh-pages/`, changesets). Code commits still run the full validation suite, so nothing that ships is left unchecked — documentation edits just no longer wait minutes for binary/packaging gates that cannot be affected by them.
+
+- [#722](https://github.com/sbroenne/mcp-server-excel/pull/722) [`8e6d9f1`](https://github.com/sbroenne/mcp-server-excel/commit/8e6d9f1cc90cc54caf72ad84b3401488e999f194) Thanks [@sbroenne](https://github.com/sbroenne)! - **More reliable Python in Excel results.** `pythoninexcel get-result` now detects when the Microsoft-hosted Python backend has finished computing by reading Excel's calculation state and the cell's `#BUSY!` placeholder directly, instead of guessing based on whether the value looked "stable" across repeated reads. The old heuristic could lock onto a stale placeholder and return the wrong value, which is why it needed retry loops to be dependable. A single `get-result` call now converges deterministically, and the default wait was raised from 15s to 30s to comfortably cover cold-start round-trips.
+
+- [#725](https://github.com/sbroenne/mcp-server-excel/pull/725) [`2b2b5df`](https://github.com/sbroenne/mcp-server-excel/commit/2b2b5df504d4285b4837207c7f4054e4ea572564) Thanks [@sbroenne](https://github.com/sbroenne)! - **Reduced MCP Server telemetry noise and cost.** The MCP Server no longer reports the .NET runtime's built-in HTTP-client connection-pool metrics (`http.client.open_connections`, `http.client.active_requests`, `http.client.connection.duration`, `http.client.request.time_in_queue`, `http.client.request.duration`) to Application Insights. These were emitted automatically by the telemetry SDK regardless of actual traffic and accounted for the large majority of telemetry ingestion volume, without providing any useful signal for this tool.
+
 ## [1.9.4] - 2026-07-10
 
 ### Patch Changes
