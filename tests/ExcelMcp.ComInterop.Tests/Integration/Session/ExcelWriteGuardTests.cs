@@ -222,10 +222,11 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                 sheet = ctx.Book.Worksheets[1];
 
                 // Set up: write initial values
-                range = sheet.Range["A1:A2"];
-                range.Value2 = new object[,] { { 100 }, { 200 } };
+                SetCellValue(sheet, "A1", 100);
+                SetCellValue(sheet, "A2", 200);
 
                 // Add conditional formatting rule on A1:A2
+                range = sheet.Range["A1:A2"];
                 formatConditions = range.FormatConditions;
                 formatCondition = formatConditions.Add(
                     Type: 1, // xlCellValue
@@ -238,7 +239,8 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                 // 2. Excel evaluates conditional formatting, sends callback to our STA thread
                 // 3. MessagePending returned WAITNOPROCESS → callback queued, not dispatched
                 // 4. Excel waits for callback → our thread waits for Excel → DEADLOCK
-                range.Value2 = new object[,] { { 300 }, { 50 } };
+                SetCellValue(sheet, "A1", 300);
+                SetCellValue(sheet, "A2", 50);
 
                 _output.WriteLine("✓ Value writes with conditional formatting completed without deadlock");
             }
@@ -267,34 +269,28 @@ public class ExcelWriteGuardTests : IAsyncLifetime
         batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
-            dynamic? sourceRange = null;
-            dynamic? formulaRange = null;
             try
             {
                 sheet = ctx.Book.Worksheets[1];
-                sourceRange = sheet.Range["B1:B3"];
-                formulaRange = sheet.Range["C1:C3"];
 
                 // Write values that formulas will depend on
-                sourceRange.Value2 = new object[,] { { 10 }, { 20 }, { 30 } };
+                SetCellValue(sheet, "B1", 10);
+                SetCellValue(sheet, "B2", 20);
+                SetCellValue(sheet, "B3", 30);
 
                 // Write formulas that reference those cells — triggers recalculation
-                formulaRange.Formula2 = new object[,]
-                {
-                    { "=B1*2" },
-                    { "=B2+B3" },
-                    { "=SUM(B1:B3)" }
-                };
+                SetCellFormula(sheet, "C1", "=B1*2");
+                SetCellFormula(sheet, "C2", "=B2+B3");
+                SetCellFormula(sheet, "C3", "=SUM(B1:B3)");
 
                 // Now change the source values — triggers formula recalculation
-                sourceRange.Value2 = new object[,] { { 100 }, { 200 }, { 30 } };
+                SetCellValue(sheet, "B1", 100);
+                SetCellValue(sheet, "B2", 200);
 
                 _output.WriteLine("✓ Formula writes with dependencies completed without deadlock");
             }
             finally
             {
-                ComUtilities.Release(ref formulaRange);
-                ComUtilities.Release(ref sourceRange);
                 ComUtilities.Release(ref sheet);
             }
 
@@ -317,7 +313,6 @@ public class ExcelWriteGuardTests : IAsyncLifetime
         batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
-            dynamic? cell = null;
             try
             {
                 sheet = ctx.Book.Worksheets[1];
@@ -325,20 +320,11 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                 // Write 100 cells — with ScreenUpdating=false this should be fast
                 for (int i = 1; i <= 100; i++)
                 {
-                    try
-                    {
-                        cell = sheet.Range[$"D{i}"];
-                        cell.Value2 = i * 1.5;
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref cell);
-                    }
+                    SetCellValue(sheet, $"D{i}", i * 1.5);
                 }
             }
             finally
             {
-                ComUtilities.Release(ref cell);
                 ComUtilities.Release(ref sheet);
             }
 
@@ -351,5 +337,33 @@ public class ExcelWriteGuardTests : IAsyncLifetime
         // With ScreenUpdating suppressed, 100 writes should complete in well under 30s
         Assert.True(stopwatch.ElapsedMilliseconds < 30000,
             $"Bulk writes took {stopwatch.ElapsedMilliseconds}ms — ScreenUpdating may not be suppressed");
+    }
+
+    private static void SetCellValue(dynamic sheet, string address, object value)
+    {
+        dynamic? cell = null;
+        try
+        {
+            cell = sheet.Range[address];
+            cell.Value2 = value;
+        }
+        finally
+        {
+            ComUtilities.Release(ref cell);
+        }
+    }
+
+    private static void SetCellFormula(dynamic sheet, string address, string formula)
+    {
+        dynamic? cell = null;
+        try
+        {
+            cell = sheet.Range[address];
+            cell.Formula2 = formula;
+        }
+        finally
+        {
+            ComUtilities.Release(ref cell);
+        }
     }
 }
