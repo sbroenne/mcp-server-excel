@@ -97,13 +97,56 @@ jobs:
           -- RunConfiguration.MaxCpuCount=1
 
       - name: Run Core integration tests
-        run: >-
-          dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj
-          --configuration Release --no-build
-          --filter "Category=Integration&RunType!=OnDemand"
-          --logger "trx;LogFileName=core-integration.trx"
-          --blame-hang-timeout 15m
-          -- RunConfiguration.MaxCpuCount=1
+        shell: pwsh
+        run: |
+          $project = "tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj"
+          $baseFilter = "Category=Integration&RunType!=OnDemand"
+          $testList = dotnet test $project `
+            --configuration Release `
+            --no-build `
+            --list-tests `
+            --filter $baseFilter `
+            --nologo
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to discover Core integration tests."
+          }
+
+          $testClasses = $testList |
+            Where-Object { $_ -match '^\s+Sbroenne\.' } |
+            ForEach-Object {
+              $testName = ($_.Trim() -split '\(')[0]
+              $testName.Substring(0, $testName.LastIndexOf('.'))
+            } |
+            Sort-Object -Unique
+
+          if ($testClasses.Count -eq 0) {
+            throw "Core integration test discovery returned no test classes."
+          }
+
+          Write-Host "Running Core integration tests in $($testClasses.Count) isolated test classes."
+          for ($index = 0; $index -lt $testClasses.Count; $index++) {
+            $testClass = $testClasses[$index]
+            $className = $testClass.Split('.')[-1]
+            $logFile = "core-{0:D2}-{1}.trx" -f ($index + 1), $className
+            Write-Host "[$($index + 1)/$($testClasses.Count)] $testClass"
+
+            dotnet test $project `
+              --configuration Release `
+              --no-build `
+              --filter "FullyQualifiedName~$testClass&$baseFilter" `
+              --logger "trx;LogFileName=$logFile" `
+              --blame-hang-timeout 15m `
+              --nologo `
+              -- RunConfiguration.MaxCpuCount=1
+            $testExitCode = $LASTEXITCODE
+
+            Get-Process Excel -ErrorAction SilentlyContinue |
+              ForEach-Object { Stop-Process -Id $_.Id -Force }
+
+            if ($testExitCode -ne 0) {
+              throw "Core integration tests failed for $testClass."
+            }
+          }
 
       - name: Run MCP Server integration tests
         run: >-
