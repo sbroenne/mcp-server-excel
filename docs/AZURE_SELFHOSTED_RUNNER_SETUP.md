@@ -7,7 +7,7 @@ The repository uses a cost-optimized Azure VM as a GitHub Actions self-hosted ru
 
 | Resource | Configuration | Cost behavior |
 |---|---|---|
-| VM | `Standard_D2as_v5` (2 sustained vCPU, 8 GB), Windows 11 Pro 24H2 | Started only for test runs |
+| VM | `Standard_D2s_v5` (2 Intel vCPU, 8 GB), Windows 11 Pro 24H2 | Started only for test runs |
 | OS disk | 128 GB `StandardSSD_LRS` | Billed while the VM is deallocated |
 | Public IP | Standard static IPv4 | Billed while allocated |
 | Network | VNet, NIC, NSG | RDP allowed only from the configured admin CIDR |
@@ -15,8 +15,13 @@ The repository uses a cost-optimized Azure VM as a GitHub Actions self-hosted ru
 
 There is no Azure Bastion or NAT Gateway. The VM's public IP provides both outbound
 GitHub access and direct RDP, which is the lowest-cost configuration. The expected
-cost is approximately $15-25/month for one nightly run; current Azure prices and
+cost is approximately $30-40/month for one nightly run; current Azure prices and
 actual test duration determine the final amount.
+
+The runner intentionally uses the v5 Intel series. The v6 and v7 D-series sizes
+available in East US 2 require an NVMe boot controller, while this installed
+Office runner uses SCSI. Moving to those series requires rebuilding the runner
+from an NVMe-native image.
 
 The Windows client image is for development and testing under an eligible Visual
 Studio subscription. Do not deploy this template to a subscription without Windows
