@@ -66,13 +66,26 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Verify Excel COM
+      - name: Normalize locale and verify Excel COM
         shell: pwsh
         run: |
+          Set-Culture -CultureInfo "en-US"
+          $international = Get-ItemProperty "HKCU:\Control Panel\International"
+          if ($international.LocaleName -ne "en-US") {
+            throw "Failed to configure the runner profile locale as en-US."
+          }
+
           $excel = $null
           try {
             $excel = New-Object -ComObject Excel.Application
+            $decimalSeparator = $excel.International(3)
+            $thousandsSeparator = $excel.International(4)
+            if ($decimalSeparator -ne "." -or $thousandsSeparator -ne ",") {
+              throw "Excel locale is not en-US (decimal='$decimalSeparator', thousands='$thousandsSeparator')."
+            }
+
             Write-Host "Excel version: $($excel.Version)"
+            Write-Host "Excel separators: decimal='$decimalSeparator', thousands='$thousandsSeparator'"
           }
           finally {
             if ($null -ne $excel) {

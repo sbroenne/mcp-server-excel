@@ -137,8 +137,10 @@ Assign the app's service principal `Contributor` at this scope only:
 `.github/workflows/integration-tests.yml` runs nightly and on manual dispatch:
 
 1. A GitHub-hosted job starts the VM and sets auto-shutdown to three hours from now.
-2. The self-hosted job runs the integration projects sequentially with explicit
-   hang timeouts, then runs the OnDemand session tests.
+2. The self-hosted job normalizes the runner profile to `en-US`, verifies Excel
+   reports `.` as its decimal separator and `,` as its thousands separator, then
+   runs the integration projects sequentially with explicit hang timeouts and
+   the OnDemand session tests.
 3. A GitHub-hosted `always()` job deallocates the VM.
 4. The auto-shutdown schedule limits compute cost if the runner never accepts the
    queued job or final cleanup cannot run.
