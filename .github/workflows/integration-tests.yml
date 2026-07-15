@@ -114,6 +114,7 @@ jobs:
         run: |
           $project = "tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj"
           $baseFilter = "Category=Integration&RunType!=OnDemand"
+          $powerQueryPattern = ".Commands.PowerQuery."
           $testList = dotnet test $project `
             --configuration Release `
             --no-build `
@@ -124,24 +125,45 @@ jobs:
             throw "Failed to discover Core integration tests."
           }
 
-          $testClasses = $testList |
+          $allTests = @($testList |
             Where-Object { $_ -match '^\s+Sbroenne\.' } |
             ForEach-Object {
-              $testName = ($_.Trim() -split '\(')[0]
-              $testName.Substring(0, $testName.LastIndexOf('.'))
-            } |
+              ($_.Trim() -split '\(')[0]
+            })
+          $powerQueryTests = @($allTests | Where-Object { $_ -like "*$powerQueryPattern*" })
+          $powerQueryClasses = $powerQueryTests |
+            ForEach-Object { $_.Substring(0, $_.LastIndexOf('.')) } |
             Sort-Object -Unique
 
-          if ($testClasses.Count -eq 0) {
-            throw "Core integration test discovery returned no test classes."
+          if ($allTests.Count -eq 0 -or $powerQueryClasses.Count -eq 0) {
+            throw "Core integration test discovery returned an incomplete test set."
           }
 
-          Write-Host "Running Core integration tests in $($testClasses.Count) isolated test classes."
-          for ($index = 0; $index -lt $testClasses.Count; $index++) {
-            $testClass = $testClasses[$index]
+          $nonPowerQueryCount = $allTests.Count - $powerQueryTests.Count
+          Write-Host "Running $nonPowerQueryCount non-PowerQuery tests in one fresh testhost."
+          dotnet test $project `
+            --configuration Release `
+            --no-build `
+            --filter "$baseFilter&FullyQualifiedName!~$powerQueryPattern" `
+            --logger "trx;LogFileName=core-non-powerquery.trx" `
+            --blame-hang-timeout 15m `
+            --nologo `
+            -- RunConfiguration.MaxCpuCount=1
+          $testExitCode = $LASTEXITCODE
+
+          Get-Process Excel -ErrorAction SilentlyContinue |
+            ForEach-Object { Stop-Process -Id $_.Id -Force }
+
+          if ($testExitCode -ne 0) {
+            throw "Non-PowerQuery Core integration tests failed."
+          }
+
+          Write-Host "Running $($powerQueryTests.Count) PowerQuery tests in $($powerQueryClasses.Count) isolated test classes."
+          for ($index = 0; $index -lt $powerQueryClasses.Count; $index++) {
+            $testClass = $powerQueryClasses[$index]
             $className = $testClass.Split('.')[-1]
-            $logFile = "core-{0:D2}-{1}.trx" -f ($index + 1), $className
-            Write-Host "[$($index + 1)/$($testClasses.Count)] $testClass"
+            $logFile = "core-powerquery-{0:D2}-{1}.trx" -f ($index + 1), $className
+            Write-Host "[$($index + 1)/$($powerQueryClasses.Count)] $testClass"
 
             dotnet test $project `
               --configuration Release `
