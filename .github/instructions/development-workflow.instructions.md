@@ -78,7 +78,7 @@ Quick reference:
 
 **Excel Integration Tests:**
 - `integration-tests.yml` starts the cost-optimized Azure runner, runs the real Excel integration suite, and deallocates the VM.
-- It runs nightly and by manual dispatch. The VM has a three-hour auto-shutdown watchdog in case workflow cleanup cannot run.
+- It runs nightly and by manual dispatch. The VM has a five-hour auto-shutdown watchdog in case workflow cleanup cannot run.
 - See `docs/AZURE_SELFHOSTED_RUNNER_SETUP.md` for provisioning and maintenance.
 
 ## Workflow Config Updates

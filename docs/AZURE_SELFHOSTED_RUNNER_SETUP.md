@@ -7,15 +7,15 @@ The repository uses a cost-optimized Azure VM as a GitHub Actions self-hosted ru
 
 | Resource | Configuration | Cost behavior |
 |---|---|---|
-| VM | `Standard_B2as_v2` (2 vCPU, 8 GB), Windows 11 Pro 24H2 | Started only for test runs |
+| VM | `Standard_D2as_v5` (2 sustained vCPU, 8 GB), Windows 11 Pro 24H2 | Started only for test runs |
 | OS disk | 128 GB `StandardSSD_LRS` | Billed while the VM is deallocated |
 | Public IP | Standard static IPv4 | Billed while allocated |
 | Network | VNet, NIC, NSG | RDP allowed only from the configured admin CIDR |
-| Auto-shutdown | DevTest Labs schedule | Three-hour watchdog set by each workflow run |
+| Auto-shutdown | DevTest Labs schedule | Five-hour watchdog set by each workflow run |
 
 There is no Azure Bastion or NAT Gateway. The VM's public IP provides both outbound
 GitHub access and direct RDP, which is the lowest-cost configuration. The expected
-cost is approximately $12-15/month for one nightly run; current Azure prices and
+cost is approximately $15-25/month for one nightly run; current Azure prices and
 actual test duration determine the final amount.
 
 The Windows client image is for development and testing under an eligible Visual
@@ -136,7 +136,7 @@ Assign the app's service principal `Contributor` at this scope only:
 
 `.github/workflows/integration-tests.yml` runs nightly and on manual dispatch:
 
-1. A GitHub-hosted job starts the VM and sets auto-shutdown to three hours from now.
+1. A GitHub-hosted job starts the VM and sets auto-shutdown to five hours from now.
 2. The self-hosted job normalizes the runner profile to `en-US`, verifies Excel
    reports `.` as its decimal separator and `,` as its thousands separator, then
    runs the integration projects sequentially with explicit hang timeouts and

@@ -6,7 +6,7 @@
       "value": "eastus2"
     },
     "vmSize": {
-      "value": "Standard_B2as_v2"
+      "value": "Standard_D2as_v5"
     },
     "adminUsername": {
       "value": "azureuser"

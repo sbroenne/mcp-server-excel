@@ -9,13 +9,13 @@
 //     install Office/Excel. No Azure Bastion (that alone was ~$140/mo).
 //   * Daily auto-shutdown as a runaway-cost backstop in case a deallocate step fails.
 //
-// Rough cost (B2as v2, StandardSSD 128 GB, Standard IP): ~$12-15/month with nightly runs.
+// Rough cost (D2as v5, StandardSSD 128 GB, Standard IP): ~$15-25/month with nightly runs.
 
 @description('Location for all resources. Cheapest compute regions: eastus2 / eastus.')
 param location string = 'eastus2'
 
-@description('VM size - B2as v2 provides the 8 GB RAM needed for reliable Excel COM automation.')
-param vmSize string = 'Standard_B2as_v2'
+@description('VM size - D2as v5 provides sustained CPU and 8 GB RAM for long Excel integration runs.')
+param vmSize string = 'Standard_D2as_v5'
 
 @description('Admin username for the VM.')
 param adminUsername string = 'azureuser'

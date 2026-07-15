@@ -34,11 +34,11 @@ jobs:
       - name: Start VM
         run: az vm start --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME"
 
-      - name: Set three-hour shutdown watchdog
+      - name: Set five-hour shutdown watchdog
         id: watchdog
         shell: pwsh
         run: |
-          $shutdownTime = (Get-Date).ToUniversalTime().AddHours(3).ToString("HHmm")
+          $shutdownTime = (Get-Date).ToUniversalTime().AddHours(5).ToString("HHmm")
           az vm auto-shutdown `
             --resource-group $env:AZURE_RESOURCE_GROUP `
             --name $env:AZURE_VM_NAME `
@@ -53,7 +53,7 @@ jobs:
     name: Run Excel integration tests
     needs: start-runner
     runs-on: [self-hosted, windows, excel]
-    timeout-minutes: 180
+    timeout-minutes: 300
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
       DOTNET_NOLOGO: '1'
