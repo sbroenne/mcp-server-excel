@@ -222,11 +222,10 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                 sheet = ctx.Book.Worksheets[1];
 
                 // Set up: write initial values
-                sheet.Range["A1"].Value2 = 100;
-                sheet.Range["A2"].Value2 = 200;
+                range = sheet.Range["A1:A2"];
+                range.Value2 = new object[,] { { 100 }, { 200 } };
 
                 // Add conditional formatting rule on A1:A2
-                range = sheet.Range["A1:A2"];
                 formatConditions = range.FormatConditions;
                 formatCondition = formatConditions.Add(
                     Type: 1, // xlCellValue
@@ -239,8 +238,7 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                 // 2. Excel evaluates conditional formatting, sends callback to our STA thread
                 // 3. MessagePending returned WAITNOPROCESS → callback queued, not dispatched
                 // 4. Excel waits for callback → our thread waits for Excel → DEADLOCK
-                sheet.Range["A1"].Value2 = 300;
-                sheet.Range["A2"].Value2 = 50;
+                range.Value2 = new object[,] { { 300 }, { 50 } };
 
                 _output.WriteLine("✓ Value writes with conditional formatting completed without deadlock");
             }
@@ -269,28 +267,34 @@ public class ExcelWriteGuardTests : IAsyncLifetime
         batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
+            dynamic? sourceRange = null;
+            dynamic? formulaRange = null;
             try
             {
                 sheet = ctx.Book.Worksheets[1];
+                sourceRange = sheet.Range["B1:B3"];
+                formulaRange = sheet.Range["C1:C3"];
 
                 // Write values that formulas will depend on
-                sheet.Range["B1"].Value2 = 10;
-                sheet.Range["B2"].Value2 = 20;
-                sheet.Range["B3"].Value2 = 30;
+                sourceRange.Value2 = new object[,] { { 10 }, { 20 }, { 30 } };
 
                 // Write formulas that reference those cells — triggers recalculation
-                sheet.Range["C1"].Formula2 = "=B1*2";
-                sheet.Range["C2"].Formula2 = "=B2+B3";
-                sheet.Range["C3"].Formula2 = "=SUM(B1:B3)";
+                formulaRange.Formula2 = new object[,]
+                {
+                    { "=B1*2" },
+                    { "=B2+B3" },
+                    { "=SUM(B1:B3)" }
+                };
 
                 // Now change the source values — triggers formula recalculation
-                sheet.Range["B1"].Value2 = 100;
-                sheet.Range["B2"].Value2 = 200;
+                sourceRange.Value2 = new object[,] { { 100 }, { 200 }, { 30 } };
 
                 _output.WriteLine("✓ Formula writes with dependencies completed without deadlock");
             }
             finally
             {
+                ComUtilities.Release(ref formulaRange);
+                ComUtilities.Release(ref sourceRange);
                 ComUtilities.Release(ref sheet);
             }
 
@@ -313,6 +317,7 @@ public class ExcelWriteGuardTests : IAsyncLifetime
         batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
+            dynamic? cell = null;
             try
             {
                 sheet = ctx.Book.Worksheets[1];
@@ -320,11 +325,20 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                 // Write 100 cells — with ScreenUpdating=false this should be fast
                 for (int i = 1; i <= 100; i++)
                 {
-                    sheet.Range[$"D{i}"].Value2 = i * 1.5;
+                    try
+                    {
+                        cell = sheet.Range[$"D{i}"];
+                        cell.Value2 = i * 1.5;
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref cell);
+                    }
                 }
             }
             finally
             {
+                ComUtilities.Release(ref cell);
                 ComUtilities.Release(ref sheet);
             }
 
