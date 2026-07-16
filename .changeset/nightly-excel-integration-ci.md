@@ -2,4 +2,4 @@
 "excelmcp": patch
 ---
 
-**Automated Excel integration testing.** A cost-optimized self-hosted Windows runner now executes the real Excel integration suite nightly, including VBA and session tests. The runner starts on demand and is deallocated after testing, closing the previous gap where Excel-dependent behavior was validated only on a maintainer workstation.
+**Automated Excel integration testing.** A cost-optimized self-hosted Windows runner now executes the real Excel integration suite for ready pull requests, including VBA and session tests. Targeted manual runs support surgical feature validation during development, while only the full-suite check satisfies the merge gate. The runner starts on demand and is deallocated after testing. Formula reads now also report correct worksheet coordinates and actionable suggestions for cell errors.

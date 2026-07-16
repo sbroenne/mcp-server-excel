@@ -1,9 +1,27 @@
 name: Excel Integration Tests
 
 on:
-  schedule:
-    - cron: '0 1 * * *'
+  pull_request:
+    types: [opened, ready_for_review]
   workflow_dispatch:
+    inputs:
+      scope:
+        description: Tests to run
+        required: true
+        type: choice
+        default: core-feature
+        options:
+          - core-feature
+          - cominterop
+          - mcp
+          - cli
+          - ondemand
+          - full
+      feature:
+        description: Core Feature trait when scope is core-feature
+        required: false
+        type: string
+        default: Range
 
 permissions:
   contents: read
@@ -20,6 +38,7 @@ env:
 jobs:
   start-runner:
     name: Start Excel runner
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     outputs:
       shutdown-time: ${{ steps.watchdog.outputs.shutdown-time }}
@@ -50,7 +69,7 @@ jobs:
           Write-Host "VM watchdog set for $shutdownTime UTC."
 
   integration-tests:
-    name: Run Excel integration tests
+    name: ${{ (github.event_name == 'pull_request' || inputs.scope == 'full') && 'Full Excel integration suite' || 'Scoped Excel integration tests' }}
     needs: start-runner
     runs-on: [self-hosted, windows, excel]
     timeout-minutes: 300
@@ -101,6 +120,7 @@ jobs:
         run: dotnet build Sbroenne.ExcelMcp.sln --configuration Release --no-restore
 
       - name: Run ComInterop integration tests
+        if: github.event_name == 'pull_request' || inputs.scope == 'full' || inputs.scope == 'cominterop'
         run: >-
           dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj
           --configuration Release --no-build
@@ -110,6 +130,7 @@ jobs:
           -- RunConfiguration.MaxCpuCount=1
 
       - name: Run Core integration tests
+        if: github.event_name == 'pull_request' || inputs.scope == 'full'
         shell: pwsh
         run: |
           $project = "tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj"
@@ -183,7 +204,30 @@ jobs:
             }
           }
 
+      - name: Run scoped Core feature tests
+        if: github.event_name == 'workflow_dispatch' && inputs.scope == 'core-feature'
+        shell: pwsh
+        env:
+          CORE_FEATURE: ${{ inputs.feature }}
+        run: |
+          if ($env:CORE_FEATURE -notmatch '^[A-Za-z][A-Za-z0-9]*$') {
+            throw "Core feature must contain only letters and digits."
+          }
+
+          dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj `
+            --configuration Release `
+            --no-build `
+            --filter "Category=Integration&RunType!=OnDemand&Feature=$env:CORE_FEATURE" `
+            --logger "trx;LogFileName=core-$($env:CORE_FEATURE.ToLowerInvariant()).trx" `
+            --blame-hang-timeout 15m `
+            --nologo `
+            -- RunConfiguration.MaxCpuCount=1
+          if ($LASTEXITCODE -ne 0) {
+            throw "Core $env:CORE_FEATURE integration tests failed."
+          }
+
       - name: Run MCP Server integration tests
+        if: github.event_name == 'pull_request' || inputs.scope == 'full' || inputs.scope == 'mcp'
         run: >-
           dotnet test tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj
           --configuration Release --no-build
@@ -193,6 +237,7 @@ jobs:
           -- RunConfiguration.MaxCpuCount=1
 
       - name: Run CLI integration tests
+        if: github.event_name == 'pull_request' || inputs.scope == 'full' || inputs.scope == 'cli'
         run: >-
           dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj
           --configuration Release --no-build
@@ -202,6 +247,7 @@ jobs:
           -- RunConfiguration.MaxCpuCount=1
 
       - name: Run OnDemand session tests
+        if: github.event_name == 'pull_request' || inputs.scope == 'full' || inputs.scope == 'ondemand'
         shell: pwsh
         run: |
           $projects = @(
@@ -243,7 +289,7 @@ jobs:
 
   deallocate-runner:
     name: Deallocate Excel runner
-    if: always()
+    if: always() && (github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false))
     needs: [start-runner, integration-tests]
     runs-on: ubuntu-latest
     steps:

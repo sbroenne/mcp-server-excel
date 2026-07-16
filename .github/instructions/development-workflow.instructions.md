@@ -78,7 +78,10 @@ Quick reference:
 
 **Excel Integration Tests:**
 - `integration-tests.yml` starts the cost-optimized Azure runner, runs the real Excel integration suite, and deallocates the VM.
-- It runs nightly and by manual dispatch. The VM has a five-hour auto-shutdown watchdog in case workflow cleanup cannot run.
+- A same-repository PR runs the full suite once when it is opened as ready or moves from draft to ready. There is no nightly schedule.
+- Manual dispatch defaults to one Core feature and also supports individual ComInterop, MCP, CLI, and OnDemand scopes.
+- During development, reproduce one test locally and run only the affected feature remotely. The ruleset requires `Full Excel integration suite` on the latest PR commit; scoped runs use a different check name and cannot satisfy the merge gate.
+- The VM has a five-hour auto-shutdown watchdog in case workflow cleanup cannot run.
 - See `docs/AZURE_SELFHOSTED_RUNNER_SETUP.md` for provisioning and maintenance.
 
 ## Workflow Config Updates

@@ -139,18 +139,34 @@ Assign the app's service principal `Contributor` at this scope only:
 
 ## Workflow Lifecycle
 
-`.github/workflows/integration-tests.yml` runs nightly and on manual dispatch:
+`.github/workflows/integration-tests.yml` runs the full suite when a same-repository
+pull request is opened as ready or moves from draft to ready. Manual dispatches
+are surgical by default:
 
 1. A GitHub-hosted job starts the VM and sets auto-shutdown to five hours from now.
 2. The self-hosted job normalizes the runner profile to `en-US`, verifies Excel
-   reports `.` as its decimal separator and `,` as its thousands separator, then
-   runs the integration projects sequentially with explicit hang timeouts and
-   the OnDemand session tests.
-3. A GitHub-hosted `always()` job deallocates the VM.
-4. The auto-shutdown schedule limits compute cost if the runner never accepts the
+   reports `.` as its decimal separator and `,` as its thousands separator.
+3. Ready pull requests and manual `full` runs execute every integration project.
+   Manual runs otherwise execute only the selected project or Core feature.
+4. A GitHub-hosted `always()` job deallocates the VM.
+5. The auto-shutdown schedule limits compute cost if the runner never accepts the
    queued job or final cleanup cannot run.
 
 The workflow uploads TRX results for 14 days.
+
+Use a Core feature run while developing or fixing a feature:
+
+```powershell
+gh workflow run integration-tests.yml `
+  --ref <branch> `
+  -f scope=core-feature `
+  -f feature=Range
+```
+
+Other manual scopes are `cominterop`, `mcp`, `cli`, and `ondemand`. Use
+`-f scope=full` only when the latest PR commit has not already passed the full
+suite. Scoped runs report a different GitHub check name and cannot satisfy the
+required `Full Excel integration suite` merge check.
 
 ## Operations
 

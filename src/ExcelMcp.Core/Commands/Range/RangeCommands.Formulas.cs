@@ -36,6 +36,8 @@ public partial class RangeCommands
 
                 // Get actual address
                 result.RangeAddress = range.Address;
+                int startRow = Convert.ToInt32(range.Row);
+                int startColumn = Convert.ToInt32(range.Column);
 
                 // Get formulas and values - handle single cell case
                 // Use Formula2 (modern) instead of Formula (legacy) to avoid implicit intersection (@)
@@ -66,12 +68,17 @@ public partial class RangeCommands
                             // ERROR CODE DETECTION: Map Excel error codes to human-readable messages
                             if (cellValue is int errorCode && errorCode < 0)
                             {
-                                var cellAddr = $"{GetColumnLetter(c)}{r}";
+                                int row = startRow + r - 1;
+                                int column = startColumn + c - 1;
                                 result.CellErrors.Add(new RangeCellError
                                 {
-                                    CellAddress = cellAddr,
+                                    CellAddress = $"{GetColumnLetter(column)}{row}",
+                                    Row = row,
+                                    Column = column,
+                                    CurrentValue = cellValue,
                                     ErrorCode = errorCode,
-                                    ErrorMessage = MapErrorCodeToMessage(errorCode)
+                                    ErrorMessage = MapErrorCodeToMessage(errorCode),
+                                    Suggestion = MapErrorCodeToSuggestion(errorCode)
                                 });
                             }
                         }
@@ -97,9 +104,13 @@ public partial class RangeCommands
                     {
                         result.CellErrors.Add(new RangeCellError
                         {
-                            CellAddress = range.Address,
+                            CellAddress = $"{GetColumnLetter(startColumn)}{startRow}",
+                            Row = startRow,
+                            Column = startColumn,
+                            CurrentValue = cellValue,
                             ErrorCode = errorCode,
-                            ErrorMessage = MapErrorCodeToMessage(errorCode)
+                            ErrorMessage = MapErrorCodeToMessage(errorCode),
+                            Suggestion = MapErrorCodeToSuggestion(errorCode)
                         });
                     }
                 }
@@ -135,6 +146,19 @@ public partial class RangeCommands
             -2142019887 => "#N/A - Value not available",
             -2146826233 => "#PYTHON! - Python code raised an error (syntax or runtime exception)",
             _ => $"#ERROR! - Unknown error code {errorCode}"
+        };
+
+    private static string MapErrorCodeToSuggestion(int errorCode) =>
+        errorCode switch
+        {
+            -2146826288 => "Check the intersection operator and referenced ranges.",
+            -2147483648 => "Ensure the formula does not divide by zero.",
+            -2146826259 => "Check function names and argument types.",
+            -2146826246 => "Check that referenced cells and ranges still exist.",
+            -2146826252 => "Check numeric inputs and supported value ranges.",
+            -2142019887 => "Check that the lookup value and source data are available.",
+            -2146826233 => "Check the Python formula syntax and runtime inputs.",
+            _ => "Check the formula syntax and referenced values."
         };
 
     /// <summary>
@@ -236,6 +260,5 @@ public partial class RangeCommands
         });
     }
 }
-
 
 
