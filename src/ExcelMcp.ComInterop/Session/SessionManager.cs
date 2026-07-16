@@ -152,17 +152,17 @@ public sealed class SessionManager : IDisposable
         // Normalize file path for comparison
         string normalizedPath = Path.GetFullPath(filePath);
 
-        // Reject deterministic file-access failures before starting Excel. ExcelBatch
-        // repeats this check on its STA thread to cover locks acquired after preflight.
-        if (!FileAccessValidator.IsIrmProtected(normalizedPath))
-        {
-            FileAccessValidator.ValidateFileNotLocked(normalizedPath);
-        }
-
         // Check if file is already open in another session
         if (_activeFilePaths.ContainsKey(normalizedPath))
         {
             throw new InvalidOperationException($"File '{filePath}' is already open in another session. Excel cannot open the same file multiple times.");
+        }
+
+        // Reject external file-access failures before starting Excel. ExcelBatch
+        // repeats this check on its STA thread to cover locks acquired after preflight.
+        if (!FileAccessValidator.IsIrmProtected(normalizedPath))
+        {
+            FileAccessValidator.ValidateFileNotLocked(normalizedPath);
         }
 
         // Generate unique session ID
@@ -870,4 +870,3 @@ public sealed record CloseValidationResult(
     /// </summary>
     public bool CanClose => SessionExists && ActiveOperationCount == 0;
 }
-
