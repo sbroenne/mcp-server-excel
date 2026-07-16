@@ -9,7 +9,7 @@ for the repository's Windows + Excel GitHub Actions runner.
 |---|---|
 | `azure-runner.bicep` | VM, Standard SSD, public IP, NSG, network, auto-shutdown |
 | `azure-runner.parameters.json` | Non-secret deployment defaults |
-| `setup-runner.ps1` | Installs .NET and registers the latest runner as `azureuser` |
+| `setup-runner.ps1` | Installs prerequisites and registers the latest runner for a selected local Windows account |
 
 The VM is deallocated outside test and maintenance windows. Direct RDP is restricted
 to one administrator CIDR; Azure Bastion and NAT Gateway are intentionally omitted

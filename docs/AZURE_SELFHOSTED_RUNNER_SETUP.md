@@ -107,10 +107,10 @@ The script:
 
 1. Installs .NET 10 if necessary.
 2. Installs Git for Windows and PowerShell 7 if necessary.
-3. Sets the system and `azureuser` locale to `en-US` for deterministic Excel formats.
+3. Sets the system and selected runner account locale to `en-US` for deterministic Excel formats.
 4. Creates the Windows service-profile Desktop folders required by Office COM.
 5. Resolves and installs the latest GitHub Actions runner release.
-6. Registers labels `self-hosted`, `Windows`, `X64`, and `excel`.
+6. Registers the custom `excel` label; GitHub automatically applies the default `self-hosted`, `Windows`, and `X64` labels.
 7. Configures secure automatic logon with Microsoft Sysinternals Autologon.
 8. Starts `run.cmd` at interactive user logon instead of as a Windows service.
 
