@@ -35,6 +35,20 @@ function Write-SetupLog {
 try {
     Write-SetupLog "Starting GitHub Actions runner setup."
 
+    $accountParts = $WindowsAccount -split "\\", 2
+    $accountQualifier = if ($accountParts.Count -eq 2) { $accountParts[0] } else { "." }
+    $accountUser = if ($accountParts.Count -eq 2) { $accountParts[1] } else { $accountParts[0] }
+    if ([string]::IsNullOrWhiteSpace($accountUser)) {
+        throw "WindowsAccount must identify a local Windows user."
+    }
+    if ($accountQualifier -ne "." -and $accountQualifier -ine $env:COMPUTERNAME) {
+        throw "WindowsAccount must be a local account (for example, '.\azureuser'). Domain accounts are not supported."
+    }
+
+    $localUser = Get-LocalUser -Name $accountUser -ErrorAction Stop
+    $accountDomain = $env:COMPUTERNAME
+    $qualifiedAccount = "$accountDomain\$accountUser"
+
     $dotnetExe = Join-Path $env:ProgramFiles "dotnet\dotnet.exe"
     $installedSdk = if (Test-Path $dotnetExe) { & $dotnetExe --list-sdks 2>$null } else { @() }
     if (-not ($installedSdk -match "^10\.")) {
@@ -156,16 +170,6 @@ try {
         Write-SetupLog "Runner is already registered."
     }
 
-    $accountParts = $WindowsAccount -split "\\", 2
-    $accountDomain = if ($accountParts.Count -eq 2 -and $accountParts[0] -ne ".") {
-        $accountParts[0]
-    }
-    else {
-        $env:COMPUTERNAME
-    }
-    $accountUser = if ($accountParts.Count -eq 2) { $accountParts[1] } else { $accountParts[0] }
-    $qualifiedAccount = "$accountDomain\$accountUser"
-
     Write-SetupLog "Configuring en-US locale for $qualifiedAccount."
     Set-WinSystemLocale -SystemLocale "en-US"
     $localeMarker = "C:\runner-locale-configured.txt"
@@ -221,14 +225,13 @@ Set-Content -Path "C:\runner-locale-configured.txt" -Value "configured"
         throw "Sysinternals Autologon configuration failed with exit code $LASTEXITCODE."
     }
 
-    $localUser = Get-LocalUser -Name $accountUser
     $localUser | Set-LocalUser -PasswordNeverExpires $true
 
-    $runnerService = Get-Service -Name "actions.runner.*" -ErrorAction SilentlyContinue
-    if ($runnerService) {
-        Write-SetupLog "Removing the non-interactive runner service."
+    $runnerServices = @(Get-Service -Name "actions.runner.*" -ErrorAction SilentlyContinue)
+    foreach ($runnerService in $runnerServices) {
+        Write-SetupLog "Removing non-interactive runner service $($runnerService.Name)."
         if ($runnerService.Status -ne "Stopped") {
-            Stop-Service -Name $runnerService.Name -Force
+            Stop-Service -InputObject $runnerService -Force
         }
         & sc.exe delete $runnerService.Name | Out-Null
         if ($LASTEXITCODE -ne 0) {

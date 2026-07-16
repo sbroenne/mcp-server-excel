@@ -2,14 +2,14 @@
 //
 // Design goals (see infrastructure/azure/README.md):
 //   * Cheapest sustainable footprint. The VM is DEALLOCATED when idle and started
-//     only for the nightly integration run (.github/workflows/integration-tests.yml),
-//     so you pay ~a couple of compute-hours/night instead of 24/7.
+//     only for ready-PR validation or manually scoped integration runs
+//     (.github/workflows/integration-tests.yml), so compute is billed only while testing.
 //   * StandardSSD_LRS OS disk (not Premium).
 //   * RDP over a Standard public IP, locked by NSG to a single admin IP — used once to
 //     install Office/Excel. No Azure Bastion (that alone was ~$140/mo).
 //   * Daily auto-shutdown as a runaway-cost backstop in case a deallocate step fails.
 //
-// Rough cost (D2s v5, StandardSSD 128 GB, Standard IP): ~$30-40/month with nightly runs.
+// Cost consists of the always-billed Standard SSD/static IP plus D2s v5 compute per test run.
 
 @description('Location for all resources. Cheapest compute regions: eastus2 / eastus.')
 param location string = 'eastus2'
@@ -182,7 +182,7 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-07-01' = {
 }
 
 // Daily auto-shutdown backstop (DevTest Labs schedule). Only guards against a failed
-// deallocate; the nightly workflow normally deallocates the VM as soon as tests finish.
+// deallocate; the integration workflow normally deallocates the VM as soon as tests finish.
 resource autoShutdown 'Microsoft.DevTestLab/schedules@2018-09-15' = {
   name: 'shutdown-computevm-${vmName}'
   location: location
@@ -205,4 +205,4 @@ output vmName string = vmName
 output vmResourceId string = vm.id
 output publicIp string = publicIp.properties.ipAddress
 output rdpHint string = 'RDP to ${publicIp.properties.ipAddress} as ${adminUsername}. Allowed source: ${rdpSourceAddressPrefix}'
-output nextSteps string = 'RDP in, install Office/Excel, then register the runner (see infrastructure/azure/setup-runner.ps1 / README.md). The nightly workflow starts and deallocates this VM automatically.'
+output nextSteps string = 'RDP in, install Office/Excel, then register the runner (see infrastructure/azure/setup-runner.ps1 / README.md). The integration workflow starts and deallocates this VM automatically.'

@@ -15,8 +15,9 @@ The repository uses a cost-optimized Azure VM as a GitHub Actions self-hosted ru
 
 There is no Azure Bastion or NAT Gateway. The VM's public IP provides both outbound
 GitHub access and direct RDP, which is the lowest-cost configuration. The expected
-cost is approximately $30-40/month for one nightly run; current Azure prices and
-actual test duration determine the final amount.
+cost is the always-billed Standard SSD and static IP plus `Standard_D2s_v5` compute
+while ready-PR or manually scoped test runs are active. Current Azure prices, PR
+frequency, and actual test duration determine the final amount.
 
 The runner intentionally uses the v5 Intel series. The v6 and v7 D-series sizes
 available in East US 2 require an NVMe boot controller, while this installed
@@ -91,7 +92,8 @@ $runnerToken = gh api `
 ```
 
 Run `infrastructure\azure\setup-runner.ps1` on the VM from an elevated PowerShell
-window. Supply the local account that activated Office:
+window. Supply the local account that activated Office. Domain accounts are rejected
+because automatic logon and local-user configuration require a machine-local account:
 
 ```powershell
 .\setup-runner.ps1 `
