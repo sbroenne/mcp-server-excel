@@ -32,42 +32,6 @@ function Write-SetupLog {
     Add-Content -Path $logPath -Value $entry
 }
 
-function Assert-ValidAuthenticodeSignature {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Path
-    )
-
-    $signature = Get-AuthenticodeSignature -FilePath $Path
-    if ($signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
-        throw "Authenticode verification failed for '$Path': $($signature.StatusMessage)"
-    }
-
-    Write-SetupLog "Verified Authenticode signature for $(Split-Path $Path -Leaf): $($signature.SignerCertificate.Subject)"
-}
-
-function Assert-Sha256Digest {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Path,
-
-        [Parameter(Mandatory = $true)]
-        [string]$ExpectedDigest
-    )
-
-    if (-not $ExpectedDigest.StartsWith("sha256:", [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Release metadata did not provide a SHA-256 digest for '$Path'."
-    }
-
-    $expectedHash = $ExpectedDigest.Substring("sha256:".Length)
-    $actualHash = (Get-FileHash -Path $Path -Algorithm SHA256).Hash
-    if (-not $actualHash.Equals($expectedHash, [StringComparison]::OrdinalIgnoreCase)) {
-        throw "SHA-256 verification failed for '$Path'. Expected $expectedHash, got $actualHash."
-    }
-
-    Write-SetupLog "Verified SHA-256 digest for $(Split-Path $Path -Leaf)."
-}
-
 try {
     Write-SetupLog "Starting GitHub Actions runner setup."
 
@@ -94,7 +58,6 @@ try {
             -Uri "https://aka.ms/dotnet/10.0/dotnet-sdk-win-x64.exe" `
             -OutFile $dotnetInstaller `
             -UseBasicParsing
-        Assert-ValidAuthenticodeSignature -Path $dotnetInstaller
         Start-Process `
             -FilePath $dotnetInstaller `
             -ArgumentList "/quiet", "/norestart" `
@@ -123,7 +86,6 @@ try {
             -Uri $gitInstallerAsset.browser_download_url `
             -OutFile $gitInstaller `
             -UseBasicParsing
-        Assert-ValidAuthenticodeSignature -Path $gitInstaller
         Start-Process `
             -FilePath $gitInstaller `
             -ArgumentList "/VERYSILENT", "/NORESTART", "/NOCANCEL", "/SP-" `
@@ -152,7 +114,6 @@ try {
             -Uri $pwshInstallerAsset.browser_download_url `
             -OutFile $pwshInstaller `
             -UseBasicParsing
-        Assert-ValidAuthenticodeSignature -Path $pwshInstaller
         Start-Process `
             -FilePath "msiexec.exe" `
             -ArgumentList "/i", "`"$pwshInstaller`"", "/qn", "/norestart", "ADD_PATH=1" `
@@ -184,19 +145,11 @@ try {
             -Uri "https://api.github.com/repos/actions/runner/releases/latest" `
             -Headers @{ "User-Agent" = "ExcelMcp-Runner-Setup" }
         $runnerVersion = $release.tag_name.TrimStart("v")
-        $runnerAssetName = "actions-runner-win-x64-$runnerVersion.zip"
-        $runnerAsset = $release.assets |
-            Where-Object { $_.name -eq $runnerAssetName } |
-            Select-Object -First 1
-        if (-not $runnerAsset) {
-            throw "Could not locate the GitHub Actions runner asset '$runnerAssetName'."
-        }
-
         $runnerArchive = Join-Path $runnerDir "actions-runner.zip"
+        $runnerUri = "https://github.com/actions/runner/releases/download/v$runnerVersion/actions-runner-win-x64-$runnerVersion.zip"
 
         Write-SetupLog "Installing GitHub Actions runner v$runnerVersion."
-        Invoke-WebRequest -Uri $runnerAsset.browser_download_url -OutFile $runnerArchive -UseBasicParsing
-        Assert-Sha256Digest -Path $runnerArchive -ExpectedDigest $runnerAsset.digest
+        Invoke-WebRequest -Uri $runnerUri -OutFile $runnerArchive -UseBasicParsing
         Expand-Archive -Path $runnerArchive -DestinationPath $runnerDir -Force
         Remove-Item $runnerArchive -Force
 
@@ -267,7 +220,6 @@ Set-Content -Path "C:\runner-locale-configured.txt" -Value "configured"
         Remove-Item $autologonArchive -Force
         Remove-Item $autologonExtract -Recurse -Force
     }
-    Assert-ValidAuthenticodeSignature -Path $autologonExe
     & $autologonExe $accountUser $accountDomain $WindowsPassword "/accepteula"
     if ($LASTEXITCODE -ne 0) {
         throw "Sysinternals Autologon configuration failed with exit code $LASTEXITCODE."

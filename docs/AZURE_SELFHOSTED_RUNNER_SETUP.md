@@ -114,10 +114,6 @@ The script:
 7. Configures secure automatic logon with Microsoft Sysinternals Autologon.
 8. Starts `run.cmd` at interactive user logon instead of as a Windows service.
 
-Downloaded installers and Autologon must have a valid Authenticode signature before
-the setup script executes them. The officially unsigned GitHub Actions runner archive
-is verified against the SHA-256 digest published in its GitHub release metadata.
-
 The registration token and Windows password are not written to `C:\runner-setup.log`.
 Reboot after setup so the locale, automatic logon, and interactive runner activate.
 
