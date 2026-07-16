@@ -148,8 +148,9 @@ are surgical by default:
 1. A GitHub-hosted job starts the VM and sets auto-shutdown to five hours from now.
 2. The self-hosted job normalizes the runner profile to `en-US`, verifies Excel
    reports `.` as its decimal separator and `,` as its thousands separator.
-3. Ready pull requests and manual `full` runs execute every integration project.
-   Manual runs otherwise execute only the selected project or Core feature.
+3. Ready pull requests and manual `full` runs execute every regular integration
+   project plus the mandatory ComInterop OnDemand session tests. Manual runs
+   otherwise execute only the selected project, Core feature, or session scope.
 4. A GitHub-hosted `always()` job deallocates the VM.
 5. The auto-shutdown schedule limits compute cost if the runner never accepts the
    queued job or final cleanup cannot run.
@@ -165,10 +166,12 @@ gh workflow run integration-tests.yml `
   -f feature=Range
 ```
 
-Other manual scopes are `cominterop`, `mcp`, `cli`, and `ondemand`. Use
-`-f scope=full` only when the latest PR commit has not already passed the full
-suite. Scoped runs report a different GitHub check name and cannot satisfy the
-required `Full Excel integration suite` merge check.
+Other manual scopes are `cominterop`, `mcp`, `cli`, and `ondemand`; `ondemand`
+runs only the ComInterop session tests. Core OnDemand tests are manual diagnostics
+that depend on optional Python licensing, IRM-protected files, or CPU analysis and
+are not part of the required CI gate. Use `-f scope=full` only when the latest PR
+commit has not already passed the full suite. Scoped runs report a different GitHub
+check name and cannot satisfy the required `Full Excel integration suite` merge check.
 
 ## Operations
 
