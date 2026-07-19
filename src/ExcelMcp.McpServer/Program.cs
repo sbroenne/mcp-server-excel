@@ -1,8 +1,6 @@
 using System.IO.Pipelines;
 using System.Runtime.InteropServices;
 using Microsoft.ApplicationInsights;
-using Microsoft.ApplicationInsights.Extensibility;
-using Microsoft.ApplicationInsights.Extensibility.PerfCounterCollector;
 using Microsoft.ApplicationInsights.WorkerService;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -345,7 +343,6 @@ public class Program
             // Disable features not needed for MCP server (reduces overhead and AppMetrics ingestion)
             EnableQuickPulseMetricStream = false,  // Live Metrics not needed for CLI tool
             EnablePerformanceCounterCollectionModule = false,  // Perf counters not useful for short-lived CLI
-            EnableHeartbeat = false,  // Heartbeat not needed for CLI that starts/stops frequently
 
             // Disable dependency tracking for HTTP calls
             EnableDependencyTrackingTelemetryModule = false,
@@ -353,21 +350,17 @@ public class Program
 
         builder.Services.AddApplicationInsightsTelemetryWorkerService(aiOptions);
 
-        // EnablePerformanceCounterCollectionModule = false above does not reliably suppress
-        // PerformanceCollectorModule under the WorkerService hosting model on Windows - it was still
-        // observed emitting "Requests/Sec", "Private Bytes", "% Processor Time", etc. to AppMetrics
-        // (~140 MB/day, ~25% of billed ingestion). Explicitly remove the module registration itself,
-        // per the documented pattern for removing default TelemetryModules in a worker service:
-        // https://learn.microsoft.com/azure/azure-monitor/app/worker-service#configure-or-remove-default-telemetrymodules
-        // Defense in depth: the DCR workspace transform (dropNoisyMetricsDcr in appinsights-resources.bicep)
-        // also drops the entire AppPerformanceCounters table and HeartbeatState rows server-side,
-        // so ingestion cost is capped even if this in-process removal doesn't take effect.
-        var performanceCollectorModuleDescriptor = builder.Services.FirstOrDefault(
-            d => d.ImplementationType == typeof(PerformanceCollectorModule));
-        if (performanceCollectorModuleDescriptor is not null)
-        {
-            builder.Services.Remove(performanceCollectorModuleDescriptor);
-        }
+        // NOTE: Microsoft.ApplicationInsights.WorkerService 3.x is a full OpenTelemetry-based rewrite
+        // of the SDK - it no longer has a PerformanceCollectorModule type, an ITelemetryModule DI
+        // registration to remove, or a heartbeat feature (EnableHeartbeat/EnableHeartbeatTelemetryModule
+        // do not exist on ApplicationInsightsServiceOptions in this version, confirmed by inspecting the
+        // 3.1.2 package - no such members or types are present). Despite that, HeartbeatState rows and
+        // AppPerformanceCounters ("Requests/Sec", "Private Bytes", "% Processor Time", etc.) are still
+        // observed in AppMetrics/AppPerformanceCounters (likely from an internal OTel-to-classic-schema
+        // metric mapping with no public opt-out). There is currently no known in-process way to disable
+        // this in 3.1.2, so the dropNoisyMetricsDcr workspace transform in
+        // infrastructure/azure/appinsights-resources.bicep is the sole, reliable mechanism suppressing
+        // these two sources server-side before ingestion is billed.
 
         // AddApplicationInsightsTelemetryWorkerService() unconditionally subscribes to the .NET 8+
         // built-in "System.Net.Http" meter (via UseApplicationInsightsTelemetry -> AddHttpClientMetrics),
