@@ -25,41 +25,11 @@ public class ExcelFileToolTests(ITestOutputHelper output)
     ];
 
     [Fact]
-    public void Create_ProtectedSystemPath_ReturnsJsonError()
+    public void Create_MissingDirectory_ReturnsJsonError()
     {
-        // Arrange - path that reliably fails (Windows directory is protected)
-        var protectedPath = @"C:\Windows\HelloWorld.xlsx";
+        var missingDirectory = Path.Join(Path.GetTempPath(), $"Missing_{Guid.NewGuid():N}");
+        var invalidPath = Path.Join(missingDirectory, "test.xlsx");
 
-        // Act
-        var result = ExcelFileTool.ExcelFile(
-            FileAction.Create,
-            path: protectedPath,
-            session_id: null,
-            save: false,
-            show: false,
-            timeout_seconds: 300);
-
-        output.WriteLine($"Result: {result}");
-
-        // Assert - should return JSON error, not crash the server
-        Assert.NotNull(result);
-        var json = JsonDocument.Parse(result).RootElement;
-        Assert.False(json.GetProperty("success").GetBoolean());
-        Assert.True(json.TryGetProperty("errorMessage", out var errorMsg));
-        // Error message may vary based on Excel version and system locale
-        var msg = errorMsg.GetString();
-        Assert.True(msg!.Contains("Failed") || msg.Contains("Cannot"), $"Expected failure message, got: {msg}");
-        Assert.True(json.TryGetProperty("isError", out var isError));
-        Assert.True(isError.GetBoolean());
-    }
-
-    [Fact]
-    public void Create_InvalidPath_ReturnsJsonError()
-    {
-        // Arrange - use a path that will fail (System32, no permission)
-        var invalidPath = @"C:\Windows\System32\test.xlsx";
-
-        // Act
         var result = ExcelFileTool.ExcelFile(
             FileAction.Create,
             path: invalidPath,
@@ -70,14 +40,35 @@ public class ExcelFileToolTests(ITestOutputHelper output)
 
         output.WriteLine($"Result: {result}");
 
-        // Assert - should return JSON error, not crash
         Assert.NotNull(result);
         var json = JsonDocument.Parse(result).RootElement;
         Assert.False(json.GetProperty("success").GetBoolean());
         Assert.True(json.TryGetProperty("errorMessage", out var errorMsg));
-        // Error message may vary based on Excel version and system locale
-        var msg = errorMsg.GetString();
-        Assert.True(msg!.Contains("Failed") || msg.Contains("Cannot"), $"Expected failure message, got: {msg}");
+        Assert.Contains("Directory does not exist", errorMsg.GetString());
+        Assert.True(json.TryGetProperty("isError", out var isError));
+        Assert.True(isError.GetBoolean());
+    }
+
+    [Fact]
+    public void Create_RelativePath_ReturnsJsonError()
+    {
+        const string invalidPath = @"relative\test.xlsx";
+
+        var result = ExcelFileTool.ExcelFile(
+            FileAction.Create,
+            path: invalidPath,
+            session_id: null,
+            save: false,
+            show: false,
+            timeout_seconds: 300);
+
+        output.WriteLine($"Result: {result}");
+
+        Assert.NotNull(result);
+        var json = JsonDocument.Parse(result).RootElement;
+        Assert.False(json.GetProperty("success").GetBoolean());
+        Assert.True(json.TryGetProperty("errorMessage", out var errorMsg));
+        Assert.Contains("not an absolute Windows path", errorMsg.GetString());
         Assert.True(json.TryGetProperty("isError", out var isError));
         Assert.True(isError.GetBoolean());
     }
@@ -240,8 +231,6 @@ public class ExcelFileToolTests(ITestOutputHelper output)
         }
     }
 }
-
-
 
 
 

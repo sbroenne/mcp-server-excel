@@ -66,7 +66,8 @@ mcp_github_github_pull_request_read(method="get_review_comments", owner="sbroenn
 
 Quick reference:
 - Development: `Category=Integration&RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust`
-- Session/batch changes: `RunType=OnDemand`
+- Session/batch changes: run `RunType=OnDemand` in `ExcelMcp.ComInterop.Tests`
+- Core OnDemand tests are environment-specific diagnostics and stay outside required CI
 - VBA tests: `(Feature=VBA|Feature=VBATrust)&RunType!=OnDemand`
 
 ## CI/CD Workflows
@@ -76,10 +77,14 @@ Quick reference:
 - `codeql.yml` - Security analysis
 - `dependency-review.yml` - Dependency security scanning
 
-**Removed Legacy Workflows:**
-- Self-hosted Azure runner deployment and Excel integration-test workflows were retired when the Azure runner was undeployed.
-
-**Note:** Integration tests are currently not run in GitHub Actions. See `docs/AZURE_SELFHOSTED_RUNNER_SETUP.md` only as historical infrastructure reference if self-hosted Excel CI is ever rebuilt.
+**Excel Integration Tests:**
+- `integration-tests.yml` starts the cost-optimized Azure runner, runs the real Excel integration suite, and deallocates the VM.
+- A same-repository PR runs the full suite once when it is opened as ready or moves from draft to ready. There is no nightly schedule.
+- Manual dispatch defaults to one Core feature and also supports individual ComInterop, MCP, CLI, and ComInterop OnDemand session scopes.
+- The full merge gate includes the ComInterop OnDemand session tests. It excludes Core OnDemand diagnostics that intentionally require optional Python licensing, IRM-protected files, or manual CPU analysis.
+- During development, reproduce one test locally and run only the affected feature remotely. The ruleset requires `Full Excel integration suite` on the latest PR commit; scoped runs use a different check name and cannot satisfy the merge gate.
+- The VM has a five-hour auto-shutdown watchdog in case workflow cleanup cannot run.
+- See `docs/AZURE_SELFHOSTED_RUNNER_SETUP.md` for provisioning and maintenance.
 
 ## Workflow Config Updates
 

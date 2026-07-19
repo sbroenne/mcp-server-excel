@@ -3,21 +3,13 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "location": {
-      "value": "eastus"
+      "value": "eastus2"
     },
     "vmSize": {
-      "value": "Standard_B2ms"
+      "value": "Standard_D2s_v5"
     },
     "adminUsername": {
       "value": "azureuser"
-    },
-    "adminPassword": {
-      "reference": {
-        "keyVault": {
-          "id": "/subscriptions/{subscription-id}/resourceGroups/{rg-name}/providers/Microsoft.KeyVault/vaults/{vault-name}"
-        },
-        "secretName": "vm-admin-password"
-      }
     }
   }
 }

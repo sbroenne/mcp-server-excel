@@ -1,0 +1,292 @@
+name: Excel Integration Tests
+
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Tests to run
+        required: true
+        type: choice
+        default: core-feature
+        options:
+          - core-feature
+          - cominterop
+          - mcp
+          - cli
+          - ondemand
+          - full
+      feature:
+        description: Core Feature trait when scope is core-feature
+        required: false
+        type: string
+        default: Range
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: excel-integration-tests
+  cancel-in-progress: false
+
+env:
+  AZURE_RESOURCE_GROUP: rg-excel-runner
+  AZURE_VM_NAME: vm-excel-runner
+
+jobs:
+  start-runner:
+    name: Start Excel runner
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false)
+    runs-on: ubuntu-latest
+    outputs:
+      shutdown-time: ${{ steps.watchdog.outputs.shutdown-time }}
+    steps:
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Start VM
+        run: az vm start --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_VM_NAME"
+
+      - name: Set five-hour shutdown watchdog
+        id: watchdog
+        shell: pwsh
+        run: |
+          $shutdownTime = (Get-Date).ToUniversalTime().AddHours(5).ToString("HHmm")
+          az vm auto-shutdown `
+            --resource-group $env:AZURE_RESOURCE_GROUP `
+            --name $env:AZURE_VM_NAME `
+            --time $shutdownTime
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to set the VM auto-shutdown watchdog."
+          }
+          "shutdown-time=$shutdownTime" >> $env:GITHUB_OUTPUT
+          Write-Host "VM watchdog set for $shutdownTime UTC."
+
+  integration-tests:
+    name: ${{ (github.event_name == 'pull_request' || inputs.scope == 'full') && 'Full Excel integration suite' || 'Scoped Excel integration tests' }}
+    needs: start-runner
+    runs-on: [self-hosted, windows, excel]
+    timeout-minutes: 300
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Normalize locale and verify Excel COM
+        shell: pwsh
+        run: |
+          Set-Culture -CultureInfo "en-US"
+          $international = Get-ItemProperty "HKCU:\Control Panel\International"
+          if ($international.LocaleName -ne "en-US") {
+            throw "Failed to configure the runner profile locale as en-US."
+          }
+
+          $excel = $null
+          try {
+            $excel = New-Object -ComObject Excel.Application
+            $decimalSeparator = $excel.International(3)
+            $thousandsSeparator = $excel.International(4)
+            if ($decimalSeparator -ne "." -or $thousandsSeparator -ne ",") {
+              throw "Excel locale is not en-US (decimal='$decimalSeparator', thousands='$thousandsSeparator')."
+            }
+
+            Write-Host "Excel version: $($excel.Version)"
+            Write-Host "Excel separators: decimal='$decimalSeparator', thousands='$thousandsSeparator'"
+          }
+          finally {
+            if ($null -ne $excel) {
+              $excel.Quit()
+              [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($excel)
+            }
+          }
+
+      - name: Restore
+        run: dotnet restore Sbroenne.ExcelMcp.sln
+
+      - name: Build
+        run: dotnet build Sbroenne.ExcelMcp.sln --configuration Release --no-restore
+
+      - name: Run ComInterop integration tests
+        if: github.event_name == 'pull_request' || inputs.scope == 'full' || inputs.scope == 'cominterop'
+        run: >-
+          dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj
+          --configuration Release --no-build
+          --filter "Category=Integration&RunType!=OnDemand"
+          --logger "trx;LogFileName=cominterop-integration.trx"
+          --blame-hang-timeout 15m
+          -- RunConfiguration.MaxCpuCount=1
+
+      - name: Run Core integration tests
+        if: github.event_name == 'pull_request' || inputs.scope == 'full'
+        shell: pwsh
+        run: |
+          $project = "tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj"
+          $baseFilter = "Category=Integration&RunType!=OnDemand"
+          $powerQueryPattern = ".Commands.PowerQuery."
+          $testList = dotnet test $project `
+            --configuration Release `
+            --no-build `
+            --list-tests `
+            --filter $baseFilter `
+            --nologo
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to discover Core integration tests."
+          }
+
+          $allTests = @($testList |
+            Where-Object { $_ -match '^\s+Sbroenne\.' } |
+            ForEach-Object {
+              ($_.Trim() -split '\(')[0]
+            })
+          $powerQueryTests = @($allTests | Where-Object { $_ -like "*$powerQueryPattern*" })
+          $powerQueryClasses = $powerQueryTests |
+            ForEach-Object { $_.Substring(0, $_.LastIndexOf('.')) } |
+            Sort-Object -Unique
+
+          if ($allTests.Count -eq 0 -or $powerQueryClasses.Count -eq 0) {
+            throw "Core integration test discovery returned an incomplete test set."
+          }
+
+          $nonPowerQueryCount = $allTests.Count - $powerQueryTests.Count
+          Write-Host "Running $nonPowerQueryCount non-PowerQuery tests in one fresh testhost."
+          dotnet test $project `
+            --configuration Release `
+            --no-build `
+            --filter "$baseFilter&FullyQualifiedName!~$powerQueryPattern" `
+            --logger "trx;LogFileName=core-non-powerquery.trx" `
+            --blame-hang-timeout 15m `
+            --nologo `
+            -- RunConfiguration.MaxCpuCount=1
+          $testExitCode = $LASTEXITCODE
+
+          Get-Process Excel -ErrorAction SilentlyContinue |
+            ForEach-Object { Stop-Process -Id $_.Id -Force }
+
+          if ($testExitCode -ne 0) {
+            throw "Non-PowerQuery Core integration tests failed."
+          }
+
+          Write-Host "Running $($powerQueryTests.Count) PowerQuery tests in $($powerQueryClasses.Count) isolated test classes."
+          for ($index = 0; $index -lt $powerQueryClasses.Count; $index++) {
+            $testClass = $powerQueryClasses[$index]
+            $className = $testClass.Split('.')[-1]
+            $logFile = "core-powerquery-{0:D2}-{1}.trx" -f ($index + 1), $className
+            Write-Host "[$($index + 1)/$($powerQueryClasses.Count)] $testClass"
+
+            dotnet test $project `
+              --configuration Release `
+              --no-build `
+              --filter "FullyQualifiedName~$testClass&$baseFilter" `
+              --logger "trx;LogFileName=$logFile" `
+              --blame-hang-timeout 15m `
+              --nologo `
+              -- RunConfiguration.MaxCpuCount=1
+            $testExitCode = $LASTEXITCODE
+
+            Get-Process Excel -ErrorAction SilentlyContinue |
+              ForEach-Object { Stop-Process -Id $_.Id -Force }
+
+            if ($testExitCode -ne 0) {
+              throw "Core integration tests failed for $testClass."
+            }
+          }
+
+      - name: Run scoped Core feature tests
+        if: github.event_name == 'workflow_dispatch' && inputs.scope == 'core-feature'
+        shell: pwsh
+        env:
+          CORE_FEATURE: ${{ inputs.feature }}
+        run: |
+          if ($env:CORE_FEATURE -notmatch '^[A-Za-z][A-Za-z0-9]*$') {
+            throw "Core feature must contain only letters and digits."
+          }
+
+          dotnet test tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj `
+            --configuration Release `
+            --no-build `
+            --filter "Category=Integration&RunType!=OnDemand&Feature=$env:CORE_FEATURE" `
+            --logger "trx;LogFileName=core-$($env:CORE_FEATURE.ToLowerInvariant()).trx" `
+            --blame-hang-timeout 15m `
+            --nologo `
+            -- RunConfiguration.MaxCpuCount=1
+          if ($LASTEXITCODE -ne 0) {
+            throw "Core $env:CORE_FEATURE integration tests failed."
+          }
+
+      - name: Run MCP Server integration tests
+        if: github.event_name == 'pull_request' || inputs.scope == 'full' || inputs.scope == 'mcp'
+        run: >-
+          dotnet test tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj
+          --configuration Release --no-build
+          --filter "Category=Integration&RunType!=OnDemand"
+          --logger "trx;LogFileName=mcp-integration.trx"
+          --blame-hang-timeout 15m
+          -- RunConfiguration.MaxCpuCount=1
+
+      - name: Run CLI integration tests
+        if: github.event_name == 'pull_request' || inputs.scope == 'full' || inputs.scope == 'cli'
+        run: >-
+          dotnet test tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj
+          --configuration Release --no-build
+          --filter "Category=Integration&RunType!=OnDemand"
+          --logger "trx;LogFileName=cli-integration.trx"
+          --blame-hang-timeout 15m
+          -- RunConfiguration.MaxCpuCount=1
+
+      - name: Run OnDemand session tests
+        if: github.event_name == 'pull_request' || inputs.scope == 'full' || inputs.scope == 'ondemand'
+        run: >-
+          dotnet test tests/ExcelMcp.ComInterop.Tests/ExcelMcp.ComInterop.Tests.csproj
+          --configuration Release --no-build
+          --filter "RunType=OnDemand"
+          --logger "trx;LogFileName=cominterop-ondemand.trx"
+          --blame-hang-timeout 15m
+          -- RunConfiguration.MaxCpuCount=1
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: excel-integration-results-${{ github.run_number }}
+          path: '**/TestResults/*.trx'
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Clean up Excel processes
+        if: always()
+        shell: pwsh
+        run: |
+          Get-Process Excel -ErrorAction SilentlyContinue |
+            ForEach-Object { Stop-Process -Id $_.Id -Force }
+
+  deallocate-runner:
+    name: Deallocate Excel runner
+    if: always() && (github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == false))
+    needs: [start-runner, integration-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deallocate VM
+        run: >-
+          az vm deallocate
+          --resource-group "$AZURE_RESOURCE_GROUP"
+          --name "$AZURE_VM_NAME"

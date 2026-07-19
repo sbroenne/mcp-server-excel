@@ -158,6 +158,13 @@ public sealed class SessionManager : IDisposable
             throw new InvalidOperationException($"File '{filePath}' is already open in another session. Excel cannot open the same file multiple times.");
         }
 
+        // Reject external file-access failures before starting Excel. ExcelBatch
+        // repeats this check on its STA thread to cover locks acquired after preflight.
+        if (!FileAccessValidator.IsIrmProtected(normalizedPath))
+        {
+            FileAccessValidator.ValidateFileNotLocked(normalizedPath);
+        }
+
         // Generate unique session ID
         string sessionId = Guid.NewGuid().ToString("N");
 
@@ -232,6 +239,13 @@ public sealed class SessionManager : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         string normalizedPath = Path.GetFullPath(filePath);
+
+        string? directory = Path.GetDirectoryName(normalizedPath);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            throw new DirectoryNotFoundException(
+                $"Directory does not exist: '{directory}'. Create the directory first before creating Excel files.");
+        }
 
         // Validate extension
         string extension = Path.GetExtension(normalizedPath).ToLowerInvariant();
@@ -856,5 +870,3 @@ public sealed record CloseValidationResult(
     /// </summary>
     public bool CanClose => SessionExists && ActiveOperationCount == 0;
 }
-
-
