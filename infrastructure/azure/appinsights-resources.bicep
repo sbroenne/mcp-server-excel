@@ -40,13 +40,15 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
 // from AppMetrics, and drops the entire AppPerformanceCounters table, before billing/ingestion.
 // These were driving the vast majority of billed ingestion for this short-lived CLI/MCP server:
 // - http.client.* gauges/histograms come from the SDK's own outbound HTTP calls (AI ingestion
-//   endpoint) - not useful telemetry (see PR #661, PR #725).
+//   endpoint) - not useful telemetry (see PR #661, PR #725). The http.client.* portion of this
+//   drop-list must stay in sync with the identical list in
+//   src/ExcelMcp.McpServer/Program.cs (DroppedHttpClientMetricNames) - update both when changed.
 // - HeartbeatState and AppPerformanceCounters (Requests/Sec, Private Bytes, % Processor Time, ...)
-//   are emitted regardless of the corresponding ApplicationInsightsServiceOptions flags
-//   (EnableHeartbeat / EnablePerformanceCounterCollectionModule) in Program.cs - this DCR transform
-//   is the reliable, guaranteed backstop for both, independent of in-process SDK behavior.
-// Kept in sync with the identical drop-list in
-// src/ExcelMcp.McpServer/Program.cs (DroppedHttpClientMetricNames) - update both when changed.
+//   are emitted by Microsoft.ApplicationInsights.WorkerService 3.1.2 with no corresponding
+//   ApplicationInsightsServiceOptions flag or ITelemetryModule to disable them in-process (that
+//   SDK version has no PerformanceCollectorModule/heartbeat feature at all - see the NOTE in
+//   Program.cs's ConfigureTelemetry). This DCR transform is therefore the only mechanism
+//   suppressing them, not a defense-in-depth backstop for an in-process disable.
 resource dropNoisyMetricsDcr 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
   name: dropNoisyMetricsDcrName
   location: location
