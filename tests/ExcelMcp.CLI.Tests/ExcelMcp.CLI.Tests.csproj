@@ -39,4 +39,8 @@
     <Compile Include="..\ExcelMcp.Core.Tests\Helpers\TempDirectoryFixture.cs" Link="Helpers\TempDirectoryFixture.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

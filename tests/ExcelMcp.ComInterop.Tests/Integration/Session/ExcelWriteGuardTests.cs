@@ -222,8 +222,8 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                 sheet = ctx.Book.Worksheets[1];
 
                 // Set up: write initial values
-                sheet.Range["A1"].Value2 = 100;
-                sheet.Range["A2"].Value2 = 200;
+                SetCellValue(sheet, "A1", 100);
+                SetCellValue(sheet, "A2", 200);
 
                 // Add conditional formatting rule on A1:A2
                 range = sheet.Range["A1:A2"];
@@ -239,8 +239,8 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                 // 2. Excel evaluates conditional formatting, sends callback to our STA thread
                 // 3. MessagePending returned WAITNOPROCESS → callback queued, not dispatched
                 // 4. Excel waits for callback → our thread waits for Excel → DEADLOCK
-                sheet.Range["A1"].Value2 = 300;
-                sheet.Range["A2"].Value2 = 50;
+                SetCellValue(sheet, "A1", 300);
+                SetCellValue(sheet, "A2", 50);
 
                 _output.WriteLine("✓ Value writes with conditional formatting completed without deadlock");
             }
@@ -274,18 +274,18 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                 sheet = ctx.Book.Worksheets[1];
 
                 // Write values that formulas will depend on
-                sheet.Range["B1"].Value2 = 10;
-                sheet.Range["B2"].Value2 = 20;
-                sheet.Range["B3"].Value2 = 30;
+                SetCellValue(sheet, "B1", 10);
+                SetCellValue(sheet, "B2", 20);
+                SetCellValue(sheet, "B3", 30);
 
                 // Write formulas that reference those cells — triggers recalculation
-                sheet.Range["C1"].Formula2 = "=B1*2";
-                sheet.Range["C2"].Formula2 = "=B2+B3";
-                sheet.Range["C3"].Formula2 = "=SUM(B1:B3)";
+                SetCellFormula(sheet, "C1", "=B1*2");
+                SetCellFormula(sheet, "C2", "=B2+B3");
+                SetCellFormula(sheet, "C3", "=SUM(B1:B3)");
 
                 // Now change the source values — triggers formula recalculation
-                sheet.Range["B1"].Value2 = 100;
-                sheet.Range["B2"].Value2 = 200;
+                SetCellValue(sheet, "B1", 100);
+                SetCellValue(sheet, "B2", 200);
 
                 _output.WriteLine("✓ Formula writes with dependencies completed without deadlock");
             }
@@ -320,7 +320,7 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                 // Write 100 cells — with ScreenUpdating=false this should be fast
                 for (int i = 1; i <= 100; i++)
                 {
-                    sheet.Range[$"D{i}"].Value2 = i * 1.5;
+                    SetCellValue(sheet, $"D{i}", i * 1.5);
                 }
             }
             finally
@@ -337,5 +337,33 @@ public class ExcelWriteGuardTests : IAsyncLifetime
         // With ScreenUpdating suppressed, 100 writes should complete in well under 30s
         Assert.True(stopwatch.ElapsedMilliseconds < 30000,
             $"Bulk writes took {stopwatch.ElapsedMilliseconds}ms — ScreenUpdating may not be suppressed");
+    }
+
+    private static void SetCellValue(dynamic sheet, string address, object value)
+    {
+        dynamic? cell = null;
+        try
+        {
+            cell = sheet.Range[address];
+            cell.Value2 = value;
+        }
+        finally
+        {
+            ComUtilities.Release(ref cell);
+        }
+    }
+
+    private static void SetCellFormula(dynamic sheet, string address, string formula)
+    {
+        dynamic? cell = null;
+        try
+        {
+            cell = sheet.Range[address];
+            cell.Formula2 = formula;
+        }
+        finally
+        {
+            ComUtilities.Release(ref cell);
+        }
     }
 }

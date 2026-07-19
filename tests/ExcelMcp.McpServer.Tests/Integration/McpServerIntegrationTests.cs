@@ -53,6 +53,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     /// - Added slicer and calculation_mode
     /// - Added screenshot
     /// - Added window
+    /// - Added pythoninexcel
     /// </summary>
     private static readonly HashSet<string> ExpectedToolNames =
     [
@@ -69,6 +70,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         "pivottable_calc",
         "pivottable_field",
         "powerquery",
+        "pythoninexcel",
         "range",
         "range_edit",
         "range_format",
@@ -182,7 +184,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     }
 
     /// <summary>
-    /// Tests that all 21 expected tools are discoverable via the MCP protocol.
+    /// Tests that all 26 expected tools are discoverable via the MCP protocol.
     /// After token optimization (issue #341):
     /// - Original 12 tools split into focused tools for better token efficiency
     /// - range → range, range_edit, range_format, range_link
@@ -198,7 +200,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     /// - Tool schema generation
     /// </summary>
     [Fact]
-    public async Task ListTools_ReturnsAll25ExpectedTools()
+    public async Task ListTools_ReturnsAll26ExpectedTools()
     {
         output.WriteLine("=== TOOL DISCOVERY VIA MCP PROTOCOL ===\n");
 
@@ -391,7 +393,6 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         output.WriteLine("\n✓ Server capabilities correctly exposed");
     }
 }
-
 
 
 
