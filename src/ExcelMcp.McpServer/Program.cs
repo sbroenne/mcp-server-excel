@@ -350,6 +350,18 @@ public class Program
 
         builder.Services.AddApplicationInsightsTelemetryWorkerService(aiOptions);
 
+        // NOTE: Microsoft.ApplicationInsights.WorkerService 3.x is a full OpenTelemetry-based rewrite
+        // of the SDK - it no longer has a PerformanceCollectorModule type, an ITelemetryModule DI
+        // registration to remove, or a heartbeat feature (EnableHeartbeat/EnableHeartbeatTelemetryModule
+        // do not exist on ApplicationInsightsServiceOptions in this version, confirmed by inspecting the
+        // 3.1.2 package - no such members or types are present). Despite that, HeartbeatState rows and
+        // AppPerformanceCounters ("Requests/Sec", "Private Bytes", "% Processor Time", etc.) are still
+        // observed in AppMetrics/AppPerformanceCounters (likely from an internal OTel-to-classic-schema
+        // metric mapping with no public opt-out). There is currently no known in-process way to disable
+        // this in 3.1.2, so the dropNoisyMetricsDcr workspace transform in
+        // infrastructure/azure/appinsights-resources.bicep is the sole, reliable mechanism suppressing
+        // these two sources server-side before ingestion is billed.
+
         // AddApplicationInsightsTelemetryWorkerService() unconditionally subscribes to the .NET 8+
         // built-in "System.Net.Http" meter (via UseApplicationInsightsTelemetry -> AddHttpClientMetrics),
         // with no opt-out exposed on ApplicationInsightsServiceOptions. ExcelMcp.McpServer makes at most
