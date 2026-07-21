@@ -47,7 +47,10 @@ jobs:
       - name: Generate star history chart
         shell: pwsh
         env:
-          STAR_HISTORY_TOKEN: ${{ github.token }}
+          # The default GITHUB_TOKEN can no longer read the timestamp-enriched
+          # stargazers endpoint (403 as of 2026). Configure a fine-grained PAT with
+          # `metadata: read` as the STAR_HISTORY_TOKEN secret to refresh the chart.
+          STAR_HISTORY_TOKEN: ${{ secrets.STAR_HISTORY_TOKEN || github.token }}
         run: >
           ./scripts/Update-StarHistory.ps1
           -Repository '${{ github.repository }}'
