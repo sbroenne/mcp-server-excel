@@ -105,13 +105,15 @@ public class ConditionalFormatRuleInfo
     public bool? FontItalic { get; set; }
 
     /// <summary>
-    /// Border style name, when set (applied to edge borders).
+    /// Border style name, when set. Sourced from the left edge border
+    /// (xlEdgeLeft), which is read as representative of the rule's border.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? BorderStyle { get; set; }
 
     /// <summary>
-    /// Border color as #RRGGBB, when set.
+    /// Border color as #RRGGBB, when set. Sourced from the left edge border
+    /// (xlEdgeLeft), matching <see cref="BorderStyle"/>.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? BorderColor { get; set; }
