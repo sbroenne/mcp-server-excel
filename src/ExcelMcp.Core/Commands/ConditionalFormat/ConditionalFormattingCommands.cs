@@ -288,11 +288,11 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 try
                 {
                     interior = fc.Interior;
-                    int colorIndex = interior.ColorIndex;
+                    int colorIndex = Convert.ToInt32(interior.ColorIndex, System.Globalization.CultureInfo.InvariantCulture);
                     if (colorIndex != -4142) // xlColorIndexNone
                     {
-                        rule.InteriorColor = FormattingHelpers.ColorToHex((int)interior.Color);
-                        try { rule.InteriorPattern = (int)interior.Pattern; }
+                        rule.InteriorColor = FormattingHelpers.ColorToHex(Convert.ToInt32(interior.Color, System.Globalization.CultureInfo.InvariantCulture));
+                        try { rule.InteriorPattern = Convert.ToInt32(interior.Pattern, System.Globalization.CultureInfo.InvariantCulture); }
                         catch (Exception ex) when (IsComOrBinderException(ex)) { }
                     }
                 }
@@ -302,10 +302,10 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 try
                 {
                     font = fc.Font;
-                    int fontColorIndex = font.ColorIndex;
+                    int fontColorIndex = Convert.ToInt32(font.ColorIndex, System.Globalization.CultureInfo.InvariantCulture);
                     if (fontColorIndex != -4105 && fontColorIndex != -4142) // not Automatic/None
                     {
-                        try { rule.FontColor = FormattingHelpers.ColorToHex((int)font.Color); }
+                        try { rule.FontColor = FormattingHelpers.ColorToHex(Convert.ToInt32(font.Color, System.Globalization.CultureInfo.InvariantCulture)); }
                         catch (Exception ex) when (IsComOrBinderException(ex)) { }
                     }
                     rule.FontBold = ReadRuleBool(font, "Bold");
@@ -318,11 +318,11 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 {
                     borders = fc.Borders;
                     edgeBorder = borders.Item(7); // xlEdgeLeft
-                    int lineStyle = edgeBorder.LineStyle;
+                    int lineStyle = Convert.ToInt32(edgeBorder.LineStyle, System.Globalization.CultureInfo.InvariantCulture);
                     if (lineStyle != -4142) // xlLineStyleNone
                     {
                         rule.BorderStyle = BorderStyleToString(lineStyle) ?? lineStyle.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                        try { rule.BorderColor = FormattingHelpers.ColorToHex((int)edgeBorder.Color); }
+                        try { rule.BorderColor = FormattingHelpers.ColorToHex(Convert.ToInt32(edgeBorder.Color, System.Globalization.CultureInfo.InvariantCulture)); }
                         catch (Exception ex) when (IsComOrBinderException(ex)) { }
                     }
                 }
@@ -412,7 +412,8 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
 
     private static bool IsComOrBinderException(Exception ex) =>
         ex is Microsoft.CSharp.RuntimeBinder.RuntimeBinderException
-        or System.Runtime.InteropServices.COMException;
+        or System.Runtime.InteropServices.COMException
+        or System.InvalidCastException;
 
     private static int ParseConditionalFormattingType(string type)
     {

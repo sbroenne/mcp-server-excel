@@ -97,9 +97,10 @@ public class ConditionalFormattingCommandsTests : IClassFixture<TempDirectoryFix
 
         Assert.True(result.Success);
         Assert.Equal(2, result.Rules.Count);
-        // Priority values, when present, should be ascending in collection order.
+        // cellValue rules always carry a priority, so every rule must expose one.
+        Assert.All(result.Rules, r => Assert.True(r.Priority.HasValue));
+        // Priorities should be in ascending collection order.
         var priorities = result.Rules
-            .Where(r => r.Priority.HasValue)
             .Select(r => r.Priority!.Value)
             .ToList();
         var sorted = priorities.OrderBy(p => p).ToList();
