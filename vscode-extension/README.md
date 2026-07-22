@@ -19,7 +19,7 @@ Other tools (openpyxl-based MCP servers and Agent Skills, including Anthropic's 
 
 ## Key features
 
-The Excel MCP Server (excel-mcp) provides **26 specialized tools with 232 operations** for comprehensive Excel automation:
+The Excel MCP Server (excel-mcp) provides **26 specialized tools with 234 operations** for comprehensive Excel automation:
 
 - 🔄 **Power Query & M code** - Create, edit and optimize M code. Import from files, databases and APIs. Refresh queries and manage load destinations.
 - 🧮 **Power Pivot & DAX** - Build Data Models, create DAX measures and manage table relationships. Full Power Pivot automation.
@@ -31,7 +31,7 @@ The Excel MCP Server (excel-mcp) provides **26 specialized tools with 232 operat
 - 🐍 **Python in Excel** - Write and run `=PY()` formulas that execute in Excel's cloud Python engine — process worksheet data with pandas, NumPy and more, from your AI assistant.
 - 🧪 **LLM-tested quality** - Tool behavior validated with real LLM workflows using [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering), so AI assistants reliably understand and use every operation.
 
-📚 **[See all 26 tools and 232 operations →](https://excelmcpserver.dev/features/)**
+📚 **[See all 26 tools and 234 operations →](https://excelmcpserver.dev/features/)**
 
 ### Agent Skills (Bundled)
 

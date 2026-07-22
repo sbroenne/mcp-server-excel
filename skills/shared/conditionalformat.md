@@ -36,6 +36,19 @@
 |--------|-------------|
 | `add-rule` | Add conditional formatting rule to range |
 | `clear-rules` | Remove all conditional formatting from range |
+| `list-rules` | Read existing rules for a range (type, operator, formulas, applies-to, priority, formatting) |
+| `list-worksheet-rules` | Read all rules across an entire worksheet, each with its applies-to range |
+
+**Reading rules (`list-rules` / `list-worksheet-rules`)**:
+
+- Rules are returned in priority order.
+- Colors are returned as `#RRGGBB` hex strings, matching the `add-rule` input format.
+- Formatting fields (interiorColor, fontColor, fontBold/Italic, borderStyle/Color) are only
+  present when the rule actually sets them.
+- Rule types that don't use an operator or basic formatting (e.g. colorScale, dataBar, iconSet)
+  return their `type` with null formatting fields.
+- Numeric `cell-value` formulas are returned in Excel's normalized form (e.g. `100` reads back
+  as `=100`).
 
 **Formula Notes**:
 
@@ -95,6 +108,12 @@ excelcli conditionalformat add-rule --session <id> --sheet-name "Data" --range-a
 
 # Clear all rules from range
 excelcli conditionalformat clear-rules --session <id> --sheet-name "Data" --range-address "A1:E100"
+
+# List rules for a range
+excelcli conditionalformat list-rules --session <id> --sheet-name "Data" --range-address "A1:E100"
+
+# List all rules on a worksheet
+excelcli conditionalformat list-worksheet-rules --session <id> --sheet-name "Data"
 ```
 
 **Common Mistakes**:

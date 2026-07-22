@@ -157,7 +157,262 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         });
     }
 
+    /// <inheritdoc />
+    public ConditionalFormatListResult ListRules(
+        IExcelBatch batch,
+        string sheetName,
+        string rangeAddress)
+    {
+        var result = new ConditionalFormatListResult
+        {
+            FilePath = batch.WorkbookPath,
+            SheetName = sheetName,
+            RangeAddress = rangeAddress
+        };
+
+        return batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            dynamic? range = null;
+            dynamic? formatConditions = null;
+
+            try
+            {
+                sheet = string.IsNullOrEmpty(sheetName)
+                    ? ctx.Book.ActiveSheet
+                    : ctx.Book.Worksheets[sheetName];
+
+                range = sheet.Range[rangeAddress];
+                formatConditions = range.FormatConditions;
+
+                result.SheetName = sheet.Name;
+                result.Rules = ReadFormatConditions(formatConditions);
+                result.Success = true;
+
+                return result;
+            }
+            finally
+            {
+                ComUtilities.Release(ref formatConditions!);
+                ComUtilities.Release(ref range!);
+                ComUtilities.Release(ref sheet!);
+            }
+        });
+    }
+
+    /// <inheritdoc />
+    public ConditionalFormatListResult ListWorksheetRules(
+        IExcelBatch batch,
+        string sheetName)
+    {
+        var result = new ConditionalFormatListResult
+        {
+            FilePath = batch.WorkbookPath,
+            SheetName = sheetName,
+            RangeAddress = null
+        };
+
+        return batch.Execute((ctx, ct) =>
+        {
+            dynamic? sheet = null;
+            dynamic? cells = null;
+            dynamic? formatConditions = null;
+
+            try
+            {
+                sheet = string.IsNullOrEmpty(sheetName)
+                    ? ctx.Book.ActiveSheet
+                    : ctx.Book.Worksheets[sheetName];
+
+                cells = sheet.Cells;
+                formatConditions = cells.FormatConditions;
+
+                result.SheetName = sheet.Name;
+                result.Rules = ReadFormatConditions(formatConditions);
+                result.Success = true;
+
+                return result;
+            }
+            finally
+            {
+                ComUtilities.Release(ref formatConditions!);
+                ComUtilities.Release(ref cells!);
+                ComUtilities.Release(ref sheet!);
+            }
+        });
+    }
+
     // === HELPER METHODS ===
+
+    /// <summary>
+    /// Reads a FormatConditions collection into a list of rule descriptors.
+    /// Each optional COM property read is guarded so unsupported rule types degrade gracefully.
+    /// </summary>
+    private static List<ConditionalFormatRuleInfo> ReadFormatConditions(dynamic formatConditions)
+    {
+        var rules = new List<ConditionalFormatRuleInfo>();
+
+        int count = formatConditions.Count;
+        for (int i = 1; i <= count; i++)
+        {
+            dynamic? fc = null;
+            dynamic? appliesTo = null;
+            dynamic? interior = null;
+            dynamic? font = null;
+            dynamic? borders = null;
+            dynamic? edgeBorder = null;
+
+            try
+            {
+                fc = formatConditions.Item(i);
+
+                var rule = new ConditionalFormatRuleInfo
+                {
+                    Type = ReadRuleType(fc)
+                };
+
+                rule.Operator = ReadRuleOperator(fc);
+                rule.Formula1 = ReadRuleString(fc, "Formula1");
+                rule.Formula2 = ReadRuleString(fc, "Formula2");
+                rule.Priority = ReadRuleInt(fc, "Priority");
+                rule.StopIfTrue = ReadRuleBool(fc, "StopIfTrue");
+
+                try
+                {
+                    appliesTo = fc.AppliesTo;
+                    rule.AppliesTo = appliesTo?.Address;
+                }
+                catch (Exception ex) when (IsComOrBinderException(ex)) { }
+
+                // Interior (fill)
+                try
+                {
+                    interior = fc.Interior;
+                    int colorIndex = interior.ColorIndex;
+                    if (colorIndex != -4142) // xlColorIndexNone
+                    {
+                        rule.InteriorColor = FormattingHelpers.ColorToHex((int)interior.Color);
+                        try { rule.InteriorPattern = (int)interior.Pattern; }
+                        catch (Exception ex) when (IsComOrBinderException(ex)) { }
+                    }
+                }
+                catch (Exception ex) when (IsComOrBinderException(ex)) { }
+
+                // Font
+                try
+                {
+                    font = fc.Font;
+                    int fontColorIndex = font.ColorIndex;
+                    if (fontColorIndex != -4105 && fontColorIndex != -4142) // not Automatic/None
+                    {
+                        try { rule.FontColor = FormattingHelpers.ColorToHex((int)font.Color); }
+                        catch (Exception ex) when (IsComOrBinderException(ex)) { }
+                    }
+                    rule.FontBold = ReadRuleBool(font, "Bold");
+                    rule.FontItalic = ReadRuleBool(font, "Italic");
+                }
+                catch (Exception ex) when (IsComOrBinderException(ex)) { }
+
+                // Borders (read the left edge border as representative)
+                try
+                {
+                    borders = fc.Borders;
+                    edgeBorder = borders.Item(7); // xlEdgeLeft
+                    int lineStyle = edgeBorder.LineStyle;
+                    if (lineStyle != -4142) // xlLineStyleNone
+                    {
+                        rule.BorderStyle = BorderStyleToString(lineStyle) ?? lineStyle.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        try { rule.BorderColor = FormattingHelpers.ColorToHex((int)edgeBorder.Color); }
+                        catch (Exception ex) when (IsComOrBinderException(ex)) { }
+                    }
+                }
+                catch (Exception ex) when (IsComOrBinderException(ex)) { }
+
+                rules.Add(rule);
+            }
+            finally
+            {
+                ComUtilities.Release(ref edgeBorder!);
+                ComUtilities.Release(ref borders!);
+                ComUtilities.Release(ref font!);
+                ComUtilities.Release(ref interior!);
+                ComUtilities.Release(ref appliesTo!);
+                ComUtilities.Release(ref fc!);
+            }
+        }
+
+        return rules;
+    }
+
+    private static string ReadRuleType(dynamic fc)
+    {
+        try { return ConditionalFormattingTypeToString((int)fc.Type); }
+        catch (Exception ex) when (IsComOrBinderException(ex)) { return "unknown"; }
+    }
+
+    private static string? ReadRuleOperator(dynamic fc)
+    {
+        try { return ConditionalFormattingOperatorToString((int)fc.Operator); }
+        catch (Exception ex) when (IsComOrBinderException(ex)) { return null; }
+    }
+
+    private static string? ReadRuleString(dynamic fc, string property)
+    {
+        try
+        {
+            string? value = property switch
+            {
+                "Formula1" => fc.Formula1,
+                "Formula2" => fc.Formula2,
+                _ => null
+            };
+            return string.IsNullOrEmpty(value) ? null : value;
+        }
+        catch (Exception ex) when (IsComOrBinderException(ex))
+        {
+            return null;
+        }
+    }
+
+    private static int? ReadRuleInt(dynamic fc, string property)
+    {
+        try
+        {
+            var value = property switch
+            {
+                "Priority" => (object)fc.Priority,
+                _ => null
+            };
+            return value == null ? null : (int?)Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture);
+        }
+        catch (Exception ex) when (IsComOrBinderException(ex))
+        {
+            return null;
+        }
+    }
+
+    private static bool? ReadRuleBool(dynamic obj, string property)
+    {
+        try
+        {
+            var value = property switch
+            {
+                "StopIfTrue" => (object?)obj.StopIfTrue,
+                "Bold" => obj.Bold,
+                "Italic" => obj.Italic,
+                _ => null
+            };
+            return value == null ? null : (bool?)Convert.ToBoolean(value, System.Globalization.CultureInfo.InvariantCulture);
+        }
+        catch (Exception ex) when (IsComOrBinderException(ex))
+        {
+            return null;
+        }
+    }
+
+    private static bool IsComOrBinderException(Exception ex) =>
+        ex is Microsoft.CSharp.RuntimeBinder.RuntimeBinderException
+        or System.Runtime.InteropServices.COMException;
 
     private static int ParseConditionalFormattingType(string type)
     {
@@ -233,6 +488,59 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
             "gray75" => 10, // xlPatternGray75
             "gray25" => 11, // xlPatternGray25
             _ => throw new ArgumentException($"Unknown interior pattern: {pattern}. Use pattern constant or: none, solid, gray50, gray75, gray25")
+        };
+    }
+
+    // === REVERSE MAPPINGS (int -> string) for reading existing rules ===
+
+    private static string ConditionalFormattingTypeToString(int type)
+    {
+        return type switch
+        {
+            1 => "cellValue", // xlCellValue
+            2 => "expression", // xlExpression
+            3 => "colorScale", // xlColorScale
+            4 => "dataBar", // xlDatabar
+            5 => "top10", // xlTop10
+            6 => "iconSet", // xlIconSet
+            8 => "uniqueValues", // xlUniqueValues
+            10 => "blanksCondition", // xlBlanksCondition
+            11 => "timePeriod", // xlTimePeriod
+            12 => "aboveAverage", // xlAboveAverageCondition
+            _ => $"unknown({type})"
+        };
+    }
+
+    private static string? ConditionalFormattingOperatorToString(int operatorType)
+    {
+        return operatorType switch
+        {
+            0 => null, // xlNoOperator (rule type does not use an operator)
+            1 => "between", // xlBetween
+            2 => "notBetween", // xlNotBetween
+            3 => "equal", // xlEqual
+            4 => "notEqual", // xlNotEqual
+            5 => "greater", // xlGreater
+            6 => "less", // xlLess
+            7 => "greaterEqual", // xlGreaterEqual
+            8 => "lessEqual", // xlLessEqual
+            _ => null
+        };
+    }
+
+    private static string? BorderStyleToString(int lineStyle)
+    {
+        return lineStyle switch
+        {
+            -4142 => "none", // xlLineStyleNone
+            1 => "continuous", // xlContinuous
+            -4115 => "dash", // xlDash
+            4 => "dashDot", // xlDashDot
+            5 => "dashDotDot", // xlDashDotDot
+            -4118 => "dot", // xlDot
+            -4119 => "double", // xlDouble
+            13 => "slantDashDot", // xlSlantDashDot
+            _ => null
         };
     }
 }

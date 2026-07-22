@@ -1,6 +1,6 @@
 # ExcelMcp - Complete Feature Reference
 
-**26 specialized tools with 232 operations for comprehensive Excel automation**
+**26 specialized tools with 234 operations for comprehensive Excel automation**
 
 ---
 
@@ -439,13 +439,15 @@ Add interactive slicers to filter PivotTables and Excel Tables visually.
 
 ---
 
-## 🌈 Conditional Formatting (2 operations)
+## 🌈 Conditional Formatting (4 operations)
 
 Apply rule-based formatting that highlights cells based on their values.
 
 **Operations:**
 - **Add Rule:** Create a conditional formatting rule — cell value comparison (>, <, =, etc.), expression-based formula (custom DAX/Excel formula), or color scale/data bar/icon set
 - **Clear Rules:** Remove formatting from ranges
+- **List Rules:** Read existing conditional formatting rules for a range — returns rule type, operator, formulas, applies-to range, priority, and formatting (interior/font/borders) with colors as #RRGGBB hex
+- **List Worksheet Rules:** Read all conditional formatting rules across an entire worksheet, each with its applies-to range, in priority order
 
 ---
 
