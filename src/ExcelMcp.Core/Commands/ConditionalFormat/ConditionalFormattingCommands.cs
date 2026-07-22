@@ -346,13 +346,13 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
 
     private static string ReadRuleType(dynamic fc)
     {
-        try { return ConditionalFormattingTypeToString((int)fc.Type); }
+        try { return ConditionalFormattingTypeToString(Convert.ToInt32(fc.Type, System.Globalization.CultureInfo.InvariantCulture)); }
         catch (Exception ex) when (IsComOrBinderException(ex)) { return "unknown"; }
     }
 
     private static string? ReadRuleOperator(dynamic fc)
     {
-        try { return ConditionalFormattingOperatorToString((int)fc.Operator); }
+        try { return ConditionalFormattingOperatorToString(Convert.ToInt32(fc.Operator, System.Globalization.CultureInfo.InvariantCulture)); }
         catch (Exception ex) when (IsComOrBinderException(ex)) { return null; }
     }
 
