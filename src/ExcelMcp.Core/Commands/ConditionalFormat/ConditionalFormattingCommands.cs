@@ -289,7 +289,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 {
                     interior = fc.Interior;
                     int colorIndex = Convert.ToInt32(interior.ColorIndex, System.Globalization.CultureInfo.InvariantCulture);
-                    if (colorIndex != -4142) // xlColorIndexNone
+                    if (colorIndex != -4142 && colorIndex != -4105) // not None/Automatic
                     {
                         rule.InteriorColor = FormattingHelpers.ColorToHex(Convert.ToInt32(interior.Color, System.Globalization.CultureInfo.InvariantCulture));
                         try { rule.InteriorPattern = Convert.ToInt32(interior.Pattern, System.Globalization.CultureInfo.InvariantCulture); }
