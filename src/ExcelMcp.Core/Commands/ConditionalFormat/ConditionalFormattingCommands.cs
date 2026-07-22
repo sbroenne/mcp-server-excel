@@ -313,17 +313,25 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 }
                 catch (Exception ex) when (IsComOrBinderException(ex)) { }
 
-                // Borders (read the left edge border as representative)
+                // Borders: scan all four edges and use the first that has a
+                // style (rules typically apply borders uniformly, but external
+                // rules may set only some edges).
                 try
                 {
                     borders = fc.Borders;
-                    edgeBorder = borders.Item(7); // xlEdgeLeft
-                    int lineStyle = Convert.ToInt32(edgeBorder.LineStyle, System.Globalization.CultureInfo.InvariantCulture);
-                    if (lineStyle != -4142) // xlLineStyleNone
+                    foreach (int edgeIndex in new[] { 7, 8, 9, 10 }) // left, top, bottom, right
                     {
-                        rule.BorderStyle = BorderStyleToString(lineStyle) ?? lineStyle.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                        try { rule.BorderColor = FormattingHelpers.ColorToHex(Convert.ToInt32(edgeBorder.Color, System.Globalization.CultureInfo.InvariantCulture)); }
-                        catch (Exception ex) when (IsComOrBinderException(ex)) { }
+                        edgeBorder = borders.Item(edgeIndex);
+                        int lineStyle = Convert.ToInt32(edgeBorder.LineStyle, System.Globalization.CultureInfo.InvariantCulture);
+                        if (lineStyle != -4142) // xlLineStyleNone
+                        {
+                            rule.BorderStyle = BorderStyleToString(lineStyle) ?? lineStyle.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                            try { rule.BorderColor = FormattingHelpers.ColorToHex(Convert.ToInt32(edgeBorder.Color, System.Globalization.CultureInfo.InvariantCulture)); }
+                            catch (Exception ex) when (IsComOrBinderException(ex)) { }
+                            ComUtilities.Release(ref edgeBorder!);
+                            break;
+                        }
+                        ComUtilities.Release(ref edgeBorder!);
                     }
                 }
                 catch (Exception ex) when (IsComOrBinderException(ex)) { }
