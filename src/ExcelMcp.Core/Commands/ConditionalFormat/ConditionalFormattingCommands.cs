@@ -252,7 +252,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
     {
         var rules = new List<ConditionalFormatRuleInfo>();
 
-        int count = formatConditions.Count;
+        int count = Convert.ToInt32(formatConditions.Count, System.Globalization.CultureInfo.InvariantCulture);
         for (int i = 1; i <= count; i++)
         {
             dynamic? fc = null;
