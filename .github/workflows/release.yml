@@ -834,11 +834,18 @@ jobs:
           exit 1
         fi
 
+        # Rebase onto the latest main before publishing the side branch --
+        # the release build can run for a long time, so main may have
+        # advanced since checkout, which would otherwise make the PR
+        # unmergeable.
+        REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+        git fetch "$REMOTE" main
+        git rebase FETCH_HEAD
+
         # Push the commit to a side branch (never straight to main -- see
         # note above), open a PR, then merge it with admin bypass so it
         # doesn't get stuck on required status checks (the commit carries
         # [skip ci], so no checks would ever run against it).
-        REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
         git push "$REMOTE" "HEAD:refs/heads/${BRANCH}" --force
 
         # Idempotent: if a PR for this branch already exists (e.g. a rerun
