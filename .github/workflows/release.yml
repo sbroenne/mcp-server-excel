@@ -714,6 +714,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v5
+      with:
+        # Full history so the changelog commit-back can rebase onto main if it
+        # advanced during the release build (a shallow clone breaks rebase).
+        fetch-depth: 0
 
     - name: Set Version
       run: |
@@ -810,6 +814,11 @@ jobs:
         fi
 
         git commit -m "chore: update CHANGELOG.md for v${VERSION} release [skip ci]"
+
+        if [ -z "${GH_TOKEN}" ]; then
+          echo "::error::RELEASE_PAT secret is not configured. Create an admin PAT with 'contents: write' and add it as the repo secret RELEASE_PAT so the changelog can be pushed to main."
+          exit 1
+        fi
 
         # Push directly to main using the admin PAT. Retry with a rebase in
         # case main advanced during the (long-running) release build.
