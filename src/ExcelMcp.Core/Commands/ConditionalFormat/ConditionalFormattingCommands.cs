@@ -86,22 +86,27 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 if (!string.IsNullOrEmpty(borderStyle) || !string.IsNullOrEmpty(borderColor))
                 {
                     borders = formatCondition.Borders;
+                    // NOTE: FormatCondition.Borders is a 4-item collection indexed 1-4
+                    // (left/top/bottom/right), unlike Range.Borders which uses the
+                    // xlEdgeLeft(7)/xlEdgeTop(8)/xlEdgeBottom(9)/xlEdgeRight(10) constants.
+                    // Item(7-10) on FormatCondition.Borders returns an unbound placeholder
+                    // that can be read but throws COMException when its properties are set.
                     if (!string.IsNullOrEmpty(borderStyle))
                     {
                         var xlBorderStyle = FormattingHelpers.ParseBorderStyle(borderStyle);
                         // Apply to all four borders
-                        borders.Item(7).LineStyle = xlBorderStyle;  // xlEdgeLeft
-                        borders.Item(8).LineStyle = xlBorderStyle;  // xlEdgeTop
-                        borders.Item(9).LineStyle = xlBorderStyle;  // xlEdgeBottom
-                        borders.Item(10).LineStyle = xlBorderStyle; // xlEdgeRight
+                        borders.Item(1).LineStyle = xlBorderStyle; // left
+                        borders.Item(2).LineStyle = xlBorderStyle; // top
+                        borders.Item(3).LineStyle = xlBorderStyle; // bottom
+                        borders.Item(4).LineStyle = xlBorderStyle; // right
                     }
                     if (!string.IsNullOrEmpty(borderColor))
                     {
                         var color = FormattingHelpers.ParseColor(borderColor);
-                        borders.Item(7).Color = color;  // xlEdgeLeft
-                        borders.Item(8).Color = color;  // xlEdgeTop
-                        borders.Item(9).Color = color;  // xlEdgeBottom
-                        borders.Item(10).Color = color; // xlEdgeRight
+                        borders.Item(1).Color = color; // left
+                        borders.Item(2).Color = color; // top
+                        borders.Item(3).Color = color; // bottom
+                        borders.Item(4).Color = color; // right
                     }
                 }
 
@@ -319,7 +324,9 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 try
                 {
                     borders = fc.Borders;
-                    foreach (int edgeIndex in new[] { 7, 8, 9, 10 }) // left, top, bottom, right
+                    // NOTE: FormatCondition.Borders is a 4-item collection indexed 1-4
+                    // (left/top/bottom/right) - see write-side note in AddRule above.
+                    foreach (int edgeIndex in new[] { 1, 2, 3, 4 }) // left, top, bottom, right
                     {
                         edgeBorder = borders.Item(edgeIndex);
                         int lineStyle = Convert.ToInt32(edgeBorder.LineStyle, System.Globalization.CultureInfo.InvariantCulture);
