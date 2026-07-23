@@ -796,13 +796,24 @@ jobs:
     #
     # RELEASE_PAT is an admin Personal Access Token owned by the repo owner,
     # who IS a ruleset bypass actor (Repository admin role). It can therefore
-    # push this bookkeeping commit straight to main, bypassing branch
-    # protection -- no PR, nothing to get stuck.
+    # merge this bookkeeping PR straight into main, bypassing branch
+    # protection -- no stuck PR waiting on required checks.
+    #
+    # IMPORTANT: this pushes the commit to a side branch and merges it via
+    # `gh pr merge --admin`, rather than `git push HEAD:main` directly.
+    # A real release (2026-07-23, v1.10.1) proved that GitHub can reject a
+    # raw `git push` to a ruleset-protected branch from *inside* a GitHub
+    # Actions runner even when the same PAT, used interactively from a
+    # developer machine minutes earlier, successfully bypassed the identical
+    # ruleset ("Bypassed rule violations..."). The admin-merge API path does
+    # not have this Actions-runner restriction, and was verified working for
+    # the same PAT/ruleset combination as a manual recovery for that release.
     - name: Commit Changelog Update
       env:
         GH_TOKEN: ${{ secrets.RELEASE_PAT }}
       run: |
         VERSION=${{ env.VERSION }}
+        BRANCH="chore/changelog-v${VERSION}"
 
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -816,23 +827,31 @@ jobs:
         git commit -m "chore: update CHANGELOG.md for v${VERSION} release [skip ci]"
 
         if [ -z "${GH_TOKEN}" ]; then
-          echo "::error::RELEASE_PAT secret is not configured. Create an admin PAT with 'contents: write' and add it as the repo secret RELEASE_PAT so the changelog can be pushed to main."
+          echo "::error::RELEASE_PAT secret is not configured. Create an admin PAT with 'contents: write' and 'pull-requests: write' and add it as the repo secret RELEASE_PAT so the changelog can be committed to main."
           exit 1
         fi
 
-        # Push directly to main using the admin PAT. Retry with a rebase in
-        # case main advanced during the (long-running) release build.
+        # Push the commit to a side branch (never straight to main -- see
+        # note above), open a PR, then merge it with admin bypass so it
+        # doesn't get stuck on required status checks (the commit carries
+        # [skip ci], so no checks would ever run against it).
         REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
-        for attempt in 1 2 3; do
-          if git push "$REMOTE" HEAD:main; then
-            echo "Pushed changelog update to main (attempt $attempt)."
-            exit 0
-          fi
-          echo "Push rejected (attempt $attempt); rebasing onto latest main and retrying..."
-          git fetch "$REMOTE" main
-          git rebase FETCH_HEAD || { echo "Rebase failed -- aborting."; git rebase --abort || true; exit 1; }
-        done
-        echo "Failed to push changelog update to main after 3 attempts."
+        git push "$REMOTE" "HEAD:refs/heads/${BRANCH}" --force
+
+        gh pr create \
+          --repo "${{ github.repository }}" \
+          --base main \
+          --head "$BRANCH" \
+          --title "chore: update CHANGELOG.md for v${VERSION} release" \
+          --body "Automated changelog commit-back for the v${VERSION} release. No code changes." \
+          --label skip-changelog
+
+        if gh pr merge "$BRANCH" --repo "${{ github.repository }}" --squash --admin --delete-branch; then
+          echo "Merged changelog update for v${VERSION} into main."
+          exit 0
+        fi
+
+        echo "::error::Failed to merge changelog PR for v${VERSION} into main. Branch '${BRANCH}' and its PR are left open for manual recovery."
         exit 1
       # Intentionally NOT continue-on-error: a silently swallowed failure here
       # is exactly what caused several past releases to be missing their
