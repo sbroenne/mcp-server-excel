@@ -812,8 +812,11 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.RELEASE_PAT }}
       run: |
+        set -euo pipefail
+
         VERSION=${{ env.VERSION }}
         BRANCH="chore/changelog-v${VERSION}"
+        REPO="${{ github.repository }}"
 
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -835,24 +838,25 @@ jobs:
         # note above), open a PR, then merge it with admin bypass so it
         # doesn't get stuck on required status checks (the commit carries
         # [skip ci], so no checks would ever run against it).
-        REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+        REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
         git push "$REMOTE" "HEAD:refs/heads/${BRANCH}" --force
 
-        gh pr create \
-          --repo "${{ github.repository }}" \
-          --base main \
-          --head "$BRANCH" \
-          --title "chore: update CHANGELOG.md for v${VERSION} release" \
-          --body "Automated changelog commit-back for the v${VERSION} release. No code changes." \
-          --label skip-changelog
-
-        if gh pr merge "$BRANCH" --repo "${{ github.repository }}" --squash --admin --delete-branch; then
-          echo "Merged changelog update for v${VERSION} into main."
-          exit 0
+        # Idempotent: if a PR for this branch already exists (e.g. a rerun
+        # after a transient failure), reuse it instead of failing on create.
+        PR_URL=$(gh pr view "$BRANCH" --repo "$REPO" --json url --jq '.url' 2>/dev/null || true)
+        if [ -z "$PR_URL" ]; then
+          PR_URL=$(gh pr create \
+            --repo "$REPO" \
+            --base main \
+            --head "$BRANCH" \
+            --title "chore: update CHANGELOG.md for v${VERSION} release" \
+            --body "Automated changelog commit-back for the v${VERSION} release. No code changes." \
+            --label skip-changelog)
         fi
 
-        echo "::error::Failed to merge changelog PR for v${VERSION} into main. Branch '${BRANCH}' and its PR are left open for manual recovery."
-        exit 1
+        echo "Changelog PR: $PR_URL"
+        gh pr merge "$PR_URL" --repo "$REPO" --squash --admin --delete-branch
+        echo "Merged changelog update for v${VERSION} into main."
       # Intentionally NOT continue-on-error: a silently swallowed failure here
       # is exactly what caused several past releases to be missing their
       # changelog commit-back. Let it fail loudly so it gets noticed and fixed.
