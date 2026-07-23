@@ -714,6 +714,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v5
+      with:
+        # Full history so the changelog commit-back can rebase onto main if it
+        # advanced during the release build (a shallow clone breaks rebase).
+        fetch-depth: 0
 
     - name: Set Version
       run: |
@@ -776,41 +780,60 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # Create a PR to commit the CHANGELOG.md/package.json changes produced by
-    # Build-Changelog.ps1 above (and the consumed .changeset/*.md deletions),
-    # since branch protection prevents direct push.
+    # Commit the CHANGELOG.md / package.json changes produced by
+    # Build-Changelog.ps1 above (and the consumed .changeset/*.md deletions)
+    # directly back to main.
+    #
+    # This repo is user-owned, so the github-actions bot CANNOT be granted a
+    # branch-protection (ruleset) bypass -- GitHub only allows Integration
+    # bypass actors in organizations. As a result the default GITHUB_TOKEN can
+    # neither push to protected main nor merge a PR that has required status
+    # checks. Previous releases worked around this with a changelog PR +
+    # auto-merge, but that PR could never satisfy the required checks
+    # (bot-authored PRs don't trigger workflows, and the commit carries
+    # [skip ci]), so it piled up open forever and left main without its
+    # changelog entry.
+    #
+    # RELEASE_PAT is an admin Personal Access Token owned by the repo owner,
+    # who IS a ruleset bypass actor (Repository admin role). It can therefore
+    # push this bookkeeping commit straight to main, bypassing branch
+    # protection -- no PR, nothing to get stuck.
     - name: Commit Changelog Update
+      env:
+        GH_TOKEN: ${{ secrets.RELEASE_PAT }}
       run: |
         VERSION=${{ env.VERSION }}
-        BRANCH="chore/changelog-v${VERSION}"
 
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
-        git checkout -b "$BRANCH"
         git add CHANGELOG.md package.json .changeset
+        if git diff --cached --quiet; then
+          echo "No changelog changes to commit -- skipping."
+          exit 0
+        fi
+
         git commit -m "chore: update CHANGELOG.md for v${VERSION} release [skip ci]"
-        git push origin "$BRANCH"
 
-        gh pr create \
-          --base main \
-          --head "$BRANCH" \
-          --title "chore: update CHANGELOG.md for v${VERSION} release" \
-          --body "Automated post-release changelog update: compiles pending .changeset/*.md fragments into a new \`## [$VERSION]\` entry in CHANGELOG.md via \`scripts/Build-Changelog.ps1\`." \
-          --label "documentation"
+        if [ -z "${GH_TOKEN}" ]; then
+          echo "::error::RELEASE_PAT secret is not configured. Create an admin PAT with 'contents: write' and add it as the repo secret RELEASE_PAT so the changelog can be pushed to main."
+          exit 1
+        fi
 
-        # Merge the changelog PR automatically. Previously this PR was only
-        # *created*, never merged, so it silently piled up open until a
-        # maintainer happened to merge it by hand -- leaving several past
-        # releases with a stale/missing CHANGELOG on main. Prefer queued
-        # auto-merge (requires "Allow auto-merge" in repo settings); fall back
-        # to an immediate merge when auto-merge is disabled. The commit above
-        # uses [skip ci] so there are no required checks blocking the merge.
-        gh pr merge "$BRANCH" --squash --delete-branch --auto \
-          || gh pr merge "$BRANCH" --squash --delete-branch
+        # Push directly to main using the admin PAT. Retry with a rebase in
+        # case main advanced during the (long-running) release build.
+        REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+        for attempt in 1 2 3; do
+          if git push "$REMOTE" HEAD:main; then
+            echo "Pushed changelog update to main (attempt $attempt)."
+            exit 0
+          fi
+          echo "Push rejected (attempt $attempt); rebasing onto latest main and retrying..."
+          git fetch "$REMOTE" main
+          git rebase FETCH_HEAD || { echo "Rebase failed -- aborting."; git rebase --abort || true; exit 1; }
+        done
+        echo "Failed to push changelog update to main after 3 attempts."
+        exit 1
       # Intentionally NOT continue-on-error: a silently swallowed failure here
-      # (e.g. Actions lacking permission to create PRs) is exactly what caused
-      # several past releases to be missing their changelog commit-back PR.
-      # Let this step fail loudly so it gets noticed and fixed immediately.
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # is exactly what caused several past releases to be missing their
+      # changelog commit-back. Let it fail loudly so it gets noticed and fixed.
