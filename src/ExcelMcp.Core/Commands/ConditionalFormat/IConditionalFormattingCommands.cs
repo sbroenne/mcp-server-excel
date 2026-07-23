@@ -67,6 +67,38 @@ public interface IConditionalFormattingCommands
         IExcelBatch batch,
         [RequiredParameter, FromString("sheetName")] string sheetName,
         [RequiredParameter, FromString("rangeAddress")] string rangeAddress);
+
+    /// <summary>
+    /// Lists existing conditional formatting rules for a range.
+    /// Excel COM: Range.FormatConditions enumeration.
+    /// Returns rule type, operator, formulas, applies-to range, priority, and formatting
+    /// (interior/font/borders). Colors are returned as #RRGGBB hex strings. Rules are returned
+    /// in priority order. Rule types that do not use an operator or formatting (e.g. colorScale,
+    /// dataBar, iconSet) return only their type with null formatting fields.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Sheet name (empty for active sheet)</param>
+    /// <param name="rangeAddress">Range address to read rules from (e.g., A1:G41)</param>
+    /// <exception cref="InvalidOperationException">Sheet or range not found</exception>
+    [ServiceAction("list-rules")]
+    ConditionalFormatListResult ListRules(
+        IExcelBatch batch,
+        [RequiredParameter, FromString("sheetName")] string sheetName,
+        [RequiredParameter, FromString("rangeAddress")] string rangeAddress);
+
+    /// <summary>
+    /// Lists all conditional formatting rules on an entire worksheet.
+    /// Excel COM: Worksheet.Cells.FormatConditions enumeration.
+    /// Each rule includes its applies-to range so rules can be grouped by range. Colors are
+    /// returned as #RRGGBB hex strings and rules are returned in priority order.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Sheet name (empty for active sheet)</param>
+    /// <exception cref="InvalidOperationException">Sheet not found</exception>
+    [ServiceAction("list-worksheet-rules")]
+    ConditionalFormatListResult ListWorksheetRules(
+        IExcelBatch batch,
+        [RequiredParameter, FromString("sheetName")] string sheetName);
 }
 
 

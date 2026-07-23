@@ -31,6 +31,21 @@ internal static class FormattingHelpers
     }
 
     /// <summary>
+    /// Converts an Excel RGB integer color value to a #RRGGBB hex string.
+    /// Excel stores colors as BGR (blue is the high byte), so this reverses
+    /// <see cref="ParseColor"/>.
+    /// </summary>
+    /// <param name="excelColor">Excel RGB integer value (BGR ordering)</param>
+    /// <returns>Color in #RRGGBB format</returns>
+    public static string ColorToHex(int excelColor)
+    {
+        var r = excelColor & 0xFF;
+        var g = (excelColor >> 8) & 0xFF;
+        var b = (excelColor >> 16) & 0xFF;
+        return $"#{r:X2}{g:X2}{b:X2}";
+    }
+
+    /// <summary>
     /// Parses a border style string to Excel constant.
     /// </summary>
     /// <param name="style">Border style name</param>

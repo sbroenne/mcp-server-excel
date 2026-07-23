@@ -191,7 +191,7 @@ Pre-commit runs `scripts/pre-commit.ps1` which blocks commits if any check fails
 | 4 | MCP-Core Implementation | `check-mcp-core-implementations.ps1` | All enum actions have Core method implementations |
 | 5 | Success Flag | `check-success-flag.ps1` | Rule 0: Never `Success=true` with `ErrorMessage` |
 | 6 | Release Solution Build | `dotnet build Sbroenne.ExcelMcp.sln -c Release` | Refreshes Release binaries and generated skill outputs used by packaging |
-| 6b | Documentation Count Validation | `check-doc-counts.ps1` | All user-facing docs report the code-derived tool/operation counts (26 tools / 232 operations) |
+| 6b | Documentation Count Validation | `check-doc-counts.ps1` | All user-facing docs report the code-derived tool/operation counts (26 tools / 234 operations) |
 | 7 | CLI Workflow Test | `Test-CliWorkflow.ps1` | E2E CLI workflow smoke test |
 | 8 | MCP Smoke Test | `dotnet test --filter "...SmokeTest..."` | All MCP tools functional |
 | 9 | CLI Release Deliverables | `dotnet pack` + `dotnet publish` + ZIP | Local CLI NuGet + standalone ZIP match release shapes |
