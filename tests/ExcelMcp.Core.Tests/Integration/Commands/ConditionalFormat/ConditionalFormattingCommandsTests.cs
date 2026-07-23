@@ -139,6 +139,41 @@ public class ConditionalFormattingCommandsTests : IClassFixture<TempDirectoryFix
     }
 
     [Fact]
+    public void AddRule_WithBorderStyleAndColor_Succeeds()
+    {
+        // Regression test for #737: FormatCondition.Borders is a 4-item
+        // collection indexed 1-4, not the xlEdgeLeft(7)/Top(8)/Bottom(9)/Right(10)
+        // constants used for Range.Borders. Writing via those constants throws
+        // COMException: "Unable to set the LineStyle property of the Border class".
+        var file = _fixture.CreateTestFile();
+        using var batch = ExcelSession.BeginBatch(file);
+
+        var result = _commands.AddRule(batch, "", "A1:A10", "cellValue", "greater", "100", null,
+            borderStyle: "continuous", borderColor: "#FF0000");
+
+        Assert.True(result.Success);
+    }
+
+    [Fact]
+    public void ListRules_RuleWithBorderStyleAndColor_RoundTripsCorrectly()
+    {
+        // Regression test for #737 acceptance criterion (b): border style/color
+        // written via `add` must be correctly reported by `list-rules`.
+        var file = _fixture.CreateTestFile();
+        using var batch = ExcelSession.BeginBatch(file);
+
+        _commands.AddRule(batch, "", "A1:A10", "cellValue", "greater", "100", null,
+            borderStyle: "continuous", borderColor: "#FF0000");
+
+        var result = _commands.ListRules(batch, "", "A1:A10");
+
+        Assert.True(result.Success);
+        var rule = Assert.Single(result.Rules);
+        Assert.Equal("continuous", rule.BorderStyle);
+        Assert.Equal("#FF0000", rule.BorderColor);
+    }
+
+    [Fact]
     public void ListRules_InvalidSheet_Throws()
     {
         var file = _fixture.CreateTestFile();
