@@ -1,5 +1,7 @@
 # ExcelMcp - MCP Server for Microsoft Excel
 
+[![MCP Toplist](https://mcptoplist.com/badge/io.github.sbroenne%2Fmcp-server-excel.svg)](https://mcptoplist.com/server/io.github.sbroenne%2Fmcp-server-excel)
+
 [![VS Code Marketplace Installs](https://vsmarketplacebadges.dev/installs-short/sbroenne.excel-mcp.svg?label=VS%20Code%20Installs)](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)
 [![Downloads](https://img.shields.io/github/downloads/sbroenne/mcp-server-excel/total?label=GitHub%20Downloads)](https://github.com/sbroenne/mcp-server-excel/releases)
 
