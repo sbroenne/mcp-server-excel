@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.10.2] - 2026-07-26
+
+### Minor Changes
+
+- [#745](https://github.com/sbroenne/mcp-server-excel/pull/745) [`eabdeb3`](https://github.com/sbroenne/mcp-server-excel/commit/eabdeb352cf8d58a0667a652ddb4fb692f32c60b) Thanks [@sbroenne](https://github.com/sbroenne)! - **Conditional formatting: full support for visual rule types** (#743). `add-rule` can now create colorScale, dataBar, iconSet, top10, aboveAverage, timePeriod, uniqueValues and blanksCondition rules via discrete, LLM-friendly parameters (e.g. `colorScaleMinColor`, `dataBarDirection`, `iconSetId`, `rank`, `aboveBelow`, `datePeriod`). `list-rules` and `list-worksheet-rules` now report each visual rule's type-specific configuration — color-scale stops, data-bar settings, icon-set thresholds, top/bottom, above/below and date period — with colors as `#RRGGBB`, so visual rules can be fully inspected and round-tripped.
+
+### Patch Changes
+
+- [#742](https://github.com/sbroenne/mcp-server-excel/pull/742) [`2bffe1d`](https://github.com/sbroenne/mcp-server-excel/commit/2bffe1dceb5a952bb7267b9ec7e511a2d25b93c9) Thanks [@sbroenne](https://github.com/sbroenne)! - **Release automation: make the changelog commit-back reliable.** The post-release step that writes `CHANGELOG.md` back to `main` now opens a short-lived PR and merges it with an admin bypass, instead of pushing directly to `main`, fixing a case where the direct push was unexpectedly rejected.
+
 ## [1.10.1] - 2026-07-23
 
 ### Patch Changes
