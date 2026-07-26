@@ -7,6 +7,14 @@
 |------|-------------|------------|
 | `cell-value` | Format based on cell value comparison | operatorType + formula1 (+ formula2 for between) |
 | `expression` | Format based on formula result | formula only |
+| `color-scale` | 2- or 3-color gradient across the range | colorScaleMin/Mid/Max Type/Value/Color |
+| `data-bar` | In-cell bars proportional to value | dataBarColor, dataBarNegativeColor, dataBarDirection, dataBarShowValue, dataBarMin/Max Type/Value |
+| `icon-set` | Icons (arrows, traffic lights, etc.) per value band | iconSetId, iconSetReverse, iconSetShowIconOnly, iconThreshold1..4 Type/Value |
+| `top10` | Highlight top/bottom N (or percent) | rank, top10Percent, topBottom + formatting |
+| `above-average` | Highlight values above/below average | aboveBelow + formatting |
+| `time-period` | Highlight dates in a period | datePeriod + formatting |
+| `unique-values` | Highlight unique (or duplicate) values | formatting |
+| `blanks-condition` | Highlight blank cells | formatting |
 
 **Operators (for cell-value type)**:
 
@@ -30,6 +38,25 @@
 - `borderStyle`: Excel border style name
 - `borderColor`: Border color as `#RRGGBB` hex
 
+**Visual rule parameters** (used by the corresponding `ruleType`):
+
+- **color-scale**: `colorScaleMinType`/`colorScaleMidType`/`colorScaleMaxType`
+  (`minimum`, `maximum`, `number`, `percent`, `percentile`, `formula`), matching
+  `...Value` (when the type needs one) and `...Color` (`#RRGGBB`). Supplying any `mid*`
+  parameter creates a 3-color scale, otherwise a 2-color scale.
+- **data-bar**: `dataBarColor` (`#RRGGBB`), `dataBarNegativeColor`, `dataBarDirection`
+  (`context`, `leftToRight`, `rightToLeft`), `dataBarShowValue` (`true`/`false`),
+  `dataBarMinType`/`dataBarMaxType` (+ matching values).
+- **icon-set**: `iconSetId` (e.g. `3Arrows`, `3TrafficLights1`, `4Ratings`, `5Quarters`),
+  `iconSetReverse` (`true`/`false`), `iconSetShowIconOnly` (`true`/`false`),
+  `iconThreshold1Type..iconThreshold4Type` (+ matching `...Value`) for the editable bands.
+- **top10**: `rank` (count or percent), `top10Percent` (`true`/`false`),
+  `topBottom` (`top`/`bottom`), plus standard formatting options.
+- **above-average**: `aboveBelow` (`aboveAverage`, `belowAverage`, `aboveStdDev`,
+  `belowStdDev`, `equalAboveAverage`, `equalBelowAverage`), plus formatting options.
+- **time-period**: `datePeriod` (`today`, `yesterday`, `tomorrow`, `last7Days`,
+  `thisWeek`, `lastWeek`, `nextWeek`, `thisMonth`, `lastMonth`, `nextMonth`), plus formatting.
+
 **Actions**:
 
 | Action | Description |
@@ -45,8 +72,15 @@
 - Colors are returned as `#RRGGBB` hex strings, matching the `add-rule` input format.
 - Formatting fields (interiorColor, fontColor, fontBold/Italic, borderStyle/Color) are only
   present when the rule actually sets them.
-- Rule types that don't use an operator or basic formatting (e.g. colorScale, dataBar, iconSet)
-  return their `type` with null formatting fields.
+- Visual rule types return their type-specific configuration so they can be fully inspected
+  and round-tripped:
+  - `colorScale` → `colorScaleCriteria`: array of `{ type, value?, color }` stops.
+  - `dataBar` → `dataBar`: `{ fillColor, barColorNegative?, direction, showValue, minType, minValue?, maxType, maxValue? }`.
+  - `iconSet` → `iconSet`: `{ id, reverse, showIconOnly, criteria: [{ operator, value?, type, icon }] }`.
+  - `top10` → `top10`: `{ rank, percent, topBottom }`.
+  - `aboveAverage` → `aboveBelow`: e.g. `aboveAverage`, `belowAverage`, `aboveStdDev`.
+  - `timePeriod` → `datePeriod`: e.g. `today`, `last7Days`, `thisMonth`.
+  Each field is only present on its matching rule type.
 - Numeric `cell-value` formulas are returned in Excel's normalized form (e.g. `100` reads back
   as `=100`).
 
@@ -92,6 +126,48 @@
   "ruleType": "expression",
   "formula": "=$A1=\"Active\"",
   "interiorColor": "#90EE90"
+}
+```
+
+**3-color scale (red → yellow → green):**
+```json
+{
+  "action": "add-rule",
+  "rangeAddress": "A1:A100",
+  "ruleType": "color-scale",
+  "colorScaleMinType": "minimum",
+  "colorScaleMinColor": "#F8696B",
+  "colorScaleMidType": "percentile",
+  "colorScaleMidValue": "50",
+  "colorScaleMidColor": "#FFEB84",
+  "colorScaleMaxType": "maximum",
+  "colorScaleMaxColor": "#63BE7B"
+}
+```
+
+**Data bar with value shown:**
+```json
+{
+  "action": "add-rule",
+  "rangeAddress": "B1:B100",
+  "ruleType": "data-bar",
+  "dataBarColor": "#638EC6",
+  "dataBarDirection": "leftToRight",
+  "dataBarShowValue": true
+}
+```
+
+**3 traffic lights icon set:**
+```json
+{
+  "action": "add-rule",
+  "rangeAddress": "C1:C100",
+  "ruleType": "icon-set",
+  "iconSetId": "3TrafficLights1",
+  "iconThreshold1Type": "percent",
+  "iconThreshold1Value": "33",
+  "iconThreshold2Type": "percent",
+  "iconThreshold2Value": "67"
 }
 ```
 
