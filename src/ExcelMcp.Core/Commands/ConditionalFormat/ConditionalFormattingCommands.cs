@@ -24,105 +24,247 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         bool? fontBold = null,
         bool? fontItalic = null,
         string? borderStyle = null,
-        string? borderColor = null)
+        string? borderColor = null,
+        string? colorScaleMinType = null,
+        string? colorScaleMinValue = null,
+        string? colorScaleMinColor = null,
+        string? colorScaleMidType = null,
+        string? colorScaleMidValue = null,
+        string? colorScaleMidColor = null,
+        string? colorScaleMaxType = null,
+        string? colorScaleMaxValue = null,
+        string? colorScaleMaxColor = null,
+        string? dataBarColor = null,
+        string? dataBarNegativeColor = null,
+        string? dataBarDirection = null,
+        bool? dataBarShowValue = null,
+        string? dataBarMinType = null,
+        string? dataBarMinValue = null,
+        string? dataBarMaxType = null,
+        string? dataBarMaxValue = null,
+        string? iconSetId = null,
+        bool? iconSetReverse = null,
+        bool? iconSetShowIconOnly = null,
+        string? iconThreshold1Type = null,
+        string? iconThreshold1Value = null,
+        string? iconThreshold2Type = null,
+        string? iconThreshold2Value = null,
+        string? iconThreshold3Type = null,
+        string? iconThreshold3Value = null,
+        string? iconThreshold4Type = null,
+        string? iconThreshold4Value = null,
+        int? rank = null,
+        bool? top10Percent = null,
+        string? topBottom = null,
+        string? aboveBelow = null,
+        string? datePeriod = null)
     {
         return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
             dynamic? range = null;
             dynamic? formatConditions = null;
-            dynamic? formatCondition = null;
-            dynamic? interior = null;
-            dynamic? font = null;
-            dynamic? borders = null;
 
             try
             {
-                // Get sheet
                 sheet = string.IsNullOrEmpty(sheetName)
                     ? ctx.Book.ActiveSheet
                     : ctx.Book.Worksheets[sheetName];
 
-                // Get range
                 range = sheet.Range[rangeAddress];
-
-                // Get format conditions
                 formatConditions = range.FormatConditions;
 
-                // Parse rule type and operator
-                var xlType = ParseConditionalFormattingType(ruleType);
-                var xlOperator = ParseConditionalFormattingOperator(operatorType);
+                var normalizedType = NormalizeRuleType(ruleType);
 
-                // Add format condition
-                formatCondition = formatConditions.Add(
-                    Type: xlType,
-                    Operator: xlOperator,
-                    Formula1: formula1 ?? "",
-                    Formula2: formula2 ?? "");
-
-                // Apply Interior formatting
-                if (!string.IsNullOrEmpty(interiorColor) || !string.IsNullOrEmpty(interiorPattern))
+                switch (normalizedType)
                 {
-                    interior = formatCondition.Interior;
-                    if (!string.IsNullOrEmpty(interiorColor))
-                        interior.Color = FormattingHelpers.ParseColor(interiorColor);
-                    if (!string.IsNullOrEmpty(interiorPattern))
-                        interior.Pattern = ParseInteriorPattern(interiorPattern);
-                }
+                    case "cellvalue":
+                    case "expression":
+                        AddBasicRule(formatConditions, normalizedType, operatorType, formula1, formula2,
+                            interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+                        break;
 
-                // Apply Font formatting
-                if (!string.IsNullOrEmpty(fontColor) || fontBold.HasValue || fontItalic.HasValue)
-                {
-                    font = formatCondition.Font;
-                    if (!string.IsNullOrEmpty(fontColor))
-                        font.Color = FormattingHelpers.ParseColor(fontColor);
-                    if (fontBold.HasValue)
-                        font.Bold = fontBold.Value;
-                    if (fontItalic.HasValue)
-                        font.Italic = fontItalic.Value;
-                }
+                    case "colorscale":
+                        AddColorScaleRule(formatConditions,
+                            colorScaleMinType, colorScaleMinValue, colorScaleMinColor,
+                            colorScaleMidType, colorScaleMidValue, colorScaleMidColor,
+                            colorScaleMaxType, colorScaleMaxValue, colorScaleMaxColor);
+                        break;
 
-                // Apply Border formatting
-                if (!string.IsNullOrEmpty(borderStyle) || !string.IsNullOrEmpty(borderColor))
-                {
-                    borders = formatCondition.Borders;
-                    // NOTE: FormatCondition.Borders is a 4-item collection indexed 1-4
-                    // (left/top/bottom/right), unlike Range.Borders which uses the
-                    // xlEdgeLeft(7)/xlEdgeTop(8)/xlEdgeBottom(9)/xlEdgeRight(10) constants.
-                    // Item(7-10) on FormatCondition.Borders returns an unbound placeholder
-                    // that can be read but throws COMException when its properties are set.
-                    if (!string.IsNullOrEmpty(borderStyle))
-                    {
-                        var xlBorderStyle = FormattingHelpers.ParseBorderStyle(borderStyle);
-                        // Apply to all four borders
-                        borders.Item(1).LineStyle = xlBorderStyle; // left
-                        borders.Item(2).LineStyle = xlBorderStyle; // top
-                        borders.Item(3).LineStyle = xlBorderStyle; // bottom
-                        borders.Item(4).LineStyle = xlBorderStyle; // right
-                    }
-                    if (!string.IsNullOrEmpty(borderColor))
-                    {
-                        var color = FormattingHelpers.ParseColor(borderColor);
-                        borders.Item(1).Color = color; // left
-                        borders.Item(2).Color = color; // top
-                        borders.Item(3).Color = color; // bottom
-                        borders.Item(4).Color = color; // right
-                    }
+                    case "databar":
+                        AddDataBarRule(formatConditions,
+                            dataBarColor, dataBarNegativeColor, dataBarDirection, dataBarShowValue,
+                            dataBarMinType, dataBarMinValue, dataBarMaxType, dataBarMaxValue);
+                        break;
+
+                    case "iconset":
+                        AddIconSetRule(ctx.Book, formatConditions,
+                            iconSetId, iconSetReverse, iconSetShowIconOnly,
+                            new[]
+                            {
+                                (iconThreshold1Type, iconThreshold1Value),
+                                (iconThreshold2Type, iconThreshold2Value),
+                                (iconThreshold3Type, iconThreshold3Value),
+                                (iconThreshold4Type, iconThreshold4Value)
+                            });
+                        break;
+
+                    case "top10":
+                        AddTop10Rule(formatConditions, rank, top10Percent, topBottom,
+                            interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+                        break;
+
+                    case "aboveaverage":
+                        AddAboveAverageRule(formatConditions, aboveBelow,
+                            interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+                        break;
+
+                    case "uniquevalues":
+                        AddUniqueValuesRule(formatConditions, false,
+                            interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+                        break;
+
+                    case "timeperiod":
+                        AddTimePeriodRule(formatConditions, datePeriod,
+                            interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+                        break;
+
+                    case "blankscondition":
+                        AddSimpleRule(formatConditions, 10 /* xlBlanksCondition */,
+                            interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+                        break;
+
+                    default:
+                        throw new ArgumentException(
+                            $"Invalid conditional formatting type: '{ruleType}'. " +
+                            "Valid values: cellValue, expression, colorScale, dataBar, top10, iconSet, uniqueValues, blanksCondition, timePeriod, aboveAverage");
                 }
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Dummy return for batch.Execute
             }
             finally
             {
-                ComUtilities.Release(ref borders!);
-                ComUtilities.Release(ref font!);
-                ComUtilities.Release(ref interior!);
-                ComUtilities.Release(ref formatCondition!);
                 ComUtilities.Release(ref formatConditions!);
                 ComUtilities.Release(ref range!);
                 ComUtilities.Release(ref sheet!);
             }
         });
+    }
+
+    /// <summary>
+    /// Adds a basic (cellValue/expression) rule and applies interior/font/border formatting.
+    /// </summary>
+    private static void AddBasicRule(
+        dynamic formatConditions,
+        string normalizedType,
+        string? operatorType,
+        string? formula1,
+        string? formula2,
+        string? interiorColor,
+        string? interiorPattern,
+        string? fontColor,
+        bool? fontBold,
+        bool? fontItalic,
+        string? borderStyle,
+        string? borderColor)
+    {
+        dynamic? formatCondition = null;
+
+        try
+        {
+            var xlType = normalizedType == "expression" ? 2 : 1;
+            var xlOperator = ParseConditionalFormattingOperator(operatorType);
+
+            formatCondition = formatConditions.Add(
+                Type: xlType,
+                Operator: xlOperator,
+                Formula1: formula1 ?? "",
+                Formula2: formula2 ?? "");
+
+            ApplyRuleFormatting(formatCondition,
+                interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+        }
+        finally
+        {
+            ComUtilities.Release(ref formatCondition!);
+        }
+    }
+
+    /// <summary>
+    /// Applies interior/font/border formatting to a format condition. Shared by rule types
+    /// that support cell formatting (cellValue, expression, top10, aboveAverage, timePeriod, etc.).
+    /// </summary>
+    private static void ApplyRuleFormatting(
+        dynamic formatCondition,
+        string? interiorColor,
+        string? interiorPattern,
+        string? fontColor,
+        bool? fontBold,
+        bool? fontItalic,
+        string? borderStyle,
+        string? borderColor)
+    {
+        dynamic? interior = null;
+        dynamic? font = null;
+        dynamic? borders = null;
+
+        try
+        {
+            // Apply Interior formatting
+            if (!string.IsNullOrEmpty(interiorColor) || !string.IsNullOrEmpty(interiorPattern))
+            {
+                interior = formatCondition.Interior;
+                if (!string.IsNullOrEmpty(interiorColor))
+                    interior.Color = FormattingHelpers.ParseColor(interiorColor);
+                if (!string.IsNullOrEmpty(interiorPattern))
+                    interior.Pattern = ParseInteriorPattern(interiorPattern);
+            }
+
+            // Apply Font formatting
+            if (!string.IsNullOrEmpty(fontColor) || fontBold.HasValue || fontItalic.HasValue)
+            {
+                font = formatCondition.Font;
+                if (!string.IsNullOrEmpty(fontColor))
+                    font.Color = FormattingHelpers.ParseColor(fontColor);
+                if (fontBold.HasValue)
+                    font.Bold = fontBold.Value;
+                if (fontItalic.HasValue)
+                    font.Italic = fontItalic.Value;
+            }
+
+            // Apply Border formatting
+            if (!string.IsNullOrEmpty(borderStyle) || !string.IsNullOrEmpty(borderColor))
+            {
+                borders = formatCondition.Borders;
+                // NOTE: FormatCondition.Borders is a 4-item collection indexed 1-4
+                // (left/top/bottom/right), unlike Range.Borders which uses the
+                // xlEdgeLeft(7)/xlEdgeTop(8)/xlEdgeBottom(9)/xlEdgeRight(10) constants.
+                // Item(7-10) on FormatCondition.Borders returns an unbound placeholder
+                // that can be read but throws COMException when its properties are set.
+                if (!string.IsNullOrEmpty(borderStyle))
+                {
+                    var xlBorderStyle = FormattingHelpers.ParseBorderStyle(borderStyle);
+                    borders.Item(1).LineStyle = xlBorderStyle; // left
+                    borders.Item(2).LineStyle = xlBorderStyle; // top
+                    borders.Item(3).LineStyle = xlBorderStyle; // bottom
+                    borders.Item(4).LineStyle = xlBorderStyle; // right
+                }
+                if (!string.IsNullOrEmpty(borderColor))
+                {
+                    var color = FormattingHelpers.ParseColor(borderColor);
+                    borders.Item(1).Color = color; // left
+                    borders.Item(2).Color = color; // top
+                    borders.Item(3).Color = color; // bottom
+                    borders.Item(4).Color = color; // right
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref borders!);
+            ComUtilities.Release(ref font!);
+            ComUtilities.Release(ref interior!);
+        }
     }
 
     /// <inheritdoc />
@@ -271,9 +413,10 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
             {
                 fc = formatConditions.Item(i);
 
+                int typeNum = ReadRuleTypeInt(fc);
                 var rule = new ConditionalFormatRuleInfo
                 {
-                    Type = ReadRuleType(fc)
+                    Type = typeNum >= 0 ? ConditionalFormattingTypeToString(typeNum) : "unknown"
                 };
 
                 rule.Operator = ReadRuleOperator(fc);
@@ -343,6 +486,17 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 }
                 catch (Exception ex) when (IsComOrBinderException(ex)) { }
 
+                // Type-specific configuration (visual rule types).
+                switch (typeNum)
+                {
+                    case 3: rule.ColorScaleCriteria = ReadColorScale(fc); break;   // xlColorScale
+                    case 4: rule.DataBar = ReadDataBar(fc); break;                 // xlDatabar
+                    case 5: rule.Top10 = ReadTop10(fc); break;                     // xlTop10
+                    case 6: rule.IconSet = ReadIconSet(fc); break;                 // xlIconSet
+                    case 11: rule.DatePeriod = ReadTimePeriod(fc); break;          // xlTimePeriod
+                    case 12: rule.AboveBelow = ReadAboveBelow(fc); break;          // xlAboveAverageCondition
+                }
+
                 rules.Add(rule);
             }
             finally
@@ -359,10 +513,10 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         return rules;
     }
 
-    private static string ReadRuleType(dynamic fc)
+    private static int ReadRuleTypeInt(dynamic fc)
     {
-        try { return ConditionalFormattingTypeToString(Convert.ToInt32(fc.Type, System.Globalization.CultureInfo.InvariantCulture)); }
-        catch (Exception ex) when (IsComOrBinderException(ex)) { return "unknown"; }
+        try { return Convert.ToInt32(fc.Type, System.Globalization.CultureInfo.InvariantCulture); }
+        catch (Exception ex) when (IsComOrBinderException(ex)) { return -1; }
     }
 
     private static string? ReadRuleOperator(dynamic fc)
@@ -429,34 +583,6 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         ex is Microsoft.CSharp.RuntimeBinder.RuntimeBinderException
         or System.Runtime.InteropServices.COMException
         or System.InvalidCastException;
-
-    private static int ParseConditionalFormattingType(string type)
-    {
-        return type.ToLowerInvariant() switch
-        {
-            "cellvalue" => 1, // xlCellValue
-            "cell-value" => 1, // xlCellValue (kebab-case alias)
-            "expression" => 2, // xlExpression
-            "colorscale" => 3, // xlColorScale
-            "color-scale" => 3, // xlColorScale (kebab-case alias)
-            "databar" => 4, // xlDatabar
-            "data-bar" => 4, // xlDatabar (kebab-case alias)
-            "top10" => 5, // xlTop10
-            "iconset" => 6, // xlIconSet
-            "icon-set" => 6, // xlIconSet (kebab-case alias)
-            "uniquevalues" => 8, // xlUniqueValues
-            "unique-values" => 8, // xlUniqueValues (kebab-case alias)
-            "blankscondition" => 10, // xlBlanksCondition
-            "blanks-condition" => 10, // xlBlanksCondition (kebab-case alias)
-            "timeperiod" => 11, // xlTimePeriod
-            "time-period" => 11, // xlTimePeriod (kebab-case alias)
-            "aboveaverage" => 12, // xlAboveAverageCondition
-            "above-average" => 12, // xlAboveAverageCondition (kebab-case alias)
-            _ => throw new ArgumentException(
-                $"Invalid conditional formatting type: '{type}'. " +
-                "Valid values: cellValue, expression, colorScale, dataBar, top10, iconSet, uniqueValues, blanksCondition, timePeriod, aboveAverage")
-        };
-    }
 
     private static int ParseConditionalFormattingOperator(string? operatorType)
     {
