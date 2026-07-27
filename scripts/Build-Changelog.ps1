@@ -143,9 +143,31 @@ if ($headerIdx -ge $newSectionLines.Count -or $newSectionLines[$headerIdx] -notm
 $newSectionLines[$headerIdx] = "## [$Version] - $Date"
 $newSection = ($newSectionLines -join "`n").Trim()
 
-# --- Step 5: reassemble CHANGELOG.md: title + normalized new section + untouched body.
-$beforeBodyTrimmed = $beforeBody.TrimStart("`r", "`n")
-$finalContent = "$titleLine`n`n$newSection`n`n$beforeBodyTrimmed".TrimEnd() + "`n"
+# --- Step 5: reassemble CHANGELOG.md as: title + preamble + new section + prior
+# versions. The preamble is any prose between the title and the first `## [` version
+# heading. Inserting the new section *after* the preamble — rather than immediately
+# after the title line — keeps the preamble pinned at the top. Inserting after the
+# title (the previous behavior) pushed the preamble one release further down every
+# time, which is how it eventually ended up buried among old version entries.
+$beforeBodyLines = $beforeBody -split "`n"
+$firstVersionIdx = -1
+for ($i = 0; $i -lt $beforeBodyLines.Count; $i++) {
+    if ($beforeBodyLines[$i] -match '^##\s+\[') { $firstVersionIdx = $i; break }
+}
+if ($firstVersionIdx -le 0) {
+    # No preamble (body starts at, or before, the first version heading).
+    $preambleBlock = ''
+    $priorVersions = $beforeBody.Trim("`r", "`n")
+}
+else {
+    $preambleBlock = (($beforeBodyLines[0..($firstVersionIdx - 1)]) -join "`n").Trim("`r", "`n")
+    $priorVersions = (($beforeBodyLines[$firstVersionIdx..($beforeBodyLines.Count - 1)]) -join "`n").Trim("`r", "`n")
+}
+$sections = @($titleLine)
+if (-not [string]::IsNullOrWhiteSpace($preambleBlock)) { $sections += $preambleBlock }
+$sections += $newSection
+if (-not [string]::IsNullOrWhiteSpace($priorVersions)) { $sections += $priorVersions }
+$finalContent = ($sections -join "`n`n").TrimEnd() + "`n"
 Set-Content -LiteralPath $changelogPath -Value $finalContent -NoNewline
 
 # --- Step 6: keep package.json's bookkeeping version in exact sync with the real
