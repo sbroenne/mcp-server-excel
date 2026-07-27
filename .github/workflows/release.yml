@@ -710,14 +710,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
 
     steps:
+    # The changelog commit-back reads main's current tip and writes the new
+    # commit through the Git Data API (see "Commit Changelog Update"), so it
+    # does not rebase locally. A shallow checkout is enough here.
     - uses: actions/checkout@v5
-      with:
-        # Full history so the changelog commit-back can rebase onto main if it
-        # advanced during the release build (a shallow clone breaks rebase).
-        fetch-depth: 0
 
     - name: Set Version
       run: |
@@ -784,30 +782,30 @@ jobs:
     # Build-Changelog.ps1 above (and the consumed .changeset/*.md deletions)
     # directly back to main.
     #
-    # This repo is user-owned, so the github-actions bot CANNOT be granted a
-    # branch-protection (ruleset) bypass -- GitHub only allows Integration
-    # bypass actors in organizations. As a result the default GITHUB_TOKEN can
-    # neither push to protected main nor merge a PR that has required status
-    # checks. Previous releases worked around this with a changelog PR +
-    # auto-merge, but that PR could never satisfy the required checks
-    # (bot-authored PRs don't trigger workflows, and the commit carries
-    # [skip ci]), so it piled up open forever and left main without its
-    # changelog entry.
+    # WHY THIS USES THE GIT DATA API INSTEAD OF A PR:
     #
-    # RELEASE_PAT is an admin Personal Access Token owned by the repo owner,
-    # who IS a ruleset bypass actor (Repository admin role). It can therefore
-    # merge this bookkeeping PR straight into main, bypassing branch
-    # protection -- no stuck PR waiting on required checks.
+    # main is protected by a ruleset whose ONLY bypass actor is the "Repository
+    # admin" role (bypass_mode: always). This repo is user-owned, so the
+    # github-actions bot cannot be added as a bypass actor (GitHub only allows
+    # that for GitHub Apps in organizations). The default GITHUB_TOKEN therefore
+    # can neither push to main nor satisfy the required PR / status-check /
+    # Copilot-review rules for a bookkeeping commit.
     #
-    # IMPORTANT: this pushes the commit to a side branch and merges it via
-    # `gh pr merge --admin`, rather than `git push HEAD:main` directly.
-    # A real release (2026-07-23, v1.10.1) proved that GitHub can reject a
-    # raw `git push` to a ruleset-protected branch from *inside* a GitHub
-    # Actions runner even when the same PAT, used interactively from a
-    # developer machine minutes earlier, successfully bypassed the identical
-    # ruleset ("Bypassed rule violations..."). The admin-merge API path does
-    # not have this Actions-runner restriction, and was verified working for
-    # the same PAT/ruleset combination as a manual recovery for that release.
+    # RELEASE_PAT is owned by the repo owner, who IS the admin bypass actor, so
+    # an admin-authenticated write to main bypasses those rules. Two earlier
+    # approaches both failed in real releases:
+    #   * `git push HEAD:main` from inside the runner -- rejected by the ruleset
+    #     (v1.10.1); a raw push is not reliably attributed to the PAT's admin
+    #     identity, so the bypass did not apply.
+    #   * changelog PR + `gh pr merge --admin` -- RELEASE_PAT is a fine-grained
+    #     token WITHOUT "pull requests: write", so `createPullRequest` fails with
+    #     "Resource not accessible by personal access token" (this broke v1.10.2).
+    #
+    # The Git Data API path below (create blob -> tree -> commit -> update ref)
+    # only needs "contents: write" -- which the PAT provably has -- and every
+    # call is unambiguously authenticated as the admin bypass actor via gh api,
+    # so the ref update on main is allowed to bypass the ruleset. No side
+    # branch, no PR, nothing to get stuck.
     - name: Commit Changelog Update
       env:
         GH_TOKEN: ${{ secrets.RELEASE_PAT }}
@@ -815,55 +813,65 @@ jobs:
         set -euo pipefail
 
         VERSION=${{ env.VERSION }}
-        BRANCH="chore/changelog-v${VERSION}"
         REPO="${{ github.repository }}"
 
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
+        if [ -z "${GH_TOKEN:-}" ]; then
+          echo "::error::RELEASE_PAT secret is not configured. Add an admin Personal Access Token with 'contents: write' as the repo secret RELEASE_PAT so the changelog can be committed back to main."
+          exit 1
+        fi
 
-        git add CHANGELOG.md package.json .changeset
+        # Stage exactly the files Build-Changelog.ps1 touches: the regenerated
+        # CHANGELOG.md / package.json plus the consumed .changeset/*.md fragments.
+        git add -A CHANGELOG.md package.json .changeset
         if git diff --cached --quiet; then
           echo "No changelog changes to commit -- skipping."
           exit 0
         fi
 
-        git commit -m "chore: update CHANGELOG.md for v${VERSION} release [skip ci]"
+        # Base the new commit on the CURRENT tip of main: the release build can
+        # run for a long time, so main may have advanced since this job checked
+        # out. Making our commit's parent that tip keeps the ref update a
+        # fast-forward; if main advances again between this read and the update
+        # below, the ref PATCH fails loudly rather than clobbering that work.
+        BASE_SHA=$(gh api "repos/$REPO/git/ref/heads/main" --jq '.object.sha')
+        BASE_TREE=$(gh api "repos/$REPO/git/commits/$BASE_SHA" --jq '.tree.sha')
+        echo "Basing changelog commit on main@$BASE_SHA"
 
-        if [ -z "${GH_TOKEN}" ]; then
-          echo "::error::RELEASE_PAT secret is not configured. Create an admin PAT with 'contents: write' and 'pull-requests: write' and add it as the repo secret RELEASE_PAT so the changelog can be committed to main."
-          exit 1
-        fi
+        # Build Git tree entries from the staged diff: modified/added files get a
+        # fresh blob; deleted changeset fragments get sha=null to remove them.
+        tree_entries='[]'
+        while IFS=$'\t' read -r status path; do
+          [ -z "$path" ] && continue
+          if [ "$status" = "D" ]; then
+            echo "  delete  $path"
+            entry=$(jq -n --arg path "$path" '{path:$path, mode:"100644", type:"blob", sha:null}')
+          else
+            echo "  write   $path"
+            base64 -w0 "$path" > blob.b64
+            blob_sha=$(gh api "repos/$REPO/git/blobs" --method POST \
+              -f encoding=base64 -F content=@blob.b64 --jq '.sha')
+            rm -f blob.b64
+            entry=$(jq -n --arg path "$path" --arg sha "$blob_sha" \
+              '{path:$path, mode:"100644", type:"blob", sha:$sha}')
+          fi
+          tree_entries=$(jq -c --argjson e "$entry" '. + [$e]' <<<"$tree_entries")
+        done < <(git diff --cached --name-status)
 
-        # Rebase onto the latest main before publishing the side branch --
-        # the release build can run for a long time, so main may have
-        # advanced since checkout, which would otherwise make the PR
-        # unmergeable.
-        REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
-        git fetch "$REMOTE" main
-        git rebase FETCH_HEAD
+        # Create the tree, the commit (parented on the current main tip), and
+        # fast-forward main to it -- all as the admin bypass actor.
+        new_tree=$(jq -n --arg base "$BASE_TREE" --argjson tree "$tree_entries" \
+          '{base_tree:$base, tree:$tree}' \
+          | gh api "repos/$REPO/git/trees" --method POST --input - --jq '.sha')
 
-        # Push the commit to a side branch (never straight to main -- see
-        # note above), open a PR, then merge it with admin bypass so it
-        # doesn't get stuck on required status checks (the commit carries
-        # [skip ci], so no checks would ever run against it).
-        git push "$REMOTE" "HEAD:refs/heads/${BRANCH}" --force
+        new_commit=$(jq -n \
+          --arg msg "chore: update CHANGELOG.md for v${VERSION} release [skip ci]" \
+          --arg tree "$new_tree" --arg parent "$BASE_SHA" \
+          '{message:$msg, tree:$tree, parents:[$parent]}' \
+          | gh api "repos/$REPO/git/commits" --method POST --input - --jq '.sha')
 
-        # Idempotent: if a PR for this branch already exists (e.g. a rerun
-        # after a transient failure), reuse it instead of failing on create.
-        PR_URL=$(gh pr view "$BRANCH" --repo "$REPO" --json url --jq '.url' 2>/dev/null || true)
-        if [ -z "$PR_URL" ]; then
-          PR_URL=$(gh pr create \
-            --repo "$REPO" \
-            --base main \
-            --head "$BRANCH" \
-            --title "chore: update CHANGELOG.md for v${VERSION} release" \
-            --body "Automated changelog commit-back for the v${VERSION} release. No code changes." \
-            --label skip-changelog)
-        fi
-
-        echo "Changelog PR: $PR_URL"
-        gh pr merge "$PR_URL" --repo "$REPO" --squash --admin --delete-branch
-        echo "Merged changelog update for v${VERSION} into main."
+        gh api "repos/$REPO/git/refs/heads/main" --method PATCH \
+          -f sha="$new_commit" -F force=false >/dev/null
+        echo "Committed changelog update for v${VERSION} to main@$new_commit."
       # Intentionally NOT continue-on-error: a silently swallowed failure here
       # is exactly what caused several past releases to be missing their
       # changelog commit-back. Let it fail loudly so it gets noticed and fixed.
