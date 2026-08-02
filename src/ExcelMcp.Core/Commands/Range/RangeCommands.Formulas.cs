@@ -39,10 +39,10 @@ public partial class RangeCommands
                 int startRow = Convert.ToInt32(range.Row);
                 int startColumn = Convert.ToInt32(range.Column);
 
-                // Get formulas and values - handle single cell case
-                // Use Formula2 (modern) instead of Formula (legacy) to avoid implicit intersection (@)
-                // operator being injected in Excel Table cells. Formula2 respects dynamic array semantics.
-                object formulaOrArray = range.Formula2;
+                // Get formulas and values - handle single cell case.
+                // Prefer Formula2 (dynamic arrays); fall back to Formula on Excel builds that
+                // reject Formula2 with 0x800A03EC (Excel 2019 / some locales — issue #750).
+                object formulaOrArray = ComUtilities.GetRangeFormulas(range);
                 object valueOrArray = range.Value2;
 
                 if (formulaOrArray is object[,] formulas && valueOrArray is object[,] values)
@@ -228,10 +228,8 @@ public partial class RangeCommands
                         }
                     }
 
-                    // Use Formula2 (modern) instead of Formula (legacy) to prevent Excel from
-                    // injecting the @ implicit intersection operator in table cells, which causes
-                    // #FIELD! errors with custom functions that return entity cards.
-                    range.Formula2 = arrayFormulas;
+                    // Prefer Formula2; fall back to Formula when Formula2 is unavailable (issue #750).
+                    ComUtilities.SetRangeFormulas(range, arrayFormulas);
                 }
 
                 result.Success = true;
