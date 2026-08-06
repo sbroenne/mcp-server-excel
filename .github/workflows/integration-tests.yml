@@ -256,6 +256,46 @@ jobs:
           --blame-hang-timeout 15m
           -- RunConfiguration.MaxCpuCount=1
 
+      # --- Excel-dependent smoke tests (ported from scripts/pre-commit.ps1) ---
+      # These require a real Excel installation, so they cannot run on the
+      # GitHub-hosted `windows-latest` runner used by the CI Gate workflow.
+      # This self-hosted [self-hosted, windows, excel] runner has Excel
+      # installed, so they run here on every PR instead of being local-only.
+
+      - name: Run CLI workflow smoke test
+        if: github.event_name == 'pull_request' || inputs.scope == 'full'
+        shell: pwsh
+        run: |
+          & scripts/Test-CliWorkflow.ps1
+          if ($LASTEXITCODE -ne 0) {
+            throw "CLI workflow smoke test failed."
+          }
+
+      - name: Run MCP Server smoke test
+        if: github.event_name == 'pull_request' || inputs.scope == 'full'
+        shell: pwsh
+        run: |
+          & scripts/Stop-ExcelMcpProcesses.ps1
+
+          $smokeTestFilter = "FullyQualifiedName~McpServerSmokeTests.SmokeTest_AllTools_E2EWorkflow"
+          $testOutput = dotnet test tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj `
+            --configuration Release --no-build `
+            --filter $smokeTestFilter `
+            --logger "trx;LogFileName=mcp-smoke.trx" `
+            --blame-hang-timeout 15m `
+            --nologo 2>&1 | Out-String
+          $testExitCode = $LASTEXITCODE
+
+          Write-Host $testOutput
+
+          if (-not ($testOutput -match "Passed!.*Passed:\s*[1-9]")) {
+            throw "No MCP smoke tests passed! Filter may have matched zero tests: $smokeTestFilter"
+          }
+
+          if ($testExitCode -ne 0) {
+            throw "MCP Server smoke test failed."
+          }
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
