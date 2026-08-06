@@ -597,5 +597,10 @@ catch {
 }
 
 Write-Host ""
+Write-Host "Stopping build servers..." -ForegroundColor Cyan
+Stop-DotNetBuildServers
+Write-Host "Build server cleanup done" -ForegroundColor Green
+
+Write-Host ""
 Write-Host "All pre-commit checks passed!" -ForegroundColor Green
 exit 0

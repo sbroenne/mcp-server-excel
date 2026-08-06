@@ -42,6 +42,16 @@ Run only selected plans while developing:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Run-BaselineBenchmarks.ps1 -Profile quick -Plans '04,05,06' -ShowExcel
 ```
 
+Validate the benchmark/reporting logic without running the real-Excel workloads:
+
+```powershell
+dotnet test .\benchmarks\ExcelMcp.Benchmarks.Tests\ExcelMcp.Benchmarks.Tests.csproj `
+  --configuration Release `
+  -p:ExcelMcpSkipSkillGeneration=true
+```
+
+The skip property applies only to the MCP server's release-time skill-document generation. The benchmark still builds and exercises the same server code; avoiding that unrelated build task prevents its loaded assembly from locking a subsequent benchmark build.
+
 The harness creates unique temporary workbooks, owns only the Excel processes it starts, and never terminates pre-existing Excel processes. `-ShowExcel` makes those test instances visible; omit it for lower-noise timings.
 
 Exit code `0` means every acceptance invariant passed. Exit code `2` means the run completed and wrote reports but one or more planned capabilities or safety checks are still red. Exit code `1` is a harness/runtime failure; `3` is cancellation or maximum-duration expiry.

@@ -42,9 +42,15 @@ if ($existingExcel.Count -gt 0) {
 $env:ExcelMcpSkipCleanup = 'true'
 $env:EXCELMCP_TELEMETRY_OPTOUT = 'true'
 
-dotnet build $projectPath -c Release --nologo /p:ExcelMcpSkipCleanup=true
-if ($LASTEXITCODE -ne 0) {
-    exit $LASTEXITCODE
+dotnet build-server shutdown *> $null
+try {
+    dotnet build $projectPath -c Release --nologo -p:ExcelMcpSkipCleanup=true -p:ExcelMcpSkipSkillGeneration=true -nodeReuse:false
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
+}
+finally {
+    dotnet build-server shutdown *> $null
 }
 
 $benchmarkArguments = @(
