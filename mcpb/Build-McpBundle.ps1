@@ -30,13 +30,13 @@
     mcpb/artifacts/excel-mcp-{version}.mcpb
 
     Contents:
-    ├── manifest.json
-    ├── icon-512.png
-    ├── README.md
-    ├── LICENSE
-    ├── CHANGELOG.md
-    └── server/
-        └── excel-mcp-server.exe
+    |-- manifest.json
+    |-- icon-512.png
+    |-- README.md
+    |-- LICENSE
+    |-- CHANGELOG.md
+    `-- server/
+        `-- excel-mcp-server.exe
 #>
 
 [CmdletBinding()]
@@ -55,7 +55,7 @@ $McpbDir = $PSScriptRoot
 $RootDir = Split-Path $McpbDir -Parent
 $McpServerDir = Join-Path $RootDir "src/ExcelMcp.McpServer"
 
-Write-Host "🏗️  Building MCPB (MCP Bundle) package..." -ForegroundColor Cyan
+Write-Host "Building MCPB (MCP Bundle) package..." -ForegroundColor Cyan
 Write-Host ""
 
 # Determine version
@@ -69,7 +69,7 @@ if (-not $Version) {
         $Version = "1.0.0"
     }
 }
-Write-Host "📋 Version: $Version" -ForegroundColor Green
+Write-Host "Version: $Version" -ForegroundColor Green
 
 # Create output directory (relative to mcpb directory)
 $OutputDir = Join-Path $McpbDir $OutputDir
@@ -83,7 +83,7 @@ $StagingDir = Join-Path $OutputDir "staging"
 New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
 
 Write-Host ""
-Write-Host "📦 Publishing self-contained executable..." -ForegroundColor Yellow
+Write-Host "Publishing self-contained executable..." -ForegroundColor Yellow
 
 # Build self-contained executable with inline publish settings
 # Note: ReadyToRun=false keeps exe small (~15 MB vs 100+ MB)
@@ -106,26 +106,26 @@ $PublishArgs = @(
 
 & dotnet @PublishArgs
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Publish failed!" -ForegroundColor Red
+    Write-Host "ERROR: Publish failed!" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "   ✓ Built Sbroenne.ExcelMcp.McpServer.exe" -ForegroundColor Green
+Write-Host "   OK: Built Sbroenne.ExcelMcp.McpServer.exe" -ForegroundColor Green
 
 # Create server subdirectory and rename exe to match manifest
 $ServerDir = Join-Path $StagingDir "server"
 New-Item -ItemType Directory -Path $ServerDir -Force | Out-Null
 $FinalExePath = Join-Path $ServerDir "excel-mcp-server.exe"
 Move-Item (Join-Path $StagingDir "Sbroenne.ExcelMcp.McpServer.exe") $FinalExePath -Force
-Write-Host "   ✓ Renamed to server/excel-mcp-server.exe" -ForegroundColor Green
+Write-Host "   OK: Renamed to server/excel-mcp-server.exe" -ForegroundColor Green
 
 # Verify executable works
 $VersionOutput = & $FinalExePath --version 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Executable verification failed!" -ForegroundColor Red
+    Write-Host "ERROR: Executable verification failed!" -ForegroundColor Red
     exit 1
 }
-Write-Host "   ✓ Verified: $VersionOutput" -ForegroundColor Green
+Write-Host "   OK: Verified: $VersionOutput" -ForegroundColor Green
 
 # Copy manifest.json and update version
 $ManifestSrc = Join-Path $McpbDir "manifest.json"
@@ -134,31 +134,31 @@ $ManifestContent = Get-Content $ManifestSrc -Raw
 # Update all version fields in manifest
 $ManifestContent = $ManifestContent -replace '"version":\s*"[\d\.]+"', "`"version`": `"$Version`""
 Set-Content $ManifestDst $ManifestContent -NoNewline
-Write-Host "   ✓ Copied manifest.json (version: $Version)" -ForegroundColor Green
+Write-Host "   OK: Copied manifest.json (version: $Version)" -ForegroundColor Green
 
 # Copy icon from mcpb directory
 $IconSrc = Join-Path $McpbDir "icon-512.png"
 $IconDst = Join-Path $StagingDir "icon-512.png"
 Copy-Item $IconSrc $IconDst -Force
-Write-Host "   ✓ Copied icon-512.png" -ForegroundColor Green
+Write-Host "   OK: Copied icon-512.png" -ForegroundColor Green
 
 # Copy README.md from mcpb directory (end-user documentation)
 $ReadmeSrc = Join-Path $McpbDir "README.md"
 $ReadmeDst = Join-Path $StagingDir "README.md"
 Copy-Item $ReadmeSrc $ReadmeDst -Force
-Write-Host "   ✓ Copied README.md" -ForegroundColor Green
+Write-Host "   OK: Copied README.md" -ForegroundColor Green
 
 # Copy LICENSE from root directory (required for MCPB submission)
 $LicenseSrc = Join-Path $RootDir "LICENSE"
 $LicenseDst = Join-Path $StagingDir "LICENSE"
 Copy-Item $LicenseSrc $LicenseDst -Force
-Write-Host "   ✓ Copied LICENSE" -ForegroundColor Green
+Write-Host "   OK: Copied LICENSE" -ForegroundColor Green
 
 # Copy CHANGELOG.md from root directory (recommended for MCPB submission)
 $ChangelogSrc = Join-Path $RootDir "CHANGELOG.md"
 $ChangelogDst = Join-Path $StagingDir "CHANGELOG.md"
 Copy-Item $ChangelogSrc $ChangelogDst -Force
-Write-Host "   ✓ Copied CHANGELOG.md" -ForegroundColor Green
+Write-Host "   OK: Copied CHANGELOG.md" -ForegroundColor Green
 
 # Note: Agent Skills are NOT included in MCPB bundle - Claude Desktop doesn't use them.
 # Skills are only bundled with the VS Code extension (via chatSkills contribution point).
@@ -168,7 +168,7 @@ $McpbFileName = "excel-mcp-$Version.mcpb"
 $McpbPath = Join-Path $OutputDir $McpbFileName
 
 Write-Host ""
-Write-Host "📦 Creating MCPB bundle..." -ForegroundColor Yellow
+Write-Host "Creating MCPB bundle..." -ForegroundColor Yellow
 
 # Get files/directories to include (manifest.json, icon, README, LICENSE, CHANGELOG at root, server/ directory with exe)
 $FilesToZip = @(
@@ -184,11 +184,15 @@ $FilesToZip = @(
 $McpMetaDir = Join-Path $StagingDir ".mcp"
 if (Test-Path $McpMetaDir) {
     Remove-Item -Recurse -Force $McpMetaDir
-    Write-Host "   ✓ Removed .mcp directory (not needed in MCPB)" -ForegroundColor DarkGray
+    Write-Host "   OK: Removed .mcp directory (not needed in MCPB)" -ForegroundColor DarkGray
 }
 
-Compress-Archive -Path $FilesToZip -DestinationPath $McpbPath -Force
-Write-Host "   ✓ Created $McpbFileName" -ForegroundColor Green
+# Compress-Archive only accepts a .zip destination on Windows PowerShell.
+# Build the ZIP first, then rename it to the MCPB extension.
+$McpbZipPath = [System.IO.Path]::ChangeExtension($McpbPath, ".zip")
+Compress-Archive -Path $FilesToZip -DestinationPath $McpbZipPath -Force
+Move-Item -LiteralPath $McpbZipPath -Destination $McpbPath -Force
+Write-Host "   OK: Created $McpbFileName" -ForegroundColor Green
 
 # Copy manifest to output dir for verification
 Copy-Item $ManifestDst (Join-Path $OutputDir "manifest.json") -Force
@@ -199,13 +203,13 @@ Remove-Item -Recurse -Force $StagingDir
 # Show results
 $McpbSize = (Get-Item $McpbPath).Length / 1MB
 Write-Host ""
-Write-Host "✅ MCPB bundle created successfully!" -ForegroundColor Green
+Write-Host "MCPB bundle created successfully!" -ForegroundColor Green
 Write-Host ""
-Write-Host "📁 Output:" -ForegroundColor Cyan
+Write-Host "Output:" -ForegroundColor Cyan
 Write-Host "   $McpbPath" -ForegroundColor White
 Write-Host "   Size: $([math]::Round($McpbSize, 1)) MB" -ForegroundColor White
 Write-Host ""
-Write-Host "📋 Contents:" -ForegroundColor Cyan
+Write-Host "Contents:" -ForegroundColor Cyan
 
 # List mcpb contents
 $McpbContents = [System.IO.Compression.ZipFile]::OpenRead($McpbPath)
@@ -219,11 +223,11 @@ try {
 }
 
 Write-Host ""
-Write-Host "🚀 Installation:" -ForegroundColor Cyan
+Write-Host "Installation:" -ForegroundColor Cyan
 Write-Host "   Double-click the .mcpb file to install in Claude Desktop" -ForegroundColor White
 Write-Host "   Or drag-and-drop onto Claude Desktop window" -ForegroundColor White
 Write-Host ""
-Write-Host "📤 Distribution:" -ForegroundColor Cyan
+Write-Host "Distribution:" -ForegroundColor Cyan
 Write-Host "   1. Upload $McpbFileName to GitHub release" -ForegroundColor White
 Write-Host "   2. Users can download and double-click to install" -ForegroundColor White
 Write-Host "   3. Submit to Anthropic Directory for discoverability" -ForegroundColor White
