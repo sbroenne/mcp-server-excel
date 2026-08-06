@@ -49,7 +49,7 @@
 - 📁 **Files** (1 tool, 11 ops) - Session management, preflight, safety configuration, journals, checkpoints, recovery, and workbook creation
 - 🧮 **Calculation Mode** (1 tool, 3 ops) - Get/set calculation mode and trigger recalculation
 - 🎚️ **Slicers** (1 tool, 8 ops) - Interactive filtering for PivotTables and Tables
-- 🎨 **Conditional Formatting** (1 tool, 4 ops) - Add, inspect, and clear rules, including visual rule types
+- 🎨 **Conditional Formatting** (1 tool, 4 ops) - Add, clear, and inspect rules, including visual rule types
 - 🐍 **Python in Excel** (1 tool, 2 ops) - Write and inspect cloud-backed `=PY()` formulas
 - 📸 **Screenshot** (1 tool, 2 ops) - Capture ranges/sheets as PNG for LLM visual verification
 - 🪧 **Window Management** (1 tool, 9 ops) - Show/hide Excel, arrange, position, status bar feedback

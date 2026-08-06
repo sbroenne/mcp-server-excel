@@ -77,14 +77,11 @@ Quick reference:
 - `codeql.yml` - Security analysis
 - `dependency-review.yml` - Dependency security scanning
 
-**Excel Integration Tests:**
-- `integration-tests.yml` starts the cost-optimized Azure runner, runs the real Excel integration suite, and deallocates the VM.
-- A same-repository PR runs the full suite once when it is opened as ready or moves from draft to ready. There is no nightly schedule.
-- Manual dispatch defaults to one Core feature and also supports individual ComInterop, MCP, CLI, and ComInterop OnDemand session scopes.
-- The full merge gate includes the ComInterop OnDemand session tests. It excludes Core OnDemand diagnostics that intentionally require optional Python licensing, IRM-protected files, or manual CPU analysis.
-- During development, reproduce one test locally and run only the affected feature remotely. The ruleset requires `Full Excel integration suite` on the latest PR commit; scoped runs use a different check name and cannot satisfy the merge gate.
-- The VM has a five-hour auto-shutdown watchdog in case workflow cleanup cannot run.
-- See `docs/AZURE_SELFHOSTED_RUNNER_SETUP.md` for provisioning and maintenance.
+**Excel-Dependent Local Verification:**
+- GitHub-hosted runners do not have Excel, and the repository has no self-hosted Excel runner.
+- Before merge, run the relevant Excel integration tests locally with an explicit timeout.
+- Run the canonical Excel-dependent E2E command: `& .\scripts\Test-E2E.ps1`.
+- Record the result and check the E2E attestation in the pull request template only when the command finishes without failures or unresolved issues.
 
 ## Workflow Config Updates
 

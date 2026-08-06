@@ -452,6 +452,39 @@ in
         AssertSuccess(addRuleResult, "Add conditional format rule");
         _output.WriteLine("  ✓ conditionalformat: AddRule passed");
 
+        var addTypedRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
+        {
+            ["action"] = "add-rule",
+            ["path"] = _testExcelFile,
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "C2:C3",
+            ["rule_type"] = "top10",
+            ["rank"] = 7,
+            ["top10_percent"] = true,
+            ["font_bold"] = true,
+            ["font_italic"] = false
+        });
+        AssertSuccess(addTypedRuleResult, "Add typed conditional format rule");
+
+        var listTypedRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
+        {
+            ["action"] = "list-rules",
+            ["path"] = _testExcelFile,
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "C2:C3"
+        });
+        AssertSuccess(listTypedRuleResult, "List typed conditional format rule");
+
+        using (var typedRuleJson = JsonDocument.Parse(listTypedRuleResult))
+        {
+            var typedRule = Assert.Single(typedRuleJson.RootElement.GetProperty("rules").EnumerateArray());
+            Assert.Equal(7, typedRule.GetProperty("top10").GetProperty("rank").GetInt32());
+            Assert.True(typedRule.GetProperty("top10").GetProperty("percent").GetBoolean());
+        }
+        _output.WriteLine("  ✓ conditionalformat: Typed integer/boolean arguments round-tripped");
+
         // =====================================================================
         // STEP 13: VBA OPERATIONS
         // =====================================================================
@@ -768,8 +801,6 @@ End Sub
         return json.RootElement.TryGetProperty(propertyName, out var prop) ? prop.GetString() : null;
     }
 }
-
-
 
 
 

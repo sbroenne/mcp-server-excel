@@ -22,6 +22,8 @@ Relates to #[issue number]
 - Change 3
 
 ## Testing Performed
+- [ ] Ran `& .\scripts\Test-E2E.ps1` locally and confirmed it completed with no failures or unresolved issues
+- [ ] Ran the relevant feature-specific integration tests and recorded the exact command and result below
 - [ ] Tested manually with various Excel files
 - [ ] Verified Excel process cleanup (no excel.exe remains after 5 seconds)
 - [ ] Tested error conditions (missing files, invalid arguments, etc.)
